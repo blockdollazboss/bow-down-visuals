@@ -40,7 +40,7 @@ describe("the CRUD in-panel", () => {
       "buildDiscountPayload(form)",
       'send("POST", DISCOUNTS_PATH, payload)',
       'send("PATCH", discountPath(code.id), { isActive: !code.isActive })',
-      "Tap again to delete",
+      "discountsDeleteConfirm",
       'send("DELETE", discountPath(code.id))',
       "await load();",
     ]) {
@@ -51,15 +51,15 @@ describe("the CRUD in-panel", () => {
 
   it("state + appliesTo honesty in the frame", () => {
     expect(desk).toContain("discountCodeState(code)");
-    expect(desk).toContain("DISCOUNT_STATE_LABELS[state]");
-    expect(desk).toContain("discountUsageLine(code)");
-    expect(desk).toContain("Applies to ${code.appliesTo}");
+    expect(desk).toContain("DISCOUNT_STATE_KEYS[state]");
+    expect(desk).toContain("discountUsageLine(code, {");
+    expect(desk).toContain('t("worldCommerceStands.discountsAppliesTo", { target: code.appliesTo })');
   });
 
   it("no-profile and load-failure are their own states", () => {
     expect(desk).toContain('data-testid="world-discounts-desk-noprofile"');
     expect(desk).toContain('data-testid="world-discounts-desk-failed"');
-    expect(desk).toContain("Try again");
+    expect(desk).toContain('t("worldCommerceStands.discountsTryAgain")');
   });
 });
 

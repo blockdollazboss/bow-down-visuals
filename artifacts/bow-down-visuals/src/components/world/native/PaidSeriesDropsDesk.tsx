@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   BadgeCheck, CalendarClock, Check, Loader2, Lock, Pencil, Plus, RefreshCw, Sparkles, Trash2, Users,
 } from "lucide-react";
@@ -90,6 +91,15 @@ export function PaidSeriesDropsDesk({ isLight, isGuest }: { isLight: boolean; is
 /* ═══ Paid Series ═══════════════════════════════════════════════ */
 
 function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
+  const problemStrings = {
+    priceCeiling: t("worldCommerceStands.seriesProbCeiling"),
+    priceValid: t("worldCommerceStands.seriesProbValid"),
+    priceMin: t("worldCommerceStands.seriesProbMin"),
+    titleFirst: t("worldCommerceStands.seriesProbTitle"),
+    dropPick: t("worldCommerceStands.seriesProbDropPick"),
+    dropFuture: t("worldCommerceStands.seriesProbDropFuture"),
+  };
   const authHeaders = useAuthHeaders();
   const [mine, setMine] = useState<PaidSeriesDto[] | null>(null);
   const [mineFailed, setMineFailed] = useState(false);
@@ -143,10 +153,10 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
 
   const createSeries = async () => {
     if (creating) return;
-    const problem = seriesCreateProblem(createForm);
+    const problem = seriesCreateProblem(createForm, problemStrings);
     if (problem) { setSeriesError(problem); return; }
     const payload = buildSeriesCreatePayload(createForm);
-    if (!payload) { setSeriesError("That series can't be created as-is — check the title and price."); return; }
+    if (!payload) { setSeriesError(t("worldCommerceStands.seriesCreateBad")); return; }
     setCreating(true);
     setSeriesError(null);
     setSeriesNote(null);
@@ -157,16 +167,16 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "The series didn't start — nothing was created."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.seriesCreateFailed")));
       const saved = parseSavedSeries(data);
-      if (!saved) throw new Error("The series started but its answer came back empty — reopen the stand to see its true state.");
+      if (!saved) throw new Error(t("worldCommerceStands.seriesCreateEmpty"));
       setMine((m) => (m ? [saved, ...m] : [saved]));
       setPriceInputs((p) => ({ ...p, [saved.id]: saved.priceCents ? (saved.priceCents / 100).toFixed(2) : "" }));
       setCreateForm(emptySeriesCreateForm());
       setCreateOpen(false);
-      setSeriesNote(`“${saved.title}” is your series now — add episodes from your library on the website's playlist tools, then set its free preview here.`);
+      setSeriesNote(t("worldCommerceStands.seriesCreatedNote", { title: saved.title }));
     } catch (e) {
-      setSeriesError(plainErrorText(e, "The series didn't start — nothing was created."));
+      setSeriesError(plainErrorText(e, t("worldCommerceStands.seriesCreateFailed")));
     } finally {
       setCreating(false);
     }
@@ -175,10 +185,10 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
   const savePrice = async (s: PaidSeriesDto) => {
     if (savingPriceId) return;
     const typed = priceInputs[s.id] ?? "";
-    const problem = seriesPriceProblem(typed);
+    const problem = seriesPriceProblem(typed, problemStrings);
     if (problem) { setSeriesError(problem); return; }
     const patch = buildSeriesPricePatch(typed);
-    if (!patch) { setSeriesError("Enter a valid price first."); return; }
+    if (!patch) { setSeriesError(t("worldCommerceStands.seriesPriceValidFirst")); return; }
     setSavingPriceId(s.id);
     setSeriesError(null);
     setSeriesNote(null);
@@ -189,13 +199,13 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
         body: JSON.stringify(patch),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "The price didn't save — the series is unchanged."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.seriesPriceFailed")));
       const saved = parseSavedSeries(data);
-      if (!saved) throw new Error("The price saved but its answer came back empty — reopen the stand to see its true state.");
+      if (!saved) throw new Error(t("worldCommerceStands.seriesPriceEmpty"));
       setMine((m) => (m ? m.map((x) => (x.id === saved.id ? saved : x)) : m));
-      setSeriesNote(saved.priceCents ? `“${saved.title}” unlocks for ${centsToDisplay(saved.priceCents)}.` : `“${saved.title}” is free now — no unlock price.`);
+      setSeriesNote(saved.priceCents ? t("worldCommerceStands.seriesPriceSetNote", { title: saved.title, price: centsToDisplay(saved.priceCents) }) : t("worldCommerceStands.seriesPriceFreeNote", { title: saved.title }));
     } catch (e) {
-      setSeriesError(plainErrorText(e, "The price didn't save — the series is unchanged."));
+      setSeriesError(plainErrorText(e, t("worldCommerceStands.seriesPriceFailed")));
     } finally {
       setSavingPriceId(null);
     }
@@ -216,13 +226,13 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
         body: JSON.stringify(buildSeriesPreviewPatch(item)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "The free preview didn't save — the series is unchanged."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.seriesPreviewFailed")));
       const saved = parseSavedSeries(data);
-      if (!saved) throw new Error("The preview saved but its answer came back empty — reopen the stand to see its true state.");
+      if (!saved) throw new Error(t("worldCommerceStands.seriesPreviewEmpty"));
       setMine((m) => (m ? m.map((x) => (x.id === saved.id ? saved : x)) : m));
-      setSeriesNote(item ? `The free preview for “${saved.title}” is set — everyone can watch that one episode free.` : `“${saved.title}” has no free preview now.`);
+      setSeriesNote(item ? t("worldCommerceStands.seriesPreviewSetNote", { title: saved.title }) : t("worldCommerceStands.seriesPreviewClearedNote", { title: saved.title }));
     } catch (e) {
-      setSeriesError(plainErrorText(e, "The free preview didn't save — the series is unchanged."));
+      setSeriesError(plainErrorText(e, t("worldCommerceStands.seriesPreviewFailed")));
     } finally {
       setSavingPreviewId(null);
     }
@@ -234,10 +244,10 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
     try {
       const res = await fetch(`/api/playlists/${s.id}/buyers`, { headers: await authHeaders() });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "The buyer list wouldn't open."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.seriesBuyersFailed")));
       setBuyersById((b) => ({ ...b, [s.id]: parseSeriesBuyers(data) }));
     } catch (e) {
-      setSeriesError(plainErrorText(e, "The buyer list wouldn't open — it's still yours alone, it just didn't load."));
+      setSeriesError(plainErrorText(e, t("worldCommerceStands.seriesBuyersFailedDetail")));
     } finally {
       setBuyersBusyId(null);
     }
@@ -247,7 +257,7 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
   const lookupSeries = async () => {
     if (unlockBusy) return;
     const id = parseSeriesIdInput(unlockInput);
-    if (!id) { setUnlockError("Paste the series link your creator shared — or its series ID."); return; }
+    if (!id) { setUnlockError(t("worldCommerceStands.seriesUnlockNeedLink")); return; }
     setUnlockBusy(true);
     setUnlockError(null);
     setUnlockItem(null);
@@ -255,17 +265,17 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
     try {
       const res = await fetch(`/api/store/item/series/${id}`);
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "That series isn't for sale — it may be free, private, or the link is off."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.seriesUnlockNotForSale")));
       const item = parseSeriesStoreItem(data);
-      if (!item) throw new Error("That series came back without its price — nothing was charged. Try again.");
+      if (!item) throw new Error(t("worldCommerceStands.seriesUnlockNoPrice"));
       setUnlockItem(item);
       /* An unfinished unlock from an earlier visit refreshes too. */
       let pendingRaw: string | null = null;
       try { pendingRaw = localStorage.getItem(seriesPendingKey(item.id)); } catch { /* storage blocked */ }
       const pending = parseSeriesPending(pendingRaw);
-      if (pending) setPendingNote(`You have an unlock for “${pending.title}” waiting on its payment — finish paying, then check it here.`);
+      if (pending) setPendingNote(t("worldCommerceStands.seriesUnlockPendingNote", { title: pending.title }));
     } catch (e) {
-      setUnlockError(plainErrorText(e, "That series isn't for sale right now."));
+      setUnlockError(plainErrorText(e, t("worldCommerceStands.seriesUnlockNotForSaleNow")));
     } finally {
       setUnlockBusy(false);
     }
@@ -283,20 +293,20 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       const state = seriesVerifyState(res.status, data);
       if (state === "confirmed" && seriesUnlockedFromVerify(data)) {
-        setUnlockedTitle(unlockItem?.title ?? embedded?.title ?? "Your series");
+        setUnlockedTitle(unlockItem?.title ?? embedded?.title ?? t("worldCommerceStands.seriesYourSeriesFallback"));
         setEmbedded(null);
         setPendingNote(null);
         try { localStorage.removeItem(seriesPendingKey(seriesId)); } catch { /* ignore */ }
       } else if (state === "pending") {
-        setPendingNote("The payment hasn't completed yet — finish at the payment form, then check again here. Nothing is unlocked until the payment lands.");
+        setPendingNote(t("worldCommerceStands.seriesVerifyPending"));
       } else {
         setEmbedded(null);
         setPendingNote(null);
         try { localStorage.removeItem(seriesPendingKey(seriesId)); } catch { /* ignore */ }
-        setUnlockError("That checkout closed before the payment landed — no unlock was recorded, and nothing was charged for one.");
+        setUnlockError(t("worldCommerceStands.seriesVerifyClosed"));
       }
     } catch {
-      setPendingNote("The unlock's status couldn't be checked just now — nothing about it changed.");
+      setPendingNote(t("worldCommerceStands.seriesVerifyCheckFailed"));
     } finally {
       setVerifying(false);
     }
@@ -304,7 +314,7 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
 
   const startUnlock = async () => {
     if (!unlockItem || unlockBusy) return;
-    if (isGuest) { setUnlockError("Unlocking rides your account — sign in and come back through this door; the series will be waiting."); return; }
+    if (isGuest) { setUnlockError(t("worldCommerceStands.seriesUnlockGuest")); return; }
     setUnlockBusy(true);
     setUnlockError(null);
     setPendingNote(null);
@@ -316,7 +326,7 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
         body: JSON.stringify(seriesCheckoutPayload(unlockItem.id, hasStripePublishableKey())),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Checkout didn't start — nothing was charged."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.seriesCheckoutFailed")));
       const sessionId = typeof data["sessionId"] === "string" ? data["sessionId"] : "";
       if (sessionId) {
         try {
@@ -325,18 +335,18 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
       }
       if (typeof data["clientSecret"] === "string" && data["clientSecret"]) {
         setEmbedded({ clientSecret: data["clientSecret"], sessionId, seriesId: unlockItem.id, title: unlockItem.title });
-        setPendingNote(`Pay for “${unlockItem.title}” right here at the stand — it unlocks the moment the payment lands, and this desk confirms it.`);
+        setPendingNote(t("worldCommerceStands.seriesUnlockPayNote", { title: unlockItem.title }));
         return;
       }
       const url = hostedCheckoutUrl(data);
       if (url) {
         openCheckoutTab(url);
-        setPendingNote("Your checkout opened in a new tab — finish paying there. Come back and check here: the unlock is confirmed from the payment record, never assumed.");
+        setPendingNote(t("worldCommerceStands.seriesUnlockTabNote"));
         return;
       }
-      throw new Error("Checkout didn't return a payment page — nothing was charged.");
+      throw new Error(t("worldCommerceStands.seriesCheckoutNoPage"));
     } catch (e) {
-      setUnlockError(plainErrorText(e, "Checkout didn't start — nothing was charged."));
+      setUnlockError(plainErrorText(e, t("worldCommerceStands.seriesCheckoutFailed")));
     } finally {
       setUnlockBusy(false);
     }
@@ -360,7 +370,7 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
   }, [unlockItem]);
 
   return (
-    <NativeCard isLight={isLight} title="Paid series — sell a whole series as one unlock">
+    <NativeCard isLight={isLight} title={t("worldCommerceStands.seriesDeskTitle")}>
       <div className="space-y-3" data-testid="world-series-desk">
         {seriesError && <p className="text-xs font-semibold text-red-400">{seriesError}</p>}
         {seriesNote && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{seriesNote}</p>}
@@ -369,18 +379,18 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
         {!isGuest ? (
           <div className="space-y-2" data-testid="world-series-unlock">
             <p className={`text-xs ${muted(isLight)}`}>
-              Got a series link from a creator? Paste it here — the price and the split are the store&rsquo;s own, and the whole series unlocks on your account the moment you pay.
+              {t("worldCommerceStands.seriesUnlockIntro")}
             </p>
             <div className="flex flex-wrap gap-1.5">
               <input
                 value={unlockInput}
                 onChange={(e) => setUnlockInput(e.target.value)}
-                placeholder="Series link or series ID"
-                aria-label="Series link or series ID"
+                placeholder={t("worldCommerceStands.seriesLinkPlaceholder")}
+                aria-label={t("worldCommerceStands.seriesLinkPlaceholder")}
                 className={`${inputCls(isLight)} min-w-44 flex-1`}
               />
               <button type="button" data-testid="world-series-lookup" onClick={() => void lookupSeries()} disabled={unlockBusy} className={chipBtn(isLight)}>
-                {unlockBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Lock className="h-3 w-3" />} Find the series
+                {unlockBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Lock className="h-3 w-3" />} {t("worldCommerceStands.seriesFind")}
               </button>
             </div>
             {unlockError && <p className="text-xs font-semibold text-red-400">{unlockError}</p>}
@@ -388,10 +398,10 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
               <div className="space-y-2 rounded-xl border border-[#d4af37]/30 px-3 py-2" data-testid="world-series-unlock-card">
                 <p className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
                   {unlockItem.title}
-                  {unlockItem.artistName && <span className={`ml-2 text-xs font-semibold ${muted(isLight)}`}>by {unlockItem.artistName}</span>}
+                  {unlockItem.artistName && <span className={`ml-2 text-xs font-semibold ${muted(isLight)}`}>{t("worldCommerceStands.seriesBy", { name: unlockItem.artistName })}</span>}
                 </p>
                 <p className={`text-xs ${muted(isLight)}`}>
-                  Unlock {centsToDisplay(unlockItem.priceCents)} · the creator receives {centsToDisplay(unlockItem.creatorCents)} — the {unlockItem.platformFeePct}% platform fee comes out of their cut, never on top of your price. One payment opens every episode.
+                  {t("worldCommerceStands.seriesUnlockSplit", { price: centsToDisplay(unlockItem.priceCents), creator: centsToDisplay(unlockItem.creatorCents), pct: unlockItem.platformFeePct })}
                 </p>
                 {!embedded && (
                   <button type="button" data-testid="world-series-unlock-start" onClick={() => void startUnlock()} disabled={unlockBusy} className={goldBtn(unlockBusy)}>
@@ -411,7 +421,7 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
                   disabled={verifying || !embedded.sessionId}
                   className={chipBtn(isLight)}
                 >
-                  <RefreshCw className="h-3 w-3" /> {verifying ? "Checking…" : "Check payment status"}
+                  <RefreshCw className="h-3 w-3" /> {verifying ? t("worldCommerceStands.seriesChecking") : t("worldCommerceStands.seriesCheckStatus")}
                 </button>
               </div>
             )}
@@ -431,94 +441,94 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
                     disabled={verifying}
                     className={chipBtn(isLight)}
                   >
-                    <RefreshCw className="h-3 w-3" /> Check payment status
+                    <RefreshCw className="h-3 w-3" /> {t("worldCommerceStands.seriesCheckStatus")}
                   </button>
                 )}
               </div>
             )}
             {unlockedTitle && (
               <p className="flex items-center gap-2 text-sm font-bold text-emerald-300" data-testid="world-series-unlocked">
-                <BadgeCheck className="h-4 w-4 shrink-0" /> “{unlockedTitle}” is unlocked on your account — every episode is yours to watch.
+                <BadgeCheck className="h-4 w-4 shrink-0" /> {t("worldCommerceStands.seriesUnlockedLine", { title: unlockedTitle })}
               </p>
             )}
           </div>
         ) : (
-          <p className={`text-xs ${muted(isLight)}`}>Series unlocks ride a member account — guests can browse the square, and a signed-in fan unlocks a whole series right here at the stand.</p>
+          <p className={`text-xs ${muted(isLight)}`}>{t("worldCommerceStands.seriesGuestNote")}</p>
         )}
 
         {/* The owner's series shelf */}
         {!isGuest && (
           <div className="space-y-2 border-t border-dashed pt-3" data-testid="world-series-mine">
-            <p className={`text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Your series</p>
+            <p className={`text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldCommerceStands.seriesMineTitle")}</p>
             {mineFailed ? (
-              <NativeErrorState isLight={isLight} title="Your series wouldn't load" message="Your series are fine — the shelf couldn't be reached. Try again." onRetry={() => setTick((n) => n + 1)} />
+              <NativeErrorState isLight={isLight} title={t("worldCommerceStands.seriesLoadTitle")} message={t("worldCommerceStands.seriesLoadFailed")} onRetry={() => setTick((n) => n + 1)} />
             ) : mine === null ? (
-              <NativeLoadingState isLight={isLight} message="Bringing your series to the stand…" />
+              <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.seriesLoading")} />
             ) : (
               <>
-                {mine.length === 0 && <NativeEmptyState isLight={isLight} message="No series yet — start one below, price its unlock, and fans open the whole run with one payment." />}
+                {mine.length === 0 && <NativeEmptyState isLight={isLight} message={t("worldCommerceStands.seriesEmpty")} />}
                 {mine.map((s) => (
                   <div key={s.id} className="space-y-2 rounded-xl border border-[#d4af37]/25 px-3 py-2" data-testid="world-series-row">
                     <p className={`flex flex-wrap items-center gap-2 text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
                       <span className="min-w-0 flex-1 truncate">{s.title}</span>
-                      <span className="text-sm font-black text-[#d4af37]">{s.priceCents ? centsToDisplay(s.priceCents) : "Free"}</span>
-                      <span className={`text-[11px] ${muted(isLight)}`}>{s.items.length} episode{s.items.length === 1 ? "" : "s"}{s.isPublic ? "" : " · private"}</span>
+                      <span className="text-sm font-black text-[#d4af37]">{s.priceCents ? centsToDisplay(s.priceCents) : t("worldCommerceStands.seriesFree")}</span>
+                      <span className={`text-[11px] ${muted(isLight)}`}>{t(s.items.length === 1 ? "worldCommerceStands.seriesEpisodeOne" : "worldCommerceStands.seriesEpisodeMany", { count: s.items.length })}{s.isPublic ? "" : t("worldCommerceStands.seriesPrivateSuffix")}</span>
                     </p>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <input
                         value={priceInputs[s.id] ?? ""}
                         onChange={(e) => setPriceInputs((p) => ({ ...p, [s.id]: e.target.value }))}
-                        placeholder="Unlock price — blank = free"
-                        aria-label={`Unlock price for ${s.title}`}
+                        placeholder={t("worldCommerceStands.seriesPricePlaceholder")}
+                        aria-label={t("worldCommerceStands.seriesPriceAria", { title: s.title })}
                         inputMode="decimal"
                         className={`${inputCls(isLight)} w-40`}
                       />
                       <button type="button" data-testid="world-series-save-price" onClick={() => void savePrice(s)} disabled={savingPriceId === s.id} className={chipBtn(isLight)}>
-                        {savingPriceId === s.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Pencil className="h-3 w-3" />} Save price
+                        {savingPriceId === s.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Pencil className="h-3 w-3" />} {t("worldCommerceStands.seriesSavePrice")}
                       </button>
                       {s.items.length > 0 && (
                         <select
                           value={s.previewItem ? `${s.previewItem.kind}:${s.previewItem.id}` : ""}
                           onChange={(e) => void savePreview(s, e.target.value)}
                           disabled={savingPreviewId === s.id}
-                          aria-label={`Free preview episode for ${s.title}`}
+                          aria-label={t("worldCommerceStands.seriesPreviewAria", { title: s.title })}
                           className={`${inputCls(isLight)} w-48`}
                         >
-                          <option value="">No free preview</option>
+                          <option value="">{t("worldCommerceStands.seriesNoPreview")}</option>
                           {s.items.map((it, i) => (
-                            <option key={`${it.kind}:${it.id}`} value={`${it.kind}:${it.id}`}>Preview: episode {i + 1} ({it.kind})</option>
+                            <option key={`${it.kind}:${it.id}`} value={`${it.kind}:${it.id}`}>{t("worldCommerceStands.seriesPreviewOption", { n: i + 1, kind: it.kind })}</option>
                           ))}
                         </select>
                       )}
                       <button type="button" data-testid="world-series-buyers" onClick={() => void loadBuyers(s)} disabled={buyersBusyId === s.id} className={chipBtn(isLight)}>
-                        {buyersBusyId === s.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Users className="h-3 w-3" />} Buyers
+                        {buyersBusyId === s.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Users className="h-3 w-3" />} {t("worldCommerceStands.seriesBuyers")}
                       </button>
                     </div>
                     {buyersById[s.id] && (
                       <p className={`text-xs ${muted(isLight)}`} data-testid="world-series-buyers-list">
-                        {buyersById[s.id]!.buyerCount} buyer{buyersById[s.id]!.buyerCount === 1 ? "" : "s"} · {centsToDisplay(buyersById[s.id]!.grossCents)} gross
+                        {t(buyersById[s.id]!.buyerCount === 1 ? "worldCommerceStands.seriesBuyersLineOne" : "worldCommerceStands.seriesBuyersLineMany", { count: buyersById[s.id]!.buyerCount, gross: centsToDisplay(buyersById[s.id]!.grossCents) })}
                         {buyersById[s.id]!.buyers.slice(0, 5).map((b) => ` · ${b.displayName} (${centsToDisplay(b.amountCents)}${b.status !== "completed" ? `, ${b.status}` : ""})`).join("")}
                       </p>
                     )}
-                    {buyersById[s.id] === null && <p className={`text-xs ${muted(isLight)}`}>The buyer list didn&rsquo;t answer — try Buyers again.</p>}
+                    {buyersById[s.id] === null && <p className={`text-xs ${muted(isLight)}`}>{t("worldCommerceStands.seriesBuyersNoAnswer")}</p>}
                   </div>
                 ))}
                 {!createOpen ? (
                   <button type="button" data-testid="world-series-create-open" onClick={() => { setCreateOpen(true); setSeriesError(null); }} className={goldBtn()}>
-                    <Plus className="h-4 w-4" /> Start a series
+                    <Plus className="h-4 w-4" /> {t("worldCommerceStands.seriesCreateOpen")}
                   </button>
                 ) : (
                   <div className="space-y-2" data-testid="world-series-create-form">
-                    <input value={createForm.title} onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))} placeholder="Series title" aria-label="Series title" className={inputCls(isLight)} />
-                    <input value={createForm.description} onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))} placeholder="What the series is (optional)" aria-label="Series description (optional)" className={inputCls(isLight)} />
-                    <input value={createForm.price} onChange={(e) => setCreateForm((f) => ({ ...f, price: e.target.value }))} placeholder="Unlock price in dollars — blank = free (min $0.50)" aria-label="Series unlock price" inputMode="decimal" className={inputCls(isLight)} />
+                    <input value={createForm.title} onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))} placeholder={t("worldCommerceStands.seriesTitlePlaceholder")} aria-label={t("worldCommerceStands.seriesTitlePlaceholder")} className={inputCls(isLight)} />
+                    <input value={createForm.description} onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))} placeholder={t("worldCommerceStands.seriesDescPlaceholder")} aria-label={t("worldCommerceStands.seriesDescAria")} className={inputCls(isLight)} />
+                    <input value={createForm.price} onChange={(e) => setCreateForm((f) => ({ ...f, price: e.target.value }))} placeholder={t("worldCommerceStands.seriesCreatePricePlaceholder")} aria-label={t("worldCommerceStands.seriesCreatePriceAria")} inputMode="decimal" className={inputCls(isLight)} />
                     <div className="flex flex-wrap gap-1.5">
                       <button type="button" data-testid="world-series-create-submit" onClick={() => void createSeries()} disabled={creating} className={goldBtn(creating)}>
-                        {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Create the series
+                        {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {t("worldCommerceStands.seriesCreateSubmit")}
                       </button>
-                      <button type="button" onClick={() => { setCreateOpen(false); setSeriesError(null); }} className={chipBtn(isLight)}>Cancel</button>
+                      <button type="button" onClick={() => { setCreateOpen(false); setSeriesError(null); }} className={chipBtn(isLight)}>{t("worldCommerceStands.seriesCancel")}</button>
                     </div>
-                    <p className={`text-[11px] ${muted(isLight)}`}>Setting a series up costs nothing — the unlock price is yours to set, and you can change it anytime. Episodes are added with the playlist tools; the price and free preview live right here.</p>
+                    <p className={`text-[11px] ${muted(isLight)}`}>{t("worldCommerceStands.seriesCreateNote")}</p>
                   </div>
                 )}
               </>
@@ -533,6 +543,15 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
 /* ═══ Product Drops ═════════════════════════════════════════════ */
 
 function DropsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
+  const problemStrings = {
+    priceCeiling: t("worldCommerceStands.seriesProbCeiling"),
+    priceValid: t("worldCommerceStands.seriesProbValid"),
+    priceMin: t("worldCommerceStands.seriesProbMin"),
+    titleFirst: t("worldCommerceStands.seriesProbTitle"),
+    dropPick: t("worldCommerceStands.seriesProbDropPick"),
+    dropFuture: t("worldCommerceStands.seriesProbDropFuture"),
+  };
   const authHeaders = useAuthHeaders();
   const [products, setProducts] = useState<DroppableProductDto[] | null>(null);
   const [noProfile, setNoProfile] = useState(false);
@@ -575,10 +594,10 @@ function DropsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean })
   const schedule = async (p: DroppableProductDto) => {
     if (busyId) return;
     const value = dropInputs[p.id] ?? "";
-    const problem = dropScheduleProblem(value, Date.now());
+    const problem = dropScheduleProblem(value, Date.now(), problemStrings);
     if (problem) { setDropError(problem); return; }
     const payload = buildDropSchedulePayload(value, Date.now());
-    if (!payload) { setDropError("Pick the drop date and time."); return; }
+    if (!payload) { setDropError(t("worldCommerceStands.seriesProbDropPick")); return; }
     setBusyId(p.id);
     setDropError(null);
     setDropNote(null);
@@ -589,13 +608,13 @@ function DropsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean })
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't schedule this drop."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.dropsScheduleFailed")));
       const drop = parseDropAnswer(data);
-      if (drop === undefined) throw new Error("The drop scheduled but its answer came back empty — reopen the stand to see its true state.");
+      if (drop === undefined) throw new Error(t("worldCommerceStands.dropsScheduleEmpty"));
       setProducts((ps) => (ps ? ps.map((x) => (x.id === p.id ? { ...x, drop } : x)) : ps));
-      setDropNote(`“${p.title}” drops ${formatDropLocal(payload.dropAt) ?? ""} — until then its page is the countdown, and fans can join the drop list right here.`);
+      setDropNote(t("worldCommerceStands.dropsScheduledNote", { title: p.title, when: formatDropLocal(payload.dropAt) ?? "" }));
     } catch (e) {
-      setDropError(plainErrorText(e, "Couldn't schedule this drop — the product is unchanged."));
+      setDropError(plainErrorText(e, t("worldCommerceStands.dropsScheduleFailedDetail")));
     } finally {
       setBusyId(null);
     }
@@ -612,12 +631,12 @@ function DropsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean })
         headers: await authHeaders(),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't cancel this drop."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.dropsCancelFailed")));
       setProducts((ps) => (ps ? ps.map((x) => (x.id === p.id ? { ...x, drop: null } : x)) : ps));
       setDetailById((d) => ({ ...d, [p.id]: null }));
-      setDropNote(`The drop for “${p.title}” is cancelled — it's a normal product again.`);
+      setDropNote(t("worldCommerceStands.dropsCancelledNote", { title: p.title }));
     } catch (e) {
-      setDropError(plainErrorText(e, "Couldn't cancel this drop — it's still scheduled."));
+      setDropError(plainErrorText(e, t("worldCommerceStands.dropsCancelFailedDetail")));
     } finally {
       setBusyId(null);
     }
@@ -629,10 +648,10 @@ function DropsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean })
     try {
       const res = await fetch(`/api/storefront/products/${p.id}/drop`, { headers: await authHeaders() });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "The drop list wouldn't open."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.dropsListFailed")));
       setDetailById((d) => ({ ...d, [p.id]: parseDropDetail(data) }));
     } catch (e) {
-      setDropError(plainErrorText(e, "The drop list wouldn't open just now."));
+      setDropError(plainErrorText(e, t("worldCommerceStands.dropsListFailedDetail")));
     } finally {
       setDetailBusyId(null);
     }
@@ -641,27 +660,27 @@ function DropsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean })
 
   if (isGuest) {
     return (
-      <NativeCard isLight={isLight} title="Product drops — timed releases">
+      <NativeCard isLight={isLight} title={t("worldCommerceStands.dropsGuestTitle")}>
         <p className={`text-xs ${muted(isLight)}`} data-testid="world-drops-guest">
-          Creators schedule their products&rsquo; timed drops at this stand — scheduling rides a member account, so sign in and your storefront&rsquo;s drops are managed right here.
+          {t("worldCommerceStands.dropsGuestNote")}
         </p>
       </NativeCard>
     );
   }
 
   return (
-    <NativeCard isLight={isLight} title="Product drops — timed releases on your storefront">
+    <NativeCard isLight={isLight} title={t("worldCommerceStands.dropsDeskTitle")}>
       <div className="space-y-3" data-testid="world-drops-desk">
         {dropError && <p className="text-xs font-semibold text-red-400">{dropError}</p>}
         {dropNote && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{dropNote}</p>}
         {noProfile ? (
-          <p className={`text-xs ${muted(isLight)}`}>Drops hang off your storefront products — set up your creator profile first, stock your storefront, then schedule the drop right here.</p>
+          <p className={`text-xs ${muted(isLight)}`}>{t("worldCommerceStands.dropsNoProfile")}</p>
         ) : loadFailed ? (
-          <NativeErrorState isLight={isLight} title="Your products wouldn't load" message="Your storefront is fine — its products couldn't be brought to the stand. Try again." onRetry={() => setTick((n) => n + 1)} />
+          <NativeErrorState isLight={isLight} title={t("worldCommerceStands.dropsLoadTitle")} message={t("worldCommerceStands.dropsLoadFailed")} onRetry={() => setTick((n) => n + 1)} />
         ) : products === null ? (
-          <NativeLoadingState isLight={isLight} message="Bringing your storefront products to the stand…" />
+          <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.dropsLoading")} />
         ) : products.length === 0 ? (
-          <NativeEmptyState isLight={isLight} message="No storefront products yet — once a product is stocked, its timed drop can be scheduled right here." />
+          <NativeEmptyState isLight={isLight} message={t("worldCommerceStands.dropsEmpty")} />
         ) : (
           products.map((p) => (
             <div key={p.id} className="space-y-2 rounded-xl border border-[#d4af37]/25 px-3 py-2" data-testid="world-drop-product-row">
@@ -669,11 +688,11 @@ function DropsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean })
                 <span className="min-w-0 flex-1 truncate">{p.title}</span>
                 <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(p.priceCents)}</span>
                 {p.drop?.isUpcoming ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300"><CalendarClock className="h-3.5 w-3.5" /> Drops {formatDropLocal(p.drop.dropAt) ?? ""}</span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300"><CalendarClock className="h-3.5 w-3.5" /> {t("worldCommerceStands.dropsWhen", { when: formatDropLocal(p.drop.dropAt) ?? "" })}</span>
                 ) : p.drop ? (
-                  <span className="text-[11px] font-bold text-emerald-300">Dropped — live now</span>
+                  <span className="text-[11px] font-bold text-emerald-300">{t("worldCommerceStands.dropsLive")}</span>
                 ) : (
-                  <span className={`text-[11px] ${muted(isLight)}`}>No drop scheduled</span>
+                  <span className={`text-[11px] ${muted(isLight)}`}>{t("worldCommerceStands.dropsNone")}</span>
                 )}
               </p>
               <div className="flex flex-wrap items-center gap-1.5">
@@ -681,36 +700,36 @@ function DropsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean })
                   type="datetime-local"
                   value={dropInputs[p.id] ?? ""}
                   onChange={(e) => setDropInputs((d) => ({ ...d, [p.id]: e.target.value }))}
-                  aria-label={`Drop date and time for ${p.title}`}
+                  aria-label={t("worldCommerceStands.dropsWhenAria", { title: p.title })}
                   className={`${inputCls(isLight)} w-56`}
                 />
                 <button type="button" data-testid="world-drop-schedule" onClick={() => void schedule(p)} disabled={busyId === p.id} className={chipBtn(isLight)}>
                   {busyId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CalendarClock className="h-3 w-3" />}
-                  {p.drop?.isUpcoming ? "Move drop" : "Schedule drop"}
+                  {p.drop?.isUpcoming ? t("worldCommerceStands.dropsMove") : t("worldCommerceStands.dropsSchedule")}
                 </button>
                 {p.drop?.isUpcoming && (
                   <button type="button" data-testid="world-drop-cancel" onClick={() => void cancel(p)} disabled={busyId === p.id} className={chipBtn(isLight)}>
-                    <Trash2 className="h-3 w-3" /> Cancel drop
+                    <Trash2 className="h-3 w-3" /> {t("worldCommerceStands.dropsCancel")}
                   </button>
                 )}
                 {p.drop && (
                   <button type="button" data-testid="world-drop-list" onClick={() => void loadDetail(p)} disabled={detailBusyId === p.id} className={chipBtn(isLight)}>
-                    {detailBusyId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Users className="h-3 w-3" />} Drop list
+                    {detailBusyId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Users className="h-3 w-3" />} {t("worldCommerceStands.dropsList")}
                   </button>
                 )}
               </div>
               {detailById[p.id] && (
                 <p className={`text-xs ${muted(isLight)}`} data-testid="world-drop-captures">
-                  {detailById[p.id]!.captureCount} fan{detailById[p.id]!.captureCount === 1 ? "" : "s"} on the drop list
+                  {t(detailById[p.id]!.captureCount === 1 ? "worldCommerceStands.dropsCapturesOne" : "worldCommerceStands.dropsCapturesMany", { count: detailById[p.id]!.captureCount })}
                   {detailById[p.id]!.captures.slice(0, 5).map((c) => ` · ${c.email}`).join("")}
                 </p>
               )}
-              {detailById[p.id] === null && p.drop && <p className={`text-xs ${muted(isLight)}`}>The drop list didn&rsquo;t answer — try Drop list again.</p>}
+              {detailById[p.id] === null && p.drop && <p className={`text-xs ${muted(isLight)}`}>{t("worldCommerceStands.dropsListNoAnswer")}</p>}
             </div>
           ))
         )}
         <p className={`text-[11px] ${muted(isLight)}`}>
-          While a drop is upcoming, the product&rsquo;s page is its countdown — nobody can buy early. At the moment, it goes live and every fan on the list gets exactly one email.
+          {t("worldCommerceStands.dropsFooterNote")}
         </p>
       </div>
     </NativeCard>

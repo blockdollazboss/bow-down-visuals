@@ -146,6 +146,9 @@ const nativeCardSrc = readFileSync(
   fileURLToPath(new URL("../../components/world/native/NativeCard.tsx", import.meta.url)),
   "utf8",
 );
+const enCatalog = JSON.parse(
+  readFileSync(fileURLToPath(new URL("../../locales/en.json", import.meta.url)), "utf8"),
+) as { worldCommerceStands: Record<string, string> };
 
 describe("the checkout transfer seam (§3.9)", () => {
   it("is one uniform label, naming the website as the destination", () => {
@@ -949,7 +952,10 @@ describe("the seller's whole picture — GET /api/earnings at the stand (Parity 
     const parsed = parseSellerEarnings(legacy);
     expect(parsed?.stageTipsVb).toBe(0);
     expect(parsed?.stageTipCount).toBe(0);
-    expect(standsSrc).toContain("Stage tips:");
+    /* The Stage tips line renders through the catalog now (locale unit 41)
+       — the en value keeps the exact "Stage tips:" label. */
+    expect(enCatalog.worldCommerceStands.shopStageTipsLabel).toBe("Stage tips:");
+    expect(standsSrc).toContain('t("worldCommerceStands.shopStageTipsLabel")');
     expect(standsSrc).toContain("earnings.stageTipsVb");
   });
 
@@ -1025,9 +1031,9 @@ describe("the seller's whole picture — GET /api/earnings at the stand (Parity 
   it("the display rows are the stand's three money sources, in order, numbers untouched", () => {
     const parsed = parseSellerEarnings(PICTURE);
     expect(parsed && sellerEarningsRows(parsed)).toEqual([
-      { key: "store", label: "Store sales", noun: "sales", source: { status: "ok", totalCents: 100000, count: 42 } },
-      { key: "memberships", label: "Memberships", noun: "members", source: { status: "ok", totalCents: 20000, count: 9 } },
-      { key: "deals", label: "Brand deals", noun: "deals", source: { status: "ok", totalCents: 3456, count: 2 } },
+      { key: "store", label: "Store sales", noun: "sales", nounOne: "sale", source: { status: "ok", totalCents: 100000, count: 42 } },
+      { key: "memberships", label: "Memberships", noun: "members", nounOne: "member", source: { status: "ok", totalCents: 20000, count: 9 } },
+      { key: "deals", label: "Brand deals", noun: "deals", nounOne: "deal", source: { status: "ok", totalCents: 3456, count: 2 } },
     ]);
   });
 });

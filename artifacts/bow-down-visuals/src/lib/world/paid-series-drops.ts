@@ -60,19 +60,38 @@ import { dollarsToCents } from "@/lib/shops";
 export const SERIES_PRICE_MIN_CENTS = 50;
 export const SERIES_PRICE_MAX_CENTS = 100_000_00;
 
+/** The problem lines, resolved through the caller's catalog bundle;
+ *  the EN defaults are byte-identical to the originals (unit 41). */
+export interface SeriesProblemStrings {
+  priceCeiling: string;
+  priceValid: string;
+  priceMin: string;
+  titleFirst: string;
+  dropPick: string;
+  dropFuture: string;
+}
+export const SERIES_PROBLEM_STRINGS_EN: SeriesProblemStrings = {
+  priceCeiling: "That price is over the store's ceiling — bring it under $100,000.",
+  priceValid: "Enter a valid price — dollars and cents, like 19.99.",
+  priceMin: "The minimum series price is $0.50 — that's the card floor, not ours.",
+  titleFirst: "Give the series a title first.",
+  dropPick: "Pick the drop date and time.",
+  dropFuture: "A drop has to be in the future — pick a later moment.",
+};
+
 /** The price gate for the stand's price field, in plain words.
  *  Null = the typed price may ride (including empty/zero = free). */
-export function seriesPriceProblem(dollars: string): string | null {
+export function seriesPriceProblem(dollars: string, strings: SeriesProblemStrings = SERIES_PROBLEM_STRINGS_EN): string | null {
   const trimmed = dollars.trim();
   if (!trimmed) return null;
   const numeric = Number(trimmed.replace(/[^0-9.]/g, ""));
   if (Number.isFinite(numeric) && numeric * 100 > SERIES_PRICE_MAX_CENTS) {
-    return "That price is over the store's ceiling — bring it under $100,000.";
+    return strings.priceCeiling;
   }
   const cents = dollarsToCents(trimmed);
-  if (cents === null) return "Enter a valid price — dollars and cents, like 19.99.";
+  if (cents === null) return strings.priceValid;
   if (cents === 0) return null;
-  if (cents < SERIES_PRICE_MIN_CENTS) return "The minimum series price is $0.50 — that's the card floor, not ours.";
+  if (cents < SERIES_PRICE_MIN_CENTS) return strings.priceMin;
   return null;
 }
 
@@ -164,9 +183,9 @@ export function emptySeriesCreateForm(): SeriesCreateFormState {
   return { title: "", description: "", price: "" };
 }
 
-export function seriesCreateProblem(form: SeriesCreateFormState): string | null {
-  if (!form.title.trim()) return "Give the series a title first.";
-  return seriesPriceProblem(form.price);
+export function seriesCreateProblem(form: SeriesCreateFormState, strings: SeriesProblemStrings = SERIES_PROBLEM_STRINGS_EN): string | null {
+  if (!form.title.trim()) return strings.titleFirst;
+  return seriesPriceProblem(form.price, strings);
 }
 
 /** POST /api/playlists — the playlist page's create body for a
@@ -455,10 +474,10 @@ export function dropAtIsoFromLocalInput(value: string): string | null {
 /** The schedule gate, mirroring the rail's own refusals
  *  (DROP_DATE_INVALID / DROP_DATE_PAST) so a doomed schedule is
  *  refused in the form first. Null = the moment may ride. */
-export function dropScheduleProblem(value: string, nowMs: number): string | null {
+export function dropScheduleProblem(value: string, nowMs: number, strings: SeriesProblemStrings = SERIES_PROBLEM_STRINGS_EN): string | null {
   const iso = dropAtIsoFromLocalInput(value);
-  if (!iso) return "Pick the drop date and time.";
-  if (new Date(iso).getTime() <= nowMs) return "A drop has to be in the future — pick a later moment.";
+  if (!iso) return strings.dropPick;
+  if (new Date(iso).getTime() <= nowMs) return strings.dropFuture;
   return null;
 }
 

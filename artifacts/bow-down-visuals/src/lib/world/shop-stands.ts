@@ -384,9 +384,10 @@ export interface MembershipTierDto {
 }
 
 /** The memberships page's own money format: whole dollars show
- *  no cents, anything else shows two. */
-export function membershipDollars(n: number): string {
-  return n.toLocaleString("en-US", {
+ *  no cents, anything else shows two. The locale follows the
+ *  caller's language (unit 41); the default keeps en-US. */
+export function membershipDollars(n: number, lang: string = "en-US"): string {
+  return n.toLocaleString(lang, {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: n % 1 === 0 ? 0 : 2,
@@ -403,22 +404,44 @@ export function activeMembershipTiers(
   return tiers.filter((t) => t.isActive);
 }
 
+/** The tier/club price lines, resolved through the caller's
+ *  catalog bundle; the EN defaults are byte-identical to the
+ *  originals (unit 41). */
+export interface TierLabelStrings {
+  free: string;
+  perMonth: string;
+  perYear: string;
+  saving: string;
+  freeCrowns: string;
+  crownsFrom: string;
+}
+export const TIER_LABEL_STRINGS_EN: TierLabelStrings = {
+  free: "Free",
+  perMonth: "{{price}} / month",
+  perYear: "{{price}} / year",
+  saving: "Save {{pct}}% vs monthly",
+  freeCrowns: "Free crowns",
+  crownsFrom: "Crowns from {{price}} / month",
+};
+
 /** The price the walker sees for a period — read straight off the
  *  server DTO, the same strings/numbers checkout charges from. */
 export function tierPriceLabel(
   tier: MembershipTierDto,
   period: BillingPeriod,
+  strings: TierLabelStrings = TIER_LABEL_STRINGS_EN,
+  lang: string = "en-US",
 ): string {
-  if (tier.priceCents <= 0) return "Free";
+  if (tier.priceCents <= 0) return strings.free;
   return period === "annual"
-    ? `${membershipDollars(tier.annualPriceDollars)} / year`
-    : `${membershipDollars(tier.priceDollars)} / month`;
+    ? strings.perYear.replace("{{price}}", membershipDollars(tier.annualPriceDollars, lang))
+    : strings.perMonth.replace("{{price}}", membershipDollars(tier.priceDollars, lang));
 }
 
 /** The annual saving line, only when a real annual offer exists. */
-export function tierAnnualSavingLabel(tier: MembershipTierDto): string | null {
+export function tierAnnualSavingLabel(tier: MembershipTierDto, strings: TierLabelStrings = TIER_LABEL_STRINGS_EN): string | null {
   if (tier.priceCents <= 0 || tier.annualDiscountPct <= 0) return null;
-  return `Save ${tier.annualDiscountPct}% vs monthly`;
+  return strings.saving.replace("{{pct}}", String(tier.annualDiscountPct));
 }
 
 /** A trial can be offered only when the tier enables one AND the
@@ -518,9 +541,9 @@ export function parseClubDirectory(payload: unknown): ClubDirectoryRow[] | null 
 
 /** The directory row's price line — the cheapest crown, in the
  *  page's money format; a free cheapest crown says so. */
-export function clubStartingLabel(row: ClubDirectoryRow): string {
-  if (row.startingPriceCents <= 0) return "Free crowns";
-  return `Crowns from ${membershipDollars(row.startingPriceDollars)} / month`;
+export function clubStartingLabel(row: ClubDirectoryRow, strings: TierLabelStrings = TIER_LABEL_STRINGS_EN, lang: string = "en-US"): string {
+  if (row.startingPriceCents <= 0) return strings.freeCrowns;
+  return strings.crownsFrom.replace("{{price}}", membershipDollars(row.startingPriceDollars, lang));
 }
 
 /** Who a gift is for, taken from whatever the walker pastes: the
@@ -764,13 +787,35 @@ export function productFormFromDto(p: PublicProductDto): ProductFormState {
   };
 }
 
+/** The stand's form-gate lines, resolved through the caller's
+ *  catalog bundle; the EN defaults are byte-identical to the
+ *  originals (unit 41). */
+export interface ShopFormStrings {
+  productNameFirst: string;
+  priceValid: string;
+  shopNameFirst: string;
+  nameMax: string;
+  taglineMax: string;
+  descMax: string;
+  handleProblem: string;
+}
+export const SHOP_FORM_STRINGS_EN: ShopFormStrings = {
+  productNameFirst: "Give the product a name first.",
+  priceValid: "Enter a valid price — dollars and cents, like 19.99.",
+  shopNameFirst: "Give your shop a name first.",
+  nameMax: "The shop name tops out at {{max}} characters.",
+  taglineMax: "The tagline tops out at {{max}} characters.",
+  descMax: "The description tops out at {{max}} characters.",
+  handleProblem: "The handle is {{min}}–{{max}} characters — lowercase letters, numbers and single dashes — like gold-standard.",
+};
+
 /** The page's two save gates, in its order (name first, then a
  *  sane price), in the stand's plain words. Null = the form may
  *  ride. The AI helpers share the name gate: the page refuses to
  *  write or picture an unnamed product. */
-export function productFormProblem(form: ProductFormState): string | null {
-  if (!form.name.trim()) return "Give the product a name first.";
-  if (dollarsToCents(form.price) === null) return "Enter a valid price — dollars and cents, like 19.99.";
+export function productFormProblem(form: ProductFormState, strings: ShopFormStrings = SHOP_FORM_STRINGS_EN): string | null {
+  if (!form.name.trim()) return strings.productNameFirst;
+  if (dollarsToCents(form.price) === null) return strings.priceValid;
   return null;
 }
 
@@ -928,11 +973,11 @@ export function shopSettingsFormFromShop(shop: { name: string; tagline: string |
 /** The settings save gates, mirroring the rail's own schema
  *  (updateShopSchema) so a doomed save is refused in the form, in
  *  the stand's plain words. Null = the form may ride. */
-export function shopSettingsProblem(form: ShopSettingsFormState): string | null {
-  if (!form.name.trim()) return "Give your shop a name first.";
-  if (form.name.trim().length > SHOP_NAME_MAX) return `The shop name tops out at ${SHOP_NAME_MAX} characters.`;
-  if (form.tagline.trim().length > SHOP_TAGLINE_MAX) return `The tagline tops out at ${SHOP_TAGLINE_MAX} characters.`;
-  if (form.description.trim().length > SHOP_DESCRIPTION_MAX) return `The description tops out at ${SHOP_DESCRIPTION_MAX} characters.`;
+export function shopSettingsProblem(form: ShopSettingsFormState, strings: ShopFormStrings = SHOP_FORM_STRINGS_EN): string | null {
+  if (!form.name.trim()) return strings.shopNameFirst;
+  if (form.name.trim().length > SHOP_NAME_MAX) return strings.nameMax.replace("{{max}}", String(SHOP_NAME_MAX));
+  if (form.tagline.trim().length > SHOP_TAGLINE_MAX) return strings.taglineMax.replace("{{max}}", String(SHOP_TAGLINE_MAX));
+  if (form.description.trim().length > SHOP_DESCRIPTION_MAX) return strings.descMax.replace("{{max}}", String(SHOP_DESCRIPTION_MAX));
   return null;
 }
 
@@ -1121,14 +1166,14 @@ export function emptyShopCreateForm(): ShopCreateFormState {
  *  it will live at), in the stand's plain words. Null = the form
  *  may ride; the server still has the last word (taken handles,
  *  tier). */
-export function shopCreateProblem(form: ShopCreateFormState): string | null {
-  if (!form.name.trim()) return "Give your shop a name first.";
-  if (form.name.trim().length > SHOP_NAME_MAX) return `The shop name tops out at ${SHOP_NAME_MAX} characters.`;
+export function shopCreateProblem(form: ShopCreateFormState, strings: ShopFormStrings = SHOP_FORM_STRINGS_EN): string | null {
+  if (!form.name.trim()) return strings.shopNameFirst;
+  if (form.name.trim().length > SHOP_NAME_MAX) return strings.nameMax.replace("{{max}}", String(SHOP_NAME_MAX));
   const handle = form.handle.trim().toLowerCase();
   if (handle.length < SHOP_HANDLE_MIN || handle.length > SHOP_HANDLE_MAX || !SHOP_HANDLE_RE.test(handle)) {
-    return `The handle is ${SHOP_HANDLE_MIN}–${SHOP_HANDLE_MAX} characters — lowercase letters, numbers and single dashes — like gold-standard.`;
+    return strings.handleProblem.replace("{{min}}", String(SHOP_HANDLE_MIN)).replace("{{max}}", String(SHOP_HANDLE_MAX));
   }
-  if (form.tagline.trim().length > SHOP_TAGLINE_MAX) return `The tagline tops out at ${SHOP_TAGLINE_MAX} characters.`;
+  if (form.tagline.trim().length > SHOP_TAGLINE_MAX) return strings.taglineMax.replace("{{max}}", String(SHOP_TAGLINE_MAX));
   return null;
 }
 
@@ -1414,13 +1459,39 @@ interface SellerEarningsRow {
   key: "store" | "memberships" | "deals";
   label: string;
   noun: string;
+  nounOne: string;
   source: SellerEarningsSource;
 }
 
-export function sellerEarningsRows(e: SellerEarnings): SellerEarningsRow[] {
+/** The earnings rows' words, resolved through the caller's
+ *  catalog bundle; the EN defaults are the originals (unit 41). */
+export interface SellerEarningsRowLabels {
+  store: string;
+  storeNoun: string;
+  storeNounOne: string;
+  memberships: string;
+  membershipsNoun: string;
+  membershipsNounOne: string;
+  deals: string;
+  dealsNoun: string;
+  dealsNounOne: string;
+}
+export const SELLER_EARNINGS_ROW_LABELS_EN: SellerEarningsRowLabels = {
+  store: "Store sales",
+  storeNoun: "sales",
+  storeNounOne: "sale",
+  memberships: "Memberships",
+  membershipsNoun: "members",
+  membershipsNounOne: "member",
+  deals: "Brand deals",
+  dealsNoun: "deals",
+  dealsNounOne: "deal",
+};
+
+export function sellerEarningsRows(e: SellerEarnings, labels: SellerEarningsRowLabels = SELLER_EARNINGS_ROW_LABELS_EN): SellerEarningsRow[] {
   return [
-    { key: "store", label: "Store sales", noun: "sales", source: e.storeSales },
-    { key: "memberships", label: "Memberships", noun: "members", source: e.memberships },
-    { key: "deals", label: "Brand deals", noun: "deals", source: e.brandDeals },
+    { key: "store", label: labels.store, noun: labels.storeNoun, nounOne: labels.storeNounOne, source: e.storeSales },
+    { key: "memberships", label: labels.memberships, noun: labels.membershipsNoun, nounOne: labels.membershipsNounOne, source: e.memberships },
+    { key: "deals", label: labels.deals, noun: labels.dealsNoun, nounOne: labels.dealsNounOne, source: e.brandDeals },
   ];
 }

@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 import {
   BadgeCheck, BarChart3, Check, Copy, Crown, Gem, Gift, Globe, ImagePlus, Loader2, Minus, Pencil, Plus, RefreshCw,
   Settings2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, Users, Wallet, X,
@@ -55,7 +56,7 @@ import {
   type MarketOrder, type MembershipPendingCheckout, type MembershipTierDto, type MineShopDto, type MyMembershipDto,
   type ProductFormState, type PublicProductDto,
   type PublicShopDto, type SellerEarnings, type ShopAnalytics, type ShopCreateFormState,
-  type ShopSettingsFormState,
+  type ShopSettingsFormState, type TierLabelStrings,
 } from "@/lib/world/shop-stands";
 import {
   SHOP_DESIGN_STARTERS,
@@ -194,6 +195,7 @@ export function ShopStand({ station, isLight, isGuest }: ShopStandProps) {
 /* ═══ 1. The Marketplace — shopfronts as stands ════════════════════ */
 
 function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useAuthHeaders();
   const [shops, setShops] = useState<HubShopDto[] | null>(null);
   const [shopsFailed, setShopsFailed] = useState(false);
@@ -312,13 +314,13 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
         setCart([]);
         try { localStorage.removeItem(marketPendingKey(handle)); } catch { /* ignore */ }
       } else if (order?.status === "expired") {
-        setPendingNote("That checkout expired before payment — the order was never charged. Your cart is still here whenever you're ready.");
+        setPendingNote(t("worldCommerceStands.shopOrderExpiredNote"));
         try { localStorage.removeItem(marketPendingKey(handle)); } catch { /* ignore */ }
       } else {
-        setPendingNote("Your order is saved as pending — payment hasn't confirmed yet. Finish at the hosted checkout, then check again here.");
+        setPendingNote(t("worldCommerceStands.shopOrderPendingHosted"));
       }
     } catch {
-      setPendingNote("Your order is saved as pending — its status couldn't be refreshed just now. Nothing about it was changed.");
+      setPendingNote(t("worldCommerceStands.shopOrderPendingStale"));
     } finally {
       setRefreshingOrder(false);
     }
@@ -405,7 +407,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
         }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Checkout didn't start — nothing was charged."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.shopCheckoutFailed")));
       /* A gift card that covers the whole bill answers paid with
          NO payment page (paidWithGiftCard) — that's a completed
          in-world purchase too, and falling through to the URL hunt
@@ -421,7 +423,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           try { localStorage.setItem(marketPendingKey(openHandle), data.sessionId); } catch { /* storage blocked — refresh on reopen just won't find it */ }
         }
         setEmbeddedSecret(data.clientSecret);
-        setPendingNote("Your order is saved as pending — finish paying right here in this stand. It confirms here the moment the payment lands; nothing about your place in the palace moves.");
+        setPendingNote(t("worldCommerceStands.shopOrderPendingEmbedded"));
         return;
       }
       const url = hostedCheckoutUrl(data);
@@ -430,12 +432,12 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           try { localStorage.setItem(marketPendingKey(openHandle), data.sessionId); } catch { /* storage blocked — refresh on reopen just won't find it */ }
         }
         openCheckoutTab(url);
-        setPendingNote("Your checkout opened in a new tab — finish paying there. This stand keeps your place and your cart, and confirms the order here when the payment lands.");
+        setPendingNote(t("worldCommerceStands.shopOrderPendingTab"));
         return;
       }
-      throw new Error("Checkout didn't return a payment page — nothing was charged.");
+      throw new Error(t("worldCommerceStands.shopCheckoutNoPage"));
     } catch (e) {
-      setOrderError(plainErrorText(e, "Checkout didn't start — nothing was charged, and your cart is untouched."));
+      setOrderError(plainErrorText(e, t("worldCommerceStands.shopCheckoutFailedCart")));
     } finally {
       setPlacing(false);
     }
@@ -446,7 +448,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
       <div className="space-y-3" data-testid="world-shop-marketplace-stand">
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => setOpenHandle(null)} className={chipBtn(isLight)}>
-            ← All stands
+            {t("worldCommerceStands.shopAllStands")}
           </button>
           {shop && (
             <span className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{shop.name}</span>
@@ -454,22 +456,22 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           {shop?.tagline && <span className={`text-xs ${muted(isLight)}`}>{shop.tagline}</span>}
           {count > 0 && (
             <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-black text-black">
-              <ShoppingBag className="h-3.5 w-3.5" /> {count} in your cart · {centsToDisplay(total)}
+              <ShoppingBag className="h-3.5 w-3.5" /> {t("worldCommerceStands.shopCartPill", { count, total: centsToDisplay(total) })}
             </span>
           )}
         </div>
 
-        {standState === "loading" && <NativeLoadingState isLight={isLight} message="Setting up the stand…" />}
+        {standState === "loading" && <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.shopStandLoading")} />}
         {standState === "failed" && (
           <NativeErrorState
             isLight={isLight}
-            title="This stand wouldn't open"
-            message="The shop itself is fine — its goods couldn't be brought to the square. Try the stand again."
+            title={t("worldCommerceStands.shopStandFailedTitle")}
+            message={t("worldCommerceStands.shopStandFailedMsg")}
             onRetry={() => void openStand(openHandle)}
           />
         )}
         {standState === "ready" && products.length === 0 && (
-          <NativeEmptyState isLight={isLight} message="This stand is bare right now — the creator hasn't stocked it yet." />
+          <NativeEmptyState isLight={isLight} message={t("worldCommerceStands.shopStandEmpty")} />
         )}
         {standState === "ready" && products.length > 0 && (
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -488,7 +490,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                     onClick={() => setCart((c) => addToCartLines(c, p.id))}
                     className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                   >
-                    <Plus className="h-3.5 w-3.5" /> Add to cart
+                    <Plus className="h-3.5 w-3.5" /> {t("worldCommerceStands.shopAddToCart")}
                   </button>
                 </div>
               </NativeCard>
@@ -518,44 +520,43 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
         )}
 
         {standState === "ready" && (detailed.length > 0 || paidOrder || pendingNote) && (
-          <NativeCard isLight={isLight} title={`Your cart${count > 0 ? ` (${count})` : ""}`}>
+          <NativeCard isLight={isLight} title={count > 0 ? t("worldCommerceStands.shopCartTitleCount", { count }) : t("worldCommerceStands.shopCartTitle")}>
             {detailed.map((l) => (
               <div key={l.productId} className="flex flex-wrap items-center gap-2 py-1.5">
                 <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{l.product.name}</span>
                 <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(l.product.price_cents * l.qty)}</span>
                 <span className="inline-flex items-center gap-1.5">
-                  <button type="button" aria-label="One less" onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty - 1))} className={`${chipBtn(isLight)} bdv-touch-box`}><Minus className="h-3 w-3" /></button>
+                  <button type="button" aria-label={t("worldCommerceStands.shopOneLess")} onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty - 1))} className={`${chipBtn(isLight)} bdv-touch-box`}><Minus className="h-3 w-3" /></button>
                   <span className="w-5 text-center text-sm font-bold">{l.qty}</span>
-                  <button type="button" aria-label="One more" onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty + 1))} className={`${chipBtn(isLight)} bdv-touch-box`}><Plus className="h-3 w-3" /></button>
-                  <button type="button" aria-label="Remove from cart" onClick={() => setCart((c) => setCartLineQty(c, l.productId, 0))} className={`${chipBtn(isLight)} bdv-touch-box`}><Trash2 className="h-3 w-3" /></button>
+                  <button type="button" aria-label={t("worldCommerceStands.shopOneMore")} onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty + 1))} className={`${chipBtn(isLight)} bdv-touch-box`}><Plus className="h-3 w-3" /></button>
+                  <button type="button" aria-label={t("worldCommerceStands.shopRemoveFromCart")} onClick={() => setCart((c) => setCartLineQty(c, l.productId, 0))} className={`${chipBtn(isLight)} bdv-touch-box`}><Trash2 className="h-3 w-3" /></button>
                 </span>
               </div>
             ))}
             {detailed.length > 0 && !paidOrder && (
               <div className="mt-2 space-y-2 border-t border-[#d4af37]/25 pt-3">
                 <div className="flex items-center justify-between text-sm">
-                  <span className={muted(isLight)}>Total</span>
+                  <span className={muted(isLight)}>{t("worldCommerceStands.shopTotal")}</span>
                   <span className="text-lg font-black">{centsToDisplay(total)}</span>
                 </div>
                 <input
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
                   type="email"
-                  placeholder="Email for your receipt (optional)"
-                  aria-label="Email for your receipt (optional)"
+                  placeholder={t("worldCommerceStands.shopReceiptEmail")}
+                  aria-label={t("worldCommerceStands.shopReceiptEmail")}
                   className={inputCls(isLight)}
                 />
                 <input
                   value={giftCardInput}
                   onChange={(e) => setGiftCardInput(e.target.value)}
-                  placeholder="Gift card code (optional) — BDV-XXXX-XXXX-XXXX-XXXX"
-                  aria-label="Gift card code"
+                  placeholder={t("worldCommerceStands.shopGiftCardPlaceholder")}
+                  aria-label={t("worldCommerceStands.shopGiftCardAria")}
                   data-testid="world-shop-gift-card-input"
                   className={inputCls(isLight)}
                 />
                 <p className={`text-[11px] ${muted(isLight)}`}>
-                  Paying with a gift card from this creator? It covers what it can, the rest goes on
-                  your payment method, and whatever&rsquo;s left stays on the gift card.
+                  {t("worldCommerceStands.shopGiftCardNote")}
                 </p>
                 {orderError && <p className="text-xs font-semibold text-red-400">{orderError}</p>}
                 {/* The ONE marked door out of this stand: payment. */}
@@ -564,7 +565,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                   {CHECKOUT_TRANSFER_LABEL} · {centsToDisplay(total)}
                 </button>
                 <p className={`text-[11px] ${muted(isLight)}`}>
-                  Sellers keep {100 - feePct}% — the {feePct}% platform fee comes out of the seller&rsquo;s cut, never on top of your price.
+                  {t("worldCommerceStands.shopFeeLine", { keep: 100 - feePct, fee: feePct })}
                 </p>
               </div>
             )}
@@ -572,7 +573,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
               <div className="mt-2 space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-shop-embedded-checkout">
                 <EmbeddedSessionCheckout clientSecret={embeddedSecret} />
                 <button type="button" onClick={() => setEmbeddedSecret(null)} className={`${chipBtn(isLight)}`}>
-                  Close — the order stays pending and your cart is untouched
+                  {t("worldCommerceStands.shopEmbeddedClose")}
                 </button>
               </div>
             )}
@@ -583,10 +584,10 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                   <span>{pendingNote}</span>
                 </p>
                 <p className={`text-[11px] ${muted(isLight)}`}>
-                  This order is pending — it is not paid yet, and it will never be shown as paid until the payment confirms.
+                  {t("worldCommerceStands.shopPendingHonesty")}
                 </p>
                 <button type="button" data-testid="world-shop-refresh-order" onClick={() => openHandle && void refreshOrder(openHandle)} disabled={refreshingOrder} className={`${chipBtn(isLight)}`}>
-                  <RefreshCw className="h-3 w-3" /> Check payment status
+                  <RefreshCw className="h-3 w-3" /> {t("worldCommerceStands.shopCheckPayment")}
                 </button>
               </div>
             )}
@@ -599,29 +600,29 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                   <Sparkles className="h-6 w-6 text-[#d4af37]" />
                 </span>
                 <p className={`mt-2 text-base font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                  It&rsquo;s yours — payment confirmed
+                  {t("worldCommerceStands.shopPaidTitle")}
                 </p>
                 <div className="mx-auto mt-2 max-w-sm space-y-1">
                   {paidOrder.lines.map((l) => (
                     <p key={l.saleId} className="flex items-center justify-center gap-1.5 text-sm font-bold">
                       <BadgeCheck className="h-4 w-4 shrink-0 text-emerald-300" />
                       <span className={isLight ? "text-[#2a1e07]" : "text-white"}>
-                        {l.quantity > 1 ? `${l.quantity} × ` : ""}{l.productName ?? "Your item"}
+                        {l.quantity > 1 ? t("worldCommerceStands.shopQtyPrefix", { qty: l.quantity }) : ""}{l.productName ?? t("worldCommerceStands.shopYourItem")}
                       </span>
                       <span className="text-[#d4af37]">{centsToDisplay(l.gross_cents)}</span>
                     </p>
                   ))}
                 </div>
                 <p className={`mt-2 text-xs ${muted(isLight)}`}>
-                  Paid {centsToDisplay(paidOrder.gross_cents)} · platform fee ({feePct}%) {centsToDisplay(paidOrder.platform_fee_cents)} · the seller receives {centsToDisplay(paidOrder.seller_net_cents)} — their win lands in their sales the moment this confirmed.
+                  {t("worldCommerceStands.shopPaidSummary", { gross: centsToDisplay(paidOrder.gross_cents), fee: feePct, feeAmount: centsToDisplay(paidOrder.platform_fee_cents), net: centsToDisplay(paidOrder.seller_net_cents) })}
                 </p>
-                <button type="button" onClick={() => setPaidOrder(null)} className={`${chipBtn(isLight)} mt-2`}>Keep browsing</button>
+                <button type="button" onClick={() => setPaidOrder(null)} className={`${chipBtn(isLight)} mt-2`}>{t("worldCommerceStands.shopKeepBrowsing")}</button>
               </div>
             )}
           </NativeCard>
         )}
         {isGuest && (
-          <p className={`px-1 text-[11px] ${muted(isLight)}`}>Browsing the square is open to everyone — no account needed. Buying opens the hosted payment page in a new tab at the money moment, and the stand confirms your order here once the payment lands.</p>
+          <p className={`px-1 text-[11px] ${muted(isLight)}`}>{t("worldCommerceStands.shopGuestBuyNote")}</p>
         )}
       </div>
     );
@@ -629,13 +630,13 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
 
   return (
     <div className="space-y-2" data-testid="world-shop-marketplace">
-      <StandTitle isLight={isLight}>Shopfronts on the square</StandTitle>
+      <StandTitle isLight={isLight}>{t("worldCommerceStands.shopSquareTitle")}</StandTitle>
       {shopsFailed ? (
-        <NativeErrorState isLight={isLight} title="The square wouldn't load" message="The marketplace stalls are fine — the square couldn't be reached. Try again." onRetry={() => setTick((n) => n + 1)} />
+        <NativeErrorState isLight={isLight} title={t("worldCommerceStands.shopSquareFailedTitle")} message={t("worldCommerceStands.shopSquareFailedMsg")} onRetry={() => setTick((n) => n + 1)} />
       ) : shops === null ? (
-        <NativeLoadingState isLight={isLight} message="Walking the square…" />
+        <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.shopSquareLoading")} />
       ) : shops.length === 0 ? (
-        <NativeEmptyState isLight={isLight} message="No shopfronts are open on the square yet." detail="When creators open shops, their stands appear here." />
+        <NativeEmptyState isLight={isLight} message={t("worldCommerceStands.shopSquareEmpty")} detail={t("worldCommerceStands.shopSquareEmptyDetail")} />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {shops.map((s) => (
@@ -646,10 +647,10 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
               {s.tagline && <p className={`mt-0.5 line-clamp-2 text-xs ${muted(isLight)}`}>{s.tagline}</p>}
               <div className="mt-2 flex items-center gap-2">
                 <span className={`text-xs font-semibold ${muted(isLight)}`}>
-                  {s.product_count} {s.product_count === 1 ? "product" : "products"}
+                  {t(s.product_count === 1 ? "worldCommerceStands.shopProductOne" : "worldCommerceStands.shopProductMany", { count: s.product_count })}
                 </span>
                 <button type="button" data-testid="world-shop-open-stand" onClick={() => void openStand(s.handle)} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target">
-                  Visit the stand
+                  {t("worldCommerceStands.shopVisitStand")}
                 </button>
               </div>
             </NativeCard>
@@ -722,6 +723,16 @@ function StandCreateShop({
   isLight: boolean;
   onCreated: (mine: MineShopDto) => void;
 }) {
+  const { t } = useTranslation();
+  const formStrings = {
+    productNameFirst: t("worldCommerceStands.shopProbProductName"),
+    priceValid: t("worldCommerceStands.shopProbPriceValid"),
+    shopNameFirst: t("worldCommerceStands.shopProbShopName"),
+    nameMax: t("worldCommerceStands.shopProbNameMax"),
+    taglineMax: t("worldCommerceStands.shopProbTaglineMax"),
+    descMax: t("worldCommerceStands.shopProbDescMax"),
+    handleProblem: t("worldCommerceStands.shopProbHandle"),
+  };
   const authHeaders = useAuthHeaders();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ShopCreateFormState>(emptyShopCreateForm());
@@ -733,10 +744,10 @@ function StandCreateShop({
 
   const create = async () => {
     if (creating) return;
-    const problem = shopCreateProblem(form);
+    const problem = shopCreateProblem(form, formStrings);
     if (problem) { setError(problem); return; }
     const payload = buildShopCreatePayload(form);
-    if (!payload) { setError("That shop can't be opened as-is — check the name and handle."); return; }
+    if (!payload) { setError(t("worldCommerceStands.shopCreateBad")); return; }
     setCreating(true);
     setError(null);
     setNote(null);
@@ -747,65 +758,65 @@ function StandCreateShop({
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "The shop didn't open — nothing was created.");
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : t("worldCommerceStands.shopCreateFailed"));
       const saved = savedShopDto(data);
-      if (!saved) throw new Error("The shop opened but its answer came back empty — check the square before trying again.");
+      if (!saved) throw new Error(t("worldCommerceStands.shopCreateEmpty"));
       onCreated(saved.mine);
       setForm(emptyShopCreateForm());
       setOpen(false);
-      setNote(`"${saved.mine.name}" is open on the square — visit its stand to stock it and shape it.`);
+      setNote(t("worldCommerceStands.shopCreatedNote", { name: saved.mine.name }));
     } catch (e) {
-      setError(plainErrorText(e, "The shop didn't open — nothing was created."));
+      setError(plainErrorText(e, t("worldCommerceStands.shopCreateFailed")));
     } finally {
       setCreating(false);
     }
   };
 
   return (
-    <NativeCard isLight={isLight} title="Your shopfront">
+    <NativeCard isLight={isLight} title={t("worldCommerceStands.shopCreateCardTitle")}>
       <div className="space-y-2" data-testid="world-shop-create">
         <p className={`text-xs ${muted(isLight)}`}>
-          Every creator can hold a stand on this square. Open yours here — the same shop, the same rails as your shop page on the website.
+          {t("worldCommerceStands.shopCreateIntro")}
         </p>
         {error && <p className="text-xs font-semibold text-red-400">{error}</p>}
         {note && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
         {!open ? (
           <button type="button" data-testid="world-shop-create-open" onClick={() => { setOpen(true); setError(null); }} className={goldBtn()}>
-            <Store className="h-4 w-4" /> Open a shop
+            <Store className="h-4 w-4" /> {t("worldCommerceStands.shopOpenShop")}
           </button>
         ) : (
           <div className="space-y-2" data-testid="world-shop-create-form">
             <input
               value={form.name}
               onChange={(e) => set({ name: e.target.value })}
-              placeholder="Shop name"
-              aria-label="Shop name"
+              placeholder={t("worldCommerceStands.shopNameLabel")}
+              aria-label={t("worldCommerceStands.shopNameLabel")}
               maxLength={SHOP_NAME_MAX}
               className={inputCls(isLight)}
             />
             <input
               value={form.handle}
               onChange={(e) => set({ handle: e.target.value })}
-              placeholder="Handle — like gold-standard (its address on the square)"
-              aria-label="Shop handle"
+              placeholder={t("worldCommerceStands.shopHandlePlaceholder")}
+              aria-label={t("worldCommerceStands.shopHandleAria")}
               maxLength={SHOP_HANDLE_MAX}
               className={inputCls(isLight)}
             />
             <input
               value={form.tagline}
               onChange={(e) => set({ tagline: e.target.value })}
-              placeholder="Tagline (optional)"
-              aria-label="Tagline (optional)"
+              placeholder={t("worldCommerceStands.shopTaglinePlaceholder")}
+              aria-label={t("worldCommerceStands.shopTaglinePlaceholder")}
               maxLength={SHOP_TAGLINE_MAX}
               className={inputCls(isLight)}
             />
             <div className="flex flex-wrap gap-1.5">
               <button type="button" data-testid="world-shop-create-submit" onClick={() => void create()} disabled={creating} className={goldBtn(creating)}>
                 {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Open the shop
+                {t("worldCommerceStands.shopOpenSubmit")}
               </button>
               <button type="button" onClick={() => { setOpen(false); setError(null); }} className={chipBtn(isLight)}>
-                <X className="h-3 w-3" /> Cancel
+                <X className="h-3 w-3" /> {t("worldCommerceStands.shopCancel")}
               </button>
             </div>
           </div>
@@ -1157,6 +1168,27 @@ function StandManager({
   onShopSaved: (pub: PublicShopDto, mine: MineShopDto) => void;
   onShopDeleted: () => void;
 }) {
+  const { t, i18n } = useTranslation();
+  const formStrings = {
+    productNameFirst: t("worldCommerceStands.shopProbProductName"),
+    priceValid: t("worldCommerceStands.shopProbPriceValid"),
+    shopNameFirst: t("worldCommerceStands.shopProbShopName"),
+    nameMax: t("worldCommerceStands.shopProbNameMax"),
+    taglineMax: t("worldCommerceStands.shopProbTaglineMax"),
+    descMax: t("worldCommerceStands.shopProbDescMax"),
+    handleProblem: t("worldCommerceStands.shopProbHandle"),
+  };
+  const earningsLabels = {
+    store: t("worldCommerceStands.shopEarningsStore"),
+    storeNoun: t("worldCommerceStands.shopEarningsStoreNoun"),
+    storeNounOne: t("worldCommerceStands.shopEarningsStoreNounOne"),
+    memberships: t("worldCommerceStands.shopEarningsMemberships"),
+    membershipsNoun: t("worldCommerceStands.shopEarningsMembershipsNoun"),
+    membershipsNounOne: t("worldCommerceStands.shopEarningsMembershipsNounOne"),
+    deals: t("worldCommerceStands.shopEarningsDeals"),
+    dealsNoun: t("worldCommerceStands.shopEarningsDealsNoun"),
+    dealsNounOne: t("worldCommerceStands.shopEarningsDealsNounOne"),
+  };
   const authHeaders = useAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -1236,10 +1268,10 @@ function StandManager({
      keeps the form open and the shelf untouched. */
   const saveProduct = async () => {
     if (saving) return;
-    const problem = productFormProblem(form);
+    const problem = productFormProblem(form, formStrings);
     if (problem) { setManageError(problem); return; }
     const payload = buildProductPayload(form);
-    if (!payload) { setManageError("That product can't be saved as-is — check the name and price."); return; }
+    if (!payload) { setManageError(t("worldCommerceStands.shopProductSaveBad")); return; }
     setSaving(true);
     setManageError(null);
     setManageNote(null);
@@ -1253,15 +1285,15 @@ function StandManager({
         },
       );
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "The product didn't save — nothing about your stand changed.");
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : t("worldCommerceStands.shopProductSaveFailed"));
       const saved = savedProductDto(data);
-      if (!saved) throw new Error("The save came back without your product — the shelf here is unchanged. Reopen the stand to see its true state.");
+      if (!saved) throw new Error(t("worldCommerceStands.shopProductSaveEmpty"));
       setProducts((ps) => applyProductSave(ps, saved, editingProduct ? editingProduct.id : null));
-      setManageNote(editingProduct ? `"${saved.name}" is updated on your stand.` : `"${saved.name}" is on your stand.`);
+      setManageNote(editingProduct ? t("worldCommerceStands.shopProductUpdatedNote", { name: saved.name }) : t("worldCommerceStands.shopProductAddedNote", { name: saved.name }));
       setFormOpen(false);
       setEditingProduct(null);
     } catch (e) {
-      setManageError(plainErrorText(e, "The product didn't save — nothing about your stand changed."));
+      setManageError(plainErrorText(e, t("worldCommerceStands.shopProductSaveFailed")));
     } finally {
       setSaving(false);
     }
@@ -1281,13 +1313,13 @@ function StandManager({
         headers: await authHeaders(),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "That product wouldn't come off the stand — it's still on your shelf.");
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : t("worldCommerceStands.shopProductDeleteFailed"));
       setProducts((ps) => removeProduct(ps, p.id));
       if (editingProduct?.id === p.id) closeForm();
       setConfirmingDeleteId(null);
-      setManageNote(`"${p.name}" is off your stand.`);
+      setManageNote(t("worldCommerceStands.shopProductDeletedNote", { name: p.name }));
     } catch (e) {
-      setManageError(plainErrorText(e, "That product wouldn't come off the stand — it's still on your shelf."));
+      setManageError(plainErrorText(e, t("worldCommerceStands.shopProductDeleteFailed")));
     } finally {
       setDeletingId(null);
     }
@@ -1301,7 +1333,7 @@ function StandManager({
      the product is still the owner's own tap. */
   const runAiDescription = async () => {
     if (aiDescBusy) return;
-    if (!form.name.trim()) { setManageError("Give the product a name first — the writer needs to know what it's selling."); return; }
+    if (!form.name.trim()) { setManageError(t("worldCommerceStands.shopAiNameFirstDesc")); return; }
     setAiDescBusy(true);
     setManageError(null);
     try {
@@ -1313,16 +1345,16 @@ function StandManager({
       if (!res) return; /* the owner declined the spend confirm — nothing charged, nothing changed */
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (aiOutOfCredits(res.status, data)) {
-        setManageError("You're out of Visual Bucs — top up and the writer is yours again.");
+        setManageError(t("worldCommerceStands.shopAiOutWriter"));
         return;
       }
-      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "The writer didn't answer — if Visual Bucs were charged, they're refunded.");
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : t("worldCommerceStands.shopAiWriterFailed"));
       const description = parseAiDescription(data);
-      if (!description) throw new Error("The writer came back empty — if Visual Bucs were charged, they're refunded.");
+      if (!description) throw new Error(t("worldCommerceStands.shopAiWriterEmpty"));
       set({ description });
-      setManageNote("The description's written — read it over, then save the product to put it on the stand.");
+      setManageNote(t("worldCommerceStands.shopAiDescWrittenNote"));
     } catch (e) {
-      setManageError(plainErrorText(e, "The writer didn't answer — if Visual Bucs were charged, they're refunded."));
+      setManageError(plainErrorText(e, t("worldCommerceStands.shopAiWriterFailed")));
     } finally {
       setAiDescBusy(false);
     }
@@ -1334,7 +1366,7 @@ function StandManager({
      the shelf until the product saves. */
   const runAiImage = async (tier: "standard" | "premium") => {
     if (aiImageBusy) return;
-    if (!form.name.trim()) { setManageError("Give the product a name first — the image maker needs to know what it's picturing."); return; }
+    if (!form.name.trim()) { setManageError(t("worldCommerceStands.shopAiNameFirstImage")); return; }
     setAiImageBusy(tier);
     setManageError(null);
     try {
@@ -1349,16 +1381,16 @@ function StandManager({
       if (!res) return; /* declined — nothing charged, nothing changed */
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (aiOutOfCredits(res.status, data)) {
-        setManageError("You're out of Visual Bucs — top up and the image maker is yours again.");
+        setManageError(t("worldCommerceStands.shopAiOutImage"));
         return;
       }
-      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "The image didn't come back — if Visual Bucs were charged, they're refunded.");
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : t("worldCommerceStands.shopAiImageFailed"));
       const url = parseAiImageUrl(data);
-      if (!url) throw new Error("The image maker came back empty — if Visual Bucs were charged, they're refunded.");
+      if (!url) throw new Error(t("worldCommerceStands.shopAiImageEmpty"));
       set({ imageUrl: url });
-      setManageNote("Your product image is made — save the product to put it on the stand.");
+      setManageNote(t("worldCommerceStands.shopAiImageMadeNote"));
     } catch (e) {
-      setManageError(plainErrorText(e, "The image didn't come back — if Visual Bucs were charged, they're refunded."));
+      setManageError(plainErrorText(e, t("worldCommerceStands.shopAiImageFailed")));
     } finally {
       setAiImageBusy(null);
     }
@@ -1372,10 +1404,10 @@ function StandManager({
      guess; a failure keeps the form and changes nothing. */
   const saveSettings = async () => {
     if (settingsSaving) return;
-    const problem = shopSettingsProblem(settingsForm);
+    const problem = shopSettingsProblem(settingsForm, formStrings);
     if (problem) { setSettingsError(problem); return; }
     const payload = buildShopSettingsPayload(settingsForm);
-    if (!payload) { setSettingsError("Those settings can't be saved as-is — check the name and lengths."); return; }
+    if (!payload) { setSettingsError(t("worldCommerceStands.shopSettingsSaveBad")); return; }
     setSettingsSaving(true);
     setSettingsError(null);
     setSettingsNote(null);
@@ -1386,14 +1418,14 @@ function StandManager({
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "Your settings didn't save — your shop is unchanged.");
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : t("worldCommerceStands.shopSettingsSaveFailed"));
       const saved = savedShopDto(data);
-      if (!saved) throw new Error("The save came back without your shop — reopen the stand to see its true state.");
+      if (!saved) throw new Error(t("worldCommerceStands.shopSettingsSaveEmpty"));
       onShopSaved(saved.pub, { ...saved.mine, product_count: mineShop.product_count });
       setSettingsForm(shopSettingsFormFromShop(saved.mine));
-      setSettingsNote("Your shop's new face is live on the square.");
+      setSettingsNote(t("worldCommerceStands.shopSettingsSavedNote"));
     } catch (e) {
-      setSettingsError(plainErrorText(e, "Your settings didn't save — your shop is unchanged."));
+      setSettingsError(plainErrorText(e, t("worldCommerceStands.shopSettingsSaveFailed")));
     } finally {
       setSettingsSaving(false);
     }
@@ -1420,13 +1452,13 @@ function StandManager({
         body: JSON.stringify(shopStarterPatch(starter)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "That look didn't save — your shop is unchanged.");
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : t("worldCommerceStands.shopLookSaveFailed"));
       const saved = savedShopDto(data);
-      if (!saved) throw new Error("The save came back without your shop — reopen the stand to see its true state.");
+      if (!saved) throw new Error(t("worldCommerceStands.shopSettingsSaveEmpty"));
       onShopSaved(saved.pub, { ...saved.mine, product_count: mineShop.product_count });
-      setSettingsNote(`${starter.name} is live on your storefront.`);
+      setSettingsNote(t("worldCommerceStands.shopLookLiveNote", { name: starter.name }));
     } catch (e) {
-      setSettingsError(plainErrorText(e, "That look didn't save — your shop is unchanged."));
+      setSettingsError(plainErrorText(e, t("worldCommerceStands.shopLookSaveFailed")));
     } finally {
       setApplyingStarterId(null);
     }
@@ -1438,7 +1470,7 @@ function StandManager({
      saving the settings is still the owner's own tap. */
   const runAiShopDescription = async () => {
     if (aiShopDescBusy) return;
-    if (!(settingsForm.name.trim() || shop.name)) { setSettingsError("Give the shop a name first — the writer needs to know whose story it's telling."); return; }
+    if (!(settingsForm.name.trim() || shop.name)) { setSettingsError(t("worldCommerceStands.shopAiNameFirstShop")); return; }
     setAiShopDescBusy(true);
     setSettingsError(null);
     try {
@@ -1455,16 +1487,16 @@ function StandManager({
       if (!res) return; /* the owner declined the spend confirm — nothing charged, nothing changed */
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (aiOutOfCredits(res.status, data)) {
-        setSettingsError("You're out of Visual Bucs — top up and the writer is yours again.");
+        setSettingsError(t("worldCommerceStands.shopAiOutWriter"));
         return;
       }
-      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "The writer didn't answer — if Visual Bucs were charged, they're refunded.");
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : t("worldCommerceStands.shopAiWriterFailed"));
       const description = parseAiDescription(data);
-      if (!description) throw new Error("The writer came back empty — if Visual Bucs were charged, they're refunded.");
+      if (!description) throw new Error(t("worldCommerceStands.shopAiWriterEmpty"));
       setSettings({ description });
-      setSettingsNote("Your shop's story is written — read it over, then save the settings to put it on the square.");
+      setSettingsNote(t("worldCommerceStands.shopSettingsAiWrittenNote"));
     } catch (e) {
-      setSettingsError(plainErrorText(e, "The writer didn't answer — if Visual Bucs were charged, they're refunded."));
+      setSettingsError(plainErrorText(e, t("worldCommerceStands.shopAiWriterFailed")));
     } finally {
       setAiShopDescBusy(false);
     }
@@ -1484,10 +1516,10 @@ function StandManager({
         headers: await authHeaders(),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "Your shop wouldn't close — it's still on the square.");
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : t("worldCommerceStands.shopDeleteFailed"));
       onShopDeleted();
     } catch (e) {
-      setSettingsError(plainErrorText(e, "Your shop wouldn't close — it's still on the square."));
+      setSettingsError(plainErrorText(e, t("worldCommerceStands.shopDeleteFailed")));
       setDeletingShop(false);
     }
   };
@@ -1545,11 +1577,10 @@ function StandManager({
   }, []);
 
   return (
-    <NativeCard isLight={isLight} title="Your stand — manage it here">
+    <NativeCard isLight={isLight} title={t("worldCommerceStands.shopManageTitle")}>
       <div className="space-y-2">
         <p className={`text-xs ${muted(isLight)}`}>
-          This is your stand — the same products and prices as your shop on the website, run from right here.
-          Every change saves on the real rails the moment it lands.
+          {t("worldCommerceStands.shopManageIntro")}
         </p>
 
         {/* The seller's whole picture (Parity P3) — every rail they
@@ -1562,12 +1593,12 @@ function StandManager({
         >
           {earnings === undefined || earningsBusy ? (
             <p className={`flex items-center gap-2 text-xs ${muted(isLight)}`}>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Opening your earnings picture…
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("worldCommerceStands.shopEarningsLoading")}
             </p>
           ) : earnings === null ? (
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs font-semibold text-red-400">
-                Your earnings picture wouldn&rsquo;t open — nothing about your money changed.
+                {t("worldCommerceStands.shopEarningsFailed")}
               </p>
               <button
                 type="button"
@@ -1575,7 +1606,7 @@ function StandManager({
                 onClick={() => { setEarnings(undefined); void loadEarnings(); }}
                 className={chipBtn(isLight)}
               >
-                <RefreshCw className="h-3 w-3" /> Try again
+                <RefreshCw className="h-3 w-3" /> {t("worldCommerceStands.shopTryAgain")}
               </button>
             </div>
           ) : (
@@ -1583,16 +1614,16 @@ function StandManager({
               <div className="flex flex-wrap items-center gap-2">
                 <Wallet className="h-4 w-4 shrink-0 text-[#d4af37]" />
                 <span className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                  You&rsquo;ve earned {centsToDisplay(earnings.totalCents)} across everything you sell
+                  {t("worldCommerceStands.shopEarnedLine", { total: centsToDisplay(earnings.totalCents) })}
                 </span>
                 {earnings.partial && (
                   <span className={`text-[11px] font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-                    One part of the picture couldn&rsquo;t be read just now — the total counts what loaded.
+                    {t("worldCommerceStands.shopEarningsPartial")}
                   </span>
                 )}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {sellerEarningsRows(earnings).map((row) => (
+                {sellerEarningsRows(earnings, earningsLabels).map((row) => (
                   <span
                     key={row.key}
                     data-testid="world-shop-earnings-source"
@@ -1600,11 +1631,11 @@ function StandManager({
                   >
                     {row.label}
                     {row.source.status === "error" || row.source.totalCents === null || row.source.count === null ? (
-                      <span className={isLight ? "text-[#92600a]" : "text-amber-300"}>couldn&rsquo;t be read</span>
+                      <span className={isLight ? "text-[#92600a]" : "text-amber-300"}>{t("worldCommerceStands.shopEarningsUnreadable")}</span>
                     ) : (
                       <span className={isLight ? "text-[#2a1e07]" : "text-white"}>
                         {centsToDisplay(row.source.totalCents)} · {row.source.count}{" "}
-                        {row.source.count === 1 ? row.noun.replace(/s$/, "") : row.noun}
+                        {row.source.count === 1 ? row.nounOne : row.noun}
                       </span>
                     )}
                   </span>
@@ -1612,46 +1643,41 @@ function StandManager({
               </div>
               {earnings.streamTipsVb !== null && (earnings.streamTipsVb > 0 || (earnings.streamTipCount ?? 0) > 0) && (
                 <p className={`text-[11px] ${muted(isLight)}`}>
-                  Stream tips: <span className="font-bold text-[#d4af37]">{earnings.streamTipsVb.toLocaleString()} VB</span>
+                  {t("worldCommerceStands.shopStreamTipsLabel")} <span className="font-bold text-[#d4af37]">{t("worldCommerceStands.shopTipsVbSuffix", { vb: earnings.streamTipsVb.toLocaleString(i18n.language) })}</span>
                   {earnings.streamTipCount !== null && earnings.streamTipCount > 0
-                    ? ` from ${earnings.streamTipCount} ${earnings.streamTipCount === 1 ? "tip" : "tips"}`
-                    : ""}{" "}
-                  — Visual Bucs, kept apart from the money above.
+                    ? t(earnings.streamTipCount === 1 ? "worldCommerceStands.shopTipsFromOne" : "worldCommerceStands.shopTipsFromMany", { count: earnings.streamTipCount })
+                    : ""}{t("worldCommerceStands.shopTipsKeptApart")}
                 </p>
               )}
               {earnings.stageTipsVb !== null && (earnings.stageTipsVb > 0 || (earnings.stageTipCount ?? 0) > 0) && (
                 <p className={`text-[11px] ${muted(isLight)}`}>
-                  Stage tips: <span className="font-bold text-[#d4af37]">{earnings.stageTipsVb.toLocaleString()} VB</span>
+                  {t("worldCommerceStands.shopStageTipsLabel")} <span className="font-bold text-[#d4af37]">{t("worldCommerceStands.shopTipsVbSuffix", { vb: earnings.stageTipsVb.toLocaleString(i18n.language) })}</span>
                   {earnings.stageTipCount !== null && earnings.stageTipCount > 0
-                    ? ` from ${earnings.stageTipCount} ${earnings.stageTipCount === 1 ? "tip" : "tips"}`
-                    : ""}{" "}
-                  — Visual Bucs, kept apart from the money above.
+                    ? t(earnings.stageTipCount === 1 ? "worldCommerceStands.shopTipsFromOne" : "worldCommerceStands.shopTipsFromMany", { count: earnings.stageTipCount })
+                    : ""}{t("worldCommerceStands.shopTipsKeptApart")}
                 </p>
               )}
               {earnings.tipJarPendingCount !== null && earnings.tipJarPendingCount > 0 && (
                 <p className={`text-[11px] ${muted(isLight)}`}>
-                  {earnings.tipJarPendingCount} tip-jar {earnings.tipJarPendingCount === 1 ? "gift" : "gifts"}
-                  {earnings.tipJarPendingCents !== null ? ` worth ${centsToDisplay(earnings.tipJarPendingCents)}` : ""} awaiting
-                  payment — not earnings until they&rsquo;re paid.
+                  {t(earnings.tipJarPendingCount === 1 ? "worldCommerceStands.shopTipJarPendingOne" : "worldCommerceStands.shopTipJarPendingMany", { count: earnings.tipJarPendingCount, worthPart: earnings.tipJarPendingCents !== null ? t("worldCommerceStands.shopTipJarWorth", { amount: centsToDisplay(earnings.tipJarPendingCents) }) : "" })}
                 </p>
               )}
               <p className={`text-[11px] ${muted(isLight)}`}>
-                The same picture as your Earnings page, on the same rails — store sales here include this stand. Money pays
-                out through the website&rsquo;s payout path.
+                {t("worldCommerceStands.shopEarningsFooter")}
               </p>
             </>
           )}
         </div>
 
-        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Your stand's benches">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldCommerceStands.shopBenchesAria")}>
           <button type="button" role="tab" aria-selected={section === "products"} data-testid="world-shop-manage-tab-products" onClick={() => setSection("products")} className={standTabBtn(isLight, section === "products")}>
-            <ShoppingBag className="h-3 w-3" /> Products
+            <ShoppingBag className="h-3 w-3" /> {t("worldCommerceStands.shopTabProducts")}
           </button>
           <button type="button" role="tab" aria-selected={section === "settings"} data-testid="world-shop-manage-tab-settings" onClick={() => setSection("settings")} className={standTabBtn(isLight, section === "settings")}>
-            <Settings2 className="h-3 w-3" /> Shop settings
+            <Settings2 className="h-3 w-3" /> {t("worldCommerceStands.shopTabSettings")}
           </button>
           <button type="button" role="tab" aria-selected={section === "sales"} data-testid="world-shop-manage-tab-sales" onClick={() => setSection("sales")} className={standTabBtn(isLight, section === "sales")}>
-            <BarChart3 className="h-3 w-3" /> Sales
+            <BarChart3 className="h-3 w-3" /> {t("worldCommerceStands.shopTabSales")}
           </button>
         </div>
 
@@ -1671,7 +1697,7 @@ function StandManager({
               <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(p.price_cents)}</span>
               {confirmingDeleteId === p.id ? (
                 <>
-                  <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>Take it off your stand?</span>
+                  <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{t("worldCommerceStands.shopDeleteArmQ")}</span>
                   <button
                     type="button"
                     data-testid="world-shop-manage-delete-confirm"
@@ -1679,14 +1705,14 @@ function StandManager({
                     disabled={deletingId === p.id}
                     className="inline-flex items-center gap-1.5 rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                   >
-                    {deletingId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Remove it
+                    {deletingId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} {t("worldCommerceStands.shopRemoveIt")}
                   </button>
-                  <button type="button" onClick={() => setConfirmingDeleteId(null)} className={chipBtn(isLight)}>Keep it</button>
+                  <button type="button" onClick={() => setConfirmingDeleteId(null)} className={chipBtn(isLight)}>{t("worldCommerceStands.shopKeepIt")}</button>
                 </>
               ) : (
                 <>
                   <button type="button" data-testid="world-shop-manage-edit" onClick={() => openEdit(p)} className={chipBtn(isLight)}>
-                    <Pencil className="h-3 w-3" /> Edit
+                    <Pencil className="h-3 w-3" /> {t("worldCommerceStands.shopEdit")}
                   </button>
                   <button
                     type="button"
@@ -1694,47 +1720,47 @@ function StandManager({
                     onClick={() => { setConfirmingDeleteId(p.id); setManageError(null); }}
                     className={chipBtn(isLight)}
                   >
-                    <Trash2 className="h-3 w-3" /> Remove
+                    <Trash2 className="h-3 w-3" /> {t("worldCommerceStands.shopRemove")}
                   </button>
                 </>
               )}
             </div>
           ))}
           {products.length === 0 && (
-            <p className={`text-xs ${muted(isLight)}`}>Your stand is bare — add your first product and it&rsquo;s on the shelf.</p>
+            <p className={`text-xs ${muted(isLight)}`}>{t("worldCommerceStands.shopStandBare")}</p>
           )}
         </div>
 
         {!formOpen ? (
           <button type="button" data-testid="world-shop-manage-add" onClick={openNew} className={goldBtn()}>
-            <Plus className="h-4 w-4" /> Add a product
+            <Plus className="h-4 w-4" /> {t("worldCommerceStands.shopAddProduct")}
           </button>
         ) : (
           <div className="space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-shop-manage-form">
             <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              {editingProduct ? `Editing ${editingProduct.name}` : "New product"}
+              {editingProduct ? t("worldCommerceStands.shopEditingProduct", { name: editingProduct.name }) : t("worldCommerceStands.shopNewProduct")}
             </p>
             <input
               value={form.name}
               onChange={(e) => set({ name: e.target.value })}
-              placeholder="Product name"
-              aria-label="Product name"
+              placeholder={t("worldCommerceStands.shopProductNameLabel")}
+              aria-label={t("worldCommerceStands.shopProductNameLabel")}
               maxLength={120}
               className={inputCls(isLight)}
             />
             <input
               value={form.price}
               onChange={(e) => set({ price: e.target.value })}
-              placeholder="Price — like 19.99"
-              aria-label="Price"
+              placeholder={t("worldCommerceStands.shopPricePlaceholder")}
+              aria-label={t("worldCommerceStands.shopPriceAria")}
               inputMode="decimal"
               className={inputCls(isLight)}
             />
             <textarea
               value={form.description}
               onChange={(e) => set({ description: e.target.value })}
-              placeholder="Description — what it is, why it's worth it"
-              aria-label="Product description"
+              placeholder={t("worldCommerceStands.shopProductDescPlaceholder")}
+              aria-label={t("worldCommerceStands.shopProductDescAria")}
               maxLength={2000}
               rows={3}
               className={inputCls(isLight)}
@@ -1748,7 +1774,7 @@ function StandManager({
                 className={chipBtn(isLight)}
               >
                 {aiDescBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                Write the description — {SHOP_AI_DESCRIPTION_COST_VB} VB
+                {t("worldCommerceStands.shopAiDescButton", { cost: SHOP_AI_DESCRIPTION_COST_VB })}
               </button>
               <button
                 type="button"
@@ -1758,7 +1784,7 @@ function StandManager({
                 className={chipBtn(isLight)}
               >
                 {aiImageBusy === "standard" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImagePlus className="h-3 w-3" />}
-                Make an image — {SHOP_AI_IMAGE_STANDARD_COST_VB} VB
+                {t("worldCommerceStands.shopAiImageButton", { cost: SHOP_AI_IMAGE_STANDARD_COST_VB })}
               </button>
               <button
                 type="button"
@@ -1768,37 +1794,37 @@ function StandManager({
                 className={chipBtn(isLight)}
               >
                 {aiImageBusy === "premium" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImagePlus className="h-3 w-3" />}
-                Premium image — {SHOP_AI_IMAGE_PREMIUM_COST_VB} VB
+                {t("worldCommerceStands.shopAiImagePremiumButton", { cost: SHOP_AI_IMAGE_PREMIUM_COST_VB })}
               </button>
             </div>
             <input
               value={form.styleHint}
               onChange={(e) => set({ styleHint: e.target.value })}
-              placeholder="Image style direction (optional)"
-              aria-label="Image style direction (optional)"
+              placeholder={t("worldCommerceStands.shopStyleHintPlaceholder")}
+              aria-label={t("worldCommerceStands.shopStyleHintAria")}
               maxLength={300}
               className={inputCls(isLight)}
             />
             <input
               value={form.imageUrl}
               onChange={(e) => set({ imageUrl: e.target.value })}
-              placeholder="Image link — paste one, or make one above"
-              aria-label="Image link"
+              placeholder={t("worldCommerceStands.shopImageLinkPlaceholder")}
+              aria-label={t("worldCommerceStands.shopImageLinkAria")}
               className={inputCls(isLight)}
             />
             {form.imageUrl.trim() && (
               <img src={form.imageUrl.trim()} alt="" className="h-24 w-24 rounded-xl border border-[#d4af37]/40 object-cover" />
             )}
             <p className={`text-[11px] ${muted(isLight)}`}>
-              The helpers&rsquo; prices are confirmed before each run; a failed run is refunded by the rail itself.
+              {t("worldCommerceStands.shopHelpersNote")}
             </p>
             <div className="flex flex-wrap gap-1.5">
               <button type="button" data-testid="world-shop-manage-save" onClick={() => void saveProduct()} disabled={saving} className={goldBtn(saving)}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {editingProduct ? "Save changes" : "Put it on the stand"}
+                {editingProduct ? t("worldCommerceStands.shopSaveChanges") : t("worldCommerceStands.shopPutOnStand")}
               </button>
               <button type="button" onClick={closeForm} className={chipBtn(isLight)}>
-                <X className="h-3 w-3" /> Cancel
+                <X className="h-3 w-3" /> {t("worldCommerceStands.shopCancel")}
               </button>
             </div>
           </div>
@@ -1809,32 +1835,31 @@ function StandManager({
         {section === "settings" && (
         <div className="space-y-2" data-testid="world-shop-settings">
           <p className={`text-xs ${muted(isLight)}`}>
-            Your shop&rsquo;s face on the square — the same name, tagline and story your shop page on the website shows.
-            Your stand&rsquo;s address is its handle, <span className="font-mono">{shop.handle}</span> — it never moves.
+            {t("worldCommerceStands.shopSettingsIntroBefore")}<span className="font-mono">{shop.handle}</span>{t("worldCommerceStands.shopSettingsIntroAfter")}
           </p>
           {settingsError && <p className="text-xs font-semibold text-red-400">{settingsError}</p>}
           {settingsNote && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{settingsNote}</p>}
           <input
             value={settingsForm.name}
             onChange={(e) => setSettings({ name: e.target.value })}
-            placeholder="Shop name"
-            aria-label="Shop name"
+            placeholder={t("worldCommerceStands.shopNameLabel")}
+            aria-label={t("worldCommerceStands.shopNameLabel")}
             maxLength={SHOP_NAME_MAX}
             className={inputCls(isLight)}
           />
           <input
             value={settingsForm.tagline}
             onChange={(e) => setSettings({ tagline: e.target.value })}
-            placeholder="Tagline — the one line under your name"
-            aria-label="Tagline"
+            placeholder={t("worldCommerceStands.shopTaglineFieldPlaceholder")}
+            aria-label={t("worldCommerceStands.shopTaglineAria")}
             maxLength={SHOP_TAGLINE_MAX}
             className={inputCls(isLight)}
           />
           <textarea
             value={settingsForm.description}
             onChange={(e) => setSettings({ description: e.target.value })}
-            placeholder="Your shop's story — what you sell and why it's worth it"
-            aria-label="Shop description"
+            placeholder={t("worldCommerceStands.shopStoryPlaceholder")}
+            aria-label={t("worldCommerceStands.shopStoryAria")}
             maxLength={SHOP_DESCRIPTION_MAX}
             rows={4}
             className={inputCls(isLight)}
@@ -1842,15 +1867,15 @@ function StandManager({
           <input
             value={shopNiche}
             onChange={(e) => setShopNiche(e.target.value)}
-            placeholder="Your niche (optional — steers the writer below)"
-            aria-label="Your niche (optional)"
+            placeholder={t("worldCommerceStands.shopNichePlaceholder")}
+            aria-label={t("worldCommerceStands.shopNicheAria")}
             maxLength={120}
             className={inputCls(isLight)}
           />
           <div className="flex flex-wrap gap-1.5">
             <button type="button" data-testid="world-shop-settings-save" onClick={() => void saveSettings()} disabled={settingsSaving} className={goldBtn(settingsSaving)}>
               {settingsSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              Save settings
+              {t("worldCommerceStands.shopSaveSettings")}
             </button>
             <button
               type="button"
@@ -1860,11 +1885,11 @@ function StandManager({
               className={chipBtn(isLight)}
             >
               {aiShopDescBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-              Write my shop&rsquo;s story — {SHOP_AI_SHOP_DESCRIPTION_COST_VB} VB
+              {t("worldCommerceStands.shopAiStoryButton", { cost: SHOP_AI_SHOP_DESCRIPTION_COST_VB })}
             </button>
           </div>
           <p className={`text-[11px] ${muted(isLight)}`}>
-            The writer&rsquo;s price is confirmed before it runs; a failed run is refunded by the rail itself. Its words land above, unsaved — saving is your tap.
+            {t("worldCommerceStands.shopWriterNote")}
           </p>
           {/* Org wave #4: the Look starters shelf — the My Shop page's
               design starters from the ONE registry (lib/shop-starters),
@@ -1874,7 +1899,7 @@ function StandManager({
               colors through the settings rail (see applyStarter). */}
           <div className="space-y-2 pt-1" data-testid="world-shop-starters">
             <p className={`text-[11px] font-black uppercase tracking-wider ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}>
-              Look starters — one tap re-skins your storefront
+              {t("worldCommerceStands.shopStartersTitle")}
             </p>
             <div
               data-testid="world-shop-banner-preview"
@@ -1911,14 +1936,14 @@ function StandManager({
                       onClick={() => void applyStarter(starter)}
                       className={chipBtn(isLight)}
                     >
-                      {applied ? "Applied" : applyingStarterId === starter.id ? "Applying…" : "Apply this look"}
+                      {applied ? t("worldCommerceStands.shopStarterApplied") : applyingStarterId === starter.id ? t("worldCommerceStands.shopStarterApplying") : t("worldCommerceStands.shopStarterApply")}
                     </button>
                   </div>
                 );
               })}
             </div>
             <p className={`text-[11px] ${muted(isLight)}`}>
-              Free — a look writes only your banner and accent colors, through the same settings save. Your name, story and products never move.
+              {t("worldCommerceStands.shopStartersNote")}
             </p>
           </div>
           {/* Stack-100 #29: the SHOP's storefront domain — connect,
@@ -1934,13 +1959,13 @@ function StandManager({
           <DomainsDesk isLight={isLight} />
 
           <div className="space-y-2 border-t border-red-400/30 pt-3">
-            <p className={`text-xs font-black uppercase tracking-[0.14em] text-red-300`}>Close this shop</p>
+            <p className={`text-xs font-black uppercase tracking-[0.14em] text-red-300`}>{t("worldCommerceStands.shopCloseTitle")}</p>
             <p className={`text-xs ${muted(isLight)}`}>
-              Closing takes the stand and its products off the square for good. Sales already made stay in your records; files are never deleted.
+              {t("worldCommerceStands.shopCloseIntro")}
             </p>
             {confirmingDeleteShop ? (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>Close &ldquo;{shop.name}&rdquo; for good?</span>
+                <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{t("worldCommerceStands.shopCloseArmQ", { name: shop.name })}</span>
                 <button
                   type="button"
                   data-testid="world-shop-settings-delete-confirm"
@@ -1948,9 +1973,9 @@ function StandManager({
                   disabled={deletingShop}
                   className="inline-flex items-center gap-1.5 rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                 >
-                  {deletingShop ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Close it
+                  {deletingShop ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} {t("worldCommerceStands.shopCloseIt")}
                 </button>
-                <button type="button" onClick={() => setConfirmingDeleteShop(false)} className={chipBtn(isLight)}>Keep my shop</button>
+                <button type="button" onClick={() => setConfirmingDeleteShop(false)} className={chipBtn(isLight)}>{t("worldCommerceStands.shopKeepMyShop")}</button>
               </div>
             ) : (
               <button
@@ -1959,7 +1984,7 @@ function StandManager({
                 onClick={() => { setConfirmingDeleteShop(true); setSettingsError(null); }}
                 className={chipBtn(isLight)}
               >
-                <Trash2 className="h-3 w-3" /> Close this shop
+                <Trash2 className="h-3 w-3" /> {t("worldCommerceStands.shopCloseButton")}
               </button>
             )}
           </div>
@@ -1969,22 +1994,22 @@ function StandManager({
         {section === "sales" && (
         <div className="space-y-2" data-testid="world-shop-sales">
           {analytics === undefined || analyticsBusy ? (
-            <NativeLoadingState isLight={isLight} message="Opening your sales ledger…" />
+            <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.shopSalesLoading")} />
           ) : analytics === null ? (
             <NativeErrorState
               isLight={isLight}
-              title="Your sales wouldn't open"
-              message="The ledger itself is fine — it couldn't be brought to the stand just now. Nothing about your sales changed."
+              title={t("worldCommerceStands.shopSalesFailedTitle")}
+              message={t("worldCommerceStands.shopSalesFailedMsg")}
               onRetry={() => { setAnalytics(undefined); void loadAnalytics(); }}
             />
           ) : (
             <>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {[
-                  { label: "Views", value: String(analytics.totals.views) },
-                  { label: "Sales", value: String(analytics.totals.sales) },
-                  { label: "Gross", value: centsToDisplay(analytics.totals.gross_cents) },
-                  { label: "You keep", value: centsToDisplay(analytics.totals.seller_net_cents), gold: true },
+                  { label: t("worldCommerceStands.shopStatViews"), value: String(analytics.totals.views) },
+                  { label: t("worldCommerceStands.shopStatSales"), value: String(analytics.totals.sales) },
+                  { label: t("worldCommerceStands.shopStatGross"), value: centsToDisplay(analytics.totals.gross_cents) },
+                  { label: t("worldCommerceStands.shopStatYouKeep"), value: centsToDisplay(analytics.totals.seller_net_cents), gold: true },
                 ].map((s) => (
                   <div
                     key={s.label}
@@ -1998,12 +2023,12 @@ function StandManager({
 
               {analytics.dailyViews.length > 0 && (
                 <div>
-                  <p className={`text-[11px] font-bold uppercase tracking-wider ${muted(isLight)}`}>Views — last 30 days</p>
+                  <p className={`text-[11px] font-bold uppercase tracking-wider ${muted(isLight)}`}>{t("worldCommerceStands.shopViewsTitle")}</p>
                   <div className="mt-1.5 flex h-16 items-end gap-1">
                     {analytics.dailyViews.map((d) => (
                       <div
                         key={d.day}
-                        title={`${d.day}: ${d.views} views`}
+                        title={t("worldCommerceStands.shopViewsTooltip", { day: d.day, views: d.views })}
                         className="flex-1 rounded-t bg-gradient-to-t from-amber-500/40 to-amber-300/80"
                         style={{ height: `${Math.max(4, (d.views / maxDailyViews(analytics)) * 100)}%` }}
                       />
@@ -2014,10 +2039,10 @@ function StandManager({
 
               <div>
                 <p className={`text-[11px] font-bold uppercase tracking-wider ${muted(isLight)}`}>
-                  Recent sales <span className="normal-case font-normal">— the {analytics.platformFeePct}% platform fee comes out of your cut, never on top of the buyer&rsquo;s price</span>
+                  {t("worldCommerceStands.shopRecentSales")} <span className="normal-case font-normal">{t("worldCommerceStands.shopRecentSalesFee", { fee: analytics.platformFeePct })}</span>
                 </p>
                 {analytics.sales.length === 0 ? (
-                  <p className={`mt-1.5 text-xs ${muted(isLight)}`}>No sales yet — when your first one lands, it shows here the moment it&rsquo;s paid.</p>
+                  <p className={`mt-1.5 text-xs ${muted(isLight)}`}>{t("worldCommerceStands.shopNoSales")}</p>
                 ) : (
                   <div className="mt-1.5 space-y-1.5">
                     {recentShopSales(analytics).map((sale) => (
@@ -2028,21 +2053,21 @@ function StandManager({
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className={`truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{sale.product_name ?? "Product"}</span>
+                            <span className={`truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{sale.product_name ?? t("worldCommerceStands.shopProductFallback")}</span>
                             {sale.payment_status === "paid" && (
-                              <span className="shrink-0 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-300">Paid</span>
+                              <span className="shrink-0 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-300">{t("worldCommerceStands.shopPaidChip")}</span>
                             )}
                             {sale.payment_status === "no_payment_required" && (
-                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${isLight ? "bg-black/10 text-[#6B5B36]" : "bg-white/10 text-white/60"}`}>Free order</span>
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${isLight ? "bg-black/10 text-[#6B5B36]" : "bg-white/10 text-white/60"}`}>{t("worldCommerceStands.shopFreeOrderChip")}</span>
                             )}
                           </div>
                           <div className={`text-[11px] ${muted(isLight)}`}>
-                            {new Date(sale.paid_at ?? sale.created_at).toLocaleDateString()}{sale.buyer_email ? ` · ${sale.buyer_email}` : ""}
+                            {new Date(sale.paid_at ?? sale.created_at).toLocaleDateString(i18n.language)}{sale.buyer_email ? ` · ${sale.buyer_email}` : ""}
                           </div>
                         </div>
                         <div className="shrink-0 text-right">
                           <div className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{centsToDisplay(sale.amount_cents)}</div>
-                          <div className="text-[11px] font-semibold text-emerald-300">You keep {centsToDisplay(sale.seller_net_cents)}</div>
+                          <div className="text-[11px] font-semibold text-emerald-300">{t("worldCommerceStands.shopYouKeepLine", { net: centsToDisplay(sale.seller_net_cents) })}</div>
                         </div>
                       </div>
                     ))}
@@ -2053,7 +2078,7 @@ function StandManager({
               {analytics.pendingSales.length > 0 && (
                 <div>
                   <p className={`text-[11px] font-bold uppercase tracking-wider ${muted(isLight)}`}>
-                    Awaiting payment <span className="normal-case font-normal">— started at checkout, not paid yet. These are not sales until the payment confirms.</span>
+                    {t("worldCommerceStands.shopAwaitingTitle")} <span className="normal-case font-normal">{t("worldCommerceStands.shopAwaitingNote")}</span>
                   </p>
                   <div className="mt-1.5 space-y-1.5">
                     {recentShopPending(analytics).map((sale) => (
@@ -2063,12 +2088,12 @@ function StandManager({
                         className={`flex items-center justify-between gap-3 rounded-xl border border-dashed px-3 py-2 opacity-75 ${isLight ? "border-[#C9A84C]/40 bg-white/40" : "border-white/15 bg-white/[0.03]"}`}
                       >
                         <div className="min-w-0">
-                          <div className={`truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{sale.product_name ?? "Product"}</div>
-                          <div className={`text-[11px] ${muted(isLight)}`}>{new Date(sale.created_at).toLocaleDateString()}</div>
+                          <div className={`truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{sale.product_name ?? t("worldCommerceStands.shopProductFallback")}</div>
+                          <div className={`text-[11px] ${muted(isLight)}`}>{new Date(sale.created_at).toLocaleDateString(i18n.language)}</div>
                         </div>
                         <div className="shrink-0 text-right">
                           <div className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{centsToDisplay(sale.amount_cents)}</div>
-                          <div className="text-[11px] font-semibold text-amber-300">{sale.payment_status === "expired" ? "Checkout expired" : "Pending"}</div>
+                          <div className="text-[11px] font-semibold text-amber-300">{sale.payment_status === "expired" ? t("worldCommerceStands.shopCheckoutExpired") : t("worldCommerceStands.shopPendingChip")}</div>
                         </div>
                       </div>
                     ))}
@@ -2076,7 +2101,7 @@ function StandManager({
                 </div>
               )}
               <p className={`text-[11px] ${muted(isLight)}`}>
-                Real-money sales through the website checkout — this is not Visual Bucs. Your net sits as a pending balance until it pays out through the website&rsquo;s payout path.
+                {t("worldCommerceStands.shopSalesFooter")}
               </p>
             </>
           )}
@@ -2090,6 +2115,7 @@ function StandManager({
 /* ═══ 2. The Branding Shop — the same stand, over the catalog ══════ */
 
 function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useAuthHeaders();
   const [sel, setSel] = useState<Record<ProductKey, { color: ColorKey; size: string; qty: number }>>(() =>
     Object.fromEntries(
@@ -2154,13 +2180,13 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
   }, [isGuest]);
 
   const membersOnlyNote = () => {
-    setError("This stand's till works with your account — sign in on the website (the footer below) and come back through the same door.");
+    setError(t("worldCommerceStands.brandMembersOnly"));
   };
 
   const addToCart = (key: ProductKey) => {
     if (isQuoteOnly(key)) return;
     if (key === "rug" && !rugLogo) {
-      setError("The rug needs your logo first — upload it on the rug's card.");
+      setError(t("worldCommerceStands.brandRugNeedsLogo"));
       return;
     }
     const s = sel[key];
@@ -2171,14 +2197,14 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       }),
     );
     setError(null);
-    setNote(`${productByKey(key).label} added to your cart.`);
+    setNote(t("worldCommerceStands.brandAddedNote", { label: productByKey(key).label }));
   };
 
   const uploadLogo = async (file: File | undefined) => {
     if (!file) return;
     if (isGuest) { membersOnlyNote(); return; }
-    if (!file.type.startsWith("image/")) { setError("Please upload an image file (PNG, JPG)."); return; }
-    if (file.size > 10 * 1024 * 1024) { setError("That image is over 10MB — a smaller logo file will print cleaner anyway."); return; }
+    if (!file.type.startsWith("image/")) { setError(t("worldCommerceStands.brandUploadImageType")); return; }
+    if (file.size > 10 * 1024 * 1024) { setError(t("worldCommerceStands.brandUploadTooBig")); return; }
     setRugUploading(true);
     setError(null);
     try {
@@ -2190,11 +2216,11 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         body: form,
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Upload failed."));
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, t("worldCommerceStands.brandUploadFailed")));
       setRugLogo({ url: data.url, fileName: file.name });
-      setNote("Logo's on the rug — add it to your cart when you're ready.");
+      setNote(t("worldCommerceStands.brandLogoReadyNote"));
     } catch (e) {
-      setError(plainErrorText(e, "Upload failed."));
+      setError(plainErrorText(e, t("worldCommerceStands.brandUploadFailed")));
     } finally {
       setRugUploading(false);
     }
@@ -2204,7 +2230,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
     if (isGuest) { membersOnlyNote(); return; }
     const form = { brandName, niche, style, products: designProducts };
     if (!brandingDesignComplete(form)) {
-      setError("The design desk needs a brand name, your niche, and at least one product to mock up.");
+      setError(t("worldCommerceStands.brandDesignIncomplete"));
       return;
     }
     setDesigning(true);
@@ -2221,11 +2247,11 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok || !data.logo?.url) throw new Error(apiErrorMessage(data, "The design didn't come back."));
+      if (!res.ok || !data.logo?.url) throw new Error(apiErrorMessage(data, t("worldCommerceStands.brandDesignFailed")));
       setDesign(data);
-      setNote(`Your brand kit is designed — ${BRANDING_DESIGN_COST.toLocaleString("en-US")} Visual Bucs, and the logo and mockups are yours.`);
+      setNote(t("worldCommerceStands.brandDesignedNote", { cost: BRANDING_DESIGN_COST.toLocaleString(i18n.language) }));
     } catch (e) {
-      setError(plainErrorText(e, "The design studio hiccupped — if Visual Bucs were charged, they're refunded."));
+      setError(plainErrorText(e, t("worldCommerceStands.brandDesignHiccup")));
     } finally {
       setDesigning(false);
     }
@@ -2244,7 +2270,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
     if (isGuest) { membersOnlyNote(); return; }
     if (cart.length === 0 || placing) return;
     if (!brandingShippingComplete(shipping)) {
-      setError("The stand needs your full shipping details before it can place the order.");
+      setError(t("worldCommerceStands.brandShippingIncomplete"));
       return;
     }
     setPlacing(true);
@@ -2258,7 +2284,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       });
       const orderData = (await orderRes.json().catch(() => ({}))) as { order?: { id: string }; error?: string; message?: string };
       if (!orderRes.ok || !orderData.order?.id) {
-        throw new Error(apiErrorMessage(orderData, "The order couldn't be placed."));
+        throw new Error(apiErrorMessage(orderData, t("worldCommerceStands.brandOrderPlaceFailed")));
       }
       const orderId = orderData.order.id;
       const coRes = await fetch("/api/branding-shop/checkout", {
@@ -2276,7 +2302,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       });
       const coData = (await coRes.json().catch(() => ({}))) as { error?: string; message?: string; clientSecret?: string };
       if (!coRes.ok) {
-        setNote("Your order is saved at this stand (see Your orders below) — paying for it didn't start, so nothing was charged. Use Pay on the order when you're ready.");
+        setNote(t("worldCommerceStands.brandCheckoutSavedNote"));
         void loadOrders();
         return;
       }
@@ -2287,7 +2313,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         setPaySecret(coData.clientSecret);
         setPaySecretOrderId(orderId);
         setCart([]);
-        setNote("Your payment form is right here — finish paying without leaving the World. Your order stays saved at this stand either way.");
+        setNote(t("worldCommerceStands.brandEmbeddedNote"));
         void loadOrders();
         return;
       }
@@ -2295,21 +2321,21 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       if (url) {
         openCheckoutTab(url);
         setCart([]);
-        setNote("Checkout opened in a new tab — finish paying there. When you come back, this stand refreshes your orders on its own.");
+        setNote(t("worldCommerceStands.brandTabNote"));
         void loadOrders();
         return;
       }
       if (checkoutCompletedInWorld(coData)) {
         setCart([]);
-        setNote(apiErrorMessage(coData, "Order received — demo checkout completed here, no real payment was taken."));
+        setNote(apiErrorMessage(coData, t("worldCommerceStands.brandDemoNote")));
         void loadOrders();
         return;
       }
-      setNote("Order placed at this stand — see Your orders below.");
+      setNote(t("worldCommerceStands.brandOrderPlacedNote"));
       setCart([]);
       void loadOrders();
     } catch (e) {
-      setError(plainErrorText(e, "The order couldn't be placed — your cart is untouched."));
+      setError(plainErrorText(e, t("worldCommerceStands.brandOrderFailedCart")));
     } finally {
       setPlacing(false);
     }
@@ -2330,24 +2356,24 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string; clientSecret?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Checkout didn't start."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.brandCheckoutStartFailed")));
       /* The clientSecret branch precedes the tab fallback. */
       if (typeof data.clientSecret === "string" && data.clientSecret) {
         setPaySecret(data.clientSecret);
         setPaySecretOrderId(orderId);
-        setNote("Your payment form is right here — finish paying without leaving the World.");
+        setNote(t("worldCommerceStands.brandPayEmbeddedNote"));
         return;
       }
       const url = hostedCheckoutUrl(data);
       if (url) {
         openCheckoutTab(url);
-        setNote("Checkout opened in a new tab — finish paying there; this stand refreshes your orders when you're back.");
+        setNote(t("worldCommerceStands.brandPayTabNote"));
         return;
       }
-      setNote(apiErrorMessage(data, "That order is settled."));
+      setNote(apiErrorMessage(data, t("worldCommerceStands.brandOrderSettled")));
       void loadOrders();
     } catch (e) {
-      setError(plainErrorText(e, "Checkout didn't start — nothing was charged."));
+      setError(plainErrorText(e, t("worldCommerceStands.brandPayFailed")));
     } finally {
       setPayingId(null);
     }
@@ -2364,7 +2390,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       if (!res.ok) throw new Error("refresh");
       void loadOrders();
     } catch {
-      setError("That order's status wouldn't refresh — it's unchanged. Try again in a moment.");
+      setError(t("worldCommerceStands.brandRefreshFailed"));
     } finally {
       setRefreshingId(null);
     }
@@ -2384,19 +2410,19 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
     <div className="space-y-4" data-testid="world-shop-branding">
       {isGuest && (
         <p className={`px-1 text-xs ${muted(isLight)}`}>
-          The catalog is open to everyone. Designing, ordering and paying ride your account — sign in on the website and come back through this door.
+          {t("worldCommerceStands.brandGuestNote")}
         </p>
       )}
       {error && <p className="px-1 text-xs font-semibold text-red-400">{error}</p>}
       {note && <p className={`px-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
       {outOfCredits && (
         <p className="px-1 text-xs font-semibold text-red-400">
-          You&rsquo;re out of Visual Bucs — the design desk needs {BRANDING_DESIGN_COST.toLocaleString("en-US")} VB. Top up and the desk is yours again.
+          {t("worldCommerceStands.brandOutOfCredits", { cost: BRANDING_DESIGN_COST.toLocaleString(i18n.language) })}
         </p>
       )}
 
       <div className="space-y-2">
-        <StandTitle isLight={isLight}>The goods</StandTitle>
+        <StandTitle isLight={isLight}>{t("worldCommerceStands.brandGoodsTitle")}</StandTitle>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {BRANDING_PRODUCTS.map((p) => {
             const s = sel[p.key];
@@ -2412,7 +2438,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                 {!p.quoteOnly && (
                   <>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <span className={`text-[11px] font-semibold ${muted(isLight)}`}>Color</span>
+                      <span className={`text-[11px] font-semibold ${muted(isLight)}`}>{t("worldCommerceStands.brandColor")}</span>
                       {BRANDING_COLORS.map((c) => (
                         <button
                           key={c.key}
@@ -2425,7 +2451,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                       ))}
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <span className={`text-[11px] font-semibold ${muted(isLight)}`}>Size</span>
+                      <span className={`text-[11px] font-semibold ${muted(isLight)}`}>{t("worldCommerceStands.brandSize")}</span>
                       {p.sizes.map((sz) => (
                         <button
                           key={sz}
@@ -2442,13 +2468,13 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                         {rugLogo ? (
                           <p className="flex items-center gap-2 text-xs font-semibold">
                             <img src={rugLogo.url} alt="" className="h-8 w-8 rounded object-contain" />
-                            <span className="min-w-0 flex-1 truncate">{rugLogo.fileName} — logo ready</span>
-                            <button type="button" onClick={() => setRugLogo(null)} className={chipBtn(isLight)}>Change</button>
+                            <span className="min-w-0 flex-1 truncate">{rugLogo.fileName}{t("worldCommerceStands.brandLogoReadySuffix")}</span>
+                            <button type="button" onClick={() => setRugLogo(null)} className={chipBtn(isLight)}>{t("worldCommerceStands.brandChange")}</button>
                           </p>
                         ) : (
                           <label className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#d4af37]/50 px-3 py-2 text-xs font-bold bdv-touch-target ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
                             <Upload className="h-3.5 w-3.5" />
-                            {rugUploading ? "Uploading your logo…" : "Upload your logo for the rug"}
+                            {rugUploading ? t("worldCommerceStands.brandUploading") : t("worldCommerceStands.brandUploadRug")}
                             <input type="file" accept="image/*" className="hidden" disabled={rugUploading} onChange={(e) => void uploadLogo(e.target.files?.[0])} />
                           </label>
                         )}
@@ -2460,7 +2486,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                       onClick={() => addToCart(p.key)}
                       className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                     >
-                      <ShoppingCart className="h-3.5 w-3.5" /> Add to cart
+                      <ShoppingCart className="h-3.5 w-3.5" /> {t("worldCommerceStands.shopAddToCart")}
                     </button>
                   </>
                 )}
@@ -2476,10 +2502,10 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       </div>
 
       {/* The design desk — in-world, priced in Visual Bucs up front. */}
-      <NativeCard isLight={isLight} title={`Design my brand kit — ${BRANDING_DESIGN_COST.toLocaleString("en-US")} Visual Bucs`}>
+      <NativeCard isLight={isLight} title={t("worldCommerceStands.brandDesignCardTitle", { cost: BRANDING_DESIGN_COST.toLocaleString(i18n.language) })}>
         <div className="grid gap-2 sm:grid-cols-2">
-          <input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="Brand name" aria-label="Brand name" maxLength={80} className={inputCls(isLight)} />
-          <input value={niche} onChange={(e) => setNiche(e.target.value)} placeholder="Your niche (e.g. indie rap, gaming)" aria-label="Your niche" maxLength={120} className={inputCls(isLight)} />
+          <input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder={t("worldCommerceStands.brandNameLabel")} aria-label={t("worldCommerceStands.brandNameLabel")} maxLength={80} className={inputCls(isLight)} />
+          <input value={niche} onChange={(e) => setNiche(e.target.value)} placeholder={t("worldCommerceStands.brandNichePlaceholder")} aria-label={t("worldCommerceStands.brandNicheLabel")} maxLength={120} className={inputCls(isLight)} />
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {BRANDING_STYLES.map((st) => (
@@ -2509,17 +2535,17 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
               {p.label}
             </button>
           ))}
-          <span className={`self-center text-[11px] ${muted(isLight)}`}>Mockups: pick up to {MAX_DESIGN_PRODUCTS}</span>
+          <span className={`self-center text-[11px] ${muted(isLight)}`}>{t("worldCommerceStands.brandMockupsHint", { max: MAX_DESIGN_PRODUCTS })}</span>
         </div>
         <button type="button" data-testid="world-branding-design" onClick={() => void runDesign()} disabled={designing} className={`${goldBtn(designing)} mt-3`}>
           {designing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {designing ? "Designing your kit…" : `Design it — ${BRANDING_DESIGN_COST.toLocaleString("en-US")} Visual Bucs`}
+          {designing ? t("worldCommerceStands.brandDesigning") : t("worldCommerceStands.brandDesignButton", { cost: BRANDING_DESIGN_COST.toLocaleString(i18n.language) })}
         </button>
-        <p className={`mt-1.5 text-[11px] ${muted(isLight)}`}>Charged only for a kit you get — if the design fails, the Visual Bucs are refunded.</p>
+        <p className={`mt-1.5 text-[11px] ${muted(isLight)}`}>{t("worldCommerceStands.brandRefundNote")}</p>
         {design && (
           <div className="mt-3 space-y-2" data-testid="world-branding-design-result">
             <div className="flex flex-wrap items-center gap-3">
-              <img src={design.logo.url} alt="Your designed logo" className="h-20 w-20 rounded-2xl border border-[#d4af37]/40 object-cover" />
+              <img src={design.logo.url} alt={t("worldCommerceStands.brandLogoAlt")} className="h-20 w-20 rounded-2xl border border-[#d4af37]/40 object-cover" />
               <div>
                 {design.brief.tagline && <p className="text-sm font-bold text-[#d4af37]">&ldquo;{design.brief.tagline}&rdquo;</p>}
                 {design.brief.palette.length > 0 && (
@@ -2544,9 +2570,9 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       </NativeCard>
 
       {/* The cart — in your hand, in-world. */}
-      <NativeCard isLight={isLight} title={`Your cart${cartCount > 0 ? ` (${cartCount})` : ""}`}>
+      <NativeCard isLight={isLight} title={cartCount > 0 ? t("worldCommerceStands.shopCartTitleCount", { count: cartCount }) : t("worldCommerceStands.shopCartTitle")}>
         {cart.length === 0 ? (
-          <NativeEmptyState isLight={isLight} message="Your cart is empty — the goods above are the stand's whole shelf." />
+          <NativeEmptyState isLight={isLight} message={t("worldCommerceStands.brandCartEmpty")} />
         ) : (
           <div className="space-y-2">
             {cart.map((item, idx) => {
@@ -2557,29 +2583,29 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                     {p.label} <span className={`font-semibold capitalize ${muted(isLight)}`}>· {item.color} · {item.size}</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <button type="button" aria-label="One less" onClick={() => setCart((c) => setBrandingCartQty(c, idx, item.qty - 1))} className={chipBtn(isLight)}><Minus className="h-3 w-3" /></button>
+                    <button type="button" aria-label={t("worldCommerceStands.shopOneLess")} onClick={() => setCart((c) => setBrandingCartQty(c, idx, item.qty - 1))} className={chipBtn(isLight)}><Minus className="h-3 w-3" /></button>
                     <span className="w-5 text-center text-sm font-bold">{item.qty}</span>
-                    <button type="button" aria-label="One more" onClick={() => setCart((c) => setBrandingCartQty(c, idx, item.qty + 1))} className={chipBtn(isLight)}><Plus className="h-3 w-3" /></button>
-                    <button type="button" aria-label="Remove from cart" onClick={() => setCart((c) => setBrandingCartQty(c, idx, 0))} className={chipBtn(isLight)}><Trash2 className="h-3 w-3" /></button>
+                    <button type="button" aria-label={t("worldCommerceStands.shopOneMore")} onClick={() => setCart((c) => setBrandingCartQty(c, idx, item.qty + 1))} className={chipBtn(isLight)}><Plus className="h-3 w-3" /></button>
+                    <button type="button" aria-label={t("worldCommerceStands.shopRemoveFromCart")} onClick={() => setCart((c) => setBrandingCartQty(c, idx, 0))} className={chipBtn(isLight)}><Trash2 className="h-3 w-3" /></button>
                   </span>
                   <span className="text-sm font-black text-[#d4af37]">{formatMoney(p.priceCents * item.qty)}</span>
                 </div>
               );
             })}
             <div className="space-y-2 border-t border-[#d4af37]/25 pt-3">
-              <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Shipping</p>
+              <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldCommerceStands.brandShippingTitle")}</p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {shipField("name", "Full name")}
-                {shipField("email", "Email")}
+                {shipField("name", t("worldCommerceStands.brandShipName"))}
+                {shipField("email", t("worldCommerceStands.brandShipEmail"))}
               </div>
-              {shipField("address", "Street address")}
+              {shipField("address", t("worldCommerceStands.brandShipAddress"))}
               <div className="grid grid-cols-3 gap-2">
-                {shipField("city", "City")}
-                {shipField("state", "State")}
-                {shipField("zip", "ZIP")}
+                {shipField("city", t("worldCommerceStands.brandShipCity"))}
+                {shipField("state", t("worldCommerceStands.brandShipState"))}
+                {shipField("zip", t("worldCommerceStands.brandShipZip"))}
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className={muted(isLight)}>Total</span>
+                <span className={muted(isLight)}>{t("worldCommerceStands.shopTotal")}</span>
                 <span className="text-lg font-black">{formatMoney(cartTotal)}</span>
               </div>
               {/* The ONE marked door out of this stand: payment. */}
@@ -2588,7 +2614,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                 {CHECKOUT_TRANSFER_LABEL} · {formatMoney(cartTotal)}
               </button>
               <p className={`text-[11px] ${muted(isLight)}`}>
-                The order is placed here at the stand first; when payment is set up on this device, the payment form opens right here — the provider&rsquo;s hosted page in a new tab remains only as the fallback.
+                {t("worldCommerceStands.brandCheckoutNote")}
               </p>
             </div>
           </div>
@@ -2601,7 +2627,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       {paySecret && (
         <div className="space-y-2 rounded-2xl border border-[#d4af37]/25 p-3" data-testid="world-branding-embedded-checkout">
           <p className={`text-xs font-semibold ${muted(isLight)}`}>
-            Paying for order #{paySecretOrderId ? paySecretOrderId.slice(0, 8) : ""} — right here in the World.
+            {t("worldCommerceStands.brandPayingFor", { id: paySecretOrderId ? paySecretOrderId.slice(0, 8) : "" })}
           </p>
           <EmbeddedSessionCheckout clientSecret={paySecret} />
           <button
@@ -2609,7 +2635,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
             onClick={() => { setPaySecret(null); setPaySecretOrderId(null); }}
             className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"}`}
           >
-            Close — the order stays saved at this stand
+            {t("worldCommerceStands.brandEmbeddedClose")}
           </button>
         </div>
       )}
@@ -2618,20 +2644,20 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       {!isGuest && (
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <StandTitle isLight={isLight}>Your orders</StandTitle>
+            <StandTitle isLight={isLight}>{t("worldCommerceStands.brandYourOrders")}</StandTitle>
             <button type="button" onClick={() => void loadOrders()} className={`${chipBtn(isLight)} ml-auto`}>
-              <RefreshCw className="h-3 w-3" /> Refresh orders
+              <RefreshCw className="h-3 w-3" /> {t("worldCommerceStands.brandRefreshOrders")}
             </button>
           </div>
           {demoMode && orders && orders.length > 0 && (
-            <p className={`px-1 text-[11px] ${muted(isLight)}`}>Demo fulfillment is simulating the dropship flow right now — statuses below are the sandbox&rsquo;s, honestly labelled.</p>
+            <p className={`px-1 text-[11px] ${muted(isLight)}`}>{t("worldCommerceStands.brandDemoFulfillment")}</p>
           )}
           {ordersFailed ? (
-            <NativeErrorState isLight={isLight} title="Your orders wouldn't load" message="Your orders are safe on the real rails — the stand couldn't read them. Try again." onRetry={() => void loadOrders()} />
+            <NativeErrorState isLight={isLight} title={t("worldCommerceStands.brandOrdersFailedTitle")} message={t("worldCommerceStands.brandOrdersFailedMsg")} onRetry={() => void loadOrders()} />
           ) : orders === null ? (
-            <NativeLoadingState isLight={isLight} message="Reading your orders…" />
+            <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.brandOrdersLoading")} />
           ) : orders.length === 0 ? (
-            <NativeEmptyState isLight={isLight} message="No orders yet — when you buy at this stand, each order's status lives here." />
+            <NativeEmptyState isLight={isLight} message={t("worldCommerceStands.brandOrdersEmpty")} />
           ) : (
             orders.map((o) => (
               <div
@@ -2641,11 +2667,11 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
               >
                 <span className="min-w-0">
                   <span className={`block truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                    #{o.id.slice(0, 8)} · {o.items.reduce((n, i) => n + i.qty, 0)} {o.items.reduce((n, i) => n + i.qty, 0) === 1 ? "item" : "items"}
+                    #{o.id.slice(0, 8)} · {t(o.items.reduce((n, i) => n + i.qty, 0) === 1 ? "worldCommerceStands.brandItemOne" : "worldCommerceStands.brandItemMany", { count: o.items.reduce((n, i) => n + i.qty, 0) })}
                   </span>
                   <span className={`block truncate text-xs ${muted(isLight)}`}>
-                    {o.items.map((i) => `${i.qty}× ${productByKey(i.product).label}`).join(", ")}
-                    {o.trackingNumber ? ` · tracking ${o.trackingNumber}` : ""}
+                    {o.items.map((i) => t("worldCommerceStands.brandOrderItemQty", { qty: i.qty, label: productByKey(i.product).label })).join(", ")}
+                    {o.trackingNumber ? t("worldCommerceStands.brandTrackingPart", { n: o.trackingNumber }) : ""}
                   </span>
                 </span>
                 <span className={`ml-auto inline-flex items-center gap-2 text-xs font-semibold ${muted(isLight)}`}>
@@ -2653,16 +2679,16 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                 </span>
                 {o.paid ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">
-                    <BadgeCheck className="h-3 w-3" /> Paid
+                    <BadgeCheck className="h-3 w-3" /> {t("worldCommerceStands.brandPaidChip")}
                   </span>
                 ) : (
                   <button type="button" onClick={() => void payForOrder(o.id)} disabled={payingId === o.id} className={chipBtn(isLight)}>
-                    {payingId === o.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Pay {formatMoney(o.totalCents)}
+                    {payingId === o.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null} {t("worldCommerceStands.brandPayButton", { total: formatMoney(o.totalCents) })}
                   </button>
                 )}
                 {o.providerOrderId && (
                   <button type="button" onClick={() => void refreshOrder(o.id)} disabled={refreshingId === o.id} className={chipBtn(isLight)}>
-                    {refreshingId === o.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Status
+                    {refreshingId === o.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} {t("worldCommerceStands.brandStatusButton")}
                   </button>
                 )}
               </div>
@@ -2701,8 +2727,18 @@ interface MembershipDashboardDto {
 }
 
 function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
+  const tierStrings: TierLabelStrings = {
+    free: t("worldCommerceStands.crownsTierFree"),
+    perMonth: t("worldCommerceStands.crownsTierPerMonth"),
+    perYear: t("worldCommerceStands.crownsTierPerYear"),
+    saving: t("worldCommerceStands.crownsTierSaving"),
+    freeCrowns: t("worldCommerceStands.crownsStartingFree"),
+    crownsFrom: t("worldCommerceStands.crownsStartingFrom"),
+  };
+  const md = (n: number) => membershipDollars(n, i18n.language);
   const [ownTiers, setOwnTiers] = useState<MembershipTierDto[] | null>(null);
   const [ownFailed, setOwnFailed] = useState(false);
   const [feePct, setFeePct] = useState(10);
@@ -2793,13 +2829,13 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(memberStatusPayload(status)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Couldn't update that member — try again in a moment."));
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldCommerceStands.crownsStatusFailed")));
       const saved = savedMemberStatus(data);
-      if (!saved) throw new Error("Couldn't update that member — try again in a moment.");
+      if (!saved) throw new Error(t("worldCommerceStands.crownsStatusFailed"));
       setRoster((list) => (list ? applyMemberStatus(list, saved) : list));
-      setRosterMsg(`${member.fanLabel} is now ${saved.status.replace("_", " ")}.`);
+      setRosterMsg(t("worldCommerceStands.crownsStatusUpdated", { name: member.fanLabel, status: saved.status.replace("_", " ") }));
     } catch (e) {
-      setRosterMsg(plainErrorText(e, "Couldn't update that member — try again in a moment."));
+      setRosterMsg(plainErrorText(e, t("worldCommerceStands.crownsStatusFailed")));
     } finally {
       setMemberBusyId(null);
     }
@@ -2821,12 +2857,12 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        throw new Error(apiErrorLine(data, "Couldn't remove that member."));
+        throw new Error(apiErrorLine(data, t("worldCommerceStands.crownsMemberRemoveFailed")));
       }
       setRoster((list) => (list ? removeMemberRow(list, member.id) : list));
-      setRosterMsg(`${member.fanLabel} is off the roster.`);
+      setRosterMsg(t("worldCommerceStands.crownsMemberRemoved", { name: member.fanLabel }));
     } catch (e) {
-      setRosterMsg(plainErrorText(e, "Couldn't remove that member."));
+      setRosterMsg(plainErrorText(e, t("worldCommerceStands.crownsMemberRemoveFailed")));
     } finally {
       setMemberBusyId(null);
       setConfirmingRemoveId(null);
@@ -2854,12 +2890,12 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(body),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Couldn't add that member — try again in a moment."));
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldCommerceStands.crownsMemberAddFailed")));
       setMemberLabel("");
-      setRosterMsg(`${body.fanLabel} is on the roster.`);
+      setRosterMsg(t("worldCommerceStands.crownsMemberAdded", { name: body.fanLabel }));
       void loadRoster();
     } catch (e) {
-      setRosterMsg(plainErrorText(e, "Couldn't add that member — try again in a moment."));
+      setRosterMsg(plainErrorText(e, t("worldCommerceStands.crownsMemberAddFailed")));
     } finally {
       setAddingMember(false);
     }
@@ -2874,7 +2910,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
   const runPerkSuggest = async () => {
     if (suggestBusy) return;
     if (!niche.trim()) {
-      setSuggestMsg("Tell the suggester your niche first — what your channel is about.");
+      setSuggestMsg(t("worldCommerceStands.crownsSuggestNeedNiche"));
       return;
     }
     setSuggestBusy(true);
@@ -2890,16 +2926,16 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
       if (!res) return; /* the creator declined the spend confirm — nothing charged, nothing changed */
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (aiOutOfCredits(res.status, data)) {
-        setSuggestMsg("You're out of Visual Bucs — top up and the suggester is yours again.");
+        setSuggestMsg(t("worldCommerceStands.crownsSuggestOut"));
         return;
       }
-      if (!res.ok) throw new Error(apiErrorLine(data, "The suggester didn't answer — if Visual Bucs were charged, they're refunded."));
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldCommerceStands.crownsSuggestFailed")));
       const got = parsePerkSuggestions(data);
-      if (!got) throw new Error("The suggester came back empty — if Visual Bucs were charged, they're refunded.");
+      if (!got) throw new Error(t("worldCommerceStands.crownsSuggestEmpty"));
       setSuggestions(got);
-      setSuggestMsg("Pick a suggestion to load it into the tier form — edit anything, then create the tier.");
+      setSuggestMsg(t("worldCommerceStands.crownsSuggestReady"));
     } catch (e) {
-      setSuggestMsg(plainErrorText(e, "The suggester didn't answer — if Visual Bucs were charged, they're refunded."));
+      setSuggestMsg(plainErrorText(e, t("worldCommerceStands.crownsSuggestFailed")));
     } finally {
       setSuggestBusy(false);
     }
@@ -2909,7 +2945,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
     setEditingId(null);
     setPerkInput("");
     setForm((f) => tierFormFromSuggestion(f, s));
-    setMsg(`“${s.name}” is loaded into the form — make it yours, then create the tier.`);
+    setMsg(t("worldCommerceStands.crownsSuggestionLoaded", { name: s.name }));
   };
 
   const resetForm = () => {
@@ -2929,7 +2965,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
     const perk = perkInput.trim();
     if (!perk) return;
     if (form.perks.length >= TIER_PERKS_MAX) {
-      setMsg(`A tier carries at most ${TIER_PERKS_MAX} perks.`);
+      setMsg(t("worldCommerceStands.crownsPerksMax", { max: TIER_PERKS_MAX }));
       return;
     }
     setForm((f) => ({ ...f, perks: [...f.perks, perk] }));
@@ -2953,15 +2989,15 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(body),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Couldn't save that tier — try again in a moment."));
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldCommerceStands.crownsTierSaveFailed")));
       const saved = savedTierDto(data);
-      if (!saved) throw new Error("Couldn't save that tier — try again in a moment.");
+      if (!saved) throw new Error(t("worldCommerceStands.crownsTierSaveFailed"));
       setOwnTiers((list) => applyTierSave(list ?? [], saved, editingId));
-      setMsg(editingId ? `“${saved.name}” is updated — fans see the new terms on their next join.` : `“${saved.name}” is live — fans can join it right here at the stand.`);
+      setMsg(editingId ? t("worldCommerceStands.crownsTierUpdated", { name: saved.name }) : t("worldCommerceStands.crownsTierCreated", { name: saved.name }));
       resetForm();
       void loadOwn();
     } catch (e) {
-      setMsg(plainErrorText(e, "Couldn't save that tier — try again in a moment."));
+      setMsg(plainErrorText(e, t("worldCommerceStands.crownsTierSaveFailed")));
     } finally {
       setSaving(false);
     }
@@ -2978,15 +3014,15 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(tierActivePayload(tier)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Couldn't update that tier."));
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldCommerceStands.crownsTierUpdateFailed")));
       const saved = savedTierDto(data);
       if (saved) setOwnTiers((list) => (list ? applyTierSave(list, saved, tier.id) : list));
       else void loadOwn();
       setMsg(saved && !saved.isActive
-        ? `“${tier.name}” is paused — hidden from fans, existing members keep their seats.`
-        : `“${tier.name}” is live again.`);
+        ? t("worldCommerceStands.crownsTierPaused", { name: tier.name })
+        : t("worldCommerceStands.crownsTierLive", { name: tier.name }));
     } catch (e) {
-      setMsg(plainErrorText(e, "Couldn't update that tier."));
+      setMsg(plainErrorText(e, t("worldCommerceStands.crownsTierUpdateFailed")));
     } finally {
       setPausingId(null);
     }
@@ -3006,13 +3042,13 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        throw new Error(apiErrorLine(data, "Couldn't delete that tier."));
+        throw new Error(apiErrorLine(data, t("worldCommerceStands.crownsTierDeleteFailed")));
       }
       setOwnTiers((list) => (list ? removeTier(list, tier.id) : list));
       if (editingId === tier.id) resetForm();
-      setMsg(`“${tier.name}” is deleted — its members go with it, exactly as on the website.`);
+      setMsg(t("worldCommerceStands.crownsTierDeleted", { name: tier.name }));
     } catch (e) {
-      setMsg(plainErrorText(e, "Couldn't delete that tier."));
+      setMsg(plainErrorText(e, t("worldCommerceStands.crownsTierDeleteFailed")));
     } finally {
       setDeletingId(null);
       setConfirmingDeleteId(null);
@@ -3027,27 +3063,27 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
   );
 
   return (
-    <NativeCard isLight={isLight} title="Your fan club — tiers you sell">
+    <NativeCard isLight={isLight} title={t("worldCommerceStands.crownsDeskTitle")}>
       <div data-testid="world-crowns-creator-desk" className="space-y-3">
         {dash && (
           <p className={`text-xs ${muted(isLight)}`} data-testid="world-crowns-dash">
-            {dash.activeMembers} active member{dash.activeMembers === 1 ? "" : "s"}
-            {dash.trialingMembers > 0 ? ` · ${dash.trialingMembers} on trial` : ""} ·{" "}
-            {membershipDollars(dash.mrrDollars)}/mo —{" "}
-            <span className="font-semibold">{membershipDollars(dash.netMrrCents / 100)} after {feePct}% platform fee</span>
-            {dash.testMode ? " · test mode" : ""}
+            {t(dash.activeMembers === 1 ? "worldCommerceStands.crownsDashMembersOne" : "worldCommerceStands.crownsDashMembersMany", { count: dash.activeMembers })}
+            {dash.trialingMembers > 0 ? t("worldCommerceStands.crownsDashTrial", { count: dash.trialingMembers }) : ""}
+            {t("worldCommerceStands.crownsDashMoneyBefore", { mrr: md(dash.mrrDollars) })}
+            <span className="font-semibold">{t("worldCommerceStands.crownsDashNetFee", { net: md(dash.netMrrCents / 100), fee: feePct })}</span>
+            {dash.testMode ? t("worldCommerceStands.crownsDashTestMode") : ""}
           </p>
         )}
 
         {ownFailed ? (
-          <NativeErrorState isLight={isLight} title="Your tiers wouldn't load" message="Your fan club is fine — its tiers couldn't be brought to the stand. Try again." onRetry={() => void loadOwn()} />
+          <NativeErrorState isLight={isLight} title={t("worldCommerceStands.crownsTiersFailedTitle")} message={t("worldCommerceStands.crownsTiersFailedMsg")} onRetry={() => void loadOwn()} />
         ) : ownTiers === null ? (
-          <NativeLoadingState isLight={isLight} message="Bringing your tiers…" />
+          <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.crownsTiersLoading")} />
         ) : (
           <>
             {ownTiers.length === 0 ? (
               <p className={`text-xs ${muted(isLight)}`}>
-                No tiers yet — build your first crown below and fans can join it right here at this stand.
+                {t("worldCommerceStands.crownsNoTiers")}
               </p>
             ) : (
               <div className="space-y-1.5">
@@ -3060,23 +3096,23 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
                     <Crown className={`h-4 w-4 shrink-0 ${tier.isActive ? "text-[#d4af37]" : "text-white/30"}`} />
                     <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{tier.name}</span>
                     <span className={`text-xs ${muted(isLight)}`}>
-                      {tierPriceLabel(tier, "monthly")}
+                      {tierPriceLabel(tier, "monthly", tierStrings, i18n.language)}
                       {tier.priceCents > 0 && (
-                        <> · you keep {membershipDollars(tierNetCents(tier.priceCents, feePct) / 100)} after {feePct}% platform fee</>
+                        <>{t("worldCommerceStands.crownsYouKeep", { net: md(tierNetCents(tier.priceCents, feePct) / 100), fee: feePct })}</>
                       )}
-                      {tier.trialEnabled && tier.priceCents > 0 ? " · 7-day trial" : ""}
-                      {tier.annualDiscountPct > 0 ? ` · ${tier.annualDiscountPct}% off annual` : ""}
+                      {tier.trialEnabled && tier.priceCents > 0 ? t("worldCommerceStands.crownsTrialSuffix") : ""}
+                      {tier.annualDiscountPct > 0 ? t("worldCommerceStands.crownsAnnualOff", { pct: tier.annualDiscountPct }) : ""}
                     </span>
                     {!tier.isActive && (
-                      <span className="rounded-full border border-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/50">Paused</span>
+                      <span className="rounded-full border border-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/50">{t("worldCommerceStands.crownsPausedChip")}</span>
                     )}
                     <span className="ml-auto inline-flex flex-wrap gap-1.5">
                       <button type="button" onClick={() => startEdit(tier)} className={chipBtn(isLight)}>
-                        <Pencil className="h-3 w-3" /> Edit
+                        <Pencil className="h-3 w-3" /> {t("worldCommerceStands.crownsEdit")}
                       </button>
                       <button type="button" data-testid="world-crowns-tier-toggle" onClick={() => void toggleActive(tier)} disabled={pausingId === tier.id} className={chipBtn(isLight)}>
                         {pausingId === tier.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                        {tier.isActive ? "Pause" : "Unpause"}
+                        {tier.isActive ? t("worldCommerceStands.crownsPause") : t("worldCommerceStands.crownsUnpause")}
                       </button>
                       <button
                         type="button"
@@ -3086,7 +3122,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
                         className={`${chipBtn(isLight)} ${confirmingDeleteId === tier.id ? "border-red-400 text-red-300" : ""}`}
                       >
                         {deletingId === tier.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                        {confirmingDeleteId === tier.id ? "Tap again to delete" : "Delete"}
+                        {confirmingDeleteId === tier.id ? t("worldCommerceStands.crownsTapDelete") : t("worldCommerceStands.crownsDelete")}
                       </button>
                     </span>
                   </div>
@@ -3096,33 +3132,33 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
 
             <div className={`space-y-2 rounded-2xl border px-3 py-3 ${isLight ? "border-[#C9A84C]/40 bg-white/40" : "border-white/10 bg-black/30"}`}>
               <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                {editingId ? "Edit this tier" : "Build a new tier"}
+                {editingId ? t("worldCommerceStands.crownsFormEditTitle") : t("worldCommerceStands.crownsFormNewTitle")}
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {field("Tier name", (
-                  <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Gold Circle" aria-label="Tier name" className={inputCls(isLight)} maxLength={70} />
+                {field(t("worldCommerceStands.crownsTierNameLabel"), (
+                  <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={t("worldCommerceStands.crownsTierNamePlaceholder")} aria-label={t("worldCommerceStands.crownsTierNameLabel")} className={inputCls(isLight)} maxLength={70} />
                 ))}
-                {field("Price — $ / month (0 = free)", (
-                  <input value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} inputMode="decimal" placeholder="5" aria-label="Price in dollars per month (0 = free)" className={inputCls(isLight)} />
+                {field(t("worldCommerceStands.crownsPriceLabel"), (
+                  <input value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} inputMode="decimal" placeholder="5" aria-label={t("worldCommerceStands.crownsPriceAria")} className={inputCls(isLight)} />
                 ))}
               </div>
-              {field("Description", (
-                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} aria-label="Tier description" className={inputCls(isLight)} maxLength={520} />
+              {field(t("worldCommerceStands.crownsDescLabel"), (
+                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} aria-label={t("worldCommerceStands.crownsDescAria")} className={inputCls(isLight)} maxLength={520} />
               ))}
               <div>
-                <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wide ${muted(isLight)}`}>Perks</span>
+                <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wide ${muted(isLight)}`}>{t("worldCommerceStands.crownsPerksLabel")}</span>
                 <div className="flex flex-wrap gap-2">
                   <input
                     value={perkInput}
                     onChange={(e) => setPerkInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPerk(); } }}
-                    placeholder="A perk fans get…"
-                    aria-label="A perk fans get"
+                    placeholder={t("worldCommerceStands.crownsPerkPlaceholder")}
+                    aria-label={t("worldCommerceStands.crownsPerkAria")}
                     className={`${inputCls(isLight)} min-w-0 flex-1`}
                     maxLength={150}
                   />
                   <button type="button" onClick={addPerk} className={chipBtn(isLight)}>
-                    <Plus className="h-3.5 w-3.5" /> Add perk
+                    <Plus className="h-3.5 w-3.5" /> {t("worldCommerceStands.crownsAddPerk")}
                   </button>
                 </div>
                 {form.perks.length > 0 && (
@@ -3131,7 +3167,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
                       <li key={i} className={`flex items-center gap-2 text-xs ${muted(isLight)}`}>
                         <Check className="h-3 w-3 shrink-0 text-[#d4af37]" />
                         <span className="min-w-0 flex-1">{perk}</span>
-                        <button type="button" aria-label={`Remove perk ${perk}`} onClick={() => setForm((f) => ({ ...f, perks: f.perks.filter((_, j) => j !== i) }))} className={chipBtn(isLight)}>
+                        <button type="button" aria-label={t("worldCommerceStands.crownsRemovePerkAria", { perk })} onClick={() => setForm((f) => ({ ...f, perks: f.perks.filter((_, j) => j !== i) }))} className={chipBtn(isLight)}>
                           <X className="h-3 w-3" />
                         </button>
                       </li>
@@ -3141,30 +3177,30 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
               </div>
               <div className={`space-y-2 rounded-xl border border-dashed px-3 py-2.5 ${isLight ? "border-[#C9A84C]/50 bg-white/30" : "border-white/15 bg-white/[0.03]"}`}>
                 <span className={`block text-[11px] font-bold uppercase tracking-wide ${muted(isLight)}`}>
-                  Perk suggester — {MEMBERSHIP_AI_PERKS_COST_VB} VB
+                  {t("worldCommerceStands.crownsSuggestTitle", { cost: MEMBERSHIP_AI_PERKS_COST_VB })}
                 </span>
                 <div className="flex flex-wrap gap-2">
                   <input
                     value={niche}
                     onChange={(e) => setNiche(e.target.value)}
-                    placeholder="Your niche — drill beats, sneaker reviews…"
+                    placeholder={t("worldCommerceStands.crownsNichePlaceholder")}
                     className={`${inputCls(isLight)} min-w-0 flex-1`}
                     maxLength={80}
-                    aria-label="Your niche"
+                    aria-label={t("worldCommerceStands.crownsNicheAria")}
                   />
                   <select
                     value={audienceSize}
                     onChange={(e) => setAudienceSize(e.target.value as AudienceSize)}
                     className={`${inputCls(isLight)} w-auto`}
-                    aria-label="Audience size"
+                    aria-label={t("worldCommerceStands.crownsAudienceAria")}
                   >
-                    <option value="starting">Starting out</option>
-                    <option value="growing">Growing</option>
-                    <option value="established">Established</option>
+                    <option value="starting">{t("worldCommerceStands.crownsAudienceStarting")}</option>
+                    <option value="growing">{t("worldCommerceStands.crownsAudienceGrowing")}</option>
+                    <option value="established">{t("worldCommerceStands.crownsAudienceEstablished")}</option>
                   </select>
                   <button type="button" data-testid="world-crowns-perk-suggest" onClick={() => void runPerkSuggest()} disabled={suggestBusy} className={chipBtn(isLight)}>
                     {suggestBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                    Suggest tiers
+                    {t("worldCommerceStands.crownsSuggestButton")}
                   </button>
                 </div>
                 {suggestMsg && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{suggestMsg}</p>}
@@ -3178,10 +3214,10 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
                       >
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{s.name}</span>
-                          <span className={`text-xs ${muted(isLight)}`}>{membershipDollars(s.priceDollars)} / month</span>
+                          <span className={`text-xs ${muted(isLight)}`}>{t("worldCommerceStands.crownsSuggestPriceLine", { price: md(s.priceDollars) })}</span>
                           <span className="ml-auto">
                             <button type="button" data-testid="world-crowns-perk-use" onClick={() => applySuggestion(s)} className={chipBtn(isLight)}>
-                              <Plus className="h-3 w-3" /> Use this tier
+                              <Plus className="h-3 w-3" /> {t("worldCommerceStands.crownsUseTier")}
                             </button>
                           </span>
                         </div>
@@ -3206,24 +3242,24 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
                     onChange={(e) => setForm((f) => ({ ...f, trialEnabled: e.target.checked }))}
                     className="h-4 w-4 accent-[#d4af37]"
                   />
-                  Offer a 7-day free trial
+                  {t("worldCommerceStands.crownsTrialCheckbox")}
                 </label>
                 <label className="block">
-                  <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wide ${muted(isLight)}`}>Annual discount %</span>
+                  <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wide ${muted(isLight)}`}>{t("worldCommerceStands.crownsAnnualDiscountLabel")}</span>
                   <input value={form.annualDiscount} onChange={(e) => setForm((f) => ({ ...f, annualDiscount: e.target.value }))} inputMode="numeric" placeholder="0" className={`${inputCls(isLight)} w-24`} />
                 </label>
                 <span className={`text-[11px] ${muted(isLight)}`}>
-                  Creating and editing tiers is free — the {feePct}% platform fee comes out of each membership payment, never on top of the fan&rsquo;s price.
+                  {t("worldCommerceStands.crownsFeeNote", { fee: feePct })}
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
                 <button type="button" data-testid="world-crowns-tier-save" onClick={() => void save()} disabled={saving} className={goldBtn(saving)}>
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crown className="h-4 w-4" />}
-                  {editingId ? "Save tier" : "Create tier"}
+                  {editingId ? t("worldCommerceStands.crownsSaveTier") : t("worldCommerceStands.crownsCreateTier")}
                 </button>
                 {editingId && (
                   <button type="button" onClick={resetForm} className={chipBtn(isLight)}>
-                    Cancel edit
+                    {t("worldCommerceStands.crownsCancelEdit")}
                   </button>
                 )}
               </div>
@@ -3231,18 +3267,18 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
 
             <div className={`space-y-2 rounded-2xl border px-3 py-3 ${isLight ? "border-[#C9A84C]/40 bg-white/40" : "border-white/10 bg-black/30"}`}>
               <p className={`flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                <Users className="h-3.5 w-3.5" /> Your members
+                <Users className="h-3.5 w-3.5" /> {t("worldCommerceStands.crownsMembersTitle")}
               </p>
               <div data-testid="world-crowns-roster" className="space-y-2">
                 {rosterFailed ? (
-                  <NativeErrorState isLight={isLight} title="Your member list wouldn't load" message="Your club is fine — the roster couldn't be brought to the stand. Try again." onRetry={() => void loadRoster()} />
+                  <NativeErrorState isLight={isLight} title={t("worldCommerceStands.crownsRosterFailedTitle")} message={t("worldCommerceStands.crownsRosterFailedMsg")} onRetry={() => void loadRoster()} />
                 ) : roster === null ? (
-                  <NativeLoadingState isLight={isLight} message="Bringing your members…" />
+                  <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.crownsRosterLoading")} />
                 ) : (
                   <>
                     {roster.length === 0 ? (
                       <p className={`text-xs ${muted(isLight)}`}>
-                        No members yet — when a fan takes a crown at this stand, or you add one below, they land here.
+                        {t("worldCommerceStands.crownsNoMembers")}
                       </p>
                     ) : (
                       <div className="space-y-1.5">
@@ -3254,13 +3290,13 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
                           >
                             <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{m.fanLabel}</span>
                             <span className={`text-xs ${muted(isLight)}`}>
-                              {m.tierName ?? "Membership"} · {membershipDollars(m.priceDollars)}{m.billingPeriod === "annual" ? "/yr" : "/mo"}
-                              {m.isGift ? " · gift" : ""}
-                              {m.joinedAt ? ` · joined ${m.joinedAt.slice(0, 10)}` : ""}
+                              {m.tierName ?? t("worldCommerceStands.crownsMembershipFallback")} · {md(m.priceDollars)}{m.billingPeriod === "annual" ? t("worldCommerceStands.crownsPerYear") : t("worldCommerceStands.crownsPerMonth")}
+                              {m.isGift ? t("worldCommerceStands.crownsGiftSuffix") : ""}
+                              {m.joinedAt ? t("worldCommerceStands.crownsJoinedSuffix", { date: m.joinedAt.slice(0, 10) }) : ""}
                             </span>
                             <span className="ml-auto inline-flex flex-wrap items-center gap-1.5">
                               <select
-                                aria-label={`Status for ${m.fanLabel}`}
+                                aria-label={t("worldCommerceStands.crownsStatusAria", { name: m.fanLabel })}
                                 value={m.status}
                                 disabled={memberBusyId === m.id}
                                 onChange={(e) => void changeMemberStatus(m, e.target.value as MemberStatusOption)}
@@ -3281,7 +3317,7 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
                                 className={`${chipBtn(isLight)} ${confirmingRemoveId === m.id ? "border-red-400 text-red-300" : ""}`}
                               >
                                 {memberBusyId === m.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-                                {confirmingRemoveId === m.id ? "Tap again to remove" : "Remove"}
+                                {confirmingRemoveId === m.id ? t("worldCommerceStands.crownsTapRemove") : t("worldCommerceStands.crownsRemove")}
                               </button>
                             </span>
                           </div>
@@ -3293,28 +3329,28 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
                         value={memberTierId}
                         onChange={(e) => setMemberTierId(e.target.value)}
                         className={`${inputCls(isLight)} w-auto flex-1`}
-                        aria-label="Tier for the member you're adding"
+                        aria-label={t("worldCommerceStands.crownsTierSelectAria")}
                       >
-                        <option value="">Pick a tier…</option>
-                        {ownTiers.map((t) => (
-                          <option key={t.id} value={t.id}>{t.name} — {tierPriceLabel(t, "monthly")}</option>
+                        <option value="">{t("worldCommerceStands.crownsTierPickPlaceholder")}</option>
+                        {ownTiers.map((t2) => (
+                          <option key={t2.id} value={t2.id}>{t("worldCommerceStands.crownsTierOptionLine", { name: t2.name, price: tierPriceLabel(t2, "monthly", tierStrings, i18n.language) })}</option>
                         ))}
                       </select>
                       <input
                         value={memberLabel}
                         onChange={(e) => setMemberLabel(e.target.value)}
-                        placeholder="Their name or email, as you track them"
+                        placeholder={t("worldCommerceStands.crownsMemberLabelPlaceholder")}
                         className={`${inputCls(isLight)} min-w-0 flex-1`}
                         maxLength={120}
-                        aria-label="Member label"
+                        aria-label={t("worldCommerceStands.crownsMemberLabelAria")}
                       />
                       <button type="button" data-testid="world-crowns-member-add" onClick={() => void addMember()} disabled={addingMember} className={goldBtn(addingMember)}>
                         {addingMember ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                        Add member
+                        {t("worldCommerceStands.crownsAddMember")}
                       </button>
                     </div>
                     <p className={`text-[11px] ${muted(isLight)}`}>
-                      Adding a member here is your own record — for subscribers you collect somewhere else. It takes no payment and sends them nothing.
+                      {t("worldCommerceStands.crownsMemberAddNote")}
                     </p>
                   </>
                 )}
@@ -3332,7 +3368,17 @@ function CrownsCreatorDesk({ isLight }: { isLight: boolean }) {
 /* ═══ 3. Crowns & Memberships — tiers as crown cards ═══════════════ */
 
 function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useAuthHeaders();
+  const tierStrings: TierLabelStrings = {
+    free: t("worldCommerceStands.crownsTierFree"),
+    perMonth: t("worldCommerceStands.crownsTierPerMonth"),
+    perYear: t("worldCommerceStands.crownsTierPerYear"),
+    saving: t("worldCommerceStands.crownsTierSaving"),
+    freeCrowns: t("worldCommerceStands.crownsStartingFree"),
+    crownsFrom: t("worldCommerceStands.crownsStartingFrom"),
+  };
+  const md = (n: number) => membershipDollars(n, i18n.language);
   const [creatorInput, setCreatorInput] = useState("");
   const [creatorId, setCreatorId] = useState<string | null>(null);
   const [tiers, setTiers] = useState<MembershipTierDto[] | null>(null);
@@ -3412,23 +3458,23 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
         setJoinSecret(null);
         setJoinNote(
           pending.isGift
-            ? `Gift confirmed — “${pending.tierName}” is theirs. The payment landed and their crown is active.`
-            : `You're in — “${pending.tierName}” is active. The payment landed and your crown is on.`,
+            ? t("worldCommerceStands.crownsVerifyGiftConfirmed", { name: pending.tierName })
+            : t("worldCommerceStands.crownsVerifyConfirmed", { name: pending.tierName }),
         );
         setMsg(null);
         void loadMine();
       } else if (state === "pending") {
-        setJoinNote(`That “${pending.tierName}” payment hasn't completed yet — finish paying first, then check again here.`);
+        setJoinNote(t("worldCommerceStands.crownsVerifyPending", { name: pending.tierName }));
       } else {
         try { localStorage.removeItem(membershipPendingKey()); } catch { /* the state below still clears */ }
         setPendingCheckout(null);
         setJoinSecret(null);
-        setJoinNote("That checkout session is closed, so there's nothing to confirm — your crowns below tell the truth, and any crown still on offer can be joined again.");
+        setJoinNote(t("worldCommerceStands.crownsVerifyClosed"));
       }
     } catch {
       /* A failed CHECK claims nothing and keeps the stash — the
          seat is untouched and the walker can check again. */
-      setJoinNote("Couldn't check that payment just now — nothing was changed; try the check again in a moment.");
+      setJoinNote(t("worldCommerceStands.crownsVerifyCheckFailed"));
     } finally {
       setVerifying(false);
     }
@@ -3477,7 +3523,7 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
   const submitCreator = () => {
     const id = parseCreatorUserId(creatorInput);
     if (!id) {
-      setMsg("That doesn't carry a creator's join ID — paste the creator's user ID, or their whole join link (/memberships?creator=…).");
+      setMsg(t("worldCommerceStands.crownsJoinIdBad"));
       return;
     }
     void loadClub(id);
@@ -3493,11 +3539,11 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
      account, and sign-in lives on the website by design. */
   const join = async (tier: MembershipTierDto, mode: "checkout" | "trial") => {
     if (isGuest) {
-      setMsg("Joining a fan club rides your account — sign in on the website (the footer below) and come back through this door; the crowns will be waiting.");
+      setMsg(t("worldCommerceStands.crownsJoinGuest"));
       return;
     }
     if (mode === "checkout" && recipientInvalid) {
-      setMsg("That gift recipient doesn't parse — paste their user ID or their join link, or clear the gift field to join for yourself.");
+      setMsg(t("worldCommerceStands.crownsGiftBad"));
       return;
     }
     setBusy(tier.id + mode);
@@ -3511,8 +3557,8 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
           body: JSON.stringify({ tierId: tier.id }),
         });
         const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-        if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't start the trial."));
-        setMsg("Your 7-day free trial is on — no charge today. Join with a paid plan before it ends to keep your seat.");
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.crownsTrialFailed")));
+        setMsg(t("worldCommerceStands.crownsTrialOn"));
         void loadMine();
         return;
       }
@@ -3529,11 +3575,11 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't start checkout."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.crownsCheckoutFailed")));
       if (checkoutCompletedInWorld(data)) {
         /* A free crown activates in-world at once — for a gift,
            the seat is THEIRS, in the memberships page's own words. */
-        setMsg(gifting ? "Gift sent — they're a member now." : "You're in — your membership is active, right here at the stand.");
+        setMsg(gifting ? t("worldCommerceStands.crownsGiftSent") : t("worldCommerceStands.crownsJoinedFree"));
         void loadMine();
         return;
       }
@@ -3550,8 +3596,8 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
         }
         setJoinSecret(clientSecret);
         setJoinNote(gifting
-          ? `The gift checkout for “${tier.name}” is right here — finish paying in this stand and it confirms the gift itself when the payment lands.`
-          : `Your checkout for “${tier.name}” is right here — finish paying in this stand and it confirms your crown itself when the payment lands.`);
+          ? t("worldCommerceStands.crownsGiftCheckoutNote", { name: tier.name })
+          : t("worldCommerceStands.crownsJoinCheckoutNote", { name: tier.name }));
         setMsg(null);
         return;
       }
@@ -3569,13 +3615,13 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
         }
         openCheckoutTab(url);
         setMsg(gifting
-          ? "Gift checkout opened in a new tab — finish paying there. This stand confirms the gift itself when the payment lands."
-          : "Checkout opened in a new tab — finish paying there. This stand confirms your membership itself when the payment lands.");
+          ? t("worldCommerceStands.crownsGiftTabNote")
+          : t("worldCommerceStands.crownsJoinTabNote"));
         return;
       }
-      throw new Error("Couldn't start checkout.");
+      throw new Error(t("worldCommerceStands.crownsCheckoutFailed"));
     } catch (e) {
-      setMsg(plainErrorText(e, "Something went wrong at the stand. Try again."));
+      setMsg(plainErrorText(e, t("worldCommerceStands.crownsStandError")));
     } finally {
       setBusy(null);
     }
@@ -3591,9 +3637,9 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
       {!isGuest && mine && mine.length > 0 && (
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <StandTitle isLight={isLight}>Crowns you hold</StandTitle>
+            <StandTitle isLight={isLight}>{t("worldCommerceStands.crownsMineTitle")}</StandTitle>
             <button type="button" onClick={() => void loadMine()} className={`${chipBtn(isLight)} ml-auto`}>
-              <RefreshCw className="h-3 w-3" /> Refresh
+              <RefreshCw className="h-3 w-3" /> {t("worldCommerceStands.crownsRefresh")}
             </button>
           </div>
           {mine.map((m) => (
@@ -3604,12 +3650,12 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
             >
               <Crown className="h-4 w-4 text-[#d4af37]" />
               <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                {m.tierName ?? "Membership"}{m.isGift ? " · gifted to you" : ""}
+                {m.tierName ?? t("worldCommerceStands.crownsMembershipFallback")}{m.isGift ? t("worldCommerceStands.crownsMineGifted") : ""}
               </span>
               <span className={`text-xs ${muted(isLight)}`}>
-                {membershipDollars(m.priceDollars)} · {m.billingPeriod}
-                {m.status === "trialing" && m.trialEndsAt ? ` · trial ends ${new Date(m.trialEndsAt).toLocaleDateString()}` : ""}
-                {m.status !== "trialing" && m.currentPeriodEnd ? ` · ${m.status === "expired" ? "ended" : "renews"} ${new Date(m.currentPeriodEnd).toLocaleDateString()}` : ""}
+                {md(m.priceDollars)} · {m.billingPeriod}
+                {m.status === "trialing" && m.trialEndsAt ? t("worldCommerceStands.crownsMineTrialEnds", { date: new Date(m.trialEndsAt).toLocaleDateString(i18n.language) }) : ""}
+                {m.status !== "trialing" && m.currentPeriodEnd ? t(m.status === "expired" ? "worldCommerceStands.crownsMineEnded" : "worldCommerceStands.crownsMineRenews", { date: new Date(m.currentPeriodEnd).toLocaleDateString(i18n.language) }) : ""}
               </span>
               <span className="ml-auto rounded-full border border-[#d4af37]/40 bg-[#d4af37]/10 px-2.5 py-0.5 text-[11px] font-bold capitalize text-[#e8c86a]">{m.status.replace(/_/g, " ")}</span>
             </div>
@@ -3627,7 +3673,7 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
             <span>
               {joinNote ??
                 (pendingCheckout
-                  ? `Waiting on the “${pendingCheckout.tierName}” payment — finish paying, then check here and this stand confirms ${pendingCheckout.isGift ? "the gift" : "your crown"} itself.`
+                  ? t("worldCommerceStands.crownsWaitingNote", { name: pendingCheckout.tierName, what: pendingCheckout.isGift ? t("worldCommerceStands.crownsWhatGift") : t("worldCommerceStands.crownsWhatCrown") })
                   : "")}
             </span>
           </p>
@@ -3640,36 +3686,35 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
               className={chipBtn(isLight)}
             >
               {verifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              Check my payment
+              {t("worldCommerceStands.crownsCheckPayment")}
             </button>
           )}
           {joinSecret && (
             <div className="space-y-2" data-testid="world-crowns-embedded-checkout">
               <EmbeddedSessionCheckout clientSecret={joinSecret} />
               <button type="button" onClick={() => setJoinSecret(null)} className={chipBtn(isLight)}>
-                Close — the crown isn&rsquo;t yours until the payment lands
+                {t("worldCommerceStands.crownsEmbeddedClose")}
               </button>
             </div>
           )}
         </div>
       )}
 
-      <NativeCard isLight={isLight} title="Join a fan club">
+      <NativeCard isLight={isLight} title={t("worldCommerceStands.crownsJoinCardTitle")}>
         <p className={`text-xs ${muted(isLight)}`}>
-          Browse every club with crowns on offer — tap one and its tiers appear below. A creator&rsquo;s join ID
-          (the tail of <span className="font-mono">/memberships?creator=…</span>) still works too.
+          {t("worldCommerceStands.crownsJoinIntroBefore")}<span className="font-mono">/memberships?creator=…</span>{t("worldCommerceStands.crownsJoinIntroAfter")}
         </p>
         {directoryFailed ? (
           <p className={`mt-2 flex flex-wrap items-center gap-2 text-xs ${muted(isLight)}`}>
-            <span>The club list couldn&rsquo;t be brought in — the join ID below still works.</span>
+            <span>{t("worldCommerceStands.crownsDirectoryFailed")}</span>
             <button type="button" onClick={() => void loadDirectory()} className={chipBtn(isLight)}>
-              <RefreshCw className="h-3 w-3" /> Try the list again
+              <RefreshCw className="h-3 w-3" /> {t("worldCommerceStands.crownsDirectoryRetry")}
             </button>
           </p>
         ) : directory === null ? (
-          <NativeLoadingState isLight={isLight} message="Gathering the clubs…" />
+          <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.crownsDirectoryLoading")} />
         ) : directory.length === 0 ? (
-          <p className={`mt-2 text-xs ${muted(isLight)}`}>No clubs have crowns on offer yet — when one opens, it lists here.</p>
+          <p className={`mt-2 text-xs ${muted(isLight)}`}>{t("worldCommerceStands.crownsDirectoryEmpty")}</p>
         ) : (
           <div className="mt-2 space-y-1.5" data-testid="world-crowns-directory">
             {directory.map((row) => (
@@ -3688,12 +3733,12 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
                   <Crown className="h-4 w-4 shrink-0 text-[#d4af37]" />
                 )}
                 <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                  {row.displayName ?? "A creator's club"}
+                  {row.displayName ?? t("worldCommerceStands.crownsCreatorClubFallback")}
                 </span>
                 {row.slug && <span className={`text-xs ${muted(isLight)}`}>@{row.slug}</span>}
                 <span className={`ml-auto text-xs ${muted(isLight)}`}>
-                  {row.tierCount} crown{row.tierCount === 1 ? "" : "s"} · {clubStartingLabel(row)}
-                  {row.hasTrial ? " · free trial" : ""}
+                  {t(row.tierCount === 1 ? "worldCommerceStands.crownsCountOne" : "worldCommerceStands.crownsCountMany", { count: row.tierCount })} · {clubStartingLabel(row, tierStrings, i18n.language)}
+                  {row.hasTrial ? t("worldCommerceStands.crownsFreeTrialSuffix") : ""}
                 </span>
               </button>
             ))}
@@ -3704,12 +3749,12 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
             value={creatorInput}
             onChange={(e) => setCreatorInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") submitCreator(); }}
-            placeholder="Creator's join ID or link"
-            aria-label="Creator's join ID or link"
+            placeholder={t("worldCommerceStands.crownsCreatorInputLabel")}
+            aria-label={t("worldCommerceStands.crownsCreatorInputLabel")}
             className={`${inputCls(isLight)} min-w-0 flex-1`}
           />
           <button type="button" onClick={submitCreator} className={goldBtn()}>
-            <Crown className="h-4 w-4" /> Show the crowns
+            <Crown className="h-4 w-4" /> {t("worldCommerceStands.crownsShowCrowns")}
           </button>
         </div>
         {msg && <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{msg}</p>}
@@ -3718,27 +3763,27 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
       {creatorId && (
         <div className="space-y-2">
           {tiersFailed ? (
-            <NativeErrorState isLight={isLight} title="This fan club wouldn't load" message="The club itself is fine — its crowns couldn't be brought in. Check the join ID and try again." onRetry={() => void loadClub(creatorId)} />
+            <NativeErrorState isLight={isLight} title={t("worldCommerceStands.crownsClubFailedTitle")} message={t("worldCommerceStands.crownsClubFailedMsg")} onRetry={() => void loadClub(creatorId)} />
           ) : tiers === null ? (
-            <NativeLoadingState isLight={isLight} message="Polishing the crowns…" />
+            <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.crownsClubLoading")} />
           ) : active.length === 0 ? (
-            <NativeEmptyState isLight={isLight} message="This creator has no crowns on offer right now." detail="When they open membership tiers, the crowns appear on this stand." />
+            <NativeEmptyState isLight={isLight} message={t("worldCommerceStands.crownsClubEmpty")} detail={t("worldCommerceStands.crownsClubEmptyDetail")} />
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <StandTitle isLight={isLight}>The crowns on offer</StandTitle>
+                <StandTitle isLight={isLight}>{t("worldCommerceStands.crownsOnOfferTitle")}</StandTitle>
                 {testMode && (
-                  <span className="rounded-full border border-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/50">Test mode</span>
+                  <span className="rounded-full border border-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/50">{t("worldCommerceStands.crownsTestModeChip")}</span>
                 )}
                 <span className="ml-auto inline-flex gap-1.5">
-                  {(["monthly", "annual"] as const).map((p) => (
+                  {([["monthly", t("worldCommerceStands.crownsPeriodMonthly")], ["annual", t("worldCommerceStands.crownsPeriodAnnual")]] as const).map(([p, label]) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => setPeriod(p)}
-                      className={`${chipBtn(isLight)} capitalize ${period === p ? "border-[#d4af37] text-[#d4af37]" : ""}`}
+                      className={`${chipBtn(isLight)} ${period === p ? "border-[#d4af37] text-[#d4af37]" : ""}`}
                     >
-                      {p}
+                      {label}
                     </button>
                   ))}
                 </span>
@@ -3749,15 +3794,15 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
                   <input
                     value={recipientInput}
                     onChange={(e) => setRecipientInput(e.target.value)}
-                    placeholder="Gift it — recipient's user ID or join link (optional)"
+                    placeholder={t("worldCommerceStands.crownsGiftPlaceholder")}
                     className={`${inputCls(isLight)} min-w-0 flex-1`}
-                    aria-label="Gift recipient"
+                    aria-label={t("worldCommerceStands.crownsGiftAria")}
                   />
                   {recipientId && (
-                    <span className="text-xs font-semibold text-emerald-300">Gift mode — the buttons below buy the crown for them; you pay.</span>
+                    <span className="text-xs font-semibold text-emerald-300">{t("worldCommerceStands.crownsGiftModeNote")}</span>
                   )}
                   {recipientInvalid && (
-                    <span className="text-xs font-semibold text-red-300">That doesn&rsquo;t parse as a user ID or join link yet.</span>
+                    <span className="text-xs font-semibold text-red-300">{t("worldCommerceStands.crownsGiftInvalid")}</span>
                   )}
                 </div>
               )}
@@ -3767,9 +3812,9 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
                     <p className={`flex items-center gap-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
                       <Crown className="h-4 w-4 shrink-0 text-[#d4af37]" /> {tier.name}
                     </p>
-                    <p className="mt-1 text-sm font-black text-[#d4af37]">{tierPriceLabel(tier, period)}</p>
-                    {period === "annual" && tierAnnualSavingLabel(tier) && (
-                      <p className="text-xs font-semibold text-emerald-300">{tierAnnualSavingLabel(tier)}</p>
+                    <p className="mt-1 text-sm font-black text-[#d4af37]">{tierPriceLabel(tier, period, tierStrings, i18n.language)}</p>
+                    {period === "annual" && tierAnnualSavingLabel(tier, tierStrings) && (
+                      <p className="text-xs font-semibold text-emerald-300">{tierAnnualSavingLabel(tier, tierStrings)}</p>
                     )}
                     {tier.description && <p className={`mt-1 line-clamp-3 text-xs ${muted(isLight)}`}>{tier.description}</p>}
                     {tier.perks.length > 0 && (
@@ -3799,8 +3844,8 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
                       >
                         {busy === tier.id + "checkout" ? <Loader2 className="h-4 w-4 animate-spin" /> : recipientId ? <Gift className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
                         {tier.priceCents <= 0
-                          ? recipientId ? "Gift this tier — free" : "Join — free"
-                          : recipientId ? `Gift this tier · ${CHECKOUT_TRANSFER_LABEL}` : CHECKOUT_TRANSFER_LABEL}
+                          ? recipientId ? t("worldCommerceStands.crownsGiftFreeButton") : t("worldCommerceStands.crownsJoinFreeButton")
+                          : recipientId ? t("worldCommerceStands.crownsGiftButton", { label: CHECKOUT_TRANSFER_LABEL }) : CHECKOUT_TRANSFER_LABEL}
                       </button>
                       {tierOffersTrial(tier) && !recipientId && (
                         <button
@@ -3811,7 +3856,7 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
                           className={`${chipBtn(isLight)} w-full justify-center`}
                         >
                           {busy === tier.id + "trial" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                          Start 7-day free trial — here at the stand
+                          {t("worldCommerceStands.crownsTrialButton")}
                         </button>
                       )}
                     </div>
@@ -3823,7 +3868,7 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
         </div>
       )}
       {isGuest && (
-        <p className={`px-1 text-[11px] ${muted(isLight)}`}>Browsing the crowns is open to everyone; wearing one rides your account.</p>
+        <p className={`px-1 text-[11px] ${muted(isLight)}`}>{t("worldCommerceStands.crownsGuestFooter")}</p>
       )}
     </div>
   );

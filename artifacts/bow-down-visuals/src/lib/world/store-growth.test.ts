@@ -241,6 +241,9 @@ const standsSrc = readFileSync(
   fileURLToPath(new URL("../../components/world/native/ShopStands.tsx", import.meta.url)),
   "utf8",
 );
+const enCatalog = JSON.parse(
+  readFileSync(fileURLToPath(new URL("../../locales/en.json", import.meta.url)), "utf8"),
+) as Record<string, any>;
 
 describe("source pins — the desk rides the storefront rails, in-World only", () => {
   it("the seller's store is read the dashboard's way", () => {
@@ -285,6 +288,7 @@ describe("source pins — the desk rides the storefront rails, in-World only", (
     expect(standsSrc).toContain("{!isGuest && <StoreGrowthDesk isLight={isLight} isGuest={isGuest} />}");
   });
   it("the upsell section states the shared-designation truth in its copy", () => {
-    expect(deskSrc).toContain("rides the SAME add-on designation");
+    expect(deskSrc).toContain('t("worldCommerceStands.growthUpsellIntro", { fee: feeLabel })');
+    expect(enCatalog.worldCommerceStands.growthUpsellIntro).toContain("rides the SAME add-on designation");
   });
 });

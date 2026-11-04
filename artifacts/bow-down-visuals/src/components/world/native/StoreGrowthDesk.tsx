@@ -1,5 +1,6 @@
 import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowUpCircle, Check, Loader2, Magnet, Pencil, Plus, RefreshCw, X,
 } from "lucide-react";
@@ -8,7 +9,7 @@ import { NativeCard } from "./NativeCard";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import { centsToDisplay } from "@/lib/shops";
 import {
-  ADDON_FEE_LABEL, LEAD_MAGNET_KINDS,
+  LEAD_MAGNET_KINDS,
   addonSummary, applyGrowthProductSave, buildBumpPayload,
   buildLeadMagnetConvertPayload, buildLeadMagnetCreatePayload,
   buildLeadMagnetRestorePayload, bumpCandidates, bumpPercentProblem,
@@ -92,6 +93,7 @@ type DeskState = "loading" | "ready" | "no-profile" | "failed";
 type GrowthSection = "lead" | "bumps" | "upsell";
 
 export function StoreGrowthDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useAuthHeaders();
   const [state, setState] = useState<DeskState>("loading");
   const [products, setProducts] = useState<GrowthProduct[]>([]);
@@ -131,19 +133,18 @@ export function StoreGrowthDesk({ isLight, isGuest }: { isLight: boolean; isGues
     setProducts((ps) => applyGrowthProductSave(ps, saved));
 
   return (
-    <NativeCard isLight={isLight} title="Grow your store — lead magnets, add-ons, one-click offers">
+    <NativeCard isLight={isLight} title={t("worldCommerceStands.growthTitle")}>
       <div className="space-y-2" data-testid="world-store-growth">
         <p className={`text-xs ${muted(isLight)}`}>
-          The three conversion tools from your store dashboard, run from right here on the same rails.
-          Nothing here leaves the World — every change saves on your real store the moment it lands.
+          {t("worldCommerceStands.growthIntro")}
         </p>
 
-        {state === "loading" && <NativeLoadingState isLight={isLight} message="Opening your growth tools…" />}
+        {state === "loading" && <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.growthLoading")} />}
         {state === "failed" && (
           <NativeErrorState
             isLight={isLight}
-            title="Your growth tools wouldn't open"
-            message="Your store itself is fine — its tools couldn't be brought to the stand just now. Nothing about your store changed."
+            title={t("worldCommerceStands.growthFailedTitle")}
+            message={t("worldCommerceStands.growthFailedMsg")}
             onRetry={() => void load()}
           />
         )}
@@ -151,23 +152,23 @@ export function StoreGrowthDesk({ isLight, isGuest }: { isLight: boolean; isGues
           <div data-testid="world-store-growth-no-profile">
             <NativeEmptyState
               isLight={isLight}
-              message="These tools grow the store on your creator profile — and there's no creator profile on this account yet."
-              detail="Make your creator profile first (it's the free setup in My Studio), stock it with a product or two, and this desk opens on your store."
+              message={t("worldCommerceStands.growthNoProfileMsg")}
+              detail={t("worldCommerceStands.growthNoProfileDetail")}
             />
           </div>
         )}
 
         {state === "ready" && (
           <>
-            <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Store growth tools">
+            <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldCommerceStands.growthTabsAria")}>
               <button type="button" role="tab" aria-selected={section === "lead"} data-testid="world-store-growth-tab-lead" onClick={() => setSection("lead")} className={standTabBtn(isLight, section === "lead")}>
-                <Magnet className="h-3 w-3" /> Lead magnets
+                <Magnet className="h-3 w-3" /> {t("worldCommerceStands.growthTabLead")}
               </button>
               <button type="button" role="tab" aria-selected={section === "bumps"} data-testid="world-store-growth-tab-bumps" onClick={() => setSection("bumps")} className={standTabBtn(isLight, section === "bumps")}>
-                <Plus className="h-3 w-3" /> Add-on offers
+                <Plus className="h-3 w-3" /> {t("worldCommerceStands.growthTabBumps")}
               </button>
               <button type="button" role="tab" aria-selected={section === "upsell"} data-testid="world-store-growth-tab-upsell" onClick={() => setSection("upsell")} className={standTabBtn(isLight, section === "upsell")}>
-                <ArrowUpCircle className="h-3 w-3" /> After-purchase offer
+                <ArrowUpCircle className="h-3 w-3" /> {t("worldCommerceStands.growthTabUpsell")}
               </button>
             </div>
 
@@ -206,6 +207,13 @@ function LeadMagnetsSection({
   products: GrowthProduct[];
   onSaved: (saved: GrowthProduct) => void;
 }) {
+  const { t } = useTranslation();
+  const leadStrings = {
+    titleRequired: t("worldCommerceStands.growthProblemTitleRequired"),
+    titleLong: t("worldCommerceStands.growthProblemTitleLong"),
+    descLong: t("worldCommerceStands.growthProblemDescLong"),
+    restorePrice: t("worldCommerceStands.growthProblemRestorePrice"),
+  };
   const authHeaders = useAuthHeaders();
   const magnets = leadMagnets(products);
   const convertible = leadMagnetConvertible(products);
@@ -234,9 +242,9 @@ function LeadMagnetsSection({
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "That price change didn't save — the product is unchanged.");
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : t("worldCommerceStands.growthPriceSaveFailed"));
       const saved = parseSavedGrowthProduct(data);
-      if (!saved) throw new Error("The save came back without your product — reopen the desk to see its true state.");
+      if (!saved) throw new Error(t("worldCommerceStands.growthSaveNoProduct"));
       onSaved(saved);
       setNote(done);
       setConvertArmed(false);
@@ -244,7 +252,7 @@ function LeadMagnetsSection({
       setRestoreId(null);
       setRestorePrice("");
     } catch (e) {
-      setError(plainErrorText(e, "That price change didn't save — the product is unchanged."));
+      setError(plainErrorText(e, t("worldCommerceStands.growthPriceSaveFailed")));
     } finally {
       setBusyId(null);
     }
@@ -252,10 +260,10 @@ function LeadMagnetsSection({
 
   const create = async () => {
     if (creating) return;
-    const problem = leadMagnetFormProblem(form);
+    const problem = leadMagnetFormProblem(form, leadStrings);
     if (problem) { setError(problem); return; }
     const payload = buildLeadMagnetCreatePayload(form);
-    if (!payload) { setError("That free product can't be made as-is — check the title."); return; }
+    if (!payload) { setError(t("worldCommerceStands.growthCreateBadTitle")); return; }
     setCreating(true);
     setError(null);
     setNote(null);
@@ -266,14 +274,14 @@ function LeadMagnetsSection({
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "That free product didn't save — nothing was created.");
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : t("worldCommerceStands.growthCreateFailed"));
       const saved = parseSavedGrowthProduct(data);
-      if (!saved) throw new Error("The save came back without your product — reopen the desk to see its true state.");
+      if (!saved) throw new Error(t("worldCommerceStands.growthSaveNoProduct"));
       onSaved(saved);
       setForm(emptyLeadMagnetForm());
-      setNote(`“${saved.title}” is live as a free lead magnet — fans claim it with their email, and the claim joins your list.`);
+      setNote(t("worldCommerceStands.growthCreatedNote", { title: saved.title }));
     } catch (e) {
-      setError(plainErrorText(e, "That free product didn't save — nothing was created."));
+      setError(plainErrorText(e, t("worldCommerceStands.growthCreateFailed")));
     } finally {
       setCreating(false);
     }
@@ -282,8 +290,7 @@ function LeadMagnetsSection({
   return (
     <div className="space-y-2" data-testid="world-store-growth-lead">
       <p className={`text-xs ${muted(isLight)}`}>
-        A lead magnet is a product priced at $0: instead of checking out, fans claim it with their email
-        address — and the claim joins your audience list. No checkout, no card. The free sample door into your store.
+        {t("worldCommerceStands.growthLeadIntro")}
       </p>
       {error && <p className="text-xs font-semibold text-red-400">{error}</p>}
       {note && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
@@ -294,11 +301,11 @@ function LeadMagnetsSection({
             <div className="flex flex-wrap items-center gap-2">
               <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{p.title}</span>
               <span className="shrink-0 rounded-full bg-[#d4af37]/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#e8c86a]">
-                <Magnet className="mr-1 inline h-3 w-3" />Lead magnet · FREE
+                <Magnet className="mr-1 inline h-3 w-3" />{t("worldCommerceStands.growthLeadBadge")}
               </span>
               {restoreId !== p.id && (
                 <button type="button" data-testid="world-store-growth-lead-restore-open" onClick={() => { setRestoreId(p.id); setRestorePrice(""); setError(null); }} className={chipBtn(isLight)}>
-                  <Pencil className="h-3 w-3" /> Make it paid again
+                  <Pencil className="h-3 w-3" /> {t("worldCommerceStands.growthMakePaid")}
                 </button>
               )}
             </div>
@@ -307,8 +314,8 @@ function LeadMagnetsSection({
                 <input
                   value={restorePrice}
                   onChange={(e) => setRestorePrice(e.target.value)}
-                  placeholder="New price — like 9.99"
-                  aria-label="New price"
+                  placeholder={t("worldCommerceStands.growthNewPricePlaceholder")}
+                  aria-label={t("worldCommerceStands.growthNewPriceAria")}
                   inputMode="decimal"
                   className={`${inputCls(isLight)} max-w-[180px]`}
                 />
@@ -317,42 +324,42 @@ function LeadMagnetsSection({
                   data-testid="world-store-growth-lead-restore-save"
                   disabled={busyId === p.id}
                   onClick={() => {
-                    const problem = leadMagnetRestoreProblem(restorePrice);
+                    const problem = leadMagnetRestoreProblem(restorePrice, leadStrings);
                     if (problem) { setError(problem); return; }
                     const payload = buildLeadMagnetRestorePayload(restorePrice);
-                    if (payload) void patchPrice(p, payload, `“${p.title}” sells again at ${centsToDisplay(payload.priceCents)} — it's a paid product now, not a lead magnet.`);
+                    if (payload) void patchPrice(p, payload, t("worldCommerceStands.growthRestoredNote", { title: p.title, price: centsToDisplay(payload.priceCents) }));
                   }}
                   className={goldBtn(busyId === p.id)}
                 >
-                  {busyId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Save price
+                  {busyId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} {t("worldCommerceStands.growthSavePrice")}
                 </button>
                 <button type="button" onClick={() => setRestoreId(null)} className={chipBtn(isLight)}>
-                  <X className="h-3 w-3" /> Keep it free
+                  <X className="h-3 w-3" /> {t("worldCommerceStands.growthKeepFree")}
                 </button>
               </div>
             )}
           </div>
         ))}
         {magnets.length === 0 && (
-          <p className={`text-xs ${muted(isLight)}`}>No lead magnets yet — make one below, or turn a paid product free.</p>
+          <p className={`text-xs ${muted(isLight)}`}>{t("worldCommerceStands.growthNoMagnets")}</p>
         )}
       </div>
 
       <div className="space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-store-growth-lead-create">
-        <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Make a lead magnet</p>
+        <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldCommerceStands.growthMakeMagnetTitle")}</p>
         <input
           value={form.title}
           onChange={(e) => set({ title: e.target.value })}
-          placeholder="Title — the free thing fans claim"
-          aria-label="Lead magnet title"
+          placeholder={t("worldCommerceStands.growthLeadTitlePlaceholder")}
+          aria-label={t("worldCommerceStands.growthLeadTitleAria")}
           maxLength={160}
           className={inputCls(isLight)}
         />
         <textarea
           value={form.description}
           onChange={(e) => set({ description: e.target.value })}
-          placeholder="Description — what they get, and why it's worth their email"
-          aria-label="Lead magnet description"
+          placeholder={t("worldCommerceStands.growthLeadDescPlaceholder")}
+          aria-label={t("worldCommerceStands.growthLeadDescAria")}
           maxLength={5000}
           rows={2}
           className={inputCls(isLight)}
@@ -361,44 +368,44 @@ function LeadMagnetsSection({
           <select
             value={form.kind}
             onChange={(e) => set({ kind: e.target.value as LeadMagnetFormState["kind"] })}
-            aria-label="Lead magnet kind"
+            aria-label={t("worldCommerceStands.growthLeadKindAria")}
             className={`${inputCls(isLight)} max-w-[180px]`}
           >
             {LEAD_MAGNET_KINDS.map((k) => (
-              <option key={k} value={k}>{k === "digital" ? "Digital" : "Download"}</option>
+              <option key={k} value={k}>{k === "digital" ? t("worldCommerceStands.growthKindDigital") : t("worldCommerceStands.growthKindDownload")}</option>
             ))}
           </select>
-          <span className={`text-xs ${muted(isLight)}`}>Price: FREE — $0 is what makes it a lead magnet.</span>
+          <span className={`text-xs ${muted(isLight)}`}>{t("worldCommerceStands.growthLeadPriceNote")}</span>
           <button type="button" data-testid="world-store-growth-lead-create-submit" onClick={() => void create()} disabled={creating} className={goldBtn(creating)}>
-            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Magnet className="h-4 w-4" />} Put it out free
+            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Magnet className="h-4 w-4" />} {t("worldCommerceStands.growthPutFree")}
           </button>
         </div>
       </div>
 
       {convertible.length > 0 && (
         <div className="space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-store-growth-lead-convert">
-          <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Turn a product into a lead magnet</p>
+          <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldCommerceStands.growthConvertTitle")}</p>
           <div className="flex flex-wrap items-center gap-1.5">
             <select
               value={convertId}
               onChange={(e) => { setConvertId(e.target.value); setConvertArmed(false); }}
-              aria-label="Product to make free"
+              aria-label={t("worldCommerceStands.growthConvertAria")}
               className={`${inputCls(isLight)} max-w-[320px]`}
             >
-              <option value="">Pick one of your paid products…</option>
+              <option value="">{t("worldCommerceStands.growthConvertPick")}</option>
               {convertible.map((p) => (
                 <option key={p.id} value={p.id}>{p.title} — {centsToDisplay(p.priceCents)}</option>
               ))}
             </select>
             {convertId && !convertArmed && (
               <button type="button" data-testid="world-store-growth-lead-convert-arm" onClick={() => setConvertArmed(true)} className={chipBtn(isLight)}>
-                Make it free
+                {t("worldCommerceStands.growthMakeFree")}
               </button>
             )}
             {convertId && convertArmed && (
               <>
                 <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-                  Its price becomes $0 — fans claim it by email instead of buying it.
+                  {t("worldCommerceStands.growthConvertArmedNote")}
                 </span>
                 <button
                   type="button"
@@ -406,14 +413,14 @@ function LeadMagnetsSection({
                   disabled={busyId !== null}
                   onClick={() => {
                     const p = convertible.find((q) => q.id === convertId);
-                    if (p) void patchPrice(p, buildLeadMagnetConvertPayload(), `“${p.title}” is a lead magnet now — free to claim by email.`);
+                    if (p) void patchPrice(p, buildLeadMagnetConvertPayload(), t("worldCommerceStands.growthConvertedNote", { title: p.title }));
                   }}
                   className={goldBtn(busyId !== null)}
                 >
-                  {busyId ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Yes, make it free
+                  {busyId ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} {t("worldCommerceStands.growthYesMakeFree")}
                 </button>
                 <button type="button" onClick={() => setConvertArmed(false)} className={chipBtn(isLight)}>
-                  <X className="h-3 w-3" /> Keep its price
+                  <X className="h-3 w-3" /> {t("worldCommerceStands.growthKeepPrice")}
                 </button>
               </>
             )}
@@ -435,6 +442,16 @@ function AddonSection({
   products: GrowthProduct[];
   onSaved: (saved: GrowthProduct) => void;
 }) {
+  const { t } = useTranslation();
+  const bumpStrings = {
+    percentProblem: t("worldCommerceStands.growthProblemPercent"),
+    summaryNone: t("worldCommerceStands.growthSummaryNone"),
+    summaryAttachedNamed: t("worldCommerceStands.growthSummaryAttachedNamed"),
+    summaryAttachedAnon: t("worldCommerceStands.growthSummaryAttachedAnon"),
+    summaryLive: t("worldCommerceStands.growthSummaryLive"),
+    summaryLivePct: t("worldCommerceStands.growthSummaryLivePct"),
+  };
+  const feeLabel = t("worldCommerceStands.growthAddonFeeLabel");
   const authHeaders = useAuthHeaders();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState("");
@@ -464,31 +481,31 @@ function AddonSection({
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "That add-on didn't save — the product is unchanged.");
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : t("worldCommerceStands.growthAddonSaveFailed"));
       const saved = parseBumpSave(data);
-      if (!saved) throw new Error("The save came back without your product — reopen the desk to see its true state.");
+      if (!saved) throw new Error(t("worldCommerceStands.growthSaveNoProduct"));
       onSaved(saved.product);
       setEditingId(null);
       setNote(
         payload.bumpProductId === null
-          ? `The add-on is off “${p.title}” — no checkout offer and no after-purchase offer for it now.`
+          ? t("worldCommerceStands.growthAddonRemovedNote", { title: p.title })
           : saved.offerLive
-            ? `“${p.title}” carries its add-on — buyers see it at checkout, and anyone who skips it is offered it once after paying.`
-            : `The add-on is attached to “${p.title}”, but it isn't offered yet — the add-on itself is paused, sold out or gone. It lights up the moment the add-on is live.`,
+            ? t("worldCommerceStands.growthAddonLiveNote", { title: p.title })
+            : t("worldCommerceStands.growthAddonNotLiveNote", { title: p.title }),
       );
     } catch (e) {
-      setError(plainErrorText(e, "That add-on didn't save — the product is unchanged."));
+      setError(plainErrorText(e, t("worldCommerceStands.growthAddonSaveFailed")));
     } finally {
       setBusyId(null);
     }
   };
 
   const save = (p: GrowthProduct) => {
-    if (!targetId) { setError("Pick the add-on product first — or hit Remove to clear it."); return; }
-    const problem = bumpPercentProblem(percentRaw);
+    if (!targetId) { setError(t("worldCommerceStands.growthPickAddonFirst")); return; }
+    const problem = bumpPercentProblem(percentRaw, bumpStrings);
     if (problem) { setError(problem); return; }
     const payload = buildBumpPayload(targetId, percentRaw);
-    if (!payload) { setError("That add-on can't be saved as-is — check the product and the % off."); return; }
+    if (!payload) { setError(t("worldCommerceStands.growthAddonBadSave")); return; }
     void put(p, payload);
   };
 
@@ -498,17 +515,11 @@ function AddonSection({
     <div className="space-y-2" data-testid={mode === "bump" ? "world-store-growth-bumps" : "world-store-growth-upsell"}>
       {mode === "bump" ? (
         <p className={`text-xs ${muted(isLight)}`}>
-          Attach ONE of your own products as an add-on: at checkout, buyers see it with a tick box — same single
-          charge, delivered together. Its price is its own listed price, or your % off it. The {ADDON_FEE_LABEL}{" "}
-          applies to the add-on too, out of your cut — the buyer never pays extra. Free lead magnets can&rsquo;t
-          ride as add-ons; they&rsquo;re claimed by email instead.
+          {t("worldCommerceStands.growthBumpIntro", { fee: feeLabel })}
         </p>
       ) : (
         <p className={`text-xs ${muted(isLight)}`}>
-          If a buyer skips the add-on at checkout, they&rsquo;re offered it once more right after paying — one
-          click on the card they just used, at the same price with the same {ADDON_FEE_LABEL}. There&rsquo;s no
-          second switch to flip: the after-purchase offer rides the SAME add-on designation as the checkout
-          offer, so setting it here sets both, and removing it removes both.
+          {t("worldCommerceStands.growthUpsellIntro", { fee: feeLabel })}
         </p>
       )}
       {error && <p className="text-xs font-semibold text-red-400">{error}</p>}
@@ -516,15 +527,15 @@ function AddonSection({
 
       <div className="space-y-1.5">
         {products.map((p) => {
-          const summary = addonSummary(products, p);
+          const summary = addonSummary(products, p, bumpStrings);
           return (
             <div key={p.id} data-testid={mode === "bump" ? "world-store-growth-bump-row" : "world-store-growth-upsell-row"} className={rowCls(isLight)}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{p.title}</span>
-                <span className="text-sm font-black text-[#d4af37]">{isLeadMagnet(p) ? "FREE" : centsToDisplay(p.priceCents)}</span>
+                <span className="text-sm font-black text-[#d4af37]">{isLeadMagnet(p) ? t("worldCommerceStands.growthFree") : centsToDisplay(p.priceCents)}</span>
                 <span className={`text-xs ${summary.live ? (isLight ? "text-[#92600a]" : "text-amber-300") : muted(isLight)}`}>{summary.line}</span>
                 <button type="button" data-testid={mode === "bump" ? "world-store-growth-bump-edit" : "world-store-growth-upsell-edit"} onClick={() => openEditor(p)} className={chipBtn(isLight)}>
-                  <Pencil className="h-3 w-3" /> {p.bumpConfig ? "Change add-on" : "Attach add-on"}
+                  <Pencil className="h-3 w-3" /> {p.bumpConfig ? t("worldCommerceStands.growthChangeAddon") : t("worldCommerceStands.growthAttachAddon")}
                 </button>
               </div>
               {editingId === p.id && (
@@ -533,28 +544,28 @@ function AddonSection({
                     <select
                       value={targetId}
                       onChange={(e) => setTargetId(e.target.value)}
-                      aria-label="Add-on product"
+                      aria-label={t("worldCommerceStands.growthAddonProductAria")}
                       className={`${inputCls(isLight)} max-w-[320px]`}
                     >
-                      <option value="">Pick one of your products…</option>
+                      <option value="">{t("worldCommerceStands.growthPickProduct")}</option>
                       {bumpCandidates(products, p.id).map((q) => (
                         <option key={q.id} value={q.id}>
-                          {q.title} — {centsToDisplay(q.priceCents)}{q.isActive ? "" : " (draft)"}
+                          {q.title} — {centsToDisplay(q.priceCents)}{q.isActive ? "" : t("worldCommerceStands.growthDraftSuffix")}
                         </option>
                       ))}
                     </select>
                     <label className={`inline-flex items-center gap-1.5 text-xs ${muted(isLight)}`}>
-                      % off
+                      {t("worldCommerceStands.growthPercentOffLabel")}
                       <input
                         value={percentRaw}
                         onChange={(e) => setPercentRaw(e.target.value)}
                         inputMode="numeric"
-                        aria-label="Percent off the add-on"
+                        aria-label={t("worldCommerceStands.growthPercentOffAria")}
                         className={`${inputCls(isLight)} max-w-[72px]`}
                       />
                     </label>
                     <button type="button" data-testid={mode === "bump" ? "world-store-growth-bump-save" : "world-store-growth-upsell-save"} onClick={() => save(p)} disabled={busyId === p.id} className={goldBtn(busyId === p.id)}>
-                      {busyId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Save add-on
+                      {busyId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} {t("worldCommerceStands.growthSaveAddon")}
                     </button>
                     {p.bumpConfig && (
                       <button
@@ -567,19 +578,24 @@ function AddonSection({
                         disabled={busyId === p.id}
                         className="inline-flex items-center gap-1.5 rounded-full border border-red-400/40 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:bg-red-400/10 disabled:opacity-60 bdv-touch-target"
                       >
-                        Remove
+                        {t("worldCommerceStands.growthRemove")}
                       </button>
                     )}
                   </div>
-                  {target && !bumpPercentProblem(percentRaw) && (
+                  {target && !bumpPercentProblem(percentRaw, bumpStrings) && (
                     <p className={`text-[11px] ${muted(isLight)}`}>
-                      Buyers see “{target.title}” at {centsToDisplay(bumpUnitCents(target.priceCents, parseBumpPercent(percentRaw)))}
-                      {parseBumpPercent(percentRaw) > 0 ? ` — ${parseBumpPercent(percentRaw)}% off its ${centsToDisplay(target.priceCents)} list price` : ""}.
-                      The rail recomputes this at checkout; the {ADDON_FEE_LABEL} comes out of your cut.
+                      {t("worldCommerceStands.growthBuyerPreview", {
+                        title: target.title,
+                        price: centsToDisplay(bumpUnitCents(target.priceCents, parseBumpPercent(percentRaw))),
+                        offPart: parseBumpPercent(percentRaw) > 0
+                          ? t("worldCommerceStands.growthBuyerPreviewOff", { pct: parseBumpPercent(percentRaw), list: centsToDisplay(target.priceCents) })
+                          : "",
+                        fee: feeLabel,
+                      })}
                     </p>
                   )}
                   <button type="button" onClick={() => setEditingId(null)} className={chipBtn(isLight)}>
-                    <X className="h-3 w-3" /> Cancel
+                    <X className="h-3 w-3" /> {t("worldCommerceStands.growthCancel")}
                   </button>
                 </div>
               )}
@@ -587,12 +603,12 @@ function AddonSection({
           );
         })}
         {products.length === 0 && (
-          <NativeEmptyState isLight={isLight} message="No products on your store yet — stock it from the Products bench, then come back and attach add-ons." />
+          <NativeEmptyState isLight={isLight} message={t("worldCommerceStands.growthNoProducts")} />
         )}
       </div>
       <p className={`flex items-center gap-2 text-[11px] ${muted(isLight)}`}>
         <RefreshCw className="h-3 w-3 shrink-0" />
-        Both offers are the one designation — that&rsquo;s the rail&rsquo;s own design, not a shortcut here.
+        {t("worldCommerceStands.growthDesignationNote")}
       </p>
     </div>
   );

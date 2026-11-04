@@ -15,23 +15,34 @@
  * desk inside the shop stand, members only.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   DISCOUNTS_PATH,
-  DISCOUNT_STATE_LABELS,
   buildDiscountPayload,
   discountCodeState,
   discountCodesOf,
   discountPath,
   discountUsageLine,
   type DiscountCode,
+  type DiscountCodeState,
   type DiscountForm,
 } from "@/lib/world/discounts-desk";
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
 
 const EMPTY_FORM: DiscountForm = { code: "", percentOff: "", maxUses: "", expiresDate: "" };
 
+/** Rail state → catalog key (the seam's DISCOUNT_STATE_LABELS
+ *  remain its English defaults). */
+const DISCOUNT_STATE_KEYS: Record<DiscountCodeState, string> = {
+  live: "worldCommerceStands.discountsStateLive",
+  inactive: "worldCommerceStands.discountsStateInactive",
+  expired: "worldCommerceStands.discountsStateExpired",
+  "used-up": "worldCommerceStands.discountsStateUsedUp",
+};
+
 export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const deskHeaders = useDeskAuthHeaders();
   const [codes, setCodes] = useState<DiscountCode[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -97,7 +108,7 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(apiErrorMessage(data, "That didn't land. Try again in a moment."));
+    if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCommerceStands.discountsErrorFallback")));
     return data;
   }
 
@@ -111,7 +122,7 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
       await load();
       if (okNotice) setNotice(okNotice);
     } catch (e) {
-      setError(plainErrorText(e, "That didn't land. Try again in a moment."));
+      setError(plainErrorText(e, t("worldCommerceStands.discountsErrorFallback")));
     } finally {
       setBusy(null);
     }
@@ -120,7 +131,7 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
   const create = () => {
     const payload = buildDiscountPayload(form);
     if (!payload) {
-      setError("Check the code: 2–40 characters (letters, numbers, - or _), a percent between 1 and 90, and a use limit of blank (no limit) or a whole number.");
+      setError(t("worldCommerceStands.discountsCheckCode"));
       return;
     }
     void run(
@@ -129,7 +140,7 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
         await send("POST", DISCOUNTS_PATH, payload);
         setForm(EMPTY_FORM);
       },
-      "Code created — it works at checkout right away.",
+      t("worldCommerceStands.discountsCreatedNotice"),
     );
   };
 
@@ -144,7 +155,7 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
       return;
     }
     setConfirmDeleteId(null);
-    void run(`delete-${code.id}`, () => send("DELETE", discountPath(code.id)), "Code deleted.");
+    void run(`delete-${code.id}`, () => send("DELETE", discountPath(code.id)), t("worldCommerceStands.discountsDeletedNotice"));
   };
 
   const set = (patch: Partial<DiscountForm>) => setForm((f) => ({ ...f, ...patch }));
@@ -152,12 +163,12 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
   if (loadFailed) {
     return (
       <div className="space-y-3" data-testid="world-discounts-desk">
-        <p className={`text-base font-black ${strong}`}>Discount Codes</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldCommerceStands.discountsTitle")}</p>
         <p className={errCls} data-testid="world-discounts-desk-failed">
-          Your codes wouldn&rsquo;t load. Give it another shot.
+          {t("worldCommerceStands.discountsLoadFailed")}
         </p>
         <button type="button" className={chipCls(false)} onClick={() => void load()}>
-          Try again
+          {t("worldCommerceStands.discountsTryAgain")}
         </button>
       </div>
     );
@@ -166,9 +177,9 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
   return (
     <div className="space-y-4" data-testid="world-discounts-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Discount Codes</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldCommerceStands.discountsTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          Codes for your shop — profile-wide, good on every active product.
+          {t("worldCommerceStands.discountsSubtitle")}
         </p>
       </div>
       {notice ? (
@@ -178,14 +189,14 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
 
       {noProfile ? (
         <p className={`text-sm ${muted}`} data-testid="world-discounts-desk-noprofile">
-          Discount codes ride on your creator profile — set yours up and this desk opens.
+          {t("worldCommerceStands.discountsNoProfile")}
         </p>
       ) : codes === null ? (
-        <p className={`text-sm ${muted}`}>Reading your codes…</p>
+        <p className={`text-sm ${muted}`}>{t("worldCommerceStands.discountsLoading")}</p>
       ) : (
         <>
           {codes.length === 0 ? (
-            <p className={`text-sm ${muted}`}>No codes yet — make your first one below.</p>
+            <p className={`text-sm ${muted}`}>{t("worldCommerceStands.discountsEmpty")}</p>
           ) : (
             <ul className="space-y-1.5">
               {codes.map((code) => {
@@ -195,9 +206,9 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`font-mono text-sm font-black ${strong}`}>{code.code}</span>
                       <span className={chipCls(state === "live")}>
-                        {code.percentOff}% off · {DISCOUNT_STATE_LABELS[state]}
+                        {t("worldCommerceStands.discountsOffChip", { percent: code.percentOff, state: t(DISCOUNT_STATE_KEYS[state]) })}
                       </span>
-                      <span className={`text-xs ${muted}`}>{discountUsageLine(code)}</span>
+                      <span className={`text-xs ${muted}`}>{discountUsageLine(code, { ofLimit: t("worldCommerceStands.discountsUsageOf"), noLimit: t("worldCommerceStands.discountsUsageNoLimit") })}</span>
                       <span className="ml-auto flex gap-1.5">
                         <button
                           type="button"
@@ -206,7 +217,7 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
                           disabled={busy !== null}
                           onClick={() => toggle(code)}
                         >
-                          {code.isActive ? "Switch off" : "Switch on"}
+                          {code.isActive ? t("worldCommerceStands.discountsSwitchOff") : t("worldCommerceStands.discountsSwitchOn")}
                         </button>
                         <button
                           type="button"
@@ -215,15 +226,15 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
                           disabled={busy !== null}
                           onClick={() => remove(code)}
                         >
-                          {confirmDeleteId === code.id ? "Tap again to delete" : "Delete"}
+                          {confirmDeleteId === code.id ? t("worldCommerceStands.discountsDeleteConfirm") : t("worldCommerceStands.discountsDelete")}
                         </button>
                       </span>
                     </div>
                     <p className={`mt-1 text-xs ${muted}`}>
-                      {code.appliesTo ? `Applies to ${code.appliesTo}. ` : ""}
+                      {code.appliesTo ? `${t("worldCommerceStands.discountsAppliesTo", { target: code.appliesTo })} ` : ""}
                       {code.expiresAt
-                        ? `Expires ${new Date(code.expiresAt).toLocaleDateString()}.`
-                        : "No expiry."}
+                        ? t("worldCommerceStands.discountsExpires", { date: new Date(code.expiresAt).toLocaleDateString(i18n.language) })
+                        : t("worldCommerceStands.discountsNoExpiry")}
                     </p>
                   </li>
                 );
@@ -232,10 +243,10 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
           )}
 
           <section className={`rounded-xl border p-3 ${cardCls}`}>
-            <p className={`text-sm font-bold ${strong}`}>New code</p>
+            <p className={`text-sm font-bold ${strong}`}>{t("worldCommerceStands.discountsNewCode")}</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <label className={`text-xs ${muted}`}>
-                Code
+                {t("worldCommerceStands.discountsCodeLabel")}
                 <input
                   className={`${inputCls} mt-1 font-mono uppercase`}
                   data-testid="world-discounts-desk-code"
@@ -246,7 +257,7 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
                 />
               </label>
               <label className={`text-xs ${muted}`}>
-                Percent off (1–90)
+                {t("worldCommerceStands.discountsPercentLabel")}
                 <input
                   className={`${inputCls} mt-1`}
                   data-testid="world-discounts-desk-percent"
@@ -257,17 +268,17 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
                 />
               </label>
               <label className={`text-xs ${muted}`}>
-                Use limit (blank = no limit)
+                {t("worldCommerceStands.discountsUseLimitLabel")}
                 <input
                   className={`${inputCls} mt-1`}
                   inputMode="numeric"
-                  placeholder="No limit"
+                  placeholder={t("worldCommerceStands.discountsNoLimitPlaceholder")}
                   value={form.maxUses}
                   onChange={(e) => set({ maxUses: e.target.value })}
                 />
               </label>
               <label className={`text-xs ${muted}`}>
-                Expires (optional)
+                {t("worldCommerceStands.discountsExpiresLabel")}
                 <input
                   className={`${inputCls} mt-1`}
                   type="date"
@@ -283,7 +294,7 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
               disabled={busy !== null}
               onClick={create}
             >
-              {busy === "create" ? "Creating…" : "Create the code"}
+              {busy === "create" ? t("worldCommerceStands.discountsCreating") : t("worldCommerceStands.discountsCreateBtn")}
             </button>
           </section>
         </>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   CheckCircle2, Loader2, Minus, Nfc, Pencil, Plus, QrCode, X,
@@ -40,6 +41,7 @@ import {
    attempt keeps a retried tap from ever double-booking. */
 
 export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
 
   /* order form */
@@ -109,12 +111,11 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
     return (
       <NativeCard isLight={isLight}>
         <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-          The Smart Cards stand orders cards on your own account — guests can look around the
-          palace, but this stand only opens for members.{" "}
+          {t("worldCommerceStands.cardsGuestBefore")}{" "}
           <Link href="/login" className="font-bold text-[#d4af37] underline underline-offset-2">
-            Sign in
+            {t("worldCommerceStands.cardsSignIn")}
           </Link>{" "}
-          and the stand is yours, right here in the Atelier.
+          {t("worldCommerceStands.cardsGuestAfter")}
         </p>
       </NativeCard>
     );
@@ -161,14 +162,14 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
       const json: unknown = await res.json().catch(() => null);
       const result = parseSmartCardOrderResult(json);
       if (!res.ok || !result) {
-        setFormError(((json as { error?: string } | null)?.error) ?? "The order couldn't be placed — try again.");
+        setFormError(((json as { error?: string } | null)?.error) ?? t("worldCommerceStands.cardsOrderFailed"));
         return;
       }
       setOrderResult(result);
       setOrderKey(newSmartCardOrderKey());
       void loadMine().then((ok) => { if (ok) setMineState("ready"); });
     } catch {
-      setFormError("The smart cards stand didn't answer. Try again.");
+      setFormError(t("worldCommerceStands.cardsStandSilent"));
     } finally {
       setSubmitting(false);
     }
@@ -201,7 +202,7 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
       setProfiles((ps) => ps.map((p) => (p.slug === updated.slug ? { ...p, ...updated } : p)));
       setEditingSlug(null);
     } catch {
-      setFormError("That card couldn't be saved — try again.");
+      setFormError(t("worldCommerceStands.cardsSaveFailed"));
     } finally {
       setSavingEdit(false);
     }
@@ -216,14 +217,14 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
       {rows.map((l, i) => (
         <div key={i} className="flex gap-2">
           <input
-            aria-label={`Link ${i + 1} label`}
+            aria-label={t("worldCommerceStands.cardsLinkLabelAria", { n: i + 1 })}
             className={inputCls}
             value={l.label}
             onChange={(e) => setRows(rows.map((r, j) => (j === i ? { ...r, label: e.target.value } : r)))}
-            placeholder="Label — Instagram"
+            placeholder={t("worldCommerceStands.cardsLinkLabelPlaceholder")}
           />
           <input
-            aria-label={`Link ${i + 1} address`}
+            aria-label={t("worldCommerceStands.cardsLinkAddressAria", { n: i + 1 })}
             className={inputCls}
             value={l.url}
             onChange={(e) => setRows(rows.map((r, j) => (j === i ? { ...r, url: e.target.value } : r)))}
@@ -231,7 +232,7 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
           />
           <button
             type="button"
-            aria-label={`Remove link ${i + 1}`}
+            aria-label={t("worldCommerceStands.cardsRemoveLinkAria", { n: i + 1 })}
             onClick={() => setRows(rows.filter((_, j) => j !== i))}
             className="shrink-0 rounded-full border border-white/15 p-2 text-white/50 transition hover:text-white bdv-touch-box"
           >
@@ -246,7 +247,7 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
           onClick={() => setRows([...rows, { label: "", url: "" }])}
           className={`inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}
         >
-          <Plus className="h-3.5 w-3.5 text-[#d4af37]" /> Add a link
+          <Plus className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldCommerceStands.cardsAddLink")}
         </button>
       ) : null}
     </div>
@@ -258,7 +259,7 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
         <p className="px-1 text-xs font-semibold text-red-400" data-testid="world-smart-cards-error">{formError}</p>
       ) : null}
 
-      <NativeCard isLight={isLight} title="1 · Pick your card">
+      <NativeCard isLight={isLight} title={t("worldCommerceStands.cardsStep1Title")}>
         <div className="space-y-3">
           <div className="grid gap-2 sm:grid-cols-2">
             {NFC_CARD_STYLES.map((s) => (
@@ -272,15 +273,15 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
                 <span className="mb-2 block h-10 rounded-lg" style={{ background: s.swatch }} />
                 <span className="block">{s.label}</span>
                 <span className={`mt-0.5 block text-xs font-normal ${muted}`}>{s.blurb}</span>
-                <span className="mt-1 block font-bold text-[#d4af37]">{formatMoney(s.priceCents)} a card</span>
+                <span className="mt-1 block font-bold text-[#d4af37]">{t("worldCommerceStands.cardsPerCard", { price: formatMoney(s.priceCents) })}</span>
               </button>
             ))}
           </div>
           <div className="flex items-center justify-between gap-3">
-            <label className={`text-sm font-semibold ${strong}`} htmlFor="world-smart-cards-qty">How many cards</label>
+            <label className={`text-sm font-semibold ${strong}`} htmlFor="world-smart-cards-qty">{t("worldCommerceStands.cardsHowMany")}</label>
             <input
               id="world-smart-cards-qty"
-              aria-label="How many cards"
+              aria-label={t("worldCommerceStands.cardsHowMany")}
               type="number"
               min={1}
               max={SMART_CARD_MAX_QUANTITY}
@@ -290,37 +291,35 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
             />
           </div>
           <p className={`text-sm ${muted}`} data-testid="world-smart-cards-total">
-            Reservation total <span className={`font-bold ${strong}`}>{formatMoney(totalCents)}</span> — an order here is a
-            reservation: payment is collected when production is confirmed with the supplier, never before.
+            {t("worldCommerceStands.cardsReservationTotalBefore")} <span className={`font-bold ${strong}`}>{formatMoney(totalCents)}</span> {t("worldCommerceStands.cardsReservationTotalAfter")}
           </p>
         </div>
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="2 · What the tap shows">
+      <NativeCard isLight={isLight} title={t("worldCommerceStands.cardsStep2Title")}>
         <div className="space-y-2">
-          <input aria-label="Name on the card" className={inputCls} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Name on the card *" />
-          <input aria-label="Title" className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title — Artist · Producer" />
-          <textarea aria-label="Short bio" className={inputCls} rows={2} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Short bio (optional)" />
+          <input aria-label={t("worldCommerceStands.cardsNameAria")} className={inputCls} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t("worldCommerceStands.cardsNamePlaceholder")} />
+          <input aria-label={t("worldCommerceStands.cardsTitleAria")} className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("worldCommerceStands.cardsTitlePlaceholder")} />
+          <textarea aria-label={t("worldCommerceStands.cardsBioAria")} className={inputCls} rows={2} value={bio} onChange={(e) => setBio(e.target.value)} placeholder={t("worldCommerceStands.cardsBioPlaceholder")} />
           {linkEditor(links, setLinks, "world-smart-cards")}
           <p className={`text-xs ${muted}`}>
-            {smartCardValidLinks(links).length} link{smartCardValidLinks(links).length === 1 ? "" : "s"} will ride the card —
-            every card in the order gets its own tap link to this same card page.
+            {t(smartCardValidLinks(links).length === 1 ? "worldCommerceStands.cardsLinksRideOne" : "worldCommerceStands.cardsLinksRideMany", { count: smartCardValidLinks(links).length })}
           </p>
         </div>
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="3 · Where they ship">
+      <NativeCard isLight={isLight} title={t("worldCommerceStands.cardsStep3Title")}>
         <div className="space-y-2">
           <div className="grid gap-2 sm:grid-cols-2">
-            <input aria-label="Full name" className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name *" />
-            <input aria-label="Email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email *" />
+            <input aria-label={t("worldCommerceStands.cardsFullNameAria")} className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={t("worldCommerceStands.cardsFullNamePlaceholder")} />
+            <input aria-label={t("worldCommerceStands.cardsEmailAria")} className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("worldCommerceStands.cardsEmailPlaceholder")} />
           </div>
-          <input aria-label="Phone (optional)" className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" />
-          <input aria-label="Street address" className={inputCls} value={street} onChange={(e) => setStreet(e.target.value)} placeholder="Street address *" />
+          <input aria-label={t("worldCommerceStands.cardsPhoneAria")} className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t("worldCommerceStands.cardsPhonePlaceholder")} />
+          <input aria-label={t("worldCommerceStands.cardsStreetAria")} className={inputCls} value={street} onChange={(e) => setStreet(e.target.value)} placeholder={t("worldCommerceStands.cardsStreetPlaceholder")} />
           <div className="grid grid-cols-3 gap-2">
-            <input aria-label="City" className={inputCls} value={city} onChange={(e) => setCity(e.target.value)} placeholder="City *" />
-            <input aria-label="State" className={inputCls} value={state_} onChange={(e) => setState_(e.target.value)} placeholder="State *" />
-            <input aria-label="ZIP" className={inputCls} value={zip} onChange={(e) => setZip(e.target.value)} placeholder="ZIP *" />
+            <input aria-label={t("worldCommerceStands.cardsCityAria")} className={inputCls} value={city} onChange={(e) => setCity(e.target.value)} placeholder={t("worldCommerceStands.cardsCityPlaceholder")} />
+            <input aria-label={t("worldCommerceStands.cardsStateAria")} className={inputCls} value={state_} onChange={(e) => setState_(e.target.value)} placeholder={t("worldCommerceStands.cardsStatePlaceholder")} />
+            <input aria-label={t("worldCommerceStands.cardsZipAria")} className={inputCls} value={zip} onChange={(e) => setZip(e.target.value)} placeholder={t("worldCommerceStands.cardsZipPlaceholder")} />
           </div>
           <button
             type="button"
@@ -330,32 +329,32 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
             className={goldBtn}
           >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Nfc className="h-4 w-4" />}
-            {submitting ? "Reserving…" : `Reserve ${quantity} card${quantity === 1 ? "" : "s"} — ${formatMoney(totalCents)}`}
+            {submitting ? t("worldCommerceStands.cardsReserving") : t(quantity === 1 ? "worldCommerceStands.cardsReserveOne" : "worldCommerceStands.cardsReserveMany", { qty: quantity, total: formatMoney(totalCents) })}
           </button>
           {!complete ? (
-            <p className={`text-xs ${muted}`}>Add the card's name and a complete shipping address — the stand reserves nothing half-written.</p>
+            <p className={`text-xs ${muted}`}>{t("worldCommerceStands.cardsIncompleteNote")}</p>
           ) : null}
           {orderResult ? (
             <div className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/5 p-3" data-testid="world-smart-cards-order-result">
               <p className={`inline-flex items-center gap-2 text-sm font-bold ${strong}`}>
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                {orderResult.deduped ? "That reservation already stands" : "Reservation received"}
+                {orderResult.deduped ? t("worldCommerceStands.cardsDedupedTitle") : t("worldCommerceStands.cardsReceivedTitle")}
               </p>
               {orderResult.deduped ? (
-                <p className={`mt-1 text-xs ${muted}`}>A retried tap returned your standing order — nothing was double-booked.</p>
+                <p className={`mt-1 text-xs ${muted}`}>{t("worldCommerceStands.cardsDedupedNote")}</p>
               ) : (
                 <>
                   <p className={`mt-1 text-xs ${muted}`}>
                     {orderResult.slugs.length > 1
-                      ? `${orderResult.slugs.length} cards reserved, each with its own tap link. The first card: `
-                      : "Your card's tap page is live: "}
+                      ? t("worldCommerceStands.cardsReservedMany", { count: orderResult.slugs.length })
+                      : t("worldCommerceStands.cardsReservedOne")}
                     <a href={orderResult.url} target="_blank" rel="noreferrer" className="font-bold text-[#d4af37] underline underline-offset-2">
                       {orderResult.url}
                     </a>
                   </p>
                   <img
                     src={smartCardQrPath(orderResult.slug)}
-                    alt="The tap QR for your card"
+                    alt={t("worldCommerceStands.cardsQrAlt")}
                     className="mt-2 h-28 w-28 rounded-lg bg-white p-1.5"
                     data-testid="world-smart-cards-qr"
                   />
@@ -366,17 +365,17 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
         </div>
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="My smart cards">
+      <NativeCard isLight={isLight} title={t("worldCommerceStands.cardsMineTitle")}>
         {mineState === "loading" ? (
-          <NativeLoadingState isLight={isLight} message="Fetching your cards…" />
+          <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.cardsFetching")} />
         ) : mineState === "failed" ? (
           <NativeErrorState
             isLight={isLight}
-            message="Your cards wouldn't load — they're safe on the real rails."
+            message={t("worldCommerceStands.cardsLoadFailed")}
             onRetry={() => setMineTick((n) => n + 1)}
           />
         ) : profiles.length === 0 && orders.length === 0 ? (
-          <p className={`text-sm ${muted}`}>No cards yet — reserve your first above and it stands here.</p>
+          <p className={`text-sm ${muted}`}>{t("worldCommerceStands.cardsEmpty")}</p>
         ) : (
           <div className="space-y-3">
             {profiles.map((p) => (
@@ -387,11 +386,11 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
                     <p className={`truncate text-sm font-bold ${strong}`}>{p.displayName || p.slug}</p>
                     {p.title ? <p className={`truncate text-xs ${muted}`}>{p.title}</p> : null}
                     <p className={`mt-0.5 text-xs ${muted}`}>
-                      {p.tapCount} tap{p.tapCount === 1 ? "" : "s"} · {p.isActive ? "live" : "paused"}
+                      {t(p.tapCount === 1 ? "worldCommerceStands.cardsTapOne" : "worldCommerceStands.cardsTapMany", { count: p.tapCount, state: p.isActive ? t("worldCommerceStands.cardsLive") : t("worldCommerceStands.cardsPaused") })}
                     </p>
                     {p.url ? (
                       <a href={p.url} target="_blank" rel="noreferrer" className="text-xs font-bold text-[#d4af37] underline underline-offset-2">
-                        Open the tap page
+                        {t("worldCommerceStands.cardsOpenTapPage")}
                       </a>
                     ) : null}
                   </div>
@@ -401,21 +400,21 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
                     onClick={() => (editingSlug === p.slug ? setEditingSlug(null) : startEdit(p))}
                     className={`inline-flex shrink-0 items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}
                   >
-                    <Pencil className="h-3.5 w-3.5 text-[#d4af37]" /> Edit
+                    <Pencil className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldCommerceStands.cardsEdit")}
                   </button>
                 </div>
                 {editingSlug === p.slug ? (
                   <div className="mt-3 space-y-2" data-testid="world-smart-cards-edit-form">
-                    <input aria-label="Edit name" className={inputCls} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name on the card" />
-                    <input aria-label="Edit title" className={inputCls} value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title" />
-                    <textarea aria-label="Edit bio" className={inputCls} rows={2} value={editBio} onChange={(e) => setEditBio(e.target.value)} placeholder="Short bio" />
+                    <input aria-label={t("worldCommerceStands.cardsEditNameAria")} className={inputCls} value={editName} onChange={(e) => setEditName(e.target.value)} placeholder={t("worldCommerceStands.cardsEditNamePlaceholder")} />
+                    <input aria-label={t("worldCommerceStands.cardsEditTitleAria")} className={inputCls} value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder={t("worldCommerceStands.cardsEditTitlePlaceholder")} />
+                    <textarea aria-label={t("worldCommerceStands.cardsEditBioAria")} className={inputCls} rows={2} value={editBio} onChange={(e) => setEditBio(e.target.value)} placeholder={t("worldCommerceStands.cardsEditBioPlaceholder")} />
                     {linkEditor(editLinks, setEditLinks, "world-smart-cards-edit")}
                     <div className="flex gap-2">
                       <button type="button" data-testid="world-smart-cards-edit-save" onClick={() => void saveEdit()} disabled={savingEdit} className={goldBtn}>
-                        {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Save the card
+                        {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} {t("worldCommerceStands.cardsSaveBtn")}
                       </button>
                       <button type="button" onClick={() => setEditingSlug(null)} className={`inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}>
-                        <Minus className="h-3.5 w-3.5" /> Close
+                        <Minus className="h-3.5 w-3.5" /> {t("worldCommerceStands.cardsClose")}
                       </button>
                     </div>
                   </div>
@@ -425,7 +424,7 @@ export function SmartCardsStand({ isLight, isGuest }: { isLight: boolean; isGues
             {orders.length > 0 ? (
               <div>
                 <p className={`mb-1.5 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider ${muted}`}>
-                  <QrCode className="h-3.5 w-3.5 text-[#d4af37]" /> Reservations
+                  <QrCode className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldCommerceStands.cardsReservations")}
                 </p>
                 <div className="space-y-1.5">
                   {orders.map((o) => (
