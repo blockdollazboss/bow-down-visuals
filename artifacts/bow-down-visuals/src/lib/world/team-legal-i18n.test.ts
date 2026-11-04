@@ -5,7 +5,7 @@ import es from "../../locales/es.json";
 import fr from "../../locales/fr.json";
 import pt from "../../locales/pt.json";
 import de from "../../locales/de.json";
-import it from "../../locales/it.json";
+import itJson from "../../locales/it.json";
 import ar from "../../locales/ar.json";
 import hi from "../../locales/hi.json";
 import ja from "../../locales/ja.json";
@@ -79,7 +79,7 @@ const CATALOGS: Record<string, Catalog> = {
   fr: fr as Catalog,
   pt: pt as Catalog,
   de: de as Catalog,
-  it: it as Catalog,
+  it: itJson as Catalog,
   ar: ar as Catalog,
   hi: hi as Catalog,
   ja: ja as Catalog,
