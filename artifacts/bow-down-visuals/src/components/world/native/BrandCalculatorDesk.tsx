@@ -18,6 +18,7 @@
  * card verbatim.
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -36,25 +37,34 @@ import {
 } from "@/lib/world/brand-calculator-desk";
 
 function GuestGate({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   return (
     <div className="space-y-3" data-testid="world-brand-calc-desk">
-      <p className={`text-base font-black ${strong}`}>Brand Deal Calculator</p>
-      <p className={`text-sm ${muted}`}>
-        You&rsquo;re visiting as a guest — the calculator prices off your own numbers and runs on
-        your Bucs, so it needs your account.
-      </p>
+      <p className={`text-base font-black ${strong}`}>{t("worldCoachMoney.bcTitle")}</p>
+      <p className={`text-sm ${muted}`}>{t("worldCoachMoney.bcGuestBody")}</p>
       <Link
         href="/login"
         data-testid="world-brand-calc-desk-signin"
         className="bdv-touch-target inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37] px-4 py-2 text-xs font-bold text-black"
       >
-        Sign in to price a deal
+        {t("worldCoachMoney.bcGuestSignIn")}
       </Link>
     </div>
   );
 }
+
+/** Content-type chips read through the catalog by seam key; a key
+ *  the map doesn't know keeps the seam's own label. */
+const BC_CONTENT_TYPE_KEYS: Record<string, string> = {
+  sponsored_post: "worldCoachMoney.bcTypeSponsoredPost",
+  video_integration: "worldCoachMoney.bcTypeVideoIntegration",
+  dedicated_video: "worldCoachMoney.bcTypeDedicatedVideo",
+  story_set: "worldCoachMoney.bcTypeStorySet",
+  livestream: "worldCoachMoney.bcTypeLivestream",
+  ambassadorship: "worldCoachMoney.bcTypeAmbassadorship",
+};
 
 const EMPTY_FORM: BrandCalcForm = {
   platform: "youtube",
@@ -66,6 +76,7 @@ const EMPTY_FORM: BrandCalcForm = {
 };
 
 export function BrandCalculatorDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   const { refreshProfile } = useAuth();
   const [form, setForm] = useState<BrandCalcForm>(EMPTY_FORM);
@@ -102,7 +113,7 @@ export function BrandCalculatorDesk({ isLight, isGuest }: { isLight: boolean; is
     const payload = buildBrandCalcPayload(form);
     if (!payload || running) {
       if (!payload) {
-        setError("Fill in your numbers first — followers (100 or more), average views, engagement %, and your niche.");
+        setError(t("worldCoachMoney.bcFillFirst"));
       }
       return;
     }
@@ -125,11 +136,11 @@ export function BrandCalculatorDesk({ isLight, isGuest }: { isLight: boolean; is
         return;
       }
       const parsed = res.ok ? brandCalcResultOf(data) : null;
-      if (!parsed) throw new Error(apiErrorMessage(data, "The calculator hiccupped — try again."));
+      if (!parsed) throw new Error(apiErrorMessage(data, t("worldCoachMoney.bcHiccup")));
       setResult(parsed);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setError(plainErrorText(e, "The calculator hiccupped — try again."));
+      setError(plainErrorText(e, t("worldCoachMoney.bcHiccup")));
     } finally {
       setRunning(false);
     }
@@ -138,14 +149,12 @@ export function BrandCalculatorDesk({ isLight, isGuest }: { isLight: boolean; is
   return (
     <div className="space-y-4" data-testid="world-brand-calc-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Brand Deal Calculator</p>
-        <p className={`text-xs ${muted}`}>
-          What to charge for a brand deal, priced off your real numbers.
-        </p>
+        <p className={`text-base font-black ${strong}`}>{t("worldCoachMoney.bcTitle")}</p>
+        <p className={`text-xs ${muted}`}>{t("worldCoachMoney.bcSubtitle")}</p>
       </div>
 
       <div>
-        <p className={`text-xs font-bold ${muted}`}>Platform</p>
+        <p className={`text-xs font-bold ${muted}`}>{t("worldCoachMoney.bcPlatform")}</p>
         <div className="mt-1 flex flex-wrap gap-1.5">
           {BRAND_CALC_PLATFORMS.map((p) => (
             <button
@@ -162,7 +171,7 @@ export function BrandCalculatorDesk({ isLight, isGuest }: { isLight: boolean; is
 
       <div className="grid gap-2 sm:grid-cols-3">
         <label className={`text-xs ${muted}`}>
-          Followers
+          {t("worldCoachMoney.bcFollowers")}
           <input
             className={`${inputCls} mt-1`}
             data-testid="world-brand-calc-desk-followers"
@@ -173,7 +182,7 @@ export function BrandCalculatorDesk({ isLight, isGuest }: { isLight: boolean; is
           />
         </label>
         <label className={`text-xs ${muted}`}>
-          Average views
+          {t("worldCoachMoney.bcAvgViews")}
           <input
             className={`${inputCls} mt-1`}
             inputMode="numeric"
@@ -183,7 +192,7 @@ export function BrandCalculatorDesk({ isLight, isGuest }: { isLight: boolean; is
           />
         </label>
         <label className={`text-xs ${muted}`}>
-          Engagement rate %
+          {t("worldCoachMoney.bcEngagementRate")}
           <input
             className={`${inputCls} mt-1`}
             inputMode="decimal"
@@ -195,27 +204,27 @@ export function BrandCalculatorDesk({ isLight, isGuest }: { isLight: boolean; is
       </div>
 
       <div>
-        <p className={`text-xs font-bold ${muted}`}>The deliverable</p>
+        <p className={`text-xs font-bold ${muted}`}>{t("worldCoachMoney.bcDeliverable")}</p>
         <div className="mt-1 flex flex-wrap gap-1.5">
-          {BRAND_CALC_CONTENT_TYPES.map((t) => (
+          {BRAND_CALC_CONTENT_TYPES.map((ct) => (
             <button
-              key={t.key}
+              key={ct.key}
               type="button"
-              className={chipCls(form.contentType === t.key)}
-              onClick={() => set({ contentType: t.key })}
+              className={chipCls(form.contentType === ct.key)}
+              onClick={() => set({ contentType: ct.key })}
             >
-              {t.label}
+              {BC_CONTENT_TYPE_KEYS[ct.key] ? t(BC_CONTENT_TYPE_KEYS[ct.key]!) : ct.label}
             </button>
           ))}
         </div>
       </div>
 
       <label className={`block text-xs ${muted}`}>
-        Your niche
+        {t("worldCoachMoney.bcNiche")}
         <input
           className={`${inputCls} mt-1`}
           data-testid="world-brand-calc-desk-niche"
-          placeholder="e.g. indie hip-hop production"
+          placeholder={t("worldCoachMoney.bcNichePlaceholder")}
           maxLength={120}
           value={form.niche}
           onChange={(e) => set({ niche: e.target.value })}
@@ -229,34 +238,31 @@ export function BrandCalculatorDesk({ isLight, isGuest }: { isLight: boolean; is
         disabled={running}
         onClick={() => void calculate()}
       >
-        {running ? "Pricing…" : `Price my deal — ${BRAND_CALC_COST} Bucs`}
+        {running ? t("worldCoachMoney.bcRunning") : t("worldCoachMoney.bcRunButton", { cost: BRAND_CALC_COST })}
       </button>
       {out ? (
-        <p className={errCls}>
-          You&rsquo;re out of Visual Bucs for the {BRAND_CALC_FEATURE}. Top up at the
-          Treasury&rsquo;s Visual Buc Packs desk and run it again.
-        </p>
+        <p className={errCls}>{t("worldCoachMoney.bcOutOfBucs", { feature: BRAND_CALC_FEATURE })}</p>
       ) : null}
       {error ? <p className={errCls}>{error}</p> : null}
 
       {result ? (
         <div className={`rounded-xl border p-3 ${cardCls}`} data-testid="world-brand-calc-desk-result">
-          <p className={`text-xs font-bold uppercase tracking-wide ${muted}`}>Your rate range</p>
+          <p className={`text-xs font-bold uppercase tracking-wide ${muted}`}>{t("worldCoachMoney.bcRateRange")}</p>
           <p className={`mt-1 text-xl font-black ${strong}`}>
-            {formatMoney(result.rateLow, result.currency)} – {formatMoney(result.rateHigh, result.currency)}
+            {formatMoney(result.rateLow, result.currency, i18n.language)} – {formatMoney(result.rateHigh, result.currency, i18n.language)}
           </p>
           <p className={`mt-1 text-sm ${muted}`}>
-            Per post: <span className={`font-bold ${strong}`}>{formatMoney(result.perPost, result.currency)}</span>
-            {" · "}Package of 3:{" "}
-            <span className={`font-bold ${strong}`}>{formatMoney(result.package3, result.currency)}</span>
+            {t("worldCoachMoney.bcPerPostLabel")} <span className={`font-bold ${strong}`}>{formatMoney(result.perPost, result.currency, i18n.language)}</span>
+            {" · "}{t("worldCoachMoney.bcPackageLabel")}{" "}
+            <span className={`font-bold ${strong}`}>{formatMoney(result.package3, result.currency, i18n.language)}</span>
           </p>
           {result.breakdown.length > 0 ? (
             <>
-              <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${muted}`}>By deliverable</p>
+              <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${muted}`}>{t("worldCoachMoney.bcByDeliverable")}</p>
               <ul className="mt-1 space-y-1">
                 {result.breakdown.map((b, i) => (
                   <li key={i} className={`text-sm ${muted}`}>
-                    {b.deliverable} — {formatMoney(b.low, result.currency)} – {formatMoney(b.high, result.currency)}
+                    {b.deliverable} — {formatMoney(b.low, result.currency, i18n.language)} – {formatMoney(b.high, result.currency, i18n.language)}
                   </li>
                 ))}
               </ul>
@@ -264,7 +270,7 @@ export function BrandCalculatorDesk({ isLight, isGuest }: { isLight: boolean; is
           ) : null}
           {result.usageRights.length > 0 ? (
             <>
-              <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${muted}`}>Usage rights</p>
+              <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${muted}`}>{t("worldCoachMoney.bcUsageRights")}</p>
               <ul className="mt-1 space-y-1">
                 {result.usageRights.map((u, i) => (
                   <li key={i} className={`text-sm ${muted}`}>
@@ -277,10 +283,10 @@ export function BrandCalculatorDesk({ isLight, isGuest }: { isLight: boolean; is
           ) : null}
           {result.negotiationTips.length > 0 ? (
             <>
-              <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${muted}`}>Negotiation tips</p>
+              <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${muted}`}>{t("worldCoachMoney.bcNegotiationTips")}</p>
               <ul className="mt-1 list-disc space-y-1 pl-5">
-                {result.negotiationTips.map((t, i) => (
-                  <li key={i} className={`text-sm ${muted}`}>{t}</li>
+                {result.negotiationTips.map((tip, i) => (
+                  <li key={i} className={`text-sm ${muted}`}>{tip}</li>
                 ))}
               </ul>
             </>

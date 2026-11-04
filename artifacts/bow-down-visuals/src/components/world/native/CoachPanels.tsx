@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -63,7 +64,6 @@ import {
   ledgerCategoryBarWidth,
   ledgerEntriesForMonth,
   ledgerMonthKeyOf,
-  ledgerMonthLabel,
   ledgerStats,
   ledgerTodayYmd,
   moneyCategoryLabel,
@@ -109,6 +109,48 @@ import type { CoachActionItemDto, PlanNumbersDto } from "@/lib/coach-tracker";
    CoachMoneySubViews.tsx (Ring 4 #6) on the page's own rails —
    the last 2D-only pocket of the coach is closed. */
 
+/* Seam label lists read through the catalog by key (the seam's
+   own lists keep the wire keys + the English source); a key the
+   map doesn't know keeps the seam's label. Platform brand names
+   (TikTok / Instagram / YouTube) stay with the seam verbatim. */
+const CP_PLATFORM_KEYS: Record<string, string> = {
+  all: "worldCoachMoney.cpPlatformAll",
+  x: "worldCoachMoney.cpPlatformX",
+};
+const CP_EXPERIENCE_KEYS: Record<string, string> = {
+  beginner: "worldCoachMoney.cpExpBeginner",
+  intermediate: "worldCoachMoney.cpExpIntermediate",
+  advanced: "worldCoachMoney.cpExpAdvanced",
+};
+const CP_CATEGORY_KEYS: Record<string, string> = {
+  sponsor_deals: "worldCoachMoney.cpCatSponsorDeals",
+  merch_sales: "worldCoachMoney.cpCatMerchSales",
+  streaming_royalties: "worldCoachMoney.cpCatStreamingRoyalties",
+  ad_revenue: "worldCoachMoney.cpCatAdRevenue",
+  subscriptions: "worldCoachMoney.cpCatSubscriptions",
+  affiliate: "worldCoachMoney.cpCatAffiliate",
+  invoice_payout: "worldCoachMoney.cpCatInvoicePayout",
+  other_income: "worldCoachMoney.cpCatOtherIncome",
+  equipment: "worldCoachMoney.cpCatEquipment",
+  software: "worldCoachMoney.cpCatSoftware",
+  ads: "worldCoachMoney.cpCatAds",
+  travel: "worldCoachMoney.cpCatTravel",
+  contractors: "worldCoachMoney.cpCatContractors",
+  production: "worldCoachMoney.cpCatProduction",
+  other_expense: "worldCoachMoney.cpCatOtherExpense",
+};
+const CP_SOURCE_KEYS: Record<string, string> = {
+  plan: "worldCoachMoney.cpSourcePlan",
+  niche: "worldCoachMoney.cpSourceNiche",
+  custom: "worldCoachMoney.cpSourceCustom",
+};
+const CP_VIEW_KEYS: Record<string, string> = {
+  ledger: "worldCoachMoney.cpViewLedger",
+  splits: "worldCoachMoney.cpViewSplits",
+  splitSheets: "worldCoachMoney.cpViewSplitSheets",
+  royalties: "worldCoachMoney.cpViewRoyalties",
+};
+
 const bandBarCls = (band: NicheScoreBand, isLight: boolean) =>
   band === "open"
     ? isLight ? "bg-emerald-600" : "bg-emerald-400"
@@ -130,6 +172,7 @@ const bandTextCls = (band: NicheScoreBand, isLight: boolean) =>
 /* ═══ 1. NICHE ANALYZER ═════════════════════════════════════════════ */
 
 export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   const { refreshProfile } = useAuth();
   const [inputs, setInputs] = useState(defaultNicheInputs);
@@ -153,7 +196,10 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
 
   const analyze = async () => {
     if (busy) return;
-    const problem = validateNicheInputs(inputs);
+    const problem = validateNicheInputs(inputs, {
+      enterNiche: t("worldCoachMoney.cpNicheEnterFirst"),
+      tooShort: t("worldCoachMoney.cpNicheTooShort"),
+    });
     if (problem) {
       setError(problem);
       return;
@@ -176,7 +222,7 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
       }
       const parsed = parseNicheAnalysisResponse(data);
       if (!res.ok || !parsed) {
-        setError("The analyzer couldn't build the read right now — a failed analysis never charges. Try again.");
+        setError(t("worldCoachMoney.cpAnalyzeFailed"));
         return;
       }
       setResult(parsed);
@@ -186,7 +232,7 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
       setRoadmapMsg(null);
       refreshProfile();
     } catch {
-      setError("The analyzer didn't answer. Try again.");
+      setError(t("worldCoachMoney.cpAnalyzerNoAnswer"));
     } finally {
       setBusy(false);
     }
@@ -194,7 +240,7 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
 
   const validateIdea = async () => {
     if (ideaBusy || !result) return;
-    const problem = validateIdeaInput(idea);
+    const problem = validateIdeaInput(idea, t("worldCoachMoney.cpIdeaTooShort"));
     if (problem) {
       setIdeaError(problem);
       return;
@@ -217,13 +263,13 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
       }
       const parsed = parseIdeaVerdictResponse(data);
       if (!res.ok || !parsed) {
-        setIdeaError("The validator couldn't score that idea right now — a failed check never charges. Try again.");
+        setIdeaError(t("worldCoachMoney.cpIdeaFailed"));
         return;
       }
       setVerdict(parsed);
       refreshProfile();
     } catch {
-      setIdeaError("The validator didn't answer. Try again.");
+      setIdeaError(t("worldCoachMoney.cpValidatorNoAnswer"));
     } finally {
       setIdeaBusy(false);
     }
@@ -243,17 +289,17 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
       if (!res) return;
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setRoadmapMsg("The roadmap didn't save — nothing was added. Try again.");
+        setRoadmapMsg(t("worldCoachMoney.cpRoadmapFailed"));
         return;
       }
       const added = parseActionItems(data).length;
       setRoadmapMsg(
         added > 0
-          ? `Saved ${added} week${added === 1 ? "" : "s"} to your Action Tracker below — check them off as you ship them.`
-          : "Those weeks are already in your Action Tracker below.",
+          ? t(added === 1 ? "worldCoachMoney.cpRoadmapSavedOne" : "worldCoachMoney.cpRoadmapSavedMany", { count: added })
+          : t("worldCoachMoney.cpRoadmapAlready"),
       );
     } catch {
-      setRoadmapMsg("The roadmap didn't save — nothing was added. Try again.");
+      setRoadmapMsg(t("worldCoachMoney.cpRoadmapFailed"));
     } finally {
       setRoadmapBusy(false);
     }
@@ -268,29 +314,24 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
         : isLight ? "bg-red-600 text-white" : "bg-red-500 text-white";
 
   return (
-    <NativeCard isLight={isLight} title="Niche Analyzer — your corner of the market">
+    <NativeCard isLight={isLight} title={t("worldCoachMoney.cpNicheTitle")}>
       <div className="space-y-3" data-testid="world-coach-niche-form">
-        <p className={`text-sm ${muted}`}>
-          Tell it your lane — or let it read your own catalog — and get the deep read: who your audience
-          is, where the underserved gaps are, which money paths fit, how crowded the field is, five
-          starter pillars and a 30-day roadmap. Costs {NICHE_ANALYZER_COST_VISUAL_BUCS} Visual Bucs —
-          shown before anything runs.
-        </p>
+        <p className={`text-sm ${muted}`}>{t("worldCoachMoney.cpNicheIntro", { cost: NICHE_ANALYZER_COST_VISUAL_BUCS })}</p>
 
         <div className="grid gap-2 sm:grid-cols-2">
           <label className="block sm:col-span-2">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Your niche</span>
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.cpYourNiche")}</span>
             <input
               data-testid="world-coach-niche-input"
               className={inputCls(isLight)}
               value={inputs.niche}
               maxLength={120}
               onChange={(e) => setInputs({ ...inputs, niche: e.target.value })}
-              placeholder="e.g. fitness, indie music production, skincare"
+              placeholder={t("worldCoachMoney.cpNichePlaceholder")}
             />
           </label>
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Platform</span>
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.cpPlatform")}</span>
             <select
               data-testid="world-coach-niche-platform"
               className={inputCls(isLight)}
@@ -299,12 +340,12 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
               onChange={(e) => setInputs({ ...inputs, platform: e.target.value as typeof inputs.platform })}
             >
               {NICHE_PLATFORMS.map((p) => (
-                <option key={p.key} value={p.key}>{p.label}</option>
+                <option key={p.key} value={p.key}>{CP_PLATFORM_KEYS[p.key] ? t(CP_PLATFORM_KEYS[p.key]!) : p.label}</option>
               ))}
             </select>
           </label>
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Experience</span>
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.cpExperience")}</span>
             <select
               data-testid="world-coach-niche-experience"
               className={inputCls(isLight)}
@@ -313,7 +354,7 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
               onChange={(e) => setInputs({ ...inputs, experience: e.target.value as typeof inputs.experience })}
             >
               {NICHE_EXPERIENCE_LEVELS.map((lvl) => (
-                <option key={lvl.key} value={lvl.key}>{lvl.label}</option>
+                <option key={lvl.key} value={lvl.key}>{CP_EXPERIENCE_KEYS[lvl.key] ? t(CP_EXPERIENCE_KEYS[lvl.key]!) : lvl.label}</option>
               ))}
             </select>
           </label>
@@ -327,12 +368,12 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
             className={chipBtn(isLight, inputs.useMyData)}
             onClick={() => setInputs({ ...inputs, useMyData: !inputs.useMyData })}
           >
-            <Sparkles className="h-3.5 w-3.5" /> Use my data — read my catalog
+            <Sparkles className="h-3.5 w-3.5" /> {t("worldCoachMoney.cpUseMyData")}
           </button>
           <span className={`text-xs ${muted}`}>
             {inputs.useMyData
-              ? "The read grounds itself in your profile, songs and releases."
-              : "Off: the read works from the niche you typed alone."}
+              ? t("worldCoachMoney.cpUseMyDataOn")
+              : t("worldCoachMoney.cpUseMyDataOff")}
           </span>
         </div>
 
@@ -345,13 +386,13 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
             onClick={() => void analyze()}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
-            {busy ? "Reading the market…" : `Analyze my niche — ${NICHE_ANALYZER_COST_VISUAL_BUCS} Visual Bucs`}
+            {busy ? t("worldCoachMoney.cpAnalyzing") : t("worldCoachMoney.cpAnalyzeButton", { cost: NICHE_ANALYZER_COST_VISUAL_BUCS })}
           </button>
         </div>
 
         {outOfCredits ? (
           <p data-testid="world-coach-niche-out" className={`text-sm font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-            Out of Visual Bucs — top up and the analyzer is ready again.
+            {t("worldCoachMoney.cpNicheOut")}
           </p>
         ) : null}
         {error ? (
@@ -365,25 +406,25 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
             <div>
               <p className={`text-base font-black ${strong}`}>
                 {analysis.niche}
-                <span className={`ml-2 align-middle text-xs font-bold ${muted}`}>the read</span>
+                <span className={`ml-2 align-middle text-xs font-bold ${muted}`}>{t("worldCoachMoney.cpTheRead")}</span>
               </p>
               {analysis.summary ? <p className={`mt-1 text-sm ${muted}`}>{analysis.summary}</p> : null}
               {result?.groundedIn ? (
                 <p data-testid="world-coach-niche-grounded" className={`mt-2 inline-flex flex-wrap items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold ${isLight ? "border-[#C9A84C]/50 text-[#7A5A12]" : "border-[#d4af37]/40 text-[#e8c86a]"}`}>
                   <Sparkles className="h-3 w-3" />
-                  Built from your catalog: {result.groundedIn.songs} songs · {result.groundedIn.releases} releases
-                  {result.groundedIn.topGenres.length > 0 ? ` · top genres: ${result.groundedIn.topGenres.join(", ")}` : ""}
+                  {t("worldCoachMoney.cpGroundedIn", { songs: result.groundedIn.songs, releases: result.groundedIn.releases })}
+                  {result.groundedIn.topGenres.length > 0 ? t("worldCoachMoney.cpTopGenres", { genres: result.groundedIn.topGenres.join(", ") }) : ""}
                 </p>
               ) : null}
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2">
               <InnerBlock isLight={isLight}>
-                <SubHead isLight={isLight}><Users className="mr-1 inline h-3.5 w-3.5" />Your audience</SubHead>
+                <SubHead isLight={isLight}><Users className="mr-1 inline h-3.5 w-3.5" />{t("worldCoachMoney.cpYourAudience")}</SubHead>
                 {analysis.audienceDemographics ? (
                   <p className={`mt-1.5 text-sm ${strong}`}>{analysis.audienceDemographics}</p>
                 ) : (
-                  <p className={`mt-1.5 text-sm ${muted}`}>No audience read came back for this niche.</p>
+                  <p className={`mt-1.5 text-sm ${muted}`}>{t("worldCoachMoney.cpNoAudience")}</p>
                 )}
                 {analysis.audienceInterests.length > 0 ? (
                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -395,7 +436,7 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
               </InnerBlock>
 
               <InnerBlock isLight={isLight}>
-                <SubHead isLight={isLight}><TrendingUp className="mr-1 inline h-3.5 w-3.5" />Competition</SubHead>
+                <SubHead isLight={isLight}><TrendingUp className="mr-1 inline h-3.5 w-3.5" />{t("worldCoachMoney.cpCompetition")}</SubHead>
                 <p className={`mt-1.5 text-2xl font-black ${bandTextCls(nicheScoreBand(analysis.competitionScore), isLight)}`}>
                   {analysis.competitionScore}
                   <span className={`text-sm font-bold ${muted}`}> / 100</span>
@@ -407,20 +448,20 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
                   />
                 </div>
                 <p className={`mt-1.5 text-xs ${muted}`}>
-                  {analysis.competitionLabel ? `${analysis.competitionLabel} — ` : ""}lower means more open water.
+                  {analysis.competitionLabel ? `${analysis.competitionLabel} — ` : ""}{t("worldCoachMoney.cpCompetitionNote")}
                 </p>
               </InnerBlock>
             </div>
 
             {analysis.contentGaps.length > 0 ? (
               <InnerBlock isLight={isLight}>
-                <SubHead isLight={isLight}>Underserved gaps — where the audience is waiting</SubHead>
+                <SubHead isLight={isLight}>{t("worldCoachMoney.cpGapsTitle")}</SubHead>
                 <div className="mt-2 space-y-2.5">
                   {analysis.contentGaps.map((gap) => (
                     <div key={gap.angle}>
                       <p className={`text-sm font-bold ${strong}`}>{gap.angle}</p>
-                      {gap.whyUnderserved ? <p className={`text-xs ${muted}`}>Why it's open: {gap.whyUnderserved}</p> : null}
-                      {gap.opportunity ? <p className={`text-xs ${muted}`}>The play: {gap.opportunity}</p> : null}
+                      {gap.whyUnderserved ? <p className={`text-xs ${muted}`}>{t("worldCoachMoney.cpWhyOpenLabel")} {gap.whyUnderserved}</p> : null}
+                      {gap.opportunity ? <p className={`text-xs ${muted}`}>{t("worldCoachMoney.cpThePlayLabel")} {gap.opportunity}</p> : null}
                     </div>
                   ))}
                 </div>
@@ -429,17 +470,17 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
 
             {analysis.monetizationPaths.length > 0 ? (
               <InnerBlock isLight={isLight}>
-                <SubHead isLight={isLight}>Money paths, ranked by fit</SubHead>
+                <SubHead isLight={isLight}>{t("worldCoachMoney.cpMoneyPathsTitle")}</SubHead>
                 <div className="mt-2 space-y-2.5">
                   {analysis.monetizationPaths.map((path) => (
                     <div key={path.path} className="flex items-start gap-3">
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black ${bandTextCls(nicheFitBand(path.fitScore), isLight)} ${isLight ? "bg-black/5" : "bg-white/10"}`}>
-                        {path.fitScore} fit
+                        {t("worldCoachMoney.cpFitLabel", { score: path.fitScore })}
                       </span>
                       <div>
                         <p className={`text-sm font-bold ${strong}`}>{path.path}</p>
                         {path.why ? <p className={`text-xs ${muted}`}>{path.why}</p> : null}
-                        {path.firstStep ? <p className={`text-xs ${muted}`}>First step: {path.firstStep}</p> : null}
+                        {path.firstStep ? <p className={`text-xs ${muted}`}>{t("worldCoachMoney.cpFirstStepLabel")} {path.firstStep}</p> : null}
                       </div>
                     </div>
                   ))}
@@ -448,7 +489,7 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
             ) : null}
 
             <InnerBlock isLight={isLight}>
-              <SubHead isLight={isLight}>Your five starter pillars</SubHead>
+              <SubHead isLight={isLight}>{t("worldCoachMoney.cpPillarsTitle")}</SubHead>
               <div className="mt-2 space-y-2.5">
                 {analysis.contentPillars.map((pillar) => (
                   <div key={pillar.name}>
@@ -468,11 +509,11 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
 
             {analysis.roadmap30Day.length > 0 ? (
               <InnerBlock isLight={isLight}>
-                <SubHead isLight={isLight}>Your first 30 days</SubHead>
+                <SubHead isLight={isLight}>{t("worldCoachMoney.cpRoadmapTitle")}</SubHead>
                 <div className="mt-2 space-y-2.5">
                   {analysis.roadmap30Day.map((week) => (
                     <div key={week.week}>
-                      <p className={`text-sm font-bold ${strong}`}>Week {week.week}: {week.focus}</p>
+                      <p className={`text-sm font-bold ${strong}`}>{t("worldCoachMoney.cpWeekPrefix", { week: week.week })} {week.focus}</p>
                       {week.angles.length > 0 ? (
                         <ul className={`mt-1 list-inside list-disc text-xs ${muted}`}>
                           {week.angles.map((angle) => (
@@ -492,7 +533,7 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
                     onClick={() => void saveRoadmap()}
                   >
                     {roadmapBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ListChecks className="h-4 w-4" />}
-                    Save the roadmap weeks to my tracker
+                    {t("worldCoachMoney.cpSaveRoadmap")}
                   </button>
                   {roadmapMsg ? (
                     <p data-testid="world-coach-niche-roadmap-msg" className={`mt-2 text-xs font-semibold ${muted}`}>{roadmapMsg}</p>
@@ -502,31 +543,30 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
             ) : null}
 
             <InnerBlock isLight={isLight}>
-              <SubHead isLight={isLight}><Lightbulb className="mr-1 inline h-3.5 w-3.5" />Test one idea before you shoot it</SubHead>
+              <SubHead isLight={isLight}><Lightbulb className="mr-1 inline h-3.5 w-3.5" />{t("worldCoachMoney.cpIdeaTitle")}</SubHead>
               <p className={`mt-1.5 text-xs ${muted}`}>
-                A quick verdict on a single content idea, judged against {analysis.niche}. Costs{" "}
-                {IDEA_VALIDATOR_COST_VISUAL_BUCS} Visual Bucs.
+                {t("worldCoachMoney.cpIdeaIntro", { niche: analysis.niche, cost: IDEA_VALIDATOR_COST_VISUAL_BUCS })}
               </p>
               <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_160px]">
                 <input
                   data-testid="world-coach-niche-idea"
-                  aria-label="Content idea"
+                  aria-label={t("worldCoachMoney.cpIdeaAria")}
                   className={inputCls(isLight)}
                   value={idea}
                   maxLength={500}
                   onChange={(e) => setIdea(e.target.value)}
-                  placeholder="Describe the idea — a series, a stunt, a format…"
+                  placeholder={t("worldCoachMoney.cpIdeaPlaceholder")}
                 />
                 <select
                   data-testid="world-coach-niche-idea-platform"
-                  aria-label="Platform for this idea"
+                  aria-label={t("worldCoachMoney.cpIdeaPlatformAria")}
                   className={inputCls(isLight)}
                   style={{ colorScheme: isLight ? "light" : "dark" }}
                   value={ideaPlatform}
                   onChange={(e) => setIdeaPlatform(e.target.value as IdeaPlatformKey)}
                 >
                   {IDEA_PLATFORMS.map((p) => (
-                    <option key={p.key} value={p.key}>{p.label}</option>
+                    <option key={p.key} value={p.key}>{CP_PLATFORM_KEYS[p.key] ? t(CP_PLATFORM_KEYS[p.key]!) : p.label}</option>
                   ))}
                 </select>
               </div>
@@ -539,12 +579,12 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
                   onClick={() => void validateIdea()}
                 >
                   {ideaBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
-                  {ideaBusy ? "Scoring…" : `Validate this idea — ${IDEA_VALIDATOR_COST_VISUAL_BUCS} Visual Bucs`}
+                  {ideaBusy ? t("worldCoachMoney.cpScoring") : t("worldCoachMoney.cpValidateButton", { cost: IDEA_VALIDATOR_COST_VISUAL_BUCS })}
                 </button>
               </div>
               {ideaOut ? (
                 <p className={`mt-2 text-sm font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-                  Out of Visual Bucs — top up and the validator is ready again.
+                  {t("worldCoachMoney.cpIdeaOut")}
                 </p>
               ) : null}
               {ideaError ? (
@@ -563,10 +603,7 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
               ) : null}
             </InnerBlock>
 
-            <p className={`text-[11px] ${muted}`}>
-              AI-generated market read — directional, not a guarantee. The numbers that matter are the ones
-              you track below.
-            </p>
+            <p className={`text-[11px] ${muted}`}>{t("worldCoachMoney.cpAiDisclaimer")}</p>
           </div>
         ) : null}
       </div>
@@ -576,16 +613,24 @@ export function NicheAnalyzerSection({ isLight }: { isLight: boolean }) {
 
 /* ═══ 2. MONEY + ACTION TRACKERS ════════════════════════════════════ */
 
-function shortDay(ymd: string): string {
+function shortDay(ymd: string, lang = "en-US"): string {
   const [y, m, d] = ymd.split("-").map((x) => parseInt(x, 10));
   if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return ymd;
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Date(y, m - 1, d).toLocaleDateString(lang, { month: "short", day: "numeric" });
 }
 
-function shortIso(iso: string | null): string {
+function shortIso(iso: string | null, lang = "en-US"): string {
   if (!iso) return "";
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString(lang, { month: "short", day: "numeric" });
+}
+
+/** "October 2026" for a ledger month key, in the walker's
+ *  language — the Intl twin of the seam's ledgerMonthLabel. */
+function monthLabelFor(monthKey: string, lang: string): string {
+  const [y, m] = monthKey.split("-").map((x) => parseInt(x, 10));
+  if (!Number.isFinite(y) || !Number.isFinite(m)) return monthKey;
+  return new Intl.DateTimeFormat(lang, { month: "long", year: "numeric" }).format(new Date(y, m - 1, 1));
 }
 
 type ReleaseOption = Awaited<ReturnType<typeof fetchReleaseOptions>>[number];
@@ -601,6 +646,7 @@ const MONEY_VIEWS: { key: MoneyView; label: string }[] = [
 ];
 
 export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useCoachAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
   const [moneyView, setMoneyView] = useState<MoneyView>("ledger");
@@ -712,7 +758,9 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
 
   const stats = entries ? ledgerStats(entries, monthKey) : null;
   const monthEntries = entries ? ledgerEntriesForMonth(entries, monthKey) : [];
-  const releaseTitle = (id: string) => releaseOptions.find((r) => r.id === id)?.title ?? "Linked release";
+  const releaseTitle = (id: string) => releaseOptions.find((r) => r.id === id)?.title ?? t("worldCoachMoney.cpLinkedReleaseFallback");
+  const catLabel = (cat: string) => (CP_CATEGORY_KEYS[cat] ? t(CP_CATEGORY_KEYS[cat]!) : moneyCategoryLabel(cat));
+  const monthLabel = (key: string) => monthLabelFor(key, i18n.language);
 
   const setDraftType = (type: LedgerEntryDraft["type"]) =>
     setDraft((d) => ({
@@ -723,7 +771,10 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
 
   const saveEntry = async () => {
     if (saving) return;
-    const problem = validateLedgerEntryDraft(draft);
+    const problem = validateLedgerEntryDraft(draft, {
+      amount: t("worldCoachMoney.cpLedgerAmountProblem"),
+      date: t("worldCoachMoney.cpLedgerDateProblem"),
+    });
     if (problem) {
       setFormError(problem);
       return;
@@ -739,16 +790,16 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
       });
       if (!res) return;
       if (!res.ok) {
-        setFormError("That entry didn't save — nothing was written. Try again.");
+        setFormError(t("worldCoachMoney.cpEntrySaveFailed"));
         return;
       }
       setMonthKey(draft.date.slice(0, 7));
       setDraft((d) => ({ ...d, amount: "", note: "", source: "", releaseId: "" }));
       setFormOpen(false);
-      setReloadTick((t) => t + 1);
-      setTick((t) => t + 1);
+      setReloadTick((n) => n + 1);
+      setTick((n) => n + 1);
     } catch {
-      setFormError("That entry didn't save — nothing was written. Try again.");
+      setFormError(t("worldCoachMoney.cpEntrySaveFailed"));
     } finally {
       setSaving(false);
     }
@@ -794,7 +845,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
     if (goalBusy) return;
     const cents = clear ? null : parseGoalCents(goalInput);
     if (!clear && cents === null) {
-      setGoalMsg("Type a goal above $0 — like 1500.");
+      setGoalMsg(t("worldCoachMoney.cpGoalTypeProblem"));
       return;
     }
     setGoalBusy(true);
@@ -808,14 +859,14 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
       });
       if (!res) return;
       if (!res.ok) {
-        setGoalMsg("The goal didn't save. Try again.");
+        setGoalMsg(t("worldCoachMoney.cpGoalSaveFailed"));
         return;
       }
-      setGoalMsg(clear ? "Goal cleared." : "Goal set — your plan numbers now pace against it.");
+      setGoalMsg(clear ? t("worldCoachMoney.cpGoalCleared") : t("worldCoachMoney.cpGoalSet"));
       if (clear) setGoalInput("");
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch {
-      setGoalMsg("The goal didn't save. Try again.");
+      setGoalMsg(t("worldCoachMoney.cpGoalSaveFailed"));
     } finally {
       setGoalBusy(false);
     }
@@ -893,12 +944,12 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-3">
       {/* ── The Money Tracker: the full month view ─────────────────── */}
-      <NativeCard isLight={isLight} title="Money Tracker — know your numbers">
+      <NativeCard isLight={isLight} title={t("worldCoachMoney.cpMoneyTitle")}>
         <div className="space-y-3" data-testid="world-coach-money-panel">
           {/* The page's four views, one card (Ring 4 #6): the ledger
               below, and the splits / split-sheets / royalties views
               finished in CoachMoneySubViews on the same rails. */}
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Money Tracker views" data-testid="world-coach-money-views">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("worldCoachMoney.cpViewsAria")} data-testid="world-coach-money-views">
             {MONEY_VIEWS.map((v) => (
               <button
                 key={v.key}
@@ -908,7 +959,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                 className={chipBtn(isLight, moneyView === v.key)}
                 onClick={() => setMoneyView(v.key)}
               >
-                {v.label}
+                {CP_VIEW_KEYS[v.key] ? t(CP_VIEW_KEYS[v.key]!) : v.label}
               </button>
             ))}
           </div>
@@ -918,17 +969,17 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
             <div className="flex items-center gap-1.5" data-testid="world-coach-money-month">
               <button
                 type="button"
-                aria-label="Previous month"
+                aria-label={t("worldCoachMoney.cpPrevMonth")}
                 data-testid="world-coach-money-prev"
                 className={smallBtn(isLight)}
                 onClick={() => setMonthKey((k) => shiftLedgerMonthKey(k, -1))}
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
-              <span className={`min-w-[8.5rem] text-center text-sm font-black ${strong}`}>{ledgerMonthLabel(monthKey)}</span>
+              <span className={`min-w-[8.5rem] text-center text-sm font-black ${strong}`}>{monthLabel(monthKey)}</span>
               <button
                 type="button"
-                aria-label="Next month"
+                aria-label={t("worldCoachMoney.cpNextMonth")}
                 data-testid="world-coach-money-next"
                 className={smallBtn(isLight)}
                 onClick={() => setMonthKey((k) => shiftLedgerMonthKey(k, 1))}
@@ -944,17 +995,17 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
               aria-expanded={formOpen}
             >
               {formOpen ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {formOpen ? "Close" : "Add entry"}
+              {formOpen ? t("worldCoachMoney.cpClose") : t("worldCoachMoney.cpAddEntry")}
             </button>
           </div>
           ) : null}
 
           {moneyView !== "ledger" ? null : entries === null && !loadFailed ? (
-            <NativeLoadingState isLight={isLight} message="Reading your money ledger…" />
+            <NativeLoadingState isLight={isLight} message={t("worldCoachMoney.cpLedgerLoading")} />
           ) : loadFailed ? (
             <NativeErrorState
               isLight={isLight}
-              message="Your money ledger wouldn't open."
+              message={t("worldCoachMoney.cpLedgerError")}
               onRetry={() => {
                 setLoadFailed(false);
                 setEntries(null);
@@ -965,38 +1016,42 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
             <>
               <div className="grid gap-2 sm:grid-cols-3" data-testid="world-coach-money-stats">
                 <InnerBlock isLight={isLight}>
-                  <SubHead isLight={isLight}>In this month</SubHead>
+                  <SubHead isLight={isLight}>{t("worldCoachMoney.cpInThisMonth")}</SubHead>
                   <p className={`mt-1 text-xl font-black ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>
                     {fmtPlanMoney(stats.monthIncomeCents)}
                   </p>
                 </InnerBlock>
                 <InnerBlock isLight={isLight}>
-                  <SubHead isLight={isLight}>Out this month</SubHead>
+                  <SubHead isLight={isLight}>{t("worldCoachMoney.cpOutThisMonth")}</SubHead>
                   <p className={`mt-1 text-xl font-black ${isLight ? "text-red-700" : "text-red-300"}`}>
                     {fmtPlanMoney(stats.monthExpenseCents)}
                   </p>
                 </InnerBlock>
                 <InnerBlock isLight={isLight}>
-                  <SubHead isLight={isLight}>Net</SubHead>
+                  <SubHead isLight={isLight}>{t("worldCoachMoney.cpNet")}</SubHead>
                   <p className={`mt-1 text-xl font-black ${stats.monthNetCents < 0 ? (isLight ? "text-red-700" : "text-red-300") : strong}`}>
                     {fmtPlanMoney(stats.monthNetCents)}
                   </p>
                 </InnerBlock>
               </div>
               <p className={`text-xs ${muted}`} data-testid="world-coach-money-alltime">
-                All time: in {fmtPlanMoney(stats.allTimeIncomeCents)} · out {fmtPlanMoney(stats.allTimeExpenseCents)} ·
-                net {fmtPlanMoney(stats.allTimeNetCents)} across {(entries ?? []).length} tracked entries.
+                {t("worldCoachMoney.cpAllTime", {
+                  income: fmtPlanMoney(stats.allTimeIncomeCents),
+                  expense: fmtPlanMoney(stats.allTimeExpenseCents),
+                  net: fmtPlanMoney(stats.allTimeNetCents),
+                  count: (entries ?? []).length,
+                })}
               </p>
 
               {stats.incomeByCategory.length > 0 || stats.expenseByCategory.length > 0 ? (
                 <div className="grid gap-2 sm:grid-cols-2" data-testid="world-coach-money-breakdown">
                   <InnerBlock isLight={isLight}>
-                    <SubHead isLight={isLight}>Where it came from</SubHead>
+                    <SubHead isLight={isLight}>{t("worldCoachMoney.cpWhereFrom")}</SubHead>
                     <div className="mt-2 space-y-2">
                       {stats.incomeByCategory.map(([cat, cents]) => (
                         <div key={cat}>
                           <p className={`flex items-baseline justify-between text-xs ${muted}`}>
-                            <span className="capitalize">{moneyCategoryLabel(cat)}</span>
+                            <span className="capitalize">{catLabel(cat)}</span>
                             <span className={`font-bold ${strong}`}>{fmtPlanMoney(cents)}</span>
                           </p>
                           <div className={`mt-0.5 h-1.5 overflow-hidden rounded-full ${isLight ? "bg-black/5" : "bg-white/10"}`}>
@@ -1004,16 +1059,16 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                           </div>
                         </div>
                       ))}
-                      {stats.incomeByCategory.length === 0 ? <p className={`text-xs ${muted}`}>No income tracked this month.</p> : null}
+                      {stats.incomeByCategory.length === 0 ? <p className={`text-xs ${muted}`}>{t("worldCoachMoney.cpNoIncomeMonth")}</p> : null}
                     </div>
                   </InnerBlock>
                   <InnerBlock isLight={isLight}>
-                    <SubHead isLight={isLight}>Where it went</SubHead>
+                    <SubHead isLight={isLight}>{t("worldCoachMoney.cpWhereWent")}</SubHead>
                     <div className="mt-2 space-y-2">
                       {stats.expenseByCategory.map(([cat, cents]) => (
                         <div key={cat}>
                           <p className={`flex items-baseline justify-between text-xs ${muted}`}>
-                            <span className="capitalize">{moneyCategoryLabel(cat)}</span>
+                            <span className="capitalize">{catLabel(cat)}</span>
                             <span className={`font-bold ${strong}`}>{fmtPlanMoney(cents)}</span>
                           </p>
                           <div className={`mt-0.5 h-1.5 overflow-hidden rounded-full ${isLight ? "bg-black/5" : "bg-white/10"}`}>
@@ -1021,7 +1076,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                           </div>
                         </div>
                       ))}
-                      {stats.expenseByCategory.length === 0 ? <p className={`text-xs ${muted}`}>No spending tracked this month.</p> : null}
+                      {stats.expenseByCategory.length === 0 ? <p className={`text-xs ${muted}`}>{t("worldCoachMoney.cpNoSpendingMonth")}</p> : null}
                     </div>
                   </InnerBlock>
                 </div>
@@ -1032,15 +1087,15 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                   <div className="space-y-2" data-testid="world-coach-money-form">
                     <div className="flex flex-wrap gap-2">
                       <button type="button" aria-pressed={draft.type === "income"} className={chipBtn(isLight, draft.type === "income")} onClick={() => setDraftType("income")}>
-                        <ArrowDownLeft className="h-3.5 w-3.5" /> Money in
+                        <ArrowDownLeft className="h-3.5 w-3.5" /> {t("worldCoachMoney.cpMoneyIn")}
                       </button>
                       <button type="button" aria-pressed={draft.type === "expense"} className={chipBtn(isLight, draft.type === "expense")} onClick={() => setDraftType("expense")}>
-                        <ArrowUpRight className="h-3.5 w-3.5" /> Money out
+                        <ArrowUpRight className="h-3.5 w-3.5" /> {t("worldCoachMoney.cpMoneyOut")}
                       </button>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2">
                       <label className="block">
-                        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Category</span>
+                        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.cpCategory")}</span>
                         <select
                           data-testid="world-coach-money-category"
                           className={inputCls(isLight)}
@@ -1049,12 +1104,12 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                           onChange={(e) => setDraft({ ...draft, category: e.target.value })}
                         >
                           {(draft.type === "income" ? LEDGER_INCOME_CATEGORIES : LEDGER_EXPENSE_CATEGORIES).map((c) => (
-                            <option key={c} value={c}>{moneyCategoryLabel(c)}</option>
+                            <option key={c} value={c}>{catLabel(c)}</option>
                           ))}
                         </select>
                       </label>
                       <label className="block">
-                        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Amount ($)</span>
+                        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.cpAmountLabel")}</span>
                         <input
                           data-testid="world-coach-money-amount"
                           className={inputCls(isLight)}
@@ -1065,7 +1120,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                         />
                       </label>
                       <label className="block">
-                        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Date</span>
+                        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.cpDate")}</span>
                         <input
                           data-testid="world-coach-money-date"
                           type="date"
@@ -1076,30 +1131,30 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                         />
                       </label>
                       <label className="block">
-                        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Source (optional)</span>
+                        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.cpSourceOptional")}</span>
                         <input
                           data-testid="world-coach-money-source"
                           className={inputCls(isLight)}
                           value={draft.source}
                           maxLength={120}
                           onChange={(e) => setDraft({ ...draft, source: e.target.value })}
-                          placeholder="Who paid / what for"
+                          placeholder={t("worldCoachMoney.cpSourcePlaceholder")}
                         />
                       </label>
                       <label className="block sm:col-span-2">
-                        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Note (optional)</span>
+                        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.cpNoteOptional")}</span>
                         <input
                           data-testid="world-coach-money-note"
                           className={inputCls(isLight)}
                           value={draft.note}
                           maxLength={280}
                           onChange={(e) => setDraft({ ...draft, note: e.target.value })}
-                          placeholder="What was this?"
+                          placeholder={t("worldCoachMoney.cpNotePlaceholder")}
                         />
                       </label>
                       {draft.type === "income" && releaseOptions.length > 0 ? (
                         <label className="block sm:col-span-2">
-                          <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Link a release (splits apply)</span>
+                          <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldCoachMoney.cpLinkRelease")}</span>
                           <select
                             data-testid="world-coach-money-release"
                             className={inputCls(isLight)}
@@ -1107,7 +1162,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                             value={draft.releaseId}
                             onChange={(e) => setDraft({ ...draft, releaseId: e.target.value })}
                           >
-                            <option value="">No release linked</option>
+                            <option value="">{t("worldCoachMoney.cpNoReleaseLinked")}</option>
                             {releaseOptions.map((r) => (
                               <option key={r.id} value={r.id}>{r.title}</option>
                             ))}
@@ -1120,7 +1175,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                     ) : null}
                     <button type="button" data-testid="world-coach-money-save" className={goldBtn} disabled={saving} onClick={() => void saveEntry()}>
                       {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
-                      {saving ? "Saving…" : "Save entry — free"}
+                      {saving ? t("worldCoachMoney.cpSaving") : t("worldCoachMoney.cpSaveEntry")}
                     </button>
                   </div>
                 </InnerBlock>
@@ -1129,11 +1184,11 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
               {monthEntries.length === 0 ? (
                 <NativeEmptyState
                   isLight={isLight}
-                  message={`Nothing tracked in ${ledgerMonthLabel(monthKey)} yet.`}
+                  message={t("worldCoachMoney.cpNothingTracked", { month: monthLabel(monthKey) })}
                   detail={
                     (entries ?? []).length === 0
-                      ? "Log the money that moves through your music — deals, sales, royalties, gear — and this panel becomes the numbers your coach plans from."
-                      : "Walk the months with the arrows, or add this month's first entry."
+                      ? t("worldCoachMoney.cpEmptyDetailNone")
+                      : t("worldCoachMoney.cpEmptyDetailMonths")
                   }
                 />
               ) : (
@@ -1150,10 +1205,10 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                           {isIncome ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className={`truncate text-sm font-bold ${strong}`}>{entry.note || moneyCategoryLabel(entry.category)}</p>
+                          <p className={`truncate text-sm font-bold ${strong}`}>{entry.note || catLabel(entry.category)}</p>
                           <p className={`text-xs capitalize ${muted}`}>
-                            {moneyCategoryLabel(entry.category)}
-                            {entry.source ? ` · ${entry.source}` : ""} · {shortDay(entry.entry_date)}
+                            {catLabel(entry.category)}
+                            {entry.source ? ` · ${entry.source}` : ""} · {shortDay(entry.entry_date, i18n.language)}
                           </p>
                           {isIncome ? (
                             <div className="mt-1.5">
@@ -1163,14 +1218,14 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                                     <Link2 className="h-3 w-3" /> {releaseTitle(entry.releaseId)}
                                   </span>
                                   <button type="button" data-testid="world-coach-money-unlink" className={smallBtn(isLight)} disabled={rowBusyId === entry.id} onClick={() => void linkRelease(entry, null)}>
-                                    <Link2Off className="h-3 w-3" /> Unlink
+                                    <Link2Off className="h-3 w-3" /> {t("worldCoachMoney.cpUnlink")}
                                   </button>
                                 </span>
                               ) : linkingId === entry.id ? (
                                 <span className="inline-flex flex-wrap items-center gap-2">
                                   <select
                                     data-testid="world-coach-money-link-select"
-                                    aria-label="Link this income to a release"
+                                    aria-label={t("worldCoachMoney.cpLinkAria")}
                                     className={`${inputCls(isLight)} w-auto py-1 text-xs`}
                                     style={{ colorScheme: isLight ? "light" : "dark" }}
                                     defaultValue=""
@@ -1178,19 +1233,19 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                                       if (e.target.value) void linkRelease(entry, e.target.value);
                                     }}
                                   >
-                                    <option value="" disabled>Pick a release…</option>
+                                    <option value="" disabled>{t("worldCoachMoney.cpPickRelease")}</option>
                                     {releaseOptions.map((r) => (
                                       <option key={r.id} value={r.id}>{r.title}</option>
                                     ))}
                                   </select>
-                                  <button type="button" className={smallBtn(isLight)} onClick={() => setLinkingId(null)}>Cancel</button>
+                                  <button type="button" className={smallBtn(isLight)} onClick={() => setLinkingId(null)}>{t("worldCoachMoney.cpCancel")}</button>
                                 </span>
                               ) : releaseOptions.length > 0 ? (
                                 <button type="button" data-testid="world-coach-money-link" className={smallBtn(isLight)} onClick={() => setLinkingId(entry.id)}>
-                                  <Link2 className="h-3 w-3" /> Link a release to apply splits
+                                  <Link2 className="h-3 w-3" /> {t("worldCoachMoney.cpLinkButton")}
                                 </button>
                               ) : (
-                                <span className={`text-[11px] ${muted}`}>No releases yet to link.</span>
+                                <span className={`text-[11px] ${muted}`}>{t("worldCoachMoney.cpNoReleasesToLink")}</span>
                               )}
                             </div>
                           ) : null}
@@ -1202,13 +1257,13 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                           {confirmDeleteId === entry.id ? (
                             <span className="inline-flex gap-1">
                               <button type="button" data-testid="world-coach-money-delete-confirm" className={smallBtn(isLight)} disabled={rowBusyId === entry.id} onClick={() => void deleteEntry(entry)}>
-                                Confirm delete
+                                {t("worldCoachMoney.cpConfirmDelete")}
                               </button>
-                              <button type="button" className={smallBtn(isLight)} onClick={() => setConfirmDeleteId(null)}>Keep</button>
+                              <button type="button" className={smallBtn(isLight)} onClick={() => setConfirmDeleteId(null)}>{t("worldCoachMoney.cpKeep")}</button>
                             </span>
                           ) : (
                             <button type="button" data-testid="world-coach-money-delete" className={smallBtn(isLight)} onClick={() => setConfirmDeleteId(entry.id)}>
-                              <Trash2 className="h-3 w-3" /> Delete
+                              <Trash2 className="h-3 w-3" /> {t("worldCoachMoney.cpDelete")}
                             </button>
                           )}
                         </div>
@@ -1235,12 +1290,12 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
       </NativeCard>
 
       {/* ── The Action Tracker: the plan, checked off ──────────────── */}
-      <NativeCard isLight={isLight} title="Action Tracker — your plan, checked off">
+      <NativeCard isLight={isLight} title={t("worldCoachMoney.cpTrackerTitle")}>
         <div className="space-y-3" data-testid="world-coach-tracker-panel">
           {numbersFailed ? (
             <NativeErrorState
               isLight={isLight}
-              message="Your plan numbers wouldn't load."
+              message={t("worldCoachMoney.cpNumbersError")}
               onRetry={() => {
                 setNumbersFailed(false);
                 setNumbers(null);
@@ -1248,66 +1303,66 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
               }}
             />
           ) : numbers === null ? (
-            <NativeLoadingState isLight={isLight} message="Adding up your plan numbers…" />
+            <NativeLoadingState isLight={isLight} message={t("worldCoachMoney.cpNumbersLoading")} />
           ) : !numbers.hasData ? (
             <InnerBlock isLight={isLight}>
-              <p className={`text-sm font-bold ${strong}`}>Not enough data yet</p>
-              <p className={`mt-1 text-sm ${muted}`}>
-                Track money in the Money Tracker above and your plan numbers build themselves: this month
-                against your average, your goal pace, and the moves that close the gap.
-              </p>
+              <p className={`text-sm font-bold ${strong}`}>{t("worldCoachMoney.cpNotEnoughData")}</p>
+              <p className={`mt-1 text-sm ${muted}`}>{t("worldCoachMoney.cpNotEnoughDataBody")}</p>
               <p className={`mt-2 text-xs ${muted}`} data-testid="world-coach-tracker-sees">
-                What your coach can already see: {numbers.platform.songs} songs · {numbers.platform.releases}{" "}
-                releases · {numbers.platform.storeProducts} store products · {numbers.platform.membershipTiers}{" "}
-                membership tiers.
+                {t("worldCoachMoney.cpCoachSees", {
+                  songs: numbers.platform.songs,
+                  releases: numbers.platform.releases,
+                  products: numbers.platform.storeProducts,
+                  tiers: numbers.platform.membershipTiers,
+                })}
               </p>
             </InnerBlock>
           ) : (
             <>
               <div className="grid gap-2 sm:grid-cols-3" data-testid="world-coach-tracker-numbers">
                 <InnerBlock isLight={isLight}>
-                  <SubHead isLight={isLight}>This month — tracked</SubHead>
+                  <SubHead isLight={isLight}>{t("worldCoachMoney.cpThisMonthTracked")}</SubHead>
                   <p className={`mt-1 text-xl font-black ${strong}`}>{fmtPlanMoney(numbers.currentMonth.incomeCents)}</p>
                   <p className={`text-xs ${muted}`}>
-                    Net {fmtPlanMoney(numbers.currentMonth.netCents)} after {fmtPlanMoney(numbers.currentMonth.expenseCents)} out
+                    {t("worldCoachMoney.cpNetAfter", { net: fmtPlanMoney(numbers.currentMonth.netCents), expense: fmtPlanMoney(numbers.currentMonth.expenseCents) })}
                   </p>
                 </InnerBlock>
                 <InnerBlock isLight={isLight}>
-                  <SubHead isLight={isLight}>Average month</SubHead>
+                  <SubHead isLight={isLight}>{t("worldCoachMoney.cpAverageMonth")}</SubHead>
                   <p className={`mt-1 text-xl font-black ${strong}`}>
                     {numbers.trailing.avgMonthlyIncomeCents !== null ? fmtPlanMoney(numbers.trailing.avgMonthlyIncomeCents) : "—"}
                   </p>
                   <p className={`text-xs ${muted}`}>
                     {numbers.trailing.avgMonthlyIncomeCents === null
-                      ? "No complete tracked month yet — averages begin once a full month is on the books."
-                      : `Across ${numbers.trailing.monthsCounted} full month${numbers.trailing.monthsCounted === 1 ? "" : "s"}${numbers.trailing.avgMonthlyNetCents !== null ? ` · net ${fmtPlanMoney(numbers.trailing.avgMonthlyNetCents)}` : ""}`}
+                      ? t("worldCoachMoney.cpNoCompleteMonth")
+                      : `${t(numbers.trailing.monthsCounted === 1 ? "worldCoachMoney.cpAcrossMonthsOne" : "worldCoachMoney.cpAcrossMonthsMany", { count: numbers.trailing.monthsCounted })}${numbers.trailing.avgMonthlyNetCents !== null ? t("worldCoachMoney.cpNetSuffix", { net: fmtPlanMoney(numbers.trailing.avgMonthlyNetCents) }) : ""}`}
                   </p>
                 </InnerBlock>
                 <InnerBlock isLight={isLight}>
-                  <SubHead isLight={isLight}>Earned on Bow Down Visuals</SubHead>
+                  <SubHead isLight={isLight}>{t("worldCoachMoney.cpEarnedOn")}</SubHead>
                   <p className={`mt-1 text-xl font-black ${strong}`}>{fmtPlanMoney(numbers.platform.earningsCents)}</p>
                   <p className={`text-xs ${muted}`}>
                     {numbers.platform.tipsVb > 0
-                      ? `Plus ${numbers.platform.tipsVb} Visual Bucs in tips`
-                      : "Platform earnings, all time"}
+                      ? t("worldCoachMoney.cpPlusTips", { amount: numbers.platform.tipsVb })
+                      : t("worldCoachMoney.cpPlatformEarnings")}
                   </p>
                 </InnerBlock>
               </div>
 
               <InnerBlock isLight={isLight}>
                 <div data-testid="world-coach-tracker-goal">
-                  <SubHead isLight={isLight}><Flag className="mr-1 inline h-3.5 w-3.5" />Monthly goal</SubHead>
+                  <SubHead isLight={isLight}><Flag className="mr-1 inline h-3.5 w-3.5" />{t("worldCoachMoney.cpMonthlyGoal")}</SubHead>
                   {goal ? (
                     <>
                       <p className="mt-1.5 flex flex-wrap items-center gap-2">
-                        <span className={`text-lg font-black ${strong}`}>{fmtPlanMoneyShort(goal.monthlyGoalCents)}/mo</span>
+                        <span className={`text-lg font-black ${strong}`}>{fmtPlanMoneyShort(goal.monthlyGoalCents)}{t("worldCoachMoney.cpPerMonth")}</span>
                         {goal.met ? (
                           <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ${isLight ? "bg-emerald-600 text-white" : "bg-emerald-500 text-black"}`}>
-                            Goal met — nice
+                            {t("worldCoachMoney.cpGoalMet")}
                           </span>
                         ) : goal.percentOfGoal !== null ? (
                           <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ${isLight ? "bg-black/5 text-[#7A5A12]" : "bg-white/10 text-[#e8c86a]"}`}>
-                            {goal.percentOfGoal}% of goal
+                            {t("worldCoachMoney.cpPctOfGoal", { pct: goal.percentOfGoal })}
                           </span>
                         ) : null}
                       </p>
@@ -1319,34 +1374,32 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                       </div>
                       <p className={`mt-1.5 text-xs ${muted}`}>
                         {goal.met
-                          ? "This month's tracked income passed the goal. Raise it when you're ready for the next rung."
+                          ? t("worldCoachMoney.cpGoalMetBody")
                           : goal.monthlyGapCents !== null && goal.monthlyGapCents > 0
-                            ? `You're ${fmtPlanMoney(goal.monthlyGapCents)} short of the goal this month${goal.monthsOfNetToBankGoalMonth !== null ? ` — at your current net, ${goal.monthsOfNetToBankGoalMonth} month${goal.monthsOfNetToBankGoalMonth === 1 ? "" : "s"} banks a full goal month` : ""}.`
-                            : "Your tracked income this month is pacing the goal."}
+                            ? `${t("worldCoachMoney.cpGoalShort", { amount: fmtPlanMoney(goal.monthlyGapCents) })}${goal.monthsOfNetToBankGoalMonth !== null ? t(goal.monthsOfNetToBankGoalMonth === 1 ? "worldCoachMoney.cpGoalShortBankOne" : "worldCoachMoney.cpGoalShortBankMany", { months: goal.monthsOfNetToBankGoalMonth }) : ""}.`
+                            : t("worldCoachMoney.cpGoalPacing")}
                       </p>
                     </>
                   ) : (
-                    <p className={`mt-1.5 text-sm ${muted}`}>
-                      No monthly goal yet — set one and this panel paces your month against it.
-                    </p>
+                    <p className={`mt-1.5 text-sm ${muted}`}>{t("worldCoachMoney.cpNoGoalYet")}</p>
                   )}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <input
                       data-testid="world-coach-tracker-goal-input"
-                      aria-label="Monthly goal, in dollars"
+                      aria-label={t("worldCoachMoney.cpGoalAria")}
                       className={`${inputCls(isLight)} w-36`}
                       inputMode="decimal"
                       value={goalInput}
                       onChange={(e) => setGoalInput(e.target.value)}
-                      placeholder="Goal $ / month"
+                      placeholder={t("worldCoachMoney.cpGoalPlaceholder")}
                     />
                     <button type="button" data-testid="world-coach-tracker-goal-save" className={goldBtn} disabled={goalBusy} onClick={() => void saveGoal(false)}>
                       {goalBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Flag className="h-4 w-4" />}
-                      {goal ? "Update goal" : "Set goal"}
+                      {goal ? t("worldCoachMoney.cpUpdateGoal") : t("worldCoachMoney.cpSetGoal")}
                     </button>
                     {goal ? (
                       <button type="button" data-testid="world-coach-tracker-goal-clear" className={smallBtn(isLight)} disabled={goalBusy} onClick={() => void saveGoal(true)}>
-                        Clear
+                        {t("worldCoachMoney.cpClear")}
                       </button>
                     ) : null}
                   </div>
@@ -1360,7 +1413,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
           {itemsFailed ? (
             <NativeErrorState
               isLight={isLight}
-              message="Your action items wouldn't load."
+              message={t("worldCoachMoney.cpItemsError")}
               onRetry={() => {
                 setItemsFailed(false);
                 setItems(null);
@@ -1368,13 +1421,13 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
               }}
             />
           ) : items === null ? (
-            <NativeLoadingState isLight={isLight} message="Loading your action items…" />
+            <NativeLoadingState isLight={isLight} message={t("worldCoachMoney.cpItemsLoading")} />
           ) : (
             <div data-testid="world-coach-tracker-items">
               {progress && progress.total > 0 ? (
                 <div className="mb-2">
                   <p className={`text-xs font-bold ${muted}`}>
-                    {progress.done} of {progress.total} done — {progress.pct}%
+                    {t("worldCoachMoney.cpProgressLine", { done: progress.done, total: progress.total, pct: progress.pct })}
                   </p>
                   <div className={`mt-1 h-2 overflow-hidden rounded-full ${isLight ? "bg-black/5" : "bg-white/10"}`}>
                     <div className="h-full rounded-full bg-[#d4af37]" style={{ width: `${progress.pct}%` }} />
@@ -1384,8 +1437,8 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
               {items.length === 0 ? (
                 <NativeEmptyState
                   isLight={isLight}
-                  message="No moves on the board yet."
-                  detail="Add your first one below — or ask the coach for a plan, save a niche roadmap above, and the moves land here on their own."
+                  message={t("worldCoachMoney.cpNoMoves")}
+                  detail={t("worldCoachMoney.cpNoMovesDetail")}
                 />
               ) : (
                 <div className="space-y-2">
@@ -1398,7 +1451,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                       <button
                         type="button"
                         aria-pressed={item.done}
-                        aria-label={item.done ? "Mark not done" : "Mark done"}
+                        aria-label={item.done ? t("worldCoachMoney.cpMarkNotDone") : t("worldCoachMoney.cpMarkDone")}
                         data-testid="world-coach-tracker-toggle"
                         disabled={itemBusyId === item.id}
                         onClick={() => void toggleItem(item)}
@@ -1415,20 +1468,20 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                       <div className="min-w-0 flex-1">
                         <p className={`text-sm font-bold ${item.done ? `${muted} line-through` : strong}`}>{item.title}</p>
                         <p className={`text-xs ${muted}`}>
-                          {actionItemSourceLabel(item.source)}
-                          {item.done && item.completedAt ? ` · Done ${shortIso(item.completedAt)}` : ""}
+                          {CP_SOURCE_KEYS[item.source] ? t(CP_SOURCE_KEYS[item.source]!) : actionItemSourceLabel(item.source)}
+                          {item.done && item.completedAt ? t("worldCoachMoney.cpDoneSuffix", { date: shortIso(item.completedAt, i18n.language) }) : ""}
                         </p>
                       </div>
                       {confirmDeleteItemId === item.id ? (
                         <span className="inline-flex shrink-0 gap-1">
                           <button type="button" data-testid="world-coach-tracker-delete-confirm" className={smallBtn(isLight)} disabled={itemBusyId === item.id} onClick={() => void deleteItem(item)}>
-                            Confirm delete
+                            {t("worldCoachMoney.cpConfirmDelete")}
                           </button>
-                          <button type="button" className={smallBtn(isLight)} onClick={() => setConfirmDeleteItemId(null)}>Keep</button>
+                          <button type="button" className={smallBtn(isLight)} onClick={() => setConfirmDeleteItemId(null)}>{t("worldCoachMoney.cpKeep")}</button>
                         </span>
                       ) : (
                         <button type="button" data-testid="world-coach-tracker-delete" className={smallBtn(isLight)} onClick={() => setConfirmDeleteItemId(item.id)}>
-                          <Trash2 className="h-3 w-3" /> Delete
+                          <Trash2 className="h-3 w-3" /> {t("worldCoachMoney.cpDelete")}
                         </button>
                       )}
                     </div>
@@ -1438,7 +1491,7 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <input
                   data-testid="world-coach-tracker-add-input"
-                  aria-label="Add your own move"
+                  aria-label={t("worldCoachMoney.cpAddMoveAria")}
                   className={`${inputCls(isLight)} min-w-0 flex-1`}
                   value={newTitle}
                   maxLength={300}
@@ -1446,11 +1499,11 @@ export function MoneyActionTrackerSection({ isLight }: { isLight: boolean }) {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void addItem();
                   }}
-                  placeholder="Add your own move — e.g. Pitch the new single to three blogs"
+                  placeholder={t("worldCoachMoney.cpAddMovePlaceholder")}
                 />
                 <button type="button" data-testid="world-coach-tracker-add" className={goldBtn} disabled={addBusy || newTitle.trim().length === 0} onClick={() => void addItem()}>
                   {addBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  Add
+                  {t("worldCoachMoney.cpAdd")}
                 </button>
               </div>
             </div>

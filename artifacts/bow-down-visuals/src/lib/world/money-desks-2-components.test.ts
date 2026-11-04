@@ -164,7 +164,7 @@ describe("#67 money management contracts", () => {
     expect(moneyActions).toContain("claimActionPath(claim.id)");
     expect(moneyActions).toContain('method: "PATCH"');
     expect(moneyActions).toContain("claimActionsFor(claim)");
-    expect(moneyActions).toContain("claimActionProblem(action, note)");
+    expect(moneyActions).toContain("claimActionProblem(action, note, t(");
     expect(moneyActions).toContain('data-testid="world-claims-desk"');
     expect(earningsBoard).toContain("<MoneyActionsDesk");
     /* The board no longer calls either surface read-only. */

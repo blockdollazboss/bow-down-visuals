@@ -399,18 +399,33 @@ export const BRAND_KIT_MAX_BIO_LINES = 8;
 export const BRAND_KIT_MAX_PRESS_FACTS = 16;
 export const BRAND_KIT_MAX_FONT_PAIRINGS = 3;
 
+export interface BrandKitDraftStrings {
+  colorsFonts: string;
+  roles: string;
+}
+
+export const BRAND_KIT_DRAFT_STRINGS_EN: BrandKitDraftStrings = {
+  colorsFonts:
+    "Check your colors and fonts — every color needs a #RRGGBB hex and a name, and every font pairing needs a heading and a body font.",
+  roles: "Each color needs its own role — two colors can't hold the same one.",
+};
+
 /** The panel's refusal, in its own words, or null when the draft can
  *  save. Only checked when a kit exists — the panel skips the check
  *  pre-kit because the palette/fonts don't ride that save. */
-export function validateBrandKitDraft(draft: BrandKitEditDraft, hasKit: boolean): string | null {
+export function validateBrandKitDraft(
+  draft: BrandKitEditDraft,
+  hasKit: boolean,
+  strings: BrandKitDraftStrings = BRAND_KIT_DRAFT_STRINGS_EN,
+): string | null {
   if (!hasKit) return null;
   const badColor = draft.colors.some((c) => !BRAND_KIT_HEX_RE.test(c.hex.trim()) || !c.name.trim());
   const badFont = draft.fonts.some((f) => !f.heading.trim() || !f.body.trim());
   if (badColor || badFont) {
-    return "Check your colors and fonts — every color needs a #RRGGBB hex and a name, and every font pairing needs a heading and a body font.";
+    return strings.colorsFonts;
   }
   const roles = draft.colors.map((c) => c.role);
-  if (new Set(roles).size !== roles.length) return "Each color needs its own role — two colors can't hold the same one.";
+  if (new Set(roles).size !== roles.length) return strings.roles;
   return null;
 }
 
@@ -639,44 +654,83 @@ function isHttpUrl(v: string): boolean {
 /** The desk's refusal, in words, or null when the draft can save.
  *  Mirrors updatePressKitSchema: a valid handle, a name, a real
  *  booking email or none, real URLs or none, and the schema's caps. */
-export function validatePressKitDraft(draft: PressKitDraft): string | null {
+export interface PressKitDraftStrings {
+  handle: string;
+  artistName: string;
+  bookingEmail: string;
+  websiteLabel: string;
+  linkUrl: string;
+  achievementsMax: string;
+  achievementChars: string;
+  quotesMax: string;
+  quoteBoth: string;
+  photosMax: string;
+  photoUrl: string;
+  tracksMax: string;
+  trackTitle: string;
+  trackLink: string;
+  bioMax: string;
+}
+
+export const PRESS_KIT_DRAFT_STRINGS_EN: PressKitDraftStrings = {
+  handle: "The press address needs 3–30 lowercase letters, numbers and hyphens — e.g. king-shark.",
+  artistName: "Give the kit your artist name first.",
+  bookingEmail: "The booking email doesn't look like an email address — fix it or clear it.",
+  websiteLabel: "Website",
+  linkUrl: "Your {{label}} link needs to be a full http(s) address.",
+  achievementsMax: "A kit holds at most 20 achievements.",
+  achievementChars: "Each achievement needs to stay under 200 characters.",
+  quotesMax: "A kit holds at most 10 press quotes.",
+  quoteBoth: "Every press quote needs both the words and who said them — or remove the row.",
+  photosMax: "A kit holds at most 12 photos.",
+  photoUrl: "Every photo needs to be a full http(s) image address.",
+  tracksMax: "A kit holds at most 10 top tracks.",
+  trackTitle: "Every top track needs a title — or remove the row.",
+  trackLink: "“{{title}}” needs a full http(s) listen link.",
+  bioMax: "The bio needs to stay under 5,000 characters.",
+};
+
+export function validatePressKitDraft(
+  draft: PressKitDraft,
+  strings: PressKitDraftStrings = PRESS_KIT_DRAFT_STRINGS_EN,
+): string | null {
   if (!isValidHandle(slugifyHandle(draft.handle))) {
-    return "The press address needs 3–30 lowercase letters, numbers and hyphens — e.g. king-shark.";
+    return strings.handle;
   }
-  if (!draft.artist_name.trim()) return "Give the kit your artist name first.";
+  if (!draft.artist_name.trim()) return strings.artistName;
   if (draft.booking_email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.booking_email.trim())) {
-    return "The booking email doesn't look like an email address — fix it or clear it.";
+    return strings.bookingEmail;
   }
   const urlFields: Array<[string, string]> = [
-    ["Website", draft.website],
+    [strings.websiteLabel, draft.website],
     ["Instagram", draft.instagram_url],
     ["TikTok", draft.tiktok_url],
     ["YouTube", draft.youtube_url],
     ["Spotify", draft.spotify_url],
   ];
   for (const [label, v] of urlFields) {
-    if (v.trim() && !isHttpUrl(v.trim())) return `Your ${label} link needs to be a full http(s) address.`;
+    if (v.trim() && !isHttpUrl(v.trim())) return strings.linkUrl.replaceAll("{{label}}", label);
   }
   const achievements = draft.achievements.map((a) => a.trim()).filter(Boolean);
-  if (achievements.length > 20) return "A kit holds at most 20 achievements.";
-  if (achievements.some((a) => a.length > 200)) return "Each achievement needs to stay under 200 characters.";
+  if (achievements.length > 20) return strings.achievementsMax;
+  if (achievements.some((a) => a.length > 200)) return strings.achievementChars;
   const quotes = draft.press_quotes.filter((q) => q.quote.trim() || q.source.trim());
-  if (quotes.length > 10) return "A kit holds at most 10 press quotes.";
+  if (quotes.length > 10) return strings.quotesMax;
   for (const q of quotes) {
-    if (!q.quote.trim() || !q.source.trim()) return "Every press quote needs both the words and who said them — or remove the row.";
+    if (!q.quote.trim() || !q.source.trim()) return strings.quoteBoth;
   }
   const photos = draft.photo_urls.map((p) => p.trim()).filter(Boolean);
-  if (photos.length > 12) return "A kit holds at most 12 photos.";
+  if (photos.length > 12) return strings.photosMax;
   for (const p of photos) {
-    if (!isHttpUrl(p)) return "Every photo needs to be a full http(s) image address.";
+    if (!isHttpUrl(p)) return strings.photoUrl;
   }
   const tracks = draft.top_tracks.filter((t) => t.title.trim() || t.url.trim());
-  if (tracks.length > 10) return "A kit holds at most 10 top tracks.";
+  if (tracks.length > 10) return strings.tracksMax;
   for (const t of tracks) {
-    if (!t.title.trim()) return "Every top track needs a title — or remove the row.";
-    if (!isHttpUrl(t.url.trim())) return `“${t.title.trim()}” needs a full http(s) listen link.`;
+    if (!t.title.trim()) return strings.trackTitle;
+    if (!isHttpUrl(t.url.trim())) return strings.trackLink.replaceAll("{{title}}", t.title.trim());
   }
-  if (draft.bio.length > 5000) return "The bio needs to stay under 5,000 characters.";
+  if (draft.bio.length > 5000) return strings.bioMax;
   return null;
 }
 
@@ -754,8 +808,20 @@ export function parseBioPages(data: unknown): BioPageSummary[] {
   return out;
 }
 
-export function bioPageStatusLine(page: BioPageSummary): string {
-  return page.isPublished ? `Live at ${page.url ?? `/bio/${page.slug}`}` : "Draft — not published yet";
+export interface BioStatusStrings {
+  liveAt: string;
+  draft: string;
+}
+
+export const BIO_STATUS_STRINGS_EN: BioStatusStrings = {
+  liveAt: "Live at {{url}}",
+  draft: "Draft — not published yet",
+};
+
+export function bioPageStatusLine(page: BioPageSummary, strings: BioStatusStrings = BIO_STATUS_STRINGS_EN): string {
+  return page.isPublished
+    ? strings.liveAt.replaceAll("{{url}}", page.url ?? `/bio/${page.slug}`)
+    : strings.draft;
 }
 
 export interface BioAnalytics {
@@ -926,28 +992,52 @@ const BIO_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** The desk's refusal, in words, or null when the draft can save.
  *  Mirrors bioSaveSchema: a display name, a well-formed slug when
  *  one is typed, ≤25 links each with a title and an allowed URL. */
-export function validateBioDraft(draft: BioPageDraft): string | null {
-  if (!draft.displayName.trim()) return "Give the page a display name first.";
+export interface BioDraftStrings {
+  name: string;
+  slug: string;
+  maxLinks: string;
+  linkTitle: string;
+  linkUrl: string;
+  socialUrl: string;
+  tipJar: string;
+  publishName: string;
+  publishLinks: string;
+}
+
+export const BIO_DRAFT_STRINGS_EN: BioDraftStrings = {
+  name: "Give the page a display name first.",
+  slug: "The page address (slug) needs 3–40 lowercase letters, numbers and hyphens — e.g. my-name.",
+  maxLinks: "A page holds at most {{max}} links.",
+  linkTitle: "Every link needs a title — or remove the empty row.",
+  linkUrl: "“{{title}}” needs a real link — http(s), mailto:, tel: or a site page like /shop.",
+  socialUrl: "Your {{label}} link needs to be http(s) or a site page.",
+  tipJar: "The tip jar link needs to be http(s), mailto:, tel: or a site page.",
+  publishName: "Add a display name before publishing.",
+  publishLinks: "Add at least one link before publishing.",
+};
+
+export function validateBioDraft(draft: BioPageDraft, strings: BioDraftStrings = BIO_DRAFT_STRINGS_EN): string | null {
+  if (!draft.displayName.trim()) return strings.name;
   if (draft.slug.trim()) {
     const slug = draft.slug.trim();
     if (slug.length < 3 || slug.length > 40 || !BIO_SLUG_RE.test(slug)) {
-      return "The page address (slug) needs 3–40 lowercase letters, numbers and hyphens — e.g. my-name.";
+      return strings.slug;
     }
   }
-  if (draft.links.length > BIO_MAX_LINKS) return `A page holds at most ${BIO_MAX_LINKS} links.`;
+  if (draft.links.length > BIO_MAX_LINKS) return strings.maxLinks.replaceAll("{{max}}", String(BIO_MAX_LINKS));
   for (const link of draft.links) {
     if (!link.title.trim() && !link.url.trim()) continue; // untouched blank row
-    if (!link.title.trim()) return "Every link needs a title — or remove the empty row.";
+    if (!link.title.trim()) return strings.linkTitle;
     if (!isBioAllowedUrl(link.url.trim())) {
-      return `“${link.title.trim()}” needs a real link — http(s), mailto:, tel: or a site page like /shop.`;
+      return strings.linkUrl.replaceAll("{{title}}", link.title.trim());
     }
   }
   for (const f of BIO_SOCIAL_FIELDS) {
     const v = draft.socials[f.key].trim();
-    if (v && !isBioAllowedUrl(v)) return `Your ${f.label} link needs to be http(s) or a site page.`;
+    if (v && !isBioAllowedUrl(v)) return strings.socialUrl.replaceAll("{{label}}", f.label);
   }
   if (draft.tipJarUrl.trim() && !isBioAllowedUrl(draft.tipJarUrl.trim())) {
-    return "The tip jar link needs to be http(s), mailto:, tel: or a site page.";
+    return strings.tipJar;
   }
   return null;
 }
@@ -975,11 +1065,11 @@ export function buildBioSavePayload(draft: BioPageDraft): Record<string, unknown
 
 /** Publish readiness in the rail's own words: the route refuses a
  *  page with no name or no links — the desk says it first. */
-export function bioPublishBlocker(draft: BioPageDraft): string | null {
-  if (!draft.displayName.trim()) return "Add a display name before publishing.";
+export function bioPublishBlocker(draft: BioPageDraft, strings: BioDraftStrings = BIO_DRAFT_STRINGS_EN): string | null {
+  if (!draft.displayName.trim()) return strings.publishName;
   const realLinks = draft.links.filter((l) => l.title.trim() && l.url.trim());
-  if (realLinks.length === 0) return "Add at least one link before publishing.";
-  return validateBioDraft(draft);
+  if (realLinks.length === 0) return strings.publishLinks;
+  return validateBioDraft(draft, strings);
 }
 
 /** The { ok, url, slug } answer of POST /api/bio-publish/:id. */
@@ -1279,10 +1369,20 @@ export function coachFinalNiche(inputs: CoachInputs): string {
   return (inputs.customNiche.trim() || inputs.niche).slice(0, 120);
 }
 
+export interface CoachInputStrings {
+  niche: string;
+  platform: string;
+}
+
+export const COACH_INPUT_STRINGS_EN: CoachInputStrings = {
+  niche: "Tell the coach your niche first.",
+  platform: "Pick at least one platform — the coach plans per platform.",
+};
+
 /** The page's refusals, in words, or null when the ask can run. */
-export function validateCoachInputs(inputs: CoachInputs): string | null {
-  if (!coachFinalNiche(inputs)) return "Tell the coach your niche first.";
-  if (inputs.platforms.length === 0) return "Pick at least one platform — the coach plans per platform.";
+export function validateCoachInputs(inputs: CoachInputs, strings: CoachInputStrings = COACH_INPUT_STRINGS_EN): string | null {
+  if (!coachFinalNiche(inputs)) return strings.niche;
+  if (inputs.platforms.length === 0) return strings.platform;
   return null;
 }
 
@@ -1310,7 +1410,7 @@ interface MoneyEntryLike {
  *  YYYY-MM), all-time totals, and this month's top categories. Null
  *  when the creator tracks no money yet — the page sends null then
  *  too (readMoneySnapshot before the tracker ever loads). */
-export function buildMoneySnapshot(entries: MoneyEntryLike[], now: Date): CoachMoneySnapshot | null {
+export function buildMoneySnapshot(entries: MoneyEntryLike[], now: Date, locale = "en-US"): CoachMoneySnapshot | null {
   if (entries.length === 0) return null;
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   let mi = 0, me = 0, ai = 0, ae = 0;
@@ -1342,7 +1442,7 @@ export function buildMoneySnapshot(entries: MoneyEntryLike[], now: Date): CoachM
     allTimeNetCents: ai - ae,
     topIncomeCategory: topOf(incByCat),
     topExpenseCategory: topOf(expByCat),
-    monthLabel: now.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+    monthLabel: now.toLocaleDateString(locale, { month: "long", year: "numeric" }),
   };
 }
 

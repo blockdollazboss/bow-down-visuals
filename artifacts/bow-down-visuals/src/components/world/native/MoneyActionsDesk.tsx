@@ -1,5 +1,6 @@
 import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
 import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
@@ -45,7 +46,16 @@ import {
    list changes only from server truth. The desk renders inside
    the EarningsBoard, which already pitches guests. */
 
+/** Claim action buttons read through the catalog by action key;
+ *  an action the map doesn't know keeps the seam's own label. */
+const MA_CLAIM_ACTION_KEYS: Record<string, string> = {
+  dispute: "worldCoachMoney.maClaimDispute",
+  accept: "worldCoachMoney.maClaimAccept",
+  resolve: "worldCoachMoney.maClaimResolve",
+};
+
 export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const [permanence, setPermanence] = useState<PermanenceState | null>(null);
   const [permFailed, setPermFailed] = useState(false);
@@ -76,7 +86,11 @@ export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
     try {
       const res = await fetch("/api/content-id/claims", { headers: await authHeaders() });
       if (!res.ok) throw new Error("claims");
-      setClaims(parseClaimRows(await res.json()));
+      setClaims(parseClaimRows(await res.json(), {
+        matchedAt: t("worldCoachMoney.maClaimMatchedAt"),
+        confidence: t("worldCoachMoney.maClaimConfidence"),
+        landmarks: t("worldCoachMoney.maClaimLandmarks"),
+      }));
       setClaimsFailed(false);
     } catch { setClaimsFailed(true); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -96,11 +110,11 @@ export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(permanencePayload(election)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Couldn't save the catalog election."));
-      setPermNote("Catalog permanence election saved.");
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldCoachMoney.maCatalogSaveError")));
+      setPermNote(t("worldCoachMoney.maCatalogSavedNote"));
       await loadPermanence();
     } catch (e) {
-      setPermError(plainErrorText(e, "Couldn't save the catalog election."));
+      setPermError(plainErrorText(e, t("worldCoachMoney.maCatalogSaveError")));
     } finally { setPermBusy(null); }
   };
 
@@ -116,18 +130,18 @@ export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(permanencePayload(election)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Couldn't save the election."));
-      setPermNote("Permanence election recorded for this release.");
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldCoachMoney.maReleaseSaveError")));
+      setPermNote(t("worldCoachMoney.maReleaseSavedNote"));
       await loadPermanence();
     } catch (e) {
-      setPermError(plainErrorText(e, "Couldn't save the election."));
+      setPermError(plainErrorText(e, t("worldCoachMoney.maReleaseSaveError")));
     } finally { setPermBusy(null); }
   };
 
   const actOnClaim = async (claim: ClaimRow, action: ClaimAction) => {
     if (claimBusy) return;
     const note = notes[claim.id] ?? "";
-    const problem = claimActionProblem(action, note);
+    const problem = claimActionProblem(action, note, t("worldCoachMoney.maClaimResolveNeedsNote"));
     if (problem) { setClaimError(problem); setClaimNote(null); return; }
     setClaimBusy(claim.id);
     setClaimError(null);
@@ -139,15 +153,15 @@ export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(claimActionPayload(action, note)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "That action didn't land — the claim is unchanged."));
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldCoachMoney.maActionFailed")));
       setClaimNote(
-        action === "dispute" ? "Match disputed — it's recorded, and the owner sees your note."
-        : action === "accept" ? "Match accepted."
-        : "Claim resolved — the resolution and its reason are on record.",
+        action === "dispute" ? t("worldCoachMoney.maDisputedNote")
+        : action === "accept" ? t("worldCoachMoney.maAcceptedNote")
+        : t("worldCoachMoney.maResolvedNote"),
       );
       await loadClaims();
     } catch (e) {
-      setClaimError(plainErrorText(e, "That action didn't land — the claim is unchanged."));
+      setClaimError(plainErrorText(e, t("worldCoachMoney.maActionFailed")));
     } finally { setClaimBusy(null); }
   };
 
@@ -160,20 +174,17 @@ export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
 
   return (
     <div className="space-y-3">
-      <NativeCard isLight={isLight} title="Permanence — your catalog, forever">
+      <NativeCard isLight={isLight} title={t("worldCoachMoney.maPermTitle")}>
         <div data-testid="world-permanence-desk">
-          <p className={`text-xs ${muted}`}>
-            Permanence says how long your catalog stays. The guarantee is on-platform: your release pages and
-            smartlinks stay live, your catalog records stay attached, and no plan lapse takes a release down.
-          </p>
+          <p className={`text-xs ${muted}`}>{t("worldCoachMoney.maPermIntro")}</p>
           {permFailed ? (
             <p className={`mt-2 text-xs ${muted}`}>
-              Couldn&rsquo;t load your permanence settings — your elections are unchanged.{" "}
-              <button type="button" data-testid="world-permanence-retry" onClick={() => void loadPermanence()} className="font-bold text-[#d4af37]">Try again</button>
+              {t("worldCoachMoney.maPermLoadFailed")}{" "}
+              <button type="button" data-testid="world-permanence-retry" onClick={() => void loadPermanence()} className="font-bold text-[#d4af37]">{t("worldCoachMoney.tryAgain")}</button>
             </p>
           ) : permanence === null ? (
             <p className={`mt-2 inline-flex items-center gap-2 text-xs ${muted}`}>
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> Reading your elections…
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldCoachMoney.maPermLoading")}
             </p>
           ) : (
             <>
@@ -183,19 +194,19 @@ export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
                 </ul>
               )}
               {permanence.excludes.length > 0 && (
-                <p className={`mt-1 text-[11px] ${muted}`}>It does not cover: {permanence.excludes.join(" ")}</p>
+                <p className={`mt-1 text-[11px] ${muted}`}>{t("worldCoachMoney.maNotCover", { list: permanence.excludes.join(" ") })}</p>
               )}
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                 <span className={isLight ? "text-[#2a1e07]" : "text-white/80"}>
-                  Whole catalog: <strong>{permanence.catalogElection ?? "no election recorded"}</strong>
+                  {t("worldCoachMoney.maWholeCatalogLabel")} <strong>{permanence.catalogElection ?? t("worldCoachMoney.maNoElection")}</strong>
                 </span>
                 <button type="button" data-testid="world-permanence-catalog-permanent" disabled={permBusy !== null}
                   onClick={() => void chooseCatalog("permanent")} className={chip(permanence.catalogElection === "permanent")}>
-                  Keep permanently
+                  {t("worldCoachMoney.maKeepPermanently")}
                 </button>
                 <button type="button" data-testid="world-permanence-catalog-standard" disabled={permBusy !== null}
                   onClick={() => void chooseCatalog("standard")} className={chip(permanence.catalogElection === "standard")}>
-                  Standard
+                  {t("worldCoachMoney.maStandard")}
                 </button>
                 {permBusy === "catalog" && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" />}
               </div>
@@ -206,12 +217,12 @@ export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
                   </span>
                   <button type="button" data-testid="world-permanence-release-toggle" disabled={permBusy !== null}
                     onClick={() => void chooseRelease(r.releaseId, otherElection(r.election))} className={chip(false)}>
-                    {permBusy === r.releaseId ? "Saving…" : r.election === "permanent" ? "Switch to standard" : "Keep permanently"}
+                    {permBusy === r.releaseId ? t("worldCoachMoney.maSaving") : r.election === "permanent" ? t("worldCoachMoney.maSwitchToStandard") : t("worldCoachMoney.maKeepPermanently")}
                   </button>
                 </div>
               ))}
               {permanence.releases.length === 0 && (
-                <p className={`mt-2 text-[11px] ${muted}`}>No per-release elections yet — the catalog election above covers everything until a release gets its own.</p>
+                <p className={`mt-2 text-[11px] ${muted}`}>{t("worldCoachMoney.maNoReleaseElections")}</p>
               )}
               {permNote && <p className={`mt-2 text-xs font-semibold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>{permNote}</p>}
               {permError && <p className="mt-2 text-xs font-semibold text-red-400">{permError}</p>}
@@ -220,25 +231,23 @@ export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
         </div>
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="Content-ID matches & claims">
+      <NativeCard isLight={isLight} title={t("worldCoachMoney.maClaimsTitle")}>
         <div data-testid="world-claims-desk">
           <p className={`inline-flex items-start gap-1.5 text-xs ${muted}`}>
             <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#d4af37]" />
-            Fingerprint matches found when audio is uploaded, with the evidence both sides see. Either side&rsquo;s
-            claim carries the same weight; a match moves no money until it&rsquo;s resolved, and every resolution
-            records its reason.
+            {t("worldCoachMoney.maClaimsIntro")}
           </p>
           {claimsFailed ? (
             <p className={`mt-2 text-xs ${muted}`}>
-              Couldn&rsquo;t load your matches &amp; claims — nothing about them changed.{" "}
-              <button type="button" data-testid="world-claims-retry" onClick={() => void loadClaims()} className="font-bold text-[#d4af37]">Retry</button>
+              {t("worldCoachMoney.maClaimsLoadFailed")}{" "}
+              <button type="button" data-testid="world-claims-retry" onClick={() => void loadClaims()} className="font-bold text-[#d4af37]">{t("worldCoachMoney.maRetry")}</button>
             </p>
           ) : claims === null ? (
             <p className={`mt-2 inline-flex items-center gap-2 text-xs ${muted}`}>
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> Reading your claims…
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldCoachMoney.maClaimsLoading")}
             </p>
           ) : claims.length === 0 ? (
-            <p className={`mt-2 text-xs ${muted}`}>No matches recorded yet. Matches are made when audio is scanned at upload — your catalog is clear.</p>
+            <p className={`mt-2 text-xs ${muted}`}>{t("worldCoachMoney.maNoClaims")}</p>
           ) : (
             <div className="mt-2 space-y-2">
               {claims.map((claim) => {
@@ -246,23 +255,23 @@ export function MoneyActionsDesk({ isLight }: { isLight: boolean }) {
                 return (
                   <div key={claim.id} className={`rounded-xl border px-3 py-2.5 text-xs ${isLight ? "border-[#7A5A12]/25" : "border-white/10"}`}>
                     <p className={`flex flex-wrap items-baseline justify-between gap-2 ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
-                      <span><strong>{claim.label}</strong> — you are the {claim.youAre || "—"}</span>
+                      <span><strong>{claim.label}</strong> — {t("worldCoachMoney.maYouAre", { role: claim.youAre || "—" })}</span>
                       <span className="font-bold">{claim.status}</span>
                     </p>
                     {claim.detail && <p className={`mt-0.5 ${muted}`}>{claim.detail}</p>}
-                    {claim.disputeNote && <p className={`mt-0.5 ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>Dispute: {claim.disputeNote}</p>}
-                    {claim.resolutionNote && <p className={`mt-0.5 ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>Resolution: {claim.resolutionNote}</p>}
+                    {claim.disputeNote && <p className={`mt-0.5 ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>{t("worldCoachMoney.maDisputeLabel")} {claim.disputeNote}</p>}
+                    {claim.resolutionNote && <p className={`mt-0.5 ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>{t("worldCoachMoney.maResolutionLabel")} {claim.resolutionNote}</p>}
                     {actions.length > 0 && (
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <input aria-label="Claim note" value={notes[claim.id] ?? ""}
+                        <input aria-label={t("worldCoachMoney.maClaimNoteAria")} value={notes[claim.id] ?? ""}
                           onChange={(e) => setNotes((n) => ({ ...n, [claim.id]: e.target.value }))}
-                          placeholder="Note (required to resolve; recorded for review)"
+                          placeholder={t("worldCoachMoney.maClaimNotePlaceholder")}
                           className={`${inputCls} min-w-44 flex-1`} />
                         {actions.map((action) => (
                           <button key={action} type="button" data-testid={`world-claim-action-${action}`}
                             disabled={claimBusy !== null}
                             onClick={() => void actOnClaim(claim, action)} className={chip(false)}>
-                            {claimBusy === claim.id ? "Working…" : CLAIM_ACTION_LABELS[action]}
+                            {claimBusy === claim.id ? t("worldCoachMoney.maWorking") : MA_CLAIM_ACTION_KEYS[action] ? t(MA_CLAIM_ACTION_KEYS[action]!) : CLAIM_ACTION_LABELS[action]}
                           </button>
                         ))}
                       </div>
