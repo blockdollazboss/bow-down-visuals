@@ -7,7 +7,7 @@
  *   not-authorized state from the rail's own sentence — the gate is
  *   never reimplemented client-side, and every rail re-checks the
  *   ADMIN_EMAILS allowlist itself (fail-closed);
- * - all sixteen benches mount in the one Admin desk, stacked at the
+ * - all seventeen benches mount in the one Admin desk, stacked at the
  *   StationPanel's My Studio board;
  * - every path, body and parse rides the admin-desk seam — no bench
  *   component hand-types an /api path;
@@ -52,7 +52,7 @@ describe("the gate is the server's, probed — never reimplemented", () => {
   });
 });
 
-describe("all sixteen benches mount in the one desk", () => {
+describe("all seventeen benches mount in the one desk", () => {
   it("the desk renders every bench component", () => {
     for (const name of [
       "ReportsBench",
@@ -71,6 +71,7 @@ describe("all sixteen benches mount in the one desk", () => {
       "ContactBench",
       "UsersBench",
       "OrdersBench",
+      "DiscordBench",
     ]) {
       expect(desk).toContain(`<${name} isLight={isLight} />`);
     }

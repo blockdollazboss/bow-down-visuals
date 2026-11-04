@@ -28,6 +28,7 @@ import {
 import {
   BowBench,
   ContactBench,
+  DiscordBench,
   GearBench,
   OperatorBench,
   OrdersBench,
@@ -182,6 +183,7 @@ export function AdminDesk({ isLight }: { isLight: boolean }) {
       <ContactBench isLight={isLight} />
       <UsersBench isLight={isLight} />
       <OrdersBench isLight={isLight} />
+      <DiscordBench isLight={isLight} />
     </div>
   );
 }
