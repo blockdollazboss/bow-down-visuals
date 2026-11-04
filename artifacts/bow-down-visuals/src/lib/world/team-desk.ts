@@ -45,11 +45,14 @@
    lands in an out-of-Bucs state naming the Treasury's Visual Buc
    Packs desk, like its neighbours.
 
-   ENTITLEMENT: the workspace is a Shot Caller-tier feature and the
-   rail fails closed — GET /api/teams answers 403 with the rail's
-   own sentence (pinned below) for anyone under tier. The desk
-   renders that as a locked state in the rail's words, never as a
-   load error and never as an empty workspace.
+   ENTITLEMENT: CREATING a team is a Shot Caller-tier privilege and
+   the rail fails closed — POST /api/teams answers 403 with the rail's
+   own sentence (pinned below) for anyone under tier. Participation
+   is NOT gated (owner ruling Nov 4, 2026): GET /api/teams answers at
+   any rank with the caller's OWN memberships + pending invites and a
+   `canCreate` flag carrying the create entitlement, so an invitee or
+   member under ★4 reaches their invite/membership view in the desk,
+   and only the create action renders locked, in the rail's words.
 
    SHARED VAULTS / PROJECTS: the page's own note (team.sharedVaultsNote)
    is the whole website story — a vault is marked shared from the
@@ -117,7 +120,8 @@ export function groupPublicPath(slug: string): string {
 export const TEAM_NAME_MAX = 80;
 
 /** routes/teams.ts, verbatim — the fail-closed entitlement sentence
- *  GET/POST /api/teams answer under-tier callers with. */
+ *  POST /api/teams answers under-tier CREATE callers with. (Reads are
+ *  not gated; this sentence belongs to creation only.) */
 export const TEAM_TIER_GATE_MESSAGE =
   "Team Workspace requires Shot Caller tier or higher.";
 
@@ -174,6 +178,10 @@ export interface TeamInviteRow {
 export interface TeamList {
   teams: TeamRow[];
   invites: TeamInviteRow[];
+  /** The create entitlement (earned ★4 Shot Caller), carried by the
+   *  list rail itself. Absent/false = creation locked; the caller's
+   *  own teams and invites still read normally. */
+  canCreate: boolean;
 }
 
 export interface TeamDetail {
@@ -322,8 +330,9 @@ export function buildGroupProductPayload(input: {
 
 /* ─── error classification ───────────────────────────────────────── */
 
-/** True when a failed /api/teams answer is the entitlement gate
- *  (403 + the rail's own sentence), not a load failure. */
+/** True when a failed /api/teams answer is the CREATE entitlement
+ *  gate (403 + the rail's own sentence), not a load failure. Reads
+ *  are not gated, so this classifies a create attempt's refusal. */
 export function isTierGateError(status: number, message: string): boolean {
   return status === 403 && message.includes("Shot Caller");
 }
@@ -422,7 +431,9 @@ export function parseTeamList(data: unknown): TeamList | null {
     const row = parseInviteRow(raw);
     if (row) invites.push(row);
   }
-  return { teams, invites };
+  // Fail-closed for CREATE only: anything but an explicit true from
+  // the rail reads as locked, while teams/invites still parse.
+  return { teams, invites, canCreate: data.canCreate === true };
 }
 
 export function parseTeamDetail(data: unknown): TeamDetail | null {

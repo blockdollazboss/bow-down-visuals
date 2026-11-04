@@ -94,9 +94,12 @@ import {
    pool fails, and a 402 reads as out-of-Visual-Bucs naming the
    Treasury's Packs desk, like its neighbours.
 
-   ENTITLEMENT: under Shot Caller the rail fails closed with its
-   own sentence; the desk renders that as a locked state in the
-   rail's words — never a load error, never an empty workspace.
+   ENTITLEMENT: CREATING a team unlocks at Shot Caller (★4); the
+   create rail fails closed with its own sentence and the desk
+   renders that as a locked create state in the rail's words —
+   never a load error, never an empty workspace. Participation is
+   not gated: an invitee or member under ★4 sees their invites and
+   their team here, driven by the list rail's own canCreate flag.
    Members only, like the board itself: a guest never reaches the
    board pattern. ────────────────────────────────────────────────── */
 
@@ -239,9 +242,11 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
     setPhase("loading");
     setError(null);
     try {
-      /* The list call is classified by hand: a 403 carrying the
-         rail's own Shot Caller sentence is the entitlement gate,
-         not a failure. */
+      /* The list call is classified by hand: on the current rail it
+         answers at any rank (participation is open; canCreate carries
+         the create entitlement). A 403 carrying the rail's own Shot
+         Caller sentence can only come from a stale rail — that is the
+         entitlement gate, not a failure. */
       const res = await fetch(TEAMS_PATH, { headers: await authHeaders() });
       const raw = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) {
@@ -573,6 +578,35 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       <UserIcon className={`h-3.5 w-3.5 ${isLight ? "text-black/30" : "text-white/40"}`} />
     );
 
+  /* The locked-CREATE card: creation is the earned privilege. It
+     renders for the whole-desk tier phase (a stale rail still
+     answering the list with the gate) and, on the current rail, for
+     a signed-in member with no team whose canCreate is false — with
+     their invites rendered above it, reachable at any rank. */
+  const renderGateCard = (withInviteNote: boolean) => (
+    <NativeCard isLight={isLight} title="Team Workspace">
+      <div data-testid="world-team-tier-gate">
+        <p className={`text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+          {TEAM_TIER_GATE_MESSAGE}
+        </p>
+        <p className={`mt-1 text-sm ${subCls}`}>
+          Creating a team — a shared Visual Buc pool, member roles and shared
+          vaults — unlocks at Shot Caller (★4) and up. Shot Caller is an earned
+          Creator Rank, never a plan you can buy: rank points come from
+          publishing work, completed exports, followers, streams, tips, sales
+          and paid memberships — ★4 takes 300 points.
+        </p>
+        {withInviteNote ? (
+          <p className={`mt-2 text-sm ${subCls}`}>
+            Joining is different: if a team invites you, you can accept the
+            invite and join at any rank — your invites appear right here on
+            this desk.
+          </p>
+        ) : null}
+      </div>
+    </NativeCard>
+  );
+
   /* ── render ──────────────────────────────────────────────────── */
 
   return (
@@ -590,20 +624,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       {phase === "loading" ? (
         <NativeLoadingState isLight={isLight} message="Loading your team…" />
       ) : phase === "tier" ? (
-        <NativeCard isLight={isLight} title="Team Workspace">
-          <div data-testid="world-team-tier-gate">
-            <p className={`text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-              {TEAM_TIER_GATE_MESSAGE}
-            </p>
-            <p className={`mt-1 text-sm ${subCls}`}>
-              The Team Workspace — a shared Visual Buc pool, member roles and shared
-              vaults — unlocks at Shot Caller (★4) and up. Shot Caller is an earned
-              Creator Rank, never a plan you can buy: rank points come from
-              publishing work, completed exports, followers, streams, tips, sales
-              and paid memberships — ★4 takes 300 points.
-            </p>
-          </div>
-        </NativeCard>
+        renderGateCard(false)
       ) : phase === "failed" ? (
         <NativeErrorState
           isLight={isLight}
@@ -668,6 +689,9 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
           ) : null}
 
           {!team ? (
+            list && !list.canCreate ? (
+              renderGateCard(true)
+            ) : (
             <NativeCard isLight={isLight} title="Create a team">
               <div data-testid="world-team-create">
                 <p className={`text-sm ${subCls}`}>
@@ -703,6 +727,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                 </div>
               </div>
             </NativeCard>
+            )
           ) : (
             <>
               {/* Pool */}

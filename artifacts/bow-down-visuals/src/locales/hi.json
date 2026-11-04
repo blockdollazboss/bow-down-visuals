@@ -5803,6 +5803,7 @@
     "fundPool": "पूल फंड करें",
     "fundedPool": "✓ टीम पूल में {{amount}} Visual Bucs जोड़े गए।",
     "funding": "ले जाया जा रहा है…",
+    "inviteAnyRankNote": "शामिल होना अलग है: अगर कोई आपको किसी टीम में आमंत्रित करता है, तो आप किसी भी रैंक पर स्वीकार करके शामिल हो सकते हैं — आपके आमंत्रण यहीं दिखाई देते हैं।",
     "inviteEmailPlaceholder": "teammate@email.com",
     "invitePendingSuffix": " · इनवाइट पेंडिंग",
     "inviteSent": "✓ इनवाइट भेजा गया।",

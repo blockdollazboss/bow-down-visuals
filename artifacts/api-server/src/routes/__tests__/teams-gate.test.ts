@@ -11,11 +11,20 @@
  * profiles.plan_tier column (manual admin assignment only, default 1)
  * instead of the earned rank.
  *
- *  - an earned ★2 creator (the walk's 46-point shape) gets the 403
- *    gate sentence on both gated routes — the gate still exists;
- *  - an earned ★3 creator is still gated — the threshold is ★4;
+ *  - an earned ★2 creator (the walk's 46-point shape) still gets the
+ *    403 gate sentence on CREATE — creating stays the earned privilege;
+ *  - an earned ★3 creator is still gated on create — the threshold
+ *    is ★4;
  *  - an earned ★4 creator passes: GET /teams answers with their team,
  *    its shared pool and their pending invites; POST /teams creates.
+ *
+ * PARTICIPATION (owner ruling Nov 4, 2026): Shot Caller gates CREATING
+ * only. The read side is open to the caller's own data at any rank:
+ *  - an earned ★2 invitee reads their own pending invite on
+ *    GET /teams (canCreate: false), accepts it, and lands on the team;
+ *  - an earned ★3 member reads their own team;
+ *  - an earned ★2 non-invitee non-member gets an EMPTY list — no
+ *    other team's data leaks, and the detail read stays 403.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { randomUUID } from "crypto";
@@ -190,28 +199,142 @@ afterEach(async () => {
 });
 
 describe("Team Workspace gate — earned rank, end to end", () => {
-  it("earned ★2 (the walk's 46-point shape): both gated routes answer the gate sentence", async () => {
+  it("earned ★2 (the walk's 46-point shape): create answers the gate sentence; the read answers empty with canCreate false", async () => {
     const user = randomUUID();
     seedCreator(user, "hustler@example.com", { tracks: 2, videos: 1, followers: 11 });
     as(user, "hustler@example.com");
 
     const list = await api("GET", "/api/teams");
-    expect(list.status).toBe(403);
-    expect(list.body.error).toBe(GATE_SENTENCE);
+    expect(list.status).toBe(200);
+    expect(list.body.canCreate).toBe(false);
+    expect(list.body.teams).toEqual([]);
+    expect(list.body.invites).toEqual([]);
 
     const create = await api("POST", "/api/teams", { name: "Hustler Crew" });
     expect(create.status).toBe(403);
     expect(create.body.error).toBe(GATE_SENTENCE);
   });
 
-  it("earned ★3 Gangster (100 pts): still gated — the threshold is exactly ★4", async () => {
+  it("earned ★3 Gangster (100 pts): create still gated — the threshold is exactly ★4; the read is open but empty", async () => {
     const user = randomUUID();
     seedCreator(user, "gangster@example.com", { tracks: 10 });
     as(user, "gangster@example.com");
 
     const list = await api("GET", "/api/teams");
-    expect(list.status).toBe(403);
-    expect(list.body.error).toBe(GATE_SENTENCE);
+    expect(list.status).toBe(200);
+    expect(list.body.canCreate).toBe(false);
+    expect(list.body.teams).toEqual([]);
+    expect(list.body.invites).toEqual([]);
+
+    const create = await api("POST", "/api/teams", { name: "Gangster Crew" });
+    expect(create.status).toBe(403);
+    expect(create.body.error).toBe(GATE_SENTENCE);
+  });
+
+  it("earned ★2 invitee: reads their own pending invite, accepts it, and lands on the team at any rank", async () => {
+    const invitee = randomUUID();
+    seedCreator(invitee, "invitee@example.com", { tracks: 2, videos: 1, followers: 11 });
+    as(invitee, "invitee@example.com");
+
+    const teamId = randomUUID();
+    const ownerId = randomUUID();
+    mem.public.none(`
+      INSERT INTO teams (id, name, owner_id, credits) VALUES ('${teamId}', 'Inviting Crew', '${ownerId}', 125);
+      INSERT INTO team_members (id, team_id, user_id, email, role, status)
+        VALUES ('${randomUUID()}', '${teamId}', NULL, 'invitee@example.com', 'member', 'invited');
+    `);
+
+    const list = await api("GET", "/api/teams");
+    expect(list.status).toBe(200);
+    expect(list.body.canCreate).toBe(false);
+    expect(list.body.invites).toHaveLength(1);
+    expect(list.body.invites[0].team.name).toBe("Inviting Crew");
+
+    const accept = await api("POST", `/api/teams/${teamId}/accept`);
+    expect(accept.status).toBe(200);
+    expect(accept.body.ok).toBe(true);
+
+    const after = await api("GET", "/api/teams");
+    expect(after.status).toBe(200);
+    expect(after.body.teams).toHaveLength(1);
+    expect(after.body.teams[0].name).toBe("Inviting Crew");
+    expect(after.body.teams[0].myStatus).toBe("active");
+    expect(after.body.invites).toEqual([]);
+
+    const detail = await api("GET", `/api/teams/${teamId}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body.myRole).toBe("member");
+  });
+
+  it("earned ★2 invitee: declining removes the invite and nothing else", async () => {
+    const invitee = randomUUID();
+    seedCreator(invitee, "decliner@example.com", { tracks: 2, videos: 1, followers: 11 });
+    as(invitee, "decliner@example.com");
+
+    const teamId = randomUUID();
+    const ownerId = randomUUID();
+    mem.public.none(`
+      INSERT INTO teams (id, name, owner_id, credits) VALUES ('${teamId}', 'Declined Crew', '${ownerId}', 0);
+      INSERT INTO team_members (id, team_id, user_id, email, role, status)
+        VALUES ('${randomUUID()}', '${teamId}', NULL, 'decliner@example.com', 'member', 'invited');
+    `);
+
+    const decline = await api("POST", `/api/teams/${teamId}/decline`);
+    expect(decline.status).toBe(200);
+
+    const after = await api("GET", "/api/teams");
+    expect(after.body.invites).toEqual([]);
+    expect(after.body.teams).toEqual([]);
+  });
+
+  it("earned ★3 member: reads their own team and its detail; canCreate stays false", async () => {
+    const member = randomUUID();
+    seedCreator(member, "member3@example.com", { tracks: 10 });
+    as(member, "member3@example.com");
+
+    const teamId = randomUUID();
+    const ownerId = randomUUID();
+    mem.public.none(`
+      INSERT INTO teams (id, name, owner_id, credits) VALUES ('${teamId}', 'Member Crew', '${ownerId}', 40);
+      INSERT INTO team_members (id, team_id, user_id, email, role, status, joined_at)
+        VALUES ('${randomUUID()}', '${teamId}', '${member}', 'member3@example.com', 'member', 'active', now());
+    `);
+
+    const list = await api("GET", "/api/teams");
+    expect(list.status).toBe(200);
+    expect(list.body.canCreate).toBe(false);
+    expect(list.body.teams).toHaveLength(1);
+    expect(list.body.teams[0].name).toBe("Member Crew");
+    expect(list.body.teams[0].myRole).toBe("member");
+
+    const detail = await api("GET", `/api/teams/${teamId}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body.myRole).toBe("member");
+  });
+
+  it("privacy pin: an under-★4 non-invitee non-member sees NO other team's data", async () => {
+    const stranger = randomUUID();
+    seedCreator(stranger, "stranger@example.com", { tracks: 2, videos: 1, followers: 11 });
+    as(stranger, "stranger@example.com");
+
+    const teamId = randomUUID();
+    const ownerId = randomUUID();
+    mem.public.none(`
+      INSERT INTO teams (id, name, owner_id, credits) VALUES ('${teamId}', 'Private Crew', '${ownerId}', 900);
+      INSERT INTO team_members (id, team_id, user_id, email, role, status, joined_at)
+        VALUES ('${randomUUID()}', '${teamId}', '${ownerId}', 'owner@example.com', 'owner', 'active', now());
+      INSERT INTO team_members (id, team_id, user_id, email, role, status)
+        VALUES ('${randomUUID()}', '${teamId}', NULL, 'someoneelse@example.com', 'member', 'invited');
+    `);
+
+    const list = await api("GET", "/api/teams");
+    expect(list.status).toBe(200);
+    expect(list.body.teams).toEqual([]);
+    expect(list.body.invites).toEqual([]);
+
+    const detail = await api("GET", `/api/teams/${teamId}`);
+    expect(detail.status).toBe(403);
+    expect(detail.body.error).toBe("Not a member of this team.");
   });
 
   it("earned ★4 Shot Caller (300 pts): the list answers with team, pool and pending invites", async () => {
@@ -237,6 +360,7 @@ describe("Team Workspace gate — earned rank, end to end", () => {
 
     const list = await api("GET", "/api/teams");
     expect(list.status).toBe(200);
+    expect(list.body.canCreate).toBe(true);
     expect(list.body.teams).toHaveLength(1);
     expect(list.body.teams[0].name).toBe("Shot Caller Crew");
     expect(list.body.teams[0].credits).toBe(750);

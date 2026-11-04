@@ -5803,6 +5803,7 @@
     "fundPool": "プールに資金提供",
     "fundedPool": "✓ チームプールに{{amount}} Visual Bucsを追加しました。",
     "funding": "移動中…",
+    "inviteAnyRankNote": "参加は別です：チームに招待されたら、どのランクでも承諾して参加できます — 招待はここに表示されます。",
     "inviteEmailPlaceholder": "teammate@email.com",
     "invitePendingSuffix": " · 招待中",
     "inviteSent": "✓ 招待を送信しました。",

@@ -6080,6 +6080,7 @@
     "fundPool": "Fund pool",
     "fundedPool": "✓ {{amount}} Visual Bucs added to the team pool.",
     "funding": "Moving…",
+    "inviteAnyRankNote": "Joining is different: if someone invites you to a team, you can accept and join at any rank — your invites show up right here.",
     "inviteEmailPlaceholder": "teammate@email.com",
     "invitePendingSuffix": " · invite pending",
     "inviteSent": "✓ Invite sent.",

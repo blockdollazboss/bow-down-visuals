@@ -54,6 +54,11 @@ export default function TeamPage() {
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
+  /* The create entitlement rides the list rail: Shot Caller (★4)
+     gates CREATING a team only (owner ruling Nov 4, 2026). Invites
+     and memberships above render at any rank; this flag only decides
+     whether the create form or the locked create card shows. */
+  const [canCreate, setCanCreate] = useState(false);
   const [activeTeam, setActiveTeam] = useState<Team | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [spending, setSpending] = useState<SpendRow[]>([]);
@@ -92,6 +97,7 @@ export default function TeamPage() {
     setMsg(null);
     try {
       const data = await api("/api/teams");
+      setCanCreate(data.canCreate === true);
       setTeams(data.teams ?? []);
       setInvites(data.invites ?? []);
       const mine = (data.teams ?? []).find((tm: Team) => tm.myStatus === "active") ?? null;
@@ -338,6 +344,17 @@ export default function TeamPage() {
       )}
 
       {!activeTeam ? (
+        !canCreate ? (
+          <Card className="p-6 bg-white/[0.03] border-white/10" data-testid="team-create-gate">
+            <h2 className="font-bold text-white mb-2">{t("team.createTeamTitle")}</h2>
+            <p className="text-sm text-white/50">
+              {t("team.createTeamHint")}
+            </p>
+            <p className="text-sm text-white/50 mt-3">
+              {t("team.inviteAnyRankNote")}
+            </p>
+          </Card>
+        ) : (
         <Card className="p-6 bg-white/[0.03] border-white/10">
           <h2 className="font-bold text-white mb-2">{t("team.createTeamTitle")}</h2>
           <p className="text-sm text-white/50 mb-4">
@@ -356,6 +373,7 @@ export default function TeamPage() {
             </Button>
           </div>
         </Card>
+        )
       ) : (
         <>
           {/* Pool balance */}
