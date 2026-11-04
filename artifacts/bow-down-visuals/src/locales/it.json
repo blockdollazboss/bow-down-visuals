@@ -15856,7 +15856,24 @@
     "portalOpenFailed": "Il portale di fatturazione non si è aperto. Riprova tra un minuto.",
     "portalNoPage": "Il portale di fatturazione non ha restituito una pagina.",
     "portalOpened": "Il tuo portale di fatturazione si è aperto in una nuova scheda — gestisci o annulla lì; questo pannello rileggerà il tuo piano al tuo ritorno."
+  },  "worldThemePacks": {
+    "goldenMarbleName": "Marmo Dorato",
+    "goldenMarbleTagline": "Il tema della casa — palazzo d'avorio di giorno, trono di marmo nero di notte",
+    "goldenMarbleDescription": "La pelle stessa del sito: marmo bianco dorato e oro antico alla luce, marmo nero dorato al buio. Il mondo in cui è stato costruito Bow Down Visuals.",
+    "sharkTankName": "Vasca dello Squalo",
+    "sharkTankTagline": "Le acque del Re — marmo di mare profondo, finiture dorate",
+    "sharkTankDescription": "Le acque intorno al trono: marmo blu-nero profondo al buio, marmo vetro marino pallido alla luce — il sistema in oro antico intatto, nel territorio del Re Squalo. Si abbina al cursore 8-Bit Shark.",
+    "goldenHourName": "Ora Dorata",
+    "goldenHourTagline": "Tramonto sulla piazza — marmo brace, oro rovente",
+    "goldenHourDescription": "La piazza all'ora dorata: marmo bronzo brace e l'oro più caldo della casa al buio, che si scalda in marmo champagne di giorno. Si abbina al cursore Flame.",
+    "kingsSetName": "Il Set del Re",
+    "kingsSetTagline": "L'ammiraglia — il marmo più nero, l'oro più luminoso",
+    "kingsSetDescription": "Costruito sull'approvato King's Set: il marmo più nero e la foglia d'oro più luminosa al buio, l'avorio più luminoso e il bronzo antico più profondo di giorno. Si abbina al cursore King's Crown.",
+    "arcadeGoldName": "Oro Arcade",
+    "arcadeGoldTagline": "Carbone codice trucco, oro rovente, bagliore di brace",
+    "arcadeGoldDescription": "Il lato codice trucco del palazzo: marmo carbone caldo, oro rovente e un bagliore di brace al buio — marmo carta calda e bronzo profondo di giorno. Si abbina al cursore Game Controller."
   },
+
   "officeHours": {
     "panelTitle": "Prenota una sessione di Orario di ricevimento",
     "loadingTimes": "Caricamento degli orari disponibili…",

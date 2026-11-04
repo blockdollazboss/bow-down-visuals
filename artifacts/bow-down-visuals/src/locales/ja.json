@@ -15829,7 +15829,24 @@
     "portalOpenFailed": "請求ポータルを開けませんでした。少ししてから再試行してください。",
     "portalNoPage": "請求ポータルがページを返しませんでした。",
     "portalOpened": "請求ポータルが新しいタブで開きました — そちらで管理または解約してください。戻るとこのデスクがプランを再読み込みします。"
+  },  "worldThemePacks": {
+    "goldenMarbleName": "ゴールデン・マーブル",
+    "goldenMarbleTagline": "ハウスのテーマ — 昼は象牙の宮殿、夜は黒大理石の玉座",
+    "goldenMarbleDescription": "サイトそのものの肌：光の中では黄金の白大理石とアンティークゴールド、闇の中では黄金の黒大理石。Bow Down Visualsが築かれた世界。",
+    "sharkTankName": "シャークタンク",
+    "sharkTankTagline": "王の水域 — 深海の大理石、金の縁取り",
+    "sharkTankDescription": "玉座を囲む水：闇の中では深い青黒の大理石、光の中では淡いシーグラスの大理石 — アンティークゴールドのシステムはそのまま、キングシャークの本拠地。8-Bit Sharkカーソルと組み合わさる。",
+    "goldenHourName": "ゴールデンアワー",
+    "goldenHourTagline": "広場の夕日 — 残り火の大理石、熱い金",
+    "goldenHourDescription": "ゴールデンアワーの広場：闇の中では残り火ブロンズの大理石と館で最も熱い金、昼にはシャンパンの大理石へと温まる。Flameカーソルと組み合わさる。",
+    "kingsSetName": "キングス・セット",
+    "kingsSetTagline": "フラッグシップ — 最も黒い大理石、最も明るい金",
+    "kingsSetDescription": "承認済みのKing's Setに基づいて構築：闇の中では最も黒い大理石と最も明るい金箔、昼には最も明るい象牙と最も深いアンティークブロンズ。King's Crownカーソルと組み合わさる。",
+    "arcadeGoldName": "アーケード・ゴールド",
+    "arcadeGoldTagline": "チートコードのチャコール、熱い金、残り火の輝き",
+    "arcadeGoldDescription": "宮殿のチートコード側：温かなチャコールの大理石、熱い金、そして闇の中の残り火の輝き — 昼には温かな紙の大理石と深いブロンズ。Game Controllerカーソルと組み合わさる。"
   },
+
   "officeHours": {
     "panelTitle": "オフィスアワーのセッションを予約",
     "loadingTimes": "空き時間を読み込み中…",

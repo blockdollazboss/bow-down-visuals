@@ -15856,7 +15856,24 @@
     "portalOpenFailed": "O portal de faturamento não abriu. Tente de novo em um minuto.",
     "portalNoPage": "O portal de faturamento não retornou uma página.",
     "portalOpened": "Seu portal de faturamento abriu em uma nova aba — gerencie ou cancele lá; este painel relê seu plano quando você voltar."
+  },  "worldThemePacks": {
+    "goldenMarbleName": "Mármore Dourado",
+    "goldenMarbleTagline": "O tema da casa — palácio de marfim de dia, trono de mármore negro à noite",
+    "goldenMarbleDescription": "A pele do próprio site: mármore branco dourado e ouro antigo na luz, mármore negro dourado no escuro. O mundo em que Bow Down Visuals foi construído.",
+    "sharkTankName": "Tanque do Tubarão",
+    "sharkTankTagline": "As águas do Rei — mármore de mar profundo, acabamento dourado",
+    "sharkTankDescription": "As águas ao redor do trono: mármore azul-negro profundo no escuro, mármore vidro do mar pálido na luz — o sistema de ouro antigo intocado, no território do Rei Tubarão. Combina com o cursor 8-Bit Shark.",
+    "goldenHourName": "Hora Dourada",
+    "goldenHourTagline": "Pôr do sol sobre a praça — mármore brasa, ouro quente",
+    "goldenHourDescription": "A praça na hora dourada: mármore bronze brasa e o ouro mais quente da casa no escuro, aquecendo para mármore champanhe de dia. Combina com o cursor Flame.",
+    "kingsSetName": "O Conjunto do Rei",
+    "kingsSetTagline": "O carro-chefe — o mármore mais negro, o ouro mais brilhante",
+    "kingsSetDescription": "Construído sobre o aprovado King's Set: o mármore mais negro e a folha de ouro mais brilhante no escuro, o marfim mais brilhante e o bronze antigo mais profundo de dia. Combina com o cursor King's Crown.",
+    "arcadeGoldName": "Ouro Arcade",
+    "arcadeGoldTagline": "Carvão código de trapaça, ouro quente, brilho de brasa",
+    "arcadeGoldDescription": "O lado código de trapaça do palácio: mármore carvão quente, ouro quente e um brilho de brasa no escuro — mármore papel quente e bronze profundo de dia. Combina com o cursor Game Controller."
   },
+
   "officeHours": {
     "panelTitle": "Agende uma sessão de Horário de atendimento",
     "loadingTimes": "Carregando horários disponíveis…",

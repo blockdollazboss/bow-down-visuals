@@ -15833,7 +15833,24 @@
     "portalOpenFailed": "Das Abrechnungsportal öffnete sich nicht. Versuchen Sie es in einer Minute erneut.",
     "portalNoPage": "Das Abrechnungsportal lieferte keine Seite.",
     "portalOpened": "Ihr Abrechnungsportal öffnete sich in einem neuen Tab — verwalten oder kündigen Sie dort; diese Übersicht liest Ihren Plan bei Ihrer Rückkehr neu."
+  },  "worldThemePacks": {
+    "goldenMarbleName": "Goldener Marmor",
+    "goldenMarbleTagline": "Das Hausthema — Elfenbeinpalast bei Tag, Thron aus schwarzem Marmor bei Nacht",
+    "goldenMarbleDescription": "Die eigene Haut der Seite: goldener weißer Marmor und antikes Gold im Licht, goldener schwarzer Marmor im Dunkeln. Die Welt, in der Bow Down Visuals gebaut wurde.",
+    "sharkTankName": "Haifischbecken",
+    "sharkTankTagline": "Die Gewässer des Königs — Tiefsee-Marmor, Goldbesatz",
+    "sharkTankDescription": "Die Gewässer rund um den Thron: tiefes blauschwarzes Marmor im Dunkeln, blasses Meerglas-Marmor im Licht — das System aus antikem Gold unberührt, im Revier des Haikönigs. Passt zum Cursor 8-Bit Shark.",
+    "goldenHourName": "Goldene Stunde",
+    "goldenHourTagline": "Sonnenuntergang über dem Platz — Glut-Marmor, heißes Gold",
+    "goldenHourDescription": "Der Platz zur goldenen Stunde: Glut-Bronze-Marmor und das heißeste Gold des Hauses im Dunkeln, das sich bei Tag zu Champagner-Marmor erwärmt. Passt zum Cursor Flame.",
+    "kingsSetName": "Das Set des Königs",
+    "kingsSetTagline": "Das Flaggschiff — der schwärzeste Marmor, das hellste Gold",
+    "kingsSetDescription": "Gebaut auf dem freigegebenen King's Set: der schwärzeste Marmor und das hellste Blattgold im Dunkeln, das hellste Elfenbein und die tiefste antike Bronze bei Tag. Passt zum Cursor King's Crown.",
+    "arcadeGoldName": "Arcade-Gold",
+    "arcadeGoldTagline": "Cheat-Code-Anthrazit, heißes Gold, Glutschimmer",
+    "arcadeGoldDescription": "Die Cheat-Code-Seite des Palasts: warmer Anthrazit-Marmor, heißes Gold und ein Glutschimmer im Dunkeln — warmes Papier-Marmor und tiefe Bronze bei Tag. Passt zum Cursor Game Controller."
   },
+
   "officeHours": {
     "panelTitle": "Eine Sprechstunden-Sitzung buchen",
     "loadingTimes": "Freie Zeiten werden geladen…",

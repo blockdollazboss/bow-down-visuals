@@ -15856,7 +15856,24 @@
     "portalOpenFailed": "Le portail de facturation ne s'est pas ouvert. Réessayez dans une minute.",
     "portalNoPage": "Le portail de facturation n'a renvoyé aucune page.",
     "portalOpened": "Votre portail de facturation s'est ouvert dans un nouvel onglet — gérez ou résiliez là-bas ; ce panneau relira votre formule à votre retour."
+  },  "worldThemePacks": {
+    "goldenMarbleName": "Marbre Doré",
+    "goldenMarbleTagline": "Le thème de la maison — palais d'ivoire le jour, trône de marbre noir la nuit",
+    "goldenMarbleDescription": "La peau même du site : marbre blanc doré et or antique à la lumière, marbre noir doré dans le noir. Le monde dans lequel Bow Down Visuals a été construit.",
+    "sharkTankName": "Bassin du Requin",
+    "sharkTankTagline": "Les eaux du Roi — marbre des grands fonds, finitions dorées",
+    "sharkTankDescription": "Les eaux autour du trône : marbre bleu-noir profond dans le noir, marbre verre de mer pâle à la lumière — le système d'or antique intact, sur le territoire du Roi Requin. S'accorde avec le curseur 8-Bit Shark.",
+    "goldenHourName": "Heure Dorée",
+    "goldenHourTagline": "Coucher de soleil sur la place — marbre braise, or ardent",
+    "goldenHourDescription": "La place à l'heure dorée : marbre bronze braise et l'or le plus chaud de la maison dans le noir, se réchauffant en marbre champagne le jour. S'accorde avec le curseur Flame.",
+    "kingsSetName": "L'Ensemble du Roi",
+    "kingsSetTagline": "Le vaisseau amiral — le marbre le plus noir, l'or le plus éclatant",
+    "kingsSetDescription": "Construit sur le King's Set approuvé : le marbre le plus noir et la feuille d'or la plus éclatante dans le noir, l'ivoire le plus éclatant et le bronze antique le plus profond le jour. S'accorde avec le curseur King's Crown.",
+    "arcadeGoldName": "Or Arcade",
+    "arcadeGoldTagline": "Charbon code de triche, or ardent, lueur de braise",
+    "arcadeGoldDescription": "Le côté code de triche du palais : marbre charbon chaud, or ardent et une lueur de braise dans le noir — marbre papier chaud et bronze profond le jour. S'accorde avec le curseur Game Controller."
   },
+
   "officeHours": {
     "panelTitle": "Réserver une session Heures de bureau",
     "loadingTimes": "Chargement des horaires disponibles…",
