@@ -113,6 +113,7 @@ import {
   ScanSearch,
   Upload,
   Bookmark,
+  Globe,
   type LucideIcon,
 
 } from "lucide-react";
@@ -286,7 +287,13 @@ const SECTIONS: NavSection[] = [
       { href: "/branding-kit", labelKey: "nav.brandingKit", icon: Crown, searchTerms: "brand branding kit logo identity" },
       { href: "/storefronts", labelKey: "nav.storefronts", icon: Store, searchTerms: "store storefront shop sell" },
       { href: "/my-shop", labelKey: "nav.myShop", icon: ShoppingBag, searchTerms: "shop store my shop sell products" },
+      /* Jewelry Shop — the tracked jewelry line's storefront
+         (Stack100 wave 1); its only doors were module redirects. */
+      { href: "/jewelry-shop", labelKey: "nav.jewelryShop", icon: Gem, searchTerms: "jewelry shop rings chains gold merch pieces" },
       { href: "/nfc-cards", labelKey: "nav.nfcCards", icon: Nfc, searchTerms: "nfc cards business card tap" },
+      /* Creator Domains — the web-identity door beside NFC Cards
+         (Stack100 wave 1); linked only from artist-setup/storefronts. */
+      { href: "/creator/domains", labelKey: "nav.creatorDomains", icon: Globe, searchTerms: "domains custom domain website creator domains url" },
     ],
   },
   {
