@@ -16188,7 +16188,7 @@
     "ivTightenThis": "Tighten this",
     "ivModelAnswer": "A model answer",
     "soTitle": "Shoutouts — book a creator",
-    "soIntro": "Pick a creator, tell them the occasion, and they record a personal video shoutout. You always pay exactly the listed price — the platform’s flat {{fee}}% fee comes out of the creator's side, never on top.",
+    "soIntro": "Pick a creator, tell them the occasion, and they record a personal video shoutout. You always pay exactly the listed price — the platform’s flat {{fee}}% fee comes out of the creator’s side, never on top.",
     "soBoardErrorTitle": "The shoutout board wouldn't load",
     "soBoardErrorMessage": "The creators taking requests couldn't be reached. Nothing changed — try again.",
     "soBoardLoading": "Finding creators taking requests…",
@@ -16237,7 +16237,11 @@
     "soErrorSettingsRetry": "Those settings couldn't be saved. Try again in a moment.",
     "spFormErrDeadline": "Pick a deadline.",
     "spFormErrDeadlineValid": "Pick a valid deadline.",
-    "prSocialVersion": "Social version:"
+    "prSocialVersion": "Social version:",
+    "soFanEmailPlaceholder": "Your email (optional — for the delivery)",
+    "soFanEmailAria": "Your email",
+    "soOccasionPlaceholder": "Occasion — birthday, pep talk, anniversary…",
+    "soDisplayNamePlaceholder": "Display name fans see"
   },
   "officeHours": {
     "panelTitle": "Book an Office Hours session",

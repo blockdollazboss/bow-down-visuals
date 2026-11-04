@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2, Megaphone, Send } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "@/components/world/native/NativeStates";
@@ -97,6 +98,7 @@ function openCheckoutTab(url: string) {
 const EMPTY_DRAFT: ShoutoutRequestDraft = { fanName: "", fanEmail: "", occasion: "", message: "" };
 
 export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useAuthHeaders();
   const [creators, setCreators] = useState<ShoutoutCreator[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -168,9 +170,9 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       if (res.ok && shoutoutVerifyConfirmed(data)) {
         try { localStorage.removeItem(SHOUTOUT_PENDING_KEY); } catch { /* ignore */ }
         setBuySecret(null);
-        setNote("Payment confirmed — your shoutout is booked and the creator has it. It lands within their turnaround below.");
+        setNote(t("worldSponsorPress.soNoteConfirmed"));
       } else if (res.ok) {
-        setNote("A shoutout payment is still confirming — it isn't booked until the payment lands. Finish paying, then come back here and it verifies itself.");
+        setNote(t("worldSponsorPress.soNotePending"));
       }
     } catch {
       /* status couldn't refresh — nothing about the booking changed */
@@ -200,11 +202,11 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
         body: JSON.stringify(buildShoutoutRequestPayload(selected.id, draft)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "That request couldn't be sent."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldSponsorPress.soErrorRequest")));
       const made = shoutoutRequestOfResponse(data);
-      if (!made) throw new Error("That request couldn't be sent.");
+      if (!made) throw new Error(t("worldSponsorPress.soErrorRequest"));
       if (!made.paymentsLive || made.priceCents === 0) {
-        setNote(`Request sent — ${selected.displayName} has it now, and it reaches you within ${selected.turnaroundDays} ${selected.turnaroundDays === 1 ? "day" : "days"}.`);
+        setNote(t(selected.turnaroundDays === 1 ? "worldSponsorPress.soNoteSentOne" : "worldSponsorPress.soNoteSentOther", { name: selected.displayName, days: selected.turnaroundDays }));
         setDraft(EMPTY_DRAFT);
         setSelectedId(null);
         return;
@@ -216,7 +218,7 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
         body: JSON.stringify(buildShoutoutCheckoutPayload(hasStripePublishableKey())),
       });
       const coData = (await co.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!co.ok) throw new Error(apiErrorMessage(coData, "Checkout didn't start — nothing was charged."));
+      if (!co.ok) throw new Error(apiErrorMessage(coData, t("worldSponsorPress.soErrorCheckoutStart")));
       const sessionId = shoutoutSessionId(coData);
       if (sessionId) {
         try {
@@ -227,18 +229,18 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       if (secret) {
         setBuySecret(secret);
         setBuyCreatorName(selected.displayName);
-        setNote(`Finish paying right here — your shoutout from ${selected.displayName} books the moment the payment lands.`);
+        setNote(t("worldSponsorPress.soNoteEmbedded", { name: selected.displayName }));
         return;
       }
       const url = shoutoutHostedUrl(coData);
       if (url) {
         openCheckoutTab(url);
-        setNote("Your checkout opened in a new tab — finish paying there. The payment settles your booking the moment it lands, and it confirms on the shoutouts page when you're back.");
+        setNote(t("worldSponsorPress.soNoteHosted"));
         return;
       }
-      throw new Error("Checkout didn't return a payment page — nothing was charged.");
+      throw new Error(t("worldPlansDesk.checkoutNoPage"));
     } catch (err) {
-      setNote(plainErrorText(err, "That request couldn't be sent. Try again in a moment."));
+      setNote(plainErrorText(err, t("worldSponsorPress.soErrorRequestRetry")));
     } finally {
       setBusy(null);
     }
@@ -255,14 +257,14 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
         body: JSON.stringify(buildShoutoutSettingsPayload(settingsDraft)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Those settings couldn't be saved."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldSponsorPress.soErrorSettings")));
       const parsed = shoutoutSettingsOfResponse(data);
-      if (parsed === undefined) throw new Error("Those settings couldn't be saved.");
+      if (parsed === undefined) throw new Error(t("worldSponsorPress.soErrorSettings"));
       setSettings(parsed);
       setSettingsDraft(shoutoutSettingsDraftOf(parsed));
-      setSettingsNote(parsed?.accepting ? "Saved — you're on the board below, taking requests." : "Saved — you're set to not accepting, so you won't show on the board.");
+      setSettingsNote(parsed?.accepting ? t("worldSponsorPress.soSettingsSavedAccepting") : t("worldSponsorPress.soSettingsSavedNotAccepting"));
     } catch (err) {
-      setSettingsNote(plainErrorText(err, "Those settings couldn't be saved. Try again in a moment."));
+      setSettingsNote(plainErrorText(err, t("worldSponsorPress.soErrorSettingsRetry")));
     } finally {
       setBusy(null);
     }
@@ -274,27 +276,26 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
   return (
     <div className="space-y-3" data-testid="world-shoutouts-desk">
       <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-        <Megaphone className="h-4 w-4 text-[#d4af37]" /> Shoutouts — book a creator
+        <Megaphone className="h-4 w-4 text-[#d4af37]" /> {t("worldSponsorPress.soTitle")}
       </p>
       <p className={`text-sm ${muted}`}>
-        Pick a creator, tell them the occasion, and they record a personal video shoutout.
-        You always pay exactly the listed price — the platform&rsquo;s flat {SHOUTOUT_PLATFORM_FEE_PCT}% fee comes out of the creator&rsquo;s side, never on top.
+        {t("worldSponsorPress.soIntro", { fee: SHOUTOUT_PLATFORM_FEE_PCT })}
       </p>
 
       {failed ? (
         <NativeErrorState
           isLight={isLight}
-          title="The shoutout board wouldn't load"
-          message="The creators taking requests couldn't be reached. Nothing changed — try again."
+          title={t("worldSponsorPress.soBoardErrorTitle")}
+          message={t("worldSponsorPress.soBoardErrorMessage")}
           onRetry={() => void loadCreators()}
         />
       ) : creators === null ? (
-        <NativeLoadingState isLight={isLight} message="Finding creators taking requests…" />
+        <NativeLoadingState isLight={isLight} message={t("worldSponsorPress.soLoading")} />
       ) : creators.length === 0 ? (
         <NativeEmptyState
           isLight={isLight}
-          message="No creators are taking shoutout requests right now"
-          detail="When a creator opens their shoutouts, they appear on this board."
+          message={t("worldSponsorPress.soEmptyMessage")}
+          detail={t("worldSponsorPress.soEmptyDetail")}
         />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2" data-testid="world-shoutouts-creators">
@@ -303,11 +304,11 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
               <div className="flex flex-wrap items-center gap-2">
                 <p className={`min-w-0 truncate text-sm font-bold ${strong}`}>{c.displayName}</p>
                 <span className="ml-auto shrink-0 text-sm font-black text-[#d4af37]">
-                  {c.priceDollars > 0 ? `$${c.priceDollars}` : "Free"}
+                  {c.priceDollars > 0 ? `$${c.priceDollars}` : t("common.free")}
                 </span>
               </div>
               <p className={`mt-0.5 text-xs ${muted}`}>
-                Delivered within {c.turnaroundDays} {c.turnaroundDays === 1 ? "day" : "days"}
+                {t(c.turnaroundDays === 1 ? "worldSponsorPress.soDeliveredWithinOne" : "worldSponsorPress.soDeliveredWithinOther", { days: c.turnaroundDays })}
               </p>
               {c.guidelines ? <p className={`mt-1.5 text-xs ${muted}`}>{c.guidelines}</p> : null}
               <button
@@ -317,46 +318,46 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                 aria-expanded={selectedId === c.id}
                 onClick={() => { setSelectedId(selectedId === c.id ? null : c.id); setNote(null); }}
               >
-                <Send className="h-3.5 w-3.5" /> {selectedId === c.id ? "Close the form" : "Request a shoutout"}
+                <Send className="h-3.5 w-3.5" /> {selectedId === c.id ? t("worldSponsorPress.soCloseForm") : t("worldSponsorPress.soRequestButton")}
               </button>
               {selectedId === c.id ? (
                 <div className="mt-3 space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-shoutouts-form">
                   <input
                     value={draft.fanName}
                     onChange={(e) => setD({ fanName: e.target.value })}
-                    placeholder="Your name"
+                    placeholder={t("shoutouts.yourNameLabel")}
                     maxLength={80}
                     className={inputCls(isLight)}
                     data-testid="world-shoutouts-fan-name"
-                    aria-label="Your name"
+                    aria-label={t("shoutouts.yourNameLabel")}
                   />
                   <input
                     value={draft.fanEmail}
                     onChange={(e) => setD({ fanEmail: e.target.value })}
-                    placeholder="Your email (optional — for the delivery)"
+                    placeholder={t("worldSponsorPress.soFanEmailPlaceholder")}
                     maxLength={160}
                     className={inputCls(isLight)}
                     data-testid="world-shoutouts-fan-email"
-                    aria-label="Your email"
+                    aria-label={t("worldSponsorPress.soFanEmailAria")}
                   />
                   <input
                     value={draft.occasion}
                     onChange={(e) => setD({ occasion: e.target.value })}
-                    placeholder="Occasion — birthday, pep talk, anniversary…"
+                    placeholder={t("worldSponsorPress.soOccasionPlaceholder")}
                     maxLength={120}
                     className={inputCls(isLight)}
                     data-testid="world-shoutouts-occasion"
-                    aria-label="Occasion"
+                    aria-label={t("shoutouts.occasionLabel")}
                   />
                   <textarea
                     value={draft.message}
                     onChange={(e) => setD({ message: e.target.value })}
-                    placeholder="What should they say? Names, details, the whole message."
+                    placeholder={t("worldSponsorPress.soMessagePlaceholder")}
                     maxLength={1000}
                     rows={3}
                     className={inputCls(isLight)}
                     data-testid="world-shoutouts-message"
-                    aria-label="Your message for the creator"
+                    aria-label={t("worldSponsorPress.soMessageAria")}
                   />
                   <button
                     type="button"
@@ -366,7 +367,7 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                     onClick={() => void submitRequest()}
                   >
                     {busy === "request" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                    {c.priceDollars > 0 ? `Send & pay $${c.priceDollars}` : "Send the request"}
+                    {c.priceDollars > 0 ? t("worldSponsorPress.soSendPay", { price: c.priceDollars }) : t("worldSponsorPress.soSendRequest")}
                   </button>
                 </div>
               ) : null}
@@ -377,12 +378,12 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
 
       {buySecret ? (
         <DeskCard isLight={isLight} testId="world-shoutouts-embedded-checkout">
-          <p className={`text-sm font-bold ${strong}`}>Pay for your shoutout from {buyCreatorName}</p>
+          <p className={`text-sm font-bold ${strong}`}>{t("worldSponsorPress.soPayTitle", { name: buyCreatorName })}</p>
           <div className="mt-2">
             <EmbeddedSessionCheckout clientSecret={buySecret} />
           </div>
           <button type="button" className={`${chipBtn(isLight)} mt-2`} onClick={() => setBuySecret(null)}>
-            Close — nothing is charged until you finish paying
+            {t("worldSponsorPress.soPayClose")}
           </button>
         </DeskCard>
       ) : null}
@@ -391,62 +392,62 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
 
       {/* Your own selling settings — the scope's named rail. */}
       <DeskCard isLight={isLight} testId="world-shoutouts-settings">
-        <p className={`text-sm font-bold ${strong}`}>Sell your own shoutouts</p>
+        <p className={`text-sm font-bold ${strong}`}>{t("worldSponsorPress.soSellTitle")}</p>
         {isGuest ? (
           <p className={`mt-1 text-sm ${muted}`}>
-            Sign in to open your own shoutout sales — browsing and booking above work without an account, like the website&rsquo;s fan page.
+            {t("worldSponsorPress.soSellGuestNote")}
           </p>
         ) : settings === undefined ? (
-          <p className={`mt-1 text-sm ${muted}`}>Loading your settings…</p>
+          <p className={`mt-1 text-sm ${muted}`}>{t("worldSponsorPress.soSettingsLoading")}</p>
         ) : (
           <>
             <p className={`mt-1 text-sm ${muted}`}>
               {settings
                 ? settings.accepting
-                  ? `You're on the board at $${settings.priceDollars} with a ${settings.turnaroundDays}-day turnaround. You receive ${100 - SHOUTOUT_PLATFORM_FEE_PCT}% of each sale — the flat ${SHOUTOUT_PLATFORM_FEE_PCT}% platform fee comes out of your side.`
-                  : "Your settings are saved but you're set to not accepting, so you don't show on the board."
-                : "You're not selling shoutouts yet — set a price (0 makes them free) and switch accepting on to join the board."}
+                  ? t("worldSponsorPress.soSettingsAccepting", { price: settings.priceDollars, days: settings.turnaroundDays, keep: 100 - SHOUTOUT_PLATFORM_FEE_PCT, fee: SHOUTOUT_PLATFORM_FEE_PCT })
+                  : t("worldSponsorPress.soSettingsNotAccepting")
+                : t("worldSponsorPress.soSettingsNone")}
             </p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <input
                 value={settingsDraft.displayName}
                 onChange={(e) => setS({ displayName: e.target.value })}
-                placeholder="Display name fans see"
+                placeholder={t("worldSponsorPress.soDisplayNamePlaceholder")}
                 maxLength={60}
                 className={inputCls(isLight)}
                 data-testid="world-shoutouts-settings-name"
-                aria-label="Display name"
+                aria-label={t("shoutouts.displayNameLabel")}
               />
               <div className="flex gap-2">
                 <input
                   value={settingsDraft.priceDollars}
                   onChange={(e) => setS({ priceDollars: e.target.value })}
-                  placeholder="Price $"
+                  placeholder={t("worldSponsorPress.soPricePlaceholder")}
                   inputMode="decimal"
                   className={inputCls(isLight)}
                   data-testid="world-shoutouts-settings-price"
-                  aria-label="Price in dollars"
+                  aria-label={t("worldSponsorPress.soPriceAria")}
                 />
                 <input
                   value={settingsDraft.turnaroundDays}
                   onChange={(e) => setS({ turnaroundDays: e.target.value })}
-                  placeholder="Days"
+                  placeholder={t("worldSponsorPress.soDaysPlaceholder")}
                   inputMode="numeric"
                   className={`${inputCls(isLight)} w-24`}
                   data-testid="world-shoutouts-settings-days"
-                  aria-label="Turnaround days"
+                  aria-label={t("worldSponsorPress.soDaysAria")}
                 />
               </div>
             </div>
             <textarea
               value={settingsDraft.guidelines}
               onChange={(e) => setS({ guidelines: e.target.value })}
-              placeholder="Guidelines for fans — what you'll record, what you won't (optional)"
+              placeholder={t("worldSponsorPress.soSettingsGuidelinesPlaceholder")}
               maxLength={1000}
               rows={2}
               className={`${inputCls(isLight)} mt-2`}
               data-testid="world-shoutouts-settings-guidelines"
-              aria-label="Guidelines"
+              aria-label={t("shoutouts.guidelinesLabel")}
             />
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
@@ -457,7 +458,7 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                 data-testid="world-shoutouts-settings-accepting"
                 onClick={() => setS({ accepting: !settingsDraft.accepting })}
               >
-                {settingsDraft.accepting ? "Accepting requests" : "Not accepting"}
+                {settingsDraft.accepting ? t("worldSponsorPress.soAccepting") : t("worldSponsorPress.soNotAccepting")}
               </button>
               <button
                 type="button"
@@ -466,7 +467,7 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                 disabled={busy !== null || !shoutoutSettingsDraftReady(settingsDraft)}
                 onClick={() => void saveSettings()}
               >
-                {busy === "settings" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Save settings
+                {busy === "settings" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} {t("worldSponsorPress.soSaveSettings")}
               </button>
             </div>
             {settingsNote ? <p className={`mt-2 ${noteCls}`}>{settingsNote}</p> : null}
