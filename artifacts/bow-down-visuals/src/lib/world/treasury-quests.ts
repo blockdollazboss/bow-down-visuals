@@ -345,7 +345,12 @@ export function historyTotalVb(entries: TreasuryHistoryEntry[]): number {
 /** The ledger row's plain name for an entry kind. Quest entries
  *  name the quest (via its display key, resolved by the renderer);
  *  drops and crates name themselves. */
-export function ledgerEntryKindLabel(kind: TreasuryHistoryEntry["kind"]): string {
+export function ledgerEntryKindLabel(
+  kind: TreasuryHistoryEntry["kind"],
+  labelFor?: (kind: TreasuryHistoryEntry["kind"]) => string | undefined,
+): string {
+  const mapped = labelFor?.(kind);
+  if (mapped !== undefined) return mapped;
   switch (kind) {
     case "quest":
       return "Quest reward";
@@ -382,9 +387,13 @@ export const DAILY_QUEST_TITLES: Record<string, string> = {
   "daily-marathon-cut": "Marathon Cut",
 };
 
-export function dailyQuestTitle(key: string | null): string {
-  if (!key) return ledgerEntryKindLabel("daily-quest");
-  return DAILY_QUEST_TITLES[key] ?? key;
+export function dailyQuestTitle(
+  key: string | null,
+  titleFor?: (key: string) => string | undefined,
+  labelFor?: (kind: TreasuryHistoryEntry["kind"]) => string | undefined,
+): string {
+  if (!key) return ledgerEntryKindLabel("daily-quest", labelFor);
+  return titleFor?.(key) ?? DAILY_QUEST_TITLES[key] ?? key;
 }
 
 /** A streak-milestone entry's name — the entry's key is the
@@ -392,11 +401,15 @@ export function dailyQuestTitle(key: string | null): string {
  *  the shelf names WHICH milestone it was ("7-day streak
  *  milestone"). A missing or unreadable key falls back to the kind
  *  label, never a blank row (dailyQuestTitle's discipline). */
-export function streakMilestoneTitle(key: string | null): string {
-  if (!key) return ledgerEntryKindLabel("streak-milestone");
+export function streakMilestoneTitle(
+  key: string | null,
+  format?: (days: number) => string,
+  labelFor?: (kind: TreasuryHistoryEntry["kind"]) => string | undefined,
+): string {
+  if (!key) return ledgerEntryKindLabel("streak-milestone", labelFor);
   const days = Number(key);
-  if (!Number.isInteger(days) || days <= 0) return ledgerEntryKindLabel("streak-milestone");
-  return `${days}-day streak milestone`;
+  if (!Number.isInteger(days) || days <= 0) return ledgerEntryKindLabel("streak-milestone", labelFor);
+  return format ? format(days) : `${days}-day streak milestone`;
 }
 
 /** The tutorial's name — the shelf's title for a "tutorial" entry
