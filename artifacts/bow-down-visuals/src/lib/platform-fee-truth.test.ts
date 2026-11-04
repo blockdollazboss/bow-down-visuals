@@ -169,6 +169,9 @@ describe("the other ruled fees: displays match their rails", () => {
     expect(rail).not.toContain("payment_intent_data");
     const door = readFe("components/tips/WatchTipDoor.tsx");
     expect(door).toContain("100% reaches the creator");
+  });
+});
+
 describe("bookings fee copy states the price basis (stack100 #34)", () => {
   it("BookArtistSection: 15% of the price, never 'of the fee'", () => {
     const section = readFe("components/artist/BookArtistSection.tsx");
