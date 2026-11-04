@@ -70,6 +70,7 @@ import lyricStoriesRouter from "./generate/lyric-stories";
 import coverInMotionRouter from "./generate/cover-in-motion";
 import songHarmonyRouter from "./generate/song-harmony";
 import beatRouter from "./generate/beat";
+import beatSamplesRouter from "./beat-samples";
 import musicExportRouter from "./music-export";
 import uploadWatermarkRouter from "./upload-watermark";
 import devRouter from "./dev";
@@ -497,6 +498,7 @@ router.use(songCoverRouter);
 router.use(humToSongRouter);
 router.use(songHarmonyRouter);
 router.use(beatRouter);
+router.use(beatSamplesRouter); // /api/beat-samples/* (durable Beat Studio sample library — presign/complete/list/get/delete on the R2 rail)
 router.use(musicExportRouter);
 router.use(uploadWatermarkRouter);
 router.use(devRouter);
