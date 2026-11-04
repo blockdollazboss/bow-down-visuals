@@ -203,6 +203,7 @@ const SavedDesk = lazy(() => import("@/components/world/native/SavedDesk").then(
 const SetlistDesk = lazy(() => import("@/components/world/native/SetlistDesk").then((m) => ({ default: m.SetlistDesk })));
 const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
 const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m) => ({ default: m.TeamDesk })));
+const TeamSeatsDesk = lazy(() => import("@/components/world/native/TeamSeatsDesk").then((m) => ({ default: m.TeamSeatsDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -1288,6 +1289,23 @@ export default function StationPanel(props: StationPanelProps) {
                     renders the rail's own tier gate. */}
                 <DeskDoor isLight={isLight}>
                   <TeamDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Team Seats (stack1500 parity, wave 4a follow-on):
+                    the Settings team-seats surface — account-level
+                    collaborator seats (manager / collaborator /
+                    viewer) on the /api/team-seats rails: permission
+                    matrix, invite by email + the shareable link,
+                    in-desk invite acceptance, role changes, revoke,
+                    and the seats held on other accounts read-only.
+                    FREE, like the 2D surface. COMPOSITION AT JOIN:
+                    the wave-4a TeamDesk (stack1500/parity-team) mounts
+                    at this same anchor on its branch; at join it lands
+                    immediately before this door, so the Team Workspace
+                    and Team Seats stand side by side in the My Studio
+                    stack. Members only, like the board itself and
+                    like the sign-in-gated /settings home. */}
+                <DeskDoor isLight={isLight}>
+                  <TeamSeatsDesk isLight={isLight} />
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
