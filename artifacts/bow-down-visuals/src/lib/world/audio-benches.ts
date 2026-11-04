@@ -427,9 +427,14 @@ const STEM_REMIX_MIN_LEVEL = 0;
 const STEM_REMIX_MAX_LEVEL = 2;
 
 /** A stem's key from the stems bench's result label ("Stem —
- *  vocals" → "vocals"). Labels in any other shape carry no key. */
-export function stemKeyOfResultLabel(label: string): string | null {
-  const m = /^Stem — (.+)$/.exec(label.trim());
+ *  vocals" → "vocals"). Labels in any other shape carry no key.
+ *  The label template is a parameter so a label composed in the
+ *  desk's active language still parses (the desk passes its
+ *  worldAudioDesk stemLabel template); the English template is
+ *  the default and parses every pre-i18n label. */
+export function stemKeyOfResultLabel(label: string, template: string = AUDIO_BENCH_RESULT_STRINGS_EN.stemLabel): string | null {
+  const parts = template.split("{{key}}").map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const m = new RegExp(`^${parts.join("(.+)")}$`).exec(label.trim());
   return m && m[1] ? m[1] : null;
 }
 
@@ -528,10 +533,59 @@ export interface AudioBenchResult {
   error: string | null;
 }
 
+/** The user-facing words `interpretAudioBenchResponse` composes:
+ *  result labels, failure lines, the LUFS measurement lines and
+ *  the stem-label template. The desk passes its active language's
+ *  bundle (worldAudioDesk catalog keys); every other caller gets
+ *  these English defaults, byte-identical to the pre-i18n copy. */
+export interface AudioBenchResultStrings {
+  jobFailed: string;
+  splitEmpty: string;
+  jobEmpty: string;
+  harmonyMix: string;
+  harmonyStem: string;
+  podcastEpisode: string;
+  voiceover: string;
+  instrumental: string;
+  vocalsOnly: string;
+  yourAudio: string;
+  finishedAudio: string;
+  /** Template carrying one {{key}} token — the stem's rail key. */
+  stemLabel: string;
+  /** Templates carrying one {{value}} token — the measurement. */
+  lufsIntegrated: string;
+  lufsRange: string;
+  lufsTruePeak: string;
+  lufsDuration: string;
+}
+
+export const AUDIO_BENCH_RESULT_STRINGS_EN: AudioBenchResultStrings = {
+  jobFailed: "The job didn't finish.",
+  splitEmpty: "The split finished but came back empty.",
+  jobEmpty: "The job finished but came back empty.",
+  harmonyMix: "Your song with harmony",
+  harmonyStem: "Harmony stem",
+  podcastEpisode: "Your podcast episode",
+  voiceover: "Your voiceover",
+  instrumental: "Instrumental",
+  vocalsOnly: "Vocals only",
+  yourAudio: "Your audio",
+  finishedAudio: "Your finished audio",
+  stemLabel: "Stem — {{key}}",
+  lufsIntegrated: "Integrated loudness: {{value}} LUFS",
+  lufsRange: "Loudness range: {{value}} LU",
+  lufsTruePeak: "True peak: {{value}} dB",
+  lufsDuration: "Duration: {{value}}s",
+};
+
+function fillToken(template: string, token: string, value: string): string {
+  return template.split(token).join(value);
+}
+
 const EMPTY: AudioBenchResult = { done: false, failed: false, urls: [], text: null, error: null };
 
-function failed(error: string | null): AudioBenchResult {
-  return { done: true, failed: true, urls: [], text: null, error: error ?? "The job didn't finish." };
+function failed(error: string | null, strings: AudioBenchResultStrings): AudioBenchResult {
+  return { done: true, failed: true, urls: [], text: null, error: error ?? strings.jobFailed };
 }
 
 /** Interpret one bench response (start, poll, or sync) in the
@@ -548,11 +602,13 @@ function failed(error: string | null): AudioBenchResult {
 export function interpretAudioBenchResponse(
   benchId: AudioBenchId,
   data: Record<string, unknown>,
+  strings: AudioBenchResultStrings = AUDIO_BENCH_RESULT_STRINGS_EN,
 ): AudioBenchResult {
   const status = typeof data["status"] === "string" ? (data["status"] as string) : null;
   if (status === "failed") {
     return failed(
       typeof data["error"] === "string" ? (data["error"] as string) : typeof data["message"] === "string" ? (data["message"] as string) : null,
+      strings,
     );
   }
   const str = (k: string): string | null =>
@@ -562,9 +618,9 @@ export function interpretAudioBenchResponse(
     case "harmony": {
       const mixed = str("mixedPreviewUrl");
       if (!mixed) return EMPTY;
-      const urls = [{ label: "Your song with harmony", url: mixed }];
+      const urls = [{ label: strings.harmonyMix, url: mixed }];
       const stem = str("harmonyStemUrl") ?? str("harmonyUrl");
-      if (stem) urls.push({ label: "Harmony stem", url: stem });
+      if (stem) urls.push({ label: strings.harmonyStem, url: stem });
       return { done: true, failed: false, urls, text: null, error: null };
     }
     case "podcast":
@@ -574,7 +630,7 @@ export function interpretAudioBenchResponse(
       return {
         done: true,
         failed: false,
-        urls: [{ label: benchId === "podcast" ? "Your podcast episode" : "Your voiceover", url }],
+        urls: [{ label: benchId === "podcast" ? strings.podcastEpisode : strings.voiceover, url }],
         text: benchId === "podcast" ? str("rssXml") : null,
         error: null,
       };
@@ -584,10 +640,10 @@ export function interpretAudioBenchResponse(
          truePeakDb, threshold, durationSec, targetLufs, ebur128 }. */
       if (typeof data["integratedLufs"] !== "number") return EMPTY;
       const lines = [
-        `Integrated loudness: ${data["integratedLufs"]} LUFS`,
-        typeof data["loudnessRangeLu"] === "number" ? `Loudness range: ${data["loudnessRangeLu"]} LU` : null,
-        typeof data["truePeakDb"] === "number" ? `True peak: ${data["truePeakDb"]} dB` : null,
-        typeof data["durationSec"] === "number" ? `Duration: ${data["durationSec"]}s` : null,
+        fillToken(strings.lufsIntegrated, "{{value}}", String(data["integratedLufs"])),
+        typeof data["loudnessRangeLu"] === "number" ? fillToken(strings.lufsRange, "{{value}}", String(data["loudnessRangeLu"])) : null,
+        typeof data["truePeakDb"] === "number" ? fillToken(strings.lufsTruePeak, "{{value}}", String(data["truePeakDb"])) : null,
+        typeof data["durationSec"] === "number" ? fillToken(strings.lufsDuration, "{{value}}", String(data["durationSec"])) : null,
       ].filter(Boolean);
       return { done: true, failed: false, urls: [], text: lines.join("\n"), error: null };
     }
@@ -606,26 +662,26 @@ export function interpretAudioBenchResponse(
     case "stems": {
       if (status !== "done") return EMPTY;
       const stems = data["stems"];
-      if (!stems || typeof stems !== "object") return failed("The split finished but came back empty.");
+      if (!stems || typeof stems !== "object") return failed(strings.splitEmpty, strings);
       const urls = Object.entries(stems as Record<string, unknown>)
         .filter(([, v]) => typeof v === "string" && v)
-        .map(([k, v]) => ({ label: `Stem — ${k}`, url: v as string }));
+        .map(([k, v]) => ({ label: fillToken(strings.stemLabel, "{{key}}", k), url: v as string }));
       return urls.length > 0
         ? { done: true, failed: false, urls, text: null, error: null }
-        : failed("The split finished but came back empty.");
+        : failed(strings.splitEmpty, strings);
     }
     case "vocal-removal": {
       if (status !== "done") return EMPTY;
       const urls: Array<{ label: string; url: string }> = [];
       const inst = str("instrumental") ?? str("instrumentalUrl");
       const vox = str("vocals") ?? str("vocalsUrl") ?? str("acapellaUrl");
-      if (inst) urls.push({ label: "Instrumental", url: inst });
-      if (vox) urls.push({ label: "Vocals only", url: vox });
+      if (inst) urls.push({ label: strings.instrumental, url: inst });
+      if (vox) urls.push({ label: strings.vocalsOnly, url: vox });
       const single = str("outputUrl") ?? str("url");
-      if (urls.length === 0 && single) urls.push({ label: "Your audio", url: single });
+      if (urls.length === 0 && single) urls.push({ label: strings.yourAudio, url: single });
       return urls.length > 0
         ? { done: true, failed: false, urls, text: null, error: null }
-        : failed("The job finished but came back empty.");
+        : failed(strings.jobEmpty, strings);
     }
     default: {
       /* master family + mastering + polish + tune + lufs-normalize
@@ -633,8 +689,8 @@ export function interpretAudioBenchResponse(
       if (status !== "done") return EMPTY;
       const url = str("outputUrl") ?? str("mp3Url") ?? str("wavUrl") ?? str("url");
       return url
-        ? { done: true, failed: false, urls: [{ label: "Your finished audio", url }], text: null, error: null }
-        : failed("The job finished but came back empty.");
+        ? { done: true, failed: false, urls: [{ label: strings.finishedAudio, url }], text: null, error: null }
+        : failed(strings.jobEmpty, strings);
     }
   }
 }

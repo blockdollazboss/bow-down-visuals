@@ -315,12 +315,28 @@ export function durationLabel(durationSec: number | null): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
+/** The analysis line's own words. The desk passes its active
+ *  language's bundle (worldAudioDesk keys); other callers get
+ *  these English defaults, byte-identical to the pre-i18n copy. */
+export interface DjAnalysisLineStrings {
+  notAnalyzed: string;
+  /** Template carrying one {{bpm}} token. */
+  bpm: string;
+  noTempoOrKey: string;
+}
+
+export const DJ_ANALYSIS_LINE_STRINGS_EN: DjAnalysisLineStrings = {
+  notAnalyzed: "Not analyzed yet",
+  bpm: "{{bpm}} BPM",
+  noTempoOrKey: "Analyzed — no tempo or key found",
+};
+
 /** The analyzed facts as one line — only facts that exist. */
-export function analysisLine(analysis: DjAnalysis | null): string {
-  if (!analysis) return "Not analyzed yet";
+export function analysisLine(analysis: DjAnalysis | null, strings: DjAnalysisLineStrings = DJ_ANALYSIS_LINE_STRINGS_EN): string {
+  if (!analysis) return strings.notAnalyzed;
   const parts: string[] = [];
-  if (analysis.bpm !== null) parts.push(`${Math.round(analysis.bpm)} BPM`);
+  if (analysis.bpm !== null) parts.push(strings.bpm.split("{{bpm}}").join(String(Math.round(analysis.bpm))));
   if (analysis.camelot) parts.push(analysis.camelot);
   if (analysis.keyLabel) parts.push(analysis.keyLabel);
-  return parts.length > 0 ? parts.join(" · ") : "Analyzed — no tempo or key found";
+  return parts.length > 0 ? parts.join(" · ") : strings.noTempoOrKey;
 }

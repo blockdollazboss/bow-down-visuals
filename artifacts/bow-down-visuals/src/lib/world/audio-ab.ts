@@ -138,10 +138,11 @@ export function abAfterLabelForBench(benchId: AudioBenchId): string | null {
 export function abComparableOutput(
   benchId: AudioBenchId,
   result: AudioBenchResult,
+  harmonyLabel = "Your song with harmony",
 ): { label: string; url: string } | null {
   if (!AB_COMPARABLE_BENCHES.includes(benchId)) return null;
   if (benchId === "harmony") {
-    return result.urls.find((u) => u.label === "Your song with harmony") ?? null;
+    return result.urls.find((u) => u.label === harmonyLabel) ?? null;
   }
   return result.urls[0] ?? null;
 }

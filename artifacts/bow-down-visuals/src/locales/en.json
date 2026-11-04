@@ -15960,7 +15960,7 @@
     "aiTagsBtn": "AI tags · {{cost}} Bucs",
     "aiTagsCreditsNote": "Not enough Visual Bucs for AI tags — it costs {{cost}}. Top up at the Treasury; nothing was charged.",
     "aiTagsRunFailed": "The tag suggester couldn't run — try again.",
-    "aiTagsUnreadable": "The tag suggester's answer couldn't be read — if Visual Bucs were charged they were put back, and any Bucs left on the suggestion are still yours. Try again.",
+    "aiTagsUnreadable": "The suggester answered in a shape this desk can't read — the rail refunds failed generations; if Bucs left your balance, the refund lands on its own.",
     "analysisIncomplete": "Analysis came back incomplete — try again.",
     "analysisNoTempoOrKey": "Analyzed — no tempo or key found",
     "analyzeAllNew": "Analyze all new ({{count}})",
