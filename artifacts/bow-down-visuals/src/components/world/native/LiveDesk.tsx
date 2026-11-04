@@ -4,7 +4,7 @@ import {
   Radio, Square, Loader2, Video, VideoOff, KeyRound, RefreshCw, Ban, Copy, Check,
   Eye, Trophy, UserPlus, Trash2, ArrowUpCircle, ArrowDownCircle, UserX, Send,
   LogOut, Link2, ShieldCheck, CalendarPlus, CalendarClock, Clapperboard, Pencil,
-  Gamepad2, Users, X, ImagePlus,
+  Gamepad2, Users, X, ImagePlus, Camera, Mic, Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeLoadingState, NativeEmptyState } from "@/components/world/native";
@@ -69,7 +69,11 @@ import {
   BACKGROUND_MODE_OPTIONS, BACKGROUND_QUALITY_OPTIONS,
   fineTuneSlidersForMode, engineKindLabel, engineFallbackNote, engineDownFromStatus,
   backdropTileActive,
+  CAMERA_EFFECT_OPTIONS, VOICE_EFFECT_OPTIONS, NOISE_CANCELLATION_OPTIONS,
+  NOISE_CANCELLATION_DEFAULT, CAMERA_VOICE_OPENING_NOTE,
+  noiseHeldNote, voiceEffectHeldNote, noiseStatusLine, deviceSwitchingAvailable,
 } from "@/lib/world/live-desk";
+import type { NoiseCancellationLevel } from "@/lib/stream-kit/voice-isolator";
 
 /* ─── Live Wave I (stack-100 #85–#87) ───────────────────────────────
    The Go Live studio, its guests & backstage, and the guest door —
@@ -116,7 +120,20 @@ import {
      same store the 2D studio reads and writes. The scene kit's
      per-source chroma key is NOT this — it rides the stage
      compositor, which has no in-world instance; it stays a named
-     follow-on in the seam, never a second keyer here. */
+     follow-on in the seam, never a second keyer here.
+
+   Live Wave IV (stack-100 #93) extends the studio desk once more:
+   - Camera & voice: the changer follow-ons wave III named —
+     camera-effect presets, noise cancellation + voice effects,
+     camera + mic switching and the mirror — on the SAME changer
+     the Behind-me card owns. Picks made before the camera starts
+     are held and ride into the kit's construction config exactly
+     like BroadcastStudio's; live picks drive the kit's own
+     setCameraEffect / setNoiseCancellation / setVoiceEffect /
+     switchCamera / switchMicrophone / setMirror. The isolator's
+     live status speaks in the card (onNoiseStatus), and device
+     switching reads unavailable with its reason when this browser
+     exposes no device lists — never a dead picker. */
 
 function useToken() {
   const { getAccessToken } = useAuth();
@@ -399,6 +416,97 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
     await changerRef.current?.setQuality(q).catch(() => undefined);
   }
 
+  /* ── #93 Camera & voice — the changer's follow-ons, carried ───────
+     BroadcastStudio's rack on the SAME changer the desk owns: the
+     held picks below are state first (they ride into the kit's
+     construction config at start, exactly like the page's), and
+     every live pick drives the kit's own method — setCameraEffect,
+     setNoiseCancellation / setVoiceEffect on its VoiceIsolator
+     chain, switchCamera / switchMicrophone, setMirror. No World-
+     only shadow setting exists anywhere here. */
+  const [camFx, setCamFx] = useState<string>("none");
+  const [ncLevel, setNcLevel] = useState<NoiseCancellationLevel>(NOISE_CANCELLATION_DEFAULT);
+  const [voiceFx, setVoiceFx] = useState<string>("none");
+  const [mirror, setMirror] = useState(false);
+  const [cvNote, setCvNote] = useState<string>(CAMERA_VOICE_OPENING_NOTE);
+  const [cameraId, setCameraId] = useState("");
+  const [micId, setMicId] = useState("");
+  const [cameras, setCameras] = useState<Array<{ deviceId: string; label: string }>>([]);
+  const [mics, setMics] = useState<Array<{ deviceId: string; label: string }>>([]);
+  const [devicesError, setDevicesError] = useState<string | null>(null);
+
+  /* The device lists ride the kit's own enumeration. Labels are
+     populated after permission, so the lists load on mount AND
+     again once the camera starts. When this browser exposes no
+     device lists at all, the kit says UNSUPPORTED — the card then
+     shows the reason and no selects (deviceSwitchingAvailable). */
+  const loadDevices = useCallback(async () => {
+    try {
+      const [cams, microphones] = await Promise.all([
+        BackgroundChanger.listCameras(),
+        BackgroundChanger.listMicrophones(),
+      ]);
+      setCameras(cams);
+      setMics(microphones);
+      setDevicesError(null);
+    } catch (err) {
+      setDevicesError(
+        err instanceof BackgroundChangerError
+          ? err.message
+          : "This browser does not expose media devices.",
+      );
+    }
+  }, []);
+
+  useEffect(() => { void loadDevices(); }, [loadDevices]);
+
+  function pickCamFx(id: string) {
+    setCamFx(id);
+    changerRef.current?.setCameraEffect(id);
+  }
+
+  async function pickNcLevel(level: NoiseCancellationLevel) {
+    setNcLevel(level);
+    const changer = changerRef.current;
+    if (!changer) { setCvNote(noiseHeldNote(level)); return; }
+    await changer.setNoiseCancellation(level).catch((err) => {
+      setCvNote(err instanceof BackgroundChangerError ? err.message : "Noise cancellation couldn't be changed on this device.");
+    });
+  }
+
+  async function pickVoiceFx(id: string) {
+    setVoiceFx(id);
+    const changer = changerRef.current;
+    if (!changer) { setCvNote(voiceEffectHeldNote(id)); return; }
+    await changer.setVoiceEffect(id).catch((err) => {
+      setCvNote(err instanceof BackgroundChangerError ? err.message : "That voice effect couldn't be applied on this device.");
+    });
+  }
+
+  async function pickCamera(deviceId: string) {
+    setCameraId(deviceId);
+    const changer = changerRef.current;
+    if (!changer) return;
+    await changer.switchCamera(deviceId || undefined).catch((err) => {
+      setCvNote(err instanceof BackgroundChangerError ? err.message : "That camera couldn't be switched to — check it is still connected.");
+    });
+  }
+
+  async function pickMic(deviceId: string) {
+    setMicId(deviceId);
+    const changer = changerRef.current;
+    if (!changer) return;
+    await changer.switchMicrophone(deviceId || undefined).catch((err) => {
+      setCvNote(err instanceof BackgroundChangerError ? err.message : "That microphone couldn't be switched to — check it is still connected.");
+    });
+  }
+
+  function pickMirror() {
+    const next = !mirror;
+    setMirror(next);
+    changerRef.current?.setMirror(next);
+  }
+
   const loadStatus = useCallback(async () => {
     try {
       const res = await fetch(LIVE_STATUS_PATH, { headers: await authHeaders() });
@@ -458,6 +566,15 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
           quality: bgQuality,
           fineTune,
           audio: true,
+          /* #93: the Camera & voice picks held in the card ride
+             into the kit's config, exactly like BroadcastStudio's —
+             a pick made with the camera off is live from the first
+             frame, and the isolator's status speaks into the card. */
+          noiseCancellation: ncLevel,
+          voiceEffect: voiceFx,
+          cameraEffect: camFx,
+          mirror,
+          onNoiseStatus: (s) => { const line = noiseStatusLine(s); if (line) setCvNote(line); },
           onEngineStatus: (kind) => {
             setEngineKind(kind);
             const c = changerRef.current;
@@ -472,7 +589,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
         });
       }
       const changer = changerRef.current;
-      await changer.start();
+      await changer.start(cameraId || undefined);
       const feed = changer.getStream();
       if (!feed) throw new Error("The camera kit produced no feed.");
       camRef.current = feed;
@@ -491,6 +608,13 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
           setBgNote("That background couldn't be loaded — the Gold Stage is behind you instead. Your pick is still saved in the panel.");
         }
       }
+      /* #93: permission is granted now, so the device lists carry
+         their real labels; and the voice chain's live truth (the
+         isolator's own status — Max's ML fallback included) is the
+         card's note, never the wanted level dressed up. */
+      void loadDevices();
+      const nsLine = noiseStatusLine(changer.getNoiseStatus());
+      if (nsLine) setCvNote(nsLine);
       setPhase("camera");
     } catch (err) {
       setNote(
@@ -838,6 +962,121 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
                 </div>
               </div>
             )}
+          </LiveCard>
+
+          {/* #93 Camera & voice — BroadcastStudio's rack on the same
+              changer: effects on the picture, cleaning + effects on
+              the voice, the camera + mic you choose, and the mirror.
+              Every control drives the kit the Behind-me card owns. */}
+          <LiveCard isLight={isLight} testId="world-live-camera-voice">
+            <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
+              <Sparkles className="h-4 w-4 text-[#d4af37]" /> Camera &amp; voice
+            </p>
+            <p className={`mt-1 text-xs ${muted}`}>
+              The 2D studio&rsquo;s camera kit, right here: an effect on your picture, cleaning and effects on
+              your voice, and the camera and microphone you choose. Everything applies live — and picks you make
+              before starting are live from the first frame.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Camera and microphone">
+              {deviceSwitchingAvailable(devicesError !== null) ? (
+                <>
+                  <label className="flex min-w-[160px] flex-1 items-center gap-2 text-xs">
+                    <Camera className="h-4 w-4 shrink-0 opacity-50" />
+                    <select
+                      value={cameraId}
+                      onChange={(e) => void pickCamera(e.target.value)}
+                      className={`${selectCls(isLight)} w-auto flex-1`}
+                      aria-label="Camera"
+                      data-testid="world-live-camera-select"
+                    >
+                      <option value="">Default camera</option>
+                      {cameras.map((c) => (
+                        <option key={c.deviceId} value={c.deviceId}>{c.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex min-w-[160px] flex-1 items-center gap-2 text-xs">
+                    <Mic className="h-4 w-4 shrink-0 opacity-50" />
+                    <select
+                      value={micId}
+                      onChange={(e) => void pickMic(e.target.value)}
+                      className={`${selectCls(isLight)} w-auto flex-1`}
+                      aria-label="Microphone"
+                      data-testid="world-live-mic-select"
+                    >
+                      <option value="">Default microphone</option>
+                      {mics.map((m) => (
+                        <option key={m.deviceId} value={m.deviceId}>{m.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              ) : (
+                <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-devices-unavailable">
+                  Camera and microphone switching isn&rsquo;t available here — {devicesError} Your default camera and microphone are used.
+                </p>
+              )}
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={mirror}
+                  aria-label="Mirror my view"
+                  onClick={pickMirror}
+                  className={`relative h-6 w-10 shrink-0 rounded-full transition-colors bdv-touch-target ${mirror ? "bg-[#d4af37]" : isLight ? "bg-[#7A5A12]/30" : "bg-white/15"}`}
+                  data-testid="world-live-mirror"
+                >
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-all ${mirror ? "left-[18px]" : "left-0.5"}`} />
+                </button>
+                Mirror my view
+              </label>
+            </div>
+            <p className={`mt-4 text-xs font-bold uppercase tracking-wider ${muted}`}>Camera effects</p>
+            <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Camera effect presets">
+              {CAMERA_EFFECT_OPTIONS.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  aria-pressed={camFx === e.id}
+                  onClick={() => pickCamFx(e.id)}
+                  className={camFx === e.id ? goldBtn : chipBtn(isLight)}
+                  data-testid={`world-live-camfx-${e.id}`}
+                >
+                  {e.label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label="Noise cancellation level">
+              <span className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Noise Cancellation</span>
+              {NOISE_CANCELLATION_OPTIONS.map(({ level, label }) => (
+                <button
+                  key={level}
+                  type="button"
+                  aria-pressed={ncLevel === level}
+                  onClick={() => void pickNcLevel(level)}
+                  className={ncLevel === level ? goldBtn : chipBtn(isLight)}
+                  data-testid={`world-live-nc-${level}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Voice effect presets">
+              <span className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Voice Effects</span>
+              {VOICE_EFFECT_OPTIONS.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  aria-pressed={voiceFx === e.id}
+                  onClick={() => void pickVoiceFx(e.id)}
+                  className={voiceFx === e.id ? goldBtn : chipBtn(isLight)}
+                  data-testid={`world-live-fx-${e.id}`}
+                >
+                  {e.label}
+                </button>
+              ))}
+            </div>
+            <p className={`mt-3 text-sm ${muted}`} role="status" data-testid="world-live-cv-note">{cvNote}</p>
           </LiveCard>
 
           <IngestKeySection isLight={isLight} />
