@@ -597,8 +597,10 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
             </p>
             <p className={`mt-1 text-sm ${subCls}`}>
               The Team Workspace — a shared Visual Buc pool, member roles and shared
-              vaults — comes with the Shot Caller tier and up. Plans live at the
-              Plans desk in the Treasury.
+              vaults — unlocks at Shot Caller (★4) and up. Shot Caller is an earned
+              Creator Rank, never a plan you can buy: rank points come from
+              publishing work, completed exports, followers, streams, tips, sales
+              and paid memberships — ★4 takes 300 points.
             </p>
           </div>
         </NativeCard>
@@ -669,8 +671,8 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
             <NativeCard isLight={isLight} title="Create a team">
               <div data-testid="world-team-create">
                 <p className={`text-sm ${subCls}`}>
-                  Included with Shot Caller ($199/mo). Pool your Visual Bucs, share
-                  artist vaults, and create together.
+                  Included with Shot Caller (★4) — the earned Creator Rank. Pool
+                  your Visual Bucs, share artist vaults, and create together.
                 </p>
                 {list && list.teams.length > 0 ? (
                   <div className="mt-3 flex flex-col gap-1.5">
