@@ -139,7 +139,10 @@ export function ThemeKitPanel({
           },
         }),
       });
-      if (!res.ok) throw new Error(`download failed (${res.status})`);
+      if (!res.ok) {
+        const json = (await res.json().catch(() => null)) as unknown;
+        throw new Error(apiErrorMessage(json, "That download didn't build — try again in a moment."));
+      }
       const blob = await res.blob();
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -150,8 +153,8 @@ export function ThemeKitPanel({
       a.remove();
       URL.revokeObjectURL(href);
       setDone(kind);
-    } catch {
-      setError("That download hit a snag — try again in a moment.");
+    } catch (err) {
+      setError(plainErrorText(err, "That download hit a snag — try again in a moment."));
     } finally {
       setBusy(null);
     }

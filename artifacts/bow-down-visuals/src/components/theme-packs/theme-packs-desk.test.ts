@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const desk = read("./ThemePacksDesk.tsx");
+const kitPanel = read("./ThemeKitPanel.tsx");
 const settings = read("../../pages/settings.tsx");
 const main = read("../../main.tsx");
 const themeToggle = read("../ThemeToggle.tsx");
@@ -103,6 +104,18 @@ describe("device delivery — the pack reaches the actual phone + computer", () 
 
   it("locked packs keep their device packs locked too", () => {
     expect(desk).toContain("Device packs unlock with the pack.");
+  });
+
+  it("device download failures surface the server's own words, not a bare snag (QC-200 #11)", () => {
+    // Both fetch sites translate the server's error body at the throw
+    // point, and the render point passes it through plainErrorText —
+    // the generic snag survives only as the fallback.
+    expect(desk).toContain("apiErrorMessage(json,");
+    expect(desk).toContain("plainErrorText(");
+    expect(desk).not.toContain("render failed (${res.status})");
+    expect(desk).not.toContain("zip failed (${zipRes.status})");
+    expect(kitPanel).toContain("apiErrorMessage(json,");
+    expect(kitPanel).not.toContain("download failed (${res.status})");
   });
 });
 
