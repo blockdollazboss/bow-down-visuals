@@ -71,6 +71,10 @@ const JOINED = Object.values(ALL_SOURCES).join("\n");
 const en = readJson("../../locales/en.json");
 const enNs = (en[NS] ?? {}) as Record<string, string>;
 const enKeys = Object.keys(enNs).sort();
+const CATALOGS: Record<string, Record<string, string>> = {};
+for (const loc of LOCALES) {
+  CATALOGS[loc] = (readJson(`../../locales/${loc}.json`)[NS] ?? {}) as Record<string, string>;
+}
 
 const MONEY_KEYS = [
   "cardsPerCard",
@@ -256,16 +260,14 @@ describe("Commerce stands extraction (unit 41)", () => {
 describe("Commerce stands catalog parity (unit 41)", () => {
   it("all 10 locales carry exactly the extracted key set", () => {
     for (const loc of LOCALES) {
-      const cat = readJson(`../../locales/${loc}.json`);
-      expect(Object.keys(cat[NS] ?? {}).sort(), loc).toEqual(enKeys);
+      expect(Object.keys(CATALOGS[loc]!).sort(), loc).toEqual(enKeys);
     }
   });
 
   it("no locale's value is empty or an untranslated copy of the key name", () => {
     for (const loc of LOCALES) {
-      const cat = readJson(`../../locales/${loc}.json`);
       for (const key of enKeys) {
-        const value = cat[NS][key];
+        const value = CATALOGS[loc]![key];
         expect(typeof value, `${loc}.${key}`).toBe("string");
         expect(value.trim().length, `${loc}.${key}`).toBeGreaterThan(0);
         expect(value, `${loc}.${key}`).not.toBe(key);
@@ -275,9 +277,8 @@ describe("Commerce stands catalog parity (unit 41)", () => {
 
   it("interpolation tokens survive identically in every locale, key for key", () => {
     for (const loc of LOCALES) {
-      const cat = readJson(`../../locales/${loc}.json`);
       for (const key of enKeys) {
-        expect(tokensOf(cat[NS][key]), `${loc}.${key}`).toEqual(tokensOf(enNs[key]));
+        expect(tokensOf(CATALOGS[loc]![key]!), `${loc}.${key}`).toEqual(tokensOf(enNs[key]!));
       }
     }
   });
@@ -287,8 +288,7 @@ describe("Commerce stands catalog parity (unit 41)", () => {
     for (const key of MONEY_KEYS) {
       expect(enNs[key], `en missing money key ${key}`).toBeDefined();
       for (const loc of LOCALES) {
-        const cat = readJson(`../../locales/${loc}.json`);
-        expect(cat[NS][key], `${loc}.${key}`).toBe(enNs[key]);
+        expect(CATALOGS[loc]![key], `${loc}.${key}`).toBe(enNs[key]);
       }
     }
   });
