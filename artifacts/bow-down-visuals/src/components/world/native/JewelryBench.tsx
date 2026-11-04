@@ -1,5 +1,6 @@
 import { apiErrorMessage } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   Calculator, CheckCircle2, Download, FileBox, Gem, Loader2, MessageCircle,
@@ -54,9 +55,9 @@ function useAuthHeaders() {
   };
 }
 
-const money = (n: number) => "$" + Math.round(n).toLocaleString();
-
 export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
+  const money = (n: number) => "$" + Math.round(n).toLocaleString(i18n.language);
   const authHeaders = useAuthHeaders();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -139,12 +140,11 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
     return (
       <NativeCard isLight={isLight}>
         <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-          The Jewelry Bench works on your own account — guests can look around the palace, but this
-          bench only opens for members.{" "}
+          {t("worldCommerceStands.jewelryGuestBefore")}{" "}
           <Link href="/login" className="font-bold text-[#d4af37] underline underline-offset-2">
-            Sign in
+            {t("worldCommerceStands.jewelrySignIn")}
           </Link>{" "}
-          and the bench is yours, right here in the Atelier.
+          {t("worldCommerceStands.jewelryGuestAfter")}
         </p>
       </NativeCard>
     );
@@ -171,7 +171,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
   const onLogoPicked = (f: File | undefined) => {
     if (!f) return;
     if (f.size > 10 * 1024 * 1024) {
-      setError("That logo is over 10 MB — pick a smaller file.");
+      setError(t("worldCommerceStands.jewelryLogoTooBig"));
       return;
     }
     setLogoFile(f);
@@ -188,7 +188,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
       const blob = await res.blob();
       onLogoPicked(new File([blob], "logo.png", { type: blob.type || "image/png" }));
     } catch {
-      setError("That logo couldn't be fetched — upload the file instead.");
+      setError(t("worldCommerceStands.jewelryLogoFetchFailed"));
     }
   };
 
@@ -217,22 +217,22 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
       if (!res) return; /* declined the confirm — nothing charged */
       const data: unknown = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        setError("Out of Visual Bucs — top up and the bench is ready again.");
+        setError(t("worldCommerceStands.jewelryOutOfBucs"));
         return;
       }
       if (!res.ok) {
-        setError(apiErrorMessage(data, "The preview couldn't be made — a failed make is not charged. Try again."));
+        setError(apiErrorMessage(data, t("worldCommerceStands.jewelryPreviewFailed")));
         return;
       }
       const url = parseJewelryDesignUrl(data);
       if (!url) {
-        setError("The bench answered without a preview. Try again.");
+        setError(t("worldCommerceStands.jewelryPreviewNoAnswer"));
         return;
       }
       setPreviewUrl(url);
       refreshProfile();
     } catch {
-      setError("The jewelry bench didn't answer. Try again.");
+      setError(t("worldCommerceStands.jewelryBenchNoAnswer"));
     } finally {
       setPreviewBusy(false);
     }
@@ -256,22 +256,22 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
       if (!res) return;
       const data: unknown = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        setError("Out of Visual Bucs — top up and the bench is ready again.");
+        setError(t("worldCommerceStands.jewelryOutOfBucs"));
         return;
       }
       if (!res.ok) {
-        setError(apiErrorMessage(data, "The manufacturing file couldn't be built. Try again."));
+        setError(apiErrorMessage(data, t("worldCommerceStands.jewelryStlFailed")));
         return;
       }
       const info = parseJewelryStl(data);
       if (!info) {
-        setError("The bench answered without a file. Try again.");
+        setError(t("worldCommerceStands.jewelryStlNoAnswer"));
         return;
       }
       setStlInfo(info);
       refreshProfile();
     } catch {
-      setError("The jewelry bench didn't answer. Try again.");
+      setError(t("worldCommerceStands.jewelryBenchNoAnswer"));
     } finally {
       setStlBusy(false);
     }
@@ -300,7 +300,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
       if (!parsed) throw new Error("estimate");
       setEstimate(parsed);
     } catch {
-      setError("The estimate couldn't be worked out. Try again.");
+      setError(t("worldCommerceStands.jewelryEstimateFailed"));
     } finally {
       setEstimateBusy(false);
     }
@@ -330,15 +330,15 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
       }
       const data: unknown = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        setConsultMsgs((m) => [...m, { role: "assistant", content: "Out of Visual Bucs — top up and the consultant is ready again." }]);
+        setConsultMsgs((m) => [...m, { role: "assistant", content: t("worldCommerceStands.jewelryConsultOutOfBucs") }]);
         return;
       }
       if (!res.ok) throw new Error("consult");
       const reply = parseJewelryConsultReply(data);
-      setConsultMsgs((m) => [...m, { role: "assistant", content: reply ?? "My fins slipped — could you ask that again?" }]);
+      setConsultMsgs((m) => [...m, { role: "assistant", content: reply ?? t("worldCommerceStands.jewelryConsultFallback") }]);
       refreshProfile();
     } catch {
-      setConsultMsgs((m) => [...m, { role: "assistant", content: "The consultant didn't answer — a failed answer is not charged. Ask again." }]);
+      setConsultMsgs((m) => [...m, { role: "assistant", content: t("worldCommerceStands.jewelryConsultNoAnswer") }]);
     } finally {
       setConsultBusy(false);
     }
@@ -358,14 +358,14 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
   return (
     <div className="space-y-3" data-testid="world-jewelry-bench">
       {catalogState === "loading" ? (
-        <NativeCard isLight={isLight} title="Jewelry bench">
-          <NativeLoadingState isLight={isLight} message="Opening the jewelry bench…" />
+        <NativeCard isLight={isLight} title={t("worldCommerceStands.jewelryBenchTitle")}>
+          <NativeLoadingState isLight={isLight} message={t("worldCommerceStands.jewelryLoading")} />
         </NativeCard>
       ) : catalogState === "failed" || !catalog ? (
-        <NativeCard isLight={isLight} title="Jewelry bench">
+        <NativeCard isLight={isLight} title={t("worldCommerceStands.jewelryBenchTitle")}>
           <NativeErrorState
             isLight={isLight}
-            message="The jewelry bench wouldn't open — the studio's catalog didn't answer."
+            message={t("worldCommerceStands.jewelryFailed")}
             onRetry={() => setCatalogTick((n) => n + 1)}
           />
         </NativeCard>
@@ -375,7 +375,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
             <p className="px-1 text-xs font-semibold text-red-400" data-testid="world-jewelry-error">{error}</p>
           ) : null}
 
-          <NativeCard isLight={isLight} title="1 · Your logo">
+          <NativeCard isLight={isLight} title={t("worldCommerceStands.jewelryStep1Title")}>
             <div className="space-y-3">
               <button
                 type="button"
@@ -383,12 +383,12 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
                 className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#d4af37]/40 bg-[#d4af37]/5 px-4 py-6 transition hover:border-[#d4af37]"
               >
                 {logoPreview ? (
-                  <img src={logoPreview} alt="Your logo" className="max-h-36 object-contain" />
+                  <img src={logoPreview} alt={t("worldCommerceStands.jewelryLogoAlt")} className="max-h-36 object-contain" />
                 ) : (
                   <>
                     <Upload className="h-8 w-8 text-[#d4af37]" />
-                    <span className={`text-sm ${strong}`}>Upload your logo</span>
-                    <span className={`text-xs ${muted}`}>PNG, JPG or WebP, up to 10 MB</span>
+                    <span className={`text-sm ${strong}`}>{t("worldCommerceStands.jewelryUploadLogo")}</span>
+                    <span className={`text-xs ${muted}`}>{t("worldCommerceStands.jewelryUploadFormats")}</span>
                   </>
                 )}
               </button>
@@ -402,7 +402,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
               />
               {hubLogos.length > 0 && !logoPreview ? (
                 <div>
-                  <p className={`mb-2 text-[11px] font-bold uppercase tracking-wider ${muted}`}>Or use a logo you already made</p>
+                  <p className={`mb-2 text-[11px] font-bold uppercase tracking-wider ${muted}`}>{t("worldCommerceStands.jewelryUseMadeLogo")}</p>
                   <div className="flex flex-wrap gap-2">
                     {hubLogos.slice(0, 6).map((l) => (
                       <button key={l.id} type="button" onClick={() => void pickHubLogo(l.url)} className="h-14 w-14 overflow-hidden rounded-xl border border-[#d4af37]/40 transition hover:border-[#d4af37]" title={l.label}>
@@ -414,23 +414,23 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
               ) : null}
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setCategory("jewelry")} className={`${optBtn(category === "jewelry")} text-center`} data-testid="world-jewelry-category-jewelry">
-                  <Gem className="mx-auto mb-1 h-5 w-5 text-[#d4af37]" /> Jewelry
+                  <Gem className="mx-auto mb-1 h-5 w-5 text-[#d4af37]" /> {t("worldCommerceStands.jewelryCategoryJewelry")}
                 </button>
                 <button type="button" onClick={() => setCategory("apparel")} className={`${optBtn(category === "apparel")} text-center`} data-testid="world-jewelry-category-apparel">
-                  <Shirt className="mx-auto mb-1 h-5 w-5 text-[#d4af37]" /> Apparel
+                  <Shirt className="mx-auto mb-1 h-5 w-5 text-[#d4af37]" /> {t("worldCommerceStands.jewelryCategoryApparel")}
                 </button>
               </div>
             </div>
           </NativeCard>
 
-          <NativeCard isLight={isLight} title="2 · Design it">
+          <NativeCard isLight={isLight} title={t("worldCommerceStands.jewelryStep2Title")}>
             {category === "jewelry" ? (
               <div className="space-y-3" data-testid="world-jewelry-design-jewelry">
                 {([
-                  ["pieces", "Piece", jOpts.piece, (v: string) => setJOpts({ ...jOpts, piece: v })],
-                  ["metals", "Metal", jOpts.metal, (v: string) => setJOpts({ ...jOpts, metal: v })],
-                  ["stones", "Stones", jOpts.stone, (v: string) => setJOpts({ ...jOpts, stone: v })],
-                  ["styles", "Style", jOpts.style, (v: string) => setJOpts({ ...jOpts, style: v })],
+                  ["pieces", t("worldCommerceStands.jewelryPiece"), jOpts.piece, (v: string) => setJOpts({ ...jOpts, piece: v })],
+                  ["metals", t("worldCommerceStands.jewelryMetal"), jOpts.metal, (v: string) => setJOpts({ ...jOpts, metal: v })],
+                  ["stones", t("worldCommerceStands.jewelryStones"), jOpts.stone, (v: string) => setJOpts({ ...jOpts, stone: v })],
+                  ["styles", t("worldCommerceStands.jewelryStyle"), jOpts.style, (v: string) => setJOpts({ ...jOpts, style: v })],
                 ] as const).map(([list, label, value, set]) => (
                   <div key={list}>
                     <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-wider ${muted}`}>{label}</p>
@@ -443,20 +443,20 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
                 ))}
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-[#d4af37]/25 px-3 py-2 bdv-touch-target">
                   <span className={`inline-flex items-center gap-2 text-sm font-semibold ${strong}`}>
-                    <Nfc className="h-4 w-4 text-[#d4af37]" /> NFC chip pocket
+                    <Nfc className="h-4 w-4 text-[#d4af37]" /> {t("worldCommerceStands.jewelryNfcPocket")}
                   </span>
                   <input type="checkbox" checked={jOpts.nfc} onChange={(e) => setJOpts({ ...jOpts, nfc: e.target.checked })} className="h-5 w-5 accent-[#d4af37]" />
                 </label>
                 {jOpts.nfc ? (
-                  <input aria-label="NFC link" className={inputCls} value={jOpts.nfcUrl} onChange={(e) => setJOpts({ ...jOpts, nfcUrl: e.target.value })} placeholder="The link the chip opens — https://your-business-card.com/you" />
+                  <input aria-label={t("worldCommerceStands.jewelryNfcLinkAria")} className={inputCls} value={jOpts.nfcUrl} onChange={(e) => setJOpts({ ...jOpts, nfcUrl: e.target.value })} placeholder={t("worldCommerceStands.jewelryNfcLinkPlaceholder")} />
                 ) : null}
-                <textarea aria-label="Design notes" className={inputCls} rows={2} value={jOpts.notes} onChange={(e) => setJOpts({ ...jOpts, notes: e.target.value })} placeholder="Design notes (optional)" />
+                <textarea aria-label={t("worldCommerceStands.jewelryNotesAria")} className={inputCls} rows={2} value={jOpts.notes} onChange={(e) => setJOpts({ ...jOpts, notes: e.target.value })} placeholder={t("worldCommerceStands.jewelryNotesPlaceholder")} />
               </div>
             ) : (
               <div className="space-y-3" data-testid="world-jewelry-design-apparel">
                 {([
-                  ["apparel", "Garment", aOpts.product, (v: string) => setAOpts({ ...aOpts, product: v })],
-                  ["decoMethods", "Decoration", aOpts.deco, (v: string) => setAOpts({ ...aOpts, deco: v })],
+                  ["apparel", t("worldCommerceStands.jewelryGarment"), aOpts.product, (v: string) => setAOpts({ ...aOpts, product: v })],
+                  ["decoMethods", t("worldCommerceStands.jewelryDecoration"), aOpts.deco, (v: string) => setAOpts({ ...aOpts, deco: v })],
                 ] as const).map(([list, label, value, set]) => (
                   <div key={list}>
                     <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-wider ${muted}`}>{label}</p>
@@ -468,71 +468,71 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
                   </div>
                 ))}
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <input aria-label="Garment color" className={inputCls} value={aOpts.color} onChange={(e) => setAOpts({ ...aOpts, color: e.target.value })} placeholder="Garment color" />
+                  <input aria-label={t("worldCommerceStands.jewelryColorAria")} className={inputCls} value={aOpts.color} onChange={(e) => setAOpts({ ...aOpts, color: e.target.value })} placeholder={t("worldCommerceStands.jewelryColorPlaceholder")} />
                   <label className="block">
-                    <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wider ${muted}`}>Units for the estimate</span>
-                    <input aria-label="Units" type="number" min={1} max={1000} className={inputCls} value={qty} onChange={(e) => setQty(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
+                    <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wider ${muted}`}>{t("worldCommerceStands.jewelryUnitsLabel")}</span>
+                    <input aria-label={t("worldCommerceStands.jewelryUnitsAria")} type="number" min={1} max={1000} className={inputCls} value={qty} onChange={(e) => setQty(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
                   </label>
                 </div>
-                <textarea aria-label="Design notes" className={inputCls} rows={2} value={aOpts.notes} onChange={(e) => setAOpts({ ...aOpts, notes: e.target.value })} placeholder="Design notes (optional)" />
+                <textarea aria-label={t("worldCommerceStands.jewelryNotesAria")} className={inputCls} rows={2} value={aOpts.notes} onChange={(e) => setAOpts({ ...aOpts, notes: e.target.value })} placeholder={t("worldCommerceStands.jewelryNotesPlaceholder")} />
               </div>
             )}
           </NativeCard>
 
-          <NativeCard isLight={isLight} title="3 · Preview & files">
+          <NativeCard isLight={isLight} title={t("worldCommerceStands.jewelryStep3Title")}>
             <div className="space-y-3">
               <div className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-2xl border border-[#d4af37]/30 bg-black/60">
                 {previewBusy ? (
-                  <span className="inline-flex items-center gap-2 text-sm text-[#e8c86a]"><Loader2 className="h-5 w-5 animate-spin" /> Casting your preview…</span>
+                  <span className="inline-flex items-center gap-2 text-sm text-[#e8c86a]"><Loader2 className="h-5 w-5 animate-spin" /> {t("worldCommerceStands.jewelryCastingPreview")}</span>
                 ) : previewUrl ? (
-                  <img src={previewUrl} alt="Your design preview" className="h-full w-full object-cover" />
+                  <img src={previewUrl} alt={t("worldCommerceStands.jewelryPreviewAlt")} className="h-full w-full object-cover" />
                 ) : (
-                  <p className={`px-6 text-center text-sm ${muted}`}>Your preview stands here — generate it and see the piece before anyone casts it.</p>
+                  <p className={`px-6 text-center text-sm ${muted}`}>{t("worldCommerceStands.jewelryPreviewEmpty")}</p>
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
                 <button type="button" data-testid="world-jewelry-preview" onClick={() => void generatePreview()} disabled={previewBusy || !logoFile} className={goldBtn}>
-                  <Sparkles className="h-4 w-4" /> {previewBusy ? "Casting…" : `${previewUrl ? "Regenerate" : "Generate"} preview — ${catalog.previewCreditCost} Visual Bucs`}
+                  <Sparkles className="h-4 w-4" /> {previewBusy ? t("worldCommerceStands.jewelryCasting") : t("worldCommerceStands.jewelryPreviewCost", { action: previewUrl ? t("worldCommerceStands.jewelryRegenerate") : t("worldCommerceStands.jewelryGenerate"), cost: catalog.previewCreditCost })}
                 </button>
                 {category === "jewelry" ? (
                   <button type="button" data-testid="world-jewelry-stl" onClick={() => void exportStl()} disabled={stlBusy || !logoFile} className={goldBtn}>
-                    <FileBox className="h-4 w-4" /> {stlBusy ? "Building…" : `Export manufacturing STL — ${catalog.stlCreditCost} Visual Bucs`}
+                    <FileBox className="h-4 w-4" /> {stlBusy ? t("worldCommerceStands.jewelryBuilding") : t("worldCommerceStands.jewelryStlCost", { cost: catalog.stlCreditCost })}
                   </button>
                 ) : null}
               </div>
-              {!logoFile ? <p className={`text-xs ${muted}`}>Add your logo in step 1 first — the bench works from it.</p> : null}
+              {!logoFile ? <p className={`text-xs ${muted}`}>{t("worldCommerceStands.jewelryNeedLogo")}</p> : null}
               {category === "apparel" && previewUrl ? (
                 <a href={previewUrl} download="logo-apparel-preview.png" className={goldBtn}>
-                  <Download className="h-4 w-4" /> Download the print file
+                  <Download className="h-4 w-4" /> {t("worldCommerceStands.jewelryDownloadPrint")}
                 </a>
               ) : null}
               {stlInfo ? (
                 <div className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/5 p-3" data-testid="world-jewelry-stl-info">
-                  <p className={`inline-flex items-center gap-2 text-sm font-bold ${strong}`}><CheckCircle2 className="h-4 w-4 text-emerald-400" /> Manufacturing file ready</p>
+                  <p className={`inline-flex items-center gap-2 text-sm font-bold ${strong}`}><CheckCircle2 className="h-4 w-4 text-emerald-400" /> {t("worldCommerceStands.jewelryStlReady")}</p>
                   <p className={`mt-1 text-xs ${muted}`}>
-                    {stlInfo.facetCount.toLocaleString()} facets · {stlInfo.widthMm} × {stlInfo.heightMm} mm · {stlInfo.weightG} g {stlInfo.metal.split(" ")[0]} · NFC pocket {stlInfo.nfcPocket ? "carved" : "not carved"}
+                    {t("worldCommerceStands.jewelryStlInfoLine", { facets: stlInfo.facetCount.toLocaleString(i18n.language), width: stlInfo.widthMm, height: stlInfo.heightMm, weight: stlInfo.weightG, metal: stlInfo.metal.split(" ")[0], pocket: stlInfo.nfcPocket ? t("worldCommerceStands.jewelryPocketCarved") : t("worldCommerceStands.jewelryPocketNotCarved") })}
                   </p>
                   {stlInfo.pieceNote ? <p className={`mt-1 text-xs ${muted}`}>{stlInfo.pieceNote}</p> : null}
                   <a href={stlInfo.url} download="logo-pendant.stl" className={`${goldBtn} mt-2`}>
-                    <Download className="h-4 w-4" /> Download STL
+                    <Download className="h-4 w-4" /> {t("worldCommerceStands.jewelryDownloadStl")}
                   </a>
                 </div>
               ) : null}
             </div>
           </NativeCard>
 
-          <NativeCard isLight={isLight} title="4 · What it costs to make">
+          <NativeCard isLight={isLight} title={t("worldCommerceStands.jewelryStep4Title")}>
             <div className="space-y-3">
               <button type="button" data-testid="world-jewelry-estimate" onClick={() => void loadEstimate()} disabled={estimateBusy} className={goldBtn}>
-                <Calculator className="h-4 w-4" /> {estimateBusy ? "Crunching…" : "Work out the estimate — free"}
+                <Calculator className="h-4 w-4" /> {estimateBusy ? t("worldCommerceStands.jewelryCrunching") : t("worldCommerceStands.jewelryEstimateFree")}
               </button>
               {estimate ? (
                 <div data-testid="world-jewelry-estimate-result">
                   <div className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 p-4 text-center">
-                    <p className={`text-[11px] font-bold uppercase tracking-wider ${muted}`}>Estimated total</p>
+                    <p className={`text-[11px] font-bold uppercase tracking-wider ${muted}`}>{t("worldCommerceStands.jewelryEstimatedTotal")}</p>
                     <p className="mt-1 text-2xl font-black text-[#d4af37]">{money(estimate.totalLowUSD)} – {money(estimate.totalHighUSD)}</p>
                     <p className={`mt-1 text-xs ${muted}`}>
-                      Turnaround {estimate.turnaroundWeeks[0]}–{estimate.turnaroundWeeks[1]} weeks{category === "apparel" ? ` · ${qty} units` : ""}
+                      {t("worldCommerceStands.jewelryTurnaround", { low: estimate.turnaroundWeeks[0], high: estimate.turnaroundWeeks[1], unitsPart: category === "apparel" ? t("worldCommerceStands.jewelryEstimateUnits", { qty }) : "" })}
                     </p>
                   </div>
                   <div className="mt-2 space-y-1.5">
@@ -545,21 +545,20 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
                   </div>
                   {estimate.disclaimer ? <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">{estimate.disclaimer}</p> : null}
                   <button type="button" onClick={() => void loadEstimate()} className={`mt-2 inline-flex items-center gap-1.5 text-xs font-bold bdv-touch-target ${strong}`}>
-                    <RefreshCw className="h-3.5 w-3.5 text-[#d4af37]" /> Recalculate
+                    <RefreshCw className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldCommerceStands.jewelryRecalculate")}
                   </button>
                 </div>
               ) : null}
             </div>
           </NativeCard>
 
-          <NativeCard isLight={isLight} title="5 · Get it made & NFC">
+          <NativeCard isLight={isLight} title={t("worldCommerceStands.jewelryStep5Title")}>
             <div className="space-y-2">
               <p className={`text-sm ${muted}`}>
-                Ordering a finished piece runs through the Jewelry Shop — your design and estimate
-                travel with you, nothing is lost in transit.
+                {t("worldCommerceStands.jewelryShopIntro")}
               </p>
               <a href={JEWELRY_SHOP_PATH} target="_blank" rel="noreferrer" onClick={handToShop} data-testid="world-jewelry-shop-handoff" className={goldBtn}>
-                Carry this design to the Jewelry Shop
+                {t("worldCommerceStands.jewelryCarryToShop")}
               </a>
               {guideSectionsFor(guide, category).map((s) => (
                 <details key={s.title} className={`rounded-xl border ${isLight ? "border-[#C9A84C]/30" : "border-white/10"}`}>
@@ -569,32 +568,32 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
               ))}
               {category === "jewelry" ? (
                 <div className="rounded-xl border border-[#d4af37]/25 px-3 py-2">
-                  <p className={`inline-flex items-center gap-2 text-sm font-semibold ${strong}`}><Nfc className="h-4 w-4 text-[#d4af37]" /> NFC setup</p>
+                  <p className={`inline-flex items-center gap-2 text-sm font-semibold ${strong}`}><Nfc className="h-4 w-4 text-[#d4af37]" /> {t("worldCommerceStands.jewelryNfcSetup")}</p>
                   <ol className={`mt-1 list-decimal space-y-1 pl-5 text-sm ${muted}`}>
-                    <li>Buy a blank NFC tag or chip sized for the pocket{jOpts.nfc ? " carved into your piece" : ""}.</li>
-                    <li>Set its link{jOpts.nfcUrl ? <> — you chose <span className={strong}>{jOpts.nfcUrl}</span></> : " in step 2 above"}.</li>
-                    <li>Program it with a free NFC writer app, then lock it if the tap should be permanent.</li>
-                    <li>Seat the chip in the pocket — a tap now opens your link.</li>
+                    <li>{t("worldCommerceStands.jewelryNfcStep1", { carvedPart: jOpts.nfc ? t("worldCommerceStands.jewelryNfcCarvedPart") : "" })}</li>
+                    <li>{t("worldCommerceStands.jewelryNfcStep2Before")}{jOpts.nfcUrl ? <>{t("worldCommerceStands.jewelryNfcStep2Chosen")}<span className={strong}>{jOpts.nfcUrl}</span></> : t("worldCommerceStands.jewelryNfcStep2Fallback")}.</li>
+                    <li>{t("worldCommerceStands.jewelryNfcStep3")}</li>
+                    <li>{t("worldCommerceStands.jewelryNfcStep4")}</li>
                   </ol>
                 </div>
               ) : null}
             </div>
           </NativeCard>
 
-          <NativeCard isLight={isLight} title="Ask the bench consultant">
+          <NativeCard isLight={isLight} title={t("worldCommerceStands.jewelryConsultTitle")}>
             <div className="space-y-2">
               <p className={`text-sm ${muted}`}>
-                Metals, stones, sizing, care — the consultant knows the bench. {catalog.consultCreditCost} Visual Bucs a message, confirmed before it charges.
+                {t("worldCommerceStands.jewelryConsultIntro", { cost: catalog.consultCreditCost })}
               </p>
               {!consultOpen ? (
                 <button type="button" data-testid="world-jewelry-consult-open" onClick={() => setConsultOpen(true)} className={goldBtn}>
-                  <MessageCircle className="h-4 w-4" /> Talk to the consultant
+                  <MessageCircle className="h-4 w-4" /> {t("worldCommerceStands.jewelryTalkConsultant")}
                 </button>
               ) : (
                 <div data-testid="world-jewelry-consult">
                   <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
                     {consultMsgs.length === 0 ? (
-                      <p className={`text-sm ${muted}`}>Ask anything about the piece you're designing.</p>
+                      <p className={`text-sm ${muted}`}>{t("worldCommerceStands.jewelryConsultEmpty")}</p>
                     ) : (
                       consultMsgs.map((m, i) => (
                         <div key={i} className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${m.role === "user" ? "ml-auto bg-[#d4af37]/20 " + strong : isLight ? "bg-[#C9A84C]/10 text-[#2a1e07]" : "bg-white/5 text-white/80"}`}>
@@ -602,21 +601,21 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
                         </div>
                       ))
                     )}
-                    {consultBusy ? <p className={`inline-flex items-center gap-2 text-sm ${muted}`}><Loader2 className="h-4 w-4 animate-spin" /> Thinking…</p> : null}
+                    {consultBusy ? <p className={`inline-flex items-center gap-2 text-sm ${muted}`}><Loader2 className="h-4 w-4 animate-spin" /> {t("worldCommerceStands.jewelryThinking")}</p> : null}
                   </div>
                   <div className="flex gap-2">
                     <input
-                      aria-label="Ask the consultant"
+                      aria-label={t("worldCommerceStands.jewelryConsultAria")}
                       className={inputCls}
                       value={consultInput}
                       onChange={(e) => setConsultInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") void sendConsult(); }}
-                      placeholder="e.g. Will 14k hold a daily-wear pendant?"
+                      placeholder={t("worldCommerceStands.jewelryConsultPlaceholder")}
                     />
                     <button type="button" data-testid="world-jewelry-consult-send" onClick={() => void sendConsult()} disabled={consultBusy || !consultInput.trim()} className={goldBtn}>
-                      Send — {catalog.consultCreditCost} VB
+                      {t("worldCommerceStands.jewelryConsultSend", { cost: catalog.consultCreditCost })}
                     </button>
-                    <button type="button" aria-label="Close the consultant" onClick={() => setConsultOpen(false)} className="shrink-0 rounded-full border border-white/15 p-2 text-white/50 transition hover:text-white bdv-touch-box">
+                    <button type="button" aria-label={t("worldCommerceStands.jewelryConsultCloseAria")} onClick={() => setConsultOpen(false)} className="shrink-0 rounded-full border border-white/15 p-2 text-white/50 transition hover:text-white bdv-touch-box">
                       <X className="h-4 w-4" />
                     </button>
                   </div>
