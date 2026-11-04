@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 
 const read = (rel: string) => readFileSync(path.resolve(import.meta.dirname, rel), "utf8");
 
-const aiAudio = read("../pages/ai-audio.tsx");
+const aiAudio = read("../components/audio-studio/AiAudio.tsx");
 const panel = read("../components/beat-studio/BeatMidiPanel.tsx");
 const beatMidi = read("./beat-midi.ts");
 const webMidi = read("./web-midi.ts");

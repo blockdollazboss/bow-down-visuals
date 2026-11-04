@@ -21,17 +21,17 @@ import { LibrarySongPicker } from "@/components/audio-studio/LibrarySongPicker";
 
 /* The tab modules ride lazy doors (site-perf, stack1300): the
    studio renders exactly ONE tab at a time, so the other tabs'
-   weight — three whole sibling pages (ai-audio, voiceover,
-   podcast) plus the sounds finder and the tool panels — no
+   weight — the ai-audio and sounds modules, two sibling pages
+   (voiceover, podcast) and the tool panels — no
    longer rides /audio-studio's first load. Each tab chunk
    fetches on first selection and is cached for later switches.
    The in-file panels (Cleanup — the default tab — Stems,
    MixMaster) stay in the page chunk; the modal and the song
    picker stay static because in-file panels use them. */
-const AiAudio = lazy(() => import("@/pages/ai-audio"));
+const AiAudio = lazy(() => import("@/components/audio-studio/AiAudio"));
 const VoiceoverStudio = lazy(() => import("@/pages/voiceover"));
 const PodcastStudio = lazy(() => import("@/pages/podcast"));
-const ViralSoundFinder = lazy(() => import("@/pages/sounds"));
+const ViralSoundFinder = lazy(() => import("@/components/audio-studio/ViralSoundFinder"));
 const HumToSong = lazy(() => import("@/components/HumToSong").then((m) => ({ default: m.HumToSong })));
 const FinishMySong = lazy(() => import("@/components/audio-studio/FinishMySong").then((m) => ({ default: m.FinishMySong })));
 const RateMyMix = lazy(() => import("@/components/audio-studio/RateMyMix").then((m) => ({ default: m.RateMyMix })));

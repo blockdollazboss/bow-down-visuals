@@ -1,7 +1,7 @@
 /**
  * jewelry-bench — Stack-100 #74 pins.
  *
- * The Jewelry Bench is the Logo-to-Luxury Studio (pages/jewelry.tsx)
+ * The Jewelry Bench is the Logo-to-Luxury Studio (components/branding/JewelryStudio.tsx)
  * completed in-world: the catalog, prices, payloads and parsers mirror
  * the studio's own rails (routes/generate/jewelry.ts) — prices come
  * from GET /api/jewelry/status (registry figures only as the fallback

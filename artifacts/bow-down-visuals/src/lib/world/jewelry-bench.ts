@@ -2,7 +2,7 @@
  * jewelry-bench.ts — the Jewelry Bench's pure logic (Stack-100 #74).
  *
  * The Branding Atelier's missing desk. The 2D surface is a real tool —
- * the Logo-to-Luxury Studio (pages/jewelry.tsx, a tab of the branding
+ * the Logo-to-Luxury Studio (components/branding/JewelryStudio.tsx, a tab of the branding
  * kit hub): upload a logo → pick piece/metal/stone/style (or garment)
  * → AI design preview → manufacturing STL → free cost estimate →
  * get-it-made guide → NFC setup, with a paid-per-message consultant.

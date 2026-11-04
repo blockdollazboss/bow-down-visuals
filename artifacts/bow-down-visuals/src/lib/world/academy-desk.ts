@@ -37,7 +37,7 @@ import type { AcademyCourse, AcademyLevel } from "../academy-courses";
      Academy's.
    - Guides (the guides tab): the page's own index copy — the three
      guide cards (LLC / Copyright / Academy) rendered from the same
-     i18n keys pages/guides.tsx renders. The tab itself carries no
+     i18n keys components/courses/Guides.tsx renders. The tab itself carries no
      rail and no charge; the LLC and Copyright full guided flows
      are separate census items (next tier #23/#24), not this desk.
 
@@ -86,7 +86,7 @@ export type AcademyPlatform = (typeof ACADEMY_PLATFORMS)[number];
 
 /** The guides tab's three cards, in the 2D page's own order — the
  *  desk renders their copy from the same `guides.*` i18n keys
- *  pages/guides.tsx uses (name / tagline / description / badge /
+ *  components/courses/Guides.tsx uses (name / tagline / description / badge /
  *  bullet1..4). */
 export const ACADEMY_GUIDE_KEYS = ["llc", "copyright", "academy"] as const;
 export type AcademyGuideKey = (typeof ACADEMY_GUIDE_KEYS)[number];

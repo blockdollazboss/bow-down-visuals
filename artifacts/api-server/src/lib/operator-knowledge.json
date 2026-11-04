@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "0719bcacabccb79fab2ff43995b97848688dc15f",
+  "baseCommit": "315ec537f7102564ae4f13dc8790e3a3335be792",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -10,21 +10,21 @@
   "generatedAt": "2026-11-04",
   "counts": {
     "routesInApp": 245,
-    "pageFiles": 188,
-    "features": 252,
+    "pageFiles": 181,
+    "features": 251,
     "excludedRoutes": 74,
-    "excludedPageFiles": 35,
-    "pricedActions": 257,
+    "excludedPageFiles": 28,
+    "pricedActions": 256,
     "routeFileEndpoints": 0,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 252,
+    "withDescriptions": 251,
     "withoutDescriptions": 0,
     "serverRouteFiles": 431,
     "serverEndpoints": 1740,
-    "serverEndpointsVisible": 1079,
-    "serverFilesClassified": 99
+    "serverEndpointsVisible": 1077,
+    "serverFilesClassified": 100
   },
   "packs": [
     {
@@ -159,14 +159,6 @@
       "serverValue": 300,
       "serverSource": "artifacts/api-server/src/routes/wallpapers.ts",
       "registryValue": 300,
-      "agree": true
-    },
-    {
-      "constant": "CHAT_SPEAK_CREDITS",
-      "endpoint": "/api/chat/speak",
-      "serverValue": 100,
-      "serverSource": "artifacts/api-server/src/routes/chat-speak.ts",
-      "registryValue": 100,
       "agree": true
     }
   ],
@@ -7857,31 +7849,6 @@
       "prices": [],
       "description": "Your whole home business, one view. The written brief couldn’t be written just now — here are your numbers, straight from your business. A draft — you review and send it. Nothing goes out on its own.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"command.subtitle\" + artifacts/bow-down-visuals/src/locales/en.json \"command.brief_narrative_unavailable\" + artifacts/bow-down-visuals/src/locales/en.json \"command.brief_draft_note\"",
-      "nextSteps": []
-    },
-    {
-      "id": "spoken-replies",
-      "name": "Spoken Replies",
-      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
-      "path": "/dashboard",
-      "stage": "account",
-      "access": "members",
-      "pageFile": "artifacts/bow-down-visuals/src/pages/dashboard.tsx",
-      "component": null,
-      "endpoints": [
-        "/api/chat/speak",
-        "/api/chat/speak/status"
-      ],
-      "prices": [
-        {
-          "feature": "Spoken Reply",
-          "vb": 100,
-          "endpoint": "/api/chat/speak",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        }
-      ],
-      "description": "Thy Cheat Code can read his chat replies aloud in his own voice, right inside this chat: turn on spoken replies at the top of the chat, then tap the speak button on a reply to hear it out loud. Replays are free and a failed speak is refunded; while his voice is still being cast, nothing is charged.",
-      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
       "nextSteps": []
     },
     {
@@ -17809,16 +17776,6 @@
     },
     {
       "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/ai-audio.tsx",
-      "reason": "Legacy standalone page — route /ai-audio now redirects to /audio-studio?tab=aiaudio; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/branding-shop.tsx",
-      "reason": "Legacy standalone page — route /branding-shop now redirects to /branding-kit?tab=shop; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/broadcast.tsx",
       "reason": "Legacy standalone page — route /broadcast now redirects to /go-live; the live feature is covered by the target's knowledge entry."
     },
@@ -17849,23 +17806,8 @@
     },
     {
       "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/guides.tsx",
-      "reason": "Legacy standalone page — route /guides now redirects to /academy?tab=guides; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/hub.tsx",
-      "reason": "Legacy standalone page — route /hub now redirects to /create?panel=hub; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/intros-outros.tsx",
       "reason": "Legacy standalone page — route /intros-outros now redirects to /branding-kit?tab=intros; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/jewelry.tsx",
-      "reason": "Legacy standalone page — route /jewelry now redirects to /branding-kit?tab=jewelry; the live feature is covered by the target's knowledge entry."
     },
     {
       "kind": "pageFile",
@@ -17924,11 +17866,6 @@
     },
     {
       "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/shows.tsx",
-      "reason": "Legacy standalone page — route /shows now redirects to /go-live?tab=shows; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/song-and-video.tsx",
       "reason": "Legacy standalone page — route /song-and-video now redirects to /create?panel=song-video; the live feature is covered by the target's knowledge entry."
     },
@@ -17946,11 +17883,6 @@
       "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/songs/dj-set-prep.tsx",
       "reason": "Tab panel component (the DJ Sets tab) imported by the songs library page (pages/songs.tsx); not a route of its own."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/sounds.tsx",
-      "reason": "Legacy standalone page — route /sounds now redirects to /audio-studio?tab=sounds; the live feature is covered by the target's knowledge entry."
     },
     {
       "kind": "pageFile",
@@ -18165,8 +18097,15 @@
       {
         "file": "artifacts/api-server/src/routes/chat-speak.ts",
         "endpoints": 2,
-        "visible": 2,
-        "unseen": []
+        "visible": 0,
+        "unseen": [
+          "/api/chat/speak",
+          "/api/chat/speak/status"
+        ],
+        "classification": {
+          "surface": "operator",
+          "reason": "The operator's spoken-reply rail (speak + speak/status) behind the chat surface; no page of its own."
+        }
       },
       {
         "file": "artifacts/api-server/src/routes/chat-voice.ts",

@@ -110,7 +110,7 @@ export const BEAT_STEPS = 16;
 /** Allowed per-pattern lengths, in bars. */
 export const BEAT_PATTERN_BARS_OPTIONS = [1, 2, 4] as const;
 export type BeatPatternBars = (typeof BEAT_PATTERN_BARS_OPTIONS)[number];
-/** Drum tracks per pattern — matches TRACKS in pages/ai-audio.tsx. */
+/** Drum tracks per pattern — matches TRACKS in components/audio-studio/AiAudio.tsx. */
 export const BEAT_TRACK_COUNT = 9;
 
 /** Per-step velocity: a multiplier on the hit's gain. */

@@ -1,6 +1,6 @@
 /* ── Beat sound registry — what each sequencer track can play (W2-L2) ──
  * The sequencer's nine drum tracks used to be 100% synthesized Web Audio
- * (synthHit/noiseBurst in pages/ai-audio.tsx) with no file input anywhere:
+ * (synthHit/noiseBurst in components/audio-studio/AiAudio.tsx) with no file input anywhere:
  * a sample a creator made or downloaded could not be loaded onto a track.
  *
  * This module is the registry every sound flows through:
@@ -32,13 +32,13 @@
  */
 
 /** Drum categories — one per sequencer track, index-aligned with the
- *  TRACKS table in pages/ai-audio.tsx (kick … crash). */
+ *  TRACKS table in components/audio-studio/AiAudio.tsx (kick … crash). */
 export type BeatSoundKind =
   | "kick" | "snare" | "clap" | "chat" | "ohat"
   | "b808" | "perc" | "shk" | "crash";
 
 /** Track order — index i of a beat project grid/mixer/sound array is
- *  BEAT_TRACK_KINDS[i]. Mirrors TRACKS in pages/ai-audio.tsx. */
+ *  BEAT_TRACK_KINDS[i]. Mirrors TRACKS in components/audio-studio/AiAudio.tsx. */
 export const BEAT_TRACK_KINDS: BeatSoundKind[] = [
   "kick", "snare", "clap", "chat", "ohat", "b808", "perc", "shk", "crash",
 ];

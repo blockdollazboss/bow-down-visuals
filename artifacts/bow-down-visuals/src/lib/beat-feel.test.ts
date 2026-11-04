@@ -267,7 +267,7 @@ describe("live playback and the offline render agree", () => {
   });
 
   it("the page wires the same functions into both paths (source truth)", () => {
-    const page = read("../pages/ai-audio.tsx");
+    const page = read("../components/audio-studio/AiAudio.tsx");
     // timing offset: live adds it to `when`, render adds it to `tt`
     expect(page).toContain("when += humanizeStepOffsetSec(feelRef.current, patId, s, bpmRef.current)");
     expect(page).toContain("+ humanizeStepOffsetSec(feelRef.current, pid, si, bpmRef.current)");

@@ -81,7 +81,7 @@ describe("the dial is gone — source contract", () => {
   });
 
   it("the sequencer gate explains instead of granting", () => {
-    const aiAudio = read("../pages/ai-audio.tsx");
+    const aiAudio = read("../components/audio-studio/AiAudio.tsx");
     expect(aiAudio).not.toContain("setStars");
     expect(aiAudio).not.toContain("enableAdvanced");
     expect(aiAudio).toContain("gateStars >= 6");

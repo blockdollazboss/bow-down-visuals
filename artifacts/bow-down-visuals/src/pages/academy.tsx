@@ -18,7 +18,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
-import Guides from "@/pages/guides";
+import Guides from "@/components/courses/Guides";
 import TutorialsPanel from "@/components/TutorialsPanel";
 import MyCoursesPanel from "@/components/courses/MyCoursesPanel";
 

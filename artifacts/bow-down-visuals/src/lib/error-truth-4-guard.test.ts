@@ -91,7 +91,7 @@ describe("World BeatsDesk — template delete failure reaches the desk's error l
 });
 
 describe("branding-shop — store design actions fail out loud", () => {
-  const src = read("pages/branding-shop.tsx");
+  const src = read("components/branding/BrandingShop.tsx");
   const save = between(src, "async function saveToStore", "async function updateDesign");
   const upd = between(src, "async function updateDesign", "async function deleteDesign");
   const del = between(src, "async function deleteDesign", "async function orderIntent");

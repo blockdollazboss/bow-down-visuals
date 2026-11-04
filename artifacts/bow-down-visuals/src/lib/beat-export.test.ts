@@ -32,7 +32,7 @@ import {
 } from "@/lib/beat-mixer";
 
 /* The render's own track enumeration, in page order (TRACKS in
- * pages/ai-audio.tsx) — the page passes this same list at runtime. */
+ * components/audio-studio/AiAudio.tsx) — the page passes this same list at runtime. */
 const DRUM_IDS = ["kick", "snare", "clap", "chat", "ohat", "b808", "perc", "shk", "crash"];
 
 describe("stem enumeration", () => {

@@ -77,7 +77,7 @@ describe("A — jsPDF loads on the click, not the route", () => {
 
 describe("B — /create's mode panels ride lazy doors", () => {
   const doors = [
-    'import("./hub")',
+    'import("@/components/hub/HubModule")',
     'import("./make-song")',
     'import("./make-video")',
     'import("./song-and-video")',
@@ -95,7 +95,7 @@ describe("B — /create's mode panels ride lazy doors", () => {
   });
 
   it("no panel rides a static import anymore", () => {
-    expect(createPage).not.toContain('import HubModule from "./hub"');
+    expect(createPage).not.toContain('import { HubModule } from "@/components/hub/HubModule"');
     expect(createPage).not.toContain('import { MakeSongModule } from "./make-song"');
     expect(createPage).not.toContain('import { MakeVideoModule } from "./make-video"');
     expect(createPage).not.toContain('import { SongAndVideoModule } from "./song-and-video"');
@@ -118,11 +118,11 @@ describe("B — /create's mode panels ride lazy doors", () => {
 
 describe("C — /audio-studio's tab modules ride lazy doors", () => {
   const doors = [
-    'import("@/pages/ai-audio")',
+    'import("@/components/audio-studio/AiAudio")',
     'import("@/components/HumToSong")',
     'import("@/pages/voiceover")',
     'import("@/pages/podcast")',
-    'import("@/pages/sounds")',
+    'import("@/components/audio-studio/ViralSoundFinder")',
     'import("@/components/audio-studio/ArrangementStudio")',
     'import("@/components/audio-studio/FinishMySong")',
     'import("@/components/audio-studio/RateMyMix")',
@@ -138,11 +138,11 @@ describe("C — /audio-studio's tab modules ride lazy doors", () => {
   });
 
   it("no tab module rides a static import anymore", () => {
-    expect(audioStudio).not.toContain('import AiAudio from "@/pages/ai-audio"');
+    expect(audioStudio).not.toContain('import AiAudio from "@/components/audio-studio/AiAudio"');
     expect(audioStudio).not.toContain('import { HumToSong } from "@/components/HumToSong"');
     expect(audioStudio).not.toContain('import VoiceoverStudio from "@/pages/voiceover"');
     expect(audioStudio).not.toContain('import PodcastStudio from "@/pages/podcast"');
-    expect(audioStudio).not.toContain('import ViralSoundFinder from "@/pages/sounds"');
+    expect(audioStudio).not.toContain('import ViralSoundFinder from "@/components/audio-studio/ViralSoundFinder"');
   });
 
   it("the in-file panels and shared chrome stay in the page chunk", () => {
@@ -217,8 +217,8 @@ describe("F — /branding-kit's tab tools ride lazy doors", () => {
     'import("@/pages/logo-maker")',
     'import("@/pages/intros-outros")',
     'import("@/pages/stream-pack")',
-    'import("@/pages/branding-shop")',
-    'import("@/pages/jewelry")',
+    'import("@/components/branding/BrandingShop")',
+    'import("@/components/branding/JewelryStudio")',
     'import("@/components/photo/HeadshotStudio")',
     'import("@/components/wallpapers/WallpapersDesk")',
   ];
@@ -233,18 +233,18 @@ describe("F — /branding-kit's tab tools ride lazy doors", () => {
   it("the default brand tab stays static for an unchanged first paint", () => {
     expect(brandingKit).toContain('import { BrandKitPanel } from "@/components/branding/BrandKitPanel";');
     expect(brandingKit).not.toContain('import { LogoMakerTool } from "@/pages/logo-maker";');
-    expect(brandingKit).not.toContain('import BrandingShop from "@/pages/branding-shop";');
+    expect(brandingKit).not.toContain('import BrandingShop from "@/components/branding/BrandingShop";');
   });
 });
 
 describe("G — /go-live's off-console tabs ride lazy doors", () => {
   it("the four off-console roots sit behind lazy() doors", () => {
-    expect(goLive).toContain('import("@/pages/shows")');
+    expect(goLive).toContain('import("@/components/go-live/ShowFinder")');
     expect(goLive).toContain('import("@/pages/discord-bot")');
     expect(goLive).toContain('import("@/pages/gamers")');
     expect(goLive).toContain('import("@/components/go-live/StreamCopilotSection")');
     expect(goLive).toContain("<Suspense fallback={<LiveTabFallback />}>");
-    expect(goLive).not.toContain('import ShowFinder from "@/pages/shows";');
+    expect(goLive).not.toContain('import ShowFinder from "@/components/go-live/ShowFinder";');
     expect(goLive).not.toContain('import GamersHub from "@/pages/gamers";');
   });
 

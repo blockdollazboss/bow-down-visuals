@@ -100,7 +100,7 @@ describe("audioBufferToMp3 (real LAME encode)", () => {
 
 describe("lazy-encoder source pins", () => {
   const page = readFileSync(
-    path.resolve(import.meta.dirname, "../pages/ai-audio.tsx"),
+    path.resolve(import.meta.dirname, "../components/audio-studio/AiAudio.tsx"),
     "utf8",
   );
   const lib = readFileSync(

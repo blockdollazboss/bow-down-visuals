@@ -1,5 +1,5 @@
-import { apiErrorMessage, plainErrorText } from "../lib/api-error";
-import { matchesQuery } from "../lib/search-match";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
+import { matchesQuery } from "../../lib/search-match";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";

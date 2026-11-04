@@ -157,7 +157,7 @@ describe("PhotoCanvasEditor — a failed preset load is not 'No presets saved ye
 });
 
 describe("branding-shop — a failed designs load is not an empty store", () => {
-  const src = read("pages/branding-shop.tsx");
+  const src = read("components/branding/BrandingShop.tsx");
   const load = between(src, "async function loadStore()", "useEffect(() => {");
 
   it("the loader throws on a not-ok answer and sets the failure state", () => {

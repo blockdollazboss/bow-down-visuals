@@ -26,7 +26,7 @@ const DreamCollabPanel = lazy(() => import("@/components/create/DreamCollabPanel
 const LinkToHitPanel = lazy(() => import("@/components/create/LinkToHitPanel"));
 const CoverInMotionPanel = lazy(() => import("@/components/create/CoverInMotionPanel"));
 const SongAndVideoModule = lazy(() => import("./song-and-video").then((m) => ({ default: m.SongAndVideoModule })));
-const HubModule = lazy(() => import("./hub").then((m) => ({ default: m.HubModule })));
+const HubModule = lazy(() => import("@/components/hub/HubModule").then((m) => ({ default: m.HubModule })));
 const WallpapersDesk = lazy(() => import("@/components/wallpapers/WallpapersDesk").then((m) => ({ default: m.WallpapersDesk })));
 
 /* The panel area's loading frame: same stage, gold spinner — a
@@ -57,7 +57,7 @@ export { CreateRedirect };
    - The old URLs survive as query-preserving redirects (see App.tsx) so
      every existing link, deep link (?mode=inspo, ?tab=mashup&songA=&songB=,
      ?sound=…), and handoff keeps working.
-   - Tab pattern follows pages/branding-shop.tsx: mode from URLSearchParams,
+   - Tab pattern follows components/branding/BrandingShop.tsx: mode from URLSearchParams,
      t("create.modes.*") labels.
    - Inactive panels unmount — exactly like the old separate-page navigations,
      so each wizard's mount logic (draft restore, deep-link intake) runs fresh. */

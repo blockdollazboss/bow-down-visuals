@@ -51,7 +51,7 @@ interface Stream {
    copilot section fetch on first tab selection and are cached
    for later switches. The in-file GoLiveMain tab stays in the
    page chunk. */
-const ShowFinder = lazy(() => import("@/pages/shows"));
+const ShowFinder = lazy(() => import("@/components/go-live/ShowFinder"));
 const DiscordBotSetup = lazy(() => import("@/pages/discord-bot"));
 const GamersHub = lazy(() => import("@/pages/gamers"));
 const StreamCopilotSection = lazy(() => import("@/components/go-live/StreamCopilotSection"));

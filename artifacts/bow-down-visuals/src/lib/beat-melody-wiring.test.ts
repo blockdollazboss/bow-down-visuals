@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const read = (rel: string) => readFileSync(path.resolve(import.meta.dirname, rel), "utf8");
 
-const aiAudio = read("../pages/ai-audio.tsx");
+const aiAudio = read("../components/audio-studio/AiAudio.tsx");
 const roll = read("../components/beat-studio/BeatMelodyRoll.tsx");
 const midiSynth = read("./midi-synth.ts");
 const beatProject = read("./beat-project.ts");

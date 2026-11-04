@@ -377,7 +377,7 @@ describe("live vs offline render parity", () => {
   });
 
   it("ai-audio.tsx builds BOTH playback and the offline render from this one builder", () => {
-    const src = readFileSync(path.resolve(import.meta.dirname, "../pages/ai-audio.tsx"), "utf8");
+    const src = readFileSync(path.resolve(import.meta.dirname, "../components/audio-studio/AiAudio.tsx"), "utf8");
     const seqStart = src.indexOf("function SequencerTab");
     const seqEnd = src.indexOf("const bassRows", seqStart);
     expect(seqStart).toBeGreaterThan(-1);

@@ -4,7 +4,7 @@ import type { ShelfPlayInput } from "./shelf";
 /* ─── Audio Desk tabs (STACK-20 #18 — the Song Desk's tabs, docked) ──
    The Audio Desk was one flat panel: the quick bench + the full
    workbench. The website's sound toolkit — the Sample Pack builder
-   (pages/ai-audio.tsx's Samples tab), the member's own library, and
+   (components/audio-studio/AiAudio.tsx's Samples tab), the member's own library, and
    the stem splitter — never crossed over as tabs. This module is
    the pure seam for the three tabs the desk gains; every rail is
    the website's own, no parallel stores:

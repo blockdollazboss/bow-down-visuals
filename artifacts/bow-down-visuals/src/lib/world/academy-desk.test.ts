@@ -87,7 +87,7 @@ describe("rails + prices", () => {
   it("the guides shelf is the guides page's own three cards, in its order", () => {
     expect(ACADEMY_GUIDE_KEYS).toEqual(["llc", "copyright", "academy"]);
     expect(ACADEMY_GUIDE_BULLETS).toEqual([1, 2, 3, 4]);
-    const guidesPage = read("../../pages/guides.tsx");
+    const guidesPage = read("../../components/courses/Guides.tsx");
     expect(guidesPage).toContain('href: "/llc-guide"');
     expect(guidesPage).toContain('href: "/copyright"');
     expect(guidesPage).toContain('href: "/academy"');

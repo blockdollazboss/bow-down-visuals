@@ -1,5 +1,5 @@
 /* W2-L2 — sequencer wiring contract: the sound registry is actually
- * connected to pages/ai-audio.tsx — picker per track row, playback
+ * connected to components/audio-studio/AiAudio.tsx — picker per track row, playback
  * through playTrackHit in BOTH the live scheduler and the offline
  * render, project persistence of the assignments, the honest empty
  * bank section, and the reload fallback notice. Source-contract style
@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const page = readFileSync(
-  resolve(import.meta.dirname, "../pages/ai-audio.tsx"),
+  resolve(import.meta.dirname, "../components/audio-studio/AiAudio.tsx"),
   "utf8",
 );
 const project = readFileSync(resolve(import.meta.dirname, "./beat-project.ts"), "utf8");

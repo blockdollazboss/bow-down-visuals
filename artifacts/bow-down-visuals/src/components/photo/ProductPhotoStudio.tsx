@@ -19,7 +19,7 @@ import { r2List } from "@/lib/r2-storage";
    Custom prompt (full manual). Pure UI is free; only the generation call
    costs credits (credit confirmation via useConfirmedApi).
 
-   Docks into src/pages/branding-shop.tsx (studio tab) — this file is
+   Docks into src/components/branding/BrandingShop.tsx (studio tab) — this file is
    standalone; the host page mounts <ProductPhotoStudio />.
    ───────────────────────────────────────────────────────────────────────── */
 

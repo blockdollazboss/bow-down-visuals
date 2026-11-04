@@ -1,4 +1,4 @@
-/* W3b — pads/slicing/pack-load wiring contract for pages/ai-audio.tsx:
+/* W3b — pads/slicing/pack-load wiring contract for components/audio-studio/AiAudio.tsx:
  * the pad grid plays through the same playTrackHit seam as steps, the
  * slice argument rides BOTH scheduling call sites (live transport and
  * offline render — that sameness is what makes live, WAV and stems
@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const page = readFileSync(
-  resolve(import.meta.dirname, "../pages/ai-audio.tsx"),
+  resolve(import.meta.dirname, "../components/audio-studio/AiAudio.tsx"),
   "utf8",
 );
 const project = readFileSync(resolve(import.meta.dirname, "./beat-project.ts"), "utf8");

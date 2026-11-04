@@ -72,8 +72,8 @@ const CASES: Case[] = [
   { label: "brand-deals finder search", feFile: "pages/brand-deals.tsx", feConstant: "SEARCH_COST", apiFile: "routes/generate/brand-deals.ts", apiConstant: "BRAND_DEAL_CREDIT_COST", endpoint: "/api/brand-deals", expected: 200 },
   { label: "brand-deals outreach draft", feFile: "pages/brand-deals.tsx", feConstant: "OUTREACH_COST", apiFile: "routes/generate/brand-deals.ts", apiConstant: "BRAND_DEAL_OUTREACH_CREDIT_COST", endpoint: "/api/brand-deals/outreach", expected: 100 },
   { label: "pitch kit (the tangled case)", feFile: "pages/brand-deals.tsx", feConstant: "PITCH_KIT_COST", apiFile: "routes/generate/sponsorship-outreach.ts", apiConstant: "OUTREACH_CREDIT_COST", endpoint: "/api/outreach", expected: 200 },
-  { label: "show finder search", feFile: "pages/shows.tsx", feConstant: "SEARCH_COST", apiFile: "routes/generate/show-finder.ts", apiConstant: "SHOW_FINDER_CREDIT_COST", endpoint: "/api/show-finder", expected: 200 },
-  { label: "show finder pitch draft", feFile: "pages/shows.tsx", feConstant: "PITCH_COST", apiFile: "routes/generate/show-finder.ts", apiConstant: "SHOW_FINDER_PITCH_CREDIT_COST", endpoint: "/api/show-finder/pitch", expected: 100 },
+  { label: "show finder search", feFile: "components/go-live/ShowFinder.tsx", feConstant: "SEARCH_COST", apiFile: "routes/generate/show-finder.ts", apiConstant: "SHOW_FINDER_CREDIT_COST", endpoint: "/api/show-finder", expected: 200 },
+  { label: "show finder pitch draft", feFile: "components/go-live/ShowFinder.tsx", feConstant: "PITCH_COST", apiFile: "routes/generate/show-finder.ts", apiConstant: "SHOW_FINDER_PITCH_CREDIT_COST", endpoint: "/api/show-finder/pitch", expected: 100 },
   // ── The sweep ────────────────────────────────────────────────────
   { label: "fan decoder", feFile: "components/analytics-hub/FanDecoderSection.tsx", feConstant: "COST", apiFile: "routes/generate/fan-decoder.ts", apiConstant: "DECODE_CREDITS", expected: 100 },
   { label: "deverb", feFile: "components/audio/DeverbPanel.tsx", feConstant: "DEVERB_CREDIT_COST_VB", apiFile: "routes/generate/deverb.ts", apiConstant: "DEVERB_CREDIT_COST", endpoint: "/api/deverb", expected: 1000 },

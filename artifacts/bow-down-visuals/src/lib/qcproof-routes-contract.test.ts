@@ -374,7 +374,7 @@ describe("QC-200 routes contract — alias params land in the target's consumed 
   });
 
   it("AiAudio sub-tab consumes sub=beats (Q14), plus sfx/samples siblings", () => {
-    const src = readSrc("pages/ai-audio.tsx");
+    const src = readSrc("components/audio-studio/AiAudio.tsx");
     const tabs = unionMembers(src, /type AiAudioTab = ([^;]+);/);
     expect(tabs).toEqual(new Set(["beats", "samples", "sfx"]));
     expect(src).toContain('params.get("sub")');
@@ -400,7 +400,7 @@ describe("QC-200 routes contract — alias params land in the target's consumed 
   });
 
   it("BrandingShop consumes subtab=merch under the shop tab (Q104)", () => {
-    const src = readSrc("pages/branding-shop.tsx");
+    const src = readSrc("components/branding/BrandingShop.tsx");
     expect(src).toContain('q.get("subtab") === "merch"');
   });
 

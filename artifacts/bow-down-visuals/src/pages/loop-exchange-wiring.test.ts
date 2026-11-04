@@ -23,7 +23,7 @@ const read = (p: string) => readFileSync(join(SRC, p), "utf8");
 const panel = read("components/loop-exchange/LoopExchangePanel.tsx");
 const lib = read("lib/loop-exchange.ts");
 const beats = read("pages/beats.tsx");
-const sounds = read("pages/sounds.tsx");
+const sounds = read("components/audio-studio/ViralSoundFinder.tsx");
 const app = read("App.tsx");
 
 describe("loop exchange docking", () => {
