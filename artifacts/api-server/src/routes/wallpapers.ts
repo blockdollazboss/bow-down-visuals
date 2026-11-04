@@ -15,6 +15,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../lib/objectStorage";
 import { saveGeneration } from "../lib/save-generation";
+import { readSiteAsset } from "../lib/theme-kit-build";
 import { WALLPAPER_PRESETS, presetByKey, type WallpaperPreset } from "../lib/wallpaper-presets";
 import { stampImageWithDisclosure, stampVideoFileWithDisclosure } from "../lib/disclosure-metadata";
 import { aiDisclosureMetadataText, PROVENANCE_PLATFORM } from "../lib/provenance";
@@ -306,7 +307,50 @@ export function sanitizePackName(name?: string | null): string {
   return cleaned || "wallpaper-pack";
 }
 
+/* ── Site-asset resolution (QC-200 fix queue #11) ─────────────────────
+   The server must never fetch its OWN shipped assets over HTTP. The
+   theme-pack device desk sends the pack grounds and the logo lockups
+   as absolute URLs on the site's own origin; on the staging deploy
+   that origin sits behind the password gate (lib/staging-gate.ts),
+   which answers any cookie-less request 401 — and a server-side fetch
+   carries no cookie — so every device-set and single-size render died
+   at its first step ("Could not download source (401)") while the kit
+   rail, which reads the same art from disk, worked on the same deploy.
+   A URL whose path names a file in the shipped public tree resolves
+   from disk instead; genuinely external URLs (storage buckets,
+   creator art) still go over HTTP exactly as before. The hairpin
+   fetch was pure overhead in production too — this removes it there
+   as well. */
+
+/** The site-relative path a URL names, or null when the URL is
+ *  unparseable or its path could climb out of the asset roots once
+ *  joined onto them (the path is caller-supplied, so traversal-shaped
+ *  segments are refused outright rather than sanitized into place). */
+export function siteAssetPathForUrl(url: string): string | null {
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(new URL(url).pathname);
+  } catch {
+    return null;
+  }
+  if (pathname.includes("\\") || pathname.includes("\0")) return null;
+  const segments = pathname.split("/").filter((s) => s.length > 0);
+  if (segments.length === 0) return null;
+  if (segments.some((s) => s === ".." || s === ".")) return null;
+  return `/${segments.join("/")}`;
+}
+
+function siteAssetBytes(url: string): Buffer | null {
+  const path = siteAssetPathForUrl(url);
+  return path ? readSiteAsset(path) : null;
+}
+
 async function downloadToFile(url: string, dest: string): Promise<void> {
+  const local = siteAssetBytes(url);
+  if (local) {
+    await writeFile(dest, local);
+    return;
+  }
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
   if (!res.ok) throw new Error(`Could not download source (${res.status}).`);
   const buf = Buffer.from(await res.arrayBuffer());
@@ -315,6 +359,8 @@ async function downloadToFile(url: string, dest: string): Promise<void> {
 }
 
 async function downloadToBuffer(url: string): Promise<Buffer> {
+  const local = siteAssetBytes(url);
+  if (local) return local;
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
   if (!res.ok) throw new Error(`Could not download ${url} (${res.status}).`);
   const buf = Buffer.from(await res.arrayBuffer());
