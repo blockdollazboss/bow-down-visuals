@@ -381,6 +381,14 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // SETLIST_FLOW_CREDIT_COST (routes/generate/setlist.ts) — the
   // builder itself is free; only the AI flow suggestion charges.
   "/api/setlist/flow": { cost: 100, feature: "Setlist Flow Suggestion" },
+  // TOUR_PLANNER_CREDIT_COST (routes/generate/tour-planner.ts) —
+  // tour-date CRUD is free; only the AI routing + budget optimizer
+  // charges, under the ledger action "Tour Planner — AI routing +
+  // budget" (the registry feature carries the same words). Added
+  // stack1600 wave 4 so the in-World Tour desk reads its price
+  // from the registry — the /tour page hardcodes its badge today;
+  // the rail constant is the truth.
+  "/api/tour/optimize": { cost: 300, feature: "Tour Planner — AI routing + budget" },
   // LLC_GUIDE_CREDIT_COST (routes/generate/llc-guide.ts) — one
   // constant charges both the Q&A and the filing plan.
   "/api/llc-guide/ask": { cost: 100, feature: "LLC Guide Answer" },
