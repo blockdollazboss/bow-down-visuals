@@ -201,6 +201,17 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // wins on the rail. The live chat widget does NOT use this rail:
   // it posts to the free /api/free-chat.
   "/api/chat": { cost: 0, feature: "Chat Message (free)" },
+  // Spoken replies: mirrors CHAT_SPEAK_CREDITS in api-server
+  // routes/chat-speak.ts — the rail charges 100 per spoken reply
+  // (owner ruling, Oct 20, 2026: spoken replies cost a small Visual
+  // Bucs price each), charged before synthesis under an idempotency
+  // key; any provider or storage failure refunds in full and voids
+  // the key, so a failed speak nets zero. The drawer never reads its
+  // price from this row — it reads GET /api/chat/speak/status live —
+  // the row exists so the operator's knowledge base can quote the
+  // price (QC-200 fix #14: without it the operator denied the
+  // feature exists).
+  "/api/chat/speak": { cost: 100, feature: "Spoken Reply" },
   "/api/hook-studio": { cost: 100, feature: "Hook Studio" },
   "/api/virality-check": { cost: 200, feature: "Virality Pre-Flight Check" },
   "/api/analytics-hub/insights": { cost: 200, feature: "Growth Plan" },

@@ -271,3 +271,19 @@ describe("CREDIT_COSTS price-coherence backfill rows equal the rails' charges (2
     expect(CREDIT_COSTS["/api/ugc-ads/:id/generate"]?.cost).toBe(rail);
   });
 });
+
+describe("CREDIT_COSTS spoken-reply row equals the chat-speak rail (QC-200 #14)", () => {
+  // The chat drawer's speak button never reads its price from this
+  // registry — it reads GET /api/chat/speak/status live — but the
+  // operator's knowledge base quotes CREDIT_COSTS, and until this row
+  // existed the KB had no spoken-reply price to quote at all (the
+  // operator denied the feature exists, Sitting C Q159). The row
+  // mirrors the rail's CHAT_SPEAK_CREDITS default; this pin keeps
+  // registry and rail from drifting apart.
+  it("/api/chat/speak: registry == CHAT_SPEAK_CREDITS (100)", () => {
+    const rail = deriveServerConstant("routes/chat-speak.ts", "CHAT_SPEAK_CREDITS");
+    expect(rail).toBe(100);
+    expect(CREDIT_COSTS["/api/chat/speak"]?.cost).toBe(rail);
+    expect(CREDIT_COSTS["/api/chat/speak"]?.feature).toBe("Spoken Reply");
+  });
+});

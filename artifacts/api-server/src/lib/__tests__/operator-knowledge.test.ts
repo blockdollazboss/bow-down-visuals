@@ -1347,3 +1347,105 @@ describe("operator knowledge — Stack-28 KB integration", () => {
     expect(en.create.subtitle).toContain("ten ways to start");
   });
 });
+
+describe("operator knowledge — spoken replies (QC-200 fix #14)", () => {
+  /* Sitting C (Q159), live on staging: asked "Can you read your reply
+     out loud to me?", the operator answered "I don't have a 'spoken
+     reply' feature" and offered Voiceover instead. The rail was never
+     missing — routes/chat-speak.ts has charged 100 VB per spoken
+     reply since the owner's Oct 20, 2026 ruling — but the knowledge
+     base carried no trace of it: CREDIT_COSTS had no /api/chat/speak
+     row (so no priced action existed for it) and no feature entry
+     named the surface, while the grounding tells the operator the
+     feature index is everything that exists. These pins keep the
+     three sources of the price — rail, registry, knowledge entry —
+     and the match itself from ever drifting apart again. */
+  const API_SRC = path.resolve(HERE, "..", "..");
+
+  /* Independent re-derivation of the rail's price: parse the
+     CHAT_SPEAK_CREDITS default out of routes/chat-speak.ts itself
+     rather than trusting the generator's extractor. */
+  function deriveSpeakRailCost() {
+    const src = read(path.join(API_SRC, "routes", "chat-speak.ts"));
+    const m = src.match(
+      /export const CHAT_SPEAK_CREDITS\s*=\s*Number\(process\.env\["CHAT_SPEAK_CREDITS"\]\)\s*\|\|\s*(\d+)/,
+    );
+    expect(m, "CHAT_SPEAK_CREDITS default in routes/chat-speak.ts").toBeTruthy();
+    return Number(m![1]);
+  }
+
+  function deriveRegistrySpeakRow() {
+    const src = read(path.join(FE_SRC, "lib", "credit-costs.ts"));
+    const m = src.match(/"\/api\/chat\/speak":\s*\{\s*cost:\s*(\d+),\s*feature:\s*"([^"]+)"/);
+    expect(m, "/api/chat/speak row in CREDIT_COSTS").toBeTruthy();
+    return { cost: Number(m![1]), feature: m![2] };
+  }
+
+  const entry = OPERATOR_FEATURES.find((f) => f.id === "spoken-replies");
+
+  it("the rail, the registry, and the knowledge entry all say the same 100", () => {
+    expect(deriveSpeakRailCost()).toBe(100);
+    const reg = deriveRegistrySpeakRow();
+    expect(reg.cost).toBe(deriveSpeakRailCost());
+    expect(entry, "spoken-replies feature in the knowledge base").toBeTruthy();
+    const price = entry!.prices.find((p) => p.endpoint === "/api/chat/speak");
+    expect(price, "spoken-replies carries the speak price").toBeTruthy();
+    expect(price!.vb).toBe(reg.cost);
+    expect(price!.feature).toBe(reg.feature);
+    expect(price!.source).toContain("credit-costs.ts");
+    // The generator's cross-check pins the rail constant to the row.
+    const cc = OPERATOR_KB.crossChecks.find((c) => c.constant === "CHAT_SPEAK_CREDITS");
+    expect(cc, "CHAT_SPEAK_CREDITS cross-check").toBeTruthy();
+    expect(cc!.endpoint).toBe("/api/chat/speak");
+    expect(cc!.serverValue).toBe(100);
+    expect(cc!.registryValue).toBe(100);
+    expect(cc!.agree).toBe(true);
+  });
+
+  it("the entry carries both rail endpoints and the census family is fully visible", () => {
+    expect(entry!.endpoints).toEqual(["/api/chat/speak", "/api/chat/speak/status"]);
+    const fam = OPERATOR_KB.serverSurface.files.find((x) => x.file.endsWith("routes/chat-speak.ts"));
+    expect(fam, "chat-speak census family").toBeTruthy();
+    expect(fam!.visible).toBe(fam!.endpoints);
+    expect(fam!.unseen).toEqual([]);
+    expect(fam!.classification).toBeUndefined();
+  });
+
+  it("the Sitting C question matches spoken replies first — the denial cannot recur", () => {
+    const hits = findFeatures("Can you read your reply out loud to me?");
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0]?.id).toBe("spoken-replies");
+    const g = buildGrounding("Can you read your reply out loud to me?");
+    expect(g).not.toContain("no feature in the index matches");
+    expect(g).toContain("Spoken Reply — 100 Visual Bucs");
+  });
+
+  it("price and how-to questions about hearing him speak match the entry too", () => {
+    /* The second phrasing is the matcher's hard case, pinned on purpose:
+       Comment Replies stacks its name, path, price and description tiers
+       on the single word "replies", while this entry matches nearly
+       every word asked. It ranks first because the stemmer now folds
+       the -y plural ("replies" meets the singular "reply" the price
+       name carries) and because score ties break on how many of the
+       member's words a feature actually matched — not alphabetically. */
+    expect(findFeatures("how much does a spoken reply cost")[0]?.id).toBe("spoken-replies");
+    expect(findFeatures("can you speak your replies out loud")[0]?.id).toBe("spoken-replies");
+  });
+
+  it("the entry's facts state the rail's honesty rules and the index names the feature", () => {
+    const facts = formatFeatureFacts(entry!);
+    expect(facts).toContain("Price: Spoken Reply — 100 Visual Bucs");
+    expect(entry!.description).toContain("Replays are free");
+    expect(entry!.description).toContain("failed speak is refunded");
+    expect(entry!.description).toContain("still being cast, nothing is charged");
+    // The index is the list the operator treats as all that exists —
+    // the feature is on it now, so "we don't have that" is no longer
+    // a knowledge-supported answer.
+    expect(buildFeatureIndex()).toContain("Spoken Replies (/dashboard)");
+  });
+
+  it("the guard vouches the spoken-reply price", () => {
+    expect(KNOWN_VB_FIGURES.has(100)).toBe(true);
+    expect(findInventedPrice("A spoken reply costs 100 Visual Bucs.")).toBeNull();
+  });
+});

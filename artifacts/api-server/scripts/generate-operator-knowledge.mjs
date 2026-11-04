@@ -1084,6 +1084,13 @@ const SERVER_PRICE_LINKS = [
      disagreement. The clean variant is represented explicitly on the
      wallpapers-desk entry instead (see its priceVariants). */
   { constant: "SCREENSAVER_RENDER_COST", endpoint: "/api/wallpapers/screensaver-render" },
+  /* QC-200 fix #14: the spoken-reply rail's constant. The rail has
+     charged 100 since the Oct 20, 2026 ruling, but the registry had
+     no /api/chat/speak row at all — the price was quotable nowhere
+     in the knowledge base and the operator denied the feature
+     exists. The registry row + the spoken-replies docked entry now
+     carry it; this link keeps registry and rail pinned together. */
+  { constant: "CHAT_SPEAK_CREDITS", endpoint: "/api/chat/speak" },
 ];
 
 /** Server-truth price overrides (mechanism from the Stack-25 accuracy
@@ -1485,10 +1492,10 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "operator",
     reason: "Thy Cheat Code's own chat rail (POST /api/chat + status) — the operator conversation itself; there is no page feature for it.",
   },
-  "artifacts/api-server/src/routes/chat-speak.ts": {
-    surface: "operator",
-    reason: "The operator's spoken-reply rail (speak + speak/status) behind the chat surface; no page of its own.",
-  },
+  /* chat-speak.ts is deliberately NOT classified here (QC-200 fix
+     #14): the spoken-replies docked entry carries both of its
+     endpoints, so the family is feature-visible — a classification
+     on a visible family is stale and generation throws on it. */
   "artifacts/api-server/src/routes/chat-voice.ts": {
     surface: "operator",
     reason: "The operator chat's voice-in transcription fallback; part of the chat surface, no page of its own.",
@@ -2262,6 +2269,43 @@ const DOCKED_FEATURES = [
     },
     endpoints: ["/api/world/locks", "/api/world/locks/door/lock", "/api/world/locks/door/unlock", "/api/world/locks/person/lock", "/api/world/locks/person/unlock"],
     pricedEndpoints: [],
+  },
+  {
+    /* Spoken replies (QC-200 fix #14): the operator's own voice-out
+       surface — a toggle at the top of the Thy Cheat Code chat drawer
+       plus a speak button on each of his replies (components/
+       ThyCheatCodeChat.tsx + ChatSpeakButton.tsx, mounted from the
+       App root on every page, so no route or page of its own; the
+       Dashboard stands as host door, the morning-brief precedent for
+       a surface that lives in the members' chrome). The rail
+       (routes/chat-speak.ts) has charged 100 VB per spoken reply
+       since the owner's Oct 20, 2026 ruling, yet the knowledge base
+       carried NO entry for it: the feature index told the operator
+       "if it is not listed here, it does not exist", so asked "can
+       you read your reply out loud?" it denied the feature and
+       offered Voiceover instead (Sitting C, Q159). Name is the
+       drawer's own toggle wording ("Turn on spoken replies — hear
+       Thy Cheat Code out loud"); description is a reviewed literal
+       (the panel copy is inline JSX / component constants, never
+       quoted), carrying the rail's honesty states: replays are free,
+       a failed speak is refunded, and while the voice is still being
+       cast (server voice env unset) the chat says so and charges
+       nothing. The price itself rides pricedEndpoints from
+       CREDIT_COSTS, cross-checked against CHAT_SPEAK_CREDITS in
+       SERVER_PRICE_LINKS. Carrying both endpoints also makes the
+       chat-speak route family fully feature-visible, retiring its
+       SERVER_FAMILY_CLASSIFICATIONS entry below. */
+    id: "spoken-replies",
+    name: { text: "Spoken Replies" },
+    path: "/dashboard",
+    hostPath: "/dashboard",
+    stage: "account",
+    access: "members",
+    description: {
+      text: "Thy Cheat Code can read his chat replies aloud in his own voice, right inside this chat: turn on spoken replies at the top of the chat, then tap the speak button on a reply to hear it out loud. Replays are free and a failed speak is refunded; while his voice is still being cast, nothing is charged.",
+    },
+    endpoints: ["/api/chat/speak", "/api/chat/speak/status"],
+    pricedEndpoints: ["/api/chat/speak"],
   },
 ];
 

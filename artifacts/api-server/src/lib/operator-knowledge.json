@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "51a56acb3f68f4491f946cbbb4d28c003c80d1af",
+  "baseCommit": "2e37a52fbaefd08c92b80f63e46a2a5259bf0a9c",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -11,20 +11,20 @@
   "counts": {
     "routesInApp": 245,
     "pageFiles": 188,
-    "features": 251,
+    "features": 252,
     "excludedRoutes": 74,
     "excludedPageFiles": 35,
-    "pricedActions": 256,
+    "pricedActions": 257,
     "routeFileEndpoints": 0,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 251,
+    "withDescriptions": 252,
     "withoutDescriptions": 0,
     "serverRouteFiles": 431,
     "serverEndpoints": 1740,
-    "serverEndpointsVisible": 1077,
-    "serverFilesClassified": 100
+    "serverEndpointsVisible": 1079,
+    "serverFilesClassified": 99
   },
   "packs": [
     {
@@ -159,6 +159,14 @@
       "serverValue": 300,
       "serverSource": "artifacts/api-server/src/routes/wallpapers.ts",
       "registryValue": 300,
+      "agree": true
+    },
+    {
+      "constant": "CHAT_SPEAK_CREDITS",
+      "endpoint": "/api/chat/speak",
+      "serverValue": 100,
+      "serverSource": "artifacts/api-server/src/routes/chat-speak.ts",
+      "registryValue": 100,
       "agree": true
     }
   ],
@@ -7849,6 +7857,31 @@
       "prices": [],
       "description": "Your whole home business, one view. The written brief couldn’t be written just now — here are your numbers, straight from your business. A draft — you review and send it. Nothing goes out on its own.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"command.subtitle\" + artifacts/bow-down-visuals/src/locales/en.json \"command.brief_narrative_unavailable\" + artifacts/bow-down-visuals/src/locales/en.json \"command.brief_draft_note\"",
+      "nextSteps": []
+    },
+    {
+      "id": "spoken-replies",
+      "name": "Spoken Replies",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/dashboard",
+      "stage": "account",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/dashboard.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/chat/speak",
+        "/api/chat/speak/status"
+      ],
+      "prices": [
+        {
+          "feature": "Spoken Reply",
+          "vb": 100,
+          "endpoint": "/api/chat/speak",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "Thy Cheat Code can read his chat replies aloud in his own voice, right inside this chat: turn on spoken replies at the top of the chat, then tap the speak button on a reply to hear it out loud. Replays are free and a failed speak is refunded; while his voice is still being cast, nothing is charged.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
       "nextSteps": []
     },
     {
@@ -18132,15 +18165,8 @@
       {
         "file": "artifacts/api-server/src/routes/chat-speak.ts",
         "endpoints": 2,
-        "visible": 0,
-        "unseen": [
-          "/api/chat/speak",
-          "/api/chat/speak/status"
-        ],
-        "classification": {
-          "surface": "operator",
-          "reason": "The operator's spoken-reply rail (speak + speak/status) behind the chat surface; no page of its own."
-        }
+        "visible": 2,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/chat-voice.ts",
