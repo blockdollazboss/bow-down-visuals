@@ -34,6 +34,78 @@
 
 /* ─── Project rows ────────────────────────────────────────────────── */
 
+/* ─── Locale strings (stack100 locale unit 50) ─────────────────────
+   Every words-bearing line this seam produces rides this bundle.
+   The EN defaults are the seam's original wording verbatim, so an
+   unbundled caller (and every existing pin) reads exactly what it
+   read before; StudioBoard passes its bundle from the worldBoards
+   catalog (sb* keys). Templates use {{name}} placeholders, filled
+   by the seam's own .replace discipline. The two money lines
+   (latestActivity, jackpotLine) state Visual Bucs amounts — their
+   figures are interpolation only. */
+
+export interface StudioBoardStrings {
+  untitledProject: string;
+  /** "Latest: {{action}} · {{amount}} VB" — MONEY: states a VB amount. */
+  latestActivity: string;
+  latestPlus: string;
+  latestMinus: string;
+  tabProjects: string;
+  tabDrafts: string;
+  tabClips: string;
+  tabHistory: string;
+  draftWorkflowVideo: string;
+  draftWorkflowScratch: string;
+  unsavedDraft: string;
+  untitledClip: string;
+  statusRefunded: string;
+  statusSaved: string;
+  statusSaveFailed: string;
+  bowRaceLine: string;
+  bowRaceWonSuffix: string;
+  /** "{{name}}: {{prize}} VB jackpot live now" — MONEY: states a VB prize. */
+  jackpotLine: string;
+  sponsorFallback: string;
+  moveFinishTitle: string;
+  moveFinishSub: string;
+  moveSponsorTitle: string;
+  moveSponsorSub: string;
+  moveDailyTitle: string;
+  moveDailySub: string;
+  moveTrendTitle: string;
+  moveTrendSub: string;
+}
+
+export const STUDIO_BOARD_STRINGS_EN: StudioBoardStrings = {
+  untitledProject: "Untitled project",
+  latestActivity: "Latest: {{action}} · {{amount}} VB",
+  latestPlus: "+{{amount}}",
+  latestMinus: "−{{amount}}",
+  tabProjects: "Projects",
+  tabDrafts: "Drafts",
+  tabClips: "Generated clips",
+  tabHistory: "History",
+  draftWorkflowVideo: "Video for my song",
+  draftWorkflowScratch: "Start from scratch",
+  unsavedDraft: "Unsaved draft",
+  untitledClip: "Untitled clip",
+  statusRefunded: "Refunded",
+  statusSaved: "Saved",
+  statusSaveFailed: "Save failed",
+  bowRaceLine: "Bow Race: {{total}} of {{target}} bows",
+  bowRaceWonSuffix: " — you won it",
+  jackpotLine: "{{name}}: {{prize}} VB jackpot live now",
+  sponsorFallback: "A sponsor",
+  moveFinishTitle: "Finish “{{label}}”",
+  moveFinishSub: "Pick it back up in the editor — Continue is on its row below.",
+  moveSponsorTitle: "Follow up with {{name}}",
+  moveSponsorSub: "Your freshest open sponsor deal.",
+  moveDailyTitle: "Claim today's drop",
+  moveDailySub: "Your daily drop is waiting at the Treasury counter.",
+  moveTrendTitle: "See what's trending",
+  moveTrendSub: "The Charts board shows what's climbing this week.",
+};
+
 export interface StudioProjectRow {
   id: string;
   /** Display label: the dashboard's own fallback chain — the
@@ -51,28 +123,34 @@ const num = (v: unknown): number | null => (typeof v === "number" && Number.isFi
 
 /** The dashboard's project label, verbatim: title first, then the
  *  artist/song pair, then the project type — never an empty row. */
-export function studioProjectLabel(row: {
-  title?: unknown;
-  artist_name?: unknown;
-  artistName?: unknown;
-  song_title?: unknown;
-  songTitle?: unknown;
-  project_type?: unknown;
-  projectType?: unknown;
-}): string {
+export function studioProjectLabel(
+  row: {
+    title?: unknown;
+    artist_name?: unknown;
+    artistName?: unknown;
+    song_title?: unknown;
+    songTitle?: unknown;
+    project_type?: unknown;
+    projectType?: unknown;
+  },
+  strings: StudioBoardStrings = STUDIO_BOARD_STRINGS_EN,
+): string {
   const title = str(row.title);
   if (title) return title;
   const pair = [str(row.artist_name ?? row.artistName), str(row.song_title ?? row.songTitle)]
     .filter(Boolean)
     .join(" — ");
   if (pair) return pair;
-  return str(row.project_type ?? row.projectType) ?? "Untitled project";
+  return str(row.project_type ?? row.projectType) ?? strings.untitledProject;
 }
 
 /** Shape GET /api/projects into board rows. Server order is
  *  newest-first and is preserved; rows without a usable id are
  *  skipped (Continue needs the id to seed the editor). */
-export function normalizeStudioProjects(payload: unknown): StudioProjectRow[] {
+export function normalizeStudioProjects(
+  payload: unknown,
+  strings: StudioBoardStrings = STUDIO_BOARD_STRINGS_EN,
+): StudioProjectRow[] {
   if (!isObj(payload) || !Array.isArray(payload["projects"])) return [];
   const out: StudioProjectRow[] = [];
   for (const row of payload["projects"]) {
@@ -81,7 +159,7 @@ export function normalizeStudioProjects(payload: unknown): StudioProjectRow[] {
     if (!id) continue;
     out.push({
       id,
-      label: studioProjectLabel(row),
+      label: studioProjectLabel(row, strings),
       projectType: str(row["project_type"] ?? row["projectType"]) ?? "",
       createdAt: str(row["created_at"] ?? row["createdAt"]),
       creditsUsed: num(row["credits_used"] ?? row["creditsUsed"]),
@@ -115,7 +193,11 @@ export function normalizeStudioStrip(payload: unknown): StudioStrip | null {
 /** The strip's recent-activity line: the newest VB usage entry,
  *  in words ("Latest: Song generation · −400 VB"). Null when the
  *  history is empty or unreadable — the strip just omits it. */
-export function latestActivityLine(creditsPayload: unknown): string | null {
+export function latestActivityLine(
+  creditsPayload: unknown,
+  strings: StudioBoardStrings = STUDIO_BOARD_STRINGS_EN,
+  locale: string = "en-US",
+): string | null {
   if (!isObj(creditsPayload) || !Array.isArray(creditsPayload["usage"])) return null;
   for (const row of creditsPayload["usage"]) {
     if (!isObj(row)) continue;
@@ -123,8 +205,12 @@ export function latestActivityLine(creditsPayload: unknown): string | null {
     const used = num(row["creditsUsed"]);
     if (!action || used === null) continue;
     const amount =
-      used < 0 ? `+${Math.abs(used).toLocaleString("en-US")}` : used === 0 ? "0" : `−${used.toLocaleString("en-US")}`;
-    return `Latest: ${action} · ${amount} VB`;
+      used < 0
+        ? strings.latestPlus.replace("{{amount}}", Math.abs(used).toLocaleString(locale))
+        : used === 0
+          ? "0"
+          : strings.latestMinus.replace("{{amount}}", used.toLocaleString(locale));
+    return strings.latestActivity.replace("{{action}}", action).replace("{{amount}}", amount);
   }
   return null;
 }
@@ -138,10 +224,10 @@ export function latestActivityLine(creditsPayload: unknown): string | null {
 export type StudioProjectsTabId = "projects" | "drafts" | "clips" | "history";
 
 export const STUDIO_PROJECT_TABS: readonly { id: StudioProjectsTabId; label: string }[] = [
-  { id: "projects", label: "Projects" },
-  { id: "drafts", label: "Drafts" },
-  { id: "clips", label: "Generated clips" },
-  { id: "history", label: "History" },
+  { id: "projects", label: STUDIO_BOARD_STRINGS_EN.tabProjects },
+  { id: "drafts", label: STUDIO_BOARD_STRINGS_EN.tabDrafts },
+  { id: "clips", label: STUDIO_BOARD_STRINGS_EN.tabClips },
+  { id: "history", label: STUDIO_BOARD_STRINGS_EN.tabHistory },
 ];
 
 /* Drafts — GET /api/drafts */
@@ -157,14 +243,19 @@ export interface StudioDraftRow {
   updatedAt: string | null;
 }
 
-const DRAFT_WORKFLOW_LABELS: Record<string, string> = {
-  "make-video": "Video for my song",
-  "song-and-video": "Start from scratch",
-};
+function draftWorkflowLabels(strings: StudioBoardStrings): Record<string, string> {
+  return {
+    "make-video": strings.draftWorkflowVideo,
+    "song-and-video": strings.draftWorkflowScratch,
+  };
+}
 
 /** Shape GET /api/drafts into board rows. Server order preserved;
  *  rows without an id are skipped (nothing could open them). */
-export function normalizeStudioDrafts(payload: unknown): StudioDraftRow[] {
+export function normalizeStudioDrafts(
+  payload: unknown,
+  strings: StudioBoardStrings = STUDIO_BOARD_STRINGS_EN,
+): StudioDraftRow[] {
   if (!isObj(payload) || !Array.isArray(payload["drafts"])) return [];
   const out: StudioDraftRow[] = [];
   for (const row of payload["drafts"]) {
@@ -177,12 +268,12 @@ export function normalizeStudioDrafts(payload: unknown): StudioDraftRow[] {
     const label =
       str(row["title"]) ??
       (form ? str(form["artistName"]) : null) ??
-      "Unsaved draft";
+      strings.unsavedDraft;
     out.push({
       id,
       label,
       workflowType,
-      workflowLabel: DRAFT_WORKFLOW_LABELS[workflowType] ?? workflowType,
+      workflowLabel: draftWorkflowLabels(strings)[workflowType] ?? workflowType,
       updatedAt: str(row["updated_at"] ?? row["updatedAt"]),
     });
   }
@@ -202,7 +293,10 @@ export interface StudioClipRow {
 }
 
 /** Shape GET /api/generated-clips into board rows. */
-export function normalizeStudioClips(payload: unknown): StudioClipRow[] {
+export function normalizeStudioClips(
+  payload: unknown,
+  strings: StudioBoardStrings = STUDIO_BOARD_STRINGS_EN,
+): StudioClipRow[] {
   if (!isObj(payload) || !Array.isArray(payload["clips"])) return [];
   const out: StudioClipRow[] = [];
   for (const row of payload["clips"]) {
@@ -211,7 +305,7 @@ export function normalizeStudioClips(payload: unknown): StudioClipRow[] {
     if (!id) continue;
     out.push({
       id,
-      label: str(row["title"]) ?? str(row["prompt"]) ?? "Untitled clip",
+      label: str(row["title"]) ?? str(row["prompt"]) ?? strings.untitledClip,
       status: str(row["status"]) ?? "",
       hasVideo: !!str(row["video_url"] ?? row["videoUrl"]),
       createdAt: str(row["created_at"] ?? row["createdAt"]),
@@ -235,7 +329,10 @@ export interface StudioHistoryRow {
 /** Shape GET /api/generation-history into board rows. The label
  *  rides the row's own action label, else the artist — song pair,
  *  else the generation type (studioProjectLabel's chain). */
-export function normalizeStudioHistory(payload: unknown): StudioHistoryRow[] {
+export function normalizeStudioHistory(
+  payload: unknown,
+  strings: StudioBoardStrings = STUDIO_BOARD_STRINGS_EN,
+): StudioHistoryRow[] {
   if (!isObj(payload) || !Array.isArray(payload["history"])) return [];
   const out: StudioHistoryRow[] = [];
   for (const row of payload["history"]) {
@@ -245,11 +342,14 @@ export function normalizeStudioHistory(payload: unknown): StudioHistoryRow[] {
     const generationType = str(row["generation_type"] ?? row["generationType"]) ?? "";
     const label =
       str(row["action_label"] ?? row["actionLabel"]) ??
-      studioProjectLabel({
-        artist_name: row["artist_name"],
-        song_title: row["song_title"],
-        project_type: generationType,
-      });
+      studioProjectLabel(
+        {
+          artist_name: row["artist_name"],
+          song_title: row["song_title"],
+          project_type: generationType,
+        },
+        strings,
+      );
     out.push({
       id,
       label,
@@ -267,10 +367,13 @@ export function normalizeStudioHistory(payload: unknown): StudioHistoryRow[] {
  *  terms — a refund outranks the save state (the page marks both;
  *  the board row carries one honest word). Null when the row has
  *  nothing to report. */
-export function historyStatusWord(row: Pick<StudioHistoryRow, "saveStatus" | "refunded">): string | null {
-  if (row.refunded) return "Refunded";
-  if (row.saveStatus === "saved") return "Saved";
-  if (row.saveStatus === "save_failed") return "Save failed";
+export function historyStatusWord(
+  row: Pick<StudioHistoryRow, "saveStatus" | "refunded">,
+  strings: StudioBoardStrings = STUDIO_BOARD_STRINGS_EN,
+): string | null {
+  if (row.refunded) return strings.statusRefunded;
+  if (row.saveStatus === "saved") return strings.statusSaved;
+  if (row.saveStatus === "save_failed") return strings.statusSaveFailed;
   return null;
 }
 
@@ -300,7 +403,11 @@ export interface StudioDigest {
   streakDays: number | null;
 }
 
-export function normalizeStudioDigest(payload: unknown): StudioDigest | null {
+export function normalizeStudioDigest(
+  payload: unknown,
+  strings: StudioBoardStrings = STUDIO_BOARD_STRINGS_EN,
+  locale: string = "en-US",
+): StudioDigest | null {
   if (!isObj(payload)) return null;
   const base: StudioDigest = {
     state: "recent",
@@ -324,7 +431,7 @@ export function normalizeStudioDigest(payload: unknown): StudioDigest | null {
     for (const p of payload["newProjects"]) {
       if (!isObj(p)) continue;
       labels.push(
-        studioProjectLabel({ title: p["title"], project_type: p["projectType"] ?? p["project_type"] }),
+        studioProjectLabel({ title: p["title"], project_type: p["projectType"] ?? p["project_type"] }, strings),
       );
     }
   }
@@ -333,15 +440,18 @@ export function normalizeStudioDigest(payload: unknown): StudioDigest | null {
     const total = num(payload["bowRace"]["totalBows"]);
     const target = num(payload["bowRace"]["target"]);
     if (total !== null && target !== null) {
-      bowRaceLine = `Bow Race: ${total.toLocaleString("en-US")} of ${target.toLocaleString("en-US")} bows`;
-      if (payload["bowRace"]["youWon"] === true) bowRaceLine += " — you won it";
+      bowRaceLine = strings.bowRaceLine
+        .replace("{{total}}", total.toLocaleString(locale))
+        .replace("{{target}}", target.toLocaleString(locale));
+      if (payload["bowRace"]["youWon"] === true) bowRaceLine += strings.bowRaceWonSuffix;
     }
   }
   let jackpotLine: string | null = null;
   if (isObj(payload["jackpot"])) {
     const name = str(payload["jackpot"]["name"]);
     const prize = num(payload["jackpot"]["prizeCredits"]);
-    if (name && prize !== null) jackpotLine = `${name}: ${prize.toLocaleString("en-US")} VB jackpot live now`;
+    if (name && prize !== null)
+      jackpotLine = strings.jackpotLine.replace("{{name}}", name).replace("{{prize}}", prize.toLocaleString(locale));
   }
   let streakDays: number | null = null;
   if (isObj(payload["streak"])) {
@@ -374,7 +484,10 @@ export interface SponsorPipeline {
 
 const SPONSOR_CLOSED_STAGES: readonly string[] = ["paid", "lost", "rejected", "dead"];
 
-export function normalizeSponsorPipeline(payload: unknown): SponsorPipeline | null {
+export function normalizeSponsorPipeline(
+  payload: unknown,
+  strings: StudioBoardStrings = STUDIO_BOARD_STRINGS_EN,
+): SponsorPipeline | null {
   const deals = Array.isArray(payload)
     ? payload
     : isObj(payload) && Array.isArray(payload["deals"])
@@ -387,7 +500,7 @@ export function normalizeSponsorPipeline(payload: unknown): SponsorPipeline | nu
     const stage = str(row["stage"]) ?? "";
     if (SPONSOR_CLOSED_STAGES.includes(stage.toLowerCase())) continue;
     active.push({
-      sponsorName: str(row["sponsorName"]) ?? "A sponsor",
+      sponsorName: str(row["sponsorName"]) ?? strings.sponsorFallback,
       stage,
       cents: num(row["dealValueCents"]) ?? 0,
       updatedAt: str(row["updatedAt"]) ?? "",
@@ -445,40 +558,43 @@ interface StudioNextMove {
   projectId: string | null;
 }
 
-export function studioNextMoves(input: {
-  latestProject: { id: string; label: string } | null;
-  sponsorNextName: string | null;
-  canClaimDaily: boolean;
-}): StudioNextMove[] {
+export function studioNextMoves(
+  input: {
+    latestProject: { id: string; label: string } | null;
+    sponsorNextName: string | null;
+    canClaimDaily: boolean;
+  },
+  strings: StudioBoardStrings = STUDIO_BOARD_STRINGS_EN,
+): StudioNextMove[] {
   const moves: StudioNextMove[] = [];
   if (input.latestProject) {
     moves.push({
       kind: "finish",
-      title: `Finish “${input.latestProject.label}”`,
-      sub: "Pick it back up in the editor — Continue is on its row below.",
+      title: strings.moveFinishTitle.replace("{{label}}", input.latestProject.label),
+      sub: strings.moveFinishSub,
       projectId: input.latestProject.id,
     });
   }
   if (input.sponsorNextName) {
     moves.push({
       kind: "sponsor",
-      title: `Follow up with ${input.sponsorNextName}`,
-      sub: "Your freshest open sponsor deal.",
+      title: strings.moveSponsorTitle.replace("{{name}}", input.sponsorNextName),
+      sub: strings.moveSponsorSub,
       projectId: null,
     });
   }
   if (input.canClaimDaily) {
     moves.push({
       kind: "daily",
-      title: "Claim today's drop",
-      sub: "Your daily drop is waiting at the Treasury counter.",
+      title: strings.moveDailyTitle,
+      sub: strings.moveDailySub,
       projectId: null,
     });
   }
   moves.push({
     kind: "trend",
-    title: "See what's trending",
-    sub: "The Charts board shows what's climbing this week.",
+    title: strings.moveTrendTitle,
+    sub: strings.moveTrendSub,
     projectId: null,
   });
   return moves.slice(0, 3);

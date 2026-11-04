@@ -204,6 +204,44 @@ export function normalizeChartCreators(
   return out;
 }
 
+/* ─── The board's copy bundle (locale unit 50) ────────────────────────
+   The seam's own words — the window nouns, the lookback noun, the
+   no-filter vertical name, and the two outreach error fallbacks —
+   ride an OPTIONAL bundle: an exported interface of strings, a
+   DEFAULT const holding the current English literals verbatim, and
+   the functions below take it optionally. Unbundled callers (and
+   every existing pin) read exactly what they read before; the
+   components build the bundle from the worldBoards catalog keys
+   (ch*) so a translated catalog reaches these words too. The seam's
+   label TABLES (CHART_WINDOWS / CHART_LOOKBACKS / CHART_VERTICALS /
+   BRAND_OUTREACH_*) stay the EN fallback — the components key-map
+   them through t() when rendering. Vertical names other than the
+   no-filter state come from lib/verticals (a shared seam, not this
+   file's copy) and are not in this bundle. */
+
+export interface ChartsBoardStrings {
+  windowNounToday: string;
+  windowNounThisWeek: string;
+  windowNounAllTime: string;
+  /** "last {{days}} days" */
+  lookbackNoun: string;
+  verticalAll: string;
+  draftFailed: string;
+  draftOutOfBucs: string;
+  briefFailed: string;
+}
+
+export const CHARTS_BOARD_STRINGS_EN: ChartsBoardStrings = {
+  windowNounToday: "today",
+  windowNounThisWeek: "this week",
+  windowNounAllTime: "all time",
+  lookbackNoun: "last {{days}} days",
+  verticalAll: "All verticals",
+  draftFailed: "The draft didn't go through — try again.",
+  draftOutOfBucs: "You're out of Visual Bucs — top up to draft a pitch.",
+  briefFailed: "That brief couldn't post — try again.",
+};
+
 /* ─── The window switcher seam ────────────────────────────────────────
    The board's windows are the charts API's own three — the same
    Today / This week / All time the website's /charts page offers.
@@ -225,8 +263,8 @@ export const CHART_WINDOWS: Array<{ key: ChartWindow; label: string }> = [
 
 /** The noun board titles and empty states speak with:
  *  "Top tracks — today" / "Nothing is charting this week — yet." */
-export function chartWindowNoun(window: ChartWindow): string {
-  return window === "today" ? "today" : window === "week" ? "this week" : "all time";
+export function chartWindowNoun(window: ChartWindow, strings: ChartsBoardStrings = CHARTS_BOARD_STRINGS_EN): string {
+  return window === "today" ? strings.windowNounToday : window === "week" ? strings.windowNounThisWeek : strings.windowNounAllTime;
 }
 
 /** The one charts read behind the Tracks + Videos tabs (both keys
@@ -266,8 +304,8 @@ export const CHART_VERTICALS: Array<{ key: ChartVertical; label: string }> = [
 
 /** The display label for a switcher state ("All verticals" / the
  *  vertical's own label) — board titles and empty states speak it. */
-export function chartVerticalLabel(vertical: ChartVertical): string {
-  return vertical === "all" ? "All verticals" : VERTICAL_META[vertical].label;
+export function chartVerticalLabel(vertical: ChartVertical, strings: ChartsBoardStrings = CHARTS_BOARD_STRINGS_EN): string {
+  return vertical === "all" ? strings.verticalAll : VERTICAL_META[vertical].label;
 }
 
 function chartVerticalSuffix(vertical: ChartVertical): string {
@@ -330,8 +368,8 @@ export function chartLookbackSuffix(days: number | null): string {
  *  lookback is chosen: "Top tracks — last 30 days". A lookback
  *  overrides the window server-side, so a title that kept speaking
  *  the window's noun would name a span the board isn't showing. */
-export function chartLookbackNoun(days: number): string {
-  return `last ${days} days`;
+export function chartLookbackNoun(days: number, strings: ChartsBoardStrings = CHARTS_BOARD_STRINGS_EN): string {
+  return strings.lookbackNoun.replace("{{days}}", String(days));
 }
 
 /* ─── The Play seam ───────────────────────────────────────────────────
@@ -642,7 +680,7 @@ export function normalizeBrandOutreachResult(payload: unknown): BrandOutreachRes
 /** The words for a refused or failed draft: the rail's own message
  *  first (its 402 names the empty purse; its 502 names the refund),
  *  a plain fallback after — the form never invents an outcome. */
-export function brandOutreachErrorMessage(payload: unknown, status: number): string {
+export function brandOutreachErrorMessage(payload: unknown, status: number, strings: ChartsBoardStrings = CHARTS_BOARD_STRINGS_EN): string {
   if (isObj(payload)) {
     const message = str(payload["message"]);
     if (message) return message;
@@ -652,11 +690,11 @@ export function brandOutreachErrorMessage(payload: unknown, status: number): str
        falls through to the shared translator (error-truth, stack900
        L1; previously every unlisted code rendered raw). */
     if (error && error !== "out_of_credits" && error !== "generation_failed") {
-      return plainErrorText(error, "The draft didn't go through — try again.");
+      return plainErrorText(error, strings.draftFailed);
     }
   }
-  if (status === 402) return "You're out of Visual Bucs — top up to draft a pitch.";
-  return "The draft didn't go through — try again.";
+  if (status === 402) return strings.draftOutOfBucs;
+  return strings.draftFailed;
 }
 
 /* ─── The UGC brief seam (For Brands, P3) ─────────────────────────────
@@ -718,7 +756,7 @@ export function normalizeUgcBriefResult(payload: unknown): UgcBriefResult | null
 
 /** The words for a refused brief: the rail's own error first (its
  *  400s name the field), a plain fallback after. */
-export function ugcBriefErrorMessage(payload: unknown, status: number): string {
+export function ugcBriefErrorMessage(payload: unknown, status: number, strings: ChartsBoardStrings = CHARTS_BOARD_STRINGS_EN): string {
   if (isObj(payload)) {
     const error = str(payload["error"]);
     if (error) return error;
@@ -726,5 +764,5 @@ export function ugcBriefErrorMessage(payload: unknown, status: number): string {
     if (message) return message;
   }
   void status;
-  return "That brief couldn't post — try again.";
+  return strings.briefFailed;
 }

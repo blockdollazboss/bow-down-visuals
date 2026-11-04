@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { ArrowBigUp, Check, Loader2, Wrench } from "lucide-react";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
@@ -14,12 +15,10 @@ import { sortPitches, type PitchFixSubmission, type PitchSort } from "@/lib/pitc
 import {
   FIX_PAGE_LABELS,
   FIX_SEVERITY_LABELS,
-  PITCH_CATEGORY_LABELS,
   PITCH_FIX_BOARD_PATH,
   PITCH_FIX_FIXES_PATH,
   PITCH_FIX_MINE_PATH,
   PITCH_FIX_PITCHES_PATH,
-  PITCH_FIX_REWARDS_LINE,
   buildFixBody,
   buildPitchBody,
   fixFormReady,
@@ -62,7 +61,37 @@ const chipBtn = (isLight: boolean) =>
   }`;
 
 export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  /* `tr`, not `t` — this file's tick callbacks take a local `t`. */
+  const { t: tr } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
+  /* The seam's label tables, key-mapped through the catalog: page
+     and severity words are the pitchFix page's own keys (same
+     surface, byte-identical); categories likewise, except "world",
+     whose board word is "The World" (pitchFix.category.world is
+     "World" — a near-miss, not reused). */
+  const categoryLabels: Record<string, string> = {
+    create: tr("pitchFix.category.create"),
+    world: tr("worldBoards.pfCategoryWorld"),
+    money: tr("pitchFix.category.money"),
+    social: tr("pitchFix.category.social"),
+    other: tr("pitchFix.category.other"),
+  };
+  const pageLabels: Record<string, string> = Object.fromEntries(
+    Object.keys(FIX_PAGE_LABELS).map((k) => [k, tr(`pitchFix.page.${k}`)]),
+  );
+  const severityLabels: Record<string, string> = Object.fromEntries(
+    Object.keys(FIX_SEVERITY_LABELS).map((k) => [k, tr(`pitchFix.severity.${k}`)]),
+  );
+  const seamStrings = {
+    statusWithTeam: tr("worldBoards.pfStatusWithTeam"),
+    statusNotTakenUp: tr("worldBoards.pfStatusNotTakenUp"),
+    statusShipped: tr("worldBoards.pfStatusShipped"),
+    statusBuilding: tr("worldBoards.pfStatusBuilding"),
+    statusOnBoard: tr("worldBoards.pfStatusOnBoard"),
+    rewardPaid: (amount: number) => tr("worldBoards.pfRewardPaid", { amount }),
+    rewardQueued: tr("worldBoards.pfRewardQueued"),
+    submitterFallback: tr("worldBoards.pfSubmitterFallback"),
+  };
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
 
@@ -91,7 +120,7 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
       try {
         const res = await fetch(PITCH_FIX_BOARD_PATH, { headers: await authHeaders() });
         if (!res.ok) throw new Error(`board ${res.status}`);
-        const parsed = normalizePitchFixBoard(await res.json());
+        const parsed = normalizePitchFixBoard(await res.json(), seamStrings);
         if (!parsed) throw new Error("board shape");
         if (!cancelled) {
           setBoard(parsed);
@@ -115,7 +144,7 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
       try {
         const res = await fetch(PITCH_FIX_MINE_PATH, { headers: await authHeaders() });
         if (!res.ok) throw new Error(`mine ${res.status}`);
-        const parsed = normalizeMySubmissions(await res.json());
+        const parsed = normalizeMySubmissions(await res.json(), seamStrings);
         if (!parsed) throw new Error("mine shape");
         if (!cancelled) setMine(parsed);
       } catch {
@@ -142,9 +171,9 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't vote (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, tr("worldBoards.pfVoteFailedStatus", { status: res.status })));
       const result = parseVoteResult(data);
-      if (!result) throw new Error("The vote answered in a shape the board can't read.");
+      if (!result) throw new Error(tr("worldBoards.pfVoteBadShape"));
       setVotedIds((prev) => {
         const next = new Set(prev);
         if (result.voted) next.add(pitch.id);
@@ -162,7 +191,7 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
           : b,
       );
     } catch (err) {
-      setVoteError(plainErrorText(err, "Couldn't vote — try again."));
+      setVoteError(plainErrorText(err, tr("worldBoards.pfVoteFailed")));
     } finally {
       setVoteBusyId(null);
     }
@@ -178,16 +207,14 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
         body: JSON.stringify(kind === "pitch" ? buildPitchBody(pitchForm) : buildFixBody(fixForm)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't file it (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, tr("worldBoards.pfFileFailedStatus", { status: res.status })));
       if (kind === "pitch") setPitchForm({ title: "", body: "", why: "", category: "create" });
       else setFixForm({ title: "", body: "", page: "the_world", severity: "annoying" });
       setMode("none");
-      setFiledNote(
-        "Filed — thank you. Every voice is read by the team before it shows on the board; watch yours under “Your filings” below.",
-      );
+      setFiledNote(tr("worldBoards.pfFiledNote"));
       setTick((t) => t + 1);
     } catch (err) {
-      setFileError(plainErrorText(err, "Couldn't file it — try again."));
+      setFileError(plainErrorText(err, tr("worldBoards.pfFileFailed")));
     } finally {
       setFiling(false);
     }
@@ -197,28 +224,28 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
     <div data-testid="world-pitch-fix-board">
       <NativeBoard
         isLight={isLight}
-        title="Pitch & Fix — the kingdom's board"
+        title={tr("worldBoards.pfBoardTitle")}
         headline={
           <p className={`px-1 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            {PITCH_FIX_REWARDS_LINE}
+            {tr("pitchFix.rewardsLine")}
           </p>
         }
       >
         {boardFailed ? (
           <NativeErrorState
             isLight={isLight}
-            title="The board wouldn't open"
-            message="The kingdom's pitches are safe on the real rails — the board just didn't answer. Try again."
+            title={tr("worldBoards.pfLoadTitle")}
+            message={tr("worldBoards.pfLoadMessage")}
             onRetry={() => setTick((t) => t + 1)}
           />
         ) : board === null ? (
-          <NativeLoadingState isLight={isLight} message="Reading the board…" />
+          <NativeLoadingState isLight={isLight} message={tr("worldBoards.pfLoading")} />
         ) : (
           <div className="space-y-4 px-1">
             {/* ── Pitches ── */}
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Pitches</p>
+                <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{tr("worldBoards.pfPitchesHeading")}</p>
                 <div className="flex gap-1.5">
                   {(["top", "newest"] as PitchSort[]).map((s) => (
                     <button
@@ -227,7 +254,7 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                       onClick={() => setSort(s)}
                       className={sort === s ? goldBtn : chipBtn(isLight)}
                     >
-                      {s === "top" ? "Top" : "Newest"}
+                      {s === "top" ? tr("worldBoards.pfSortTop") : tr("pitchFix.sortNewest")}
                     </button>
                   ))}
                 </div>
@@ -235,8 +262,8 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
               {pitches.length === 0 ? (
                 <NativeEmptyState
                   isLight={isLight}
-                  message="No pitches on the board yet."
-                  detail="The first approved idea takes the floor — file yours below."
+                  message={tr("worldBoards.pfPitchesEmpty")}
+                  detail={tr("worldBoards.pfPitchesEmptyDetail")}
                 />
               ) : (
                 pitches.map((p) => {
@@ -246,7 +273,12 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                       key={p.id}
                       isLight={isLight}
                       title={p.title}
-                      detail={`${p.body}${p.why ? ` — ${p.why}` : ""} · by ${p.submitterName} · ${pitchCategoryLabel(p.category)}`}
+                      detail={tr("worldBoards.pfPitchDetail", {
+                        body: p.body,
+                        whyPart: p.why ? tr("worldBoards.pfWhyPart", { why: p.why }) : "",
+                        name: p.submitterName,
+                        category: pitchCategoryLabel(p.category, categoryLabels),
+                      })}
                       highlighted={voted}
                       action={
                         isGuest ? undefined : (
@@ -278,9 +310,9 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
 
             {/* ── Fixes & feedback ── */}
             <div className="space-y-1.5">
-              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Fixes the kingdom reported</p>
+              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{tr("worldBoards.pfFixesHeading")}</p>
               {board.fixes.length === 0 ? (
-                <NativeEmptyState isLight={isLight} message="Nothing broken on the board — the palace is holding." />
+                <NativeEmptyState isLight={isLight} message={tr("worldBoards.pfFixesEmpty")} />
               ) : (
                 board.fixes.slice(0, 8).map((f) => (
                   <NativeBoardRow
@@ -289,10 +321,14 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                     title={f.title}
                     detail={
                       f.kind === "feedback"
-                        ? `Feedback · by ${f.submitterName}`
-                        : `${fixPageLabel(f.page)} · ${fixSeverityLabel(f.severity)} · by ${f.submitterName}`
+                        ? tr("worldBoards.pfFeedbackDetail", { name: f.submitterName })
+                        : tr("worldBoards.pfFixDetail", {
+                            page: fixPageLabel(f.page, pageLabels),
+                            severity: fixSeverityLabel(f.severity, severityLabels),
+                            name: f.submitterName,
+                          })
                     }
-                    meta={f.status === "fixed" ? "Fixed" : undefined}
+                    meta={f.status === "fixed" ? tr("pitchFix.fixStatus.fixed") : undefined}
                   />
                 ))
               )}
@@ -301,14 +337,14 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
             {/* ── Shipped lately ── */}
             {board.shipped.length > 0 ? (
               <div className="space-y-1.5">
-                <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Shipped from this board</p>
+                <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{tr("worldBoards.pfShippedHeading")}</p>
                 {board.shipped.slice(0, 5).map((s) => (
                   <NativeBoardRow
                     key={s.id}
                     isLight={isLight}
                     title={s.title}
-                    detail={`by ${s.submitterName}`}
-                    meta="Shipped ✓"
+                    detail={tr("worldBoards.pfByLine", { name: s.submitterName })}
+                    meta={tr("worldBoards.pfShippedMeta")}
                   />
                 ))}
               </div>
@@ -317,11 +353,11 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
             {/* ── File yours ── */}
             {isGuest ? (
               <p className={`text-xs ${muted}`}>
-                Reading the board is open to everyone.{" "}
+                {tr("worldBoards.pfGuestRead")}{" "}
                 <Link href={GUEST_SIGN_IN_HREF} className="font-bold text-[#d4af37] underline">
-                  Sign in
+                  {tr("worldBoards.pfSignIn")}
                 </Link>{" "}
-                to vote, pitch an idea, or report a fix — shipped voices earn Bucs.
+                {tr("worldBoards.pfGuestRest")}
               </p>
             ) : (
               <div className="space-y-2">
@@ -332,7 +368,7 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                     onClick={() => setMode(mode === "pitch" ? "none" : "pitch")}
                     aria-expanded={mode === "pitch"}
                   >
-                    Pitch an idea
+                    {tr("worldBoards.pfPitchCta")}
                   </button>
                   <button
                     type="button"
@@ -340,7 +376,7 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                     onClick={() => setMode(mode === "fix" ? "none" : "fix")}
                     aria-expanded={mode === "fix"}
                   >
-                    <Wrench className="h-3.5 w-3.5" /> Report a fix
+                    <Wrench className="h-3.5 w-3.5" /> {tr("worldBoards.pfReportFixCta")}
                   </button>
                 </div>
 
@@ -348,37 +384,37 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                   <div data-testid="world-pitch-form" className="space-y-2">
                     <input
                       className={deskInputCls(isLight)}
-                      placeholder="Your idea, in one line"
+                      placeholder={tr("worldBoards.pfPitchTitlePlaceholder")}
                       maxLength={90}
                       value={pitchForm.title}
                       onChange={(e) => setPitchForm({ ...pitchForm, title: e.target.value })}
-                      aria-label="Pitch title"
+                      aria-label={tr("worldBoards.pfPitchTitleAria")}
                     />
                     <textarea
                       className={deskInputCls(isLight)}
-                      placeholder="What is it?"
+                      placeholder={tr("worldBoards.pfPitchBodyPlaceholder")}
                       rows={2}
                       maxLength={400}
                       value={pitchForm.body}
                       onChange={(e) => setPitchForm({ ...pitchForm, body: e.target.value })}
-                      aria-label="Pitch body"
+                      aria-label={tr("worldBoards.pfPitchBodyAria")}
                     />
                     <textarea
                       className={deskInputCls(isLight)}
-                      placeholder="Why it matters (optional)"
+                      placeholder={tr("worldBoards.pfPitchWhyPlaceholder")}
                       rows={2}
                       maxLength={400}
                       value={pitchForm.why}
                       onChange={(e) => setPitchForm({ ...pitchForm, why: e.target.value })}
-                      aria-label="Why it matters"
+                      aria-label={tr("worldBoards.pfPitchWhyAria")}
                     />
                     <select
                       className={deskInputCls(isLight)}
                       value={pitchForm.category}
                       onChange={(e) => setPitchForm({ ...pitchForm, category: e.target.value })}
-                      aria-label="Pitch category"
+                      aria-label={tr("worldBoards.pfPitchCategoryAria")}
                     >
-                      {Object.entries(PITCH_CATEGORY_LABELS).map(([key, label]) => (
+                      {Object.entries(categoryLabels).map(([key, label]) => (
                         <option key={key} value={key}>
                           {label}
                         </option>
@@ -391,7 +427,7 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                       onClick={() => void file("pitch")}
                     >
                       {filing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                      File the pitch
+                      {tr("worldBoards.pfFilePitch")}
                     </button>
                   </div>
                 ) : null}
@@ -400,29 +436,29 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                   <div data-testid="world-fix-form" className="space-y-2">
                     <input
                       className={deskInputCls(isLight)}
-                      placeholder="What's broken, in one line"
+                      placeholder={tr("worldBoards.pfFixTitlePlaceholder")}
                       maxLength={90}
                       value={fixForm.title}
                       onChange={(e) => setFixForm({ ...fixForm, title: e.target.value })}
-                      aria-label="Fix title"
+                      aria-label={tr("worldBoards.pfFixTitleAria")}
                     />
                     <textarea
                       className={deskInputCls(isLight)}
-                      placeholder="What happens, and what you expected (optional)"
+                      placeholder={tr("worldBoards.pfFixBodyPlaceholder")}
                       rows={2}
                       maxLength={400}
                       value={fixForm.body}
                       onChange={(e) => setFixForm({ ...fixForm, body: e.target.value })}
-                      aria-label="Fix detail"
+                      aria-label={tr("worldBoards.pfFixDetailAria")}
                     />
                     <div className="flex flex-wrap gap-2">
                       <select
                         className={deskInputCls(isLight)}
                         value={fixForm.page}
                         onChange={(e) => setFixForm({ ...fixForm, page: e.target.value })}
-                        aria-label="Where it is"
+                        aria-label={tr("worldBoards.pfFixPageAria")}
                       >
-                        {Object.entries(FIX_PAGE_LABELS).map(([key, label]) => (
+                        {Object.entries(pageLabels).map(([key, label]) => (
                           <option key={key} value={key}>
                             {label}
                           </option>
@@ -432,9 +468,9 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                         className={deskInputCls(isLight)}
                         value={fixForm.severity}
                         onChange={(e) => setFixForm({ ...fixForm, severity: e.target.value })}
-                        aria-label="How bad it is"
+                        aria-label={tr("worldBoards.pfFixSeverityAria")}
                       >
-                        {Object.entries(FIX_SEVERITY_LABELS).map(([key, label]) => (
+                        {Object.entries(severityLabels).map(([key, label]) => (
                           <option key={key} value={key}>
                             {label}
                           </option>
@@ -448,7 +484,7 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                       onClick={() => void file("fix")}
                     >
                       {filing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                      File the fix
+                      {tr("worldBoards.pfFileFix")}
                     </button>
                   </div>
                 ) : null}
@@ -464,31 +500,40 @@ export function PitchFixBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
 
                 {/* ── Your filings ── */}
                 <div className="space-y-1.5 pt-1">
-                  <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Your filings</p>
+                  <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{tr("worldBoards.pfMineHeading")}</p>
                   {mineFailed ? (
                     <p className={`text-xs ${muted}`}>
-                      Your filings didn&rsquo;t answer just now.{" "}
+                      {tr("worldBoards.pfMineFailed")}{" "}
                       <button type="button" className="font-bold underline" onClick={() => setTick((t) => t + 1)}>
-                        Try again
+                        {tr("worldBoards.pfTryAgain")}
                       </button>
                     </p>
                   ) : mine === null ? (
-                    <NativeLoadingState isLight={isLight} message="Finding your filings…" />
+                    <NativeLoadingState isLight={isLight} message={tr("worldBoards.pfMineLoading")} />
                   ) : mine.length === 0 ? (
                     <NativeEmptyState
                       isLight={isLight}
-                      message="Nothing filed yet."
-                      detail="Your pitches and fixes will stand here with their standing."
+                      message={tr("worldBoards.pfMineEmpty")}
+                      detail={tr("worldBoards.pfMineEmptyDetail")}
                     />
                   ) : (
                     mine.slice(0, 8).map((s) => {
-                      const reward = submissionRewardLine(s);
+                      const reward = submissionRewardLine(s, seamStrings);
                       return (
                         <NativeBoardRow
                           key={s.id}
                           isLight={isLight}
                           title={s.title}
-                          detail={`${s.kind === "pitch" ? "Pitch" : s.kind === "fix" ? "Fix" : "Feedback"} · ${submissionStatusLine(s)}${reward ? ` · ${reward}` : ""}`}
+                          detail={tr("worldBoards.pfMineDetail", {
+                            kind:
+                              s.kind === "pitch"
+                                ? tr("worldBoards.pfKindPitch")
+                                : s.kind === "fix"
+                                  ? tr("worldBoards.pfKindFix")
+                                  : tr("worldBoards.pfKindFeedback"),
+                            status: submissionStatusLine(s, seamStrings),
+                            rewardPart: reward ? tr("worldBoards.pfRewardSuffix", { reward }) : "",
+                          })}
                         />
                       );
                     })

@@ -68,16 +68,62 @@ export const FIX_SEVERITY_LABELS: Record<string, string> = {
   small: "Small",
 };
 
-export function pitchCategoryLabel(key: string | null): string {
-  return (key && PITCH_CATEGORY_LABELS[key]) || "Other";
+/* ─── Locale strings (stack1600 locale unit 50) ────────────────────
+   Optional string bundle for every display line this seam speaks.
+   Defaults are the current English literals VERBATIM, so existing
+   callers and tests see byte-identical output; a localized caller
+   (PitchFixBoard) passes its catalog's words through. The label
+   tables above stay the EN defaults for the three label helpers. */
+
+export interface PitchFixLabelStrings {
+  statusWithTeam: string;
+  statusNotTakenUp: string;
+  statusShipped: string;
+  statusBuilding: string;
+  statusOnBoard: string;
+  /** The paid-reward line — a function because the amount is data. */
+  rewardPaid: (amount: number) => string;
+  rewardQueued: string;
+  /** Fallback submitter name when the rail sends none. */
+  submitterFallback: string;
 }
 
-export function fixPageLabel(key: string | null): string {
-  return (key && FIX_PAGE_LABELS[key]) || "Somewhere else";
+export const DEFAULT_PITCH_FIX_LABEL_STRINGS: PitchFixLabelStrings = {
+  statusWithTeam: "With the team — in review",
+  statusNotTakenUp: "Not taken up this time",
+  statusShipped: "Shipped — it's live",
+  statusBuilding: "Being built now",
+  statusOnBoard: "On the board",
+  rewardPaid: (amount: number) => `+${amount} Bucs landed`,
+  rewardQueued: "Reward queued",
+  submitterFallback: "Creator",
+};
+
+function labelStrings(
+  strings?: Partial<PitchFixLabelStrings>,
+): PitchFixLabelStrings {
+  return { ...DEFAULT_PITCH_FIX_LABEL_STRINGS, ...strings };
 }
 
-export function fixSeverityLabel(key: string | null): string {
-  return (key && FIX_SEVERITY_LABELS[key]) || "Small";
+export function pitchCategoryLabel(
+  key: string | null,
+  labels: Record<string, string> = PITCH_CATEGORY_LABELS,
+): string {
+  return (key && labels[key]) || labels["other"] || "Other";
+}
+
+export function fixPageLabel(
+  key: string | null,
+  labels: Record<string, string> = FIX_PAGE_LABELS,
+): string {
+  return (key && labels[key]) || labels["somewhere_else"] || "Somewhere else";
+}
+
+export function fixSeverityLabel(
+  key: string | null,
+  labels: Record<string, string> = FIX_SEVERITY_LABELS,
+): string {
+  return (key && labels[key]) || labels["small"] || "Small";
 }
 
 /* ─── Payload normalization ────────────────────────────────────────
@@ -101,7 +147,10 @@ function num(v: unknown): number {
   return typeof v === "number" && Number.isFinite(v) ? v : 0;
 }
 
-function normalizeSubmission(raw: unknown): PitchFixSubmission | null {
+function normalizeSubmission(
+  raw: unknown,
+  strings?: Partial<PitchFixLabelStrings>,
+): PitchFixSubmission | null {
   const r = asRecord(raw);
   if (!r) return null;
   const id = str(r["id"]);
@@ -114,7 +163,7 @@ function normalizeSubmission(raw: unknown): PitchFixSubmission | null {
     kind,
     source: str(r["source"]) === "feedback_popup" ? "feedback_popup" : "door",
     submitterUserId: str(r["submitterUserId"]),
-    submitterName: str(r["submitterName"], "Creator"),
+    submitterName: str(r["submitterName"], labelStrings(strings).submitterFallback),
     title,
     body: str(r["body"]),
     why: strOrNull(r["why"]),
@@ -140,11 +189,14 @@ function normalizeSubmission(raw: unknown): PitchFixSubmission | null {
   };
 }
 
-function normalizeList(v: unknown): PitchFixSubmission[] | null {
+function normalizeList(
+  v: unknown,
+  strings?: Partial<PitchFixLabelStrings>,
+): PitchFixSubmission[] | null {
   if (!Array.isArray(v)) return null;
   const out: PitchFixSubmission[] = [];
   for (const raw of v) {
-    const row = normalizeSubmission(raw);
+    const row = normalizeSubmission(raw, strings);
     if (!row) return null;
     out.push(row);
   }
@@ -158,12 +210,15 @@ export interface PitchFixBoardData {
   viewerVotedIds: string[];
 }
 
-export function normalizePitchFixBoard(payload: unknown): PitchFixBoardData | null {
+export function normalizePitchFixBoard(
+  payload: unknown,
+  strings?: Partial<PitchFixLabelStrings>,
+): PitchFixBoardData | null {
   const root = asRecord(payload);
   if (!root) return null;
-  const pitches = normalizeList(root["pitches"]);
-  const fixes = normalizeList(root["fixes"]);
-  const shipped = normalizeList(root["shipped"]);
+  const pitches = normalizeList(root["pitches"], strings);
+  const fixes = normalizeList(root["fixes"], strings);
+  const shipped = normalizeList(root["shipped"], strings);
   if (!pitches || !fixes || !shipped) return null;
   const voted = root["viewerVotedIds"];
   return {
@@ -176,10 +231,13 @@ export function normalizePitchFixBoard(payload: unknown): PitchFixBoardData | nu
   };
 }
 
-export function normalizeMySubmissions(payload: unknown): PitchFixSubmission[] | null {
+export function normalizeMySubmissions(
+  payload: unknown,
+  strings?: Partial<PitchFixLabelStrings>,
+): PitchFixSubmission[] | null {
   const root = asRecord(payload);
   if (!root) return null;
-  return normalizeList(root["submissions"]);
+  return normalizeList(root["submissions"], strings);
 }
 
 /* ─── A filing's standing, in the member's words ───────────────────
@@ -187,17 +245,25 @@ export function normalizeMySubmissions(payload: unknown): PitchFixSubmission[] |
    is with the team, whatever its status says), then the team's own
    status ladder. Rewards speak only when the rail says so. */
 
-export function submissionStatusLine(s: PitchFixSubmission): string {
-  if (s.moderationStatus === "pending") return "With the team — in review";
-  if (s.moderationStatus === "rejected") return "Not taken up this time";
-  if (s.status === "shipped" || s.status === "fixed") return "Shipped — it's live";
-  if (s.status === "building" || s.status === "fixing") return "Being built now";
-  return "On the board";
+export function submissionStatusLine(
+  s: PitchFixSubmission,
+  strings?: Partial<PitchFixLabelStrings>,
+): string {
+  const lbl = labelStrings(strings);
+  if (s.moderationStatus === "pending") return lbl.statusWithTeam;
+  if (s.moderationStatus === "rejected") return lbl.statusNotTakenUp;
+  if (s.status === "shipped" || s.status === "fixed") return lbl.statusShipped;
+  if (s.status === "building" || s.status === "fixing") return lbl.statusBuilding;
+  return lbl.statusOnBoard;
 }
 
-export function submissionRewardLine(s: PitchFixSubmission): string | null {
-  if (s.rewardStatus === "paid" && s.rewardAmount != null) return `+${s.rewardAmount} Bucs landed`;
-  if (s.rewardStatus === "queued") return "Reward queued";
+export function submissionRewardLine(
+  s: PitchFixSubmission,
+  strings?: Partial<PitchFixLabelStrings>,
+): string | null {
+  const lbl = labelStrings(strings);
+  if (s.rewardStatus === "paid" && s.rewardAmount != null) return lbl.rewardPaid(s.rewardAmount);
+  if (s.rewardStatus === "queued") return lbl.rewardQueued;
   return null;
 }
 

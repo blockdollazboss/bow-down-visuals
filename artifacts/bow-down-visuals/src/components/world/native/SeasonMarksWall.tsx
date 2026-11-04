@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Crown, Medal } from "lucide-react";
 import { NativeBoard, NativeBoardRow } from "./NativeBoard";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
@@ -31,6 +32,7 @@ function StandingRows({
   isLight: boolean;
   frozen: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-1.5">
       {standings.map((s) => (
@@ -40,14 +42,14 @@ function StandingRows({
           highlighted={s.place === 1}
           title={`${s.place}. ${s.displayName}`}
           detail={`★${s.stars} ${s.title}`}
-          meta={`${s.points} pts`}
+          meta={t("worldBoards.smPoints", { points: s.points })}
           action={
             s.place === 1 ? (
-              <Crown className="h-4 w-4 shrink-0 text-[#d4af37]" aria-label="First of the court" />
+              <Crown className="h-4 w-4 shrink-0 text-[#d4af37]" aria-label={t("worldBoards.smFirstAria")} />
             ) : (
               <Medal
                 className={`h-4 w-4 shrink-0 ${frozen ? "text-[#d4af37]/80" : "text-[#d4af37]/50"}`}
-                aria-label={`Placed ${s.place}`}
+                aria-label={t("worldBoards.smPlacedAria", { place: s.place })}
               />
             )
           }
@@ -58,6 +60,7 @@ function StandingRows({
 }
 
 export function SeasonMarksWall({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const [wall, setWall] = useState<CourtSeasonWallData | null>(null);
   const [failed, setFailed] = useState(false);
   const [tick, setTick] = useState(0);
@@ -65,7 +68,10 @@ export function SeasonMarksWall({ isLight }: { isLight: boolean }) {
   useEffect(() => {
     let cancelled = false;
     setFailed(false);
-    fetchCourtSeasonWall()
+    fetchCourtSeasonWall(undefined, {
+      fallbackTitle: t("worldBoards.smFallbackTitle"),
+      fallbackSeasonName: t("worldBoards.smFallbackSeasonName"),
+    })
       .then((data) => {
         if (!cancelled) {
           if (data) setWall(data);
@@ -78,20 +84,21 @@ export function SeasonMarksWall({ isLight }: { isLight: boolean }) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick]);
 
   if (failed) {
     return (
       <NativeErrorState
         isLight={isLight}
-        title="The marks wall wouldn't load"
-        message="The carved seasons are safe — the reading lamp slipped. Try again."
+        title={t("worldBoards.smLoadTitle")}
+        message={t("worldBoards.smLoadMessage")}
         onRetry={() => setTick((n) => n + 1)}
       />
     );
   }
   if (wall === null) {
-    return <NativeLoadingState isLight={isLight} message="Reading the marks…" />;
+    return <NativeLoadingState isLight={isLight} message={t("worldBoards.smLoading")} />;
   }
 
   const { current, seasons } = wall;
@@ -99,11 +106,14 @@ export function SeasonMarksWall({ isLight }: { isLight: boolean }) {
     <div className="space-y-4">
       <NativeBoard
         isLight={isLight}
-        title={`The running season — ${seasonDisplayName(current)}`}
+        title={t("worldBoards.smRunningTitle", { name: seasonDisplayName(current) })}
         headline={
           <p className={`px-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-            Live standings — the ladder&rsquo;s points over this season&rsquo;s work.{" "}
-            {seasonTurnLabel(current.endsAt)}; at the turn the court settles and these become marks.
+            {t("worldBoards.smRunningHeadline", {
+              turn: seasonTurnLabel(current.endsAt, i18n.language, {
+                turn: (date) => t("worldBoards.smTurnsOn", { date }),
+              }),
+            })}
           </p>
         }
       >
@@ -112,8 +122,8 @@ export function SeasonMarksWall({ isLight }: { isLight: boolean }) {
         ) : (
           <NativeEmptyState
             isLight={isLight}
-            message="The court is scoreless this season — so far."
-            detail="The first marks are earned, never given: publish, sell, stream, gather tips inside the season and the wall fills."
+            message={t("worldBoards.smCurrentEmpty")}
+            detail={t("worldBoards.smCurrentEmptyDetail")}
           />
         )}
       </NativeBoard>
@@ -122,11 +132,11 @@ export function SeasonMarksWall({ isLight }: { isLight: boolean }) {
         <NativeBoard
           key={season.seasonKey}
           isLight={isLight}
-          title={`${seasonDisplayName(season)} — settled`}
+          title={t("worldBoards.smSettledTitle", { name: seasonDisplayName(season) })}
           headline={
             season.standings.length > 0 ? (
               <p className={`px-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                The final court, frozen at the turn — these marks do not move.
+                {t("worldBoards.smSettledHeadline")}
               </p>
             ) : undefined
           }
@@ -136,8 +146,8 @@ export function SeasonMarksWall({ isLight }: { isLight: boolean }) {
           ) : (
             <NativeEmptyState
               isLight={isLight}
-              message="No marks this season — the court scored nothing."
-              detail="The season still settled; its wall stands honestly empty."
+              message={t("worldBoards.smSettledEmpty")}
+              detail={t("worldBoards.smSettledEmptyDetail")}
             />
           )}
         </NativeBoard>
@@ -145,12 +155,11 @@ export function SeasonMarksWall({ isLight }: { isLight: boolean }) {
 
       {seasons.length === 0 && (
         <p className={`px-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-          No season has settled yet — the first marks are carved when {current.name} turns.
+          {t("worldBoards.smNoSettled", { name: current.name })}
         </p>
       )}
       <p className={`px-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-        Marks are honor, not money: earned by published work, exports, followers, streams, tips,
-        sales and memberships during the season. No Visual Bucs change hands on this wall.
+        {t("worldBoards.smHonorNote")}
       </p>
 
       <CrownsChamber isLight={isLight} />
