@@ -55,6 +55,7 @@ import type { GreenScreenFineTune } from "../stream-kit/greenscreen-finetune";
 import {
   isSelectionActive, type BackdropSelection,
 } from "../stream-kit/backdrop-selection";
+import { getCreditCost } from "../credit-costs";
 
 /* ── #85 studio rails ─────────────────────────────────────────────── */
 
@@ -635,4 +636,366 @@ export function fineTuneSlidersForMode(mode: BackgroundMode): typeof GREENSCREEN
 
 export const LIVE_WAVE3_PROMOTIONS = [
   "#92 Behind me in the hall Screen panel: the 2D studio's green-screen depth on the SAME BackgroundChanger kit BroadcastStudio runs — background modes (Green Screen / Blur / Backdrop / Original), quality (Auto / Pro / MediaPipe), the backdrop picker (built-in scenes, your own photo upload, a pasted image link — backdrop-selection's ONE selection), and the fine-tune sliders over greenscreen-finetune's shared device settings (the same bdv-greenscreen-finetune store the 2D studio reads, so a tuned cutout follows the creator between surfaces), with the engine's live status and any fallback spoken plainly. Free, exactly as on the page",
+] as const;
+
+/* ── Wave IV — Stream Copilot + Live Stage automation ─────────────
+   The /go-live Live hub's other half (StreamCopilotSection, with
+   LiveStageDesk docked under it), carried into the same Screen
+   panel on the panels' own rails verbatim:
+
+   - Stream Copilot: POST /api/stream-copilot/prep { streamTitle,
+     topic, platform } and POST /api/stream-copilot/clip-plan
+     { recap, topic } — 100 VB each. The credit-costs registry rows
+     ARE the price source (derived below, never re-typed); the rail
+     charges before the model call and refunds on failure. The desk
+     mirrors the page's honesty end to end: the spend goes through
+     the standing confirmed door (useConfirmedApi), a 402 /
+     out_of_credits answer reads as an honest not-enough-Bucs line,
+     and the profile balance refreshes after a settled call. HONEST
+     SCOPE (the rail's own words): prep and post-stream only — never
+     presented as live assistance.
+   - Live Stage automation: GET/PATCH /api/live-prefs (the Stage
+     Manager switches, its link rules, and the Auto-Highlights
+     switch — free), and per stream: GET /api/live-streams/mine
+     (the picker), GET …/:id/stage-manager (muted, the active pin,
+     trouble flags), POST …/stage-manager/mute { muted },
+     POST …/stage-manager/unpin, GET …/:id/highlights,
+     POST …/highlights/:pid/approve | dismiss | refresh, and
+     GET …/:id/class-roster for class streams. Approving a cut is
+     the ONE charged verb here, at LiveStageDesk's own confirm
+     override (200 VB — the approve rail carries no registry row;
+     its price is the Streamer Clips rail's per-clip price, charged
+     and refunded server-side, and the page states 200 in both its
+     confirm override and its button). Nothing posts without the
+     creator's yes, and the co-host never acts on a person — flags
+     are for the creator's call, exactly as the 2D desk says. */
+
+export const COPILOT_PREP_PATH = "/api/stream-copilot/prep";
+export const COPILOT_CLIP_PLAN_PATH = "/api/stream-copilot/clip-plan";
+export const LIVE_PREFS_PATH = "/api/live-prefs";
+export const MY_STREAMS_PATH = "/api/live-streams/mine";
+export const STAGE_MANAGER_PATH = (id: string) => `/api/live-streams/${encodeURIComponent(id)}/stage-manager`;
+export const STAGE_MANAGER_MUTE_PATH = (id: string) => `${STAGE_MANAGER_PATH(id)}/mute`;
+export const STAGE_MANAGER_UNPIN_PATH = (id: string) => `${STAGE_MANAGER_PATH(id)}/unpin`;
+export const HIGHLIGHTS_PATH = (id: string) => `/api/live-streams/${encodeURIComponent(id)}/highlights`;
+export const HIGHLIGHT_APPROVE_PATH = (id: string, proposalId: string) =>
+  `${HIGHLIGHTS_PATH(id)}/${encodeURIComponent(proposalId)}/approve`;
+export const HIGHLIGHT_DISMISS_PATH = (id: string, proposalId: string) =>
+  `${HIGHLIGHTS_PATH(id)}/${encodeURIComponent(proposalId)}/dismiss`;
+export const HIGHLIGHT_REFRESH_PATH = (id: string, proposalId: string) =>
+  `${HIGHLIGHTS_PATH(id)}/${encodeURIComponent(proposalId)}/refresh`;
+export const CLASS_ROSTER_PATH = (id: string) => `/api/live-streams/${encodeURIComponent(id)}/class-roster`;
+
+/** The registry is the price source: derived, never re-typed. A
+ *  missing row reads −1 so a pin fails loudly instead of a desk
+ *  quietly confirming a made-up number (the catalog-desk pattern). */
+export const COPILOT_PREP_COST = getCreditCost(COPILOT_PREP_PATH)?.cost ?? -1;
+export const COPILOT_PREP_FEATURE = getCreditCost(COPILOT_PREP_PATH)?.feature ?? "";
+export const COPILOT_CLIP_PLAN_COST = getCreditCost(COPILOT_CLIP_PLAN_PATH)?.cost ?? -1;
+export const COPILOT_CLIP_PLAN_FEATURE = getCreditCost(COPILOT_CLIP_PLAN_PATH)?.feature ?? "";
+
+/** LiveStageDesk's confirm override for approving a highlight cut,
+ *  verbatim — number and feature words. */
+export const HIGHLIGHT_CUT_COST_VB = 200;
+export const HIGHLIGHT_CUT_FEATURE = "Auto-Highlights clip cut";
+
+/** StreamCopilotSection's platform menu, verbatim: the chips ARE
+ *  the menu (the prep schema caps platform at 40 chars). */
+export const COPILOT_PLATFORMS = ["TikTok", "YouTube", "Twitch", "Instagram"] as const;
+
+/** prepSchema's gates, mirrored for the form: a stream title of
+ *  1–200 and a topic of 1–300 trimmed characters. */
+export function copilotPrepReady(streamTitle: string, topic: string): boolean {
+  const title = streamTitle.trim();
+  const t = topic.trim();
+  return title.length >= 1 && title.length <= 200 && t.length >= 1 && t.length <= 300;
+}
+
+/** clipPlanSchema's gate: a recap of 1–3000 trimmed characters
+ *  (the topic line rides along, optional there, capped at 300). */
+export function copilotClipPlanReady(recap: string): boolean {
+  const r = recap.trim();
+  return r.length >= 1 && r.length <= 3000;
+}
+
+/** The prep request body, exactly the page's: trimmed fields, the
+ *  picked platform verbatim. */
+export function buildCopilotPrepBody(input: { streamTitle: string; topic: string; platform: string }): {
+  streamTitle: string;
+  topic: string;
+  platform: string;
+} {
+  return { streamTitle: input.streamTitle.trim(), topic: input.topic.trim(), platform: input.platform };
+}
+
+/** The clip-plan request body, exactly the page's: the trimmed
+ *  recap plus the (optional) topic line. */
+export function buildCopilotClipPlanBody(input: { recap: string; topic: string }): { recap: string; topic: string } {
+  return { recap: input.recap.trim(), topic: input.topic.trim() };
+}
+
+export interface CopilotPrepView {
+  checklist: string[];
+  talkingPoints: string[];
+  clipWatchFors: string[];
+}
+
+export interface CopilotClipMoment {
+  timestampHint: string;
+  title: string;
+  description: string;
+  whyItWorks: string;
+}
+
+/** The rail's own parseStringArray, mirrored: strings only,
+ *  trimmed, empties dropped, capped per list. */
+function cleanCopilotStrings(raw: unknown, max: number): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+    .map((s) => s.trim())
+    .slice(0, max);
+}
+
+export function normalizeCopilotPrep(raw: unknown): CopilotPrepView {
+  const d = (raw ?? {}) as Record<string, unknown>;
+  return {
+    checklist: cleanCopilotStrings(d["checklist"], 15),
+    talkingPoints: cleanCopilotStrings(d["talkingPoints"], 12),
+    clipWatchFors: cleanCopilotStrings(d["clipWatchFors"], 10),
+  };
+}
+
+/** The rail's parseMoment rule, mirrored: a moment needs a title
+ *  AND a description to exist; the rest default to empty. */
+export function normalizeCopilotMoments(raw: unknown): CopilotClipMoment[] {
+  const d = (raw ?? {}) as Record<string, unknown>;
+  const rows = Array.isArray(d["moments"]) ? d["moments"] : [];
+  const out: CopilotClipMoment[] = [];
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    const m = r as Record<string, unknown>;
+    const title = typeof m["title"] === "string" ? m["title"].trim() : "";
+    const description = typeof m["description"] === "string" ? m["description"].trim() : "";
+    if (!title || !description) continue;
+    out.push({
+      timestampHint: typeof m["timestampHint"] === "string" ? m["timestampHint"] : "",
+      title,
+      description,
+      whyItWorks: typeof m["whyItWorks"] === "string" ? m["whyItWorks"] : "",
+    });
+  }
+  return out.slice(0, 7);
+}
+
+/* ── the automation switches (LivePrefs) ────────────────────────── */
+
+export interface LiveLinkRule {
+  keyword: string;
+  label: string;
+  url: string;
+}
+
+/** The prefs DTO kept in its wire shape (snake_case, link rules
+ *  riding as one list) — the PATCH body is this view verbatim,
+ *  exactly like LiveStageDesk holds and saves it. */
+export interface LivePrefsView {
+  auto_highlights_enabled: boolean;
+  stage_manager_enabled: boolean;
+  stage_manager_pin_enabled: boolean;
+  stage_manager_links_enabled: boolean;
+  stage_manager_sting_enabled: boolean;
+  stage_manager_flags_enabled: boolean;
+  stage_manager_link_rules: LiveLinkRule[];
+}
+
+export function normalizeLivePrefs(raw: unknown): LivePrefsView {
+  const d = (raw ?? {}) as Record<string, unknown>;
+  const rules: LiveLinkRule[] = [];
+  if (Array.isArray(d["stage_manager_link_rules"])) {
+    for (const r of d["stage_manager_link_rules"]) {
+      if (!r || typeof r !== "object") continue;
+      const rule = r as Record<string, unknown>;
+      if (typeof rule["keyword"] !== "string" || typeof rule["label"] !== "string" || typeof rule["url"] !== "string") continue;
+      rules.push({ keyword: rule["keyword"], label: rule["label"], url: rule["url"] });
+    }
+  }
+  return {
+    auto_highlights_enabled: d["auto_highlights_enabled"] === true,
+    stage_manager_enabled: d["stage_manager_enabled"] === true,
+    stage_manager_pin_enabled: d["stage_manager_pin_enabled"] === true,
+    stage_manager_links_enabled: d["stage_manager_links_enabled"] === true,
+    stage_manager_sting_enabled: d["stage_manager_sting_enabled"] === true,
+    stage_manager_flags_enabled: d["stage_manager_flags_enabled"] === true,
+    stage_manager_link_rules: rules,
+  };
+}
+
+/** The prefs PATCH body is the view itself — the rail takes any
+ *  subset and LiveStageDesk sends the whole set, so the desk does
+ *  the same: what you see switched is what gets saved. */
+export function buildLivePrefsPatch(prefs: LivePrefsView): LivePrefsView {
+  return { ...prefs, stage_manager_link_rules: prefs.stage_manager_link_rules.map((r) => ({ ...r })) };
+}
+
+/** RuleAdder's readiness rule, verbatim: a keyword of 2+ chars, a
+ *  label, and a full http(s) link. */
+export function linkRuleReady(keyword: string, label: string, url: string): boolean {
+  return keyword.trim().length >= 2 && label.trim().length >= 1 && /^https?:\/\//i.test(url.trim());
+}
+
+/** RuleAdder's add, verbatim: the keyword is stored lower-cased,
+ *  every field trimmed. */
+export function buildLinkRule(keyword: string, label: string, url: string): LiveLinkRule {
+  return { keyword: keyword.trim().toLowerCase(), label: label.trim(), url: url.trim() };
+}
+
+/** LiveStageDesk's adder cap: its form stops offering at 10 rules
+ *  (the rail's own ceiling is 25 — the panel's menu is the panel's). */
+export const LINK_RULES_UI_MAX = 10;
+
+/* ── the per-stream stage desk ──────────────────────────────────── */
+
+export interface StageStreamRow {
+  id: string;
+  title: string;
+  status: string;
+  isClass: boolean;
+  ticketPriceVb: number | null;
+  classCourseProductId: string | null;
+  hasVod: boolean;
+}
+
+export function normalizeMyStreams(raw: unknown): StageStreamRow[] {
+  const d = (raw ?? {}) as Record<string, unknown>;
+  const rows = Array.isArray(d["streams"]) ? d["streams"] : [];
+  const out: StageStreamRow[] = [];
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    const s = r as Record<string, unknown>;
+    if (typeof s["id"] !== "string") continue;
+    out.push({
+      id: s["id"],
+      title: typeof s["title"] === "string" ? s["title"] : "Live stream",
+      status: typeof s["status"] === "string" ? s["status"] : "",
+      isClass: s["is_class"] === true,
+      ticketPriceVb: typeof s["ticket_price_vb"] === "number" ? s["ticket_price_vb"] : null,
+      classCourseProductId: typeof s["class_course_product_id"] === "string" ? s["class_course_product_id"] : null,
+      hasVod: s["has_vod"] === true,
+    });
+  }
+  return out;
+}
+
+/** LiveStageDesk's picker default, verbatim: the live stream if
+ *  there is one, else the newest, else nothing. */
+export function initialStageStreamId(streams: StageStreamRow[]): string {
+  return streams.find((s) => s.status === "live")?.id ?? streams[0]?.id ?? "";
+}
+
+export interface StageStateView {
+  muted: boolean;
+  stagePinned: { body: string; authorName: string; pinnedUntil: string | null } | null;
+  flags: Array<{ at: string; reason: string; messageId: string | null }>;
+}
+
+export function normalizeStageState(raw: unknown): StageStateView {
+  const d = (raw ?? {}) as Record<string, unknown>;
+  const pin = (d["stagePinned"] ?? null) as Record<string, unknown> | null;
+  let stagePinned: StageStateView["stagePinned"] = null;
+  if (pin && typeof pin === "object") {
+    const msg = (pin["message"] ?? {}) as Record<string, unknown>;
+    const author = (msg["author"] ?? {}) as Record<string, unknown>;
+    stagePinned = {
+      body: typeof msg["body"] === "string" ? msg["body"] : "",
+      authorName: typeof author["displayName"] === "string" ? author["displayName"] : "",
+      pinnedUntil: typeof pin["pinnedUntil"] === "string" ? pin["pinnedUntil"] : null,
+    };
+  }
+  const flags: StageStateView["flags"] = [];
+  if (Array.isArray(d["flags"])) {
+    for (const f of d["flags"]) {
+      if (!f || typeof f !== "object") continue;
+      const flag = f as Record<string, unknown>;
+      if (typeof flag["at"] !== "string" || typeof flag["reason"] !== "string") continue;
+      flags.push({
+        at: flag["at"],
+        reason: flag["reason"],
+        messageId: typeof flag["messageId"] === "string" ? flag["messageId"] : null,
+      });
+    }
+  }
+  return { muted: d["muted"] === true, stagePinned, flags };
+}
+
+export type HighlightProposalStatus = "proposed" | "approved" | "dismissed" | "posted";
+
+export interface HighlightProposalView {
+  id: string;
+  startSec: number;
+  endSec: number;
+  title: string;
+  reason: string;
+  status: HighlightProposalStatus;
+  outputUrl: string | null;
+}
+
+export function normalizeHighlightProposals(raw: unknown): HighlightProposalView[] {
+  const d = (raw ?? {}) as Record<string, unknown>;
+  const rows = Array.isArray(d["proposals"]) ? d["proposals"] : [];
+  const out: HighlightProposalView[] = [];
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    const p = r as Record<string, unknown>;
+    if (typeof p["id"] !== "string") continue;
+    const status = p["status"];
+    out.push({
+      id: p["id"],
+      startSec: typeof p["start_sec"] === "number" ? p["start_sec"] : 0,
+      endSec: typeof p["end_sec"] === "number" ? p["end_sec"] : 0,
+      title: typeof p["title"] === "string" ? p["title"] : "",
+      reason: typeof p["reason"] === "string" ? p["reason"] : "",
+      status: status === "approved" || status === "dismissed" || status === "posted" ? status : "proposed",
+      outputUrl: typeof p["output_url"] === "string" ? p["output_url"] : null,
+    });
+  }
+  return out;
+}
+
+export interface ClassRosterRow {
+  userId: string;
+  displayName: string;
+  ticketId: string;
+  priceVb: number;
+  purchasedAt: string;
+}
+
+export function normalizeClassRoster(raw: unknown): ClassRosterRow[] {
+  const d = (raw ?? {}) as Record<string, unknown>;
+  const rows = Array.isArray(d["roster"]) ? d["roster"] : [];
+  const out: ClassRosterRow[] = [];
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    const e = r as Record<string, unknown>;
+    if (typeof e["ticket_id"] !== "string") continue;
+    out.push({
+      userId: typeof e["user_id"] === "string" ? e["user_id"] : "",
+      displayName: typeof e["display_name"] === "string" ? e["display_name"] : "Creator",
+      ticketId: e["ticket_id"],
+      priceVb: typeof e["price_vb"] === "number" ? e["price_vb"] : 0,
+      purchasedAt: typeof e["purchased_at"] === "string" ? e["purchased_at"] : "",
+    });
+  }
+  return out;
+}
+
+/** LiveStageDesk's proposal clock, verbatim. */
+export function highlightClock(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+export const LIVE_WAVE4_PROMOTIONS = [
+  "Wave IV Stream Copilot + Live Stage in the hall Screen panel: StreamCopilotSection's prep + clip-plan on its own rails (100 VB each from the credit-costs registry, through the confirmed-spend door, refund-on-failure on the rail) and LiveStageDesk's automation verbatim — /api/live-prefs switches + link rules, the per-stream Stage Manager state (mute, pin, trouble flags), Auto-Highlights proposals whose approve rides the desk's 200 VB confirm override (the rail charges the Streamer Clips price and refunds a failed cut; nothing posts without the creator's yes) and the class roster on /api/live-streams/:id/class-roster",
 ] as const;
