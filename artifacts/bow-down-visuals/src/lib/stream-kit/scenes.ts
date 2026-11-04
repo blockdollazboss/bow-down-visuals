@@ -28,7 +28,7 @@ export const WIDGET_KIND_LABELS: Record<WidgetKind, string> = {
   "goal-bar": "Tip goal bar",
 };
 
-interface ChromaSettings {
+export interface ChromaSettings {
   /** Key color as #rrggbb. */
   color: string;
   /** 0..1 — distance below which pixels are fully transparent. */

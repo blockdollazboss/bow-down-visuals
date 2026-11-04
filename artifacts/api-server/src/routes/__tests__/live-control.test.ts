@@ -88,6 +88,27 @@ describe("ControlRelay", () => {
     expect(remote.frames()).toEqual([{ type: "state.sync", state: state("stage-1", true) }]);
   });
 
+  it("routes the per-source chroma command (scene.chroma.update) with its args intact", () => {
+    const relay = new ControlRelay(new RoomHub());
+    const room = controlRoomId("u1");
+    const remote = new FakeSocket();
+    const stage = new FakeSocket();
+    relay.join(room, asSock(remote), "remote");
+    relay.join(room, asSock(stage), "stage");
+    remote.clear();
+    stage.clear();
+
+    const args = {
+      sceneId: "s1",
+      sourceId: "src-1",
+      cameraMode: "chroma",
+      chroma: { color: "#00ff00", similarity: 0.5, smoothness: 0.2 },
+    };
+    const ok = relay.handleFrame(room, asSock(remote), JSON.stringify({ type: "command", id: "c9", command: "scene.chroma.update", args }));
+    expect(ok).toBe(true);
+    expect(stage.frames()).toEqual([{ type: "command", id: "c9", command: "scene.chroma.update", args }]);
+  });
+
   it("OWNERSHIP: a remote in another account's room reaches NOTHING", () => {
     const relay = new ControlRelay(new RoomHub());
     const roomA = controlRoomId("user-a");
