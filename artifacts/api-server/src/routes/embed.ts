@@ -776,7 +776,7 @@ video{width:100%;height:100%;object-fit:contain;background:#000}
    theme variables, so the light palette designs this layout too. */
 .pf{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;width:100%;flex:1;min-height:0;padding-bottom:70px}
 .pf-avatar{width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex-shrink:0}
-.pf-avatar-fb{background:var(--fallback);display:flex;align-items:center;justify-content:center;font-size:34px}
+.pf-avatar-fb{background:var(--fallback);display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:800;color:var(--gold-text)}
 .pf-avatar-lg{width:104px;height:104px}
 .pf-avatar-fb.pf-avatar-lg{font-size:42px}
 .pf-name{font-size:18px}
@@ -1062,7 +1062,7 @@ return '<a class="pf-row" href="/track/'+esc(t.id)+'" target="_blank" rel="noope
 var hasContent=!!d.featured||rows.length>0;
 p.innerHTML='<div class="pf">'+
 (d.avatar_url?'<img class="pf-avatar'+(hasContent?"":" pf-avatar-lg")+'" src="'+esc(d.avatar_url)+'" alt=""/>':
-'<div class="pf-avatar pf-avatar-fb'+(hasContent?"":" pf-avatar-lg")+'">🦈</div>')+
+'<div class="pf-avatar pf-avatar-fb'+(hasContent?"":" pf-avatar-lg")+'">'+esc((d.display_name||"?").charAt(0).toUpperCase())+'</div>')+
 '<div><div class="title pf-name">'+esc(d.display_name)+'</div>'+
 (d.follower_count>0?'<div class="artist">'+fmt(d.follower_count)+' follower'+(d.follower_count===1?'':'s')+'</div>':"")+
 (d.bio?'<div class="pf-bio">'+esc(d.bio)+'</div>':"")+'</div>'+
@@ -1102,7 +1102,7 @@ function render(d){
 p.innerHTML=
 '<div style="display:flex;align-items:center;gap:12px;min-width:0">'+
 (d.avatar_url?'<img src="'+esc(d.avatar_url)+'" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex-shrink:0"/>':
-'<div style="width:48px;height:48px;border-radius:50%;background:var(--fallback);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🦈</div>')+
+'<div style="width:48px;height:48px;border-radius:50%;background:var(--fallback);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--gold-text);flex-shrink:0">'+esc((d.display_name||"?").charAt(0).toUpperCase())+'</div>')+
 '<div style="min-width:0;flex:1"><div class="title" style="font-size:15px">'+esc(d.display_name)+'</div>'+
 (d.is_live
 ?'<div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="livedot"></span><span style="font-size:12px;font-weight:800;color:#e5484d">LIVE NOW</span><span class="artist" style="margin-top:0">'+d.stream.viewer_count+' watching</span></div>'+
