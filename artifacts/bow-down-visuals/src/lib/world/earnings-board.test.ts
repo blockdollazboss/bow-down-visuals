@@ -41,6 +41,11 @@ import {
 } from "./earnings-board";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
+import en from "../../locales/en.json";
+/* stack100 unit 50: the board renders through the worldBoards
+   catalog — pins below assert the KEY in the board source and the
+   English copy in the catalog, so the coverage is unchanged. */
+const boards = (en as { worldBoards: Record<string, string> }).worldBoards;
 const boardSrc = read("../../components/world/native/boards/EarningsBoard.tsx");
 const stationPanelSrc = read("../../components/world/StationPanel.tsx");
 const boardLibSrc = read("./earnings-board.ts");
@@ -440,7 +445,8 @@ describe("the EarningsBoard surface (source pins)", () => {
   it("guests get the pitch and no fetch fires for them", () => {
     expect(boardSrc).toContain("isGuest");
     expect(boardSrc).toContain("GUEST_SIGN_IN_HREF");
-    expect(boardSrc).toContain("Sign in to see them");
+    expect(boardSrc).toContain('t("worldBoards.ebSignInToSee")');
+    expect(boards.ebSignInToSee).toBe("Sign in to see them");
     expect(boardSrc).toContain("if (isGuest) return;");
   });
 
@@ -454,12 +460,14 @@ describe("the EarningsBoard surface (source pins)", () => {
   it("the PDF is a blob download, not a navigation", () => {
     expect(boardSrc).toContain("URL.createObjectURL(blob)");
     expect(boardSrc).toContain("earnings-statement-");
-    expect(boardSrc).toContain("Download statement (PDF)");
+    expect(boardSrc).toContain('t("worldBoards.ebDownloadStatementPdf")');
+    expect(boards.ebDownloadStatementPdf).toBe("Download statement (PDF)");
   });
 
   it("the statement is also VIEWABLE on the board — the shared lines, beside the PDF button", () => {
     expect(boardSrc).toContain('data-testid="world-earnings-statement-view"');
-    expect(boardSrc).toContain("View statement");
+    expect(boardSrc).toContain('t("worldBoards.ebViewStatement")');
+    expect(boards.ebViewStatement).toBe("View statement");
     expect(boardSrc).toContain("loadBoardStatement(");
     expect(boardSrc).toContain('data-testid="world-earnings-statement-lines"');
     expect(boardSrc).toContain("statementLineRows(stmt)");
@@ -474,12 +482,14 @@ describe("the EarningsBoard surface (source pins)", () => {
 
   it("an empty year reads as an empty statement on the board, not an error and not a fake total", () => {
     expect(boardSrc).toContain("statementIsEmpty(stmt)");
-    expect(boardSrc).toContain("this statement is empty");
+    expect(boardSrc).toContain('t("worldBoards.ebStatementEmpty", { year })');
+    expect(boards.ebStatementEmpty).toContain("this statement is empty");
   });
 
   it("a failed view says so on the card — the statement rail's own honest line", () => {
     expect(boardSrc).toContain("stmtFailed");
-    expect(boardSrc).toContain("That statement couldn");
+    expect(boardSrc).toContain('t("worldBoards.ebStatementCouldntLoad")');
+    expect(boards.ebStatementCouldntLoad).toContain("That statement couldn");
   });
 
   it("the host dispatches the board pattern's get-paid station to it", () => {

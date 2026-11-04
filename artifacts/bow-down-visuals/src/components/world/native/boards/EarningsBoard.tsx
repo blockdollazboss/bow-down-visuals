@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Download, Eye, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,6 +36,7 @@ import {
   statementTotalLabel,
   statementYears,
   usd,
+  type EarningsBoardStrings,
   type EarningsResponse,
   type EarningsStatement,
   type LedgerEntry,
@@ -78,15 +80,48 @@ import {
 
 type EarningsTab = "earnings" | "ledger";
 
-function fmtDate(iso: string | null): string {
+function fmtDate(iso: string | null, locale: string): string {
   if (!iso) return "";
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? ""
-    : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    : d.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
 }
 
 export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
+  /* The seam's string bundle, key-mapped through the catalogs —
+     the seam's own defaults keep un-wired callers in English. */
+  const boardStrings: EarningsBoardStrings = {
+    couldntLoad: t("worldBoards.ebCouldntLoad"),
+    sourceDidntAnswer: t("worldBoards.ebSourceDidntAnswer"),
+    paymentOne: t("worldBoards.ebPaymentOne"),
+    paymentOther: t("worldBoards.ebPaymentOther"),
+    storeSales: t("worldBoards.ebStoreSales"),
+    memberships: t("worldBoards.ebMemberships"),
+    brandDeals: t("worldBoards.ebBrandDeals"),
+    streamTips: t("worldBoards.ebStreamTips"),
+    stageTips: t("worldBoards.ebStageTips"),
+    storeBreakdown: t("worldBoards.ebStoreBreakdown"),
+    tipsMetaVb: t("worldBoards.ebTipsMetaVb"),
+    streamTipsDetail: t("worldBoards.ebStreamTipsDetail"),
+    stageTipsDetail: t("worldBoards.ebStageTipsDetail"),
+    grant: t("worldBoards.ebLedgerGrant"),
+    refund: t("worldBoards.ebLedgerRefund"),
+    visualBucBack: t("worldBoards.ebVisualBucBack"),
+    free: t("worldBoards.ebLedgerFree"),
+    charge: t("worldBoards.ebLedgerCharge"),
+    visualBucActivity: t("worldBoards.ebVisualBucActivity"),
+    visualBucPack: t("worldBoards.ebVisualBucPack"),
+    visualBucPurchase: t("worldBoards.ebVisualBucPurchase"),
+    paymentDetailVb: t("worldBoards.ebPaymentDetailVb"),
+    releaseFallback: t("worldBoards.ebReleaseFallback"),
+    uploadFallback: t("worldBoards.ebUploadFallback"),
+    claimStatusUnknown: t("worldBoards.ebClaimStatusUnknown"),
+    claimYouAreThe: t("worldBoards.ebClaimYouAreThe"),
+    claimConfidence: t("worldBoards.ebClaimConfidence"),
+    claimLandmarksMatched: t("worldBoards.ebClaimLandmarksMatched"),
+  };
   const { getAccessToken } = useAuth();
   const [tab, setTab] = useState<EarningsTab>("earnings");
   const [earnings, setEarnings] = useState<EarningsResponse | null>(null);
@@ -152,33 +187,38 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
     const deps = { getToken: () => getAccessToken(), isCancelled: () => cancelled };
     (async () => {
       try {
-        const status = normalizePermanence(await fetchBoardJson(deps, "/api/distribution/permanence"));
+        const status = normalizePermanence(await fetchBoardJson(deps, "/api/distribution/permanence"), boardStrings);
         if (cancelled) return;
         if (!status) {
-          setPermanenceNote(["No permanence election recorded — your catalog rides the standard terms."]);
+          setPermanenceNote([t("worldBoards.ebNoPermanence")]);
         } else {
           const lines: string[] = [];
-          if (status.catalogElection) lines.push(`Catalog: ${status.catalogElection}`);
-          for (const r of status.releases.slice(0, 3)) lines.push(`${r.title}: ${r.election}`);
-          if (status.releases.length > 3) lines.push(`+${status.releases.length - 3} more releases`);
+          if (status.catalogElection) lines.push(t("worldBoards.ebCatalogLine", { election: status.catalogElection }));
+          for (const r of status.releases.slice(0, 3)) lines.push(t("worldBoards.ebReleaseLine", { title: r.title, election: r.election }));
+          if (status.releases.length > 3) lines.push(t("worldBoards.ebMoreReleases", { count: status.releases.length - 3 }));
           setPermanenceNote(lines);
         }
       } catch {
-        if (!cancelled) setPermanenceNote(["Permanence status didn't answer — your elections are unchanged."]);
+        if (!cancelled) setPermanenceNote([t("worldBoards.ebPermanenceDidntAnswer")]);
       }
       try {
-        const claims = normalizeClaims(await fetchBoardJson(deps, "/api/content-id/claims"));
+        const claims = normalizeClaims(await fetchBoardJson(deps, "/api/content-id/claims"), boardStrings);
         if (cancelled) return;
         if (claims.length === 0) {
-          setClaimsNote("No matches or claims recorded — your catalog is clear.");
+          setClaimsNote(t("worldBoards.ebNoClaims"));
         } else {
           const open = claims.filter((c) => c.status !== "resolved").length;
           setClaimsNote(
-            `${claims.length} ${claims.length === 1 ? "match" : "matches"} on record · ${open} open · latest: ${claims[0]!.label} — ${claims[0]!.status}`,
+            t(claims.length === 1 ? "worldBoards.ebClaimsSummaryOne" : "worldBoards.ebClaimsSummaryMany", {
+              count: claims.length,
+              open,
+              label: claims[0]!.label,
+              status: claims[0]!.status,
+            }),
           );
         }
       } catch {
-        if (!cancelled) setClaimsNote("Claim status didn't answer — nothing about your claims changed.");
+        if (!cancelled) setClaimsNote(t("worldBoards.ebClaimsDidntAnswer"));
       }
     })();
     return () => {
@@ -197,10 +237,15 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
     let cancelled = false;
     (async () => {
       try {
-        const entries = await loadBoardLedger({
-          getToken: () => getAccessToken(),
-          isCancelled: () => cancelled,
-        });
+        const entries = await loadBoardLedger(
+          {
+            getToken: () => getAccessToken(),
+            isCancelled: () => cancelled,
+          },
+          {},
+          boardStrings,
+          i18n.language,
+        );
         if (!cancelled) {
           setLedger(entries);
           setLedgerFailed(false);
@@ -277,9 +322,9 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setPdfNote(`Your ${year} statement is downloading.`);
+      setPdfNote(t("worldBoards.ebPdfDownloading", { year }));
     } catch {
-      setPdfNote("That statement wouldn't download — try again in a moment.");
+      setPdfNote(t("worldBoards.ebPdfWouldntDownload"));
     } finally {
       setPdfBusy(false);
     }
@@ -301,14 +346,14 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
      never succeed (the Kingdom Board standings' own treatment). */
   if (isGuest) {
     return (
-      <NativeBoard isLight={isLight} title="Your earnings">
+      <NativeBoard isLight={isLight} title={t("worldBoards.ebBoardTitle")}>
         <p className={`inline-flex flex-wrap items-center gap-2 px-1 py-1 text-sm ${muted}`}>
-          Your earnings are members&rsquo; business — sales, tips and Visual Bucs live behind your account.
+          {t("worldBoards.ebGuestBody")}
           <Link
             href={GUEST_SIGN_IN_HREF}
             className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105"
           >
-            <LogIn className="h-3 w-3" /> Sign in to see them
+            <LogIn className="h-3 w-3" /> {t("worldBoards.ebSignInToSee")}
           </Link>
         </p>
       </NativeBoard>
@@ -317,12 +362,12 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Earnings">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldBoards.ebTabEarnings")}>
         <button type="button" role="tab" aria-selected={tab === "earnings"} data-testid="world-earnings-tab-earnings" onClick={() => setTab("earnings")} className={tabBtn(tab === "earnings")}>
-          Earnings
+          {t("worldBoards.ebTabEarnings")}
         </button>
         <button type="button" role="tab" aria-selected={tab === "ledger"} data-testid="world-earnings-tab-ledger" onClick={() => setTab("ledger")} className={tabBtn(tab === "ledger")}>
-          Ledger
+          {t("worldBoards.ebTabLedger")}
         </button>
       </div>
 
@@ -330,69 +375,69 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
         earningsFailed ? (
           <NativeErrorState
             isLight={isLight}
-            title="The money ledger wouldn't open"
-            message="Your earnings are safe on the real rails — this board just couldn't read them. Try again."
+            title={t("worldBoards.ebMoneyLedgerWontOpen")}
+            message={t("worldBoards.ebEarningsSafeRetry")}
             onRetry={() => setTick((n) => n + 1)}
           />
         ) : earnings === null ? (
           <NativeLoadingState
             isLight={isLight}
-            message={retrying ? "Still counting — a sleeping server can take a moment to wake." : "Counting your earnings…"}
+            message={retrying ? t("worldBoards.ebStillCounting") : t("worldBoards.ebCountingEarnings")}
           />
         ) : (
           <>
             <NativeBoard
               isLight={isLight}
-              title="Your earnings"
+              title={t("worldBoards.ebBoardTitle")}
               headline={
                 <NativeCard isLight={isLight}>
                   <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                     <span>
-                      <span className={`block text-[11px] font-bold uppercase tracking-wide ${muted}`}>Total earned (USD)</span>
-                      <span className={`text-2xl font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{usd(earnings.totalCents)}</span>
+                      <span className={`block text-[11px] font-bold uppercase tracking-wide ${muted}`}>{t("worldBoards.ebTotalEarnedUsd")}</span>
+                      <span className={`text-2xl font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{usd(earnings.totalCents, i18n.language)}</span>
                     </span>
                     <span className={`text-xs font-semibold ${muted}`}>
-                      Stream tips:{" "}
+                      {t("worldBoards.ebStreamTipsColon")}{" "}
                       {earnings.sources.tips.status === "error"
-                        ? "couldn't load"
-                        : `${(earnings.sources.tips.streamTipsVb ?? 0).toLocaleString("en-US")} Visual Bucs`}
+                        ? t("worldBoards.ebCouldntLoadInline")
+                        : `${(earnings.sources.tips.streamTipsVb ?? 0).toLocaleString(i18n.language)} Visual Bucs`}
                     </span>
                     <span className={`text-xs font-semibold ${muted}`}>
-                      Stage tips:{" "}
+                      {t("worldBoards.ebStageTipsColon")}{" "}
                       {earnings.sources.tips.status === "error"
-                        ? "couldn't load"
-                        : `${(earnings.sources.tips.stageTipsVb ?? 0).toLocaleString("en-US")} Visual Bucs`}
+                        ? t("worldBoards.ebCouldntLoadInline")
+                        : `${(earnings.sources.tips.stageTipsVb ?? 0).toLocaleString(i18n.language)} Visual Bucs`}
                     </span>
                     {earnings.partial && (
                       <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-                        Some sources couldn&rsquo;t load — this total covers the ones that did.
+                        {t("worldBoards.ebSomeSourcesCouldntLoad")}
                       </span>
                     )}
                   </div>
                 </NativeCard>
               }
             >
-              {earningsSourceRows(earnings).map((row) => (
+              {earningsSourceRows(earnings, boardStrings, i18n.language).map((row) => (
                 <NativeBoardRow key={row.title} isLight={isLight} title={row.title} detail={row.detail} meta={row.meta} />
               ))}
               <NativeBoardRow
                 isLight={isLight}
-                title="Distribution permanence"
-                detail={permanenceNote ? permanenceNote.join(" · ") : "Reading your elections…"}
-                meta="Manage below"
+                title={t("worldBoards.ebPermRowTitle")}
+                detail={permanenceNote ? permanenceNote.join(" · ") : t("worldBoards.ebReadingElections")}
+                meta={t("worldBoards.ebManageBelow")}
               />
               <NativeBoardRow
                 isLight={isLight}
-                title="Content-ID matches & claims"
-                detail={claimsNote ?? "Reading your claims…"}
-                meta="Work them below"
+                title={t("worldBoards.ebContentIdRowTitle")}
+                detail={claimsNote ?? t("worldBoards.ebReadingClaims")}
+                meta={t("worldBoards.ebWorkThemBelow")}
               />
             </NativeBoard>
 
-            <NativeCard isLight={isLight} title="Earnings statement">
+            <NativeCard isLight={isLight} title={t("worldBoards.ebStatementTitle")}>
               <div className="flex flex-wrap items-center gap-2">
                 <select
-                  aria-label="Statement year"
+                  aria-label={t("worldBoards.ebStatementYearAria")}
                   value={year}
                   onChange={(e) => pickYear(Number(e.target.value))}
                   className={`rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${
@@ -415,7 +460,7 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                   }`}
                 >
                   <Eye className="h-3.5 w-3.5" />
-                  {stmtBusy ? "Loading…" : "View statement"}
+                  {stmtBusy ? t("worldBoards.ebLoading") : t("worldBoards.ebViewStatement")}
                 </button>
                 <button
                   type="button"
@@ -425,10 +470,10 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                   className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  {pdfBusy ? "Preparing…" : "Download statement (PDF)"}
+                  {pdfBusy ? t("worldBoards.ebPreparing") : t("worldBoards.ebDownloadStatementPdf")}
                 </button>
                 <span className={`text-[11px] ${muted}`}>
-                  A statement of platform-recorded earnings — read it here, or save the PDF; you stay in the room.
+                  {t("worldBoards.ebStatementBlurb")}
                 </span>
               </div>
               {pdfNote && (
@@ -436,7 +481,7 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
               )}
               {stmtFailed && (
                 <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-                  That statement couldn&rsquo;t load — try again in a moment.
+                  {t("worldBoards.ebStatementCouldntLoad")}
                 </p>
               )}
               {stmt && (
@@ -457,10 +502,10 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                     <span>{statementMoney(stmt.totalCents)}</span>
                   </div>
                   {statementIsEmpty(stmt) && (
-                    <p className={`text-[11px] ${muted}`}>Nothing was recorded in {year} — this statement is empty.</p>
+                    <p className={`text-[11px] ${muted}`}>{t("worldBoards.ebStatementEmpty", { year })}</p>
                   )}
                   <p className={`mt-1 text-[11px] ${muted}`}>
-                    A statement of platform-recorded earnings — it is not a filed tax form.
+                    {t("worldBoards.ebStatementNotTaxForm")}
                   </p>
                 </div>
               )}
@@ -509,20 +554,20 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
       ) : ledgerFailed ? (
         <NativeErrorState
           isLight={isLight}
-          title="The ledger wouldn't open"
-          message="Your Visual Buc history is safe — the ledger just didn't answer. Try again."
+          title={t("worldBoards.ebLedgerWontOpen")}
+          message={t("worldBoards.ebLedgerSafeRetry")}
           onRetry={() => {
             setLedger(null);
             setTick((n) => n + 1);
           }}
         />
       ) : ledger === null ? (
-        <NativeLoadingState isLight={isLight} message="Opening the ledger…" />
+        <NativeLoadingState isLight={isLight} message={t("worldBoards.ebOpeningLedger")} />
       ) : ledger.length === 0 ? (
         <NativeEmptyState
           isLight={isLight}
-          message="No ledger entries yet."
-          detail="Purchases and Visual Buc activity land here the moment they happen."
+          message={t("worldBoards.ebNoLedgerEntries")}
+          detail={t("worldBoards.ebLedgerEmptyDetail")}
         />
       ) : (
         /* Stack-100 #70: the FULL history, paged in place — every
@@ -533,13 +578,13 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
           const page = ledgerPage(ledger, ledgerPg);
           return (
             <div data-testid="world-ledger-full">
-              <NativeBoard isLight={isLight} title="Visual Buc ledger — full history">
+              <NativeBoard isLight={isLight} title={t("worldBoards.ebLedgerFullTitle")}>
                 {page.rows.map((entry) => (
                   <NativeBoardRow
                     key={entry.id}
                     isLight={isLight}
                     title={entry.title}
-                    detail={[entry.detail, fmtDate(entry.dateIso)].filter(Boolean).join(" · ") || undefined}
+                    detail={[entry.detail, fmtDate(entry.dateIso, i18n.language)].filter(Boolean).join(" · ") || undefined}
                     meta={entry.unit === "VB" ? `${entry.amount} VB` : entry.amount}
                   />
                 ))}
@@ -554,10 +599,14 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                     isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"
                   }`}
                 >
-                  ← Newer
+                  {t("worldBoards.ebNewer")}
                 </button>
                 <span className={`text-[11px] font-semibold ${muted}`}>
-                  Page {page.page + 1} of {page.pageCount} · {page.total} {page.total === 1 ? "entry" : "entries"} in your full history
+                  {t(page.total === 1 ? "worldBoards.ebPageOfOne" : "worldBoards.ebPageOfMany", {
+                    page: page.page + 1,
+                    pageCount: page.pageCount,
+                    total: page.total,
+                  })}
                 </span>
                 <button
                   type="button"
@@ -568,7 +617,7 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                     isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"
                   }`}
                 >
-                  Older →
+                  {t("worldBoards.ebOlder")}
                 </button>
               </div>
             </div>

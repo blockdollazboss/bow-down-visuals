@@ -28,6 +28,11 @@
 import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import { partyInvitePath, parsePartyInvite } from "./games-lobby";
+import en from "../../locales/en.json";
+/* stack100 unit 50: the blocks render through the worldBoards
+   catalog — pins below assert the KEY in the source and the
+   English copy in the catalog, so the coverage is unchanged. */
+const boards = (en as { worldBoards: Record<string, string> }).worldBoards;
 
 const blocks = readFileSync(
   new URL("../../components/world/native/KingdomBoardBlocks.tsx", import.meta.url),
@@ -107,12 +112,15 @@ describe("join routing — the board rides the summons machinery", () => {
 
 describe("guest + stale paths stay honest", () => {
   it("a guest's tables block is the members-only pitch, with the sign-in door", () => {
-    expect(blocks).toContain("The party tables are members&rsquo; games");
-    expect(blocks).toContain("Sign in to take a seat");
+    expect(blocks).toContain('t("worldBoards.kbPartyGuestPitch")');
+    expect(boards.kbPartyGuestPitch).toContain("The party tables are members’ games");
+    expect(blocks).toContain('t("worldBoards.kbSignInTakeSeat")');
+    expect(boards.kbSignInTakeSeat).toBe("Sign in to take a seat");
   });
 
   it("an empty palace reads as an empty block, never phantom tables", () => {
-    expect(blocks).toContain("No tables are open right now.");
+    expect(blocks).toContain('t("worldBoards.kbPartyEmpty")');
+    expect(boards.kbPartyEmpty).toBe("No tables are open right now.");
   });
 
   it("a closed table meets the summons' closed notices, banner and panel", () => {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Check, Copy, Megaphone, Send, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +16,7 @@ import {
   normalizeUgcBriefResult,
   ugcBriefErrorMessage,
   type BrandOutreachResult,
+  type ChartsBoardStrings,
   type UgcBriefResult,
 } from "@/lib/world/charts-board";
 import { UGC_PAYMENT_NOTE, UGC_STYLES } from "@/lib/ugc-ads";
@@ -42,8 +44,41 @@ import { copyText } from "@/lib/streaming";
    doors stood behind. One quiet website footer stands at the end,
    as the native law allows — never auto-opened. */
 
+/* Locale unit 50: the seam's deal-type / audience tables stay the
+   EN fallback; the render key-maps them through worldBoards (ch* —
+   the seam's prefix). Platform chips (BRAND_OUTREACH_PLATFORMS) are
+   platform proper names and UGC_STYLES labels belong to the shared
+   lib/ugc-ads seam — both stay literal here. */
+const DEAL_TYPE_LABEL_KEYS: Record<string, string> = {
+  "sponsored-post": "worldBoards.chDealSponsoredPost",
+  affiliate: "worldBoards.chDealAffiliate",
+  ambassadorship: "worldBoards.chDealAmbassadorship",
+  "product-gifting": "worldBoards.chDealProductGifting",
+  "usage-licensing": "worldBoards.chDealUsageLicensing",
+};
+
+const AUDIENCE_LABEL_KEYS: Record<string, string> = {
+  "under-1k": "worldBoards.chAudienceUnder1k",
+  "1k-10k": "worldBoards.chAudience1k10k",
+  "10k-50k": "worldBoards.chAudience10k50k",
+  "50k-250k": "worldBoards.chAudience50k250k",
+  "250k-plus": "worldBoards.chAudience250kPlus",
+};
+
 export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const { getAccessToken, user } = useAuth();
+  /* The seam bundle for the outreach/brief error fallbacks. */
+  const chStrings: ChartsBoardStrings = {
+    windowNounToday: t("worldBoards.chWindowNounToday"),
+    windowNounThisWeek: t("worldBoards.chWindowNounThisWeek"),
+    windowNounAllTime: t("worldBoards.chWindowNounAllTime"),
+    lookbackNoun: t("worldBoards.chLookbackNoun"),
+    verticalAll: t("worldBoards.chVerticalAll"),
+    draftFailed: t("worldBoards.chDraftFailed"),
+    draftOutOfBucs: t("worldBoards.chDraftOutOfBucs"),
+    briefFailed: t("worldBoards.chBriefFailed"),
+  };
 
   const authHeaders = async (): Promise<Record<string, string>> => {
     const token = await getAccessToken().catch(() => null);
@@ -110,10 +145,10 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
         setDraft(result);
         setCopied(false);
       } else {
-        setOutreachError(brandOutreachErrorMessage(body, res.status));
+        setOutreachError(brandOutreachErrorMessage(body, res.status, chStrings));
       }
     } catch {
-      setOutreachError("The draft didn't go through — try again.");
+      setOutreachError(t("worldBoards.chDraftFailed"));
     } finally {
       setDrafting(false);
     }
@@ -154,10 +189,10 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
       if (result) {
         setPosted(result);
       } else {
-        setBriefError(ugcBriefErrorMessage(body, res.status));
+        setBriefError(ugcBriefErrorMessage(body, res.status, chStrings));
       }
     } catch {
-      setBriefError("That brief couldn't post — try again.");
+      setBriefError(t("worldBoards.chBriefFailed"));
     } finally {
       setPosting(false);
     }
@@ -167,32 +202,31 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
     <div className="space-y-5 px-1" data-testid="world-charts-brand-outreach">
       <div className="space-y-1">
         <p className={`flex items-center gap-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-          <Megaphone className="h-4 w-4 text-[#d4af37]" /> Brand outreach — right here in the hall
+          <Megaphone className="h-4 w-4 text-[#d4af37]" /> {t("worldBoards.boTitle")}
         </p>
         <p className={`text-xs ${muted}`}>
-          Pitch a brand with a drafted message, or post a brief and let creators claim it. Both
-          happen here — no trip to the website.
+          {t("worldBoards.boIntro")}
         </p>
       </div>
 
       {/* ── Pitch a brand ─────────────────────────────────────── */}
       <div className="space-y-3" data-testid="world-charts-outreach-form">
-        <p className={`text-xs font-black uppercase tracking-wide ${muted}`}>Draft a pitch</p>
+        <p className={`text-xs font-black uppercase tracking-wide ${muted}`}>{t("worldBoards.boDraftPitchHeading")}</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1">
-            <label className={labelCls} htmlFor="world-outreach-brand">The brand</label>
+            <label className={labelCls} htmlFor="world-outreach-brand">{t("worldBoards.boBrandLabel")}</label>
             <input
               id="world-outreach-brand"
               data-testid="world-outreach-brand"
               className={inputCls}
-              placeholder="e.g. Goldline Headphones"
+              placeholder={t("worldBoards.boBrandPlaceholder")}
               maxLength={120}
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
             />
           </div>
           <div className="space-y-1">
-            <label className={labelCls} htmlFor="world-outreach-deal-type">Deal type</label>
+            <label className={labelCls} htmlFor="world-outreach-deal-type">{t("worldBoards.boDealTypeLabel")}</label>
             <select
               id="world-outreach-deal-type"
               data-testid="world-outreach-deal-type"
@@ -200,14 +234,14 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
               value={dealTypeKey}
               onChange={(e) => setDealTypeKey(e.target.value)}
             >
-              <option value="">Any deal type</option>
+              <option value="">{t("worldBoards.boAnyDealType")}</option>
               {BRAND_OUTREACH_DEAL_TYPES.map((d) => (
-                <option key={d.key} value={d.key}>{d.label}</option>
+                <option key={d.key} value={d.key}>{DEAL_TYPE_LABEL_KEYS[d.key] ? t(DEAL_TYPE_LABEL_KEYS[d.key] as string) : d.label}</option>
               ))}
             </select>
           </div>
           <div className="space-y-1">
-            <label className={labelCls} htmlFor="world-outreach-creator-name">Your creator name</label>
+            <label className={labelCls} htmlFor="world-outreach-creator-name">{t("worldBoards.boCreatorNameLabel")}</label>
             <input
               id="world-outreach-creator-name"
               data-testid="world-outreach-creator-name"
@@ -218,19 +252,19 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
             />
           </div>
           <div className="space-y-1">
-            <label className={labelCls} htmlFor="world-outreach-niche">Your niche</label>
+            <label className={labelCls} htmlFor="world-outreach-niche">{t("worldBoards.boNicheLabel")}</label>
             <input
               id="world-outreach-niche"
               data-testid="world-outreach-niche"
               className={inputCls}
-              placeholder="e.g. Hip-hop production"
+              placeholder={t("worldBoards.boNichePlaceholder")}
               maxLength={100}
               value={niche}
               onChange={(e) => setNiche(e.target.value)}
             />
           </div>
           <div className="space-y-1">
-            <label className={labelCls} htmlFor="world-outreach-audience">Audience size</label>
+            <label className={labelCls} htmlFor="world-outreach-audience">{t("worldBoards.boAudienceLabel")}</label>
             <select
               id="world-outreach-audience"
               data-testid="world-outreach-audience"
@@ -239,17 +273,17 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
               onChange={(e) => setAudienceSize(e.target.value)}
             >
               {BRAND_OUTREACH_AUDIENCE_SIZES.map((a) => (
-                <option key={a.key} value={a.key}>{a.label}</option>
+                <option key={a.key} value={a.key}>{AUDIENCE_LABEL_KEYS[a.key] ? t(AUDIENCE_LABEL_KEYS[a.key] as string) : a.label}</option>
               ))}
             </select>
           </div>
           <div className="space-y-1">
-            <label className={labelCls} htmlFor="world-outreach-style">Content style (optional)</label>
+            <label className={labelCls} htmlFor="world-outreach-style">{t("worldBoards.boStyleLabel")}</label>
             <input
               id="world-outreach-style"
               data-testid="world-outreach-style"
               className={inputCls}
-              placeholder="e.g. Studio sessions, gear reviews"
+              placeholder={t("worldBoards.boStylePlaceholder")}
               maxLength={200}
               value={contentStyle}
               onChange={(e) => setContentStyle(e.target.value)}
@@ -257,7 +291,7 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
           </div>
         </div>
         <div className="space-y-1">
-          <span className={labelCls}>Your platforms</span>
+          <span className={labelCls}>{t("worldBoards.boPlatformsLabel")}</span>
           <div className="flex flex-wrap gap-1.5">
             {BRAND_OUTREACH_PLATFORMS.map((p) => (
               <button
@@ -281,12 +315,11 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
           className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 bdv-touch-target"
         >
           <Sparkles className="h-3.5 w-3.5" />
-          {drafting ? "Drafting…" : `Draft my pitch — ${BRAND_OUTREACH_COST_VB} Visual Bucs`}
+          {drafting ? t("worldBoards.boDrafting") : t("worldBoards.boDraftPitchButton", { cost: BRAND_OUTREACH_COST_VB })}
         </button>
         {!outreachPayload && (
           <p className={`text-xs ${muted}`}>
-            Add the brand, your name, your niche and at least one platform — then the draft can
-            ride. A failed draft is refunded automatically.
+            {t("worldBoards.boDraftHint")}
           </p>
         )}
         {outreachError && (
@@ -313,12 +346,11 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
                 }`}
               >
                 {copied ? <Check className="h-3.5 w-3.5 text-[#d4af37]" /> : <Copy className="h-3.5 w-3.5 text-[#d4af37]" />}
-                {copied ? "Copied — send it your way" : "Copy the pitch"}
+                {copied ? t("worldBoards.boCopiedPitch") : t("worldBoards.boCopyPitch")}
               </button>
               {draft.creditsUsed !== null && (
                 <span className={`text-xs ${muted}`}>
-                  Drafted for {draft.creditsUsed} Visual Bucs
-                  {draft.creditsRemaining !== null ? ` — ${draft.creditsRemaining} left` : ""}.
+                  {t("worldBoards.boDraftedFor", { used: draft.creditsUsed })}{draft.creditsRemaining !== null ? t("worldBoards.boDraftedLeft", { remaining: draft.creditsRemaining }) : ""}.
                 </span>
               )}
             </div>
@@ -335,10 +367,10 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
 
       {/* ── Post a brief ──────────────────────────────────────── */}
       <div className="space-y-3" data-testid="world-charts-brief-form">
-        <p className={`text-xs font-black uppercase tracking-wide ${muted}`}>Post a brief instead</p>
+        <p className={`text-xs font-black uppercase tracking-wide ${muted}`}>{t("worldBoards.boBriefHeading")}</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1">
-            <label className={labelCls} htmlFor="world-brief-product">Product or brand</label>
+            <label className={labelCls} htmlFor="world-brief-product">{t("worldBoards.boProductLabel")}</label>
             <input
               id="world-brief-product"
               data-testid="world-brief-product"
@@ -349,7 +381,7 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
             />
           </div>
           <div className="space-y-1">
-            <label className={labelCls} htmlFor="world-brief-style">Style</label>
+            <label className={labelCls} htmlFor="world-brief-style">{t("worldBoards.boBriefStyleLabel")}</label>
             <select
               id="world-brief-style"
               data-testid="world-brief-style"
@@ -364,21 +396,21 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
           </div>
         </div>
         <div className="space-y-1">
-          <label className={labelCls} htmlFor="world-brief-details">What you want</label>
+          <label className={labelCls} htmlFor="world-brief-details">{t("worldBoards.boDetailsLabel")}</label>
           <textarea
             id="world-brief-details"
             data-testid="world-brief-details"
             className={inputCls}
             rows={3}
             maxLength={2000}
-            placeholder="The video you want, the points it must hit, anything creators should know…"
+            placeholder={t("worldBoards.boDetailsPlaceholder")}
             value={details}
             onChange={(e) => setDetails(e.target.value)}
           />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1">
-            <label className={labelCls} htmlFor="world-brief-url">Product link (optional)</label>
+            <label className={labelCls} htmlFor="world-brief-url">{t("worldBoards.boProductLinkLabel")}</label>
             <input
               id="world-brief-url"
               data-testid="world-brief-url"
@@ -390,7 +422,7 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
             />
           </div>
           <div className="space-y-1">
-            <label className={labelCls} htmlFor="world-brief-deadline">Deadline (optional)</label>
+            <label className={labelCls} htmlFor="world-brief-deadline">{t("worldBoards.boDeadlineLabel")}</label>
             <input
               id="world-brief-deadline"
               data-testid="world-brief-deadline"
@@ -409,12 +441,11 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
           className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 bdv-touch-target"
         >
           <Send className="h-3.5 w-3.5" />
-          {posting ? "Posting…" : "Post the brief"}
+          {posting ? t("worldBoards.boPosting") : t("worldBoards.boPostBrief")}
         </button>
         {!briefPayload && (
           <p className={`text-xs ${muted}`}>
-            Name the product and say what you want in at least a sentence — posting a brief costs
-            nothing.
+            {t("worldBoards.boBriefHint")}
           </p>
         )}
         {briefError && (
@@ -424,7 +455,7 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
         )}
         {posted && (
           <p data-testid="world-brief-posted" className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-            “{posted.productName}” is on the Promote board — creators can claim it now.
+            {t("worldBoards.boBriefPosted", { name: posted.productName })}
           </p>
         )}
       </div>
@@ -432,13 +463,13 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
       <div className="space-y-1.5">
         <p className={`text-xs ${muted}`}>{UGC_PAYMENT_NOTE}</p>
         <p className={`text-xs ${muted}`}>
-          Prefer the full pages?{" "}
+          {t("worldBoards.boPreferPages")}{" "}
           <Link
             href="/brand-deals"
             data-testid="world-charts-brands-website"
             className="font-bold text-[#d4af37] underline underline-offset-2"
           >
-            Open Brand Deals on the website
+            {t("worldBoards.boOpenBrandDeals")}
           </Link>
         </p>
       </div>

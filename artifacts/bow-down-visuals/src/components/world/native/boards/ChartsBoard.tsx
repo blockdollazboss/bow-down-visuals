@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Check, Code2, Heart, ListPlus, Play, Plus, Repeat2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +40,7 @@ import {
   normalizeRepostStates,
   repostStateFromToggle,
   type ChartCreatorRow,
+  type ChartsBoardStrings,
   type ChartTrackRow,
   type ChartVertical,
   type ChartVideoRow,
@@ -124,6 +126,32 @@ const FIXED_TAB_TITLES: Partial<Record<ChartsTab, string>> = {
   brands: "For brands — top creators by audience",
 };
 
+/* Locale unit 50: the tab / fixed-title tables above stay the EN
+   fallback (the seam-table precedent); the render key-maps them
+   through the worldBoards catalog (ch*) instead of reading .label. */
+const TAB_LABEL_KEYS: Record<ChartsTab, string> = {
+  tracks: "worldBoards.chTabTracks",
+  videos: "worldBoards.chTabVideos",
+  creators: "worldBoards.chTabCreators",
+  rising: "worldBoards.chTabRising",
+  earners: "worldBoards.chTabEarners",
+  brands: "worldBoards.chTabBrands",
+};
+
+const FIXED_TAB_TITLE_KEYS: Partial<Record<ChartsTab, string>> = {
+  rising: "worldBoards.chTitleRising",
+  earners: "worldBoards.chTitleEarners",
+  brands: "worldBoards.chTitleBrands",
+};
+
+function windowLabelKey(key: ChartWindow): string {
+  return key === "today"
+    ? "worldBoards.chWindowToday"
+    : key === "week"
+      ? "worldBoards.chWindowThisWeek"
+      : "worldBoards.chWindowAllTime";
+}
+
 function fmtClock(sec: number): string {
   const s = Math.max(0, Math.floor(sec));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -144,7 +172,19 @@ export interface ChartsBoardProps {
 }
 
 export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shelfPlayer }: ChartsBoardProps) {
+  const { t: tr } = useTranslation();
   const { getAccessToken } = useAuth();
+  /* The seam bundle for the noun/title words the seam owns. */
+  const chStrings: ChartsBoardStrings = {
+    windowNounToday: tr("worldBoards.chWindowNounToday"),
+    windowNounThisWeek: tr("worldBoards.chWindowNounThisWeek"),
+    windowNounAllTime: tr("worldBoards.chWindowNounAllTime"),
+    lookbackNoun: tr("worldBoards.chLookbackNoun"),
+    verticalAll: tr("worldBoards.chVerticalAll"),
+    draftFailed: tr("worldBoards.chDraftFailed"),
+    draftOutOfBucs: tr("worldBoards.chDraftOutOfBucs"),
+    briefFailed: tr("worldBoards.chBriefFailed"),
+  };
   const [tab, setTab] = useState<ChartsTab>("tracks");
   /* The window switcher's choice (the website page's three). Media
      rows cache PER WINDOW — a window's rows are its own server
@@ -460,7 +500,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         }
       >
         <Repeat2 className="h-3.5 w-3.5" />
-        {state.reposted ? "Reposted" : "Repost"} {state.count > 0 ? formatCount(state.count) : ""}
+        {state.reposted ? tr("worldBoards.chReposted") : tr("worldBoards.chRepost")} {state.count > 0 ? formatCount(state.count) : ""}
       </button>
     );
   };
@@ -489,7 +529,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
         className={actionBtn}
       >
         {copied ? <Check className="h-3.5 w-3.5 text-[#d4af37]" /> : <Code2 className="h-3.5 w-3.5 text-[#d4af37]" />}
-        {copied ? "Embed code copied!" : "Copy embed code"}
+        {copied ? tr("worldBoards.chEmbedCopied") : tr("worldBoards.chCopyEmbed")}
       </button>
     );
   };
@@ -503,7 +543,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
     const input = chartTrackPlayInput(row);
     if (!input) return;
     shelfPlayer.play(input);
-    setShelfNote(`“${row.title}” is playing on your player — just you, here in the hall.`);
+    setShelfNote(tr("worldBoards.chShelfTrackPlaying", { title: row.title }));
   };
 
   const queueTrackNext = (row: ChartTrackRow) => {
@@ -511,7 +551,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
     const input = chartTrackPlayInput(row);
     if (!input) return;
     shelfPlayer.queueNext(input);
-    setShelfNote(`“${row.title}” is up next on your player.`);
+    setShelfNote(tr("worldBoards.chShelfTrackNext", { title: row.title }));
   };
 
   const playVideoHere = (row: ChartVideoRow) => {
@@ -519,7 +559,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
     const input = chartVideoPlayInput(row);
     if (!input) return;
     shelfPlayer.play(input);
-    setShelfNote(`“${row.title}” is playing on your player — watch it right here in the hall.`);
+    setShelfNote(tr("worldBoards.chShelfVideoPlaying", { title: row.title }));
   };
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
@@ -547,21 +587,21 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
      unfiltered name. A chosen LOOKBACK names the span instead of
      the window: days overrides the window server-side, so the
      window's noun would name a span the board isn't showing. */
-  const spanNoun = lookbackDays !== null ? chartLookbackNoun(lookbackDays) : chartWindowNoun(window);
+  const spanNoun = lookbackDays !== null ? chartLookbackNoun(lookbackDays, chStrings) : chartWindowNoun(window, chStrings);
   const boardTitle =
     (tab === "tracks"
-      ? `Top tracks — ${spanNoun}`
+      ? tr("worldBoards.chTitleTracks", { span: spanNoun })
       : tab === "videos"
-        ? `Top videos — ${spanNoun}`
+        ? tr("worldBoards.chTitleVideos", { span: spanNoun })
         : tab === "creators"
-          ? `Top creators — ${spanNoun}`
-          : (FIXED_TAB_TITLES[tab] ?? "")) +
-    (vertical === "all" ? "" : ` · ${chartVerticalLabel(vertical)}`);
+          ? tr("worldBoards.chTitleCreators", { span: spanNoun })
+          : (FIXED_TAB_TITLE_KEYS[tab] ? tr(FIXED_TAB_TITLE_KEYS[tab] as string) : (FIXED_TAB_TITLES[tab] ?? ""))) +
+    (vertical === "all" ? "" : tr("worldBoards.chTitleVerticalSuffix", { vertical: chartVerticalLabel(vertical, chStrings) }));
   const windowedTab = tab === "tracks" || tab === "videos" || tab === "creators";
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Charts">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={tr("worldBoards.chAriaCharts")}>
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -572,7 +612,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
             onClick={() => setTab(t.key)}
             className={tabBtn(tab === t.key)}
           >
-            {t.label}
+            {tr(TAB_LABEL_KEYS[t.key])}
           </button>
         ))}
       </div>
@@ -582,7 +622,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
           Earners are fixed spans, and a switcher that can't move
           them would be a lie. */}
       {windowedTab && (
-        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Chart window">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={tr("worldBoards.chAriaWindow")}>
           {CHART_WINDOWS.map((w) => (
             <button
               key={w.key}
@@ -593,7 +633,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
               onClick={() => setWindow(w.key)}
               className={tabBtn(window === w.key)}
             >
-              {w.label}
+              {tr(windowLabelKey(w.key))}
             </button>
           ))}
         </div>
@@ -607,7 +647,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
           Choosing one re-queries the windowed reads with `days`,
           which overrides the window server-side. */}
       {windowedTab && (
-        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Chart lookback">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={tr("worldBoards.chAriaLookback")}>
           {CHART_LOOKBACKS.map((l) => (
             <button
               key={l.label}
@@ -618,7 +658,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
               onClick={() => setLookbackDays(l.days)}
               className={tabBtn(lookbackDays === l.days)}
             >
-              {l.label}
+              {l.days === null ? tr("worldBoards.chLookbackDefault") : tr("worldBoards.chLookbackDays", { days: l.days })}
             </button>
           ))}
         </div>
@@ -629,7 +669,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
           discovery read filters by vertical server-side, the
           fixed-span boards included, so it never pretends to move
           a span it can't — it moves the audience, which it can. */}
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Chart vertical">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={tr("worldBoards.chAriaVertical")}>
         {CHART_VERTICALS.map((v) => (
           <button
             key={v.key}
@@ -640,7 +680,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
             onClick={() => setVertical(v.key)}
             className={tabBtn(vertical === v.key)}
           >
-            {v.label}
+            {v.key === "all" ? tr("worldBoards.chVerticalAll") : v.label}
           </button>
         ))}
       </div>
@@ -648,12 +688,12 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
       {failedKey === loadKey ? (
         <NativeErrorState
           isLight={isLight}
-          title="The charts wouldn't open"
-          message="The board itself is fine — the kingdom's counts didn't answer. Your place in the room is untouched."
+          title={tr("worldBoards.chErrorTitle")}
+          message={tr("worldBoards.chErrorMessage")}
           onRetry={() => setTick((n) => n + 1)}
         />
       ) : loading ? (
-        <NativeLoadingState isLight={isLight} message="Reading the charts…" />
+        <NativeLoadingState isLight={isLight} message={tr("worldBoards.chLoading")} />
       ) : (
         <NativeBoard isLight={isLight} title={boardTitle}>
           {tab === "tracks" ? (
@@ -662,10 +702,10 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                 isLight={isLight}
                 message={
                   lookbackDays === null && window === "all"
-                    ? "Nothing on the all-time board — yet."
-                    : `Nothing is charting ${spanNoun} — yet.`
+                    ? tr("worldBoards.chEmptyTracksAllTime")
+                    : tr("worldBoards.chEmptyTracksSpan", { span: spanNoun })
                 }
-                detail="The lane is wide open. Publish a track and the first row is yours."
+                detail={tr("worldBoards.chEmptyTracksDetail")}
               />
             ) : (
               (tracks ?? []).map((row, i) => (
@@ -678,7 +718,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                       .filter(Boolean)
                       .join(" · ") || undefined
                   }
-                  meta={`${formatCount(row.plays)} plays`}
+                  meta={tr("worldBoards.chPlaysCount", { count: formatCount(row.plays) })}
                   highlighted={i === 0}
                   action={
                     <>
@@ -696,7 +736,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                             onClick={() => play(row)}
                             className={actionBtn}
                           >
-                            <Play className="h-3.5 w-3.5" /> Play
+                            <Play className="h-3.5 w-3.5" /> {tr("worldBoards.chPlay")}
                           </button>
                           {shelfPlayer && chartTrackPlayInput(row) && (
                             <button
@@ -705,7 +745,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                               onClick={() => playTrackHere(row)}
                               className={actionBtn}
                             >
-                              <Play className="h-3.5 w-3.5" /> Play here
+                              <Play className="h-3.5 w-3.5" /> {tr("worldBoards.chPlayHere")}
                             </button>
                           )}
                           {shelfPlayer && chartTrackPlayInput(row) && (
@@ -715,7 +755,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                               onClick={() => queueTrackNext(row)}
                               className={actionBtn}
                             >
-                              <ListPlus className="h-3.5 w-3.5" /> Queue next
+                              <ListPlus className="h-3.5 w-3.5" /> {tr("worldBoards.chQueueNext")}
                             </button>
                           )}
                         </>
@@ -731,10 +771,10 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                 isLight={isLight}
                 message={
                   lookbackDays === null && window === "all"
-                    ? "No videos on the all-time board — yet."
-                    : `No videos are charting ${spanNoun} — yet.`
+                    ? tr("worldBoards.chEmptyVideosAllTime")
+                    : tr("worldBoards.chEmptyVideosSpan", { span: spanNoun })
                 }
-                detail="Publish a video and the first row is yours."
+                detail={tr("worldBoards.chEmptyVideosDetail")}
               />
             ) : (
               (videos ?? []).map((row, i) => (
@@ -747,7 +787,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                       .filter(Boolean)
                       .join(" · ") || undefined
                   }
-                  meta={`${formatCount(row.plays)} views`}
+                  meta={tr("worldBoards.chViewsCount", { count: formatCount(row.plays) })}
                   highlighted={i === 0}
                   action={
                     <>
@@ -762,7 +802,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                               onClick={() => playVideoHere(row)}
                               className={actionBtn}
                             >
-                              <Play className="h-3.5 w-3.5" /> Watch here
+                              <Play className="h-3.5 w-3.5" /> {tr("worldBoards.chWatchHere")}
                             </button>
                           )}
                         </>
@@ -777,18 +817,18 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
               isLight={isLight}
               message={
                 tab === "rising"
-                  ? "Nobody is breaking through this week — yet."
+                  ? tr("worldBoards.chEmptyRising")
                   : tab === "earners"
-                    ? "No earners on the board yet."
+                    ? tr("worldBoards.chEmptyEarners")
                     : tab === "brands"
                       ? vertical === "all"
-                        ? "No creators to scout yet."
-                        : `No ${chartVerticalLabel(vertical)} creators to scout yet.`
+                        ? tr("worldBoards.chEmptyBrandsAll")
+                        : tr("worldBoards.chEmptyBrandsVertical", { vertical: chartVerticalLabel(vertical, chStrings) })
                       : lookbackDays === null && window === "all"
-                        ? "No creators on the all-time board — yet."
-                        : `No creators are charting ${spanNoun} — yet.`
+                        ? tr("worldBoards.chEmptyCreatorsAllTime")
+                        : tr("worldBoards.chEmptyCreatorsSpan", { span: spanNoun })
               }
-              detail="Check back as the kingdom plays — or be the name that fills the first row."
+              detail={tr("worldBoards.chEmptyDetail")}
             />
           ) : (
             creatorRows.map((row, i) => {
@@ -801,16 +841,16 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                   detail={
                     [
                       row.vertical,
-                      `${formatCount(row.followerCount)} followers`,
-                      row.newFollowers !== null ? `+${formatCount(row.newFollowers)} this week` : null,
+                      tr("worldBoards.chFollowersCount", { count: formatCount(row.followerCount) }),
+                      row.newFollowers !== null ? tr("worldBoards.chNewFollowersWeek", { count: formatCount(row.newFollowers) }) : null,
                       row.topGenre,
-                      row.trackCount !== null ? `${formatCount(row.trackCount)} tracks` : null,
-                      row.videoCount !== null ? `${formatCount(row.videoCount)} videos` : null,
+                      row.trackCount !== null ? tr("worldBoards.chTracksCount", { count: formatCount(row.trackCount) }) : null,
+                      row.videoCount !== null ? tr("worldBoards.chVideosCount", { count: formatCount(row.videoCount) }) : null,
                     ]
                       .filter(Boolean)
                       .join(" · ") || undefined
                   }
-                  meta={`${formatCount(row.totalPlays)} plays`}
+                  meta={tr("worldBoards.chPlaysCount", { count: formatCount(row.totalPlays) })}
                   highlighted={i === 0}
                   action={
                     isGuest ? undefined : (
@@ -826,7 +866,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
                         }
                       >
                         {following ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-                        {following ? "Following" : "Follow"}
+                        {following ? tr("worldBoards.chFollowing") : tr("worldBoards.chFollow")}
                       </button>
                     )
                   }
@@ -847,7 +887,7 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
       )}
       {queuedId && !jukeboxDenied && (
         <p className={`px-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-          On the room&rsquo;s jukebox — it plays for everyone in the Music Hall.
+          {tr("worldBoards.chJukeboxNote")}
         </p>
       )}
       {shelfNote && (
@@ -862,11 +902,11 @@ export function ChartsBoard({ isLight, isGuest, jukeboxDenied, onPlayTrack, shel
       )}
       {isGuest && (
         <p className={`px-1 text-xs ${muted}`}>
-          Guests read the board freely —{" "}
+          {tr("worldBoards.chGuestPrefix")}{" "}
           <Link href="/login" className="font-bold text-[#d4af37] underline underline-offset-2">
-            sign in
+            {tr("worldBoards.chGuestSignIn")}
           </Link>{" "}
-          to put a track on the room, play or watch rows here, like or repost a row, or follow a creator.
+          {tr("worldBoards.chGuestSuffix")}
         </p>
       )}
     </div>

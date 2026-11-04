@@ -56,10 +56,92 @@ export type { EarningsResponse };
 export { statementIsEmpty, statementLineRows, statementLineText, statementMoney, statementTotalLabel };
 export type { EarningsStatement };
 
+/* ─── Localizable seam strings ────────────────────────────────────────
+   Every user-visible literal this seam produces rides an OPTIONAL
+   string bundle: callers (the EarningsBoard) key-map the fields
+   through the eb-prefixed worldBoards keys, and the defaults below hold the
+   current English literals verbatim, so un-wired callers and the
+   existing tests see byte-identical output. Template fields carry
+   {{token}} placeholders the seam fills with DATA (counts, money) —
+   numbers are never catalogued. */
+
+export interface EarningsBoardStrings {
+  couldntLoad: string;
+  sourceDidntAnswer: string;
+  paymentOne: string;
+  paymentOther: string;
+  storeSales: string;
+  memberships: string;
+  brandDeals: string;
+  streamTips: string;
+  stageTips: string;
+  storeBreakdown: string;
+  tipsMetaVb: string;
+  streamTipsDetail: string;
+  stageTipsDetail: string;
+  grant: string;
+  refund: string;
+  visualBucBack: string;
+  free: string;
+  charge: string;
+  visualBucActivity: string;
+  visualBucPack: string;
+  visualBucPurchase: string;
+  paymentDetailVb: string;
+  releaseFallback: string;
+  uploadFallback: string;
+  claimStatusUnknown: string;
+  claimYouAreThe: string;
+  claimConfidence: string;
+  claimLandmarksMatched: string;
+}
+
+export const DEFAULT_EARNINGS_BOARD_STRINGS: EarningsBoardStrings = {
+  couldntLoad: "Couldn't load",
+  sourceDidntAnswer: "This source didn't answer — the total covers the ones that did.",
+  paymentOne: "{{count}} payment",
+  paymentOther: "{{count}} payments",
+  storeSales: "Store sales",
+  memberships: "Memberships",
+  brandDeals: "Brand deals (escrow released)",
+  streamTips: "Stream tips",
+  stageTips: "Stage tips",
+  storeBreakdown: "profile store {{profile}} · shop {{shop}}",
+  tipsMetaVb: "{{amount}} VB",
+  streamTipsDetail:
+    "{{count}} stream tips credited · tip jar {{amount}} pending payment ({{fans}} fans) — not yet earnings",
+  stageTipsDetail: "{{count}} stage tips credited",
+  grant: "Grant",
+  refund: "Refund",
+  visualBucBack: "Visual Buc back",
+  free: "Free",
+  charge: "Charge",
+  visualBucActivity: "Visual Buc activity",
+  visualBucPack: "Visual Buc pack — {{pack}}",
+  visualBucPurchase: "Visual Buc purchase",
+  paymentDetailVb: "+{{credits}} VB",
+  releaseFallback: "Release",
+  uploadFallback: "Upload",
+  claimStatusUnknown: "unknown",
+  claimYouAreThe: "you are the {{role}}",
+  claimConfidence: "confidence {{value}}",
+  claimLandmarksMatched: "{{matched}} of {{total}} landmarks matched",
+};
+
+function resolveStrings(strings?: Partial<EarningsBoardStrings>): EarningsBoardStrings {
+  return strings ? { ...DEFAULT_EARNINGS_BOARD_STRINGS, ...strings } : DEFAULT_EARNINGS_BOARD_STRINGS;
+}
+
+function fill(template: string, vars: Record<string, string | number>): string {
+  let out = template;
+  for (const [k, v] of Object.entries(vars)) out = out.split(`{{${k}}}`).join(String(v));
+  return out;
+}
+
 /* ─── Money formatting ────────────────────────────────────────────── */
 
-export function usd(cents: number): string {
-  return `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export function usd(cents: number, locale: string = "en-US"): string {
+  return `$${(cents / 100).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /* ─── The board's source rows ─────────────────────────────────────────
@@ -74,47 +156,57 @@ interface EarningsSourceRow {
   detail?: string;
 }
 
-export function earningsSourceRows(e: EarningsResponse): EarningsSourceRow[] {
+export function earningsSourceRows(
+  e: EarningsResponse,
+  strings?: Partial<EarningsBoardStrings>,
+  locale: string = "en-US",
+): EarningsSourceRow[] {
+  const s = resolveStrings(strings);
   const rows: EarningsSourceRow[] = [];
-  const money = (title: string, s: EarningsResponse["sources"]["memberships"], detail?: string) => {
-    if (s.status === "error") {
-      rows.push({ title, meta: "Couldn't load", detail: "This source didn't answer — the total covers the ones that did." });
+  const money = (title: string, src: EarningsResponse["sources"]["memberships"], detail?: string) => {
+    if (src.status === "error") {
+      rows.push({ title, meta: s.couldntLoad, detail: s.sourceDidntAnswer });
     } else {
       rows.push({
         title,
-        meta: usd(s.totalCents),
-        detail: detail ?? `${s.count} ${s.count === 1 ? "payment" : "payments"}`,
+        meta: usd(src.totalCents, locale),
+        detail: detail ?? fill(src.count === 1 ? s.paymentOne : s.paymentOther, { count: src.count }),
       });
     }
   };
   const store = e.sources.storeSales;
   money(
-    "Store sales",
+    s.storeSales,
     store,
     store.status === "ok" && store.breakdown
-      ? `profile store ${usd(store.breakdown.profileStoreCents)} · shop ${usd(store.breakdown.shopSalesCents)}`
+      ? fill(s.storeBreakdown, {
+          profile: usd(store.breakdown.profileStoreCents, locale),
+          shop: usd(store.breakdown.shopSalesCents, locale),
+        })
       : undefined,
   );
-  money("Memberships", e.sources.memberships);
-  money("Brand deals (escrow released)", e.sources.brandDeals);
+  money(s.memberships, e.sources.memberships);
+  money(s.brandDeals, e.sources.brandDeals);
   const tips = e.sources.tips;
   if (tips.status === "error") {
-    rows.push({ title: "Stream tips", meta: "Couldn't load", detail: "This source didn't answer — the total covers the ones that did." });
-    rows.push({ title: "Stage tips", meta: "Couldn't load", detail: "This source didn't answer — the total covers the ones that did." });
+    rows.push({ title: s.streamTips, meta: s.couldntLoad, detail: s.sourceDidntAnswer });
+    rows.push({ title: s.stageTips, meta: s.couldntLoad, detail: s.sourceDidntAnswer });
   } else {
     rows.push({
-      title: "Stream tips",
-      meta: `${(tips.streamTipsVb ?? 0).toLocaleString("en-US")} VB`,
-      detail:
-        `${tips.streamTipCount ?? 0} stream tips credited · tip jar ${usd(tips.tipJarPendingCents ?? 0)} ` +
-        `pending payment (${tips.tipJarPendingCount ?? 0} fans) — not yet earnings`,
+      title: s.streamTips,
+      meta: fill(s.tipsMetaVb, { amount: (tips.streamTipsVb ?? 0).toLocaleString(locale) }),
+      detail: fill(s.streamTipsDetail, {
+        count: tips.streamTipCount ?? 0,
+        amount: usd(tips.tipJarPendingCents ?? 0, locale),
+        fans: tips.tipJarPendingCount ?? 0,
+      }),
     });
     /* Ruling #28 (H-6): World stage tips read on their OWN line —
        per-line totals stay true instead of folding into stream. */
     rows.push({
-      title: "Stage tips",
-      meta: `${(tips.stageTipsVb ?? 0).toLocaleString("en-US")} VB`,
-      detail: `${tips.stageTipCount ?? 0} stage tips credited`,
+      title: s.stageTips,
+      meta: fill(s.tipsMetaVb, { amount: (tips.stageTipsVb ?? 0).toLocaleString(locale) }),
+      detail: fill(s.stageTipsDetail, { count: tips.stageTipCount ?? 0 }),
     });
   }
   return rows;
@@ -146,13 +238,19 @@ const isObj = (v: unknown): v is Record<string, unknown> =>
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
-export function describeLedgerUsage(action: string, creditsUsed: number): { type: string; amount: string } {
+export function describeLedgerUsage(
+  action: string,
+  creditsUsed: number,
+  strings?: Partial<EarningsBoardStrings>,
+  locale: string = "en-US",
+): { type: string; amount: string } {
+  const s = resolveStrings(strings);
   if (creditsUsed < 0) {
-    const type = /grant/i.test(action) ? "Grant" : /refund/i.test(action) ? "Refund" : "Visual Buc back";
-    return { type, amount: `+${Math.abs(creditsUsed).toLocaleString("en-US")}` };
+    const type = /grant/i.test(action) ? s.grant : /refund/i.test(action) ? s.refund : s.visualBucBack;
+    return { type, amount: `+${Math.abs(creditsUsed).toLocaleString(locale)}` };
   }
-  if (creditsUsed === 0) return { type: "Free", amount: "0" };
-  return { type: "Charge", amount: `−${creditsUsed.toLocaleString("en-US")}` };
+  if (creditsUsed === 0) return { type: s.free, amount: "0" };
+  return { type: s.charge, amount: `−${creditsUsed.toLocaleString(locale)}` };
 }
 
 function paymentMoney(cents: number | null, currency: string | null): string {
@@ -165,7 +263,13 @@ function paymentMoney(cents: number | null, currency: string | null): string {
  *  Either payload may be missing/malformed — its rail simply
  *  contributes nothing (the component decides whether a missing
  *  rail is an error state; the merge never invents rows). */
-export function normalizeLedger(creditsPayload: unknown, paymentsPayload: unknown): LedgerEntry[] {
+export function normalizeLedger(
+  creditsPayload: unknown,
+  paymentsPayload: unknown,
+  strings?: Partial<EarningsBoardStrings>,
+  locale: string = "en-US",
+): LedgerEntry[] {
+  const s = resolveStrings(strings);
   const out: LedgerEntry[] = [];
   if (isObj(creditsPayload) && Array.isArray(creditsPayload["usage"])) {
     for (const row of creditsPayload["usage"]) {
@@ -173,8 +277,8 @@ export function normalizeLedger(creditsPayload: unknown, paymentsPayload: unknow
       const id = str(row["id"]);
       const used = num(row["creditsUsed"]);
       if (!id || used === null) continue;
-      const action = str(row["action"]) ?? "Visual Buc activity";
-      const d = describeLedgerUsage(action, used);
+      const action = str(row["action"]) ?? s.visualBucActivity;
+      const d = describeLedgerUsage(action, used, s, locale);
       out.push({
         id: `usage:${id}`,
         kind: "usage",
@@ -197,8 +301,8 @@ export function normalizeLedger(creditsPayload: unknown, paymentsPayload: unknow
       out.push({
         id: `payment:${id}`,
         kind: "payment",
-        title: pack ? `Visual Buc pack — ${pack}` : "Visual Buc purchase",
-        detail: `+${credits.toLocaleString("en-US")} VB${status ? ` · ${status}` : ""}`,
+        title: pack ? fill(s.visualBucPack, { pack }) : s.visualBucPurchase,
+        detail: `${fill(s.paymentDetailVb, { credits: credits.toLocaleString(locale) })}${status ? ` · ${status}` : ""}`,
         amount: paymentMoney(num(row["amountTotal"]), str(row["currency"])),
         unit: "money",
         dateIso: str(row["createdAt"] ?? row["created_at"]),
@@ -251,7 +355,8 @@ interface PermanenceStatus {
  *  when the payload carries neither a catalog election nor any
  *  release elections — nothing recorded reads as "no election",
  *  rendered by the component, not invented here. */
-export function normalizePermanence(payload: unknown): PermanenceStatus | null {
+export function normalizePermanence(payload: unknown, strings?: Partial<EarningsBoardStrings>): PermanenceStatus | null {
+  const s = resolveStrings(strings);
   if (!isObj(payload)) return null;
   const catalog = isObj(payload["catalog"]) ? str(payload["catalog"]["election"]) : null;
   const releases: PermanenceStatus["releases"] = [];
@@ -260,7 +365,7 @@ export function normalizePermanence(payload: unknown): PermanenceStatus | null {
       if (!isObj(row)) continue;
       const election = str(row["election"]);
       if (!election) continue;
-      releases.push({ title: str(row["releaseTitle"] ?? row["release_title"]) ?? "Release", election });
+      releases.push({ title: str(row["releaseTitle"] ?? row["release_title"]) ?? s.releaseFallback, election });
     }
   }
   if (catalog === null && releases.length === 0) return null;
@@ -361,6 +466,8 @@ export async function fetchBoardJson(
 export async function loadBoardLedger(
   deps: BoardLoadDeps,
   options: BoardLoadOptions = {},
+  strings?: Partial<EarningsBoardStrings>,
+  locale: string = "en-US",
 ): Promise<LedgerEntry[]> {
   return withBoardRetries(deps, options, async ({ token, signal, fetchFn }) => {
     const headers = bearer(token);
@@ -369,7 +476,7 @@ export async function loadBoardLedger(
       fetchFn("/api/payments/history", { headers, signal }),
     ]);
     if (!creditsRes.ok || !paymentsRes.ok) throw new Error("ledger failed");
-    return normalizeLedger(await creditsRes.json(), await paymentsRes.json());
+    return normalizeLedger(await creditsRes.json(), await paymentsRes.json(), strings, locale);
   });
 }
 
@@ -405,7 +512,8 @@ interface ClaimStatus {
  *  board's summary line. The claim ACTIONS (accept / dispute /
  *  resolve) are worked in the MoneyActionsDesk (Stack-100 #67) on
  *  this same rail; this summary only reports where claims stand. */
-export function normalizeClaims(payload: unknown): ClaimStatus[] {
+export function normalizeClaims(payload: unknown, strings?: Partial<EarningsBoardStrings>): ClaimStatus[] {
+  const s = resolveStrings(strings);
   if (!isObj(payload) || !Array.isArray(payload["claims"])) return [];
   const out: ClaimStatus[] = [];
   for (const row of payload["claims"]) {
@@ -413,17 +521,17 @@ export function normalizeClaims(payload: unknown): ClaimStatus[] {
     const id = str(row["id"]);
     if (!id) continue;
     const youAre = str(row["youAre"] ?? row["you_are"]);
-    const status = str(row["status"]) ?? "unknown";
+    const status = str(row["status"]) ?? s.claimStatusUnknown;
     const conf = num(row["confidence"]);
     const matched = num(row["matchedLandmarks"]);
     const total = num(row["totalLandmarks"]);
     const parts: string[] = [];
-    if (youAre) parts.push(`you are the ${youAre}`);
-    if (conf !== null) parts.push(`confidence ${conf}`);
-    if (matched !== null && total !== null) parts.push(`${matched} of ${total} landmarks matched`);
+    if (youAre) parts.push(fill(s.claimYouAreThe, { role: youAre }));
+    if (conf !== null) parts.push(fill(s.claimConfidence, { value: conf }));
+    if (matched !== null && total !== null) parts.push(fill(s.claimLandmarksMatched, { matched, total }));
     out.push({
       id,
-      label: str(row["sourceLabel"] ?? row["source_label"]) ?? "Upload",
+      label: str(row["sourceLabel"] ?? row["source_label"]) ?? s.uploadFallback,
       status,
       detail: parts.join(" · "),
     });

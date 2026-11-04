@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Check, Crown, Link2, LogIn, Swords } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -75,13 +76,13 @@ import { StageBookingBlock } from "./StageBookingBlock";
    pitch too. The today block is public information and reads the
    same for everyone. */
 
-const EVENT_KIND_LABELS: Record<string, string> = {
-  stage_show: "Stage show",
-  listening_party: "Listening party",
-  drop: "Drop",
-  contest: "Contest",
-  office_hours: "Office hours",
-  royal_court: "Court gathering",
+const EVENT_KIND_KEYS: Record<string, string> = {
+  stage_show: "worldBoards.kbEventStageShow",
+  listening_party: "worldBoards.kbEventListeningParty",
+  drop: "worldBoards.kbEventDrop",
+  contest: "worldBoards.kbEventContest",
+  office_hours: "worldBoards.kbEventOfficeHours",
+  royal_court: "worldBoards.kbEventCourtGathering",
 };
 
 export function KingdomBoardBlocks({
@@ -118,6 +119,7 @@ export function KingdomBoardBlocks({
    *  it leaves the block's tables look-only, named but unseated. */
   onJoinPartyTable?: (room: PartyOpenRoom) => void;
 }) {
+  const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const [board, setBoard] = useState<Leaderboard | null>(null);
   const [boardFailed, setBoardFailed] = useState(false);
@@ -237,10 +239,12 @@ export function KingdomBoardBlocks({
     /* A creator room ("creator:<slug>") is named for its host —
      * it stands in no palace directory, by design. */
     roomId.startsWith("creator:")
-      ? `${hostName?.trim() || "Creator"}'s Room`
+      ? t("worldBoards.kbCreatorRoom", {
+          name: hostName?.trim() || t("worldBoards.kbCreatorFallback"),
+        })
       : (directory.find((r) => r.id === roomId)?.name ??
         PALACE_LAYOUT[roomId]?.name ??
-        "the palace");
+        t("worldBoards.kbPalaceFallback"));
 
   const standings = board ? kingdomStandings(board) : null;
 
@@ -249,18 +253,18 @@ export function KingdomBoardBlocks({
       {/* ── Standings ── */}
       {isGuest ? (
         <div data-testid="world-kingdom-standings">
-          <NativeBoard isLight={isLight} title="Standings — this week's creators">
+          <NativeBoard isLight={isLight} title={t("worldBoards.kbStandingsTitle")}>
             <p
               className={`inline-flex flex-wrap items-center gap-2 px-1 py-1 text-sm ${
                 isLight ? "text-[#6B5B36]" : "text-white/55"
               }`}
             >
-              The week&rsquo;s standings are members&rsquo; business.
+              {t("worldBoards.kbStandingsGuestPitch")}
               <Link
                 href={GUEST_SIGN_IN_HREF}
                 className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105"
               >
-                <LogIn className="h-3 w-3" /> Sign in to see them
+                <LogIn className="h-3 w-3" /> {t("worldBoards.kbSignInSeeStandings")}
               </Link>
             </p>
           </NativeBoard>
@@ -269,8 +273,8 @@ export function KingdomBoardBlocks({
         <div data-testid="world-kingdom-standings">
           <NativeErrorState
             isLight={isLight}
-            title="The standings wouldn't load"
-            message="The kingdom's creators are still ranked on the real rails. Try again."
+            title={t("worldBoards.kbStandingsLoadTitle")}
+            message={t("worldBoards.kbStandingsLoadMessage")}
             onRetry={() => {
               setBoardFailed(false);
               setBoard(null);
@@ -280,21 +284,21 @@ export function KingdomBoardBlocks({
         </div>
       ) : !standings ? (
         <div data-testid="world-kingdom-standings">
-          <NativeLoadingState isLight={isLight} message="Reading the standings…" />
+          <NativeLoadingState isLight={isLight} message={t("worldBoards.kbStandingsLoading")} />
         </div>
       ) : standings.top.length === 0 ? (
         <div data-testid="world-kingdom-standings">
           <NativeEmptyState
             isLight={isLight}
-            message="No creations on the board yet this week — the first one takes the crown."
-            detail="The standings count this week's creations and exports across the kingdom."
+            message={t("worldBoards.kbStandingsEmpty")}
+            detail={t("worldBoards.kbStandingsEmptyDetail")}
           />
         </div>
       ) : (
         <div data-testid="world-kingdom-standings">
           <NativeBoard
             isLight={isLight}
-            title="Standings — this week's creators"
+            title={t("worldBoards.kbStandingsTitle")}
             headline={
               standings.viewerRank !== null && !standings.viewerInTop ? (
                 <p
@@ -302,8 +306,11 @@ export function KingdomBoardBlocks({
                     isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
                   }`}
                 >
-                  <Crown className="h-3.5 w-3.5" /> You stand #{standings.viewerRank} this
-                  week — {standings.viewerScore} creations + exports
+                  <Crown className="h-3.5 w-3.5" />{" "}
+                  {t("worldBoards.kbViewerRankLine", {
+                    rank: standings.viewerRank,
+                    score: standings.viewerScore,
+                  })}
                 </p>
               ) : undefined
             }
@@ -312,16 +319,21 @@ export function KingdomBoardBlocks({
               <NativeBoardRow
                 key={r.rank}
                 isLight={isLight}
-                title={`#${r.rank} · ${r.name}${r.isYou ? " (you)" : ""}`}
-                detail={`${r.creations} creations · ${r.exports} exports`}
+                title={t("worldBoards.kbStandingsRowTitle", {
+                  rank: r.rank,
+                  name: r.name,
+                  suffix: r.isYou ? t("worldBoards.kbYouSuffix") : "",
+                })}
+                detail={t("worldBoards.kbStandingsDetail", {
+                  creations: r.creations,
+                  exports: r.exports,
+                })}
                 meta={`${r.score}`}
                 highlighted={r.isYou}
               />
             ))}
             <p className={`px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-              Standings are honor only — no Visual Bucs ride on them. Front Row standing
-              isn&rsquo;t carried by this rail — the Front Row sits in the Royal Court
-              Chamber.
+              {t("worldBoards.kbStandingsHonorNote")}
             </p>
           </NativeBoard>
         </div>
@@ -329,21 +341,21 @@ export function KingdomBoardBlocks({
 
       {/* ── Today at the palace ── */}
       <div data-testid="world-kingdom-today">
-        <NativeBoard isLight={isLight} title="Today at the palace">
+        <NativeBoard isLight={isLight} title={t("worldBoards.kbTodayTitle")}>
           {kingLine && (
             <NativeBoardRow
               isLight={isLight}
-              title="The King's daily moment"
+              title={t("worldBoards.kbKingMomentTitle")}
               detail={kingLine}
-              meta="LIVE now"
+              meta={t("worldBoards.kbLiveNow")}
               highlighted
             />
           )}
           {today.length === 0 && restFailed ? (
             <NativeErrorState
               isLight={isLight}
-              title="Today's slate wouldn't load"
-              message="The palace events rail didn't answer — today's shows and drops may still stand. Try again."
+              title={t("worldBoards.kbTodayLoadTitle")}
+              message={t("worldBoards.kbTodayLoadMessage")}
               onRetry={() => {
                 setRestFailed(false);
                 setTick((n) => n + 1);
@@ -355,12 +367,12 @@ export function KingdomBoardBlocks({
                any, render below on their own (today.length > 0 skips
                this branch); until the first settle this block reads
                as loading, never as an empty slate. */
-            <NativeLoadingState isLight={isLight} message="Reading today's slate…" />
+            <NativeLoadingState isLight={isLight} message={t("worldBoards.kbTodayLoading")} />
           ) : today.length === 0 && !kingLine ? (
             <NativeEmptyState
               isLight={isLight}
-              message="Nothing on today's slate at the palace."
-              detail="Booked shows, listening parties, office hours and drops will read here on their day."
+              message={t("worldBoards.kbTodayEmpty")}
+              detail={t("worldBoards.kbTodayEmptyDetail")}
             />
           ) : (
             today.map((e) => (
@@ -368,9 +380,17 @@ export function KingdomBoardBlocks({
                 key={e.id}
                 isLight={isLight}
                 title={e.title}
-                detail={`${EVENT_KIND_LABELS[e.kind] ?? "Palace event"} · ${roomNameFor(e.roomId, e.hostName)}${e.hostName ? ` · hosted by ${e.hostName}` : ""}`}
+                detail={t("worldBoards.kbEventDetail", {
+                  kind: EVENT_KIND_KEYS[e.kind]
+                    ? t(EVENT_KIND_KEYS[e.kind])
+                    : t("worldBoards.kbEventFallback"),
+                  room: roomNameFor(e.roomId, e.hostName),
+                  hosted: e.hostName
+                    ? t("worldBoards.kbHostedBy", { name: e.hostName })
+                    : "",
+                })}
                 meta={
-                  e.status === "live" ? "LIVE now" : formatEventTime(e.startsAt)
+                  e.status === "live" ? t("worldBoards.kbLiveNow") : formatEventTime(e.startsAt)
                 }
                 highlighted={e.status === "live"}
               />
@@ -410,27 +430,26 @@ export function KingdomBoardBlocks({
 
       {/* ── Open party tables ── */}
       <div data-testid="world-kingdom-party-tables">
-        <NativeBoard isLight={isLight} title="Open party tables">
+        <NativeBoard isLight={isLight} title={t("worldBoards.kbPartyTitle")}>
           {isGuest ? (
             <p
               className={`inline-flex flex-wrap items-center gap-2 px-1 py-1 text-sm ${
                 isLight ? "text-[#6B5B36]" : "text-white/55"
               }`}
             >
-              The party tables are members&rsquo; games — the Marble Table
-              seats signed-in players.
+              {t("worldBoards.kbPartyGuestPitch")}
               <Link
                 href={GUEST_SIGN_IN_HREF}
                 className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105"
               >
-                <LogIn className="h-3 w-3" /> Sign in to take a seat
+                <LogIn className="h-3 w-3" /> {t("worldBoards.kbSignInTakeSeat")}
               </Link>
             </p>
           ) : tablesFailed ? (
             <NativeErrorState
               isLight={isLight}
-              title="The tables wouldn't come into view"
-              message="Open party tables wouldn't load — the tables themselves are fine. Try again."
+              title={t("worldBoards.kbPartyLoadTitle")}
+              message={t("worldBoards.kbPartyLoadMessage")}
               onRetry={() => {
                 setTablesFailed(false);
                 setTables(null);
@@ -438,12 +457,12 @@ export function KingdomBoardBlocks({
               }}
             />
           ) : tables === null ? (
-            <NativeLoadingState isLight={isLight} message="Looking for open tables…" />
+            <NativeLoadingState isLight={isLight} message={t("worldBoards.kbPartyLoading")} />
           ) : tables.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="No tables are open right now."
-              detail="Open the first one at the Marble Table in the Game Rooms — it will read here for the whole palace."
+              message={t("worldBoards.kbPartyEmpty")}
+              detail={t("worldBoards.kbPartyEmptyDetail")}
             />
           ) : (
             tables.map((room) => {
@@ -462,7 +481,7 @@ export function KingdomBoardBlocks({
                         type="button"
                         data-testid={`world-kingdom-party-invite-${room.code}`}
                         onClick={() => void copyInvite(room.code)}
-                        title="Copy a World invite link — it lands your friend at this table"
+                        title={t("worldBoards.kbPartyInviteTitle")}
                         className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                           isLight
                             ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
@@ -474,7 +493,7 @@ export function KingdomBoardBlocks({
                         ) : (
                           <Link2 className="h-3.5 w-3.5" />
                         )}
-                        {copiedCode === room.code ? "Copied" : "Invite"}
+                        {copiedCode === room.code ? t("worldBoards.kbCopied") : t("worldBoards.kbInvite")}
                       </button>
                       {seatState === "full" ? (
                         <span
@@ -485,7 +504,7 @@ export function KingdomBoardBlocks({
                               : "border-white/15 text-white/70"
                           }`}
                         >
-                          Table full
+                          {t("worldBoards.kbTableFull")}
                         </span>
                       ) : onJoinPartyTable ? (
                         <button
@@ -494,7 +513,7 @@ export function KingdomBoardBlocks({
                           onClick={() => onJoinPartyTable(room)}
                           className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                         >
-                          <Swords className="h-3.5 w-3.5" /> Take a seat
+                          <Swords className="h-3.5 w-3.5" /> {t("worldBoards.kbTakeSeat")}
                         </button>
                       ) : null}
                     </span>

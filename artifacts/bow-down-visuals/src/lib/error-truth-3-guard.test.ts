@@ -26,6 +26,12 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import en from "../locales/en.json";
+/* stack100 unit 50: the Kingdom Board's empty claim renders through
+   the worldBoards catalog — the pins below locate the claim by its
+   KEY call in the source and assert the English copy in the
+   catalog, so the ordering coverage is unchanged. */
+const boards = (en as { worldBoards: Record<string, string> }).worldBoards;
 
 const SRC = join(__dirname, "..");
 const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
@@ -103,7 +109,7 @@ describe("KingdomBoardBlocks — a failed palace-events load is not an empty sla
 
   it("(1) REST failure + empty merged slate renders the failure state, not the empty claim", () => {
     const errAt = todayBlock.indexOf("today.length === 0 && restFailed");
-    const emptyAt = todayBlock.indexOf("Nothing on today's slate at the palace.");
+    const emptyAt = todayBlock.indexOf('t("worldBoards.kbTodayEmpty")');
     expect(todayAt).toBeGreaterThan(-1);
     expect(errAt).toBeGreaterThan(-1);
     expect(todayBlock).toContain("NativeErrorState");
@@ -146,7 +152,7 @@ describe("KingdomBoardBlocks — a failed palace-events load is not an empty sla
     // sentinel, rendering the house loading state, ordered BEFORE the
     // empty claim so the claim can never flash during the first load.
     const loadingAt = todayBlock.indexOf("today.length === 0 && !restSettled");
-    const emptyAt = todayBlock.indexOf("Nothing on today's slate at the palace.");
+    const emptyAt = todayBlock.indexOf('t("worldBoards.kbTodayEmpty")');
     expect(loadingAt).toBeGreaterThan(-1);
     expect(todayBlock.slice(loadingAt, emptyAt)).toContain("NativeLoadingState");
     expect(emptyAt).toBeGreaterThan(loadingAt);
@@ -165,7 +171,8 @@ describe("KingdomBoardBlocks — a failed palace-events load is not an empty sla
     const emptyGateAt = todayBlock.indexOf("today.length === 0 && !kingLine");
     expect(loadingAt).toBeGreaterThan(-1);
     expect(emptyGateAt).toBeGreaterThan(loadingAt);
-    expect(todayBlock.slice(emptyGateAt)).toContain("Nothing on today's slate at the palace.");
+    expect(todayBlock.slice(emptyGateAt)).toContain('t("worldBoards.kbTodayEmpty")');
+    expect(boards.kbTodayEmpty).toBe("Nothing on today's slate at the palace.");
   });
 
   it("(7) after a failed settle, the failure branch still wins over both loading and empty", () => {

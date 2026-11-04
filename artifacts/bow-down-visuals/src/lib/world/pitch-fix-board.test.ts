@@ -23,6 +23,7 @@ import {
   type PitchForm,
 } from "./pitch-fix-board";
 import type { PitchFixSubmission } from "@/lib/pitch-fix";
+import en from "../../locales/en.json";
 
 /* ─── Pitch & Fix board (stack1100 world parity) ───────────────────
    The kingdom's suggestion board native at the Kingdom Board, on
@@ -182,6 +183,10 @@ describe("filing forms — the rail's zod rules", () => {
 });
 
 describe("the board stands in the Kingdom Board blocks", () => {
+  /* stack100 unit 50: the board renders through the worldBoards
+     catalog — the pin below asserts the KEY in the board source
+     and the English copy in the catalog, coverage unchanged. */
+  const boards = (en as { worldBoards: Record<string, string> }).worldBoards;
   const boardSrc = read("../../components/world/native/PitchFixBoard.tsx");
   const blocksSrc = read("../../components/world/native/KingdomBoardBlocks.tsx");
 
@@ -198,6 +203,7 @@ describe("the board stands in the Kingdom Board blocks", () => {
     expect(boardSrc).toContain("PITCH_FIX_MINE_PATH");
     expect(boardSrc).toContain("GUEST_SIGN_IN_HREF");
     /* The moderation truth is spoken at filing time. */
-    expect(boardSrc).toContain("Every voice is read by the team before it shows on the board");
+    expect(boardSrc).toContain('tr("worldBoards.pfFiledNote")');
+    expect(boards.pfFiledNote).toContain("Every voice is read by the team before it shows on the board");
   });
 });

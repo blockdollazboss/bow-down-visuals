@@ -20,6 +20,11 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { calendarEventAction, type CalendarEvent } from "./palace-calendar";
+import en from "../../locales/en.json";
+/* stack100 unit 50: the Kingdom Board's kind map resolves through
+   the worldBoards catalog — the pin below asserts the KEY in the
+   board source and the English copy in the catalog. */
+const boards = (en as { worldBoards: Record<string, string> }).worldBoards;
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SRC = join(here, "..", "..");
@@ -79,7 +84,8 @@ describe("court gathering — mounted in the Chamber, in the gallery's panel", (
 describe("court gathering — the calendar surfaces name the kind", () => {
   it("both kind-label maps carry the court gathering", () => {
     expect(calendarBlock).toContain('royal_court: "worldScheduleRelease.calKindRoyalCourt"');
-    expect(boardBlocks).toContain('royal_court: "Court gathering"');
+    expect(boardBlocks).toContain('royal_court: "worldBoards.kbEventCourtGathering"');
+    expect(boards.kbEventCourtGathering).toBe("Court gathering");
   });
 
   it("the slate DTO union carries the kind", () => {

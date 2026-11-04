@@ -60,6 +60,11 @@ import {
 } from "./charts-board";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
+import en from "../../locales/en.json";
+/* stack100 unit 50: the boards render through the worldBoards
+   catalog — pins below assert the KEY in the board source and the
+   English copy in the catalog, so the coverage is unchanged. */
+const boards = (en as { worldBoards: Record<string, string> }).worldBoards;
 const boardSrc = read("../../components/world/native/boards/ChartsBoard.tsx");
 const outreachPanelSrc = read("../../components/world/native/boards/BrandOutreachPanel.tsx");
 const stationPanelSrc = read("../../components/world/StationPanel.tsx");
@@ -362,8 +367,9 @@ describe("Ring 2 (2.27) completion — hearts open on the walker's real like sta
   });
 
   it("the board source: guests meet the pitch for every gated act, like and watch included", () => {
-    expect(boardSrc).toContain("like or repost a row");
-    expect(boardSrc).toContain("play or watch rows here");
+    expect(boardSrc).toContain('tr("worldBoards.chGuestSuffix")');
+    expect(boards.chGuestSuffix).toContain("like or repost a row");
+    expect(boards.chGuestSuffix).toContain("play or watch rows here");
     /* Member acts — Like included — render only inside the member
        branch (2.15 widened exactly one read action, embed, to
        guests: it renders BEFORE the branch, never inside it). */
@@ -424,7 +430,8 @@ describe("the ChartsBoard surface (source pins)", () => {
     /* The price is stated on the button before the tap — the
        registry pin, never a surprise charge. */
     expect(outreachPanelSrc).toContain("BRAND_OUTREACH_COST_VB");
-    expect(outreachPanelSrc).toContain("Draft my pitch");
+    expect(outreachPanelSrc).toContain('t("worldBoards.boDraftPitchButton", { cost: BRAND_OUTREACH_COST_VB })');
+    expect(boards.boDraftPitchButton).toContain("Draft my pitch");
     /* The honesty law rides along: the same plain no-money
        statement the briefs board carries, imported from the one
        seam — and exactly one quiet website footer, never more. */
@@ -492,7 +499,7 @@ describe("Ring 4 parity — the window switcher (Today / This week / All time)",
     expect(boardSrc).toContain("[tab, tick, window, vertical, lookbackDays]");
     expect(boardSrc).toContain("mediaByKey");
     /* titles come off the window, not a hardcoded "this week" */
-    expect(boardSrc).toContain("chartWindowNoun(window)");
+    expect(boardSrc).toContain("chartWindowNoun(window, chStrings)");
     expect(boardSrc).not.toContain("Top tracks — this week");
   });
 
@@ -792,15 +799,15 @@ describe("P3 — the board source: the vertical switcher stands on every tab", (
        re-runs when it moves — switching re-queries */
     expect(boardSrc).toContain("[tab, tick, window, vertical, lookbackDays]");
     /* a chosen vertical names itself in the board title */
-    expect(boardSrc).toContain("chartVerticalLabel(vertical)");
+    expect(boardSrc).toContain("chartVerticalLabel(vertical, chStrings)");
     /* unlike the window switcher it is NOT gated to windowed tabs:
        the fixed-span reads filter by vertical too */
-    const switcherAt = boardSrc.indexOf('aria-label="Chart vertical"');
+    const switcherAt = boardSrc.indexOf('aria-label={tr("worldBoards.chAriaVertical")}');
     const windowGateAt = boardSrc.indexOf("{windowedTab && (");
     expect(switcherAt).toBeGreaterThan(-1);
     expect(windowGateAt).toBeGreaterThan(-1);
     expect(switcherAt).toBeGreaterThan(windowGateAt);
-    expect(boardSrc.slice(windowGateAt, switcherAt)).not.toContain("Chart vertical");
+    expect(boardSrc.slice(windowGateAt, switcherAt)).not.toContain("chAriaVertical");
   });
 
   it("the outreach panel is a native form in both themes — fields, chips, honest states", () => {
@@ -915,7 +922,7 @@ describe("Ring 4 #26 — the advanced lookback (the charts page's `days`, in-wor
     expect(chartLookbackNoun(7)).toBe("last 7 days");
     expect(chartLookbackNoun(30)).toBe("last 30 days");
     expect(chartLookbackNoun(90)).toBe("last 90 days");
-    expect(boardSrc).toContain("chartLookbackNoun(lookbackDays)");
+    expect(boardSrc).toContain("chartLookbackNoun(lookbackDays, chStrings)");
     /* the all-time empty copy is gated on NO lookback — under a
        chosen lookback it would name a span the board isn't showing */
     expect(boardSrc).toContain('lookbackDays === null && window === "all"');
@@ -937,9 +944,9 @@ describe("Ring 4 #26 — the advanced lookback (the charts page's `days`, in-wor
   });
 
   it("the board source: the lookback stands with the window switcher — windowed tabs only, before the vertical row", () => {
-    const windowAt = boardSrc.indexOf('aria-label="Chart window"');
-    const lookbackAt = boardSrc.indexOf('aria-label="Chart lookback"');
-    const verticalAt = boardSrc.indexOf('aria-label="Chart vertical"');
+    const windowAt = boardSrc.indexOf('aria-label={tr("worldBoards.chAriaWindow")}');
+    const lookbackAt = boardSrc.indexOf('aria-label={tr("worldBoards.chAriaLookback")}');
+    const verticalAt = boardSrc.indexOf('aria-label={tr("worldBoards.chAriaVertical")}');
     expect(windowAt).toBeGreaterThan(-1);
     expect(lookbackAt).toBeGreaterThan(windowAt);
     expect(verticalAt).toBeGreaterThan(lookbackAt);

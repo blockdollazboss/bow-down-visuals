@@ -32,6 +32,11 @@ import {
   type OfficeHoursSession,
 } from "./office-hours";
 import { parseCreatorRoomDetail } from "./creator-rooms";
+import en from "../../locales/en.json";
+/* stack100 unit 50: the Kingdom Board's kind map resolves through
+   the worldBoards catalog — the pin below asserts the KEY in the
+   board source and the English copy in the catalog. */
+const boards = (en as { worldBoards: Record<string, string> }).worldBoards;
 
 const NOW = Date.parse("2026-10-18T12:20:00.000Z");
 const HOUR = 3600_000;
@@ -285,7 +290,8 @@ describe("source pins — the surfaces carry the feature", () => {
 
   it("the Kingdom Board labels office hours and names a creator room for its host", () => {
     const board = read("../../components/world/native/KingdomBoardBlocks.tsx");
-    expect(board).toContain('office_hours: "Office hours"');
+    expect(board).toContain('office_hours: "worldBoards.kbEventOfficeHours"');
+    expect(boards.kbEventOfficeHours).toBe("Office hours");
     expect(board).toContain('roomId.startsWith("creator:")');
     expect(board).toContain("roomNameFor(e.roomId, e.hostName)");
   });
