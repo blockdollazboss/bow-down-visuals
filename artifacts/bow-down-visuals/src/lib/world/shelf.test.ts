@@ -586,7 +586,7 @@ describe("source pins — downloads + receipts at the booth (2.16)", () => {
 
   it("every purchase row carries its receipt line at the booth", () => {
     const booth = read("../../components/world/native/ListeningBooth.tsx");
-    expect(booth).toContain("shelfReceiptLine(p)");
+    expect(booth).toContain("shelfReceiptLine(p, {");
   });
 
   it("your own uploads carry no download — the token rail is purchase-keyed and no other rail exists", () => {
