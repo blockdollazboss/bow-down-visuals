@@ -1,4 +1,4 @@
-import { apiErrorMessage, plainErrorText } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link } from "wouter";

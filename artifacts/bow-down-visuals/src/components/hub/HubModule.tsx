@@ -19,8 +19,8 @@ import { buildAssetContextItems, downloadAsset } from "@/lib/asset-context-menu"
 import { sendAssetToDesk } from "@/lib/asset-handoff";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
-import { BeatMakerModule } from "./ai-audio";
-import { ThumbnailMakerModule } from "./thumbnail-studio";
+import { BeatMakerModule } from "../audio-studio/AiAudio";
+import { ThumbnailMakerModule } from "@/pages/thumbnail-studio";
 
 /* ─── Creation Hub ──────────────────────────────────────────────────────────
    One place for everything. Pick what you're making and the hub walks you

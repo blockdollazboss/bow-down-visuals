@@ -10,7 +10,7 @@ import { BrowseLibraryButton } from "@/pages/library";
 /* The seven non-default tab tools ride lazy doors (site-perf,
    stack1300): the kit renders exactly ONE tab at a time, so the
    logo maker, intros/outros, stream pack, headshots, shop,
-   jewelry and wallpapers tools — four of them whole sibling
+   jewelry and wallpapers tools — three of them whole sibling
    pages — no longer ride /branding-kit's first load. The
    default brand tab (BrandKitPanel) stays static, so the
    landing's first paint is unchanged. Each tool chunk fetches
@@ -18,8 +18,8 @@ import { BrowseLibraryButton } from "@/pages/library";
 const LogoMakerTool = lazy(() => import("@/pages/logo-maker").then((m) => ({ default: m.LogoMakerTool })));
 const IntrosOutrosTool = lazy(() => import("@/pages/intros-outros").then((m) => ({ default: m.IntrosOutrosTool })));
 const StreamPackTool = lazy(() => import("@/pages/stream-pack").then((m) => ({ default: m.StreamPackTool })));
-const BrandingShop = lazy(() => import("@/pages/branding-shop"));
-const JewelryStudio = lazy(() => import("@/pages/jewelry"));
+const BrandingShop = lazy(() => import("@/components/branding/BrandingShop"));
+const JewelryStudio = lazy(() => import("@/components/branding/JewelryStudio"));
 const HeadshotStudio = lazy(() => import("@/components/photo/HeadshotStudio").then((m) => ({ default: m.HeadshotStudio })));
 const WallpapersDesk = lazy(() => import("@/components/wallpapers/WallpapersDesk").then((m) => ({ default: m.WallpapersDesk })));
 

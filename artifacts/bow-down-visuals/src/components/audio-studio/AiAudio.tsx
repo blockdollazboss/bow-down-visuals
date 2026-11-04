@@ -1,4 +1,4 @@
-import { apiErrorMessage, plainErrorText } from "../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
