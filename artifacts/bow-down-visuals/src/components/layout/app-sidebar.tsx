@@ -112,6 +112,7 @@ import {
   GalleryHorizontal,
   ScanSearch,
   Upload,
+  Bookmark,
   type LucideIcon,
 
 } from "lucide-react";
@@ -325,6 +326,13 @@ const SECTIONS: NavSection[] = [
       { href: "/home", labelKey: "nav.feed", icon: Newspaper, searchTerms: "feed timeline posts social" },
       { href: SHORTS_NAV_ENTRY.href, labelKey: SHORTS_NAV_ENTRY.labelKey, icon: Clapperboard, searchTerms: "shorts short video reels clips" },
       { href: "/explore", labelKey: "nav.explore", icon: Compass, searchTerms: "explore discover search browse" },
+      /* Trending + Movies + Saved — the discovery/watch doors
+         (Stack100 wave 1): Trending is the hashtag-velocity page
+         (distinct from Explore), Saved is the bookmarks home; all
+         three were page-link-only. */
+      { href: "/trending", labelKey: "nav.trending", icon: TrendingUp, searchTerms: "trending trends hashtags viral hot topics" },
+      { href: "/movies", labelKey: "nav.movies", icon: Film, searchTerms: "movies films watch cinema videos" },
+      { href: "/saved", labelKey: "nav.saved", icon: Bookmark, searchTerms: "saved bookmarks favorites collection posts" },
       { href: "/groups", labelKey: "nav.groups", icon: Users, searchTerms: "groups community fans" },
       { href: "/community", labelKey: "nav.community", icon: MessageSquareReply, searchTerms: "community manager comments superfans replies" },
       /* Pitch & Fix (UPGRADES 196): the community's idea + fix board,
