@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "51a56acb3f68f4491f946cbbb4d28c003c80d1af",
+  "baseCommit": "315ec537f7102564ae4f13dc8790e3a3335be792",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -10,10 +10,10 @@
   "generatedAt": "2026-11-04",
   "counts": {
     "routesInApp": 245,
-    "pageFiles": 188,
+    "pageFiles": 181,
     "features": 251,
     "excludedRoutes": 74,
-    "excludedPageFiles": 35,
+    "excludedPageFiles": 28,
     "pricedActions": 256,
     "routeFileEndpoints": 0,
     "guides": 11,
@@ -17776,16 +17776,6 @@
     },
     {
       "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/ai-audio.tsx",
-      "reason": "Legacy standalone page — route /ai-audio now redirects to /audio-studio?tab=aiaudio; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/branding-shop.tsx",
-      "reason": "Legacy standalone page — route /branding-shop now redirects to /branding-kit?tab=shop; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/broadcast.tsx",
       "reason": "Legacy standalone page — route /broadcast now redirects to /go-live; the live feature is covered by the target's knowledge entry."
     },
@@ -17816,23 +17806,8 @@
     },
     {
       "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/guides.tsx",
-      "reason": "Legacy standalone page — route /guides now redirects to /academy?tab=guides; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/hub.tsx",
-      "reason": "Legacy standalone page — route /hub now redirects to /create?panel=hub; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/intros-outros.tsx",
       "reason": "Legacy standalone page — route /intros-outros now redirects to /branding-kit?tab=intros; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/jewelry.tsx",
-      "reason": "Legacy standalone page — route /jewelry now redirects to /branding-kit?tab=jewelry; the live feature is covered by the target's knowledge entry."
     },
     {
       "kind": "pageFile",
@@ -17891,11 +17866,6 @@
     },
     {
       "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/shows.tsx",
-      "reason": "Legacy standalone page — route /shows now redirects to /go-live?tab=shows; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/song-and-video.tsx",
       "reason": "Legacy standalone page — route /song-and-video now redirects to /create?panel=song-video; the live feature is covered by the target's knowledge entry."
     },
@@ -17913,11 +17883,6 @@
       "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/songs/dj-set-prep.tsx",
       "reason": "Tab panel component (the DJ Sets tab) imported by the songs library page (pages/songs.tsx); not a route of its own."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/sounds.tsx",
-      "reason": "Legacy standalone page — route /sounds now redirects to /audio-studio?tab=sounds; the live feature is covered by the target's knowledge entry."
     },
     {
       "kind": "pageFile",
