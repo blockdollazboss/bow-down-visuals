@@ -13,8 +13,9 @@ import { Label } from "@/components/ui/label";
 import {
   BookOpen, Plus, Trash2, ChevronLeft, Sparkles, Loader2,
   FileText, PenLine, X, Check, Lightbulb, RefreshCw, Expand, ListOrdered, Type, Megaphone,
-  Download, Image as ImageIcon, Printer, Package, Store,
+  Download, Image as ImageIcon, Printer, Package, Store, LayoutTemplate,
 } from "lucide-react";
+import { BOOK_TEMPLATES, bookTemplateById, bookTemplateSeed, type BookTemplate } from "../lib/book-templates";
 import { useLocation } from "wouter";
 
 /* ── Types ── */
@@ -219,11 +220,27 @@ export default function Books() {
 function NewBookModal({ onClose, onCreated }: { onClose: () => void; onCreated: (b: Book) => void }) {
   const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [genre, setGenre] = useState("");
   const [description, setDescription] = useState("");
   const [authorName, setAuthorName] = useState("");
   const [saving, setSaving] = useState(false);
+  /* Starter template (structure only — free, no AI rail): picking one
+     pre-fills the genre and, on create, seeds the book with the
+     template's outline as chapters, guidance riding as ai_notes. */
+  const [templateId, setTemplateId] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
+  const selectedTemplate = templateId ? bookTemplateById(templateId) : undefined;
+
+  const pickTemplate = (tp: BookTemplate) => {
+    if (templateId === tp.id) {
+      setTemplateId(null);
+      return;
+    }
+    setTemplateId(tp.id);
+    setGenre(tp.genre);
+  };
 
   const create = async () => {
     if (!title.trim()) {
@@ -235,28 +252,133 @@ function NewBookModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
       const res = await confirmedFetch("/api/books", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), genre: genre.trim(), description: description.trim(), author_name: authorName.trim() }),
+        body: JSON.stringify({
+          title: title.trim(),
+          genre: genre.trim(),
+          description: description.trim(),
+          author_name: authorName.trim(),
+          ...(selectedTemplate ? { metadata: { starter_template: selectedTemplate.id } } : {}),
+        }),
         skipConfirm: true,
       });
       if (!res) return;
       const data = await res.json();
-      onCreated(data.book);
+      const book: Book = data.book;
+
+      /* Seed the template's outline: one chapter per entry on the
+         ordinary chapter rail, then its guidance as the chapter's
+         ai_notes. A missed section never blocks the book — it is
+         counted and reported honestly below. */
+      if (selectedTemplate) {
+        setSeeding(true);
+        const seed = bookTemplateSeed(selectedTemplate);
+        let missed = 0;
+        for (const chSeed of seed.chapters) {
+          try {
+            const cres = await confirmedFetch(`/api/books/${book.id}/chapters`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title: chSeed.title, position: chSeed.position }),
+              skipConfirm: true,
+            });
+            if (!cres || !cres.ok) { missed++; continue; }
+            const cdata = await cres.json();
+            const chapterId: string | undefined = cdata.chapter?.id;
+            if (!chapterId) { missed++; continue; }
+            if (chSeed.aiNotes) {
+              await confirmedFetch(`/api/books/${book.id}/chapters/${chapterId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ai_notes: chSeed.aiNotes }),
+                skipConfirm: true,
+              });
+            }
+          } catch {
+            missed++;
+          }
+        }
+        setSeeding(false);
+        if (missed > 0) {
+          toast({
+            title: "Book created",
+            description: `${missed} starter section${missed === 1 ? "" : "s"} couldn't be added — you can add them in the editor.`,
+          });
+          onCreated(book);
+          return;
+        }
+      }
+      onCreated(book);
       toast({ title: "Book created" });
     } catch {
       toast({ title: "Failed to create book", variant: "destructive" });
     } finally {
       setSaving(false);
+      setSeeding(false);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-[#111] border border-[#C9A84C]/30 rounded-2xl p-6 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-[#111] border border-[#C9A84C]/30 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-[#C9A84C]" style={{ fontFamily: "Georgia, serif" }}>New Book</h2>
           <button aria-label="Close" onClick={onClose} className="text-white/40 hover:text-white"><X className="h-5 w-5" /></button>
         </div>
         <div className="space-y-4">
+          {/* Starter-template shelf — rendered from the registry in
+              lib/book-templates.ts; structure only, always free. */}
+          <div>
+            <Label className="flex items-center gap-1.5">
+              <LayoutTemplate className="h-3.5 w-3.5 text-[#C9A84C]" />
+              {t("books.templates.shelfTitle", { defaultValue: "Start from a template" })}
+              <span className="text-white/35 font-normal normal-case">
+                {t("books.templates.shelfNote", { defaultValue: "— optional, always free" })}
+              </span>
+            </Label>
+            <div className="grid grid-cols-2 gap-2 mt-2" data-testid="book-template-shelf">
+              {BOOK_TEMPLATES.map((tp) => {
+                const selected = tp.id === templateId;
+                return (
+                  <button
+                    key={tp.id}
+                    type="button"
+                    onClick={() => pickTemplate(tp)}
+                    aria-pressed={selected}
+                    data-testid={`book-template-${tp.id}`}
+                    className={`text-left rounded-xl border p-3 transition-colors ${
+                      selected
+                        ? "border-[#C9A84C] bg-[#C9A84C]/10"
+                        : "border-white/10 bg-white/[0.03] hover:border-[#C9A84C]/40"
+                    }`}
+                  >
+                    <span className="flex items-start justify-between gap-2">
+                      <span className="font-semibold text-sm text-white leading-snug">{tp.name}</span>
+                      {selected && <Check className="h-4 w-4 shrink-0 text-[#C9A84C]" />}
+                    </span>
+                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-[#C9A84C]/80 mt-1">
+                      {tp.genre} · {tp.chapters.length} sections
+                    </span>
+                    <span className="block text-xs text-white/45 mt-1 leading-snug">{tp.blurb}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {selectedTemplate && (
+              <div className="mt-2 rounded-xl border border-[#C9A84C]/25 bg-[#C9A84C]/[0.04] p-3" data-testid="book-template-preview">
+                <p className="text-xs text-white/50">{selectedTemplate.audience}</p>
+                <ul className="mt-2 space-y-1 max-h-44 overflow-y-auto pr-1">
+                  {bookTemplateSeed(selectedTemplate).chapters.map((ch) => (
+                    <li key={ch.position} className="flex items-baseline gap-2 text-xs">
+                      <span className={`shrink-0 text-[9px] font-bold uppercase tracking-wider ${ch.kind === "chapter" ? "text-white/30" : "text-[#C9A84C]/70"}`}>
+                        {ch.kind === "front" ? "Front" : ch.kind === "back" ? "Back" : "Chapter"}
+                      </span>
+                      <span className="text-white/70">{ch.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
           <div>
             <Label>Title *</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="My Amazing Book" className="mt-1 bg-white/5 border-white/10" />
@@ -275,7 +397,11 @@ function NewBookModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           </div>
           <Button onClick={create} disabled={saving} className="w-full bg-[#C9A84C] text-black font-bold hover:bg-[#e8c86a]">
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-            Create Book
+            {seeding
+              ? t("books.templates.seeding", { defaultValue: "Setting up your sections…" })
+              : selectedTemplate
+                ? t("books.templates.createWith", { defaultValue: `Create Book — ${selectedTemplate.chapters.length} sections included` })
+                : "Create Book"}
           </Button>
         </div>
       </div>
@@ -562,6 +688,19 @@ function BookEditor({
                 className="text-2xl font-bold bg-transparent border-none px-0 mb-4 text-[#f5e6b8]"
                 style={{ fontFamily: "Georgia, serif" }}
               />
+              {/* Chapter plan — the chapter's ai_notes (seeded by a
+                  starter template's guidance, or written by a rail).
+                  A guide only: the author writes over the chapter
+                  freely; the plan itself is never part of the book. */}
+              {activeChapter.aiNotes && (
+                <div className="mb-4 rounded-xl border border-[#C9A84C]/25 bg-[#C9A84C]/[0.05] p-3.5" data-testid="chapter-plan">
+                  <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#C9A84C]">
+                    <ListOrdered className="h-3.5 w-3.5" />
+                    {t("books.chapterPlan", { defaultValue: "Chapter plan" })}
+                  </p>
+                  <p className="text-white/55 text-sm leading-relaxed mt-1.5">{activeChapter.aiNotes}</p>
+                </div>
+              )}
               <Textarea
                 value={content}
                 onChange={(e) => handleContentChange(e.target.value)}
