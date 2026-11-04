@@ -332,6 +332,18 @@ export default function VideoEditor() {
   useEffect(() => { ensureCaptionFonts(); }, []);
   const search = useSearch();
   const projectId = new URLSearchParams(search).get("project");
+  /* QC-200 fix queue #7 — the Locations library is a per-user surface: the
+     /api/locations rails key on the account, never on a project. Yet every
+     door to it — the /locations redirect (App.tsx), Scene Studio's links,
+     the hub workflow steps — arrives here WITHOUT ?project=, so the
+     no-project gate below buried the Locations tab behind "No project
+     selected" and the surface was unreachable from its own doors. An
+     explicit ?tab=locations arrival is therefore served the Locations
+     panel with no project loaded (see the render branch below). Derived
+     from the URL rather than tab state so the Simple-mode tab guard —
+     which bounces Advanced sections to "clips" inside a loaded project —
+     cannot re-bury the library for door arrivals. */
+  const locationsDeepLink = new URLSearchParams(search).get("tab") === "locations";
   const { user, getAccessToken } = useAuth();
 
   /* ── Live collaboration presence (Supabase Realtime, no-op without project/Supabase) ── */
@@ -3168,8 +3180,25 @@ export default function VideoEditor() {
       <div className="flex-1 flex flex-col min-h-0 relative">
         <Link href="/my-projects" className="sr-only">{t("videoEditor.backToProjects")}</Link>
 
-        {!projectId ? (
+        {!projectId && !locationsDeepLink ? (
           <NoProject />
+        ) : !projectId ? (
+          /* Locations with no project loaded (QC-200 fix queue #7): the
+             exact panel the editor shows on its Locations tab once a
+             project IS open — the library needs no project context, so the
+             /locations door lands on the working surface, not a gate. */
+          <div className="flex-1 overflow-y-auto p-4">
+            <Suspense fallback={<div className="p-4 text-[11px] vv-ink-40">Loading…</div>}>
+              <ToolPanelShell
+                tool="locations"
+                kicker={t("videoEditor.railLocations", { defaultValue: "Locations" })}
+                title={t("locations.pageTitle")}
+                subtitle={t("locations.subtitle")}
+              >
+                <LocationsPage embedded />
+              </ToolPanelShell>
+            </Suspense>
+          </div>
         ) : (loading || !barcodeDone) ? (
           <WittyLoader onComplete={() => setBarcodeDone(true)} />
         ) : loadError ? (
