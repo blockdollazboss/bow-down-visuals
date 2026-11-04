@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, FileSearch, Loader2, ShieldCheck } from "lucide-react";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -11,11 +12,26 @@ import {
   MIN_CONTRACT_CHARS,
   analyzeReady,
   buildAnalyzeBody,
+  contractRiskStrings,
+  contractSeverityStrings,
   parseContractAnalysis,
   riskLevelLabel,
   severityLabel,
   type ContractAnalysisResult,
 } from "@/lib/world/contract-analyzer";
+
+/* The 2D page's own catalog keys (contracts.type.*, locales) —
+   byte-identical to the seam's option labels; the seam table
+   stays as the fallback behind this key-map. */
+const CONTRACT_TYPE_LABEL_KEYS: Record<string, string> = {
+  "record-deal": "contracts.type.record-deal",
+  "brand-deal": "contracts.type.brand-deal",
+  "sync-license": "contracts.type.sync-license",
+  management: "contracts.type.management",
+  publishing: "contracts.type.publishing",
+  distribution: "contracts.type.distribution",
+  other: "contracts.type.other",
+};
 
 /* ─── Contract Analyzer, in-world (stack1100 world parity) ─────────
    The deal-check from pages/contracts.tsx, docked at the Promote
@@ -34,6 +50,7 @@ const goldBtn =
   "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 bdv-touch-target";
 
 export function ContractAnalyzer({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
@@ -70,17 +87,17 @@ export function ContractAnalyzer({ isLight }: { isLight: boolean }) {
         return;
       }
       if (!res.ok) {
-        setError(apiErrorMessage(data, "Analysis failed. Try again."));
+        setError(apiErrorMessage(data, t("worldTeamLegal.contractErrorStatus")));
         return;
       }
       const parsed = parseContractAnalysis(data);
       if (!parsed) {
-        setError("The reading answered in a shape the desk can't use — the rail refunds failed generations, so a charge for this attempt comes back on its own.");
+        setError(t("worldTeamLegal.contractErrorShape"));
         return;
       }
       setResult(parsed);
     } catch (err) {
-      setError(plainErrorText(err, "Analysis failed."));
+      setError(plainErrorText(err, t("worldTeamLegal.contractError")));
     } finally {
       setBusy(false);
     }
@@ -89,52 +106,49 @@ export function ContractAnalyzer({ isLight }: { isLight: boolean }) {
   return (
     <div data-testid="world-contract-analyzer" className="space-y-3">
       <p className={`inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-        <FileSearch className="h-4 w-4" /> Contract check
+        <FileSearch className="h-4 w-4" /> {t("worldTeamLegal.contractTitle")}
       </p>
       <p className={`text-sm ${muted}`}>
-        Paste a deal before you sign it — risk score, red flags, key terms and what to push back on.{" "}
-        {CONTRACT_ANALYSIS_COST_VB} Visual Bucs a reading, named before you confirm. An AI reading,
-        not legal advice.
+        {t("worldTeamLegal.contractIntro", { cost: CONTRACT_ANALYSIS_COST_VB })}
       </p>
 
       <select
         className={deskInputCls(isLight)}
         value={contractType}
         onChange={(e) => setContractType(e.target.value)}
-        aria-label="Contract type"
+        aria-label={t("worldTeamLegal.contractTypeAria")}
       >
-        {CONTRACT_TYPE_OPTIONS.map((t) => (
-          <option key={t.key} value={t.key}>
-            {t.label}
+        {CONTRACT_TYPE_OPTIONS.map((opt) => (
+          <option key={opt.key} value={opt.key}>
+            {t(CONTRACT_TYPE_LABEL_KEYS[opt.key] ?? "contracts.type.other")}
           </option>
         ))}
       </select>
       <textarea
         className={deskInputCls(isLight)}
-        placeholder="Paste the contract text here…"
+        placeholder={t("worldTeamLegal.contractTextPlaceholder")}
         rows={6}
         value={contractText}
         onChange={(e) => setContractText(e.target.value)}
-        aria-label="Contract text"
+        aria-label={t("worldTeamLegal.contractTextAria")}
       />
       <p className={`text-xs ${muted}`}>
-        {chars.toLocaleString()} characters
+        {t("worldTeamLegal.contractChars", { count: chars.toLocaleString(i18n.language) })}
         {chars < MIN_CONTRACT_CHARS
-          ? ` — a real contract runs longer; at least ${MIN_CONTRACT_CHARS} to read it.`
-          : " — ready when you are."}
+          ? t("worldTeamLegal.contractCharsShort", { min: MIN_CONTRACT_CHARS })
+          : t("worldTeamLegal.contractCharsReady")}
       </p>
       <input
         className={deskInputCls(isLight)}
-        placeholder="Anything the reader should know? (your leverage, your worries — optional)"
+        placeholder={t("worldTeamLegal.contractContextPlaceholder")}
         value={context}
         onChange={(e) => setContext(e.target.value)}
-        aria-label="Context for the reader"
+        aria-label={t("worldTeamLegal.contractContextAria")}
       />
 
       {outOfCredits ? (
         <p className={`text-xs font-semibold ${strong}`}>
-          Not enough Visual Bucs for a reading — it costs {CONTRACT_ANALYSIS_COST_VB}. Top up at the
-          Treasury; nothing was charged.
+          {t("worldTeamLegal.contractOutOfCredits", { cost: CONTRACT_ANALYSIS_COST_VB })}
         </p>
       ) : null}
       {error ? (
@@ -149,7 +163,7 @@ export function ContractAnalyzer({ isLight }: { isLight: boolean }) {
         onClick={() => void analyze()}
       >
         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSearch className="h-3.5 w-3.5" />}
-        Read this contract — {CONTRACT_ANALYSIS_COST_VB} Bucs
+        {t("worldTeamLegal.contractButton", { cost: CONTRACT_ANALYSIS_COST_VB })}
       </button>
 
       {result ? (
@@ -161,18 +175,21 @@ export function ContractAnalyzer({ isLight }: { isLight: boolean }) {
         >
           <p className={`inline-flex items-center gap-2 text-base font-black ${strong}`}>
             <ShieldCheck className="h-4 w-4 text-[#d4af37]" />
-            Risk {result.analysis.riskScore}/100 — {riskLevelLabel(result.analysis.riskLevel)}
+            {t("worldTeamLegal.contractRiskLine", {
+              score: result.analysis.riskScore,
+              level: riskLevelLabel(result.analysis.riskLevel, contractRiskStrings(t)),
+            })}
           </p>
           <p className={`text-sm ${strong}`}>{result.analysis.summary}</p>
 
           {result.analysis.redFlags.length > 0 ? (
             <div className="space-y-1.5">
-              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Red flags</p>
+              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{t("worldTeamLegal.contractRedFlags")}</p>
               {result.analysis.redFlags.map((f, i) => (
                 <div key={i} className={`rounded-lg border px-2.5 py-2 ${isLight ? "border-[#C9A84C]/30" : "border-white/10"}`}>
                   <p className={`inline-flex items-center gap-1.5 text-xs font-bold ${strong}`}>
                     <AlertTriangle className="h-3.5 w-3.5 text-[#d4af37]" />
-                    {f.title} · {severityLabel(f.severity)}
+                    {f.title} · {severityLabel(f.severity, contractSeverityStrings(t))}
                   </p>
                   <p className={`mt-0.5 text-xs ${muted}`}>{f.explanation}</p>
                   {f.clause ? <p className={`mt-0.5 text-xs italic ${muted}`}>“{f.clause}”</p> : null}
@@ -183,10 +200,10 @@ export function ContractAnalyzer({ isLight }: { isLight: boolean }) {
 
           {result.analysis.keyTerms.length > 0 ? (
             <div className="space-y-1">
-              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Key terms</p>
-              {result.analysis.keyTerms.map((t, i) => (
+              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{t("worldTeamLegal.contractKeyTerms")}</p>
+              {result.analysis.keyTerms.map((term, i) => (
                 <p key={i} className={`text-xs ${muted}`}>
-                  <span className={`font-bold ${strong}`}>{t.term}:</span> {t.value} ({t.assessment})
+                  <span className={`font-bold ${strong}`}>{term.term}:</span> {term.value} ({term.assessment})
                 </p>
               ))}
             </div>
@@ -194,7 +211,7 @@ export function ContractAnalyzer({ isLight }: { isLight: boolean }) {
 
           {result.analysis.negotiationTips.length > 0 ? (
             <div className="space-y-1">
-              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Push back on</p>
+              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{t("worldTeamLegal.contractNegotiate")}</p>
               {result.analysis.negotiationTips.map((tip, i) => (
                 <p key={i} className={`text-xs ${muted}`}>
                   · {tip}
@@ -205,7 +222,7 @@ export function ContractAnalyzer({ isLight }: { isLight: boolean }) {
 
           {result.analysis.missingProtections.length > 0 ? (
             <div className="space-y-1">
-              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Missing protections</p>
+              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{t("worldTeamLegal.contractMissing")}</p>
               {result.analysis.missingProtections.map((m, i) => (
                 <p key={i} className={`text-xs ${muted}`}>
                   · {m}
@@ -216,7 +233,7 @@ export function ContractAnalyzer({ isLight }: { isLight: boolean }) {
 
           {result.analysis.favorableTerms.length > 0 ? (
             <div className="space-y-1">
-              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>In your favour</p>
+              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{t("worldTeamLegal.contractFavorable")}</p>
               {result.analysis.favorableTerms.map((f, i) => (
                 <p key={i} className={`text-xs ${muted}`}>
                   · {f}
@@ -227,7 +244,7 @@ export function ContractAnalyzer({ isLight }: { isLight: boolean }) {
 
           {result.disclaimer ? <p className={`text-xs italic ${muted}`}>{result.disclaimer}</p> : null}
           <p className={`text-xs ${muted}`}>
-            This is an AI reading, not legal advice — for a signing decision, a lawyer is the last step.
+            {t("worldTeamLegal.contractAdviceTail")}
           </p>
         </div>
       ) : null}

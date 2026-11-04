@@ -14,6 +14,7 @@
  * general information, not legal advice.
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -22,8 +23,6 @@ import {
   LLC_ASK_COST,
   LLC_ASK_PATH,
   LLC_CREATOR_TYPES,
-  LLC_DISCLAIMER_BODY,
-  LLC_DISCLAIMER_TITLE,
   LLC_FEATURE_ASK,
   LLC_FEATURE_PLAN,
   LLC_PLAN_COST,
@@ -32,32 +31,46 @@ import {
   buildLlcPlanPayload,
   llcAnswerOf,
   llcPlanOf,
+  llcPlanStrings,
   type LlcChatMessage,
   type LlcPlan,
 } from "@/lib/world/llc-desk";
 
+/* The creator-type chips' catalog keys (worldTeamLegal) — the
+   seam's LLC_CREATOR_TYPES table stays as the fallback behind
+   this key-map (its labels are the desk's own composed lines). */
+const LLC_CREATOR_TYPE_KEYS: Record<string, string> = {
+  musician: "worldTeamLegal.llcCreatorMusician",
+  streamer: "worldTeamLegal.llcCreatorStreamer",
+  youtuber: "worldTeamLegal.llcCreatorYoutuber",
+  podcaster: "worldTeamLegal.llcCreatorPodcaster",
+  designer: "worldTeamLegal.llcCreatorDesigner",
+  other: "worldTeamLegal.llcCreatorOther",
+};
+
 function GuestGate({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   return (
     <div className="space-y-3" data-testid="world-llc-desk">
-      <p className={`text-base font-black ${strong}`}>LLC Guide</p>
+      <p className={`text-base font-black ${strong}`}>{t("llcGuide.pageTitle")}</p>
       <p className={`text-sm ${muted}`}>
-        You&rsquo;re visiting as a guest — the guide works off your own situation, so it needs
-        your account.
+        {t("worldTeamLegal.llcGuestLead")}
       </p>
       <Link
         href="/login"
         data-testid="world-llc-desk-signin"
         className="bdv-touch-target inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37] px-4 py-2 text-xs font-bold text-black"
       >
-        Sign in to use the guide
+        {t("worldTeamLegal.llcGuestSignIn")}
       </Link>
     </div>
   );
 }
 
 export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   const { refreshProfile } = useAuth();
   const [messages, setMessages] = useState<LlcChatMessage[]>([]);
@@ -100,8 +113,7 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
 
   const outOfBucs = (feature: string) => (
     <p className={outCls}>
-      You&rsquo;re out of Visual Bucs for the {feature}. Top up at the Treasury&rsquo;s Visual Buc
-      Packs desk and run it again.
+      {t("worldTeamLegal.outOfBucsLine", { feature })}
     </p>
   );
 
@@ -134,11 +146,11 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
         return;
       }
       const answer = res.ok ? llcAnswerOf(data) : null;
-      if (!answer) throw new Error(apiErrorMessage(data, "Couldn't get an answer — try again."));
+      if (!answer) throw new Error(apiErrorMessage(data, t("llcGuide.errAnswer")));
       setMessages([...next, { role: "assistant", content: answer }]);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setChatError(plainErrorText(e, "Couldn't get an answer — try again."));
+      setChatError(plainErrorText(e, t("llcGuide.errAnswer")));
       setMessages(messages);
     } finally {
       setAsking(false);
@@ -148,7 +160,7 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
   async function buildPlan() {
     const payload = buildLlcPlanPayload(planState, creatorType, businessName);
     if (!payload || planning) {
-      if (!payload) setPlanError("Pick your state (2-letter code) to build the plan.");
+      if (!payload) setPlanError(t("worldTeamLegal.llcPlanStateError"));
       return;
     }
     setPlanning(true);
@@ -169,12 +181,12 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
         void refreshProfile().catch(() => {});
         return;
       }
-      const parsed = res.ok ? llcPlanOf(data) : null;
-      if (!parsed) throw new Error(apiErrorMessage(data, "Couldn't build the plan — try again."));
+      const parsed = res.ok ? llcPlanOf(data, llcPlanStrings(t)) : null;
+      if (!parsed) throw new Error(apiErrorMessage(data, t("worldTeamLegal.llcPlanError")));
       setPlan(parsed);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setPlanError(plainErrorText(e, "Couldn't build the plan — try again."));
+      setPlanError(plainErrorText(e, t("worldTeamLegal.llcPlanError")));
     } finally {
       setPlanning(false);
     }
@@ -183,14 +195,14 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
   return (
     <div className="space-y-4" data-testid="world-llc-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>LLC Guide</p>
+        <p className={`text-base font-black ${strong}`}>{t("llcGuide.pageTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          Plain answers on forming your LLC, and a filing plan built for your state.
+          {t("worldTeamLegal.llcSubtitle")}
         </p>
       </div>
 
       <section>
-        <p className={`text-sm font-bold ${strong}`}>Ask the guide</p>
+        <p className={`text-sm font-bold ${strong}`}>{t("worldTeamLegal.llcAskSection")}</p>
         {messages.length > 0 ? (
           <ul className="mt-2 space-y-2" data-testid="world-llc-desk-thread">
             {messages.map((m, i) => (
@@ -199,7 +211,7 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
                 className={`rounded-xl border px-3 py-2 text-sm ${cardCls} ${m.role === "user" ? "ml-6" : "mr-6"}`}
               >
                 <span className={`block text-[11px] font-bold uppercase tracking-wide ${muted}`}>
-                  {m.role === "user" ? "You" : "The guide"}
+                  {m.role === "user" ? t("worldTeamLegal.roleYou") : t("worldTeamLegal.roleGuide")}
                 </span>
                 <span className={`whitespace-pre-wrap ${strong}`}>{m.content}</span>
               </li>
@@ -207,15 +219,15 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
           </ul>
         ) : (
           <p className={`mt-1 text-sm ${muted}`}>
-            Ask anything — what an LLC protects, what your state charges, what to file first.
+            {t("worldTeamLegal.llcAskEmpty")}
           </p>
         )}
         <div className="mt-2 flex flex-wrap gap-2">
           <input
             className={`${inputCls} w-24`}
             data-testid="world-llc-desk-chat-state"
-            aria-label="Your state, for the LLC chat"
-            placeholder="State (GA)"
+            aria-label={t("worldTeamLegal.llcChatStateAria")}
+            placeholder={t("worldTeamLegal.llcStatePlaceholder")}
             maxLength={2}
             value={chatState}
             onChange={(e) => setChatState(e.target.value.toUpperCase())}
@@ -223,8 +235,8 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
           <input
             className={`${inputCls} min-w-52 flex-1`}
             data-testid="world-llc-desk-question"
-            aria-label="Ask about your LLC"
-            placeholder="Ask about your LLC…"
+            aria-label={t("worldTeamLegal.llcQuestionAria")}
+            placeholder={t("worldTeamLegal.llcQuestionPlaceholder")}
             maxLength={1000}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
@@ -239,7 +251,9 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
             disabled={asking || question.trim().length === 0}
             onClick={() => void ask()}
           >
-            {asking ? "Asking…" : `Ask — ${LLC_ASK_COST} Bucs`}
+            {asking
+              ? t("worldTeamLegal.asking")
+              : t("worldTeamLegal.askButton", { cost: LLC_ASK_COST })}
           </button>
         </div>
         {chatOut ? outOfBucs(LLC_FEATURE_ASK) : null}
@@ -247,35 +261,35 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
       </section>
 
       <section>
-        <p className={`text-sm font-bold ${strong}`}>Your filing plan</p>
+        <p className={`text-sm font-bold ${strong}`}>{t("worldTeamLegal.llcPlanSection")}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <input
             className={`${inputCls} w-24`}
             data-testid="world-llc-desk-plan-state"
-            aria-label="Your state, for the filing plan"
-            placeholder="State (GA)"
+            aria-label={t("worldTeamLegal.llcPlanStateAria")}
+            placeholder={t("worldTeamLegal.llcStatePlaceholder")}
             maxLength={2}
             value={planState}
             onChange={(e) => setPlanState(e.target.value.toUpperCase())}
           />
           <input
             className={`${inputCls} min-w-44 flex-1`}
-            aria-label="Business name (optional)"
-            placeholder="Business name (optional)"
+            aria-label={t("worldTeamLegal.llcBusinessName")}
+            placeholder={t("worldTeamLegal.llcBusinessName")}
             maxLength={120}
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
           />
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {LLC_CREATOR_TYPES.map((t) => (
+          {LLC_CREATOR_TYPES.map((ct) => (
             <button
-              key={t.key}
+              key={ct.key}
               type="button"
-              className={chipCls(creatorType === t.key)}
-              onClick={() => setCreatorType(t.key)}
+              className={chipCls(creatorType === ct.key)}
+              onClick={() => setCreatorType(ct.key)}
             >
-              {t.label}
+              {t(LLC_CREATOR_TYPE_KEYS[ct.key] ?? "worldTeamLegal.llcCreatorOther")}
             </button>
           ))}
         </div>
@@ -286,7 +300,9 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
           disabled={planning}
           onClick={() => void buildPlan()}
         >
-          {planning ? "Building…" : `Build my plan — ${LLC_PLAN_COST} Bucs`}
+          {planning
+            ? t("worldTeamLegal.llcBuilding")
+            : t("worldTeamLegal.llcPlanButton", { cost: LLC_PLAN_COST })}
         </button>
         {planOut ? outOfBucs(LLC_FEATURE_PLAN) : null}
         {planError ? <p className={errCls}>{planError}</p> : null}
@@ -294,7 +310,7 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
           <div className={`mt-3 rounded-xl border p-3 ${cardCls}`} data-testid="world-llc-desk-plan-result">
             <p className={`text-sm font-bold ${strong}`}>{plan.title}</p>
             {plan.totalEstimate ? (
-              <p className={`text-xs ${muted}`}>Estimated total: {plan.totalEstimate}</p>
+              <p className={`text-xs ${muted}`}>{t("worldTeamLegal.llcEstimatedTotal", { total: plan.totalEstimate })}</p>
             ) : null}
             <ol className="mt-2 space-y-2">
               {plan.steps.map((s, i) => (
@@ -303,8 +319,8 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
                     {i + 1}. {s.title}
                   </span>{" "}
                   — {s.detail}
-                  {s.estCost ? <span className="block text-xs">Cost: {s.estCost}</span> : null}
-                  {s.timeline ? <span className="block text-xs">Timing: {s.timeline}</span> : null}
+                  {s.estCost ? <span className="block text-xs">{t("worldTeamLegal.llcStepCost", { cost: s.estCost })}</span> : null}
+                  {s.timeline ? <span className="block text-xs">{t("worldTeamLegal.llcStepTiming", { timeline: s.timeline })}</span> : null}
                 </li>
               ))}
             </ol>
@@ -320,7 +336,11 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
       </section>
 
       <p className={`text-xs ${muted}`} data-testid="world-llc-desk-disclaimer">
-        <span className={`font-bold ${strong}`}>{LLC_DISCLAIMER_TITLE}</span> {LLC_DISCLAIMER_BODY}
+        {/* The catalog's disclaimerBody carries its own leading space
+            (the 2D page's established value) — no extra JSX space here,
+            so the rendered line stays byte-identical to the old one. */}
+        <span className={`font-bold ${strong}`}>{t("llcGuide.disclaimerTitle")}</span>
+        {t("llcGuide.disclaimerBody")}
       </p>
     </div>
   );

@@ -15985,6 +15985,7 @@
     "copyrightDraftError": "Couldn't draft that — try again.",
     "copyrightAskEmpty": "Ask anything — who owns a beat you bought, what registration actually protects, how long copyright lasts.",
     "copyrightAskPlaceholder": "Ask about copyright…",
+    "copyrightAnswerError": "Couldn't get an answer — try again.",
     "copyrightDisclaimer": "Bow Down Visuals is not a law firm and this page is not legal advice. Copyright law has edge cases — for disputes, transfers, or anything high-stakes, consult an intellectual property attorney.",
     "llcGuestLead": "You’re visiting as a guest — the guide works off your own situation, so it needs your account.",
     "llcGuestSignIn": "Sign in to use the guide",
