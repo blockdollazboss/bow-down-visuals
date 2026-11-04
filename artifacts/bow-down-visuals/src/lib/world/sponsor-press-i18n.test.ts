@@ -19,7 +19,6 @@ import {
   sponsorReviewStrings,
 } from "./sponsor-depth";
 import {
-  PACKET_MISSING_LABELS,
   PACKET_TEXT_STRINGS_EN,
   packetMissingStrings,
   packetTextStrings,
@@ -284,10 +283,21 @@ describe("unit 47 — seam bundles resolve through the catalog", () => {
 
   it("the packet bundles are the 2D packet's own catalog words", () => {
     expect(packetTextStrings(enT)).toEqual(PACKET_TEXT_STRINGS_EN);
-    const missing = packetMissingStrings(enT);
-    for (const [key, label] of Object.entries(PACKET_MISSING_LABELS)) {
-      expect(missing[key as keyof typeof missing], key).toBe(label);
-    }
+    // The missing-label bundle reads the page's playlistPitch
+    // .missing* keys — all nine, byte-identical to the seam's
+    // pinned English mirror (label-pitch-desk.test.ts pins the
+    // mirror itself through packetMissingLabel's defaults).
+    expect(packetMissingStrings(enT)).toEqual({
+      genre: enPath("playlistPitch.missingGenre"),
+      description: enPath("playlistPitch.missingDescription"),
+      releaseDate: enPath("playlistPitch.missingReleaseDate"),
+      trackAudio: enPath("playlistPitch.missingTrackAudio"),
+      streamingLinks: enPath("playlistPitch.missingStreamingLinks"),
+      artwork: enPath("playlistPitch.missingArtwork"),
+      headline: enPath("playlistPitch.missingHeadline"),
+      artistProfile: enPath("playlistPitch.missingArtistProfile"),
+      artistBio: enPath("playlistPitch.missingArtistBio"),
+    });
   });
 
   it("the release-text bundle's en default equals the catalog build", () => {
