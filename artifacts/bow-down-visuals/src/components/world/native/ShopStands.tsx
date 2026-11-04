@@ -1,7 +1,7 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import {
-  BadgeCheck, BarChart3, Check, Crown, Gem, Gift, ImagePlus, Loader2, Minus, Pencil, Plus, RefreshCw,
+  BadgeCheck, BarChart3, Check, Copy, Crown, Gem, Gift, Globe, ImagePlus, Loader2, Minus, Pencil, Plus, RefreshCw,
   Settings2, ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, Upload, Users, Wallet, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +45,10 @@ import {
   parseMineShops, parseSellerEarnings, parseShopAnalytics, productFormFromDto, productFormProblem,
   recentShopPending, recentShopSales, removeProduct, savedProductDto, savedShopDto,
   sellerEarningsRows, shopDesignColors,
+  SHOP_DOMAIN_CNAME_TARGET,
+  buildShopDomainAttachBody, parseShopDomainAttachResult, parseShopDomainVerifyResult,
+  shopDomainStatus, shopDomainVerifyHost,
+  type ShopDomainAttachResult,
   shopCreateProblem, shopSettingsFormFromShop, shopSettingsProblem,
   type BillingPeriod, type BrandingCartLine, type BrandingDesignResult,
   type BrandingOrderDto, type BrandingShipping, type ClubDirectoryRow, type HubShopDto,
@@ -829,7 +833,312 @@ function StandCreateShop({
    recent sales, and pending checkouts kept visibly apart from
    sales). Custom domains dock here too (Stack-100 #68): the
    DomainsDesk under the settings form rides the creator-domains
-   page's own lib/domains rails (claim / verify / remove). */
+   page's own lib/domains rails (claim / verify / remove). The
+   SHOP's own storefront domain docks beside it (Stack-100 #29):
+   the ShopDomainSection rides the storefront domain rails
+   (/api/storefronts/:id/domain + /domain/verify) the My Shop
+   page's DomainManager runs — connect, the rail's own DNS
+   instructions, verify, disconnect. */
+
+/* ─── ShopDomainSection — the SHOP's storefront domain ────────────
+   Stack-100 #29: connect + DNS-verify a custom domain for THIS
+   shop, in the stand's settings, on the storefront domain rails
+   the website's My Shop page and the storefront builder ride —
+   POST /api/storefronts/:id/domain, POST
+   /api/storefronts/domain/verify, DELETE
+   /api/storefronts/:id/domain. (The DomainsDesk further down is
+   a different rail — the creator PAGE's domains.) Free: none of
+   the three rails carries a credit cost, so there is no spend to
+   confirm; the server's Pro gate on attach answers for itself and
+   its refusal shows as-is. The state shown is always the shop's
+   own record (the parent's mine row): "verified" appears only
+   when the record says the server's TXT check passed — a verify
+   tap that comes back "not yet" shows the rail's own reason and
+   changes nothing. The token rides only the attach answer, so a
+   returning session sees it masked with the page's remedy —
+   reconnect for a fresh one. Detach is two-step, the World's
+   delete discipline. */
+function ShopDomainSection({
+  shop,
+  mineShop,
+  isLight,
+  onShopSaved,
+}: {
+  shop: PublicShopDto;
+  mineShop: MineShopDto;
+  isLight: boolean;
+  onShopSaved: (pub: PublicShopDto, mine: MineShopDto) => void;
+}) {
+  const authHeaders = useAuthHeaders();
+  const status = shopDomainStatus(mineShop);
+  const domain = mineShop.custom_domain ?? null;
+
+  const [input, setInput] = useState(domain ?? "");
+  /* The attach answer (token + the rail's DNS words) — session-only,
+     like the page's: it is never re-read from any rail. */
+  const [attachInfo, setAttachInfo] = useState<ShopDomainAttachResult | null>(null);
+  const [busy, setBusy] = useState<"attach" | "verify" | "detach" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  /* The verify rail's "not yet" reason, verbatim — pending news,
+     not an error and never a silent pass. */
+  const [pendingReason, setPendingReason] = useState<string | null>(null);
+  const [confirmingDetach, setConfirmingDetach] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const attach = async (value: string) => {
+    if (busy) return;
+    const body = buildShopDomainAttachBody(value);
+    if (!body) { setError("Type the domain you want to connect first."); return; }
+    setBusy("attach");
+    setError(null);
+    setPendingReason(null);
+    try {
+      const res = await fetch(`/api/storefronts/${shop.id}/domain`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(apiErrorMessage(data, "That domain didn't connect — your shop is unchanged."));
+      const parsed = parseShopDomainAttachResult(data);
+      if (!parsed) throw new Error("The connection came back without its DNS instructions — reconnect to get a fresh token.");
+      setAttachInfo(parsed);
+      setInput(parsed.domain);
+      setConfirmingDetach(false);
+      onShopSaved(shop, { ...mineShop, custom_domain: parsed.domain, domain_verified: false });
+    } catch (e) {
+      setError(plainErrorText(e, "That domain didn't connect — your shop is unchanged."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const verify = async () => {
+    if (busy) return;
+    setBusy("verify");
+    setError(null);
+    setPendingReason(null);
+    try {
+      const res = await fetch("/api/storefronts/domain/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ shopId: shop.id }),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(apiErrorMessage(data, "The verification check didn't run — try again."));
+      const result = parseShopDomainVerifyResult(data);
+      if (!result) throw new Error("The verification check came back unreadable — try again.");
+      if (result.verified) {
+        setAttachInfo(null);
+        onShopSaved(shop, { ...mineShop, custom_domain: result.domain ?? domain, domain_verified: true });
+      } else {
+        setPendingReason(result.reason ?? "Not verified yet — DNS can take a few minutes to propagate.");
+      }
+    } catch (e) {
+      setError(plainErrorText(e, "The verification check didn't run — try again."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const detach = async () => {
+    if (busy) return;
+    setBusy("detach");
+    setError(null);
+    setPendingReason(null);
+    try {
+      const res = await fetch(`/api/storefronts/${shop.id}/domain`, {
+        method: "DELETE",
+        headers: { ...(await authHeaders()) },
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        throw new Error(apiErrorMessage(data, "Couldn't disconnect the domain."));
+      }
+      setAttachInfo(null);
+      setInput("");
+      setConfirmingDetach(false);
+      onShopSaved(shop, { ...mineShop, custom_domain: null, domain_verified: false });
+    } catch (e) {
+      setError(plainErrorText(e, "Couldn't disconnect the domain."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const copyToken = () => {
+    if (!attachInfo) return;
+    navigator.clipboard?.writeText(attachInfo.verification.value).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const detachRow = (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {confirmingDetach ? (
+        <>
+          <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+            Disconnect {domain} from your shop?
+          </span>
+          <button
+            type="button"
+            data-testid="world-shop-domain-detach-confirm"
+            onClick={() => void detach()}
+            disabled={busy !== null}
+            className="inline-flex items-center gap-1.5 rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
+          >
+            {busy === "detach" ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Disconnect it
+          </button>
+          <button type="button" onClick={() => setConfirmingDetach(false)} className={chipBtn(isLight)}>Keep it</button>
+        </>
+      ) : (
+        <button
+          type="button"
+          data-testid="world-shop-domain-detach"
+          onClick={() => { setConfirmingDetach(true); setError(null); }}
+          className={chipBtn(isLight)}
+        >
+          Disconnect
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <div className={`space-y-2 border-t pt-3 ${isLight ? "border-[#C9A84C]/30" : "border-white/10"}`} data-testid="world-shop-domain">
+      <div className="flex items-center gap-2">
+        <Globe className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`} />
+        <p className={`text-[11px] font-black uppercase tracking-wider ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}>
+          Your shop&rsquo;s own web address
+        </p>
+        {status === "verified" && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
+            <BadgeCheck className="h-3.5 w-3.5" /> Verified
+          </span>
+        )}
+      </div>
+
+      {error && <p className="text-xs font-semibold text-red-400">{error}</p>}
+
+      {status === "none" && (
+        <>
+          <p className={`text-[11px] ${muted(isLight)}`}>
+            Point your own domain at your shop. You&rsquo;ll add one TXT record to prove ownership.
+            Free — no Visual Bucs; the rail checks that your plan covers shops when you connect, same as the website.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="shop.yourname.com"
+              aria-label="Your domain"
+              className={`${inputCls(isLight)} min-w-0 flex-1`}
+              data-testid="world-shop-domain-input"
+            />
+            <button
+              type="button"
+              data-testid="world-shop-domain-connect"
+              onClick={() => void attach(input)}
+              disabled={busy !== null || !input.trim()}
+              className={goldBtn(busy !== null || !input.trim())}
+            >
+              {busy === "attach" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />} Connect
+            </button>
+          </div>
+        </>
+      )}
+
+      {status === "pending" && domain && (
+        <div className="space-y-2">
+          <p className={`text-xs ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+            <span className="font-mono font-bold">{domain}</span>{" "}
+            <span className={muted(isLight)}>is connected — it goes live once DNS proves it&rsquo;s yours.</span>
+          </p>
+          <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
+            <p className={`text-[11px] font-black uppercase tracking-wider ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}>
+              TXT record — proves the domain is yours
+            </p>
+            {attachInfo?.dns.step1 && <p className={`mt-1 text-[11px] ${muted(isLight)}`}>{attachInfo.dns.step1}</p>}
+            <p className="mt-1 font-mono text-xs break-all">
+              <span className={muted(isLight)}>Host:</span>{" "}
+              <span className={isLight ? "text-[#92600a]" : "text-amber-300"} data-testid="world-shop-domain-txt-host">
+                {attachInfo ? attachInfo.verification.host : shopDomainVerifyHost(domain)}
+              </span>
+            </p>
+            <div className="mt-1 flex items-start justify-between gap-2">
+              <p className="font-mono text-xs break-all">
+                <span className={muted(isLight)}>Value:</span>{" "}
+                <span className={isLight ? "text-[#92600a]" : "text-amber-300"} data-testid="world-shop-domain-txt-value">
+                  {attachInfo ? attachInfo.verification.value : "••••••••"}
+                </span>
+              </p>
+              {attachInfo && (
+                <button type="button" onClick={copyToken} className="shrink-0 text-white/50 hover:text-white" title="Copy token" data-testid="world-shop-domain-copy">
+                  {copied ? <Check className="h-4 w-4 text-emerald-300" /> : <Copy className="h-4 w-4" />}
+                </button>
+              )}
+            </div>
+            {!attachInfo && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <p className={`text-[11px] ${muted(isLight)}`}>Token issued when you connected — reconnect to get a fresh one.</p>
+                <button
+                  type="button"
+                  data-testid="world-shop-domain-reconnect"
+                  onClick={() => void attach(domain)}
+                  disabled={busy !== null}
+                  className={chipBtn(isLight)}
+                >
+                  {busy === "attach" ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Reconnect for a fresh token
+                </button>
+              </div>
+            )}
+          </div>
+          <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
+            <p className={`text-[11px] font-black uppercase tracking-wider ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}>
+              CNAME record — points the domain at your shop
+            </p>
+            {attachInfo?.dns.step2 ? (
+              <p className={`mt-1 text-[11px] ${muted(isLight)}`}>{attachInfo.dns.step2}</p>
+            ) : (
+              <p className="mt-1 font-mono text-xs break-all">
+                <span className={muted(isLight)}>Host:</span> @ <span className={muted(isLight)}>→</span>{" "}
+                <span className={isLight ? "text-[#92600a]" : "text-amber-300"}>{SHOP_DOMAIN_CNAME_TARGET}</span>
+              </p>
+            )}
+          </div>
+          {attachInfo?.dns.step3 && <p className={`text-[11px] ${muted(isLight)}`}>{attachInfo.dns.step3}</p>}
+          {pendingReason && (
+            <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-shop-domain-pending-reason">
+              {pendingReason}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              data-testid="world-shop-domain-verify"
+              onClick={() => void verify()}
+              disabled={busy !== null}
+              className={goldBtn(busy !== null)}
+            >
+              {busy === "verify" ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />} Verify domain
+            </button>
+            {detachRow}
+          </div>
+        </div>
+      )}
+
+      {status === "verified" && domain && (
+        <div className="space-y-2">
+          <p className="font-mono text-sm font-bold text-emerald-300" data-testid="world-shop-domain-verified-domain">{domain}</p>
+          <p className={`text-[11px] ${muted(isLight)}`}>
+            DNS proved this domain is yours — your shop answers on it. It also still lives at its handle on the square.
+          </p>
+          {detachRow}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function StandManager({
   shop,
@@ -1612,6 +1921,13 @@ function StandManager({
               Free — a look writes only your banner and accent colors, through the same settings save. Your name, story and products never move.
             </p>
           </div>
+          {/* Stack-100 #29: the SHOP's storefront domain — connect,
+              DNS instructions and verify on the storefront domain
+              rails, right here in the stand's settings. NOT the
+              creator-domains desk below: that one points a domain
+              at the creator page, this one points it at this shop. */}
+          <ShopDomainSection shop={shop} mineShop={mineShop} isLight={isLight} onShopSaved={onShopSaved} />
+
           {/* Stack-100 #68: custom domains — claim, DNS instructions,
               verify and remove on the creator-domains rails,
               right here in the stand's settings. */}
