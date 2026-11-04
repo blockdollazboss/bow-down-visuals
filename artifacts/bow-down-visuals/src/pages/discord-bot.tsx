@@ -102,6 +102,7 @@ export default function DiscordBotSetup() {
   }, [authHeaders]);
 
   async function onInstall() {
+    if (installBlocked) return;
     setInstallError(null);
     try {
       const res = await fetch("/api/discord-bot/install-url", { headers: await authHeaders() });
@@ -119,6 +120,7 @@ export default function DiscordBotSetup() {
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
+    if (botUnconfigured) return;
     setSaving(true);
     setSaved(false);
     try {
@@ -156,6 +158,16 @@ export default function DiscordBotSetup() {
   }
 
   const env = data?.env;
+  /* Setup-state honesty: until the api-server can see the bot's core keys,
+     the bot is NOT connected — Install cannot build its URL (the server
+     refuses without a client ID) and saved wiring would announce nothing.
+     Both stay visibly off with the plain reason, and the status reads as a
+     setup step — never as live controls that can only fail, never as a
+     broken page. (QC-200 fix queue #8.) */
+  const envLoaded = data !== null;
+  const botUnconfigured =
+    envLoaded && !(env?.client_id_set && env?.bot_token_set && env?.shared_secret_set);
+  const installBlocked = envLoaded && !env?.client_id_set;
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-10">
@@ -180,6 +192,9 @@ export default function DiscordBotSetup() {
           <EnvBadge ok={env?.client_id_set} label={t("discord-bot.discord_client_id")} />
           <EnvBadge ok={env?.bot_token_set} label={t("discord-bot.discord_bot_token")} />
           <EnvBadge ok={env?.shared_secret_set} label={t("discord-bot.discord_bot_shared_secret")} />
+          {botUnconfigured && (
+            <p className="w-full text-sm text-muted-foreground">{t("discord-bot.setupStateNote")}</p>
+          )}
         </CardContent>
       </Card>
 
@@ -190,8 +205,11 @@ export default function DiscordBotSetup() {
           <CardDescription>{t("discord-bot.opens_discord_s_oauth2_authorize")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Button onClick={onInstall} className="bg-[#5865F2] text-white hover:bg-[#4752C4]">
+          <Button onClick={onInstall} disabled={installBlocked} className="bg-[#5865F2] text-white hover:bg-[#4752C4]">
             <ExternalLink className="mr-2 h-4 w-4" />{t("discord-bot.install_bot_on_your_server")}</Button>
+          {installBlocked && (
+            <p className="text-sm text-muted-foreground">{t("discord-bot.installNeedsClientId")}</p>
+          )}
           {installUrl && (
             <button
               type="button"
@@ -217,7 +235,11 @@ export default function DiscordBotSetup() {
           <CardDescription>{t("discord-bot.tell_the_bot_where_to_announce_a")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSave} className="grid gap-4 sm:grid-cols-2">
+          {botUnconfigured && (
+            <p className="mb-4 text-sm text-muted-foreground">{t("discord-bot.wiringLockedNote")}</p>
+          )}
+          <form onSubmit={onSave}>
+          <fieldset disabled={botUnconfigured} className="grid min-w-0 gap-4 sm:grid-cols-2">
             <label className="space-y-1.5">
               <span className="text-sm font-medium">{t("discord-bot.server_guild_id")}</span>
               <Input value={form.guild_id ?? env?.guild_id_env ?? ""} onChange={(e) => set("guild_id", e.target.value)} placeholder="123456789012345678" />
@@ -249,12 +271,13 @@ export default function DiscordBotSetup() {
                 className="h-4 w-4 accent-[#d4af37]"
               />{t("discord-bot.bot_announcements_enabled")}</label>
             <div className="sm:col-span-2">
-              <Button type="submit" disabled={saving} className="gold-glow">
+              <Button type="submit" disabled={saving || botUnconfigured} className="gold-glow">
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {t("discord-bot.saveConfiguration")}
               </Button>
               {saved && <span className="ml-3 text-sm text-green-500">{t("discord-bot.saved")}</span>}
             </div>
+          </fieldset>
           </form>
         </CardContent>
       </Card>
@@ -295,10 +318,19 @@ export default function DiscordBotSetup() {
 
 function EnvBadge({ ok, label }: { ok?: boolean; label: string }) {
   const { t } = useTranslation();
+  /* An unset key is a setup step, not an error: amber "not set up", never
+     the red destructive "missing" this badge used to show. */
   return (
-    <Badge variant={ok ? "default" : "destructive"} className={ok ? "bg-green-600/15 text-green-500 border-green-600/30" : ""}>
+    <Badge
+      variant="outline"
+      className={
+        ok
+          ? "bg-green-600/15 text-green-500 border-green-600/30"
+          : "bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400"
+      }
+    >
       {ok ? <Check className="mr-1 h-3 w-3" /> : null}
-      {label}: {ok ? t("discord-bot.set") : t("discord-bot.missing")}
+      {label}: {ok ? t("discord-bot.set") : t("discord-bot.notSetUp")}
     </Badge>
   );
 }
