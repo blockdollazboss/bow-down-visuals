@@ -149,16 +149,33 @@ async function showInviteCall(
   return payload ?? {};
 }
 
+/** The calls' fallback copy — the desk passes its catalog strings
+ *  in; unbundled calls use the English lines verbatim
+ *  (worldScheduleRelease i18n, unit 45). A server refusal still
+ *  wins over every fallback: the server's words are shown. */
+export interface ShowInviteStrings {
+  loadFailed: string;
+  sendFailed: string;
+  answerFailed: string;
+}
+
+export const SHOW_INVITE_EN: ShowInviteStrings = {
+  loadFailed: "Couldn't load your invites. Try again.",
+  sendFailed: "Couldn't send that invite. Try again.",
+  answerFailed: "Couldn't answer that invite. Try again.",
+};
+
 /** My standing invites (pending + accepted). Throws with the
  *  server's plain-words reason on failure — the desk shows it and
  *  offers the retry. */
 export async function fetchShowInvitesMine(
   token: string | null,
+  strings?: ShowInviteStrings,
 ): Promise<{ pending: WorldShowInvite[]; accepted: WorldShowInvite[] }> {
   const payload = await showInviteCall(
     showInvitesMinePath(),
     token,
-    "Couldn't load your invites. Try again.",
+    (strings ?? SHOW_INVITE_EN).loadFailed,
   );
   return parseShowInvitesMine(payload);
 }
@@ -170,15 +187,17 @@ export async function sendShowInvite(
   eventId: string,
   inviteeUserId: string,
   token: string | null,
+  strings?: ShowInviteStrings,
 ): Promise<WorldShowInvite> {
+  const fallback = (strings ?? SHOW_INVITE_EN).sendFailed;
   const payload = await showInviteCall(
     createShowInvitePath(eventId),
     token,
-    "Couldn't send that invite. Try again.",
+    fallback,
     { method: "POST", body: { inviteeUserId } },
   );
   const invite = parseWorldShowInvite(payload["invite"]);
-  if (!invite) throw new Error("Couldn't send that invite. Try again.");
+  if (!invite) throw new Error(fallback);
   return invite;
 }
 
@@ -189,11 +208,12 @@ export async function answerShowInvite(
   id: string,
   answer: "accept" | "decline",
   token: string | null,
+  strings?: ShowInviteStrings,
 ): Promise<WorldShowInvite | null> {
   const payload = await showInviteCall(
     answer === "accept" ? showInviteAcceptPath(id) : showInviteDeclinePath(id),
     token,
-    "Couldn't answer that invite. Try again.",
+    (strings ?? SHOW_INVITE_EN).answerFailed,
     { method: "POST", body: {} },
   );
   return answer === "accept" ? parseWorldShowInvite(payload["invite"]) : null;
