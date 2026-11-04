@@ -28,7 +28,7 @@ const analytics = readFileSync(
   "utf8",
 );
 const jewelry = readFileSync(
-  new URL("../pages/jewelry.tsx", import.meta.url),
+  new URL("../components/branding/JewelryStudio.tsx", import.meta.url),
   "utf8",
 );
 const world = readFileSync(

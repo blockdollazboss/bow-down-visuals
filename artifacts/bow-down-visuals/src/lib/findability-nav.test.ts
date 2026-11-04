@@ -434,7 +434,7 @@ describe("findability — legacy routes redirect, wired pages live in the shell"
       );
     }
     expect(read("../pages/promote.tsx")).not.toContain("min-h-screen ${isLight");
-    const jewelry = read("../pages/jewelry.tsx");
+    const jewelry = read("../components/branding/JewelryStudio.tsx");
     expect(jewelry).not.toContain("min-h-screen text-[#2A1E07]");
     expect(jewelry).not.toContain("min-h-screen bg-black text-zinc-100");
     /* Coach's chip-shift <style> hack is retired with the wrap: inside the

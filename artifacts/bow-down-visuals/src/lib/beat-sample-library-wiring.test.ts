@@ -1,4 +1,4 @@
-/* Beat persistence — page wiring contract: pages/ai-audio.tsx is
+/* Beat persistence — page wiring contract: components/audio-studio/AiAudio.tsx is
  * actually connected to the durable sample library (declare/PUT/
  * confirm on upload, rehydration on mount, honest session-only
  * outcomes, library removal). Source-contract style, matching
@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const page = readFileSync(
-  resolve(import.meta.dirname, "../pages/ai-audio.tsx"),
+  resolve(import.meta.dirname, "../components/audio-studio/AiAudio.tsx"),
   "utf8",
 );
 

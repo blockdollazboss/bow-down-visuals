@@ -102,7 +102,7 @@ const SURFACES: SurfacePin[] = [
   },
   {
     name: "branding-shop orders load",
-    file: "pages/branding-shop.tsx",
+    file: "components/branding/BrandingShop.tsx",
     failureSet: /setOrdersError\(true\)/,
     errorRender: /data-testid="btn-retry-orders"/,
     order: [/ordersError \?/, /orders\.length === 0 \?/],
@@ -206,7 +206,7 @@ const SURFACES: SurfacePin[] = [
   },
   {
     name: "show finder (an empty answer is not a failed hunt)",
-    file: "pages/shows.tsx",
+    file: "components/go-live/ShowFinder.tsx",
     failureSet: /setResults\(data\.opportunities\)/,
     errorRender: /shows\.noMatches/,
     forbidden: [/!Array\.isArray\(data\.opportunities\) \|\| data\.opportunities\.length === 0/],
@@ -230,7 +230,7 @@ const SURFACES: SurfacePin[] = [
        empty, merge failed. A member with local sounds renders their
        real list either way. */
     name: "ai-audio SFX library server merge (the cross-device corner)",
-    file: "pages/ai-audio.tsx",
+    file: "components/audio-studio/AiAudio.tsx",
     failureSet: /setLibrarySyncFailed\(true\)/,
     errorRender: /data-testid="btn-retry-sfx-library"/,
     order: [/librarySyncFailed && library\.length === 0 \?/, /library\.length === 0 \?/],
@@ -294,9 +294,9 @@ describe("error-truth-2 guard — a failed load never renders as an empty accoun
       ["pages/books.tsx", /We couldn(?:'|&apos;)t load your books/, /No books yet/],
       ["pages/tour.tsx", /tour\.datesLoadError/, /tour\.noDates/],
       ["pages/shop.tsx", /shop\.loadErrorTitle/, /shop\.notFoundTitle/],
-      ["pages/shows.tsx", /shows\.noMatches/, /shows\.errorSearchFailed/],
+      ["components/go-live/ShowFinder.tsx", /shows\.noMatches/, /shows\.errorSearchFailed/],
       ["pages/brand-deals.tsx", /brandDeals\.noMatchesHunt/, /brandDeals\.errorHuntFailed/],
-      ["pages/ai-audio.tsx", /sfx\.librarySyncFailed/, /sfx\.libraryEmpty/],
+      ["components/audio-studio/AiAudio.tsx", /sfx\.librarySyncFailed/, /sfx\.libraryEmpty/],
     ];
     for (const [file, errRe, emptyRe] of pairs) {
       const src = read(file);

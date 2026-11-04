@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const shopPage = readFileSync(new URL("../pages/branding-shop.tsx", import.meta.url), "utf8");
+const shopPage = readFileSync(new URL("../components/branding/BrandingShop.tsx", import.meta.url), "utf8");
 const gear = readFileSync(
   new URL("../components/branding/StudioGearShop.tsx", import.meta.url),
   "utf8",

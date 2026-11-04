@@ -82,7 +82,7 @@ import {
 /** 0-based index of the GM drum channel (channel 10). */
 export const BEAT_MIDI_DRUM_CHANNEL = 9;
 
-/** Track indices, aligned with TRACKS in pages/ai-audio.tsx:
+/** Track indices, aligned with TRACKS in components/audio-studio/AiAudio.tsx:
  *  0 kick · 1 snare · 2 clap · 3 closed hat · 4 open hat · 5 808 hit ·
  *  6 perc · 7 shaker · 8 crash. The 808 HIT track (5) has no GM
  *  equivalent — pitched 808 playing is the bass row (see routing). */
@@ -243,7 +243,7 @@ export function recordedMelodyLengthSteps(
 }
 
 /* ─── Transport position ─────────────────────────────────────────────────
- * The live scheduler (pages/ai-audio.tsx) holds `nextStep` — the next
+ * The live scheduler (components/audio-studio/AiAudio.tsx) holds `nextStep` — the next
  * global step it will schedule — and the audio time it sounds at.
  * A MIDI event stamped on the same audio clock resolves to a
  * fractional global step by linear interpolation; from there the

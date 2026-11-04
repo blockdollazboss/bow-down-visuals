@@ -1,7 +1,7 @@
 /* ── Beat mixer — channel strips for the step sequencer (W1-L3) ──────────
  * One shared graph builder for the beat sequencer's mixer, used by BOTH
  * the live AudioContext playback path and the OfflineAudioContext WAV
- * render in pages/ai-audio.tsx (SequencerTab), so the two can never drift:
+ * render in components/audio-studio/AiAudio.tsx (SequencerTab), so the two can never drift:
  * the render is built by the exact same functions as what you hear.
  *
  * Per-track graph order (fixed, do not reorder):

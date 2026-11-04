@@ -139,7 +139,7 @@ function buildHostRules() {
   const audio = fe("pages", "audio-studio.tsx");
   const audioTabs = eqValues(slice(audio, 'get("tab")', 'return "cleanup"'), "q");
   audioTabs.add("cleanup");
-  // ?sub= is read by the nested AI Audio page (pages/ai-audio.tsx):
+  // ?sub= is read by the nested AI Audio page (components/audio-studio/AiAudio.tsx):
   // samples / sfx explicitly, beats as its default.
   const aiAudio = fe("pages", "ai-audio.tsx");
   const aiSubs = eqValues(slice(aiAudio, 'get("sub")', 'return "beats"'), "q");
@@ -159,7 +159,7 @@ function buildHostRules() {
   ];
 
   // /branding-kit — the tab initializer's whitelist; ?subtab= is read
-  // by the shop tab's content (pages/branding-shop.tsx).
+  // by the shop tab's content (components/branding/BrandingShop.tsx).
   const kit = fe("pages", "branding-kit.tsx");
   HOST_RULES["/branding-kit"] = [
     { param: "tab", accepted: eqValues(slice(kit, 'get("tab")', '"brand"'), "q") },

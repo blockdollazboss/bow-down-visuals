@@ -17,11 +17,11 @@ import { initialBeatMakerTab } from "./beat-maker-tab";
 import { loginPathWithNext, postLoginPath } from "./auth-next";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
-const aiAudio = read("../pages/ai-audio.tsx");
+const aiAudio = read("../components/audio-studio/AiAudio.tsx");
 
 const musicStudio = read("../components/editor/music/MusicStudio.tsx");
 const beatsPage = read("../pages/beats.tsx");
-const soundsPage = read("../pages/sounds.tsx");
+const soundsPage = read("../components/audio-studio/ViralSoundFinder.tsx");
 const makeSong = read("../pages/make-song.tsx");
 const creatorPricing = read("../pages/creator-pricing.tsx");
 
