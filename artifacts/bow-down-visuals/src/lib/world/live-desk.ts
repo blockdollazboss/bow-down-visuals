@@ -46,12 +46,26 @@
  * own device store (greenscreen-finetune.ts), so the cutout tuned
  * on the 2D studio is the cutout the hall studio runs. Going live
  * and its effects are free on the 2D site; they are free here.
+ *
+ * Wave IV (#95) extends the seam once more: the scene kit's
+ * per-source chroma key — the follow-on wave III named — rides the
+ * #89 controller relay into the hall. The section at the end of
+ * this file is the running studio's Preview-scene camera sources,
+ * published in the controller state; a change sends the protocol's
+ * scene.chroma.update command and the studio executes it through
+ * Stage.updateSource — SourcesPanel's own write — so the kit's
+ * applyChromaKey keys the source in the stage compositor exactly
+ * as a studio-side flip would. There is no in-world Stage and no
+ * second keyer, here as everywhere on this seam. Free, exactly as
+ * on the page.
  */
 
 import type {
   BackgroundMode, BackgroundQuality, BackgroundEngineKind, EngineStatusDetail,
 } from "../stream-kit/background-changer";
 import type { GreenScreenFineTune } from "../stream-kit/greenscreen-finetune";
+import type { ChromaSettings } from "../stream-kit/scenes";
+import { parseChromaUpdate, type ChromaUpdate } from "../stream-controller";
 import {
   isSelectionActive, type BackdropSelection,
 } from "../stream-kit/backdrop-selection";
@@ -472,7 +486,6 @@ export const LIVE_NATIVE_FOLLOW_ONS = [
   "Premiere edit/reschedule has no rail (the 2D flow offers create + cancel only) — in-world it is cancel + schedule anew, same as the website",
   "The controller deck's stage half lives in the studio that executes commands: the wave-I in-world studio does not yet publish ControllerStageClient state, so the deck drives a running 2D studio exactly like the phone remote does",
   "Broadcast channels (/broadcast) are posting surfaces, not scheduling — they stay with their own surface; #91 covers the premiere/broadcast scheduling the /broadcast page itself hosts",
-  "The scene kit's per-source chroma key (scenes.ts cameraMode 'chroma') rides the stage compositor, which has no in-world instance — the in-world route to scenes is the #89 controller deck driving a running 2D studio. #92 carries the camera kit's own green screen (the BackgroundChanger matte), never a second keyer",
   "Camera effects, noise cancellation / voice effects, and camera + mic switching ride the same BackgroundChanger the #92 desk now owns — named follow-ons, not yet carried",
   "RTMP ingest: the server's door exists (lib/rtmp-ingest, migration 0194) but opens only when the deployment sets LIVE_RTMP_INGEST=on — no member rail on either surface can switch it. The key doors and the ingest URL the key read returns are already carried (#85)",
 ] as const;
@@ -635,4 +648,87 @@ export function fineTuneSlidersForMode(mode: BackgroundMode): typeof GREENSCREEN
 
 export const LIVE_WAVE3_PROMOTIONS = [
   "#92 Behind me in the hall Screen panel: the 2D studio's green-screen depth on the SAME BackgroundChanger kit BroadcastStudio runs — background modes (Green Screen / Blur / Backdrop / Original), quality (Auto / Pro / MediaPipe), the backdrop picker (built-in scenes, your own photo upload, a pasted image link — backdrop-selection's ONE selection), and the fine-tune sliders over greenscreen-finetune's shared device settings (the same bdv-greenscreen-finetune store the 2D studio reads, so a tuned cutout follows the creator between surfaces), with the engine's live status and any fallback spoken plainly. Free, exactly as on the page",
+] as const;
+
+/* ── #95 Per-source chroma key — the controller deck ────────────────
+   The scene kit's per-source chroma key (scenes.ts cameraMode
+   "chroma") was wave III's named follow-on: it rides the stage
+   compositor, which has no in-world instance — and still doesn't.
+   The honest route is the #89 controller deck driving a running
+   studio: the protocol now carries scene.chroma.update { sceneId,
+   sourceId, cameraMode, chroma? }; the studio's stage half
+   executes it through Stage.updateSource, SourcesPanel's own
+   write, and the kit's applyChromaKey does the keying in the
+   compositor. The desk renders the Preview scene's camera sources
+   from the studio's published cameraSources state and confirms a
+   press only on the exact requested mode + settings in the next
+   publish — nothing optimistic, no keyer on this side of the
+   wire, no in-world compositor faked. */
+
+export type { ChromaSettings };
+
+/** The command a per-source chroma change sends over the controller
+ *  relay. The stage validates the args through the protocol's
+ *  parseChromaUpdate — the only validator; the desk's readiness
+ *  gate below is the same read — so an invalid update applies
+ *  nothing there and never confirms here. */
+export const SOURCE_CHROMA_UPDATE_COMMAND = "scene.chroma.update" as const;
+
+/** SourcesPanel's camera-mode pills, in the panel's order with the
+ *  panel's labels — the selects ARE the menu. */
+export const CAMERA_MODE_OPTIONS = [
+  { mode: "kit", label: "Studio backdrop" },
+  { mode: "chroma", label: "Green screen" },
+] as const satisfies ReadonlyArray<{ mode: "kit" | "chroma"; label: string }>;
+
+/** The kit's creation defaults (scenes.ts createSource — the same
+ *  fallback stage.ts keys with): what a camera source is born
+ *  carrying, and the desk's starting values for a source whose
+ *  stored settings are null. */
+export const CHROMA_DEFAULTS: ChromaSettings = { color: "#00FF00", similarity: 0.32, smoothness: 0.12 };
+
+/** SourcesPanel's tuning sliders, in the panel's order with the
+ *  panel's labels and caps (the panel stores slider ÷ 100, so each
+ *  cap here is the stored cap × 100 — the same maxima the protocol
+ *  validator enforces). */
+export const CHROMA_SLIDERS = [
+  { key: "similarity", label: "Similarity", max: 90 },
+  { key: "smoothness", label: "Smoothness", max: 60 },
+] as const satisfies ReadonlyArray<{ key: "similarity" | "smoothness"; label: string; max: number }>;
+
+/** The settings a source's controls show: its stored settings, or
+ *  the kit defaults it will be keyed with when it carries none. */
+export function chromaSettingsFor(source: { chroma: ChromaSettings | null }): ChromaSettings {
+  return source.chroma ?? CHROMA_DEFAULTS;
+}
+
+/** The relay args for one change — parameters only: the ids, the
+ *  mode, and (when keying) the key settings. For the "kit" flip
+ *  the settings are omitted entirely, exactly the panel's
+ *  mode-only patch, so a source's stored settings persist. */
+export function chromaUpdateArgs(update: ChromaUpdate): Record<string, unknown> {
+  return update.cameraMode === "chroma" && update.chroma
+    ? {
+        sceneId: update.sceneId,
+        sourceId: update.sourceId,
+        cameraMode: "chroma",
+        chroma: { ...update.chroma },
+      }
+    : { sceneId: update.sceneId, sourceId: update.sourceId, cameraMode: update.cameraMode };
+}
+
+/** The desk's send gate: an update is ready exactly when the
+ *  protocol validator accepts the args it builds — one validator,
+ *  read by both sides of the wire, so they can never disagree. */
+export function isChromaUpdateReady(update: ChromaUpdate): boolean {
+  return parseChromaUpdate(chromaUpdateArgs(update)) !== null;
+}
+
+/** The section's closing note — SourcesPanel's own explainer for
+ *  what green-screen mode does, carried verbatim. */
+export const SOURCE_CHROMA_NOTE =
+  "Green screen mode keys the raw camera — point it at a green backdrop and tune Similarity until the backdrop disappears, then Smoothness to soften the edge.";
+
+export const LIVE_WAVE4_PROMOTIONS = [
+  "#95 Per-source chroma key on the hall's Stream Controller deck: the running studio's Preview-scene camera sources, each with SourcesPanel's mode pills (Studio backdrop / Green screen), key color, and Similarity / Smoothness sliders, relayed as the controller protocol's scene.chroma.update command — the studio executes it through Stage.updateSource, the panel's own write (mode-only patch for the flip, so stored settings persist; settings ride when keying), the kit's applyChromaKey keys the source in the stage compositor, and the deck confirms only on the exact requested mode + settings in the studio's published cameraSources state. No second keyer is built and no in-world compositor is faked. Free, exactly as on the page",
 ] as const;

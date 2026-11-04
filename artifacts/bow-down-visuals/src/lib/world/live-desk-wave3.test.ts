@@ -20,9 +20,11 @@
  *   the fallback note with its real reason, and engine-down only
  *   when a backdrop mode is in play AND the kit carries an error;
  * - law: nothing charges (going live and its effects are free on
- *   the 2D site), the scene kit's chroma key is named a follow-on
- *   (it rides the stage compositor — no second keyer here), and
- *   RTMP's verdict is the deployment's env gate, not a fake door.
+ *   the 2D site), the scene kit's chroma key rides the stage
+ *   compositor — no second keyer here (wave IV #95 carries it
+ *   over the controller relay; live-desk-chroma pins the carry),
+ *   and RTMP's verdict is the deployment's env gate, not a fake
+ *   door.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -30,7 +32,7 @@ import {
   BACKGROUND_MODE_OPTIONS, BACKGROUND_QUALITY_OPTIONS,
   GREENSCREEN_FINE_TUNE_SLIDERS, fineTuneSlidersForMode,
   engineKindLabel, engineFallbackNote, engineDownFromStatus, backdropTileActive,
-  LIVE_WAVE3_PROMOTIONS, LIVE_NATIVE_FOLLOW_ONS,
+  LIVE_WAVE3_PROMOTIONS, LIVE_NATIVE_FOLLOW_ONS, LIVE_WAVE4_PROMOTIONS,
 } from "./live-desk";
 import {
   loadGreenScreenFineTune, saveGreenScreenFineTune,
@@ -251,11 +253,19 @@ describe("#92 the board records wave III and the honest follow-ons", () => {
     expect(LIVE_WAVE3_PROMOTIONS[0]).toContain("BackgroundChanger");
   });
 
-  it("names the chroma-key and changer follow-ons instead of faking them", () => {
+  it("names the changer follow-ons; the chroma key is carried now (#95)", () => {
     const joined = LIVE_NATIVE_FOLLOW_ONS.join(" ");
-    expect(joined).toContain("chroma key");
-    expect(joined).toContain("stage compositor");
+    /* The scene kit's per-source chroma key left the follow-on
+       board in wave IV — it rides the controller relay to the
+       running studio's stage compositor now (#95), and the
+       dedicated live-desk-chroma suite pins the carry. The
+       changer follow-ons stay named here until their own lane
+       lands them. */
+    expect(joined).not.toContain("chroma key");
     expect(joined).toContain("Camera effects");
+    const mine = LIVE_WAVE4_PROMOTIONS.filter((entry) => entry.includes("#95"));
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toContain("scene.chroma.update");
   });
 
   it("RTMP's verdict is the deployment env gate — the server's own words", () => {
