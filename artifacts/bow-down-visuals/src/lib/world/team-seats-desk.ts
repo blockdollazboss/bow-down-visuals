@@ -354,10 +354,59 @@ export function extractTeamSeatInviteToken(input: string): string {
 /* ─── Row rules (the rail enforces these owner-side; the desk
        offers only the taps that can land) ────────────────────────── */
 
-export function teamSeatStatusLabel(status: TeamSeatStatus): string {
-  if (status === "invited") return TEAM_SEATS_STATUS_INVITED;
-  if (status === "active") return TEAM_SEATS_STATUS_ACTIVE;
-  return TEAM_SEATS_STATUS_REVOKED;
+/* ─── display strings (i18n seam, stack100 locale unit 46) ────────
+   The label functions below take optional strings bundles whose
+   defaults are the original English constants above, byte-identical;
+   the desk builds the bundles from the catalog keys (the settings
+   namespace carries the 2D surface's own words; the revoked label —
+   which the 2D surface never had — lives in worldTeamLegal). */
+
+export interface TeamSeatStatusStrings {
+  invited: string;
+  active: string;
+  revoked: string;
+}
+
+export const TEAM_SEAT_STATUS_STRINGS_EN: TeamSeatStatusStrings = {
+  invited: TEAM_SEATS_STATUS_INVITED,
+  active: TEAM_SEATS_STATUS_ACTIVE,
+  revoked: TEAM_SEATS_STATUS_REVOKED,
+};
+
+/** Build the bundle from a translate function (the desk's `t`). */
+export function teamSeatStatusStrings(translate: (key: string) => string): TeamSeatStatusStrings {
+  return {
+    invited: translate("settings.teamStatusInvited"),
+    active: translate("settings.teamStatusActive"),
+    revoked: translate("worldTeamLegal.seatsStatusRevoked"),
+  };
+}
+
+export function teamSeatStatusLabel(
+  status: TeamSeatStatus,
+  strings: TeamSeatStatusStrings = TEAM_SEAT_STATUS_STRINGS_EN,
+): string {
+  if (status === "invited") return strings.invited;
+  if (status === "active") return strings.active;
+  return strings.revoked;
+}
+
+export interface TeamSeatRevokeStrings {
+  cancel: string;
+  revoke: string;
+}
+
+export const TEAM_SEAT_REVOKE_STRINGS_EN: TeamSeatRevokeStrings = {
+  cancel: TEAM_SEATS_CANCEL,
+  revoke: TEAM_SEATS_REVOKE,
+};
+
+/** Build the bundle from a translate function (the desk's `t`). */
+export function teamSeatRevokeStrings(translate: (key: string) => string): TeamSeatRevokeStrings {
+  return {
+    cancel: translate("settings.teamCancel"),
+    revoke: translate("settings.teamRevoke"),
+  };
 }
 
 /** Role change: owner-managed seats only, and a revoked seat is
@@ -373,6 +422,9 @@ export function canRevokeTeamSeat(seat: TeamSeat): boolean {
   return seat.isAccountOwner && seat.status !== "revoked";
 }
 
-export function teamSeatRevokeLabel(seat: TeamSeat): string {
-  return seat.status === "invited" ? TEAM_SEATS_CANCEL : TEAM_SEATS_REVOKE;
+export function teamSeatRevokeLabel(
+  seat: TeamSeat,
+  strings: TeamSeatRevokeStrings = TEAM_SEAT_REVOKE_STRINGS_EN,
+): string {
+  return seat.status === "invited" ? strings.cancel : strings.revoke;
 }

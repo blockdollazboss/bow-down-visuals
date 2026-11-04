@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Crown, Eye, Loader2, LogOut, PackagePlus, Shield, Trash2, User as UserIcon,
   UserPlus, Users,
@@ -13,8 +14,6 @@ import {
 import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
 import {
   TEAMS_PATH,
-  TEAM_FALLBACK_OFF_HINT,
-  TEAM_FALLBACK_ON_HINT,
   TEAM_NAME_MAX,
   TEAM_TIER_GATE_MESSAGE,
   VAULTS_PATH,
@@ -114,6 +113,7 @@ type GroupPhase = "loading" | "failed" | "ready";
 type PreviewState = "idle" | "loading" | "ready" | "missing" | "failed";
 
 export function TeamDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
   const { user } = useAuth();
@@ -197,11 +197,11 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) {
-        throw new Error(apiErrorMessage(data, `Request failed (${res.status})`));
+        throw new Error(apiErrorMessage(data, t("worldTeamLegal.teamRequestFailed", { status: res.status })));
       }
       return data;
     },
-    [authHeaders],
+    [authHeaders, t],
   );
 
   const loadSpending = useCallback(
@@ -277,7 +277,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       const res = await fetch(TEAMS_PATH, { headers: await authHeaders() });
       const raw = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) {
-        const message = apiErrorMessage(raw, `Request failed (${res.status})`);
+        const message = apiErrorMessage(raw, t("worldTeamLegal.teamRequestFailed", { status: res.status }));
         if (isTierGateError(res.status, message)) {
           setPhase("tier");
           return;
@@ -309,10 +309,10 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       setPhase("ready");
       await loadGroup(active.id);
     } catch (e) {
-      setFailMessage(plainErrorText(e, "Failed to load teams."));
+      setFailMessage(plainErrorText(e, t("team.errorLoad")));
       setPhase("failed");
     }
-  }, [api, authHeaders, loadGroup, loadSpending]);
+  }, [api, authHeaders, loadGroup, loadSpending, t]);
 
   useEffect(() => {
     void loadAll();
@@ -342,7 +342,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
     try {
       await work();
     } catch (e) {
-      setError(plainErrorText(e, "That didn't go through — try again."));
+      setError(plainErrorText(e, t("worldTeamLegal.teamErrorGeneric")));
     } finally {
       setBusy(null);
     }
@@ -385,7 +385,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       });
       setNewTeamName("");
       await loadAll();
-      setNote("Team created.");
+      setNote(t("worldTeamLegal.teamNoteCreated"));
     });
   }
 
@@ -393,7 +393,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
     await run(`accept-${teamId}`, async () => {
       await api(teamAcceptPath(teamId), { method: "POST" });
       await loadAll();
-      setNote("Welcome to the team.");
+      setNote(t("worldTeamLegal.teamNoteWelcome"));
     });
   }
 
@@ -409,7 +409,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
     /* The server's own email rule, applied before the trip — the
        page's gate, so the form never sends what the rail refuses. */
     if (!inviteEmailValid(inviteEmail)) {
-      setError("Enter a valid email address.");
+      setError(t("worldTeamLegal.teamErrorEmail"));
       return;
     }
     await run("invite", async () => {
@@ -419,7 +419,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       });
       setInviteEmail("");
       await loadAll();
-      setNote("Invite sent.");
+      setNote(t("worldTeamLegal.teamNoteInviteSent"));
     });
   }
 
@@ -444,7 +444,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       await api(teamMemberPath(team.id, memberId), { method: "DELETE" });
       setConfirmRemoveId(null);
       await loadAll();
-      setNote("Member removed.");
+      setNote(t("worldTeamLegal.teamNoteMemberRemoved"));
     });
   }
 
@@ -456,7 +456,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildRenamePayload(renameName)),
       });
       await loadAll();
-      setNote("Team name saved.");
+      setNote(t("worldTeamLegal.teamNoteNameSaved"));
     });
   }
 
@@ -471,8 +471,8 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       await loadAll();
       setNote(
         next
-          ? "Personal credit fallback enabled."
-          : "Personal credit fallback disabled — pool-only spending.",
+          ? t("worldTeamLegal.teamNoteFallbackOn")
+          : t("worldTeamLegal.teamNoteFallbackOff"),
       );
     });
   }
@@ -481,7 +481,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
     if (!team) return;
     const amount = fundAmountFromInput(fundAmount);
     if (amount === null) {
-      setError("Enter a credit amount greater than 0.");
+      setError(t("worldTeamLegal.teamErrorFundAmount"));
       return;
     }
     setBusy("fund");
@@ -506,7 +506,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
         return;
       }
       if (!res.ok) {
-        throw new Error(apiErrorMessage(data, `Request failed (${res.status})`));
+        throw new Error(apiErrorMessage(data, t("worldTeamLegal.teamRequestFailed", { status: res.status })));
       }
       const result = parseFundResult(data);
       if (!result) throw new Error("fund shape");
@@ -514,11 +514,11 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       await loadAll();
       setNote(
         result.duplicate
-          ? "Already funded — no duplicate charge."
-          : `${amount.toLocaleString()} Visual Bucs added to the team pool.`,
+          ? t("worldTeamLegal.teamNoteAlreadyFunded")
+          : t("worldTeamLegal.teamNoteFunded", { amount: amount.toLocaleString(i18n.language) }),
       );
     } catch (e) {
-      setError(plainErrorText(e, "Failed to fund the pool."));
+      setError(plainErrorText(e, t("team.errorFund")));
     } finally {
       setBusy(null);
     }
@@ -534,7 +534,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       await api(teamLeavePath(team.id), { method: "POST" });
       setConfirmLeave(false);
       await loadAll();
-      setNote("You left the team.");
+      setNote(t("worldTeamLegal.teamNoteLeft"));
     });
   }
 
@@ -548,7 +548,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       await api(teamDetailPath(team.id), { method: "DELETE" });
       setConfirmDelete(false);
       await loadAll();
-      setNote("Team deleted.");
+      setNote(t("worldTeamLegal.teamNoteDeleted"));
     });
   }
 
@@ -563,9 +563,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
     setNote(null);
     const normalized = normalizeGroupSlugInput(gSlug);
     if (!normalized) {
-      setError(
-        "The group handle needs 3–64 characters: lowercase letters, numbers and dashes, starting and ending with a letter or number.",
-      );
+      setError(t("worldTeamLegal.teamGroupSlugError"));
       return;
     }
     const built = buildSplitTerms(
@@ -590,7 +588,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
         }),
       });
       await loadGroup(team.id);
-      setNote("Group profile saved.");
+      setNote(t("worldTeamLegal.teamGroupSavedNote"));
     });
   }
 
@@ -598,12 +596,12 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
     if (!team || !groupDto?.group) return;
     const title = pTitle.trim();
     if (!title) {
-      setError("Give the product a title.");
+      setError(t("worldTeamLegal.teamProductTitleError"));
       return;
     }
     const priceCents = parsePriceToCents(pPrice);
     if (priceCents === null) {
-      setError("The price must be 0 or more, in dollars (e.g. 5 or 5.25).");
+      setError(t("worldTeamLegal.teamProductPriceError"));
       return;
     }
     await run("group-product", async () => {
@@ -614,7 +612,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
       setPTitle("");
       setPPrice("");
       await loadGroup(team.id);
-      setNote("Added to the shared store — it sells under the group's split terms.");
+      setNote(t("worldTeamLegal.teamProductAddedNote"));
     });
   }
 
@@ -679,20 +677,20 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
         <Users className="h-6 w-6 text-[#C9A84C]" />
         <div>
           <p className={`text-base font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-            Team Workspace
+            {t("team.pageTitle")}
           </p>
-          <p className={`text-xs ${subCls}`}>Shared credit pool, shared vaults, one crew.</p>
+          <p className={`text-xs ${subCls}`}>{t("team.pageSubtitle")}</p>
         </div>
       </div>
 
       {phase === "loading" ? (
-        <NativeLoadingState isLight={isLight} message="Loading your team…" />
+        <NativeLoadingState isLight={isLight} message={t("team.loading")} />
       ) : phase === "tier" ? (
         renderGateCard(false)
       ) : phase === "failed" ? (
         <NativeErrorState
           isLight={isLight}
-          title="Your team wouldn't open in the palace"
+          title={t("worldTeamLegal.teamLoadFailedTitle")}
           message={failMessage}
           onRetry={() => void loadAll()}
         />
@@ -711,22 +709,21 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
               data-testid="world-team-out-of-credits"
               className="rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-300"
             >
-              You&rsquo;re out of Visual Bucs — top up at the Visual Buc Packs desk
-              in the Treasury and the Team Desk is ready again.
+              {t("worldTeamLegal.teamOutOfCredits")}
             </p>
           ) : null}
 
           {/* Pending invites */}
           {list && list.invites.length > 0 ? (
-            <NativeCard isLight={isLight} title="Pending invites">
+            <NativeCard isLight={isLight} title={t("team.pendingInvites")}>
               <div data-testid="world-team-invites" className="flex flex-col gap-2">
                 {list.invites.map((inv) => (
                   <div key={inv.id} className={rowCls}>
                     <div>
                       <p className={`text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                        {inv.team?.name ?? "Team"}
+                        {inv.team?.name ?? t("worldTeamLegal.teamFallbackName")}
                       </p>
-                      <p className={`text-xs ${subCls}`}>Invited as {inv.role}</p>
+                      <p className={`text-xs ${subCls}`}>{t("team.invitedAs", { role: inv.role })}</p>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -735,7 +732,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                         disabled={busy === `accept-${inv.teamId}`}
                         onClick={() => void handleAccept(inv.teamId)}
                       >
-                        Accept
+                        {t("team.accept")}
                       </button>
                       <button
                         type="button"
@@ -743,7 +740,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                         disabled={busy === `decline-${inv.teamId}`}
                         onClick={() => void handleDecline(inv.teamId)}
                       >
-                        Decline
+                        {t("team.decline")}
                       </button>
                     </div>
                   </div>
@@ -756,17 +753,20 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
             list && !list.canCreate ? (
               renderGateCard(true)
             ) : (
-            <NativeCard isLight={isLight} title="Create a team">
+            <NativeCard isLight={isLight} title={t("team.createTeamTitle")}>
               <div data-testid="world-team-create">
                 <p className={`text-sm ${subCls}`}>
-                  Included with Shot Caller (★4) — the earned Creator Rank. Pool
-                  your Visual Bucs, share artist vaults, and create together.
+                  {t("worldTeamLegal.teamCreateHint")}
                 </p>
                 {list && list.teams.length > 0 ? (
                   <div className="mt-3 flex flex-col gap-1.5">
-                    {list.teams.map((t) => (
-                      <p key={t.id} className={`text-xs ${subCls}`}>
-                        {t.name} — {t.myRole ?? "member"} · {t.myStatus ?? ""}
+                    {list.teams.map((tm) => (
+                      <p key={tm.id} className={`text-xs ${subCls}`}>
+                        {t("worldTeamLegal.teamListRow", {
+                          name: tm.name,
+                          role: tm.myRole ?? "member",
+                          status: tm.myStatus ?? "",
+                        })}
                       </p>
                     ))}
                   </div>
@@ -775,10 +775,10 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                   <input
                     value={newTeamName}
                     onChange={(e) => setNewTeamName(e.target.value)}
-                    placeholder="Team name — e.g. Blockdollaz Media"
+                    placeholder={t("worldTeamLegal.teamNamePlaceholder")}
                     maxLength={TEAM_NAME_MAX}
                     className={deskInputCls(isLight)}
-                    aria-label="Team name"
+                    aria-label={t("worldTeamLegal.teamNameAria")}
                   />
                   <button
                     type="button"
@@ -786,7 +786,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                     disabled={busy === "create" || !teamNameReady(newTeamName)}
                     onClick={() => void handleCreate()}
                   >
-                    {busy === "create" ? "Creating…" : "Create team"}
+                    {busy === "create" ? t("team.creating") : t("team.createTeam")}
                   </button>
                 </div>
               </div>
@@ -795,20 +795,20 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
           ) : (
             <>
               {/* Pool */}
-              <NativeCard isLight={isLight} title="Team pool">
+              <NativeCard isLight={isLight} title={t("team.teamPool")}>
                 <div data-testid="world-team-pool">
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
                       <p className="text-3xl font-black text-[#C9A84C]">
-                        {team.credits.toLocaleString()}{" "}
-                        <span className="text-sm font-bold">Visual Bucs</span>
+                        {team.credits.toLocaleString(i18n.language)}{" "}
+                        <span className="text-sm font-bold">{t("worldTeamLegal.teamPoolUnit")}</span>
                       </p>
                       <p className={`mt-1 text-xs ${subCls}`}>
-                        Visual Bucs shared across all members
+                        {t("team.poolHint")}
                       </p>
                     </div>
                     <p className={`text-xs ${subCls}`}>
-                      {team.name} · you are {myRole ?? "member"}
+                      {t("worldTeamLegal.teamYouAre", { name: team.name, role: myRole ?? "member" })}
                     </p>
                   </div>
 
@@ -822,9 +822,9 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                         min={1}
                         value={fundAmount}
                         onChange={(e) => setFundAmount(e.target.value)}
-                        placeholder="Visual Bucs"
+                        placeholder={t("team.fundPlaceholder")}
                         className={`${deskInputCls(isLight)} w-32`}
-                        aria-label="Visual Bucs to move into the pool"
+                        aria-label={t("worldTeamLegal.teamFundAria")}
                       />
                       <button
                         type="button"
@@ -832,11 +832,10 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                         disabled={busy === "fund" || fundAmountFromInput(fundAmount) === null}
                         onClick={() => void handleFund()}
                       >
-                        {busy === "fund" ? "Moving…" : "Fund pool"}
+                        {busy === "fund" ? t("team.funding") : t("team.fundPool")}
                       </button>
                       <span className={`text-xs ${subCls}`}>
-                        Moves Bucs from your own balance into the pool — you confirm
-                        the exact amount first.
+                        {t("worldTeamLegal.teamFundHint")}
                       </span>
                     </div>
                   ) : null}
@@ -845,12 +844,12 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
                       <div>
                         <p className={`text-sm font-semibold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                          Personal credit fallback
+                          {t("team.fallbackTitle")}
                         </p>
                         <p className={`text-xs ${subCls}`}>
                           {team.allowPersonalFallback
-                            ? TEAM_FALLBACK_ON_HINT
-                            : TEAM_FALLBACK_OFF_HINT}
+                            ? t("team.fallbackOnHint")
+                            : t("team.fallbackOffHint")}
                         </p>
                       </div>
                       <button
@@ -861,7 +860,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                         disabled={busy === "fallback"}
                         onClick={() => void handleToggleFallback()}
                       >
-                        {team.allowPersonalFallback ? "Fallback ON" : "Fallback OFF"}
+                        {team.allowPersonalFallback ? t("team.fallbackOn") : t("team.fallbackOff")}
                       </button>
                     </div>
                   ) : null}
@@ -873,7 +872,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                         onChange={(e) => setRenameName(e.target.value)}
                         maxLength={TEAM_NAME_MAX}
                         className={deskInputCls(isLight)}
-                        aria-label="Team name"
+                        aria-label={t("worldTeamLegal.teamNameAria")}
                       />
                       <button
                         type="button"
@@ -885,7 +884,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                         }
                         onClick={() => void handleRename()}
                       >
-                        Rename team
+                        {t("worldTeamLegal.teamRename")}
                       </button>
                     </div>
                   ) : null}
@@ -894,7 +893,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
 
               {/* Invite */}
               {iAmAdmin ? (
-                <NativeCard isLight={isLight} title="Invite a member">
+                <NativeCard isLight={isLight} title={t("team.inviteTitle")}>
                   <div
                     data-testid="world-team-invite-form"
                     className="flex flex-wrap gap-2"
@@ -902,19 +901,19 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                     <input
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="teammate@email.com"
+                      placeholder={t("team.inviteEmailPlaceholder")}
                       type="email"
                       className={`${deskInputCls(isLight)} min-w-[200px] flex-1`}
-                      aria-label="Invite email"
+                      aria-label={t("worldTeamLegal.teamInviteEmailAria")}
                     />
                     <select
-                      aria-label="Invite role"
+                      aria-label={t("worldTeamLegal.teamInviteRoleAria")}
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value)}
                       className={selectCls}
                     >
-                      <option value="member">Member</option>
-                      <option value="admin">Admin</option>
+                      <option value="member">{t("team.roleMember")}</option>
+                      <option value="admin">{t("team.roleAdmin")}</option>
                     </select>
                     <button
                       type="button"
@@ -924,7 +923,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                     >
                       <span className="inline-flex items-center gap-1.5">
                         <UserPlus className="h-4 w-4" />
-                        {busy === "invite" ? "Sending…" : "Send invite"}
+                        {busy === "invite" ? t("team.sendingInvite") : t("team.sendInvite")}
                       </span>
                     </button>
                   </div>
@@ -932,7 +931,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
               ) : null}
 
               {/* Members */}
-              <NativeCard isLight={isLight} title={`Members (${detail?.members.length ?? 0})`}>
+              <NativeCard isLight={isLight} title={t("worldTeamLegal.teamMembersTitle", { count: detail?.members.length ?? 0 })}>
                 <div data-testid="world-team-members" className="flex flex-col gap-2">
                   {(detail?.members ?? []).map((m) => (
                     <div key={m.id} className={rowCls}>
@@ -944,21 +943,21 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                           </p>
                           <p className={`text-xs capitalize ${subCls}`}>
                             {m.role}
-                            {m.status === "invited" ? " · invite pending" : ""}
+                            {m.status === "invited" ? t("team.invitePendingSuffix") : ""}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {detail && canChangeRoles(myRole, m) ? (
                           <select
-                            aria-label="Member role"
+                            aria-label={t("worldTeamLegal.teamMemberRoleAria")}
                             value={m.role}
                             disabled={busy === `role-${m.id}`}
                             onChange={(e) => void handleRoleChange(m.id, e.target.value)}
                             className={selectCls}
                           >
-                            <option value="member">Member</option>
-                            <option value="admin">Admin</option>
+                            <option value="member">{t("team.roleMember")}</option>
+                            <option value="admin">{t("team.roleAdmin")}</option>
                           </select>
                         ) : null}
                         {detail && canRemoveMember(myRole, m) ? (
@@ -971,10 +970,10 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                             }
                             disabled={busy === `remove-${m.id}`}
                             onClick={() => void handleRemove(m.id)}
-                            aria-label={`Remove ${m.email} from the team`}
+                            aria-label={t("worldTeamLegal.teamRemoveAria", { email: m.email })}
                           >
                             {confirmRemoveId === m.id ? (
-                              "Tap again to remove"
+                              t("worldTeamLegal.teamTapRemove")
                             ) : (
                               <Trash2 className="h-4 w-4" />
                             )}
@@ -990,23 +989,22 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                   the section, exactly like the page (never a silent
                   vanish, never dressed up as "spent nothing") */}
               {iAmAdmin && spendingFailed && spending.length === 0 ? (
-                <NativeCard isLight={isLight} title="Pool spending">
+                <NativeCard isLight={isLight} title={t("team.poolSpendingTitle")}>
                   <div data-testid="world-team-spending-error">
                     <p className="text-sm text-red-300">
-                      Team spending couldn&rsquo;t load — it isn&rsquo;t hidden, it
-                      just didn&rsquo;t arrive.
+                      {t("worldTeamLegal.teamSpendingError")}
                     </p>
                     <button
                       type="button"
                       className={`${goldBtn} mt-3`}
                       onClick={() => void loadSpending(team.id)}
                     >
-                      Try again
+                      {t("worldTeamLegal.tryAgain")}
                     </button>
                   </div>
                 </NativeCard>
               ) : iAmAdmin && spending.length > 0 ? (
-                <NativeCard isLight={isLight} title="Pool spending">
+                <NativeCard isLight={isLight} title={t("team.poolSpendingTitle")}>
                   <div data-testid="world-team-spending" className="flex flex-col gap-1.5">
                     {spending.map((s, i) => (
                       <div key={i} className={rowCls}>
@@ -1015,7 +1013,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                           <span className={subCls}>{s.action}</span>
                         </span>
                         <span className="text-sm font-bold text-[#C9A84C]">
-                          {s.total.toLocaleString()} cr
+                          {t("team.spendingAmount", { amount: s.total.toLocaleString(i18n.language) })}
                         </span>
                       </div>
                     ))}
@@ -1026,30 +1024,27 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
               {/* Group public profile — the team's public half,
                   managed where the team itself is managed, exactly
                   as the page docks it under the members. */}
-              <NativeCard isLight={isLight} title="Group public profile">
+              <NativeCard isLight={isLight} title={t("worldTeamLegal.teamGroupTitle")}>
                 {groupPhase === "loading" ? (
-                  <NativeLoadingState isLight={isLight} message="Loading the group's public profile…" />
+                  <NativeLoadingState isLight={isLight} message={t("worldTeamLegal.teamGroupLoading")} />
                 ) : groupPhase === "failed" || !groupDto ? (
                   <div data-testid="world-team-group-error">
                     <p className="text-sm text-red-300">
-                      The group profile couldn&rsquo;t load — it isn&rsquo;t hidden,
-                      it just didn&rsquo;t arrive.
+                      {t("worldTeamLegal.teamGroupError")}
                     </p>
                     <button
                       type="button"
                       className={`${goldBtn} mt-3`}
                       onClick={() => void loadGroup(team.id)}
                     >
-                      Try again
+                      {t("worldTeamLegal.tryAgain")}
                     </button>
                   </div>
                 ) : (
                   <div data-testid="world-team-group">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <p className={`text-xs ${subCls}`}>
-                        One public page and one shared store under the group&rsquo;s
-                        name. The split terms written here are published on the page
-                        and divide every shared-store sale.
+                        {t("worldTeamLegal.teamGroupIntro")}
                       </p>
                       {groupDto.group?.isPublished ? (
                         <button
@@ -1060,12 +1055,16 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                         >
                           <span className="inline-flex items-center gap-1.5">
                             <Eye className="h-3.5 w-3.5" />
-                            {previewState === "loading" ? "Opening…" : "Preview the public page"}
+                            {previewState === "loading"
+                              ? t("worldTeamLegal.teamPreviewOpening")
+                              : t("worldTeamLegal.teamPreviewOpen")}
                           </span>
                         </button>
                       ) : (
                         <span className={`text-xs ${subCls}`}>
-                          {groupDto.group ? "Draft — not public yet" : "Not set up yet"}
+                          {groupDto.group
+                            ? t("worldTeamLegal.teamGroupDraft")
+                            : t("worldTeamLegal.teamGroupNotSetup")}
                         </span>
                       )}
                     </div>
@@ -1095,19 +1094,22 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                         ) : null}
                         {preview.products.length > 0 ? (
                           <p className={`mt-2 text-xs ${subCls}`}>
-                            {preview.products.length} product
-                            {preview.products.length === 1 ? "" : "s"} in the shared store
+                            {t(
+                              preview.products.length === 1
+                                ? "worldTeamLegal.teamGroupProductsOne"
+                                : "worldTeamLegal.teamGroupProductsMany",
+                              { count: preview.products.length },
+                            )}
                           </p>
                         ) : null}
                       </div>
                     ) : previewState === "missing" ? (
                       <p className={`mt-3 text-sm ${subCls}`}>
-                        The public page isn&rsquo;t answering yet — it may still be
-                        switching on.
+                        {t("worldTeamLegal.teamPreviewMissing")}
                       </p>
                     ) : previewState === "failed" ? (
                       <p className="mt-3 text-sm text-red-300">
-                        The public page couldn&rsquo;t load — try the preview again.
+                        {t("worldTeamLegal.teamPreviewFailed")}
                       </p>
                     ) : null}
 
@@ -1117,35 +1119,38 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                           <>
                             <p className="font-semibold">{groupDto.group.displayName}</p>
                             <p className="mt-1">
-                              Handle: @{groupDto.group.slug} ·{" "}
-                              {groupDto.group.isPublished ? "Published" : "Draft"}
+                              {t("worldTeamLegal.teamGroupHandle", {
+                                slug: groupDto.group.slug,
+                                state: groupDto.group.isPublished
+                                  ? t("worldTeamLegal.teamGroupPublished")
+                                  : t("worldTeamLegal.teamGroupDraftState"),
+                              })}
                             </p>
                             <p className="mt-2">
-                              Only the team&rsquo;s owner and admins can change the
-                              public profile.
+                              {t("worldTeamLegal.teamGroupManageNote")}
                             </p>
                           </>
                         ) : (
-                          <p>The team&rsquo;s owner and admins set up the public profile here.</p>
+                          <p>{t("worldTeamLegal.teamGroupSetupNote")}</p>
                         )}
                       </div>
                     ) : (
                       <>
                         <div className="mt-4 grid gap-4 sm:grid-cols-2">
                           <div>
-                            <label className={labelCls} htmlFor="world-team-gp-name">Group name</label>
+                            <label className={labelCls} htmlFor="world-team-gp-name">{t("worldTeamLegal.teamGroupNameLabel")}</label>
                             <input
                               id="world-team-gp-name"
                               className={`${deskInputCls(isLight)} mt-1`}
                               value={gName}
                               maxLength={120}
                               onChange={(e) => setGName(e.target.value)}
-                              placeholder="e.g. Crown Duo"
+                              placeholder={t("worldTeamLegal.teamGroupNamePlaceholder")}
                             />
                           </div>
                           <div>
                             <label className={labelCls} htmlFor="world-team-gp-slug">
-                              Public handle — bowdownvisuals.com/group/…
+                              {t("worldTeamLegal.teamGroupSlugLabel")}
                             </label>
                             <input
                               id="world-team-gp-slug"
@@ -1156,12 +1161,11 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                               placeholder="crown-duo"
                             />
                             <p className={`mt-1 text-xs ${subCls}`}>
-                              3–64 characters: lowercase letters, numbers and dashes,
-                              starting and ending with a letter or number.
+                              {t("worldTeamLegal.teamGroupSlugHint")}
                             </p>
                           </div>
                           <div className="sm:col-span-2">
-                            <label className={labelCls} htmlFor="world-team-gp-bio">Bio</label>
+                            <label className={labelCls} htmlFor="world-team-gp-bio">{t("worldTeamLegal.teamGroupBioLabel")}</label>
                             <textarea
                               id="world-team-gp-bio"
                               className={`${deskInputCls(isLight)} mt-1`}
@@ -1169,11 +1173,11 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                               maxLength={2000}
                               rows={3}
                               onChange={(e) => setGBio(e.target.value)}
-                              placeholder="Who the group is, in the group's own words."
+                              placeholder={t("worldTeamLegal.teamGroupBioPlaceholder")}
                             />
                           </div>
                           <div>
-                            <label className={labelCls} htmlFor="world-team-gp-avatar">Avatar image URL</label>
+                            <label className={labelCls} htmlFor="world-team-gp-avatar">{t("worldTeamLegal.teamGroupAvatarLabel")}</label>
                             <input
                               id="world-team-gp-avatar"
                               className={`${deskInputCls(isLight)} mt-1`}
@@ -1183,7 +1187,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                             />
                           </div>
                           <div>
-                            <label className={labelCls} htmlFor="world-team-gp-banner">Banner image URL</label>
+                            <label className={labelCls} htmlFor="world-team-gp-banner">{t("worldTeamLegal.teamGroupBannerLabel")}</label>
                             <input
                               id="world-team-gp-banner"
                               className={`${deskInputCls(isLight)} mt-1`}
@@ -1196,7 +1200,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
 
                         {/* Written split terms — one share per credited member */}
                         <div className="mt-5">
-                          <p className={labelCls}>Split terms — % of each shared-store sale</p>
+                          <p className={labelCls}>{t("worldTeamLegal.teamSplitTermsLabel")}</p>
                           <div className="mt-2 flex flex-col gap-2">
                             {groupDto.members.map((m) => (
                               <div key={m.userId} className={rowCls}>
@@ -1218,7 +1222,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                                     }
                                     className={`${deskInputCls(isLight)} w-24`}
                                     placeholder="—"
-                                    aria-label={`Share for ${m.displayName}`}
+                                    aria-label={t("worldTeamLegal.teamShareAria", { name: m.displayName })}
                                   />
                                   <span className={`text-sm ${subCls}`}>%</span>
                                 </span>
@@ -1226,9 +1230,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                             ))}
                           </div>
                           <p className={`mt-2 text-xs ${subCls}`}>
-                            Leave every share blank for no written terms. When shares
-                            are set they must total exactly 100%, and the team owner
-                            must hold one.
+                            {t("worldTeamLegal.teamSplitNote")}
                           </p>
                         </div>
 
@@ -1240,7 +1242,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                               onChange={(e) => setGPublished(e.target.checked)}
                               className="h-4 w-4 accent-[#C9A84C]"
                             />
-                            Publish the public page
+                            {t("worldTeamLegal.teamPublishLabel")}
                           </label>
                           <button
                             type="button"
@@ -1248,7 +1250,9 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                             disabled={busy === "group-save"}
                             onClick={() => void handleGroupSave()}
                           >
-                            {groupDto.group ? "Save group profile" : "Create group profile"}
+                            {groupDto.group
+                              ? t("worldTeamLegal.teamGroupSave")
+                              : t("worldTeamLegal.teamGroupCreate")}
                           </button>
                         </div>
 
@@ -1256,7 +1260,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                         {groupDto.group ? (
                           <div className={`mt-6 border-t pt-5 ${isLight ? "border-[#C9A84C]/30" : "border-white/10"}`}>
                             <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                              Shared store
+                              {t("worldTeamLegal.teamStoreTitle")}
                             </h3>
                             {groupDto.products.length > 0 ? (
                               <div className="mt-3 flex flex-col gap-1.5">
@@ -1276,7 +1280,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                               </div>
                             ) : (
                               <p className={`mt-2 text-sm ${subCls}`}>
-                                Nothing in the shared store yet.
+                                {t("worldTeamLegal.teamStoreEmpty")}
                               </p>
                             )}
                             <div
@@ -1284,7 +1288,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                               className="mt-4 flex flex-wrap items-end gap-2"
                             >
                               <div>
-                                <label className={labelCls} htmlFor="world-team-gp-kind">Kind</label>
+                                <label className={labelCls} htmlFor="world-team-gp-kind">{t("worldTeamLegal.teamProductKindLabel")}</label>
                                 <select
                                   id="world-team-gp-kind"
                                   value={pKind}
@@ -1297,18 +1301,18 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                                 </select>
                               </div>
                               <div className="min-w-[180px] flex-1">
-                                <label className={labelCls} htmlFor="world-team-gp-ptitle">Title</label>
+                                <label className={labelCls} htmlFor="world-team-gp-ptitle">{t("worldTeamLegal.teamProductTitleLabel")}</label>
                                 <input
                                   id="world-team-gp-ptitle"
                                   className={`${deskInputCls(isLight)} mt-1`}
                                   value={pTitle}
                                   maxLength={200}
                                   onChange={(e) => setPTitle(e.target.value)}
-                                  placeholder="Product title"
+                                  placeholder={t("worldTeamLegal.teamProductTitlePlaceholder")}
                                 />
                               </div>
                               <div>
-                                <label className={labelCls} htmlFor="world-team-gp-price">Price ($)</label>
+                                <label className={labelCls} htmlFor="world-team-gp-price">{t("worldTeamLegal.teamProductPriceLabel")}</label>
                                 <input
                                   id="world-team-gp-price"
                                   className={`${deskInputCls(isLight)} mt-1 w-28`}
@@ -1330,7 +1334,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                                   ) : (
                                     <PackagePlus className="h-4 w-4" />
                                   )}
-                                  Add product
+                                  {t("worldTeamLegal.teamProductAdd")}
                                 </span>
                               </button>
                             </div>
@@ -1410,7 +1414,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
               </NativeCard>
 
               {/* Danger zone */}
-              <NativeCard isLight={isLight} title="Team">
+              <NativeCard isLight={isLight} title={t("worldTeamLegal.teamFallbackName")}>
                 <div data-testid="world-team-danger" className="flex flex-wrap gap-3">
                   {!iAmOwner ? (
                     <button
@@ -1425,7 +1429,9 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                     >
                       <span className="inline-flex items-center gap-2">
                         <LogOut className="h-4 w-4" />
-                        {confirmLeave ? `Tap again to leave ${team.name}` : "Leave team"}
+                        {confirmLeave
+                          ? t("worldTeamLegal.teamTapLeave", { name: team.name })
+                          : t("team.leaveTeam")}
                       </span>
                     </button>
                   ) : (
@@ -1441,7 +1447,9 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                     >
                       <span className="inline-flex items-center gap-2">
                         <Trash2 className="h-4 w-4" />
-                        {confirmDelete ? `Tap again to delete ${team.name}` : "Delete team"}
+                        {confirmDelete
+                          ? t("worldTeamLegal.teamTapDelete", { name: team.name })
+                          : t("team.deleteTeam")}
                       </span>
                     </button>
                   )}

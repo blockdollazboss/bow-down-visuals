@@ -67,10 +67,12 @@ describe("the surface stays FREE — no spend seam, no pull-up", () => {
 describe("honest states — failure is never dressed as empty", () => {
   it("a failed load renders the error state with a retry, in the page's words", () => {
     expect(desk).toContain("NativeErrorState");
-    expect(desk).toContain("TEAM_SEATS_LOAD_ERROR");
+    // The states' words ride the settings page's own catalog keys now
+    // (stack100 locale unit 46).
+    expect(desk).toContain('t("settings.teamLoadError")');
     expect(desk).toContain("setLoadFailed(true)");
     expect(desk).toContain("NativeEmptyState");
-    expect(desk).toContain("TEAM_SEATS_EMPTY");
+    expect(desk).toContain('t("settings.teamEmpty")');
   });
 
   it("errors travel only through the shared plain-text rail", () => {

@@ -43,7 +43,9 @@ describe("the runs ride the confirmed-spend seam", () => {
     expect(desk).toContain("overrideCost: COPYRIGHT_ASK_COST");
     expect(desk).toContain("overrideFeature: COPYRIGHT_FEATURE_ASK");
     expect(desk).toContain("res.status === 402");
-    expect(desk).toContain("Treasury");
+    // The out-of-Bucs line (which names the Treasury's Packs desk) is
+    // catalog copy now (worldTeamLegal.outOfBucsLine).
+    expect(desk).toContain('t("worldTeamLegal.outOfBucsLine"');
   });
 
   it("the form carries the schema's fields; the draft renders whole", () => {
@@ -61,7 +63,10 @@ describe("the runs ride the confirmed-spend seam", () => {
 
   it("the disclaimer sits at the foot; no DMCA intake rides along", () => {
     expect(desk).toContain('data-testid="world-copyright-desk-disclaimer"');
-    expect(desk).toContain("{COPYRIGHT_DISCLAIMER}");
+    // The disclaimer text is catalog copy now (worldTeamLegal.copyrightDisclaimer);
+    // its en value is the seam's COPYRIGHT_DISCLAIMER verbatim — the equality is
+    // pinned by team-legal-i18n.test.
+    expect(desk).toContain('t("worldTeamLegal.copyrightDisclaimer")');
     expect(desk.toLowerCase()).not.toContain("dmca");
   });
 });

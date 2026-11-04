@@ -14,6 +14,7 @@
  * law firm and this is not legal advice.
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -21,7 +22,6 @@ import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   COPYRIGHT_ASK_COST,
   COPYRIGHT_ASK_PATH,
-  COPYRIGHT_DISCLAIMER,
   COPYRIGHT_DRAFT_COST,
   COPYRIGHT_DRAFT_PATH,
   COPYRIGHT_FEATURE_ASK,
@@ -36,22 +36,34 @@ import {
   type CopyrightDraftForm,
 } from "@/lib/world/copyright-desk";
 
+/* The work-type chips' catalog keys (worldTeamLegal) — the seam's
+   COPYRIGHT_WORK_TYPES table stays as the fallback behind this
+   key-map (its labels are the desk's own composed lines, longer
+   than the 2D page's label+hint pairs). */
+const COPYRIGHT_WORK_TYPE_KEYS: Record<string, string> = {
+  song: "worldTeamLegal.copyrightWorkSong",
+  "sound-recording": "worldTeamLegal.copyrightWorkRecording",
+  lyrics: "worldTeamLegal.copyrightWorkLyrics",
+  "music-video": "worldTeamLegal.copyrightWorkVideo",
+  album: "worldTeamLegal.copyrightWorkAlbum",
+};
+
 function GuestGate({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   return (
     <div className="space-y-3" data-testid="world-copyright-desk">
-      <p className={`text-base font-black ${strong}`}>Copyright Assistant</p>
+      <p className={`text-base font-black ${strong}`}>{t("worldTeamLegal.copyrightTitle")}</p>
       <p className={`text-sm ${muted}`}>
-        You&rsquo;re visiting as a guest — drafts are written for your own works, so the desk
-        needs your account.
+        {t("worldTeamLegal.copyrightGuestLead")}
       </p>
       <Link
         href="/login"
         data-testid="world-copyright-desk-signin"
         className="bdv-touch-target inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37] px-4 py-2 text-xs font-bold text-black"
       >
-        Sign in to use the assistant
+        {t("worldTeamLegal.copyrightGuestSignIn")}
       </Link>
     </div>
   );
@@ -68,6 +80,7 @@ const EMPTY_FORM: CopyrightDraftForm = {
 };
 
 export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   const { refreshProfile } = useAuth();
   const [form, setForm] = useState<CopyrightDraftForm>(EMPTY_FORM);
@@ -106,8 +119,7 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
 
   const outOfBucs = (feature: string) => (
     <p className={errCls}>
-      You&rsquo;re out of Visual Bucs for the {feature}. Top up at the Treasury&rsquo;s Visual Buc
-      Packs desk and run it again.
+      {t("worldTeamLegal.outOfBucsLine", { feature })}
     </p>
   );
 
@@ -116,7 +128,7 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
   async function runDraft() {
     const payload = buildCopyrightDraftPayload(form);
     if (!payload || drafting) {
-      if (!payload) setDraftError("Give the work a title first.");
+      if (!payload) setDraftError(t("worldTeamLegal.copyrightDraftTitleError"));
       return;
     }
     setDrafting(true);
@@ -138,11 +150,11 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
         return;
       }
       const parsed = res.ok ? copyrightDraftOf(data) : null;
-      if (!parsed) throw new Error(apiErrorMessage(data, "Couldn't draft that — try again."));
+      if (!parsed) throw new Error(apiErrorMessage(data, t("worldTeamLegal.copyrightDraftError")));
       setDraft(parsed);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setDraftError(plainErrorText(e, "Couldn't draft that — try again."));
+      setDraftError(plainErrorText(e, t("worldTeamLegal.copyrightDraftError")));
     } finally {
       setDrafting(false);
     }
@@ -177,11 +189,11 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
         return;
       }
       const answer = res.ok ? copyrightAnswerOf(data) : null;
-      if (!answer) throw new Error(apiErrorMessage(data, "Couldn't get an answer — try again."));
+      if (!answer) throw new Error(apiErrorMessage(data, t("worldTeamLegal.copyrightAnswerError")));
       setMessages([...next, { role: "assistant", content: answer }]);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setAskError(plainErrorText(e, "Couldn't get an answer — try again."));
+      setAskError(plainErrorText(e, t("worldTeamLegal.copyrightAnswerError")));
       setMessages(messages);
     } finally {
       setAsking(false);
@@ -191,30 +203,29 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
   return (
     <div className="space-y-4" data-testid="world-copyright-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Copyright Assistant</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldTeamLegal.copyrightTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          Registration drafts for the U.S. Copyright Office, and straight answers on how
-          copyright works.
+          {t("worldTeamLegal.copyrightSubtitle")}
         </p>
       </div>
 
       <section>
-        <p className={`text-sm font-bold ${strong}`}>Draft a registration</p>
+        <p className={`text-sm font-bold ${strong}`}>{t("worldTeamLegal.copyrightDraftSection")}</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {COPYRIGHT_WORK_TYPES.map((t) => (
+          {COPYRIGHT_WORK_TYPES.map((wt) => (
             <button
-              key={t.key}
+              key={wt.key}
               type="button"
-              className={chipCls(form.workType === t.key)}
-              onClick={() => set({ workType: t.key })}
+              className={chipCls(form.workType === wt.key)}
+              onClick={() => set({ workType: wt.key })}
             >
-              {t.label}
+              {t(COPYRIGHT_WORK_TYPE_KEYS[wt.key] ?? "worldTeamLegal.copyrightWorkSong")}
             </button>
           ))}
         </div>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           <label className={`text-xs ${muted}`}>
-            Title of the work *
+            {t("worldTeamLegal.copyrightTitleLabel")}
             <input
               className={`${inputCls} mt-1`}
               data-testid="world-copyright-desk-title"
@@ -224,7 +235,7 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             />
           </label>
           <label className={`text-xs ${muted}`}>
-            Author(s) / claimant(s)
+            {t("copyright.author_s_claimant_s")}
             <input
               className={`${inputCls} mt-1`}
               maxLength={500}
@@ -233,7 +244,7 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             />
           </label>
           <label className={`text-xs ${muted}`}>
-            Date created
+            {t("worldTeamLegal.copyrightDateLabel")}
             <input
               className={`${inputCls} mt-1`}
               maxLength={20}
@@ -249,11 +260,11 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
               checked={form.published}
               onChange={(e) => set({ published: e.target.checked })}
             />
-            Already published
+            {t("worldTeamLegal.copyrightPublishedLabel")}
           </label>
           {form.published ? (
             <label className={`text-xs ${muted}`}>
-              Publication date
+              {t("worldTeamLegal.copyrightPubDateLabel")}
               <input
                 className={`${inputCls} mt-1`}
                 maxLength={20}
@@ -264,7 +275,7 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             </label>
           ) : null}
           <label className={`text-xs ${muted} sm:col-span-2`}>
-            Anything the filing should know
+            {t("worldTeamLegal.copyrightNotesLabel")}
             <textarea
               className={`${inputCls} mt-1`}
               rows={2}
@@ -281,17 +292,19 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
           disabled={drafting}
           onClick={() => void runDraft()}
         >
-          {drafting ? "Drafting…" : `Draft it — ${COPYRIGHT_DRAFT_COST} Bucs`}
+          {drafting
+            ? t("worldTeamLegal.copyrightDrafting")
+            : t("worldTeamLegal.copyrightDraftButton", { cost: COPYRIGHT_DRAFT_COST })}
         </button>
         {draftOut ? outOfBucs(COPYRIGHT_FEATURE_DRAFT) : null}
         {draftError ? <p className={errCls}>{draftError}</p> : null}
         {draft ? (
           <div className={`mt-3 rounded-xl border p-3 ${cardCls}`} data-testid="world-copyright-desk-draft-result">
-            <p className={`text-xs font-bold uppercase tracking-wide ${muted}`}>Description of work</p>
+            <p className={`text-xs font-bold uppercase tracking-wide ${muted}`}>{t("copyright.description_of_work")}</p>
             <p className={`mt-1 whitespace-pre-wrap text-sm ${strong}`}>{draft.description}</p>
             {draft.filingNotes.length > 0 ? (
               <>
-                <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${muted}`}>Filing notes</p>
+                <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${muted}`}>{t("copyright.filing_notes")}</p>
                 <ul className="mt-1 list-disc space-y-1 pl-5">
                   {draft.filingNotes.map((n, i) => (
                     <li key={i} className={`text-sm ${muted}`}>{n}</li>
@@ -304,7 +317,7 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       </section>
 
       <section>
-        <p className={`text-sm font-bold ${strong}`}>Ask about copyright</p>
+        <p className={`text-sm font-bold ${strong}`}>{t("copyright.ask_about_copyright")}</p>
         {messages.length > 0 ? (
           <ul className="mt-2 space-y-2" data-testid="world-copyright-desk-thread">
             {messages.map((m, i) => (
@@ -313,7 +326,7 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                 className={`rounded-xl border px-3 py-2 text-sm ${cardCls} ${m.role === "user" ? "ml-6" : "mr-6"}`}
               >
                 <span className={`block text-[11px] font-bold uppercase tracking-wide ${muted}`}>
-                  {m.role === "user" ? "You" : "The assistant"}
+                  {m.role === "user" ? t("worldTeamLegal.roleYou") : t("worldTeamLegal.roleAssistant")}
                 </span>
                 <span className={`whitespace-pre-wrap ${strong}`}>{m.content}</span>
               </li>
@@ -321,16 +334,15 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
           </ul>
         ) : (
           <p className={`mt-1 text-sm ${muted}`}>
-            Ask anything — who owns a beat you bought, what registration actually protects, how
-            long copyright lasts.
+            {t("worldTeamLegal.copyrightAskEmpty")}
           </p>
         )}
         <div className="mt-2 flex flex-wrap gap-2">
           <input
             className={`${inputCls} min-w-52 flex-1`}
             data-testid="world-copyright-desk-question"
-            aria-label="Ask about copyright"
-            placeholder="Ask about copyright…"
+            aria-label={t("copyright.ask_about_copyright")}
+            placeholder={t("worldTeamLegal.copyrightAskPlaceholder")}
             maxLength={1000}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
@@ -345,7 +357,9 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             disabled={asking || question.trim().length === 0}
             onClick={() => void ask()}
           >
-            {asking ? "Asking…" : `Ask — ${COPYRIGHT_ASK_COST} Bucs`}
+            {asking
+              ? t("worldTeamLegal.asking")
+              : t("worldTeamLegal.askButton", { cost: COPYRIGHT_ASK_COST })}
           </button>
         </div>
         {askOut ? outOfBucs(COPYRIGHT_FEATURE_ASK) : null}
@@ -353,7 +367,7 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       </section>
 
       <p className={`text-xs ${muted}`} data-testid="world-copyright-desk-disclaimer">
-        {COPYRIGHT_DISCLAIMER}
+        {t("worldTeamLegal.copyrightDisclaimer")}
       </p>
     </div>
   );

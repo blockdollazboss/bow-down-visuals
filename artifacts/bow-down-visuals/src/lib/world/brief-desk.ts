@@ -98,42 +98,131 @@ function money(cents: number | null): string | null {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+/* ─── display strings (i18n seam, stack100 locale unit 46) ────────
+   digestLines takes an optional strings bundle + locale whose
+   defaults are the original English, byte-identical; the desk
+   builds the bundle from the worldTeamLegal catalog keys and
+   passes i18n.language, so the words and the number formats
+   render in the walker's language. Templates carry {{token}}
+   slots the seam fills itself. */
+
+export interface BriefDigestStrings {
+  followers: string;
+  members: string;
+  subscribers: string;
+  allTimeRevenue: string;
+  tips: string;
+  catalog: string;
+  topTrack: string;
+  waiting: string;
+  /** Template: {{total}} + {{new7}} tokens. */
+  followersValue: string;
+  /** Template: {{tracks}} + {{videos}} tokens. */
+  catalogValue: string;
+  /** Template: {{title}} + {{plays}} tokens. */
+  topTrackValue: string;
+  /** Template: {{count}} + {{label}} tokens. */
+  waitingValue: string;
+  actionLabels: Record<string, string>;
+}
+
+export const BRIEF_DIGEST_STRINGS_EN: BriefDigestStrings = {
+  followers: "Followers",
+  members: "Members",
+  subscribers: "Subscribers",
+  allTimeRevenue: "All-time revenue",
+  tips: "Tips (Visual Bucs)",
+  catalog: "Your catalog",
+  topTrack: "Top track",
+  waiting: "Waiting on you",
+  followersValue: "{{total}} (+{{new7}} this week)",
+  catalogValue: "{{tracks}} tracks · {{videos}} videos",
+  topTrackValue: "{{title}} — {{plays}} plays",
+  waitingValue: "{{count}} {{label}}",
+  actionLabels: BRIEF_ACTION_LABELS,
+};
+
+/** Build the bundle from a translate function (the desk's `t`):
+ *  every field reads its worldTeamLegal catalog key. */
+export function briefDigestStrings(translate: (key: string) => string): BriefDigestStrings {
+  return {
+    followers: translate("worldTeamLegal.briefLabelFollowers"),
+    members: translate("worldTeamLegal.briefLabelMembers"),
+    subscribers: translate("worldTeamLegal.briefLabelSubscribers"),
+    allTimeRevenue: translate("worldTeamLegal.briefLabelRevenue"),
+    tips: translate("worldTeamLegal.briefLabelTips"),
+    catalog: translate("worldTeamLegal.briefLabelCatalog"),
+    topTrack: translate("worldTeamLegal.briefLabelTopTrack"),
+    waiting: translate("worldTeamLegal.briefLabelWaiting"),
+    followersValue: translate("worldTeamLegal.briefFollowersValue"),
+    catalogValue: translate("worldTeamLegal.briefCatalogValue"),
+    topTrackValue: translate("worldTeamLegal.briefTopTrackValue"),
+    waitingValue: translate("worldTeamLegal.briefWaitingValue"),
+    actionLabels: {
+      unreadMessages: translate("worldTeamLegal.briefActionUnread"),
+      pastDueMembers: translate("worldTeamLegal.briefActionPastDue"),
+      shoutoutsToDeliver: translate("worldTeamLegal.briefActionShoutouts"),
+    },
+  };
+}
+
+function fillTokens(template: string, values: Record<string, string>): string {
+  let out = template;
+  for (const [token, value] of Object.entries(values)) {
+    out = out.split(`{{${token}}}`).join(value);
+  }
+  return out;
+}
+
 /** The fallback digest as plain lines — only facts the digest
  *  itself carries, nothing derived or invented. Null panels and
  *  null figures are skipped, never zero-filled. */
-export function digestLines(fallback: BriefFallbackPayload): BriefDigestLine[] {
+export function digestLines(
+  fallback: BriefFallbackPayload,
+  strings: BriefDigestStrings = BRIEF_DIGEST_STRINGS_EN,
+  locale: string = "en-US",
+): BriefDigestLine[] {
   const lines: BriefDigestLine[] = [];
   const { audience, revenue, content, actions } = fallback.digest;
   if (audience) {
     if (audience.followers) {
       lines.push({
-        label: "Followers",
-        value: `${audience.followers.total.toLocaleString()} (+${audience.followers.new7} this week)`,
+        label: strings.followers,
+        value: fillTokens(strings.followersValue, {
+          total: audience.followers.total.toLocaleString(locale),
+          new7: String(audience.followers.new7),
+        }),
       });
     }
     if (audience.members) {
-      lines.push({ label: "Members", value: audience.members.total.toLocaleString() });
+      lines.push({ label: strings.members, value: audience.members.total.toLocaleString(locale) });
     }
     if (audience.subscribers) {
-      lines.push({ label: "Subscribers", value: audience.subscribers.total.toLocaleString() });
+      lines.push({ label: strings.subscribers, value: audience.subscribers.total.toLocaleString(locale) });
     }
   }
   if (revenue) {
     const total = money(revenue.totalCents);
-    if (total) lines.push({ label: "All-time revenue", value: total });
+    if (total) lines.push({ label: strings.allTimeRevenue, value: total });
     if (revenue.totalTipsVb !== null && revenue.totalTipsVb > 0) {
-      lines.push({ label: "Tips (Visual Bucs)", value: revenue.totalTipsVb.toLocaleString() });
+      lines.push({ label: strings.tips, value: revenue.totalTipsVb.toLocaleString(locale) });
     }
   }
   if (content?.totals) {
     lines.push({
-      label: "Your catalog",
-      value: `${content.totals.trackCount} tracks · ${content.totals.videoCount} videos`,
+      label: strings.catalog,
+      value: fillTokens(strings.catalogValue, {
+        tracks: String(content.totals.trackCount),
+        videos: String(content.totals.videoCount),
+      }),
     });
     if (content.topTrack) {
       lines.push({
-        label: "Top track",
-        value: `${content.topTrack.title} — ${content.topTrack.playCount.toLocaleString()} plays`,
+        label: strings.topTrack,
+        value: fillTokens(strings.topTrackValue, {
+          title: content.topTrack.title,
+          plays: content.topTrack.playCount.toLocaleString(locale),
+        }),
       });
     }
   }
@@ -141,8 +230,11 @@ export function digestLines(fallback: BriefFallbackPayload): BriefDigestLine[] {
     for (const item of actions.items) {
       if (item.count > 0) {
         lines.push({
-          label: "Waiting on you",
-          value: `${item.count} ${BRIEF_ACTION_LABELS[item.key] ?? item.key}`,
+          label: strings.waiting,
+          value: fillTokens(strings.waitingValue, {
+            count: String(item.count),
+            label: strings.actionLabels[item.key] ?? item.key,
+          }),
         });
       }
     }

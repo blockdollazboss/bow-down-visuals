@@ -35,11 +35,12 @@ describe("the brief in-panel, draft-only by construction", () => {
       'data-testid="world-brief-desk-brief"',
       'data-testid="world-brief-desk-draft"',
       'data-testid="world-brief-desk-copy"',
-      "Copy the draft",
-      "Your next move",
-      "you review it and send",
-      "nothing here sends for you",
-      "BRIEF_MOVE_SURFACES[read.brief.move.kind]",
+      // The copy labels + the never-sends line are catalog copy now
+      // (worldTeamLegal — stack100 locale unit 46).
+      't("worldTeamLegal.briefCopyDraft")',
+      't("worldTeamLegal.briefNextMove")',
+      't("worldTeamLegal.briefBelongs"',
+      "BRIEF_SURFACE_KEYS[read.brief.move.kind]",
     ]) {
       expect(desk, needle).toContain(needle);
     }
@@ -54,14 +55,14 @@ describe("the brief in-panel, draft-only by construction", () => {
 describe("the honest states stay separate", () => {
   it("digest fallback says the written brief is unavailable and shows real numbers", () => {
     expect(desk).toContain('data-testid="world-brief-desk-digest"');
-    expect(desk).toContain("The written brief is unavailable right now");
-    expect(desk).toContain("digestLines(read.fallback)");
+    expect(desk).toContain('t("worldTeamLegal.briefDigestIntro")');
+    expect(desk).toContain("digestLines(read.fallback, briefDigestStrings(t), i18n.language)");
   });
 
   it("failure is its own state with a retry — never dressed as an empty brief", () => {
     expect(desk).toContain('data-testid="world-brief-desk-failed"');
-    expect(desk).toContain("your numbers are fine, the reading is what");
-    expect(desk).toContain("Try again");
+    expect(desk).toContain('t("worldTeamLegal.briefFailed")');
+    expect(desk).toContain('t("worldTeamLegal.tryAgain")');
   });
 });
 

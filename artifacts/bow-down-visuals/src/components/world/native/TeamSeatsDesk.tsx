@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Check, Copy, Loader2, MailWarning, ShieldCheck, Trash2, UserPlus, Users, X,
 } from "lucide-react";
@@ -17,7 +18,6 @@ import {
   TEAM_SEAT_ASSIGNABLE_ROLES,
   TEAM_SEAT_PERMISSIONS,
   TEAM_SEAT_PERMISSION_ROWS,
-  TEAM_SEAT_ROLE_LABELS,
   TEAM_SEAT_ROLE_ORDER,
   buildTeamSeatAcceptBody,
   buildTeamSeatInviteBody,
@@ -32,30 +32,32 @@ import {
   teamSeatInviteReady,
   teamSeatPath,
   teamSeatRevokeLabel,
+  teamSeatRevokeStrings,
   teamSeatStatusLabel,
-  TEAM_SEATS_ACCEPTED_ALREADY,
-  TEAM_SEATS_ACCEPTED_DESC,
-  TEAM_SEATS_ACCEPTED_TITLE,
-  TEAM_SEATS_AUTH_GAP_NOTE,
-  TEAM_SEATS_COPIED,
-  TEAM_SEATS_COPY_FAILED,
-  TEAM_SEATS_COPY_LINK,
-  TEAM_SEATS_EMAIL_PLACEHOLDER,
-  TEAM_SEATS_EMPTY,
-  TEAM_SEATS_FREE_BADGE,
-  TEAM_SEATS_INVITE_BUTTON,
-  TEAM_SEATS_INVITE_HEADING,
-  TEAM_SEATS_LOAD_ERROR,
-  TEAM_SEATS_LOADING,
-  TEAM_SEATS_MATRIX_HEADING,
-  TEAM_SEATS_NAME_PLACEHOLDER,
-  TEAM_SEATS_NO_EMAIL_NOTE,
-  TEAM_SEATS_ROLE_LABEL,
-  TEAM_SEATS_SUBTITLE,
+  teamSeatStatusStrings,
   type TeamSeat,
   type TeamSeatAssignableRole,
+  type TeamSeatPermissions,
+  type TeamSeatRole,
   type TeamSeatsList,
 } from "@/lib/world/team-seats-desk";
+
+/* The 2D surface's own catalog keys (settings.team*, locales) —
+   byte-identical to the seam's English label tables; the tables
+   stay in the seam as the fallback behind these key-maps. */
+const TEAM_SEAT_ROLE_LABEL_KEYS: Record<TeamSeatRole, string> = {
+  owner: "settings.teamRole_owner",
+  manager: "settings.teamRole_manager",
+  collaborator: "settings.teamRole_collaborator",
+  viewer: "settings.teamRole_viewer",
+};
+const TEAM_SEAT_PERMISSION_LABEL_KEYS: Record<keyof TeamSeatPermissions, string> = {
+  canGenerate: "settings.teamPermGenerate",
+  canPublish: "settings.teamPermPublish",
+  canViewMoney: "settings.teamPermMoney",
+  canEditProfile: "settings.teamPermProfile",
+  canManageTeam: "settings.teamPermTeam",
+};
 
 /* ─── Team Seats, in-world (stack1500 world parity, wave 4a follow-on) ──
    The Settings team-seats surface native at the My Studio board, on
@@ -115,6 +117,7 @@ function roleBadgeCls(isLight: boolean, role: string): string {
 }
 
 export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
@@ -182,7 +185,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildTeamSeatInviteBody(email, name, role)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't create the invite (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldTeamLegal.seatsInviteStatusError", { status: res.status })));
       const made = parseTeamSeatInviteResult(data);
       if (!made) throw new Error("invite shape");
       setList((prev) =>
@@ -194,7 +197,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
       setEmail("");
       setName("");
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't create the invite — try again."));
+      setError(plainErrorText(err, t("settings.teamInviteFailedDesc")));
     } finally {
       setInviting(false);
     }
@@ -229,18 +232,21 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildTeamSeatAcceptBody(token)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't accept the invite (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldTeamLegal.seatsAcceptStatusError", { status: res.status })));
       const result = parseTeamSeatAcceptResult(data);
       if (!result) throw new Error("accept shape");
       setAcceptNote(
-        `${TEAM_SEATS_ACCEPTED_TITLE} — ${
-          result.alreadyActive ? TEAM_SEATS_ACCEPTED_ALREADY : TEAM_SEATS_ACCEPTED_DESC
-        }`,
+        t("worldTeamLegal.seatsAcceptedLine", {
+          title: t("settings.teamInviteAcceptedTitle"),
+          detail: result.alreadyActive
+            ? t("settings.teamInviteAcceptedAlready")
+            : t("settings.teamInviteAcceptedDesc"),
+        }),
       );
       setAcceptInput("");
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't accept the invite — try again."));
+      setError(plainErrorText(err, t("worldTeamLegal.seatsAcceptError")));
     } finally {
       setAccepting(false);
     }
@@ -258,7 +264,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildTeamSeatRoleBody(next)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't change the role (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldTeamLegal.seatsRoleStatusError", { status: res.status })));
       const updated = parseTeamSeatResult(data);
       if (!updated) throw new Error("role shape");
       setList((prev) =>
@@ -267,7 +273,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
           : prev,
       );
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't change the role — try again."));
+      setError(plainErrorText(err, t("settings.teamRoleFailedTitle")));
     } finally {
       setChangingRoleId(null);
     }
@@ -288,12 +294,12 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        throw new Error(apiErrorMessage(data, `Couldn't revoke the seat (${res.status})`));
+        throw new Error(apiErrorMessage(data, t("worldTeamLegal.seatsRevokeStatusError", { status: res.status })));
       }
       setArmedRevokeId(null);
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't revoke — try again."));
+      setError(plainErrorText(err, t("settings.teamRevokeFailedTitle")));
     } finally {
       setRevokingId(null);
     }
@@ -301,13 +307,15 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
 
   const seats = list?.seats ?? [];
   const memberOf = list?.memberOf ?? [];
+  const statusStrings = teamSeatStatusStrings(t);
+  const revokeStrings = teamSeatRevokeStrings(t);
 
   return (
-    <NativeCard isLight={isLight} title="Team Seats — roles for collaborators & managers">
+    <NativeCard isLight={isLight} title={`${t("settings.teamTitle")} — ${t("settings.teamSubtitle")}`}>
       <div data-testid="world-team-seats" className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <Users className="h-4 w-4 text-[#d4af37]" />
-          <p className={`text-sm ${muted}`}>{TEAM_SEATS_SUBTITLE}</p>
+          <p className={`text-sm ${muted}`}>{t("settings.teamSubtitle")}</p>
           <span
             className={`ml-auto rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
               isLight
@@ -315,7 +323,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
                 : "border-[#d4af37]/40 bg-[#d4af37]/10 text-[#e8c86a]"
             }`}
           >
-            {TEAM_SEATS_FREE_BADGE}
+            {t("settings.teamFreeBadge")}
           </span>
         </div>
 
@@ -327,19 +335,19 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
         {note ? <p className={`text-sm ${muted}`}>{note}</p> : null}
 
         {list === null && !loadFailed ? (
-          <NativeLoadingState isLight={isLight} message={TEAM_SEATS_LOADING} />
+          <NativeLoadingState isLight={isLight} message={t("settings.teamLoading")} />
         ) : loadFailed ? (
           <NativeErrorState
             isLight={isLight}
-            message={TEAM_SEATS_LOAD_ERROR}
-            onRetry={() => setTick((t) => t + 1)}
+            message={t("settings.teamLoadError")}
+            onRetry={() => setTick((n) => n + 1)}
           />
         ) : (
           <>
             {/* Permission matrix — the schema's table, the page's words */}
             <div data-testid="world-team-seats-matrix">
               <p className={`mb-2 text-xs font-bold uppercase tracking-[0.12em] ${muted}`}>
-                {TEAM_SEATS_MATRIX_HEADING}
+                {t("settings.teamMatrixCapability")}
               </p>
               <div
                 className={`overflow-x-auto rounded-xl border ${
@@ -349,11 +357,11 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className={isLight ? "bg-[#d4af37]/[0.08] text-left" : "bg-[#d4af37]/[0.06] text-left"}>
-                      <th className={`px-3 py-2 font-semibold ${muted}`}>{TEAM_SEATS_MATRIX_HEADING}</th>
+                      <th className={`px-3 py-2 font-semibold ${muted}`}>{t("settings.teamMatrixCapability")}</th>
                       {TEAM_SEAT_ROLE_ORDER.map((r) => (
                         <th key={r} className="px-3 py-2 text-center font-semibold whitespace-nowrap">
                           <span className={`rounded-full border px-2 py-0.5 text-[11px] ${roleBadgeCls(isLight, r)}`}>
-                            {TEAM_SEAT_ROLE_LABELS[r]}
+                            {t(TEAM_SEAT_ROLE_LABEL_KEYS[r])}
                           </span>
                         </th>
                       ))}
@@ -366,7 +374,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
                         className={`border-t ${isLight ? "border-[#7A5A12]/10" : "border-white/[0.06]"}`}
                       >
                         <td className={`px-3 py-2 ${isLight ? "text-[#2a1e07]/80" : "text-white/70"}`}>
-                          {row.label}
+                          {t(TEAM_SEAT_PERMISSION_LABEL_KEYS[row.key])}
                         </td>
                         {TEAM_SEAT_ROLE_ORDER.map((r) => (
                           <td key={r} className="px-3 py-2 text-center">
@@ -396,28 +404,28 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
               }`}
             >
               <p className={`mb-2 inline-flex items-center gap-1.5 text-sm font-semibold ${strong}`}>
-                <UserPlus className="h-4 w-4 text-[#d4af37]" /> {TEAM_SEATS_INVITE_HEADING}
+                <UserPlus className="h-4 w-4 text-[#d4af37]" /> {t("settings.teamInviteHeading")}
               </p>
               <div className="flex flex-col gap-2">
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={TEAM_SEATS_EMAIL_PLACEHOLDER}
+                  placeholder={t("settings.teamEmailPlaceholder")}
                   className={deskInputCls(isLight)}
-                  aria-label={TEAM_SEATS_EMAIL_PLACEHOLDER}
+                  aria-label={t("settings.teamEmailPlaceholder")}
                 />
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder={TEAM_SEATS_NAME_PLACEHOLDER}
+                  placeholder={t("settings.teamNamePlaceholder")}
                   maxLength={80}
                   className={deskInputCls(isLight)}
-                  aria-label={TEAM_SEATS_NAME_PLACEHOLDER}
+                  aria-label={t("settings.teamNamePlaceholder")}
                 />
                 <div className="flex flex-wrap items-center gap-2">
                   <label className={`text-xs font-bold ${muted}`} htmlFor="world-team-seats-role">
-                    {TEAM_SEATS_ROLE_LABEL}
+                    {t("settings.teamRoleLabel")}
                   </label>
                   <select
                     id="world-team-seats-role"
@@ -429,7 +437,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
                   >
                     {TEAM_SEAT_ASSIGNABLE_ROLES.map((r) => (
                       <option key={r} value={r}>
-                        {TEAM_SEAT_ROLE_LABELS[r]}
+                        {t(TEAM_SEAT_ROLE_LABEL_KEYS[r])}
                       </option>
                     ))}
                   </select>
@@ -440,7 +448,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
                     className={`${goldBtn} ml-auto`}
                   >
                     {inviting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                    {TEAM_SEATS_INVITE_BUTTON}
+                    {t("settings.teamInviteButton")}
                   </button>
                 </div>
               </div>
@@ -454,7 +462,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
                 >
                   <p className={`flex items-start gap-2 text-xs ${isLight ? "text-amber-700" : "text-amber-200/90"}`}>
                     <MailWarning className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>{inviteEmailNote || (inviteEmailSent ? "" : TEAM_SEATS_NO_EMAIL_NOTE)}</span>
+                    <span>{inviteEmailNote || (inviteEmailSent ? "" : t("settings.teamNoEmailNote"))}</span>
                   </p>
                   <div className="mt-2 flex items-center gap-2">
                     <code
@@ -466,10 +474,10 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
                     </code>
                     <button type="button" onClick={copyLink} className={chipBtn(isLight)}>
                       {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                      {copied ? TEAM_SEATS_COPIED : TEAM_SEATS_COPY_LINK}
+                      {copied ? t("settings.teamCopied") : t("settings.teamCopyLink")}
                     </button>
                   </div>
-                  {copyFailed ? <p className={`mt-1 text-xs ${errCls}`}>{TEAM_SEATS_COPY_FAILED}</p> : null}
+                  {copyFailed ? <p className={`mt-1 text-xs ${errCls}`}>{t("settings.teamCopyFailed")}</p> : null}
                 </div>
               ) : null}
             </div>
@@ -477,15 +485,15 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
             {/* Accept an invite in-desk */}
             <div data-testid="world-team-seats-accept" className="flex flex-col gap-2">
               <p className={`text-xs font-bold uppercase tracking-[0.12em] ${muted}`}>
-                {TEAM_SEATS_ACCEPTED_TITLE}
+                {t("settings.teamInviteAcceptedTitle")}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   value={acceptInput}
                   onChange={(e) => setAcceptInput(e.target.value)}
-                  placeholder="Paste an invite link"
+                  placeholder={t("worldTeamLegal.seatsPastePlaceholder")}
                   className={`${deskInputCls(isLight)} min-w-0 flex-1`}
-                  aria-label="Paste an invite link"
+                  aria-label={t("worldTeamLegal.seatsPastePlaceholder")}
                 />
                 <button
                   type="button"
@@ -494,7 +502,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
                   className={chipBtn(isLight)}
                 >
                   {accepting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Accept invite
+                  {t("worldTeamLegal.seatsAcceptButton")}
                 </button>
               </div>
               {acceptNote ? <p className={`text-sm ${muted}`}>{acceptNote}</p> : null}
@@ -503,7 +511,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
             {/* My seats */}
             <div data-testid="world-team-seats-list" className="flex flex-col gap-2">
               {seats.length === 0 ? (
-                <NativeEmptyState isLight={isLight} message={TEAM_SEATS_EMPTY} />
+                <NativeEmptyState isLight={isLight} message={t("settings.teamEmpty")} />
               ) : (
                 seats.map((seat) => (
                   <div
@@ -519,7 +527,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
                       {seat.displayName ? (
                         <p className={`truncate text-xs ${muted}`}>{seat.email}</p>
                       ) : null}
-                      <p className={`mt-0.5 text-xs ${muted}`}>{teamSeatStatusLabel(seat.status)}</p>
+                      <p className={`mt-0.5 text-xs ${muted}`}>{teamSeatStatusLabel(seat.status, statusStrings)}</p>
                     </div>
                     {canChangeTeamSeatRole(seat) ? (
                       <select
@@ -529,17 +537,17 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
                         className={`rounded-full border px-2.5 py-1 text-xs bdv-touch-target ${roleBadgeCls(isLight, seat.role)} ${
                           isLight ? "bg-white/60" : "bg-black/40"
                         }`}
-                        aria-label={TEAM_SEATS_ROLE_LABEL}
+                        aria-label={t("settings.teamRoleLabel")}
                       >
                         {TEAM_SEAT_ASSIGNABLE_ROLES.map((r) => (
                           <option key={r} value={r}>
-                            {TEAM_SEAT_ROLE_LABELS[r]}
+                            {t(TEAM_SEAT_ROLE_LABEL_KEYS[r])}
                           </option>
                         ))}
                       </select>
                     ) : (
                       <span className={`rounded-full border px-2.5 py-1 text-xs ${roleBadgeCls(isLight, seat.role)}`}>
-                        {TEAM_SEAT_ROLE_LABELS[seat.role]}
+                        {t(TEAM_SEAT_ROLE_LABEL_KEYS[seat.role])}
                       </span>
                     )}
                     {canRevokeTeamSeat(seat) ? (
@@ -561,8 +569,10 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
                           <Trash2 className="h-3.5 w-3.5" />
                         )}
                         {armedRevokeId === seat.id
-                          ? `${teamSeatRevokeLabel(seat)}? Tap again`
-                          : teamSeatRevokeLabel(seat)}
+                          ? t("worldTeamLegal.seatsRevokeTapAgain", {
+                              label: teamSeatRevokeLabel(seat, revokeStrings),
+                            })
+                          : teamSeatRevokeLabel(seat, revokeStrings)}
                       </button>
                     ) : null}
                   </div>
@@ -575,7 +585,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
             {memberOf.length > 0 ? (
               <div data-testid="world-team-seats-memberof" className="flex flex-col gap-2">
                 <p className={`text-xs font-bold uppercase tracking-[0.12em] ${muted}`}>
-                  Teams you&apos;re on
+                  {t("worldTeamLegal.seatsMemberOfTitle")}
                 </p>
                 {memberOf.map((seat) => (
                   <div
@@ -586,10 +596,10 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
                   >
                     <div className="min-w-0 flex-1">
                       <p className={`truncate text-sm font-semibold ${strong}`}>{seat.email}</p>
-                      <p className={`mt-0.5 text-xs ${muted}`}>{teamSeatStatusLabel(seat.status)}</p>
+                      <p className={`mt-0.5 text-xs ${muted}`}>{teamSeatStatusLabel(seat.status, statusStrings)}</p>
                     </div>
                     <span className={`rounded-full border px-2.5 py-1 text-xs ${roleBadgeCls(isLight, seat.role)}`}>
-                      {TEAM_SEAT_ROLE_LABELS[seat.role]}
+                      {t(TEAM_SEAT_ROLE_LABEL_KEYS[seat.role])}
                     </span>
                   </div>
                 ))}
@@ -604,7 +614,7 @@ export function TeamSeatsDesk({ isLight }: { isLight: boolean }) {
               }`}
             >
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#d4af37]/70" />
-              <span>{TEAM_SEATS_AUTH_GAP_NOTE}</span>
+              <span>{t("settings.teamAuthGapNote")}</span>
             </div>
           </>
         )}

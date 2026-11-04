@@ -18,15 +18,28 @@
  * and offers a retry.
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Copy } from "lucide-react";
 import {
-  BRIEF_MOVE_SURFACES,
   BRIEF_PATH,
+  briefDigestStrings,
   briefOfResponse,
   digestLines,
   type BriefRead,
 } from "@/lib/world/brief-desk";
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
+
+/* The move-kind surface names' catalog keys (worldTeamLegal) —
+   the seam's BRIEF_MOVE_SURFACES table stays as the fallback
+   behind this key-map. */
+const BRIEF_SURFACE_KEYS: Record<string, string> = {
+  post: "worldTeamLegal.briefSurfacePost",
+  winback: "worldTeamLegal.briefSurfaceWinback",
+  reply: "worldTeamLegal.briefSurfaceReply",
+  deliver: "worldTeamLegal.briefSurfaceDeliver",
+  price_check: "worldTeamLegal.briefSurfacePriceCheck",
+  create: "worldTeamLegal.briefSurfaceCreate",
+};
 
 type BriefState =
   | { kind: "idle" }
@@ -35,6 +48,7 @@ type BriefState =
   | { kind: "failed" };
 
 export function BriefDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const deskHeaders = useDeskAuthHeaders();
   const [state, setState] = useState<BriefState>({ kind: "idle" });
   const [copied, setCopied] = useState(false);
@@ -91,9 +105,9 @@ export function BriefDesk({ isLight }: { isLight: boolean }) {
     <div className="space-y-3" data-testid="world-brief-desk">
       <div className="flex flex-wrap items-center gap-3">
         <div>
-          <p className={`text-base font-black ${strong}`}>Your Morning Brief</p>
+          <p className={`text-base font-black ${strong}`}>{t("worldTeamLegal.briefTitle")}</p>
           <p className={`text-xs ${muted}`}>
-            Thy Cheat Code reads your business and writes the brief — free, always.
+            {t("worldTeamLegal.briefSubtitle")}
           </p>
         </div>
         <button
@@ -103,18 +117,21 @@ export function BriefDesk({ isLight }: { isLight: boolean }) {
           disabled={state.kind === "loading"}
           onClick={() => void readBrief()}
         >
-          {state.kind === "loading" ? "Reading…" : read ? "Read it fresh" : "Read my brief"}
+          {state.kind === "loading"
+            ? t("worldTeamLegal.briefReading")
+            : read
+              ? t("worldTeamLegal.briefReadFresh")
+              : t("worldTeamLegal.briefRead")}
         </button>
       </div>
 
       {state.kind === "failed" ? (
         <div className={`rounded-xl border px-3 py-2 ${cardCls}`} data-testid="world-brief-desk-failed">
           <p className={`text-sm ${muted}`}>
-            Your brief could not be read just now — your numbers are fine, the reading is what
-            failed.
+            {t("worldTeamLegal.briefFailed")}
           </p>
           <button type="button" className={`mt-2 ${chipCls(false)}`} onClick={() => void readBrief()}>
-            Try again
+            {t("worldTeamLegal.tryAgain")}
           </button>
         </div>
       ) : null}
@@ -124,7 +141,7 @@ export function BriefDesk({ isLight }: { isLight: boolean }) {
           <p className={`text-sm leading-relaxed ${strong}`}>{read.brief.summary}</p>
           <div className={`rounded-xl border px-3 py-2 ${cardCls}`}>
             <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              Your next move
+              {t("worldTeamLegal.briefNextMove")}
             </p>
             <p className={`mt-1 text-sm font-bold ${strong}`}>{read.brief.move.title}</p>
             <p className={`mt-1 whitespace-pre-wrap text-sm ${muted}`} data-testid="world-brief-desk-draft">
@@ -138,11 +155,14 @@ export function BriefDesk({ isLight }: { isLight: boolean }) {
                 onClick={() => void copyDraft(read.brief.move.draft)}
               >
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? "Copied" : "Copy the draft"}
+                {copied ? t("worldTeamLegal.briefCopied") : t("worldTeamLegal.briefCopyDraft")}
               </button>
               <span className={`text-xs ${muted}`}>
-                It belongs in {BRIEF_MOVE_SURFACES[read.brief.move.kind]} — you review it and send
-                it yourself; nothing here sends for you.
+                {t("worldTeamLegal.briefBelongs", {
+                  surface: t(
+                    BRIEF_SURFACE_KEYS[read.brief.move.kind] ?? "worldTeamLegal.briefSurfaceCreate",
+                  ),
+                })}
               </span>
             </div>
           </div>
@@ -152,13 +172,12 @@ export function BriefDesk({ isLight }: { isLight: boolean }) {
       {read?.kind === "digest" ? (
         <div className="space-y-2" data-testid="world-brief-desk-digest">
           <p className={`text-sm ${muted}`}>
-            The written brief is unavailable right now — here are your real numbers, straight from
-            the same reading:
+            {t("worldTeamLegal.briefDigestIntro")}
           </p>
           <div className={`rounded-xl border px-3 py-2 ${cardCls}`}>
-            {digestLines(read.fallback).length > 0 ? (
+            {digestLines(read.fallback, briefDigestStrings(t), i18n.language).length > 0 ? (
               <ul className="space-y-1.5">
-                {digestLines(read.fallback).map((line, i) => (
+                {digestLines(read.fallback, briefDigestStrings(t), i18n.language).map((line, i) => (
                   <li key={i} className="flex items-baseline justify-between gap-3 text-sm">
                     <span className={muted}>{line.label}</span>
                     <span className={`text-right font-bold ${strong}`}>{line.value}</span>
@@ -167,7 +186,7 @@ export function BriefDesk({ isLight }: { isLight: boolean }) {
               </ul>
             ) : (
               <p className={`text-sm ${muted}`}>
-                Nothing to report yet — make something and the brief will have news for you.
+                {t("worldTeamLegal.briefDigestEmpty")}
               </p>
             )}
           </div>
