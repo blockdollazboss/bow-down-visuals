@@ -128,6 +128,7 @@ const EN_VERBATIM: Record<string, string> = {
   coachFeeBoostLine: "{{feePct}} platform fee · {{boosts}} AI promotion boosts / month",
   coachGlideNote: "Leaving a paid plan is a glide, not a switch — your tier holds to the end of the period, then returns to Free.",
   coachCancelNoCharge: "Cancel — no charge",
+  coachRetryLoad: "Couldn’t load plans — tap to retry",
   domainIntro: "Point your own domain at your shop. You’ll add one TXT record to prove ownership. Free — no Visual Bucs; the rail checks that your plan covers shops when you connect, same as the website.",
   libSavedNowLine: "Saved at {{saved}} · Now {{now}}",
   libDropLine: "Down {{amount}} since you saved it",

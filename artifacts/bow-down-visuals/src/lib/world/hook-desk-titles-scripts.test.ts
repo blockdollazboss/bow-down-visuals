@@ -19,6 +19,12 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import en from "../../locales/en.json";
+
+/* JOIN SWEEP (phase-2 repair #6): the benches' strings now resolve
+   through worldJoinSweep — pins assert the key references in the
+   source and the en values in the catalog. */
+const SWEEP = (en as { worldJoinSweep: Record<string, string> }).worldJoinSweep;
 import {
   SCRIPT_LENGTHS,
   SCRIPT_PLATFORMS,
@@ -276,8 +282,10 @@ describe("the benches in the component (source pins)", () => {
     expect(deskSrc).toContain("confirmedFetch(path");
     expect(deskSrc).toContain("hookDeskModePath(mode)");
     /* Honest failures: a guard-null reads as a refunded failed make. */
-    expect(deskSrc).toContain("The titles came back empty — a failed make is refunded. Try again.");
-    expect(deskSrc).toContain("The script came back empty — a failed make is refunded. Try again.");
+    expect(deskSrc).toContain('t("worldJoinSweep.tsbEmptyTitles")');
+    expect(SWEEP.tsbEmptyTitles).toBe("The titles came back empty — a failed make is refunded. Try again.");
+    expect(deskSrc).toContain('t("worldJoinSweep.tsbEmptyScript")');
+    expect(SWEEP.tsbEmptyScript).toBe("The script came back empty — a failed make is refunded. Try again.");
   });
 
   it("each bench keeps its own topic + the routes' fields, results in-panel", () => {
@@ -289,9 +297,12 @@ describe("the benches in the component (source pins)", () => {
     expect(deskSrc).toContain("SCRIPT_LENGTHS");
     expect(deskSrc).toContain("SCRIPT_TONES");
     /* The script's teleprompter + beats render in the panel. */
-    expect(deskSrc).toContain("Teleprompter");
-    expect(deskSrc).toContain("Retention beats");
+    expect(deskSrc).toContain('t("worldJoinSweep.tsbTeleprompterLabel")');
+    expect(SWEEP.tsbTeleprompterLabel).toBe("Teleprompter");
+    expect(deskSrc).toContain('t("worldJoinSweep.tsbRetentionLabel")');
+    expect(SWEEP.tsbRetentionLabel).toBe("Retention beats");
     /* Titles render ranked with their readiness scores. */
-    expect(deskSrc).toContain("readiness {t.score}/100");
+    expect(deskSrc).toContain('t("worldJoinSweep.tsbReadinessLine"');
+    expect(SWEEP.tsbReadinessLine).toBe("{{rank}} · readiness {{score}}/100");
   });
 });

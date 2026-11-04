@@ -20,6 +20,12 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import en from "../../locales/en.json";
+
+/* JOIN SWEEP (phase-2 repair #6): the desk's strings now resolve
+   through worldJoinSweep — pins assert the key references in the
+   source and the en values in the catalog. */
+const SWEEP = (en as { worldJoinSweep: Record<string, string> }).worldJoinSweep;
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const desk = read("../../components/world/native/LibraryDesk.tsx");
@@ -91,7 +97,8 @@ describe("each breadth drives its rail", () => {
     expect(desk).toContain("libraryPresetPayload(presetEditorParam(preset), preset.slug)");
     expect(desk).toContain("LIBRARY_EDITOR_STATION_ID,");
     expect(seam).toContain('LIBRARY_EDITOR_STATION_ID = "visual-vibes-editor"');
-    expect(desk).toContain("Use in the Visual Vibes Editor");
+    expect(desk).toContain('t("worldJoinSweep.libUseInEditor")');
+    expect(SWEEP.libUseInEditor).toBe("Use in the Visual Vibes Editor");
     /* The desk never builds the 2D deep link — no ?fx= eject. */
     expect(desk).not.toContain("useUrl");
     expect(desk).not.toContain("?fx=");
@@ -105,7 +112,8 @@ describe("each breadth drives its rail", () => {
     expect(desk).toContain("navigator.clipboard.writeText(snippet)");
     expect(desk).toContain("fontCssSnippet(font)");
     expect(desk).toContain("Copy font");
-    expect(desk).toContain("Copied!");
+    expect(desk).toContain('t("worldJoinSweep.libCopied")');
+    expect(SWEEP.libCopied).toBe("Copied!");
   });
 
   it("wishlist reads the seam path and removes ride the seam's DELETE path", () => {
@@ -123,12 +131,16 @@ describe("each breadth drives its rail", () => {
 
 describe("the honest states", () => {
   it("wishlist loading, empty and failed-with-retry render as themselves", () => {
-    expect(desk).toContain("Loading your wishlist…");
+    expect(desk).toContain('t("worldJoinSweep.libWishLoading")');
+    expect(SWEEP.libWishLoading).toBe("Loading your wishlist…");
     expect(desk).toContain('data-testid="world-library-desk-wishlist-empty"');
-    expect(desk).toContain("Nothing on your wishlist yet");
+    expect(desk).toContain('t("worldJoinSweep.libWishEmpty")');
+    expect(SWEEP.libWishEmpty).toContain("Nothing on your wishlist yet");
     expect(desk).toContain('data-testid="world-library-desk-wishlist-failed"');
-    expect(desk).toContain("wouldn&rsquo;t load");
-    expect(desk).toContain("Try again");
+    expect(desk).toContain('t("worldJoinSweep.libWishLoadFail")');
+    expect(SWEEP.libWishLoadFail).toContain("wouldn’t load");
+    expect(desk).toContain('t("worldJoinSweep.libTryAgain")');
+    expect(SWEEP.libTryAgain).toBe("Try again");
     /* A failed read is a failure: the failed branch renders
        before the items branch, never beside an empty shelf. */
     expect(desk.indexOf("wishFailed ?")).toBeLessThan(desk.indexOf("wishItems === null"));
@@ -139,15 +151,18 @@ describe("the honest states", () => {
 
   it("gone products are named as gone, drops spoken by the seam, remove still offered", () => {
     expect(desk).toContain("view.nowLabel === null");
-    expect(desk).toContain("isn&rsquo;t listed anymore");
-    expect(desk).toContain("wishlistDropLine(entry)");
+    expect(desk).toContain('t("worldJoinSweep.libGoneNote")');
+    expect(SWEEP.libGoneNote).toContain("isn’t listed anymore");
+    expect(desk).toContain('wishlistDropLine(entry, t("worldJoinSweep.libDropLine"))');
     expect(desk).toContain("wishlistPriceView(entry)");
-    expect(desk).toContain("Not on sale right now.");
+    expect(desk).toContain('t("worldJoinSweep.libNotOnSale")');
+    expect(SWEEP.libNotOnSale).toBe("Not on sale right now.");
     expect(desk).toContain("data-testid={`world-library-desk-remove-${entry.id}`}");
   });
 
   it("a refused remove restores the row and says so", () => {
-    expect(desk).toContain("That remove didn't land");
+    expect(desk).toContain('t("worldJoinSweep.libRemoveFailedNote")');
+    expect(SWEEP.libRemoveFailedNote).toContain("That remove didn't land");
     expect(desk).toContain("void loadWishlist()");
   });
 });

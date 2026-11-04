@@ -43,6 +43,12 @@ import {
   shopDomainVerifyHost,
 } from "@/lib/world/shop-stands";
 import { getCreditCost } from "@/lib/credit-costs";
+import en from "../../locales/en.json";
+
+/* JOIN SWEEP (phase-2 repair #6): the section's strings now resolve
+   through worldJoinSweep — pins assert the key references in the
+   source and the en values in the catalog. */
+const SWEEP = (en as { worldJoinSweep: Record<string, string> }).worldJoinSweep;
 
 const standsSrc = readFileSync(
   fileURLToPath(new URL("../../components/world/native/ShopStands.tsx", import.meta.url)),
@@ -245,7 +251,8 @@ describe("source pins — the section's wiring in ShopStands (Stack-100 #29)", (
 
   it("the returning session masks the token and offers the page's remedy — reconnect for a fresh one", () => {
     expect(sectionSrc).toContain("••••••••");
-    expect(sectionSrc).toContain("Reconnect for a fresh token");
+    expect(sectionSrc).toContain('t("worldJoinSweep.domainReconnect")');
+    expect(SWEEP.domainReconnect).toBe("Reconnect for a fresh token");
     expect(sectionSrc).toContain('data-testid="world-shop-domain-reconnect"');
   });
 

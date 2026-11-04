@@ -16,6 +16,13 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import en from "../../locales/en.json";
+
+/* JOIN SWEEP (phase-2 repair #6): the ladder's strings now resolve
+   through worldJoinSweep — the source pins below assert the key
+   references, and the catalog test asserts the en values carry the
+   exact sentences these pins used to find in the source. */
+const SWEEP = (en as { worldJoinSweep: Record<string, string> }).worldJoinSweep;
 
 const desk = readFileSync(
   new URL("../../components/world/native/CoachPlanLadder.tsx", import.meta.url),
@@ -36,7 +43,8 @@ describe("the standing — read from the entitlement rail, honestly", () => {
     expect(desk).toContain("COACH_LADDER_TIER_STALL_MS");
     expect(desk).toContain("NativeErrorState");
     expect(desk).toContain("onRetry={onRetryTier}");
-    expect(desk).toContain("Your plan wouldn't load");
+    expect(desk).toContain('t("worldJoinSweep.coachLoadFailTitle")');
+    expect(SWEEP.coachLoadFailTitle).toBe("Your plan wouldn't load");
     /* No fallback dressing anywhere: the standing is never
        defaulted to a tier the rail didn't state. */
     expect(desk).not.toMatch(/\?\?\s*"free"/);
@@ -69,9 +77,11 @@ describe("the ladder — the shared source, the pages' CTA derivation", () => {
   it("gates every paid door through paidPlanCta — a failed load retries the load, never a checkout", () => {
     expect(desk).toContain("paidPlanCta(plan.priceConfigured, plansLoadFailed)");
     expect(desk).toContain('cta === "retry-load"');
-    expect(desk).toContain("Couldn&rsquo;t load plans — tap to retry");
+    expect(desk).toContain('t("worldJoinSweep.coachRetryLoad")');
+    expect(SWEEP.coachRetryLoad).toBe("Couldn’t load plans — tap to retry");
     expect(desk).toContain('cta === "coming-soon"');
-    expect(desk).toContain("price coming soon");
+    expect(desk).toContain('t("worldJoinSweep.coachPriceComingSoon"');
+    expect(SWEEP.coachPriceComingSoon).toBe("{{name}} — price coming soon");
   });
 
   it("renders ALL of the shared source's inclusions as labels — no details links out of the World", () => {
@@ -81,9 +91,11 @@ describe("the ladder — the shared source, the pages' CTA derivation", () => {
   });
 
   it("marks the member's own card and offers no downgrade door on the Free card", () => {
-    expect(desk).toContain("Your current plan");
+    expect(desk).toContain('t("worldJoinSweep.coachCurrentPlan")');
+    expect(SWEEP.coachCurrentPlan).toBe("Your current plan");
     expect(desk).toContain('pricingCardCta("free", me.tier)');
-    expect(desk).toContain("Leaving a paid plan is a glide, not a switch");
+    expect(desk).toContain('t("worldJoinSweep.coachGlideNote")');
+    expect(SWEEP.coachGlideNote).toContain("Leaving a paid plan is a glide, not a switch");
   });
 });
 
@@ -106,7 +118,8 @@ describe("the upgrade door — the pricing page's embedded rails, in-desk", () =
     expect(desk).toContain('"/api/embedded-checkout/subscription/verify"');
     expect(desk).toContain("paymentIntentId");
     expect(desk).toContain("subscriptionId: embedded.subscriptionId");
-    expect(desk).toContain("Cancel — no charge");
+    expect(desk).toContain('t("worldJoinSweep.coachCancelNoCharge")');
+    expect(SWEEP.coachCancelNoCharge).toBe("Cancel — no charge");
   });
 
   it("a tier switch confirms on the pinned proration lines, then applies via /api/creator-tiers/change", () => {
@@ -134,7 +147,8 @@ describe("NEVER LEAVE THE SITE — no off-site door exists in this desk", () => 
 
   it("where embedded checkout cannot run, the door stops in the desk and says so", () => {
     expect(desk).toContain("hasStripePublishableKey()");
-    expect(desk).toContain(
+    expect(desk).toContain('t("worldJoinSweep.coachDoorNote")');
+    expect(SWEEP.coachDoorNote).toBe(
       "Plan checkout isn't switched on inside the World right now — your plan is unchanged and nothing was charged.",
     );
   });
