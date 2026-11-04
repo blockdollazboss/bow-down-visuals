@@ -313,6 +313,22 @@ async function streamBundle(
   });
   r.setHeader("Content-Type", "application/zip");
   r.setHeader("Content-Disposition", `attachment; filename="${pack.id}-${mode}-${kind}.zip"`);
+  /* A zip failure mid-stream must surface, never truncate silently
+     (Stack-100 item 33): before the first byte the download can still
+     answer honestly; after it, the only honest move is to cut the
+     connection so a partial file is never mistaken for a finished
+     bundle. Same pattern as the wallpapers pack download; without a
+     listener an archiver 'error' has nowhere to go — the route's
+     catch only answers while headers are unsent, so a post-header
+     failure would otherwise hang the download open. */
+  archive.on("error", (err) => {
+    logger.error({ err, packId: pack.id, kind }, "theme-kit bundle zip failed mid-stream");
+    if (!r.headersSent) {
+      r.status(500).json({ error: "DOWNLOAD_FAILED" });
+    } else {
+      r.destroy(err);
+    }
+  });
   archive.pipe(r);
   await archive.finalize();
 }
