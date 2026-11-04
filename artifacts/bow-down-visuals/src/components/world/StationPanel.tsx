@@ -203,6 +203,7 @@ const DjDesk = lazy(() => import("@/components/world/native/DjDesk").then((m) =>
 const SavedDesk = lazy(() => import("@/components/world/native/SavedDesk").then((m) => ({ default: m.SavedDesk })));
 const SetlistDesk = lazy(() => import("@/components/world/native/SetlistDesk").then((m) => ({ default: m.SetlistDesk })));
 const TourDesk = lazy(() => import("@/components/world/native/TourDesk").then((m) => ({ default: m.TourDesk })));
+const PublishDesk = lazy(() => import("@/components/world/native/PublishDesk").then((m) => ({ default: m.PublishDesk })));
 const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
 const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m) => ({ default: m.TeamDesk })));
 const TeamSeatsDesk = lazy(() => import("@/components/world/native/TeamSeatsDesk").then((m) => ({ default: m.TeamSeatsDesk })));
@@ -1300,6 +1301,16 @@ export default function StationPanel(props: StationPanelProps) {
                     Studio board beside the Setlist Builder. */}
                 <DeskDoor isLight={isLight}>
                   <TourDesk isLight={isLight} />
+                {/* Publish (stack1600 parity wave #4, desk #99):
+                    the /publish page's own surface — your tracks
+                    and videos on the free /api/publish rails:
+                    upload or link finished media, save drafts,
+                    go live on your profile, edit, take down,
+                    delete — stacked at the My Studio board. The
+                    desk and the page are two faces of one
+                    library. */}
+                <DeskDoor isLight={isLight}>
+                  <PublishDesk isLight={isLight} />
                 </DeskDoor>
                 {/* Catalog Import (stack1500 parity wave #3):
                     bring your catalog home — scan, fetch,
