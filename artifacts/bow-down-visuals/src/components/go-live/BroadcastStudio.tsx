@@ -28,6 +28,7 @@ import StreamDeck from "@/components/live/StreamDeck";
 import {
   ControllerStageClient,
   controllerSocketUrl,
+  parseChromaUpdate,
   type ControllerCommand,
   type ControllerSocketLike,
   type ControllerState,
@@ -1508,6 +1509,21 @@ export default function BroadcastStudio() {
     scenes: (stageRef.current?.scenes ?? []).map((s) => ({ id: s.id, name: s.name })),
     activeSceneId: stageRef.current?.programId ?? null,
     previewSceneId: stageRef.current?.previewId ?? null,
+    /* #95: the Preview scene's camera sources with their chroma
+       state — what a deck's per-source green-screen press is
+       confirmed against. Only camera sources ride (they are the
+       only sources with a mode to key); a source with no stored
+       settings publishes null, exactly what the stage falls back
+       from when it keys. */
+    cameraSources: (previewScene?.sources ?? [])
+      .filter((s) => s.type === "camera")
+      .map((s) => ({
+        sceneId: previewScene!.id,
+        sourceId: s.id,
+        name: s.name,
+        cameraMode: s.cameraMode ?? ("kit" as const),
+        chroma: s.chroma ? { ...s.chroma } : null,
+      })),
     micMuted: micInput?.muted ?? false,
     micPresent: micInput !== null,
     cameraOn: phase !== "off",
@@ -1537,6 +1553,31 @@ export default function BroadcastStudio() {
       case "transition.fade":
         st?.transition("fade");
         break;
+      case "scene.chroma.update": {
+        /* A deck's per-source green-screen change runs the
+           SourcesPanel's own write: Stage.updateSource on the
+           named scene's camera source — { cameraMode } alone for
+           the flip (the panel's mode-only patch; stored settings
+           persist), plus the key settings when keying. The
+           protocol validator is the only read of the args:
+           anything it rejects — and any scene or source that
+           isn't a camera source of that scene — applies nothing,
+           and the state published after cannot carry the confirm
+           signature, so the press expires honestly. */
+        const update = parseChromaUpdate(args);
+        if (st && update) {
+          const scene = st.sceneById(update.sceneId);
+          const source = scene?.sources.find((s) => s.id === update.sourceId);
+          if (scene && source && source.type === "camera") {
+            if (update.cameraMode === "kit") {
+              st.updateSource(scene.id, source.id, { cameraMode: "kit" });
+            } else {
+              st.updateSource(scene.id, source.id, { cameraMode: "chroma", chroma: update.chroma! });
+            }
+          }
+        }
+        break;
+      }
       case "mic.toggle": {
         const mixer = mixerRef.current;
         const mic = mixer?.getInputState("mic");
