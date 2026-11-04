@@ -13,6 +13,7 @@ import { GiftCardsDesk } from "./GiftCardsDesk";
 import { StoreGrowthDesk } from "./StoreGrowthDesk";
 import { DiscountCodesDesk } from "./DiscountCodesDesk";
 import { PaidSeriesDropsDesk } from "./PaidSeriesDropsDesk";
+import { ShoutoutsDesk } from "./ShoutoutsDesk";
 import { paidWithGiftCard } from "@/lib/world/gift-cards";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import { centsToDisplay, cartKey } from "@/lib/shops";
@@ -653,6 +654,13 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           unlocks and timed product drops, on their own rails,
           in the PaidSeriesDropsDesk below the square. */}
       <PaidSeriesDropsDesk isLight={isLight} isGuest={isGuest} />
+      {/* Shoutouts marketplace, buy-side (stack1500 parity wave
+          #4b, census item 27): browse the creators taking requests
+          and book one on the shoutout rails — payment embedded
+          first, new tab only at the money moment, verify on
+          return — plus the member's own selling settings, in the
+          ShoutoutsDesk below the square. */}
+      <ShoutoutsDesk isLight={isLight} isGuest={isGuest} />
       {/* Opening a shop (Stack-4 wave-2 #6) — the website's own
           create rail, offered only once the caller's mine read has
           landed (a signed-in member surface; guests and an unlanded

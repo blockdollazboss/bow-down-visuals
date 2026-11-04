@@ -204,6 +204,8 @@ const SetlistDesk = lazy(() => import("@/components/world/native/SetlistDesk").t
 const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
 const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m) => ({ default: m.TeamDesk })));
 const TeamSeatsDesk = lazy(() => import("@/components/world/native/TeamSeatsDesk").then((m) => ({ default: m.TeamSeatsDesk })));
+const MoveHomeDesk = lazy(() => import("@/components/world/native/MoveHomeDesk").then((m) => ({ default: m.MoveHomeDesk })));
+const IdentitySetsDesk = lazy(() => import("@/components/world/native/IdentitySetsDesk").then((m) => ({ default: m.IdentitySetsDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -1306,6 +1308,24 @@ export default function StationPanel(props: StationPanelProps) {
                     like the sign-in-gated /settings home. */}
                 <DeskDoor isLight={isLight}>
                   <TeamSeatsDesk isLight={isLight} />
+</DeskDoor>
+                {/* Move Home (stack1500 parity wave #4b, census
+                    item 31): the guided five-step setup — answers,
+                    the free draft run, per-step previews + typed
+                    editors, approve / skip / reopen — on the
+                    /api/move-home rails, stacked at the My Studio
+                    board. Members only, like the board itself. */}
+                <DeskDoor isLight={isLight}>
+                  <MoveHomeDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* Identity sets (stack1500 parity wave #4b,
+                    census item 38): each vault character's photo
+                    set — coverage, add / relabel / remove (owner
+                    only), and the pick-for-a-shot rail — on the
+                    /api/artist-vaults identity rails, stacked at
+                    the My Studio board. */}
+                <DeskDoor isLight={isLight}>
+                  <IdentitySetsDesk isLight={isLight} isGuest={isGuest} />
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
