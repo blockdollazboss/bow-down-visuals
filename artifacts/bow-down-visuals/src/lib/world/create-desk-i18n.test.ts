@@ -134,6 +134,11 @@ describe("Create core i18n — extraction", () => {
       "Quest progress — “{{title}}” is now {{progress}} of {{target}}.",
     );
     expect(EN.songOnePrice).toContain("{{total}} Visual Bucs");
+    /* The A/B player's gone-note spelled its apostrophes with the JSX
+       &rsquo; entity — the catalog carries the rendered ’ verbatim. */
+    expect(EN.abBeforeGone).toBe(
+      "The original isn’t at this desk anymore — only the {{label}} version can play, so there’s nothing to compare against.",
+    );
   });
 });
 
