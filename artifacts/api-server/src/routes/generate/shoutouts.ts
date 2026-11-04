@@ -258,6 +258,16 @@ function getStripe(): Stripe {
   return createGuardedStripeClient();
 }
 
+/* paymentsLive derives from the configured rail — the same truth the
+   checkout endpoint enforces (getStripe() throws → 503 when no key is
+   set), mirroring the tip jar's paymentsConfigured(). A hardcoded
+   false was honest in v1, before payment processing shipped (0142);
+   left in place it tells fans and desks that paid shoutouts don't
+   exist while priced requests settle through checkout. The flag must
+   never dress a dead rail up as live either — hence the derivation,
+   not a literal true. */
+const paymentsConfigured = () => !!process.env["STRIPE_SECRET_KEY"];
+
 /**
  * Deterministic Stripe idempotency key for a shoutout checkout. The
  * intent is the durable request row awaiting payment: repeat checkout
@@ -313,7 +323,7 @@ router.get("/shoutouts/creators", publicApiLimiter, async (_req, res) => {
       turnaroundDays: s.turnaround_days,
       guidelines: (s.guidelines ?? "").slice(0, 300),
     })),
-    paymentsLive: false, /* v1 honesty: requests only until payment processing ships */
+    paymentsLive: paymentsConfigured(),
   });
 });
 
