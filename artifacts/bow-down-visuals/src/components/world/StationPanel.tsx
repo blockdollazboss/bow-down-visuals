@@ -202,6 +202,7 @@ const DjDesk = lazy(() => import("@/components/world/native/DjDesk").then((m) =>
 const SavedDesk = lazy(() => import("@/components/world/native/SavedDesk").then((m) => ({ default: m.SavedDesk })));
 const SetlistDesk = lazy(() => import("@/components/world/native/SetlistDesk").then((m) => ({ default: m.SetlistDesk })));
 const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
+const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m) => ({ default: m.TeamDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -1275,6 +1276,18 @@ export default function StationPanel(props: StationPanelProps) {
                     Studio board. */}
                 <DeskDoor isLight={isLight}>
                   <CatalogImportDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Team Workspace (stack1500 parity wave #4a): the
+                    Team family — my teams + invites, the shared
+                    credit pool with funding, member roles, pool
+                    spending and the duo/group public profile on the
+                    /api/teams rails, in the room — stacked at the My
+                    Studio board like its neighbours. Members only,
+                    like the board itself and like the locked /team
+                    route on the website; under Shot Caller the desk
+                    renders the rail's own tier gate. */}
+                <DeskDoor isLight={isLight}>
+                  <TeamDesk isLight={isLight} />
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
