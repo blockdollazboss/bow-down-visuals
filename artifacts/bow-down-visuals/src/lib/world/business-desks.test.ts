@@ -390,7 +390,11 @@ describe("promote desk — link-in-bio full editing (#59)", () => {
     expect(bioPublishBlocker({ ...base, links: [] })).toContain("at least one link");
     expect(bioPublishBlocker(base)).toBeNull();
     expect(BIO_PUBLISH_COST_VISUAL_BUCS).toBe(100);
-    expect(BIO_PAGE_THEMES.map((t) => t.key)).toEqual(["gold-royal", "midnight-gold", "onyx-minimal"]);
+    expect(BIO_PAGE_THEMES.map((t) => t.key)).toEqual([
+      "gold-royal", "midnight-gold", "onyx-minimal",
+      "velvet-noir", "emerald-court", "smoke-platinum",
+      "golden-marble", "ivory-pearl", "rose-champagne",
+    ]);
   });
 
   it("publish result parses; the editor rides the real rails (source pins)", () => {

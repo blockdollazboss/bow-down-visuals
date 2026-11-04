@@ -796,6 +796,12 @@ export const BIO_PAGE_THEMES = [
   { key: "gold-royal", label: "Gold Royal" },
   { key: "midnight-gold", label: "Midnight Gold" },
   { key: "onyx-minimal", label: "Onyx Minimal" },
+  { key: "velvet-noir", label: "Velvet Noir" },
+  { key: "emerald-court", label: "Emerald Court" },
+  { key: "smoke-platinum", label: "Smoke Platinum" },
+  { key: "golden-marble", label: "Golden Marble" },
+  { key: "ivory-pearl", label: "Ivory Pearl" },
+  { key: "rose-champagne", label: "Rose Champagne" },
 ] as const;
 
 export const BIO_SOCIAL_FIELDS = [
