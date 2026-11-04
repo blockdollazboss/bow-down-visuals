@@ -3453,7 +3453,11 @@
     "the_streamer": "(der Streamer)",
     "what_the_api_server_can_see_righ": "Was der api-server gerade sehen kann.",
     "your_discord_user_id": "Ihre Discord-Nutzer-ID",
-    "your_user_id": "Ihre Nutzer-ID"
+    "your_user_id": "Ihre Nutzer-ID",
+    "notSetUp": "nicht eingerichtet",
+    "setupStateNote": "Noch nicht verbunden — nichts ist kaputt. Dies ist ein Einrichtungszustand: Sobald die Server-Schlüssel aus der Checkliste unten hinterlegt sind, schalten sich Installation und das Verkabelungsformular ein.",
+    "installNeedsClientId": "Die Installation ist aus, bis DISCORD_CLIENT_ID auf dem Server gesetzt ist — siehe Schritte 1 und 4 in der Checkliste unten.",
+    "wiringLockedNote": "Vorläufig gesperrt: Diese Einstellungen würden gespeichert, aber der Bot kann nichts ankündigen, bis er verbunden ist. Sie schalten sich ein, sobald die Server-Schlüssel hinterlegt sind."
   },
   "distribute": {
     "songs_load_error": "Deine Song-Bibliothek konnte nicht geladen werden — deine Songs sind sicher, sie konnten nur nicht erreicht werden.",
@@ -5771,7 +5775,7 @@
     "confirmLeave": "{{name}} verlassen?",
     "confirmRemove": "{{email}} aus dem Team entfernen?",
     "createTeam": "Team erstellen",
-    "createTeamHint": "Inklusive bei Shot Caller. Poolen Sie Ihre Visual Bucs, teilen Sie Artist-Vaults und kreieren Sie gemeinsam.",
+    "createTeamHint": "Wird bei Shot Caller (★4) freigeschaltet — ein verdienter Creator Rank, niemals ein kaufbarer Plan: Rangpunkte gibt es für veröffentlichte Arbeiten, Verkäufe und den Ausbau deiner Zielgruppe (300 Punkte für ★4). Legt eure Visual Bucs zusammen, teilt Künstler-Tresore und kreiert gemeinsam.",
     "createTeamTitle": "Ein Team erstellen",
     "creating": "Wird erstellt…",
     "decline": "Ablehnen",
@@ -13327,13 +13331,17 @@
   "outOfCredits": {
     "addedBtn": "Visual Bucs hinzugefügt!",
     "adding": "Hinzufügen…",
+    "balanceErrorTitle": "Dein Guthaben konnte nicht geprüft werden",
+    "balanceErrorBody": "Dein Guthaben wurde nicht übermittelt, daher können wir nicht feststellen, ob du genug Visual Bucs dafür hast. Versuche es erneut — es wurde nichts abgebucht.",
     "addTestBtn": "10 Test-Visual-Bucs hinzufügen (dev)",
     "body": "Nicht genug Visual Bucs. Bitte kaufe mehr Visual Bucs, um fortzufahren.",
     "buyBtn": "Mehr Visual Bucs kaufen",
+    "checkingBalance": "Dein Guthaben wird geprüft…",
     "dismissAria": "Schließen",
     "errAdd": "Visual Bucs konnten nicht hinzugefügt werden",
     "errFailed": "Fehlgeschlagen",
     "historyBtn": "Visual-Buc-Verlauf ansehen",
+    "retryBtn": "Erneut versuchen",
     "title": "Nicht genug Visual Bucs"
   },
   "showcasePublish": {

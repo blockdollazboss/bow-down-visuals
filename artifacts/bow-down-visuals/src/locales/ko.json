@@ -3453,7 +3453,11 @@
     "installUrlErrorRetry": "설치 URL을 만들 수 없습니다. 다시 시도하세요.",
     "saveConfiguration": "설정 저장",
     "set": "설정됨",
-    "missing": "누락됨"
+    "missing": "누락됨",
+    "notSetUp": "설정되지 않음",
+    "setupStateNote": "아직 연결되지 않았습니다 — 고장 난 것은 없습니다. 이것은 설정 상태입니다: 아래 체크리스트의 서버 키가 준비되면 설치와 연결 폼이 켜집니다.",
+    "installNeedsClientId": "설치는 서버에 DISCORD_CLIENT_ID가 설정될 때까지 꺼져 있습니다 — 아래 체크리스트의 1단계와 4단계를 참조하세요.",
+    "wiringLockedNote": "현재 잠겨 있습니다: 이 설정은 저장되지만, 봇은 연결되기 전까지 아무것도 공지할 수 없습니다. 서버 키가 준비되면 켜집니다."
   },
   "distribute": {
     "songs_load_error": "곡 라이브러리를 불러오지 못했습니다 — 곡은 안전하며, 접근하지 못했을 뿐입니다.",
@@ -5771,7 +5775,7 @@
     "confirmLeave": "{{name}}에서 나가시겠습니까?",
     "confirmRemove": "{{email}}님을 팀에서 제거하시겠습니까?",
     "createTeam": "팀 만들기",
-    "createTeamHint": "Shot Caller에 포함. Visual Bucs를 공유하고, 아티스트 볼트를 공유하며, 함께 만들어가세요.",
+    "createTeamHint": "Shot Caller (★4)에서 잠금 해제 — 획득하는 Creator Rank이며, 절대 구매할 수 있는 플랜이 아닙니다: 랭크 포인트는 작품 게시, 판매, 오디언스 성장에서 얻습니다 (★4까지 300 포인트). Visual Bucs를 모으고, 아티스트 보관함을 공유하고, 함께 만드세요.",
     "createTeamTitle": "팀 만들기",
     "creating": "만드는 중…",
     "decline": "거절",
@@ -12396,13 +12400,17 @@
   "outOfCredits": {
     "addedBtn": "Visual Bucs가 추가됐습니다!",
     "adding": "추가 중…",
+    "balanceErrorTitle": "잔액을 확인할 수 없습니다",
+    "balanceErrorBody": "잔액이 전송되지 않아, 이에 충분한 Visual Bucs가 있는지 확인할 수 없습니다. 다시 시도해 주세요 — 청구된 금액은 없습니다.",
     "addTestBtn": "테스트 Visual Bucs 10개 추가 (dev)",
     "body": "Visual Bucs가 부족합니다. 계속하려면 Visual Bucs를 더 구매하세요.",
     "buyBtn": "Visual Bucs 더 구매",
+    "checkingBalance": "잔액을 확인하는 중…",
     "dismissAria": "닫기",
     "errAdd": "Visual Bucs 추가 실패",
     "errFailed": "실패",
     "historyBtn": "Visual Buc 내역 보기",
+    "retryBtn": "다시 시도",
     "title": "Visual Bucs 부족"
   },
   "showcasePublish": {

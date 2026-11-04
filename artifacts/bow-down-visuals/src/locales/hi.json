@@ -3453,7 +3453,11 @@
     "the_streamer": "(streamer)",
     "what_the_api_server_can_see_righ": "Api-server अभी क्या देख सकता है।",
     "your_discord_user_id": "आपकी Discord user ID",
-    "your_user_id": "आपकी user ID"
+    "your_user_id": "आपकी user ID",
+    "notSetUp": "सेट अप नहीं है",
+    "setupStateNote": "अभी तक कनेक्ट नहीं हुआ — कुछ भी खराब नहीं है। यह एक सेटअप स्थिति है: नीचे दी गई चेकलिस्ट की सर्वर कुंजियाँ जगह पर आते ही, इंस्टॉल और वायरिंग फ़ॉर्म चालू हो जाएँगे।",
+    "installNeedsClientId": "इंस्टॉल तब तक बंद है जब तक DISCORD_CLIENT_ID सर्वर पर सेट न हो — नीचे दी गई चेकलिस्ट में चरण 1 और 4 देखें।",
+    "wiringLockedNote": "अभी लॉक है: ये सेटिंग्स सेव तो हो जाएँगी, लेकिन बॉट कनेक्ट होने तक कुछ भी घोषित नहीं कर सकता। सर्वर कुंजियाँ जगह पर आते ही ये चालू हो जाएँगी।"
   },
   "distribute": {
     "songs_load_error": "आपकी गानों की लाइब्रेरी लोड नहीं हो सकी — आपके गाने सुरक्षित हैं, यह बस उन तक पहुँच नहीं सका।",
@@ -5771,7 +5775,7 @@
     "confirmLeave": "{{name}} छोड़ें?",
     "confirmRemove": "{{email}} को टीम से हटाएं?",
     "createTeam": "टीम बनाएं",
-    "createTeamHint": "Shot Caller के साथ शामिल। अपने Visual Bucs पूल करें, आर्टिस्ट वॉल्ट शेयर करें, और साथ में बनाएं।",
+    "createTeamHint": "Shot Caller (★4) पर अनलॉक होता है — एक अर्जित Creator Rank, कभी खरीदा जा सकने वाला प्लान नहीं: रैंक पॉइंट काम प्रकाशित करने, बिक्री और अपने दर्शक बढ़ाने से मिलते हैं (★4 के लिए 300 पॉइंट)। अपने Visual Bucs एक साथ जोड़ें, आर्टिस्ट वॉल्ट साझा करें, और साथ मिलकर बनाएँ।",
     "createTeamTitle": "टीम बनाएं",
     "creating": "बन रही है…",
     "decline": "अस्वीकार करें",
@@ -12396,13 +12400,17 @@
   "outOfCredits": {
     "addedBtn": "Visual Bucs जुड़ गए!",
     "adding": "जोड़ा जा रहा है…",
+    "balanceErrorTitle": "हम आपका बैलेंस नहीं जांच सके",
+    "balanceErrorBody": "आपका बैलेंस प्राप्त नहीं हुआ, इसलिए हम यह नहीं बता सकते कि आपके पास इसके लिए पर्याप्त Visual Bucs हैं या नहीं। फिर से कोशिश करें — कुछ भी चार्ज नहीं हुआ।",
     "addTestBtn": "10 टेस्ट Visual Bucs जोड़ें (dev)",
     "body": "पर्याप्त Visual Bucs नहीं हैं। जारी रखने के लिए और Visual Bucs खरीदें।",
     "buyBtn": "और Visual Bucs खरीदें",
+    "checkingBalance": "आपका बैलेंस जांचा जा रहा है…",
     "dismissAria": "बंद करें",
     "errAdd": "Visual Bucs जोड़ने में विफल",
     "errFailed": "विफल",
     "historyBtn": "Visual Buc इतिहास देखें",
+    "retryBtn": "फिर से कोशिश करें",
     "title": "पर्याप्त Visual Bucs नहीं"
   },
   "showcasePublish": {

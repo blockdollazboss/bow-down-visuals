@@ -3460,7 +3460,11 @@
     "the_streamer": "(lo streamer)",
     "what_the_api_server_can_see_righ": "Cosa vede l'api-server in questo momento.",
     "your_discord_user_id": "Il tuo ID utente Discord",
-    "your_user_id": "Il tuo ID utente"
+    "your_user_id": "Il tuo ID utente",
+    "notSetUp": "non configurato",
+    "setupStateNote": "Non ancora connesso — non c'è nulla di rotto. Questo è uno stato di configurazione: una volta che le chiavi del server della checklist qui sotto saranno a posto, Installa e il modulo di cablaggio si attivano.",
+    "installNeedsClientId": "Installa è disattivato finché DISCORD_CLIENT_ID non è impostato sul server — vedi i passaggi 1 e 4 nella checklist qui sotto.",
+    "wiringLockedNote": "Bloccato per ora: queste impostazioni verrebbero salvate, ma il bot non può annunciare nulla finché non è connesso. Si attivano una volta che le chiavi del server sono a posto."
   },
   "distribute": {
     "songs_load_error": "Impossibile caricare la tua libreria di brani — i tuoi brani sono al sicuro, non è stato possibile raggiungerli.",
@@ -5783,7 +5787,7 @@
     "confirmLeave": "Lasciare {{name}}?",
     "confirmRemove": "Rimuovere {{email}} dal team?",
     "createTeam": "Crea team",
-    "createTeamHint": "Incluso con Shot Caller. Metti in comune i tuoi Visual Bucs, condividi gli artist vault e crea insieme.",
+    "createTeamHint": "Si sblocca a Shot Caller (★4) — un Creator Rank guadagnato, mai un piano che puoi comprare: i punti grado arrivano da lavori pubblicati, vendite e crescita del tuo pubblico (300 punti per ★4). Mettete insieme i vostri Visual Bucs, condividete le casseforti degli artisti e create insieme.",
     "createTeamTitle": "Crea un team",
     "creating": "Creazione…",
     "decline": "Rifiuta",
@@ -12416,13 +12420,17 @@
   "outOfCredits": {
     "addedBtn": "Visual Bucs aggiunti!",
     "adding": "Aggiunta…",
+    "balanceErrorTitle": "Non è stato possibile controllare il tuo saldo",
+    "balanceErrorBody": "Il tuo saldo non è arrivato, quindi non possiamo sapere se hai abbastanza Visual Bucs per questo. Riprova — non è stato addebitato nulla.",
     "addTestBtn": "Aggiungi 10 Visual Bucs di prova (dev)",
     "body": "Visual Bucs insufficienti. Acquista altri Visual Bucs per continuare.",
     "buyBtn": "Acquista altri Visual Bucs",
+    "checkingBalance": "Controllo del tuo saldo…",
     "dismissAria": "Ignora",
     "errAdd": "Impossibile aggiungere Visual Bucs",
     "errFailed": "Non riuscito",
     "historyBtn": "Vedi la cronologia dei Visual Bucs",
+    "retryBtn": "Riprova",
     "title": "Visual Bucs insufficienti"
   },
   "showcasePublish": {
