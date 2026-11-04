@@ -35,6 +35,11 @@ import {
   type WorldContestEntry,
 } from "./contests";
 import { STATION_BY_ID } from "./stations";
+import en from "../../locales/en.json";
+/* stack100 unit 50: the Kingdom Board renders through the
+   worldBoards catalog — the pin below asserts the KEY in the
+   board source and the English copy in the catalog. */
+const boards = (en as { worldBoards: Record<string, string> }).worldBoards;
 
 const CONTEST = {
   id: "c1",
@@ -195,6 +200,7 @@ describe("source pins — the door and the panel are wired", () => {
 
   it("the Kingdom Board's slate labels a contest as a contest", () => {
     const board = read("../../components/world/native/KingdomBoardBlocks.tsx");
-    expect(board).toContain('contest: "Contest"');
+    expect(board).toContain('contest: "worldBoards.kbEventContest"');
+    expect(boards.kbEventContest).toBe("Contest");
   });
 });

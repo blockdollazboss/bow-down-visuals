@@ -31,6 +31,11 @@
 import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import { parsePartyInvite, partyInviteUrl } from "./games-lobby";
+import en from "../../locales/en.json";
+/* stack100 unit 50: the blocks render through the worldBoards
+   catalog — pins below assert the KEY in the source and the
+   English copy in the catalog, so the coverage is unchanged. */
+const boards = (en as { worldBoards: Record<string, string> }).worldBoards;
 
 const blocks = readFileSync(
   new URL("../../components/world/native/KingdomBoardBlocks.tsx", import.meta.url),
@@ -63,14 +68,17 @@ describe("the Kingdom Board table card — copy door + full state", () => {
     expect(blocks).toContain("partyInviteUrl(window.location.origin, code)");
     expect(blocks).toContain("copyInvite(room.code)");
     expect(blocks).toContain("world-kingdom-party-invite-");
-    expect(blocks).toContain('copiedCode === room.code ? "Copied" : "Invite"');
+    expect(blocks).toContain('copiedCode === room.code ? t("worldBoards.kbCopied") : t("worldBoards.kbInvite")');
+    expect(boards.kbCopied).toBe("Copied");
+    expect(boards.kbInvite).toBe("Invite");
     expect(blocks).toContain("navigator.clipboard.writeText(url)");
   });
 
   it("a full table reads full and offers no seat; an open one still joins", () => {
     expect(blocks).toContain("partyTableSeatState(room)");
     expect(blocks).toContain("world-kingdom-party-full-");
-    expect(blocks).toContain("Table full");
+    expect(blocks).toContain('t("worldBoards.kbTableFull")');
+    expect(boards.kbTableFull).toBe("Table full");
     expect(blocks).toContain("world-kingdom-party-join-");
     expect(blocks).toContain("onJoinPartyTable(room)");
   });

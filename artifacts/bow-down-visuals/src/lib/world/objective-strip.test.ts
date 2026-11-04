@@ -36,6 +36,11 @@ import {
   type PalaceSlateEvent,
 } from "./objective-strip";
 import { normalizeLeaderboard } from "./treasury-quests";
+import en from "../../locales/en.json";
+/* stack100 unit 50: the board blocks render through the
+   worldBoards catalog — pins below assert the KEY in the source
+   and the English copy in the catalog, coverage unchanged. */
+const boards = (en as { worldBoards: Record<string, string> }).worldBoards;
 import {
   evaluateStreakCrossing,
   highestReachedMilestone,
@@ -454,8 +459,10 @@ describe("kingdom standings — top 5 + the viewer's own rank, nothing invented"
     expect(boardBlocksSrc).toContain("kingdomStandings(board)");
     expect(boardBlocksSrc).toContain('data-testid="world-kingdom-standings"');
     expect(boardBlocksSrc).toContain('data-testid="world-kingdom-today"');
-    expect(boardBlocksSrc).toContain("isn&rsquo;t carried by this rail");
-    expect(boardBlocksSrc).toContain("Nothing on today's slate at the palace.");
+    expect(boardBlocksSrc).toContain('t("worldBoards.kbStandingsHonorNote")');
+    expect(boards.kbStandingsHonorNote).toContain("isn’t carried by this rail");
+    expect(boardBlocksSrc).toContain('t("worldBoards.kbTodayEmpty")');
+    expect(boards.kbTodayEmpty).toBe("Nothing on today's slate at the palace.");
     // Members-only standings never fetch for a guest.
     expect(boardBlocksSrc).toContain("if (isGuest) return;");
   });
