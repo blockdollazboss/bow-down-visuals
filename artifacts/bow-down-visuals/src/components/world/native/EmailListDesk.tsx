@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Loader2, Mail, Network, Plus, Send, Sparkles, Trash2, Users, Zap } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -57,15 +58,15 @@ const selectCls = (isLight: boolean) =>
   }`;
 
 function GuestGate({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   return (
-    <NativeCard isLight={isLight} title="Email List — your fans, your list">
+    <NativeCard isLight={isLight} title={t("worldScheduleRelease.emailGuestTitle")}>
       <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-        The email desk works on your own lists, your own subscribers and your own fan graph —
-        guests can look around the palace, but this desk only opens for members.{" "}
+        {t("worldScheduleRelease.emailGuestBody")}{" "}
         <Link href="/login" className="font-bold text-[#d4af37] underline underline-offset-2">
-          Sign in
+          {t("worldScheduleRelease.emailGuestSignIn")}
         </Link>{" "}
-        and the desk is yours, right here in the room.
+        {t("worldScheduleRelease.emailGuestBodyAfter")}
       </p>
     </NativeCard>
   );
@@ -74,6 +75,7 @@ function GuestGate({ isLight }: { isLight: boolean }) {
 type LoadState = "loading" | "failed" | "ready";
 
 export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -144,7 +146,7 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
 
   const createList = async () => {
     if (!listReady(newList) || creatingList) {
-      setListNote("A list needs a name and a handle (3–40 letters, numbers or dashes).");
+      setListNote(t("worldScheduleRelease.emailListNeedsName"));
       return;
     }
     setCreatingList(true);
@@ -162,9 +164,9 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
         setLists((prev) => [created[0]!, ...prev]);
         setActiveListId(created[0].id);
         setNewList({ name: "", handle: "", description: "" });
-        setListNote("Your list is live — fans can join it from your join page and embeds.");
+        setListNote(t("worldScheduleRelease.emailListCreated"));
       }
-    } catch { setListNote("Couldn't create that list — the handle may already be taken."); }
+    } catch { setListNote(t("worldScheduleRelease.emailListCreateFailed")); }
     finally { setCreatingList(false); }
   };
 
@@ -216,14 +218,14 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       if (!res.ok) throw new Error("unsub");
       setSubscribers((prev) => prev.map((s) => (s.id === sub.id ? { ...s, unsubscribedAt: new Date().toISOString() } : s)));
       setUnsubArmed(null);
-      setSubNote(`${sub.email} is unsubscribed — they won't get campaign or welcome emails from this list anymore.`);
-    } catch { setSubNote("Couldn't unsubscribe that fan. Try again."); }
+      setSubNote(t("worldScheduleRelease.emailUnsubDone", { email: sub.email }));
+    } catch { setSubNote(t("worldScheduleRelease.emailUnsubFailed")); }
   };
 
   /* ── campaigns ── */
   const createCampaign = async () => {
     if (!activeListId || !campaignReady(campForm) || campBusy) {
-      setCampNote("A campaign needs a subject and a body.");
+      setCampNote(t("worldScheduleRelease.emailCampaignNeeds"));
       return;
     }
     setCampBusy(true);
@@ -239,8 +241,8 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       const row = parseCampaigns({ campaigns: [(data as { campaign?: unknown }).campaign] })[0];
       if (row) setCampaigns((prev) => [row, ...prev]);
       setCampForm({ subject: "", body: "" });
-      setCampNote("Draft saved — send it from the history below when you're ready.");
-    } catch { setCampNote("Couldn't save that campaign draft."); }
+      setCampNote(t("worldScheduleRelease.emailCampaignSaved"));
+    } catch { setCampNote(t("worldScheduleRelease.emailCampaignSaveFailed")); }
     finally { setCampBusy(false); }
   };
 
@@ -257,8 +259,8 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       if (!res.ok) throw new Error("send");
       const fresh = parseCampaigns({ campaigns: [(data as { campaign?: unknown }).campaign] })[0];
       if (fresh) setCampaigns((prev) => prev.map((x) => (x.id === fresh.id ? fresh : x)));
-      setCampNote("Send handed to the tracked email rail — the status above is stamped by the server, never by this desk.");
-    } catch { setCampNote("That campaign couldn't be sent from here — check its status and try again."); }
+      setCampNote(t("worldScheduleRelease.emailCampaignSent"));
+    } catch { setCampNote(t("worldScheduleRelease.emailCampaignSendFailed")); }
     finally { setCampBusy(false); }
   };
 
@@ -284,19 +286,19 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       if (res.status === 402) { setOutOfCredits(true); refreshProfile(); return; }
       const parsed = parseNewsletterDraft(data);
       if (!res.ok || !parsed) {
-        setNewsError("The newsletter draft didn't come together — a failed draft is refunded by the rail. Try again.");
+        setNewsError(t("worldScheduleRelease.emailNewsletterFailed"));
         return;
       }
       setDraft(parsed);
       refreshProfile();
-    } catch { setNewsError("The email desk didn't answer. Try again."); }
+    } catch { setNewsError(t("worldScheduleRelease.emailDeskNoAnswer")); }
     finally { setNewsBusy(false); }
   };
 
   const useDraftAsCampaign = () => {
     if (!draft) return;
     setCampForm({ subject: draft.subject, body: draft.body });
-    setCampNote("Draft loaded into the campaign form below — save it, then send when ready.");
+    setCampNote(t("worldScheduleRelease.emailDraftLoaded"));
   };
 
   /* ── automations ── */
@@ -316,7 +318,7 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
         setAutomations((prev) => prev.map((x) => (x.kind === fresh.kind ? fresh : x)));
         setAutoEdits((prev) => ({ ...prev, [fresh.kind]: { subject: fresh.subject, body: fresh.body, delayHours: String(fresh.delayHours) } }));
       }
-    } catch { setAutoNote("Couldn't save that automation. Try again."); }
+    } catch { setAutoNote(t("worldScheduleRelease.emailAutoSaveFailed")); }
   };
 
   /* ── fan graph ── */
@@ -346,15 +348,15 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
 
   return (
     <div data-testid="world-email-list-desk" className="space-y-4">
-      <NativeCard isLight={isLight} title="Email List — subscribers">
-        {listsState === "loading" ? <NativeLoadingState isLight={isLight} message="Loading your lists…" /> : null}
+      <NativeCard isLight={isLight} title={t("worldScheduleRelease.emailListsTitle")}>
+        {listsState === "loading" ? <NativeLoadingState isLight={isLight} message={t("worldScheduleRelease.emailListsLoading")} /> : null}
         {listsState === "failed" ? (
-          <NativeErrorState isLight={isLight} message="Your lists couldn't load — the rest of the room is unaffected." onRetry={() => setListsTick((t) => t + 1)} />
+          <NativeErrorState isLight={isLight} message={t("worldScheduleRelease.emailListsLoadFailed")} onRetry={() => setListsTick((n) => n + 1)} />
         ) : null}
         {listsState === "ready" ? (
           <div className="space-y-3">
             {lists.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Your email lists">
+              <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldScheduleRelease.emailListsTabsAria")}>
                 {lists.map((l) => (
                   <button key={l.id} type="button" className={chipBtn(isLight, l.id === activeListId)} onClick={() => setActiveListId(l.id)}>
                     {l.name || l.handle}
@@ -362,30 +364,30 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                 ))}
               </div>
             ) : (
-              <NativeEmptyState isLight={isLight} message="No list yet — create your first one below and fans can start joining." />
+              <NativeEmptyState isLight={isLight} message={t("worldScheduleRelease.emailNoLists")} />
             )}
             {activeList ? (
               <p className={`text-xs ${muted}`}>
-                Join handle: <span className={strong}>/join/{activeList.handle}</span>
-                {stats ? <> · {stats.active} active of {stats.total} signups · {openRateLabel(stats)}</> : null}
+                {t("worldScheduleRelease.emailJoinHandleLabel")} <span className={strong}>/join/{activeList.handle}</span>
+                {stats ? <> · {t("worldScheduleRelease.emailStatsLine", { active: stats.active, total: stats.total })} · {openRateLabel(stats, { notTrackedYet: t("worldScheduleRelease.emailOpenRateNotTracked"), openRate: t("worldScheduleRelease.emailOpenRate") })}</> : null}
               </p>
             ) : null}
             <div className="grid gap-2 sm:grid-cols-3">
-              <input aria-label="New list name" className={deskInputCls(isLight)} value={newList.name} maxLength={120} onChange={(e) => setNewList({ ...newList, name: e.target.value })} placeholder="List name" />
-              <input aria-label="New list handle" className={deskInputCls(isLight)} value={newList.handle} maxLength={40} onChange={(e) => setNewList({ ...newList, handle: e.target.value })} placeholder="handle (e.g. my-fans)" />
-              <input aria-label="New list description" className={deskInputCls(isLight)} value={newList.description} maxLength={300} onChange={(e) => setNewList({ ...newList, description: e.target.value })} placeholder="What fans get" />
+              <input aria-label={t("worldScheduleRelease.emailListNameAria")} className={deskInputCls(isLight)} value={newList.name} maxLength={120} onChange={(e) => setNewList({ ...newList, name: e.target.value })} placeholder={t("worldScheduleRelease.emailListNamePlaceholder")} />
+              <input aria-label={t("worldScheduleRelease.emailListHandleAria")} className={deskInputCls(isLight)} value={newList.handle} maxLength={40} onChange={(e) => setNewList({ ...newList, handle: e.target.value })} placeholder={t("worldScheduleRelease.emailListHandlePlaceholder")} />
+              <input aria-label={t("worldScheduleRelease.emailListDescAria")} className={deskInputCls(isLight)} value={newList.description} maxLength={300} onChange={(e) => setNewList({ ...newList, description: e.target.value })} placeholder={t("worldScheduleRelease.emailListDescPlaceholder")} />
             </div>
             <button type="button" data-testid="world-email-list-create" className={goldBtn} disabled={creatingList} onClick={() => void createList()}>
-              {creatingList ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Create list
+              {creatingList ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {t("worldScheduleRelease.emailCreateList")}
             </button>
             {listNote ? <p className={`text-xs ${muted}`}>{listNote}</p> : null}
 
             {activeListId ? (
               <>
-                {subsState === "loading" ? <NativeLoadingState isLight={isLight} message="Loading subscribers…" /> : null}
-                {subsState === "failed" ? <NativeErrorState isLight={isLight} message="Subscribers couldn't load for this list." onRetry={() => setPanelsTick((t) => t + 1)} /> : null}
+                {subsState === "loading" ? <NativeLoadingState isLight={isLight} message={t("worldScheduleRelease.emailSubsLoading")} /> : null}
+                {subsState === "failed" ? <NativeErrorState isLight={isLight} message={t("worldScheduleRelease.emailSubsLoadFailed")} onRetry={() => setPanelsTick((n) => n + 1)} /> : null}
                 {subsState === "ready" && subscribers.length === 0 ? (
-                  <NativeEmptyState isLight={isLight} message="No subscribers yet — share your join handle and this board fills in." />
+                  <NativeEmptyState isLight={isLight} message={t("worldScheduleRelease.emailNoSubs")} />
                 ) : null}
                 {subsState === "ready" && subscribers.length > 0 ? (
                   <div className="space-y-1.5" data-testid="world-email-list-subscribers">
@@ -393,15 +395,15 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                       <div key={s.id} className="flex flex-wrap items-center gap-2">
                         <Users className="h-3.5 w-3.5 text-[#d4af37]" />
                         <span className={`text-sm ${strong}`}>{s.name ? `${s.name} · ` : ""}{s.email}</span>
-                        <span className={`text-[11px] ${muted}`}>{s.source} · {s.opens} opens · {s.clicks} clicks</span>
-                        {[...s.tags, ...s.autoTags].map((t) => (
-                          <span key={t} className="rounded-full border border-[#d4af37]/40 bg-[#d4af37]/10 px-2 py-0.5 text-[11px] font-semibold text-[#e8c86a]">{t}</span>
+                        <span className={`text-[11px] ${muted}`}>{t("worldScheduleRelease.emailSubMeta", { source: s.source, opens: s.opens, clicks: s.clicks })}</span>
+                        {[...s.tags, ...s.autoTags].map((tag) => (
+                          <span key={tag} className="rounded-full border border-[#d4af37]/40 bg-[#d4af37]/10 px-2 py-0.5 text-[11px] font-semibold text-[#e8c86a]">{tag}</span>
                         ))}
                         {s.unsubscribedAt ? (
-                          <span className={`text-[11px] ${muted}`}>Unsubscribed</span>
+                          <span className={`text-[11px] ${muted}`}>{t("worldScheduleRelease.emailUnsubscribed")}</span>
                         ) : (
                           <button type="button" className={chipBtn(isLight, unsubArmed === s.id)} onClick={() => (unsubArmed === s.id ? void unsubscribeFan(s) : setUnsubArmed(s.id))}>
-                            {unsubArmed === s.id ? "Tap again to unsubscribe" : "Unsubscribe"}
+                            {unsubArmed === s.id ? t("worldScheduleRelease.emailUnsubscribeArmed") : t("worldScheduleRelease.emailUnsubscribe")}
                           </button>
                         )}
                       </div>
@@ -411,7 +413,7 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                 {subNote ? <p className={`text-xs ${muted}`}>{subNote}</p> : null}
                 {segments.length > 0 ? (
                   <p className={`text-xs ${muted}`} data-testid="world-email-list-segments">
-                    Saved audiences: {segments.map((s) => `${s.name} (${s.size})`).join(" · ")}
+                    {t("worldScheduleRelease.emailSegmentsLine", { list: segments.map((s) => `${s.name} (${s.size})`).join(" · ") })}
                   </p>
                 ) : null}
               </>
@@ -420,33 +422,33 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
         ) : null}
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="Newsletter + campaigns">
+      <NativeCard isLight={isLight} title={t("worldScheduleRelease.emailNewsletterTitle")}>
         <div className="space-y-2">
-          <input aria-label="Newsletter topic" className={deskInputCls(isLight)} value={newsForm.topic} maxLength={500} onChange={(e) => setNewsForm({ ...newsForm, topic: e.target.value })} placeholder="What's the newsletter about?" />
+          <input aria-label={t("worldScheduleRelease.emailTopicAria")} className={deskInputCls(isLight)} value={newsForm.topic} maxLength={500} onChange={(e) => setNewsForm({ ...newsForm, topic: e.target.value })} placeholder={t("worldScheduleRelease.emailTopicPlaceholder")} />
           <div className="flex flex-wrap gap-2">
-            <select aria-label="Newsletter tone" className={selectCls(isLight)} value={newsForm.tone} onChange={(e) => setNewsForm({ ...newsForm, tone: e.target.value })}>
-              {NEWSLETTER_TONES.map((t) => (<option key={t} value={t}>{t}</option>))}
+            <select aria-label={t("worldScheduleRelease.emailToneAria")} className={selectCls(isLight)} value={newsForm.tone} onChange={(e) => setNewsForm({ ...newsForm, tone: e.target.value })}>
+              {NEWSLETTER_TONES.map((tone) => (<option key={tone} value={tone}>{tone}</option>))}
             </select>
-            <input aria-label="Your creator name" className={`${deskInputCls(isLight)} max-w-56`} value={newsForm.creatorName} maxLength={120} onChange={(e) => setNewsForm({ ...newsForm, creatorName: e.target.value })} placeholder="Your creator name" />
-            <input aria-label="Call to action" className={`${deskInputCls(isLight)} max-w-56`} value={newsForm.callToAction} maxLength={300} onChange={(e) => setNewsForm({ ...newsForm, callToAction: e.target.value })} placeholder="Call to action (optional)" />
+            <input aria-label={t("worldScheduleRelease.emailCreatorNameAria")} className={`${deskInputCls(isLight)} max-w-56`} value={newsForm.creatorName} maxLength={120} onChange={(e) => setNewsForm({ ...newsForm, creatorName: e.target.value })} placeholder={t("worldScheduleRelease.emailCreatorNamePlaceholder")} />
+            <input aria-label={t("worldScheduleRelease.emailCtaAria")} className={`${deskInputCls(isLight)} max-w-56`} value={newsForm.callToAction} maxLength={300} onChange={(e) => setNewsForm({ ...newsForm, callToAction: e.target.value })} placeholder={t("worldScheduleRelease.emailCtaPlaceholder")} />
           </div>
           <button type="button" data-testid="world-email-newsletter-generate" className={goldBtn} disabled={newsBusy || !newsletterReady(newsForm)} onClick={() => void writeNewsletter()}>
             {newsBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Write my newsletter · {EMAIL_NEWSLETTER_COST_VISUAL_BUCS} VB
+            {t("worldScheduleRelease.emailWriteNewsletter", { cost: EMAIL_NEWSLETTER_COST_VISUAL_BUCS })}
           </button>
-          {outOfCredits ? <p className="text-xs text-red-300">You&apos;re out of Visual Bucs — top up to keep writing newsletters.</p> : null}
+          {outOfCredits ? <p className="text-xs text-red-300">{t("worldScheduleRelease.emailOutOfBucs")}</p> : null}
           {newsError ? <p className="text-xs text-red-300">{newsError}</p> : null}
           {draft ? (
             <div data-testid="world-email-newsletter-result" className="space-y-1">
               <p className={`text-sm font-bold ${strong}`}>{draft.subject}</p>
               <p className={`whitespace-pre-wrap text-sm ${muted}`}>{draft.body}</p>
-              <button type="button" className={chipBtn(isLight)} onClick={useDraftAsCampaign}>Use as a campaign</button>
+              <button type="button" className={chipBtn(isLight)} onClick={useDraftAsCampaign}>{t("worldScheduleRelease.emailUseAsCampaign")}</button>
             </div>
           ) : null}
-          <input aria-label="Campaign subject" className={deskInputCls(isLight)} value={campForm.subject} maxLength={200} onChange={(e) => setCampForm({ ...campForm, subject: e.target.value })} placeholder="Campaign subject" />
-          <textarea aria-label="Campaign body" className={deskInputCls(isLight)} rows={4} value={campForm.body} maxLength={50000} onChange={(e) => setCampForm({ ...campForm, body: e.target.value })} placeholder="Campaign body" />
+          <input aria-label={t("worldScheduleRelease.emailCampaignSubjectAria")} className={deskInputCls(isLight)} value={campForm.subject} maxLength={200} onChange={(e) => setCampForm({ ...campForm, subject: e.target.value })} placeholder={t("worldScheduleRelease.emailCampaignSubjectPlaceholder")} />
+          <textarea aria-label={t("worldScheduleRelease.emailCampaignBodyAria")} className={deskInputCls(isLight)} rows={4} value={campForm.body} maxLength={50000} onChange={(e) => setCampForm({ ...campForm, body: e.target.value })} placeholder={t("worldScheduleRelease.emailCampaignBodyPlaceholder")} />
           <button type="button" data-testid="world-email-campaign-create" className={chipBtn(isLight)} disabled={campBusy || !activeListId} onClick={() => void createCampaign()}>
-            <Mail className="h-3.5 w-3.5" /> Save campaign draft
+            <Mail className="h-3.5 w-3.5" /> {t("worldScheduleRelease.emailSaveCampaign")}
           </button>
           {campNote ? <p className={`text-xs ${muted}`}>{campNote}</p> : null}
           {campaigns.length > 0 ? (
@@ -454,10 +456,10 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
               {campaigns.slice(0, 20).map((c) => (
                 <div key={c.id} className="flex flex-wrap items-center gap-2">
                   <span className={`text-sm ${strong}`}>{c.subject}</span>
-                  <span className={`text-[11px] ${muted}`}>{c.status} · {c.deliveredCount}/{c.recipientCount} delivered · {c.openCount} opens · {c.clickCount} clicks</span>
+                  <span className={`text-[11px] ${muted}`}>{t("worldScheduleRelease.emailCampaignMeta", { status: c.status, delivered: c.deliveredCount, total: c.recipientCount, opens: c.openCount, clicks: c.clickCount })}</span>
                   {campaignSendable(c) ? (
                     <button type="button" className={chipBtn(isLight)} disabled={campBusy} onClick={() => void sendCampaign(c)}>
-                      <Send className="h-3.5 w-3.5" /> Send
+                      <Send className="h-3.5 w-3.5" /> {t("worldScheduleRelease.emailSend")}
                     </button>
                   ) : null}
                 </div>
@@ -467,10 +469,10 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
         </div>
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="Automations">
-        {autoState === "loading" && activeListId ? <NativeLoadingState isLight={isLight} message="Loading automations…" /> : null}
-        {!activeListId ? <NativeEmptyState isLight={isLight} message="Pick or create a list above — its automations live here." /> : null}
-        {autoState === "failed" ? <NativeErrorState isLight={isLight} message="Automations couldn't load for this list." onRetry={() => setPanelsTick((t) => t + 1)} /> : null}
+      <NativeCard isLight={isLight} title={t("email-list.automations")}>
+        {autoState === "loading" && activeListId ? <NativeLoadingState isLight={isLight} message={t("worldScheduleRelease.emailAutosLoading")} /> : null}
+        {!activeListId ? <NativeEmptyState isLight={isLight} message={t("worldScheduleRelease.emailAutosEmpty")} /> : null}
+        {autoState === "failed" ? <NativeErrorState isLight={isLight} message={t("worldScheduleRelease.emailAutosLoadFailed")} onRetry={() => setPanelsTick((n) => n + 1)} /> : null}
         {autoNote ? <p className="text-xs text-red-300">{autoNote}</p> : null}
         <div className="space-y-3" data-testid="world-email-automations">
           {automations.map((a) => {
@@ -481,19 +483,19 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                   <Zap className="h-3.5 w-3.5 text-[#d4af37]" />
                   <span className={`text-sm font-bold ${strong}`}>{a.label}</span>
                   <button type="button" data-testid={`world-email-automation-toggle-${a.kind}`} className={chipBtn(isLight, a.enabled)} onClick={() => void patchAutomation(a, buildAutomationToggle(a))}>
-                    {a.enabled ? "On — tap to switch off" : "Off — tap to switch on"}
+                    {a.enabled ? t("worldScheduleRelease.emailAutoOn") : t("worldScheduleRelease.emailAutoOff")}
                   </button>
-                  <span className={`text-[11px] ${muted}`}>{a.sent} sent · {a.delivered} delivered · {a.opens} opens · {a.clicks} clicks</span>
+                  <span className={`text-[11px] ${muted}`}>{t("worldScheduleRelease.emailAutoMeta", { sent: a.sent, delivered: a.delivered, opens: a.opens, clicks: a.clicks })}</span>
                 </div>
                 <p className={`text-xs ${muted}`}>{a.triggerNote}</p>
-                <input aria-label={`${a.label} subject`} className={deskInputCls(isLight)} value={edit.subject} maxLength={200} onChange={(e) => setAutoEdits({ ...autoEdits, [a.kind]: { ...edit, subject: e.target.value } })} placeholder="Subject" />
-                <textarea aria-label={`${a.label} body`} className={deskInputCls(isLight)} rows={2} value={edit.body} maxLength={50000} onChange={(e) => setAutoEdits({ ...autoEdits, [a.kind]: { ...edit, body: e.target.value } })} placeholder="Body" />
+                <input aria-label={t("worldScheduleRelease.emailAutoSubjectAria", { label: a.label })} className={deskInputCls(isLight)} value={edit.subject} maxLength={200} onChange={(e) => setAutoEdits({ ...autoEdits, [a.kind]: { ...edit, subject: e.target.value } })} placeholder={t("worldScheduleRelease.emailAutoSubjectPlaceholder")} />
+                <textarea aria-label={t("worldScheduleRelease.emailAutoBodyAria", { label: a.label })} className={deskInputCls(isLight)} rows={2} value={edit.body} maxLength={50000} onChange={(e) => setAutoEdits({ ...autoEdits, [a.kind]: { ...edit, body: e.target.value } })} placeholder={t("worldScheduleRelease.emailAutoBodyPlaceholder")} />
                 <div className="flex flex-wrap items-center gap-2">
-                  <label className={`text-[11px] ${muted}`}>Delay (hours)
-                    <input aria-label={`${a.label} delay hours`} type="number" min={0} max={720} className={`${deskInputCls(isLight)} ml-2 w-24`} value={edit.delayHours} onChange={(e) => setAutoEdits({ ...autoEdits, [a.kind]: { ...edit, delayHours: e.target.value } })} />
+                  <label className={`text-[11px] ${muted}`}>{t("worldScheduleRelease.emailAutoDelayLabel")}
+                    <input aria-label={t("worldScheduleRelease.emailAutoDelayAria", { label: a.label })} type="number" min={0} max={720} className={`${deskInputCls(isLight)} ml-2 w-24`} value={edit.delayHours} onChange={(e) => setAutoEdits({ ...autoEdits, [a.kind]: { ...edit, delayHours: e.target.value } })} />
                   </label>
                   <button type="button" className={chipBtn(isLight)} onClick={() => void patchAutomation(a, buildAutomationCopyPatch({ subject: edit.subject, body: edit.body, delayHours: Number(edit.delayHours) }))}>
-                    Save copy
+                    {t("worldScheduleRelease.emailAutoSaveCopy")}
                   </button>
                 </div>
               </div>
@@ -502,27 +504,26 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
         </div>
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="Fan Graph — every fan, one view">
+      <NativeCard isLight={isLight} title={t("worldScheduleRelease.emailFanTitle")}>
         {fanSummary ? (
           <p className={`text-xs ${muted}`} data-testid="world-fan-graph-summary">
-            {fanSummary.totalFans} fans · {fanSummary.followers} followers · {fanSummary.subscribers} subscribers ·{" "}
-            {fanSummary.members} members · {fanSummary.buyers} buyers
+            {t("worldScheduleRelease.emailFanSummary", { fans: fanSummary.totalFans, followers: fanSummary.followers, subscribers: fanSummary.subscribers, members: fanSummary.members, buyers: fanSummary.buyers })}
             {fanSummary.totalSpentUsdCents > 0 || fanSummary.totalSpentVb > 0
-              ? ` · spent $${(fanSummary.totalSpentUsdCents / 100).toFixed(2)}${fanSummary.totalSpentVb > 0 ? ` · ${fanSummary.totalSpentVb.toLocaleString()} VB` : ""}`
+              ? t("worldScheduleRelease.emailFanSpentPart", { amount: `$${(fanSummary.totalSpentUsdCents / 100).toFixed(2)}${fanSummary.totalSpentVb > 0 ? ` · ${fanSummary.totalSpentVb.toLocaleString(i18n.language)} VB` : ""}` })
               : ""}
           </p>
         ) : null}
         <div className="mt-2 flex flex-wrap gap-2">
-          <input aria-label="Search fans" className={`${deskInputCls(isLight)} max-w-64`} value={fanSearch} maxLength={120} onChange={(e) => setFanSearch(e.target.value)} placeholder="Search fans" />
-          <button type="button" className={chipBtn(isLight)} onClick={() => { setFanPage(1); setFanTick((t) => t + 1); }}>Search</button>
-          <select aria-label="Sort fans" className={selectCls(isLight)} value={fanSort} onChange={(e) => { setFanSort(e.target.value); setFanPage(1); }}>
+          <input aria-label={t("worldScheduleRelease.emailFanSearchAria")} className={`${deskInputCls(isLight)} max-w-64`} value={fanSearch} maxLength={120} onChange={(e) => setFanSearch(e.target.value)} placeholder={t("worldScheduleRelease.emailFanSearchPlaceholder")} />
+          <button type="button" className={chipBtn(isLight)} onClick={() => { setFanPage(1); setFanTick((n) => n + 1); }}>{t("worldScheduleRelease.emailFanSearchButton")}</button>
+          <select aria-label={t("worldScheduleRelease.emailFanSortAria")} className={selectCls(isLight)} value={fanSort} onChange={(e) => { setFanSort(e.target.value); setFanPage(1); }}>
             {FAN_GRAPH_SORTS.map((s) => (<option key={s} value={s}>{s}</option>))}
           </select>
         </div>
-        {fanState === "loading" ? <NativeLoadingState isLight={isLight} message="Loading your fan graph…" /> : null}
-        {fanState === "failed" ? <NativeErrorState isLight={isLight} message="Your fan graph couldn't load." onRetry={() => setFanTick((t) => t + 1)} /> : null}
+        {fanState === "loading" ? <NativeLoadingState isLight={isLight} message={t("worldScheduleRelease.emailFanLoading")} /> : null}
+        {fanState === "failed" ? <NativeErrorState isLight={isLight} message={t("worldScheduleRelease.emailFanLoadFailed")} onRetry={() => setFanTick((n) => n + 1)} /> : null}
         {fanState === "ready" && fans.length === 0 ? (
-          <NativeEmptyState isLight={isLight} message="No fans in the graph yet — followers, subscribers, members and buyers merge here as they arrive." />
+          <NativeEmptyState isLight={isLight} message={t("worldScheduleRelease.emailFanEmpty")} />
         ) : null}
         {fanState === "ready" && fans.length > 0 ? (
           <div className="mt-2 space-y-1.5" data-testid="world-fan-graph-fans">
@@ -531,22 +532,30 @@ export function EmailListDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                 <Network className="h-3.5 w-3.5 text-[#d4af37]" />
                 <span className={`text-sm ${strong}`}>{f.displayName ?? f.email ?? f.id}</span>
                 {f.displayName && f.email ? <span className={`text-[11px] ${muted}`}>{f.email}</span> : null}
-                {fanBadges(f).map((b) => (
+                {fanBadges(f, {
+                  follows: t("worldScheduleRelease.emailBadgeFollows"),
+                  subscribed: t("email-list.fan_graph_subscribed_badge"),
+                  unsubscribed: t("email-list.fan_graph_unsubscribed_badge"),
+                  member: t("email-list.fan_graph_member_badge"),
+                  memberTier: t("worldScheduleRelease.emailBadgeMemberTier"),
+                  purchaseOne: t("worldScheduleRelease.emailBadgePurchaseOne"),
+                  purchases: t("worldScheduleRelease.emailBadgePurchases"),
+                }).map((b) => (
                   <span key={b} className="rounded-full border border-[#d4af37]/40 bg-[#d4af37]/10 px-2 py-0.5 text-[11px] font-semibold text-[#e8c86a]">{b}</span>
                 ))}
-                {fanSpentLabel(f) ? <span className={`text-[11px] ${muted}`}>Spent {fanSpentLabel(f)}</span> : null}
+                {fanSpentLabel(f, i18n.language) ? <span className={`text-[11px] ${muted}`}>{t("worldScheduleRelease.emailFanSpentLabel", { amount: fanSpentLabel(f, i18n.language) })}</span> : null}
               </div>
             ))}
           </div>
         ) : null}
         {fanTotal > 25 ? (
           <div className="mt-2 flex items-center gap-2">
-            <button type="button" className={chipBtn(isLight)} disabled={fanPage <= 1} onClick={() => setFanPage((p) => Math.max(1, p - 1))}>Previous</button>
+            <button type="button" className={chipBtn(isLight)} disabled={fanPage <= 1} onClick={() => setFanPage((p) => Math.max(1, p - 1))}>{t("email-list.fan_graph_prev")}</button>
             <span className={`text-xs ${muted}`}>{fanPage} / {fanPages}</span>
-            <button type="button" className={chipBtn(isLight)} disabled={fanPage >= fanPages} onClick={() => setFanPage((p) => Math.min(fanPages, p + 1))}>Next</button>
+            <button type="button" className={chipBtn(isLight)} disabled={fanPage >= fanPages} onClick={() => setFanPage((p) => Math.min(fanPages, p + 1))}>{t("email-list.fan_graph_next")}</button>
           </div>
         ) : null}
-        <p className={`mt-2 flex items-center gap-1 text-[11px] ${muted}`}><Trash2 className="hidden" />Read-only — the graph displays your fans; it never writes them.</p>
+        <p className={`mt-2 flex items-center gap-1 text-[11px] ${muted}`}><Trash2 className="hidden" />{t("worldScheduleRelease.emailFanReadOnly")}</p>
       </NativeCard>
     </div>
   );

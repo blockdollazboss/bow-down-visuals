@@ -83,7 +83,7 @@ describe("the desk rides the family's rails end to end", () => {
       "fanBadges",
       'data-testid="world-fan-graph-summary"',
       'data-testid="world-fan-graph-fans"',
-      "Read-only — the graph displays your fans; it never writes them.",
+      "worldScheduleRelease.emailFanReadOnly",
     ]) {
       expect(desk, needle).toContain(needle);
     }

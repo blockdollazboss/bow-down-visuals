@@ -16104,6 +16104,7 @@
     "emailAutoSaveCopy": "Save copy",
     "emailFanTitle": "Fan Graph — every fan, one view",
     "emailFanSummary": "{{fans}} fans · {{followers}} followers · {{subscribers}} subscribers · {{members}} members · {{buyers}} buyers",
+    "emailFanSpentLabel": "Spent {{amount}}",
     "emailFanSpentPart": " · spent {{amount}}",
     "emailFanSearchAria": "Search fans",
     "emailFanSearchPlaceholder": "Search fans",
