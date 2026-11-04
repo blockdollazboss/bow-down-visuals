@@ -652,11 +652,7 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
           {TEAM_TIER_GATE_MESSAGE}
         </p>
         <p className={`mt-1 text-sm ${subCls}`}>
-          Creating a team — a shared Visual Buc pool, member roles and shared
-          vaults — unlocks at Shot Caller (★4) and up. Shot Caller is an earned
-          Creator Rank, never a plan you can buy: rank points come from
-          publishing work, completed exports, followers, streams, tips, sales
-          and paid memberships — ★4 takes 300 points.
+          {t("worldTeamLegal.teamTierGateNote")}
         </p>
         {withInviteNote ? (
           <p className={`mt-2 text-sm ${subCls}`}>

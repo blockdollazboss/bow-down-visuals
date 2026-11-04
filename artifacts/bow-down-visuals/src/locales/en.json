@@ -21929,11 +21929,11 @@
     "storeFooter": "Buying finishes right here in the room — the payment form opens in this panel, and the cart here is the same cart as this creator's Marketplace stand."
   },
   "worldTeamLegal": {
-    "teamTierGateNote": "The Team Workspace — a shared Visual Buc pool, member roles and shared vaults — comes with the Shot Caller tier and up. Plans live at the Plans desk in the Treasury.",
+    "teamTierGateNote": "Creating a team — a shared Visual Buc pool, member roles and shared vaults — unlocks at Shot Caller (★4) and up. Shot Caller is an earned Creator Rank, never a plan you can buy: rank points come from publishing work, completed exports, followers, streams, tips, sales and paid memberships — ★4 takes 300 points.",
     "teamLoadFailedTitle": "Your team wouldn't open in the palace",
     "teamOutOfCredits": "You’re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and the Team Desk is ready again.",
     "teamFallbackName": "Team",
-    "teamCreateHint": "Included with Shot Caller ($199/mo). Pool your Visual Bucs, share artist vaults, and create together.",
+    "teamCreateHint": "Included with Shot Caller (★4) — the earned Creator Rank. Pool your Visual Bucs, share artist vaults, and create together.",
     "teamListRow": "{{name}} — {{role}} · {{status}}",
     "teamNamePlaceholder": "Team name — e.g. Blockdollaz Media",
     "teamNameAria": "Team name",

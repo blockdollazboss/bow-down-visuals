@@ -29,14 +29,16 @@ import { LLC_DISCLAIMER_BODY, LLC_DISCLAIMER_TITLE } from "./llc-desk";
    no-charge fact: they carry the English source verbatim in
    EVERY catalog, figures by interpolation, never translated.
 
-   CORE-CORRECTED STRINGS (join reconciliation): the certified
-   stack1600 core corrected two TeamDesk strings to the earned-
-   rank truth (Team Workspace = ★4 Shot Caller at 300 points,
-   never purchasable). This unit extracts the BASE literals
-   verbatim, so worldTeamLegal.teamTierGateNote and
-   worldTeamLegal.teamCreateHint still carry the old base copy
-   here; the join takes the core's corrected English and the
-   translations of those two keys get re-drafted against it.
+   CORE-CORRECTED STRINGS (join reconciliation — DONE at the
+   stack100 phase-2 join): the certified stack1600 core corrected
+   two TeamDesk strings to the earned-rank truth (Team Workspace =
+   ★4 Shot Caller at 300 points, never purchasable). This unit
+   extracted the BASE literals verbatim; the join replaced both
+   keys' English with the core/team-invite corrected copy, the
+   gate card now renders teamTierGateNote through the catalog,
+   teamCreateHint carries the corrected English verbatim in every
+   catalog (money law), and teamTierGateNote's nine translations
+   were re-drafted against the corrected English (UNREVIEWED).
 
    Deliberately NOT extracted:
    - TEAM_TIER_GATE_MESSAGE (team-desk seam): the rail's own
@@ -183,13 +185,15 @@ describe("unit 46 — all 10 catalogs carry the family", () => {
 });
 
 describe("unit 46 — en fidelity pins", () => {
-  it("the core-corrected strings still carry the BASE literals here", () => {
-    // Join reconciliation: the core's corrected English wins there
-    // and these two keys' translations get re-drafted against it.
+  it("the core-corrected strings carry the earned-rank truth", () => {
+    // Join reconciliation (stack100 phase-2): the core's corrected
+    // English won — ★4 Shot Caller at 300 points, never purchasable.
     expect(EN.teamTierGateNote).toBe(
-      "The Team Workspace — a shared Visual Buc pool, member roles and shared vaults — comes with the Shot Caller tier and up. Plans live at the Plans desk in the Treasury.",
+      "Creating a team — a shared Visual Buc pool, member roles and shared vaults — unlocks at Shot Caller (★4) and up. Shot Caller is an earned Creator Rank, never a plan you can buy: rank points come from publishing work, completed exports, followers, streams, tips, sales and paid memberships — ★4 takes 300 points.",
     );
-    expect(EN.teamCreateHint).toContain("Included with Shot Caller ($199/mo)");
+    expect(EN.teamCreateHint).toBe(
+      "Included with Shot Caller (★4) — the earned Creator Rank. Pool your Visual Bucs, share artist vaults, and create together.",
+    );
   });
 
   it("the contract framing keeps its not-legal-advice words", () => {

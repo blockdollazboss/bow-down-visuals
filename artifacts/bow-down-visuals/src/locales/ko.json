@@ -21913,11 +21913,11 @@
     "cartCheckoutFailedCart": "Checkout didn't start — nothing was charged, and your cart is untouched."
   },
   "worldTeamLegal": {
-    "teamTierGateNote": "팀 워크스페이스(공유 Visual Buc 풀, 멤버 역할, 공유 볼트)는 Shot Caller 등급부터 이용할 수 있습니다. 요금제는 Treasury의 요금제 데스크에서 확인할 수 있습니다.",
+    "teamTierGateNote": "팀 만들기 — 공유 Visual Bucs 풀, 멤버 역할, 공유 볼트 — 는 Shot Caller(★4) 이상에서 잠금 해제됩니다. Shot Caller는 획득하는 Creator Rank이며, 절대 구매할 수 있는 플랜이 아닙니다. 랭크 포인트는 작품 게시, 완료된 내보내기, 팔로워, 스트림, 팁, 판매, 유료 멤버십에서 얻습니다 — ★4에는 300포인트가 필요합니다.",
     "teamLoadFailedTitle": "팰리스에서 팀을 열 수 없었습니다",
     "teamOutOfCredits": "You’re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and the Team Desk is ready again.",
     "teamFallbackName": "팀",
-    "teamCreateHint": "Included with Shot Caller ($199/mo). Pool your Visual Bucs, share artist vaults, and create together.",
+    "teamCreateHint": "Included with Shot Caller (★4) — the earned Creator Rank. Pool your Visual Bucs, share artist vaults, and create together.",
     "teamListRow": "{{name}} — {{role}} · {{status}}",
     "teamNamePlaceholder": "팀 이름 — 예: Blockdollaz Media",
     "teamNameAria": "팀 이름",

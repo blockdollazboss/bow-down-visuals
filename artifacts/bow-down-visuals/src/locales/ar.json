@@ -22005,11 +22005,11 @@
     "cartCheckoutFailedCart": "Checkout didn't start — nothing was charged, and your cart is untouched."
   },
   "worldTeamLegal": {
-    "teamTierGateNote": "مساحة عمل الفريق — تجمع Visual Bucs مشترك، وأدوار للأعضاء، وخزائن مشتركة — تأتي مع باقة Shot Caller وما فوقها. توجد الخطط في مكتب الخطط في الخزانة.",
+    "teamTierGateNote": "إنشاء فريق — صندوق Visual Bucs مشترك وأدوار أعضاء وخزائن مشتركة — يُفتح عند Shot Caller (★4) فأعلى. Shot Caller رتبة صانع مكتسبة، وليست أبدًا خطة يمكن شراؤها: نقاط الرتبة تأتي من نشر الأعمال والتصديرات المكتملة والمتابعين والبثوث والإكراميات والمبيعات والعضويات المدفوعة — ★4 يتطلب 300 نقطة.",
     "teamLoadFailedTitle": "لم يُفتح فريقك في القصر",
     "teamOutOfCredits": "You’re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and the Team Desk is ready again.",
     "teamFallbackName": "الفريق",
-    "teamCreateHint": "Included with Shot Caller ($199/mo). Pool your Visual Bucs, share artist vaults, and create together.",
+    "teamCreateHint": "Included with Shot Caller (★4) — the earned Creator Rank. Pool your Visual Bucs, share artist vaults, and create together.",
     "teamListRow": "{{name}} — {{role}} · {{status}}",
     "teamNamePlaceholder": "اسم الفريق — مثال: Blockdollaz Media",
     "teamNameAria": "اسم الفريق",

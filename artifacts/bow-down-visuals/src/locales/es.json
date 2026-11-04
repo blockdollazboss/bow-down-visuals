@@ -21936,11 +21936,11 @@
     "cartCheckoutFailedCart": "Checkout didn't start — nothing was charged, and your cart is untouched."
   },
   "worldTeamLegal": {
-    "teamTierGateNote": "El Espacio de Trabajo en Equipo — una reserva compartida de Visual Bucs, roles de miembros y bóvedas compartidas — viene con el nivel Shot Caller y superiores. Los planes están en el mostrador de Planes en la Tesorería.",
+    "teamTierGateNote": "Crear un equipo — un fondo compartido de Visual Bucs, roles de miembros y bóvedas compartidas — se desbloquea en Shot Caller (★4) o superior. Shot Caller es un rango de creador ganado, nunca un plan que puedas comprar: los puntos de rango vienen de publicar trabajo, exportaciones completadas, seguidores, transmisiones, propinas, ventas y membresías pagadas — ★4 requiere 300 puntos.",
     "teamLoadFailedTitle": "Tu equipo no se abrió en el palacio",
     "teamOutOfCredits": "You’re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and the Team Desk is ready again.",
     "teamFallbackName": "Equipo",
-    "teamCreateHint": "Included with Shot Caller ($199/mo). Pool your Visual Bucs, share artist vaults, and create together.",
+    "teamCreateHint": "Included with Shot Caller (★4) — the earned Creator Rank. Pool your Visual Bucs, share artist vaults, and create together.",
     "teamListRow": "{{name}} — {{role}} · {{status}}",
     "teamNamePlaceholder": "Nombre del equipo — ej. Blockdollaz Media",
     "teamNameAria": "Nombre del equipo",

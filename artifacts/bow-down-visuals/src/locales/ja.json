@@ -21909,11 +21909,11 @@
     "cartCheckoutFailedCart": "Checkout didn't start — nothing was charged, and your cart is untouched."
   },
   "worldTeamLegal": {
-    "teamTierGateNote": "チームワークスペース（共有の Visual Buc プール、メンバーの役割、共有ボールト）は Shot Caller ティア以上でご利用いただけます。プランは Treasury のプランデスクでご確認ください。",
+    "teamTierGateNote": "チームの作成 — 共有Visual Bucsプール、メンバーの役割、共有ボールト — はShot Caller（★4）以上でアンロックされます。Shot Callerは獲得するCreator Rankであり、購入できるプランではありません。ランクポイントは作品の公開、完了したエクスポート、フォロワー、配信、チップ、売上、有料メンバーシップから得られます — ★4には300ポイントが必要です。",
     "teamLoadFailedTitle": "パレスでチームを開けませんでした",
     "teamOutOfCredits": "You’re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and the Team Desk is ready again.",
     "teamFallbackName": "チーム",
-    "teamCreateHint": "Included with Shot Caller ($199/mo). Pool your Visual Bucs, share artist vaults, and create together.",
+    "teamCreateHint": "Included with Shot Caller (★4) — the earned Creator Rank. Pool your Visual Bucs, share artist vaults, and create together.",
     "teamListRow": "{{name}} — {{role}} · {{status}}",
     "teamNamePlaceholder": "チーム名 — 例：Blockdollaz Media",
     "teamNameAria": "チーム名",

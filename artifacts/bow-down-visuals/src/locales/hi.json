@@ -21913,11 +21913,11 @@
     "cartCheckoutFailedCart": "Checkout didn't start — nothing was charged, and your cart is untouched."
   },
   "worldTeamLegal": {
-    "teamTierGateNote": "Team Workspace — एक साझा Visual Buc पूल, सदस्य भूमिकाएँ और साझा वॉल्ट — Shot Caller टियर और उससे ऊपर के साथ आता है। योजनाएँ Treasury में Plans डेस्क पर मिलती हैं।",
+    "teamTierGateNote": "टीम बनाना — साझा Visual Bucs पूल, सदस्य भूमिकाएँ और साझा वॉल्ट — Shot Caller (★4) और उससे ऊपर अनलॉक होता है। Shot Caller एक अर्जित Creator Rank है, कभी खरीदी जा सकने वाली योजना नहीं: रैंक अंक काम प्रकाशित करने, पूर्ण निर्यात, फ़ॉलोअर्स, स्ट्रीम, टिप्स, बिक्री और सशुल्क सदस्यताओं से आते हैं — ★4 के लिए 300 अंक चाहिए।",
     "teamLoadFailedTitle": "आपकी टीम पैलेस में नहीं खुली",
     "teamOutOfCredits": "You’re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and the Team Desk is ready again.",
     "teamFallbackName": "टीम",
-    "teamCreateHint": "Included with Shot Caller ($199/mo). Pool your Visual Bucs, share artist vaults, and create together.",
+    "teamCreateHint": "Included with Shot Caller (★4) — the earned Creator Rank. Pool your Visual Bucs, share artist vaults, and create together.",
     "teamListRow": "{{name}} — {{role}} · {{status}}",
     "teamNamePlaceholder": "टीम का नाम — जैसे Blockdollaz Media",
     "teamNameAria": "टीम का नाम",

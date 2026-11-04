@@ -106,9 +106,18 @@ describe("honest states", () => {
     expect(desk).not.toContain("Plans live at the");
     expect(desk).not.toContain("Plans desk in the Treasury");
     // Both the tier card and the create card say how Shot Caller is got.
-    expect(desk).toContain("earned");
-    expect(desk).toContain("Creator Rank");
-    expect(desk).toContain("300 points");
+    // Join repoint (stack100 phase-2): since locale unit 46 the copy
+    // renders through the catalog — the desk pins the keys, and the
+    // earning-path words are pinned on the en values they resolve to
+    // (the full verbatim text is pinned in team-legal-i18n).
+    expect(desk).toContain('t("worldTeamLegal.teamTierGateNote")');
+    expect(desk).toContain('t("worldTeamLegal.teamCreateHint")');
+    const enTl = (JSON.parse(readFileSync(new URL("../../locales/en.json", import.meta.url), "utf8")) as Record<string, any>)
+      .worldTeamLegal as Record<string, string>;
+    expect(enTl.teamTierGateNote).toContain("earned");
+    expect(enTl.teamTierGateNote).toContain("Creator Rank");
+    expect(enTl.teamTierGateNote).toContain("300 points");
+    expect(enTl.teamCreateHint).toContain("earned Creator Rank");
   });
 
   it("a failed spending read is its own card with a retry, never silent", () => {
