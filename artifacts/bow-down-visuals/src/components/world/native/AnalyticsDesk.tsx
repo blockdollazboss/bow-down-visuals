@@ -1642,6 +1642,7 @@ function CoachCard({
                   value={p.title}
                   onChange={(e) => setPost(i, { title: e.target.value })}
                   placeholder={`Post ${i + 1} title`}
+                  aria-label={`Post ${i + 1} title`}
                   maxLength={200}
                 />
                 {posts.length > 1 ? (

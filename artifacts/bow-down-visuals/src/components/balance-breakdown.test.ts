@@ -33,6 +33,11 @@ function load(locale: string): Record<string, unknown> {
 const resources: Record<string, { translation: Record<string, unknown> }> = {};
 for (const l of ALL) resources[l] = { translation: load(l) };
 
+/* The World desks' balance lines resolve through worldRemainder
+   (unit 52's extraction) — the en values are asserted where the
+   surface pins below used to find the literals in the sources. */
+const REMAINDER = (load("en") as { worldRemainder: Record<string, string> }).worldRemainder;
+
 const i18n = createInstance();
 beforeAll(async () => {
   await i18n.init({
@@ -170,8 +175,11 @@ describe("surface wiring", () => {
     expect(desk).toContain("profile.balance_composition ?? balanceComposition(profile)");
     expect(desk).toContain('t("balance.permanent_amount"');
     expect(desk).toContain("composition.temporaryCredits > 0");
-    /* The desk's single total still renders. */
-    expect(desk).toContain("Your balance: {balance.toLocaleString(\"en-US\")} Visual Bucs");
+    /* The desk's single total still renders — through the remainder
+       sweep's key since unit 52 (en line pinned here verbatim); the
+       amount now formats in the walker's language. */
+    expect(desk).toContain('t("worldRemainder.pakBalance", { amount: balance.toLocaleString(i18n.language) })');
+    expect(REMAINDER.pakBalance).toBe("Your balance: {{amount}} Visual Bucs");
   });
 
   it("the World's Account desk names the split inside its Visual Bucs field", () => {
@@ -181,9 +189,12 @@ describe("surface wiring", () => {
     expect(desk).toContain("profile.balance_composition ?? balanceComposition(profile)");
     expect(desk).toContain('t("balance.permanent_amount"');
     expect(desk).toContain("balanceComp.temporaryCredits > 0");
-    /* The field's single total still renders. */
-    expect(desk).toContain('label: "Visual Bucs"');
-    expect(desk).toContain("profile.credits.toLocaleString(\"en-US\")");
+    /* The field's single total still renders — the label resolves
+       through the remainder sweep's key since unit 52, and the total
+       formats in the walker's language. */
+    expect(desk).toContain('label: t("worldRemainder.taiFieldVisualBucs")');
+    expect(REMAINDER.taiFieldVisualBucs).toBe("Visual Bucs");
+    expect(desk).toContain("profile.credits.toLocaleString(i18n.language)");
   });
 
   it("AuthContext composes the split before the spendable fold", () => {

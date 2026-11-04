@@ -12,6 +12,7 @@ import {
   VIDEO_TEMPLATE_UPLOAD_MAX_BYTES,
   buildVideoTemplateApplyBody,
   interpretTemplateJob,
+  templateJobErrorLine,
   missingSlotLabels,
   parseVideoTemplateCatalog,
   slotAcceptsMedia,
@@ -198,7 +199,7 @@ export function VideoTemplateBench({
         } else if (read.state === "failed") {
           stopPolling();
           setJobState("failed");
-          setJobError(read.error ?? "That render didn't finish.");
+          setJobError(templateJobErrorLine(read));
         } else {
           setJobStage(read.stage || "working");
           setJobProgress(read.progress);
@@ -387,6 +388,7 @@ export function VideoTemplateBench({
                                 setSlotUrls((prev) => ({ ...prev, [slot.key]: url }));
                               }}
                               placeholder="…or paste a media link"
+                              aria-label={`Paste a media link — ${slot.label}`}
                               className={inputCls}
                               data-testid={`world-video-template-bench-slot-url-${slot.key}`}
                             />
@@ -410,6 +412,7 @@ export function VideoTemplateBench({
                         setOverlayTexts((prev) => prev.map((t, j) => (j === i ? e.target.value : t)))
                       }
                       className={inputCls}
+                      aria-label={`Words on the video — ${o.position}`}
                       data-testid={`world-video-template-bench-overlay-${i}`}
                     />
                   ))}
@@ -427,6 +430,7 @@ export function VideoTemplateBench({
                   value={musicBedUrl}
                   onChange={(e) => setMusicBedUrl(e.target.value)}
                   placeholder="Paste a music link (mp3) — optional"
+                  aria-label="Music bed"
                   className={inputCls}
                   data-testid="world-video-template-bench-music-bed"
                 />

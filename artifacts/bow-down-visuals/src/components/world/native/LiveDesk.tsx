@@ -2826,6 +2826,7 @@ function SongRequestQueueRows({
 /* ── The fan face (the watch desk's request panel) ───────────────── */
 
 export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: boolean; streamId: string; isLive: boolean }) {
+  const { i18n } = useTranslation();
   const { user } = useAuth();
   const authHeaders = useAuthHeaders();
   const [view, setView] = useState<SongRequestQueueView | null>(null);
@@ -2974,9 +2975,9 @@ export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: b
                   inputMode="numeric"
                   placeholder={
                     view.rules.minTipVb !== null
-                      ? `Min ${view.rules.minTipVb.toLocaleString("en-US")}`
+                      ? `Min ${view.rules.minTipVb.toLocaleString(i18n.language)}`
                       : view.tipBounds
-                        ? `From ${view.tipBounds.minVb.toLocaleString("en-US")}`
+                        ? `From ${view.tipBounds.minVb.toLocaleString(i18n.language)}`
                         : "Tip"
                   }
                   className={inputCls(isLight)}

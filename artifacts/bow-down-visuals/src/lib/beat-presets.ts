@@ -1,9 +1,10 @@
 /* ── Beat Maker Preset Registry ──────────────────────────────────────────
    The Beat Maker's starting patterns + the AI Beat genre list — the ONE
-   home for this data, consumed by pages/ai-audio.tsx (the Beat Maker /
-   audio-studio module).
+   home for this data, consumed by components/audio-studio/AiAudio.tsx
+   (the Beat Maker / audio-studio module).
 
-   Extracted verbatim from pages/ai-audio.tsx (Stack 100 item A11), where
+   Extracted verbatim from the AiAudio page file (Stack 100 item A11),
+   where
    the 5 patterns and the genre list lived inline in the ~5,000-line page
    file, unreachable as data by anything else (the Beat Studio desks, the
    World, a future preset shelf). The extraction changed NO value: every

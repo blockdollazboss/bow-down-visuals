@@ -1,7 +1,7 @@
 /* Beat preset registry (Stack 100 item A11) — the extraction proof.
 
    FIXTURE METHOD: before the move, the original PRESETS object literal and
-   BEAT_GENRES array in pages/ai-audio.tsx @ 23a636903 were machine-extracted
+   BEAT_GENRES array in the AiAudio page file @ 23a636903 were machine-extracted
    (brace-matched out of the page source and evaluated) into the fixtures
    below. They are the originals, not a retype: if any grid cell, bass note,
    melody note, bpm, label or genre differs by one value, this suite fails.

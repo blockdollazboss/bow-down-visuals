@@ -25,6 +25,11 @@ import { join } from "node:path";
 const SRC = join(__dirname, "..");
 const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
 
+/* BeatsDesk's failure/reading lines resolve through worldAudioDesk
+   (Stack-100 unit 39) — the en values are asserted where the pins
+   below used to find the literals in the source. */
+const AUDIO = (JSON.parse(read("locales/en.json")) as { worldAudioDesk: Record<string, string> }).worldAudioDesk;
+
 /** Slice of a source file between two markers (start inclusive). */
 function between(src: string, start: string, end: string): string {
   const a = src.indexOf(start);
@@ -186,9 +191,14 @@ describe("World BeatsDesk — the templates leg joins its honest siblings", () =
 
   it("the failure branch renders ahead of the eternal 'Reading…' branch, with a working Retry", () => {
     expect(src).toContain("{templates === null && tplLoadFailed ? (");
-    expect(src).toContain("Couldn't load your custom licenses.");
+    /* Both lines resolve through worldAudioDesk since the audio
+       locale unit (Stack-100 unit 39) — the en values carry the
+       exact sentences. */
+    expect(src).toContain('t("worldAudioDesk.templatesLoadFailedText")');
+    expect(AUDIO.templatesLoadFailedText).toBe("Couldn't load your custom licenses.");
     expect(src).toContain('data-testid="world-beats-templates-retry"');
-    expect(src.indexOf("{templates === null && tplLoadFailed ? (")).toBeLessThan(src.indexOf("Reading your templates…"));
+    expect(src.indexOf("{templates === null && tplLoadFailed ? (")).toBeLessThan(src.indexOf('t("worldAudioDesk.readingTemplates")'));
+    expect(AUDIO.readingTemplates).toBe("Reading your templates…");
   });
 });
 
