@@ -406,12 +406,22 @@ export class ControllerRemoteClient {
 
   /** `targetId` names the press's target where the command has
    *  one: the scene id for scene.select, the source id for
-   *  scene.chroma.update; other commands pend as a whole. */
+   *  scene.chroma.update; other commands pend as a whole. A
+   *  targeted read scans every pending beat for the command —
+   *  presses on different targets can be in flight together
+   *  (two sources' chroma, two scene picks), and the first beat
+   *  in the map must not answer for another target's press. */
   isPending(command: ControllerCommand, targetId?: string): boolean {
     for (const p of this._pending.values()) {
       if (p.command !== command) continue;
-      if (command === "scene.select") return p.sceneId === targetId;
-      if (command === "scene.chroma.update") return p.sourceId === targetId;
+      if (command === "scene.select") {
+        if (p.sceneId === targetId) return true;
+        continue;
+      }
+      if (command === "scene.chroma.update") {
+        if (p.sourceId === targetId) return true;
+        continue;
+      }
       return true;
     }
     return false;
