@@ -145,6 +145,17 @@ describe("rails + prices", () => {
     expect(TEAM_FALLBACK_ON_HINT).toBe(en.team["fallbackOnHint"]);
     expect(TEAM_FALLBACK_OFF_HINT).toBe(en.team["fallbackOffHint"]);
   });
+
+  it("the /team create hint names Shot Caller as the earned ★4 rank, with the way in", () => {
+    const en = JSON.parse(read("../../locales/en.json")) as {
+      team: Record<string, string>;
+    };
+    const hint = en.team["createTeamHint"]!;
+    expect(hint).toContain("Shot Caller");
+    expect(hint).toContain("earned Creator Rank");
+    expect(hint).toContain("300 points");
+    expect(hint).not.toContain("$199");
+  });
 });
 
 describe("role rules", () => {

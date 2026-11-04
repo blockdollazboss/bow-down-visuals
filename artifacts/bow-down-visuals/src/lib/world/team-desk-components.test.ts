@@ -78,6 +78,19 @@ describe("honest states", () => {
     expect(desk).toContain("isTierGateError");
   });
 
+  it("the gate copy names the EARNING path — Shot Caller is a rank, never a plan for sale", () => {
+    // The fabricated ladder price and the buy-your-way-there direction
+    // are gone: no Shot Caller plan exists (ratified plans are Free /
+    // Pro $12 / Elite $29) and rank is never purchasable.
+    expect(desk).not.toContain("$199/mo");
+    expect(desk).not.toContain("Plans live at the");
+    expect(desk).not.toContain("Plans desk in the Treasury");
+    // Both the tier card and the create card say how Shot Caller is got.
+    expect(desk).toContain("earned");
+    expect(desk).toContain("Creator Rank");
+    expect(desk).toContain("300 points");
+  });
+
   it("a failed spending read is its own card with a retry, never silent", () => {
     expect(desk).toContain('data-testid="world-team-spending-error"');
     expect(desk).toContain("Team spending couldn&rsquo;t load");
