@@ -1057,6 +1057,24 @@ export function SongAndVideoModule() {
     setDraftInfo(null);
   }, [draftId, getAccessToken]);
 
+  /* Neutral dismiss for the draft prompt (QC-200 fix queue #1): closes
+     the prompt WITHOUT touching the stored draft — no localStorage
+     removal, no DELETE — so the draft stays saved for a later visit.
+     Gated to the two decision states; the transient recovering /
+     recovered states resolve on their own and ignore it. */
+  const handleDismissDraftPrompt = useCallback(() => {
+    setDraftState((s) => (s === "found" || s === "failed" ? "idle" : s));
+  }, []);
+
+  useEffect(() => {
+    if (draftState !== "found" && draftState !== "failed") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleDismissDraftPrompt();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [draftState, handleDismissDraftPrompt]);
+
   /* ── Save ── */
   async function performSave(opts?: { result?: string; sceneData?: SceneData[]; ghid?: string | null }) {
     if (!user) { toast({ title: t("songAndVideo.toastSignInRequired"), variant: "destructive" }); return; }
@@ -1154,7 +1172,7 @@ export function SongAndVideoModule() {
         {/* ── Draft Recovery Modal ── */}
         {draftState !== "idle" && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleDismissDraftPrompt} />
             <div className="relative z-10 w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl overflow-hidden">
               {draftState === "found" && (
                 <div className="p-6 space-y-5">
@@ -1175,6 +1193,10 @@ export function SongAndVideoModule() {
                     <button onClick={() => { void handleDiscardDraft(); }}
                       className="w-full py-2 text-sm text-white/25 hover:text-white/50 transition-colors">
                       {t("songAndVideo.discardDraftButton")}
+                    </button>
+                    <button onClick={handleDismissDraftPrompt}
+                      className="w-full py-2 text-sm font-semibold text-white/50 hover:text-white/80 transition-colors">
+                      {t("songAndVideo.dismissButton")}
                     </button>
                   </div>
                 </div>
@@ -1217,6 +1239,10 @@ export function SongAndVideoModule() {
                     </button>
                     <button onClick={() => { void handleDiscardDraft(); }}
                       className="w-full py-2 text-sm text-white/25 hover:text-white/50 transition-colors">
+                      {t("songAndVideo.discardDraftButton")}
+                    </button>
+                    <button onClick={handleDismissDraftPrompt}
+                      className="w-full py-2 text-sm font-semibold text-white/50 hover:text-white/80 transition-colors">
                       {t("songAndVideo.dismissButton")}
                     </button>
                   </div>
