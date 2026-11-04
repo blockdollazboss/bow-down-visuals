@@ -1302,7 +1302,10 @@ export function parseNfcOrders(json: unknown): StoreOrderRow[] | null {
 }
 
 /** { ok, orders } — the jewelry bench's snake_case rows. */
-export function parseJewelryOrders(json: unknown): StoreOrderRow[] | null {
+export function parseJewelryOrders(
+  json: unknown,
+  engravingLabel = "Engraving",
+): StoreOrderRow[] | null {
   if (!isRecord(json) || !Array.isArray(json["orders"])) return null;
   const rows: StoreOrderRow[] = [];
   for (const raw of json["orders"]) {
@@ -1316,7 +1319,7 @@ export function parseJewelryOrders(json: unknown): StoreOrderRow[] | null {
     rows.push({
       id,
       itemLabel: finish ? `${product} · ${finish}` : product,
-      detail: engraving ? `Engraving: ${engraving}` : str(raw["size_option"]),
+      detail: engraving ? `${engravingLabel}: ${engraving}` : str(raw["size_option"]),
       quantity: numOr(raw["quantity"], 0),
       fullName: strOr(raw["full_name"], ""),
       email: strOr(raw["email"], ""),
