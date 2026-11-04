@@ -3666,7 +3666,11 @@
     "installUrlErrorRetry": "Could not build the install URL. Try again.",
     "saveConfiguration": "Save configuration",
     "set": "set",
-    "missing": "missing"
+    "missing": "missing",
+    "notSetUp": "not set up",
+    "setupStateNote": "Not connected yet — nothing is broken. This is a setup state: once the server keys from the checklist below are in place, Install and the wiring form switch on.",
+    "installNeedsClientId": "Install is off until DISCORD_CLIENT_ID is set on the server — see steps 1 and 4 in the checklist below.",
+    "wiringLockedNote": "Locked for now: these settings would save, but the bot can't announce anything until it's connected. They switch on once the server keys are in place."
   },
   "catalogVault": {
     "title": "Catalog Vault",
