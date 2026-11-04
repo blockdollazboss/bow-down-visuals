@@ -19,6 +19,7 @@
  * kit logo, sent whole — never cropped, never baked into the art.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { plainErrorText } from "../../../lib/api-error";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -75,6 +76,7 @@ function apiErrorText(data: unknown, fallback: string): string {
 }
 
 export function WallpapersDesk(props: CreateDeskProps) {
+  const { t, i18n } = useTranslation();
   const { isLight } = props;
   const { confirmedFetch } = useConfirmedApi();
   const { getAccessToken, refreshProfile } = useAuth();
@@ -127,7 +129,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
       setAssets(await fetchAssetLibrary(getAccessToken));
       setAssetsError(null);
     } catch {
-      setAssetsError("Your art library could not load. Try again in a moment.");
+      setAssetsError(t("wallpapers.libraryFailed"));
     }
   }, [getAccessToken]);
 
@@ -170,7 +172,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
 
   const outOfBucs = (text: string) =>
     /out_of_credits|Not enough Visual Bucs/i.test(text)
-      ? "You are out of Visual Bucs — the Visual Buc Packs desk in the Treasury refills you without leaving the World."
+      ? t("worldCatalogLibrary.wpOutOfBucs")
       : text;
 
   async function pollGeneration(path: string, taskId: string): Promise<string> {
@@ -182,10 +184,10 @@ export function WallpapersDesk(props: CreateDeskProps) {
       const verdict = generationPollOf(pdata);
       if (verdict.kind === "done") return verdict.url;
       if (verdict.kind === "failed") {
-        throw new Error(apiErrorText(pdata, "Generation failed. Visual Bucs were not charged."));
+        throw new Error(apiErrorText(pdata, t("wallpapers.generateFailed")));
       }
     }
-    throw new Error("Generation failed. Visual Bucs were not charged.");
+    throw new Error(t("wallpapers.generateFailed"));
   }
 
   async function generateArt() {
@@ -202,16 +204,16 @@ export function WallpapersDesk(props: CreateDeskProps) {
       });
       if (!res) return;
       const data: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorText(data, "Generation failed. Visual Bucs were not charged."));
+      if (!res.ok) throw new Error(apiErrorText(data, t("wallpapers.generateFailed")));
       const submit = generationSubmitOf(data);
-      if (!submit) throw new Error("Generation failed. Visual Bucs were not charged.");
+      if (!submit) throw new Error(t("wallpapers.generateFailed"));
       const url = submit.kind === "done" ? submit.url : await pollGeneration(WALLPAPER_ART_PATH, submit.taskId);
       setCurrentArt(url);
       setSessionArt((prev) => [url, ...prev.filter((u) => u !== url)]);
       refreshProfile();
       void loadAssets();
     } catch (e) {
-      setArtError(outOfBucs(e instanceof Error ? e.message : "Generation failed. Visual Bucs were not charged."));
+      setArtError(outOfBucs(e instanceof Error ? e.message : t("wallpapers.generateFailed")));
     } finally {
       setGenerating(false);
     }
@@ -232,13 +234,13 @@ export function WallpapersDesk(props: CreateDeskProps) {
       });
       if (!res) return;
       const data: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorText(data, "That render could not be made. Try again in a moment."));
+      if (!res.ok) throw new Error(apiErrorText(data, t("wallpapers.renderFailed")));
       const render = renderOfResponse(data, preset);
-      if (!render) throw new Error("That render could not be made. Try again in a moment.");
+      if (!render) throw new Error(t("wallpapers.renderFailed"));
       setRenders((prev) => prependRenders(prev, [render]));
       refreshProfile();
     } catch (e) {
-      setRenderError(outOfBucs(e instanceof Error ? e.message : "That render could not be made. Try again in a moment."));
+      setRenderError(outOfBucs(e instanceof Error ? e.message : t("wallpapers.renderFailed")));
     } finally {
       setRendering(false);
     }
@@ -261,14 +263,14 @@ export function WallpapersDesk(props: CreateDeskProps) {
       if (!res) return;
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(apiErrorText(data, "The pack could not be made. Any charge was refunded — try again in a moment."));
+        throw new Error(apiErrorText(data, t("wallpapers.pack10Failed")));
       }
       const pack = packOfResponse(data);
-      if (!pack) throw new Error("The pack could not be made. Any charge was refunded — try again in a moment.");
+      if (!pack) throw new Error(t("wallpapers.pack10Failed"));
       setRenders((prev) => prependRenders(prev, pack));
       refreshProfile();
     } catch (e) {
-      setPackError(outOfBucs(e instanceof Error ? e.message : "The pack could not be made. Any charge was refunded — try again in a moment."));
+      setPackError(outOfBucs(e instanceof Error ? e.message : t("wallpapers.pack10Failed")));
     } finally {
       setPackBusy(false);
     }
@@ -286,15 +288,15 @@ export function WallpapersDesk(props: CreateDeskProps) {
       });
       if (!res) return;
       const data: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorText(data, "Video generation failed. Visual Bucs were not charged."));
+      if (!res.ok) throw new Error(apiErrorText(data, t("wallpapers.videoGenerateFailed")));
       const submit = generationSubmitOf(data);
-      if (!submit) throw new Error("Video generation failed. Visual Bucs were not charged.");
+      if (!submit) throw new Error(t("wallpapers.videoGenerateFailed"));
       const url = submit.kind === "done" ? submit.url : await pollGeneration(WALLPAPER_CLIP_PATH, submit.taskId);
       setVideoUrl(url);
       refreshProfile();
       void loadAssets();
     } catch (e) {
-      setVideoError(outOfBucs(e instanceof Error ? e.message : "Video generation failed. Visual Bucs were not charged."));
+      setVideoError(outOfBucs(e instanceof Error ? e.message : t("wallpapers.videoGenerateFailed")));
     } finally {
       setGeneratingVideo(false);
     }
@@ -314,20 +316,20 @@ export function WallpapersDesk(props: CreateDeskProps) {
       });
       if (!res) return;
       const data: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(apiErrorText(data, "The screensaver render could not be made. Try again in a moment."));
+      if (!res.ok) throw new Error(apiErrorText(data, t("wallpapers.screensaverRenderFailed")));
       const render = screensaverOfResponse(data, ssPreset);
-      if (!render) throw new Error("The screensaver render could not be made. Try again in a moment.");
+      if (!render) throw new Error(t("wallpapers.screensaverRenderFailed"));
       setSsResult(render);
       refreshProfile();
     } catch (e) {
-      setSsError(outOfBucs(e instanceof Error ? e.message : "The screensaver render could not be made. Try again in a moment."));
+      setSsError(outOfBucs(e instanceof Error ? e.message : t("wallpapers.screensaverRenderFailed")));
     } finally {
       setSsBusy(false);
     }
   }
 
   async function downloadPackZip() {
-    const body = buildPackDownloadRequest(renders.map((r) => r.url), "My Wallpapers");
+    const body = buildPackDownloadRequest(renders.map((r) => r.url), t("worldCatalogLibrary.wpZipName"));
     if (!body || zipBusy) return;
     setZipBusy(true);
     setZipError(null);
@@ -338,7 +340,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error("The download could not be made. Try again in a moment.");
+      if (!res.ok) throw new Error(t("worldCatalogLibrary.wpZipError"));
       const blob = await res.blob();
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -347,7 +349,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
       a.click();
       URL.revokeObjectURL(href);
     } catch (e) {
-      setZipError(plainErrorText(e, "The download could not be made. Try again in a moment."));
+      setZipError(plainErrorText(e, t("worldCatalogLibrary.wpZipError")));
     } finally {
       setZipBusy(false);
     }
@@ -376,19 +378,18 @@ export function WallpapersDesk(props: CreateDeskProps) {
     <div className="space-y-4" data-testid="world-wallpapers-desk">
       {/* ── 1 · Make the art ─────────────────────────────────────── */}
       <section className={`rounded-xl border p-3 ${card}`}>
-        <p className="text-sm font-bold">1 · Make the art</p>
+        <p className="text-sm font-bold">{t("worldCatalogLibrary.wpSectionArt")}</p>
         <p className={`mt-0.5 text-xs ${sub}`}>
-          Describe the piece — it is sized for the device picked below.{" "}
-          {WALLPAPER_GENERATE_COST.toLocaleString()} Visual Bucs.
+          {t("worldCatalogLibrary.wpArtCostLine", { cost: WALLPAPER_GENERATE_COST.toLocaleString(i18n.language) })}
         </p>
         <div className="mt-2 flex gap-2">
           <input
             data-testid="world-wallpapers-desk-prompt"
-            aria-label="Describe the wallpaper art"
+            aria-label={t("worldCatalogLibrary.wpAriaPrompt")}
             className={inputCls}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="A gold crown over a midnight ocean…"
+            placeholder={t("worldCatalogLibrary.wpPromptPlaceholder")}
             maxLength={600}
           />
           <button
@@ -398,7 +399,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
             disabled={generating || !prompt.trim()}
             onClick={() => void generateArt()}
           >
-            {generating ? "Making…" : "Make it"}
+            {generating ? t("worldCatalogLibrary.wpMaking") : t("worldCatalogLibrary.wpMakeIt")}
           </button>
         </div>
         {artError ? (
@@ -407,7 +408,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
         {assetsError ? <p className={`mt-2 text-xs ${sub}`}>{assetsError}</p> : null}
         {packChoices.length > 0 ? (
           <div className="mt-3">
-            <p className={`text-[11px] font-semibold ${sub}`}>Your art — tap one to work with it</p>
+            <p className={`text-[11px] font-semibold ${sub}`}>{t("worldCatalogLibrary.wpYourArt")}</p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {packChoices.slice(0, 12).map((url, i) => (
                 <button
@@ -418,7 +419,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
                   className={chip(currentArt === url)}
                   onClick={() => setCurrentArt(url)}
                 >
-                  {currentArt === url ? "Working piece" : `Piece ${i + 1}`}
+                  {currentArt === url ? t("worldCatalogLibrary.wpWorkingPiece") : t("worldCatalogLibrary.wpPiece", { n: i + 1 })}
                 </button>
               ))}
             </div>
@@ -428,8 +429,8 @@ export function WallpapersDesk(props: CreateDeskProps) {
 
       {/* ── 2 · Size + brand, render ─────────────────────────────── */}
       <section className={`rounded-xl border p-3 ${card}`}>
-        <p className="text-sm font-bold">2 · Pick the device size</p>
-        <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Device size">
+        <p className="text-sm font-bold">{t("worldCatalogLibrary.wpSectionSize")}</p>
+        <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldCatalogLibrary.wpAriaDeviceSize")}>
           {WALLPAPER_PRESETS.map((p) => (
             <button
               key={p.key}
@@ -452,7 +453,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
             className={chip(branded)}
             onClick={() => setBranded(true)}
           >
-            With my brand — free
+            {t("worldCatalogLibrary.wpBrandedFree")}
           </button>
           <button
             type="button"
@@ -461,7 +462,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
             className={chip(!branded)}
             onClick={() => setBranded(false)}
           >
-            Clean — {WALLPAPER_CLEAN_RENDER_COST.toLocaleString()} Bucs
+            {t("worldCatalogLibrary.wpCleanCost", { cost: WALLPAPER_CLEAN_RENDER_COST.toLocaleString(i18n.language) })}
           </button>
           <button
             type="button"
@@ -470,15 +471,15 @@ export function WallpapersDesk(props: CreateDeskProps) {
             className={chip(aiDisclosure)}
             onClick={() => setAiDisclosure((v) => !v)}
           >
-            AI-made note {aiDisclosure ? "on" : "off"}
+            {t("worldCatalogLibrary.wpDisclosure", { state: aiDisclosure ? t("worldCatalogLibrary.wpOn") : t("worldCatalogLibrary.wpOff") })}
           </button>
         </div>
         <p className={`mt-2 text-xs ${sub}`} data-testid="world-wallpapers-desk-cost">
           {branded
             ? brandKit?.logoUrl
-              ? "Branded renders are free — your logo goes on whole, exactly as you saved it."
-              : "Branded renders are free — your name goes on the piece. Add a logo in your brand kit and it stamps whole."
-            : `A clean render is ${WALLPAPER_CLEAN_RENDER_COST.toLocaleString()} Visual Bucs — confirmed before anything is charged.`}
+              ? t("worldCatalogLibrary.wpCostBrandedLogo")
+              : t("worldCatalogLibrary.wpCostBrandedName")
+            : t("worldCatalogLibrary.wpCostClean", { cost: WALLPAPER_CLEAN_RENDER_COST.toLocaleString(i18n.language) })}
         </p>
         <button
           type="button"
@@ -487,7 +488,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
           disabled={rendering || !currentArt}
           onClick={() => void renderCurrent()}
         >
-          {rendering ? "Rendering…" : `Render at ${preset.width}×${preset.height}`}
+          {rendering ? t("worldCatalogLibrary.wpRendering") : t("worldCatalogLibrary.wpRenderAt", { width: preset.width, height: preset.height })}
         </button>
         {renderError ? (
           <p className={`mt-2 ${err}`} data-testid="world-wallpapers-desk-render-error">{renderError}</p>
@@ -496,12 +497,13 @@ export function WallpapersDesk(props: CreateDeskProps) {
 
       {/* ── 3 · Pack of 10 ───────────────────────────────────────── */}
       <section className={`rounded-xl border p-3 ${card}`}>
-        <p className="text-sm font-bold">3 · Pack of 10 clean wallpapers</p>
+        <p className="text-sm font-bold">{t("worldCatalogLibrary.wpSectionPack")}</p>
         <p className={`mt-0.5 text-xs ${sub}`}>
-          Pick exactly {WALLPAPER_PACK_OF_10_COUNT} pieces — one flat{" "}
-          {WALLPAPER_PACK_OF_10_COST.toLocaleString()} Visual Bucs for all ten at the size
-          picked above, never ten separate charges. {packSelected.length} of{" "}
-          {WALLPAPER_PACK_OF_10_COUNT} picked.
+          {t("worldCatalogLibrary.wpPackIntro", {
+            count: WALLPAPER_PACK_OF_10_COUNT,
+            cost: WALLPAPER_PACK_OF_10_COST.toLocaleString(i18n.language),
+            picked: packSelected.length,
+          })}
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {packChoices.slice(0, 12).map((url, i) => (
@@ -513,7 +515,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
               className={chip(packSelected.includes(url))}
               onClick={() => setPackSelected((prev) => togglePackSelection(prev, url))}
             >
-              Piece {i + 1}
+              {t("worldCatalogLibrary.wpPiece", { n: i + 1 })}
               {packSelected.includes(url) ? " ✓" : ""}
             </button>
           ))}
@@ -525,7 +527,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
           disabled={packBusy || !packReady(packSelected)}
           onClick={() => void makePackOf10()}
         >
-          {packBusy ? "Making the pack…" : `Make the pack — ${WALLPAPERS_PACK10_REGISTRY_COST.toLocaleString()} Bucs`}
+          {packBusy ? t("worldCatalogLibrary.wpPackBusy") : t("worldCatalogLibrary.wpMakePack", { cost: WALLPAPERS_PACK10_REGISTRY_COST.toLocaleString(i18n.language) })}
         </button>
         {packError ? (
           <p className={`mt-2 ${err}`} data-testid="world-wallpapers-desk-pack-error">{packError}</p>
@@ -534,20 +536,21 @@ export function WallpapersDesk(props: CreateDeskProps) {
 
       {/* ── 4 · Living wallpaper ─────────────────────────────────── */}
       <section className={`rounded-xl border p-3 ${card}`}>
-        <p className="text-sm font-bold">4 · Living wallpaper</p>
+        <p className="text-sm font-bold">{t("worldCatalogLibrary.wpSectionLiving")}</p>
         <p className={`mt-0.5 text-xs ${sub}`}>
-          A short moving piece, looped into a screensaver. The clip is{" "}
-          {WALLPAPERS_CLIP_REGISTRY_COST.toLocaleString()} Visual Bucs; the loop render is{" "}
-          {WALLPAPERS_SCREENSAVER_COST.toLocaleString()}.
+          {t("worldCatalogLibrary.wpLivingIntro", {
+            clip: WALLPAPERS_CLIP_REGISTRY_COST.toLocaleString(i18n.language),
+            render: WALLPAPERS_SCREENSAVER_COST.toLocaleString(i18n.language),
+          })}
         </p>
         <div className="mt-2 flex gap-2">
           <input
             data-testid="world-wallpapers-desk-video-prompt"
-            aria-label="Describe the moving wallpaper"
+            aria-label={t("worldCatalogLibrary.wpAriaVideoPrompt")}
             className={inputCls}
             value={videoPrompt}
             onChange={(e) => setVideoPrompt(e.target.value)}
-            placeholder="Waves rolling under a gold sky, slow and calm…"
+            placeholder={t("worldCatalogLibrary.wpVideoPlaceholder")}
             maxLength={600}
           />
           <button
@@ -557,7 +560,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
             disabled={generatingVideo || !videoPrompt.trim()}
             onClick={() => void generateVideo()}
           >
-            {generatingVideo ? "Filming…" : "Film the clip"}
+            {generatingVideo ? t("worldCatalogLibrary.wpFilming") : t("worldCatalogLibrary.wpFilmClip")}
           </button>
         </div>
         {videoError ? (
@@ -565,7 +568,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
         ) : null}
         {videoUrl ? (
           <div className="mt-3 space-y-2">
-            <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Screensaver size">
+            <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldCatalogLibrary.wpAriaSsSize")}>
               {WALLPAPER_PRESETS.map((p) => (
                 <button
                   key={p.key}
@@ -581,7 +584,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
               ))}
             </div>
             <label className={`block text-xs ${sub}`}>
-              Loop length (seconds, 10–120)
+              {t("worldCatalogLibrary.wpLoopLabel")}
               <input
                 data-testid="world-wallpapers-desk-ss-seconds"
                 type="number"
@@ -599,22 +602,21 @@ export function WallpapersDesk(props: CreateDeskProps) {
               disabled={ssBusy}
               onClick={() => void renderScreensaver()}
             >
-              {ssBusy ? "Looping…" : `Make the loop — ${WALLPAPERS_SCREENSAVER_COST.toLocaleString()} Bucs`}
+              {ssBusy ? t("worldCatalogLibrary.wpLooping") : t("worldCatalogLibrary.wpMakeLoop", { cost: WALLPAPERS_SCREENSAVER_COST.toLocaleString(i18n.language) })}
             </button>
             {ssError ? (
               <p className={err} data-testid="world-wallpapers-desk-ss-error">{ssError}</p>
             ) : null}
             {ssResult ? (
               <p className={`text-xs ${sub}`} data-testid="world-wallpapers-desk-ss-result">
-                Your living wallpaper is ready — {ssResult.width}×{ssResult.height},{" "}
-                {ssResult.seconds}s loop.{" "}
+                {t("worldCatalogLibrary.wpSsResult", { width: ssResult.width, height: ssResult.height, seconds: ssResult.seconds })}{" "}
                 <a
                   href={ssResult.url}
                   target="_blank"
                   rel="noreferrer"
                   className="font-semibold text-[#d4af37] underline"
                 >
-                  Open the loop
+                  {t("worldCatalogLibrary.wpOpenLoop")}
                 </a>
               </p>
             ) : null}
@@ -625,7 +627,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
       {/* ── 5 · This session ─────────────────────────────────────── */}
       {renders.length > 0 ? (
         <section className={`rounded-xl border p-3 ${card}`} data-testid="world-wallpapers-desk-session">
-          <p className="text-sm font-bold">This session</p>
+          <p className="text-sm font-bold">{t("worldCatalogLibrary.wpSectionSession")}</p>
           <ul className="mt-2 space-y-1.5">
             {renders.map((r, i) => (
               <li key={`${r.url}-${i}`} className={`flex items-center justify-between gap-2 text-xs ${sub}`}>
@@ -638,7 +640,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
                   rel="noreferrer"
                   className="font-semibold text-[#d4af37] underline"
                 >
-                  Open
+                  {t("worldCatalogLibrary.wpOpen")}
                 </a>
               </li>
             ))}
@@ -650,7 +652,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
             disabled={zipBusy}
             onClick={() => void downloadPackZip()}
           >
-            {zipBusy ? "Packing…" : "Download them all (.zip) — free"}
+            {zipBusy ? t("worldCatalogLibrary.wpZipBusy") : t("worldCatalogLibrary.wpZipButton")}
           </button>
           {zipError ? <p className={`mt-2 ${err}`}>{zipError}</p> : null}
         </section>
