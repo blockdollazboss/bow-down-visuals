@@ -206,10 +206,30 @@ export function emptyLeadMagnetForm(): LeadMagnetFormState {
   return { title: "", description: "", kind: "digital" };
 }
 
-export function leadMagnetFormProblem(form: LeadMagnetFormState): string | null {
-  if (!form.title.trim()) return "Give the free product a title first.";
-  if (form.title.trim().length > 160) return "The title tops out at 160 characters.";
-  if (form.description.trim().length > 5000) return "The description tops out at 5000 characters.";
+export interface LeadMagnetStrings {
+  titleRequired: string;
+  titleLong: string;
+  descLong: string;
+  restorePrice: string;
+}
+
+/** The seam's English defaults — byte-identical to the desk's
+ *  original literals; the desk passes catalog strings
+ *  (worldCommerceStands.growthProblem*). */
+export const LEAD_MAGNET_STRINGS_EN: LeadMagnetStrings = {
+  titleRequired: "Give the free product a title first.",
+  titleLong: "The title tops out at 160 characters.",
+  descLong: "The description tops out at 5000 characters.",
+  restorePrice: "Enter the price it should sell for — dollars and cents above $0, like 9.99.",
+};
+
+export function leadMagnetFormProblem(
+  form: LeadMagnetFormState,
+  strings: LeadMagnetStrings = LEAD_MAGNET_STRINGS_EN,
+): string | null {
+  if (!form.title.trim()) return strings.titleRequired;
+  if (form.title.trim().length > 160) return strings.titleLong;
+  if (form.description.trim().length > 5000) return strings.descLong;
   return null;
 }
 
@@ -247,9 +267,12 @@ export function buildLeadMagnetRestorePayload(priceInput: string): { priceCents:
   return { priceCents: cents };
 }
 
-export function leadMagnetRestoreProblem(priceInput: string): string | null {
+export function leadMagnetRestoreProblem(
+  priceInput: string,
+  strings: LeadMagnetStrings = LEAD_MAGNET_STRINGS_EN,
+): string | null {
   if (buildLeadMagnetRestorePayload(priceInput)) return null;
-  return "Enter the price it should sell for — dollars and cents above $0, like 9.99.";
+  return strings.restorePrice;
 }
 
 /* ─── Order bumps + the post-purchase upsell designation ───────── */
@@ -264,14 +287,36 @@ export function bumpCandidates(products: GrowthProduct[], mainId: string): Growt
   return products.filter((p) => p.id !== mainId && p.priceCents > 0 && p.kind !== "gift_card");
 }
 
+export interface BumpStrings {
+  percentProblem: string;
+  summaryNone: string;
+  summaryAttachedNamed: string;
+  summaryAttachedAnon: string;
+  summaryLive: string;
+  summaryLivePct: string;
+}
+
+/** The seam's English defaults — byte-identical to the desk's
+ *  original literals; the desk passes catalog strings
+ *  (worldCommerceStands.growthProblemPercent / growthSummary*).
+ *  Templates carry {{max}} / {{title}} / {{pct}} / {{pctPart}}. */
+export const BUMP_STRINGS_EN: BumpStrings = {
+  percentProblem: "The % off is a whole number from 0 to {{max}}.",
+  summaryNone: "No add-on attached.",
+  summaryAttachedNamed: "Add-on attached — “{{title}}” — but not offered right now (it's paused, sold out or gone).",
+  summaryAttachedAnon: "Add-on attached, but not offered right now (it's paused, sold out or gone).",
+  summaryLive: "Add-on live: “{{title}}”{{pctPart}}.",
+  summaryLivePct: " · {{pct}}% off",
+};
+
 /** The typed % off, gated the rail's way: a whole number 0–90.
  *  An empty field is the rail's default, 0 (full price). */
-export function bumpPercentProblem(raw: string): string | null {
+export function bumpPercentProblem(raw: string, strings: BumpStrings = BUMP_STRINGS_EN): string | null {
   const t = raw.trim();
   if (t === "") return null;
   const n = Number(t);
   if (!Number.isInteger(n) || n < 0 || n > MAX_BUMP_PERCENT_OFF) {
-    return `The % off is a whole number from 0 to ${MAX_BUMP_PERCENT_OFF}.`;
+    return strings.percentProblem.replace("{{max}}", String(MAX_BUMP_PERCENT_OFF));
   }
   return null;
 }
@@ -347,9 +392,10 @@ export function applyGrowthProductSave(list: GrowthProduct[], saved: GrowthProdu
 export function addonSummary(
   products: GrowthProduct[],
   p: GrowthProduct,
+  strings: BumpStrings = BUMP_STRINGS_EN,
 ): { designated: boolean; live: boolean; targetTitle: string | null; line: string } {
   if (!p.bumpConfig) {
-    return { designated: false, live: false, targetTitle: null, line: "No add-on attached." };
+    return { designated: false, live: false, targetTitle: null, line: strings.summaryNone };
   }
   const target = products.find((q) => q.id === p.bumpConfig!.bumpProductId) ?? null;
   const targetTitle = p.bump?.title ?? target?.title ?? null;
@@ -359,15 +405,17 @@ export function addonSummary(
       live: false,
       targetTitle,
       line: targetTitle
-        ? `Add-on attached — “${targetTitle}” — but not offered right now (it's paused, sold out or gone).`
-        : "Add-on attached, but not offered right now (it's paused, sold out or gone).",
+        ? strings.summaryAttachedNamed.replace("{{title}}", targetTitle)
+        : strings.summaryAttachedAnon,
     };
   }
-  const pct = p.bumpConfig.percentOff > 0 ? ` · ${p.bumpConfig.percentOff}% off` : "";
+  const pctPart = p.bumpConfig.percentOff > 0
+    ? strings.summaryLivePct.replace("{{pct}}", String(p.bumpConfig.percentOff))
+    : "";
   return {
     designated: true,
     live: true,
     targetTitle: p.bump.title,
-    line: `Add-on live: “${p.bump.title}”${pct}.`,
+    line: strings.summaryLive.replace("{{title}}", p.bump.title).replace("{{pctPart}}", pctPart),
   };
 }
