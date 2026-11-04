@@ -16,6 +16,7 @@
  * dresses it up as saved.
  */
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
@@ -48,7 +49,26 @@ import {
 } from "@/lib/world/setlist-desk";
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
 
+/* Slot/energy words key-mapped to the family catalog; the shared
+   lib tables stay the fallback for unknown tokens. */
+const SLOT_KEYS: Record<string, string> = {
+  opener: "worldScheduleRelease.setSlotOpener",
+  build: "worldScheduleRelease.setSlotBuild",
+  peak: "worldScheduleRelease.setSlotPeak",
+  breather: "worldScheduleRelease.setSlotBreather",
+  closer: "worldScheduleRelease.setSlotCloser",
+  encore: "worldScheduleRelease.setSlotEncore",
+};
+const ENERGY_KEYS: Record<number, string> = {
+  1: "worldScheduleRelease.setEnergyBallad",
+  2: "worldScheduleRelease.setEnergyMellow",
+  3: "worldScheduleRelease.setEnergyMid",
+  4: "worldScheduleRelease.setEnergyHigh",
+  5: "worldScheduleRelease.setEnergyBanger",
+};
+
 export function SetlistDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   const { refreshProfile } = useAuth();
   const deskHeaders = useDeskAuthHeaders();
@@ -114,7 +134,7 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
       if (!parsed) throw new Error("library failed");
       setLibrary(parsed);
     } catch {
-      setLibraryError("Your song library wouldn't load. Try again in a moment.");
+      setLibraryError(t("worldScheduleRelease.setLibraryFailed"));
     } finally {
       setLibraryBusy(false);
     }
@@ -141,14 +161,14 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
         return;
       }
       if (!res.ok) {
-        throw new Error(apiErrorMessage(data, "The flow couldn't be built — any charge was refunded. Try again in a moment."));
+        throw new Error(apiErrorMessage(data, t("worldScheduleRelease.setFlowFailedRefund")));
       }
       const built = flowOfResponse(data, songs.length);
-      if (!built) throw new Error("The flow came back unusable — your Visual Bucs were refunded. Try again.");
+      if (!built) throw new Error(t("worldScheduleRelease.setFlowUnusable"));
       setFlow(built);
       refreshProfile();
     } catch (e) {
-      setFlowError(plainErrorText(e, "The flow couldn't be built. Try again in a moment."));
+      setFlowError(plainErrorText(e, t("worldScheduleRelease.setFlowFailedFallback")));
     } finally {
       setFlowBusy(false);
     }
@@ -163,32 +183,30 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-3" data-testid="world-setlist-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Setlist Builder</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldScheduleRelease.setTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          Build the set free; the AI flow — order, slots and stage directions — is{" "}
-          {SETLIST_FLOW_COST.toLocaleString()} Visual Bucs. The set lives for this sitting, like
-          the website&rsquo;s.
+          {t("worldScheduleRelease.setIntro", { cost: SETLIST_FLOW_COST.toLocaleString(i18n.language) })}
         </p>
       </div>
 
       <div className="flex gap-2">
         <input
           data-testid="world-setlist-desk-new-title"
-          aria-label="Song title"
+          aria-label={t("worldScheduleRelease.setSongTitleAria")}
           className={inputCls}
           value={newTitle}
           maxLength={200}
           onChange={(e) => setNewTitle(e.target.value)}
-          placeholder="Song title"
+          placeholder={t("worldScheduleRelease.setSongTitlePlaceholder")}
         />
         <input
           data-testid="world-setlist-desk-new-artist"
-          aria-label="Artist (optional)"
+          aria-label={t("setlist.artistPlaceholder")}
           className={inputCls}
           value={newArtist}
           maxLength={200}
           onChange={(e) => setNewArtist(e.target.value)}
-          placeholder="Artist (optional)"
+          placeholder={t("setlist.artistPlaceholder")}
         />
         <button
           type="button"
@@ -201,7 +219,7 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
             setNewArtist("");
           }}
         >
-          Add
+          {t("setlist.addButton")}
         </button>
       </div>
 
@@ -214,12 +232,12 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
             disabled={libraryBusy}
             onClick={() => void loadLibrary()}
           >
-            {libraryBusy ? "Loading…" : "Add from my songs"}
+            {libraryBusy ? t("worldScheduleRelease.setLibraryLoading") : t("worldScheduleRelease.setLibraryOpen")}
           </button>
         ) : (
           <div className="flex flex-wrap gap-1.5" data-testid="world-setlist-desk-library">
             {picks.length === 0 ? (
-              <span className={`text-xs ${muted}`}>Every library song is already in the set.</span>
+              <span className={`text-xs ${muted}`}>{t("worldScheduleRelease.setLibraryAllIn")}</span>
             ) : (
               picks.map((pick) => (
                 <button
@@ -241,7 +259,7 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
 
       {songs.length === 0 ? (
         <p className={`text-sm ${muted}`} data-testid="world-setlist-desk-empty">
-          No songs in the set yet — add your opener above.
+          {t("worldScheduleRelease.setEmpty")}
         </p>
       ) : (
         <>
@@ -254,13 +272,13 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
                   {song.artist ? <span className={`text-xs ${muted}`}>{song.artist}</span> : null}
                   {song.slot ? (
                     <span className={chipCls(true)} data-testid={`world-setlist-desk-slot-${song.id}`}>
-                      {SLOT_LABELS[song.slot] ?? song.slot}
+                      {SLOT_KEYS[song.slot] ? t(SLOT_KEYS[song.slot]) : (SLOT_LABELS[song.slot] ?? song.slot)}
                     </span>
                   ) : null}
                   <span className="ml-auto flex gap-1.5">
                     <button
                       type="button"
-                      aria-label={`Move ${song.title} up`}
+                      aria-label={t("worldScheduleRelease.setMoveUpAria", { title: song.title })}
                       className={chipCls(false)}
                       disabled={i === 0}
                       onClick={() => setSongs((prev) => moveSong(prev, i, i - 1))}
@@ -269,7 +287,7 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
                     </button>
                     <button
                       type="button"
-                      aria-label={`Move ${song.title} down`}
+                      aria-label={t("worldScheduleRelease.setMoveDownAria", { title: song.title })}
                       className={chipCls(false)}
                       disabled={i === songs.length - 1}
                       onClick={() => setSongs((prev) => moveSong(prev, i, i + 1))}
@@ -281,14 +299,14 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
                       className={chipCls(false)}
                       onClick={() => setSongs((prev) => prev.filter((s) => s.id !== song.id))}
                     >
-                      Remove
+                      {t("setlist.removeSong")}
                     </button>
                   </span>
                 </div>
                 {song.aiNote ? <p className={`mt-1 text-xs ${muted}`}>{song.aiNote}</p> : null}
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <label className={`text-xs ${muted}`}>
-                    Length
+                    {t("worldScheduleRelease.setLengthLabel")}
                     <input
                       className={`${inputCls} ml-1 w-20`}
                       defaultValue={song.durationSec > 0 ? formatDuration(song.durationSec) : ""}
@@ -296,7 +314,7 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
                       onBlur={(e) => patchSong(song.id, { durationSec: parseDurationInput(e.target.value) })}
                     />
                   </label>
-                  <span className="flex items-center gap-1" role="radiogroup" aria-label={`Energy for ${song.title}`}>
+                  <span className="flex items-center gap-1" role="radiogroup" aria-label={t("worldScheduleRelease.setEnergyAria", { title: song.title })}>
                     {[0, 1, 2, 3, 4, 5].map((level) => (
                       <button
                         key={level}
@@ -307,7 +325,7 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
                         className={chipCls(song.energy === level)}
                         onClick={() => patchSong(song.id, { energy: level })}
                       >
-                        {level === 0 ? "—" : `${level} ${ENERGY_LABELS[level]}`}
+                        {level === 0 ? "—" : `${level} ${ENERGY_KEYS[level] ? t(ENERGY_KEYS[level]) : ENERGY_LABELS[level]}`}
                       </button>
                     ))}
                   </span>
@@ -316,24 +334,24 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
                     value={song.stageNote}
                     maxLength={200}
                     onChange={(e) => patchSong(song.id, { stageNote: e.target.value })}
-                    placeholder="Stage note (yours — not sent to the flow)"
-                    aria-label={`Stage note for ${song.title}`}
+                    placeholder={t("worldScheduleRelease.setStageNotePlaceholder")}
+                    aria-label={t("worldScheduleRelease.setStageNoteAria", { title: song.title })}
                   />
                 </div>
               </li>
             ))}
           </ol>
           <p className={`text-xs ${muted}`} data-testid="world-setlist-desk-runtime">
-            {songs.length} songs · known runtime {formatDuration(totalRuntime(songs))}
+            {t("worldScheduleRelease.setRuntimeLine", { count: songs.length, runtime: formatDuration(totalRuntime(songs)) })}
             {knownDurationCount(songs) < songs.length
-              ? ` (${knownDurationCount(songs)} of ${songs.length} timed)`
+              ? t("worldScheduleRelease.setRuntimeTimedSuffix", { known: knownDurationCount(songs), total: songs.length })
               : ""}
           </p>
         </>
       )}
 
       <label className={`block text-xs ${muted}`}>
-        Notes for the show (the flow reads these)
+        {t("worldScheduleRelease.setShowNotesLabel")}
         <textarea
           data-testid="world-setlist-desk-show-notes"
           className={`${inputCls} mt-1`}
@@ -341,7 +359,7 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
           maxLength={500}
           value={showNotes}
           onChange={(e) => setShowNotes(e.target.value)}
-          placeholder="Small room, seated crowd, one guitar…"
+          placeholder={t("worldScheduleRelease.setShowNotesPlaceholder")}
         />
       </label>
 
@@ -353,7 +371,7 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
           disabled={flowBusy || !flowReady(songs)}
           onClick={() => void suggestFlow()}
         >
-          {flowBusy ? "Building the flow…" : `Suggest my flow — ${SETLIST_FLOW_COST.toLocaleString()} Bucs`}
+          {flowBusy ? t("worldScheduleRelease.setFlowBusy") : t("worldScheduleRelease.setFlowButton", { cost: SETLIST_FLOW_COST.toLocaleString(i18n.language) })}
         </button>
         {annotated ? (
           <button
@@ -361,14 +379,13 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
             className={chipCls(false)}
             onClick={() => setSongs((prev) => clearFlowAnnotations(prev))}
           >
-            Clear the flow marks
+            {t("worldScheduleRelease.setClearFlow")}
           </button>
         ) : null}
       </div>
       {outOfCredits ? (
         <p className={errCls}>
-          You&rsquo;re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and
-          the flow is ready again.
+          {t("worldScheduleRelease.setOutOfCredits")}
         </p>
       ) : null}
       {flowError ? (
@@ -377,22 +394,22 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
 
       {flow ? (
         <div className={`rounded-xl border p-3 ${cardCls}`} data-testid="world-setlist-desk-flow-result">
-          <p className={`text-sm font-bold ${strong}`}>The flow, in the AI&rsquo;s words</p>
+          <p className={`text-sm font-bold ${strong}`}>{t("worldScheduleRelease.setFlowResultTitle")}</p>
           <p className={`mt-1 whitespace-pre-wrap text-sm ${muted}`}>{flow.flowNotes}</p>
           <ol className={`mt-2 list-decimal space-y-0.5 pl-5 text-sm ${muted}`}>
             {flow.order.map((item) => (
               <li key={item.index}>
-                <span className={`font-bold ${strong}`}>{songs[item.index]?.title ?? "Song"}</span> —{" "}
-                {SLOT_LABELS[item.slot] ?? item.slot}: {item.note}
+                <span className={`font-bold ${strong}`}>{songs[item.index]?.title ?? t("worldScheduleRelease.setSongFallback")}</span> —{" "}
+                {SLOT_KEYS[item.slot] ? t(SLOT_KEYS[item.slot]) : (SLOT_LABELS[item.slot] ?? item.slot)}: {item.note}
               </li>
             ))}
           </ol>
           <div className="mt-2 flex gap-1.5">
             <button type="button" data-testid="world-setlist-desk-apply" className={goldBtn} onClick={applyFlow}>
-              Apply this flow
+              {t("worldScheduleRelease.setApplyFlow")}
             </button>
             <button type="button" className={chipCls(false)} onClick={() => setFlow(null)}>
-              Keep my order
+              {t("worldScheduleRelease.setKeepOrder")}
             </button>
           </div>
         </div>

@@ -20,6 +20,7 @@
  * invite names a member, and a guest is nobody yet.
  */
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, DoorOpen, Loader2, Mail, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { plainErrorText } from "@/lib/api-error";
@@ -37,20 +38,22 @@ import {
   type WorldShowInvite,
 } from "@/lib/world/show-invites";
 
-const KIND_LABELS: Record<string, string> = {
-  stage_show: "Stage show",
-  listening_party: "Listening party",
-  drop: "Drop",
-  contest: "Contest",
-  office_hours: "Office hours",
+/* Kind words key-mapped to the family catalog (the calendar's own
+   kind keys); unknown kinds read the invites fallback key. */
+const KIND_KEYS: Record<string, string> = {
+  stage_show: "worldScheduleRelease.calKindStageShow",
+  listening_party: "worldScheduleRelease.calKindListeningParty",
+  drop: "worldScheduleRelease.calKindDrop",
+  contest: "worldScheduleRelease.calKindContest",
+  office_hours: "worldScheduleRelease.calKindOfficeHours",
 };
 
 /** The show's hour, in the words the board speaks: "Fri, Nov 6 · 7:00 PM". */
-function showWhenLabel(iso: string): string {
+function showWhenLabel(iso: string, locale?: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  const day = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const day = d.toLocaleDateString(locale, { weekday: "short", month: "short", day: "numeric" });
+  const time = d.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
   return `${day} · ${time}`;
 }
 
@@ -66,6 +69,7 @@ export function ShowInvitesBlock({
   /** Open a station's panel in-world — a contest invite's walk. */
   onOpenStation?: (stationId: string) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [mine, setMine] = useState<{ pending: WorldShowInvite[]; accepted: WorldShowInvite[] } | null>(null);
   const [mineFailed, setMineFailed] = useState(false);
@@ -95,7 +99,11 @@ export function ShowInvitesBlock({
     (async () => {
       try {
         const token = await getAccessToken();
-        const standing = await fetchShowInvitesMine(token);
+        const standing = await fetchShowInvitesMine(token, {
+          loadFailed: t("worldScheduleRelease.invMineLoadFailed"),
+          sendFailed: t("worldScheduleRelease.invSendFailed"),
+          answerFailed: t("worldScheduleRelease.invAnswerFailed"),
+        });
         if (!cancelled) setMine(standing);
       } catch {
         if (!cancelled) setMineFailed(true);
@@ -104,7 +112,8 @@ export function ShowInvitesBlock({
     return () => {
       cancelled = true;
     };
-  }, [user, getAccessToken, tick]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, getAccessToken, tick, t]);
 
   /* My own standing shows — the picker's list, off the calendar
    * backbone's mine read. Only shows the server would accept an
@@ -172,15 +181,19 @@ export function ShowInvitesBlock({
     setAnswerDone(null);
     try {
       const token = await getAccessToken();
-      await answerShowInvite(invite.id, which, token);
+      await answerShowInvite(invite.id, which, token, {
+        loadFailed: t("worldScheduleRelease.invMineLoadFailed"),
+        sendFailed: t("worldScheduleRelease.invSendFailed"),
+        answerFailed: t("worldScheduleRelease.invAnswerFailed"),
+      });
       setAnswerDone(
         which === "accept"
-          ? `You're in — “${invite.eventTitle}” is under "Shows you're coming to" whenever you're ready.`
-          : "Declined — the invite is closed.",
+          ? t("worldScheduleRelease.invAcceptedDone", { title: invite.eventTitle })
+          : t("worldScheduleRelease.invDeclinedDone"),
       );
       setTick((n) => n + 1);
     } catch (err) {
-      setAnswerError(plainErrorText(err, "Couldn't answer that invite. Try again."));
+      setAnswerError(plainErrorText(err, t("worldScheduleRelease.invAnswerFailed")));
     } finally {
       setAnsweringId(null);
     }
@@ -193,11 +206,15 @@ export function ShowInvitesBlock({
     setSendDone(null);
     try {
       const token = await getAccessToken();
-      const invite = await sendShowInvite(selectedEventId, candidate.userId, token);
+      const invite = await sendShowInvite(selectedEventId, candidate.userId, token, {
+        loadFailed: t("worldScheduleRelease.invMineLoadFailed"),
+        sendFailed: t("worldScheduleRelease.invSendFailed"),
+        answerFailed: t("worldScheduleRelease.invAnswerFailed"),
+      });
       setSentKeys((prev) => new Set(prev).add(`${invite.eventId}:${candidate.userId}`));
-      setSendDone(`Invite sent — ${candidate.displayName} has “${invite.eventTitle}” with their invites.`);
+      setSendDone(t("worldScheduleRelease.invSentDone", { name: candidate.displayName, title: invite.eventTitle }));
     } catch (err) {
-      setSendError(plainErrorText(err, "Couldn't send that invite. Try again."));
+      setSendError(plainErrorText(err, t("worldScheduleRelease.invSendFailed")));
     } finally {
       setSendingId(null);
     }
@@ -241,17 +258,17 @@ export function ShowInvitesBlock({
       {showMine && (
         <div className={cardClass} data-testid="world-show-invites-for-you">
           <p className={headingClass}>
-            <Mail className="h-4 w-4 text-[#d4af37]" /> Show invites for you
+            <Mail className="h-4 w-4 text-[#d4af37]" /> {t("worldScheduleRelease.invForYouTitle")}
           </p>
           {mineFailed ? (
             <div className="flex flex-col items-start gap-2 pt-2">
-              <p className={subClass}>Your invites wouldn&rsquo;t load — the doors are fine, the list slipped.</p>
+              <p className={subClass}>{t("worldScheduleRelease.invLoadFailed")}</p>
               <button
                 type="button"
                 onClick={() => setTick((n) => n + 1)}
                 className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105"
               >
-                Try again
+                {t("worldScheduleRelease.invTryAgain")}
               </button>
             </div>
           ) : (
@@ -267,10 +284,10 @@ export function ShowInvitesBlock({
                       {avatar(invite.hostAvatarUrl, invite.hostName)}
                       <span className="min-w-0 flex-1">
                         <span className={`block truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                          {invite.hostName} invited you to “{invite.eventTitle}”
+                          {t("worldScheduleRelease.invInvitedYou", { host: invite.hostName, title: invite.eventTitle })}
                         </span>
                         <span className={`block truncate text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-                          {KIND_LABELS[invite.eventKind] ?? "Palace show"} · {showWhenLabel(invite.startsAt)}
+                          {KIND_KEYS[invite.eventKind] ? t(KIND_KEYS[invite.eventKind]) : t("worldScheduleRelease.invKindFallback")} · {showWhenLabel(invite.startsAt, i18n.language)}
                         </span>
                       </span>
                       <button
@@ -280,7 +297,7 @@ export function ShowInvitesBlock({
                         className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
                         data-testid="world-show-invite-accept"
                       >
-                        {answeringId === invite.id ? "Answering…" : "Accept"}
+                        {answeringId === invite.id ? t("worldScheduleRelease.invAnswering") : t("worldScheduleRelease.invAccept")}
                       </button>
                       <button
                         type="button"
@@ -293,7 +310,7 @@ export function ShowInvitesBlock({
                         }`}
                         data-testid="world-show-invite-decline"
                       >
-                        Decline
+                        {t("worldScheduleRelease.invDecline")}
                       </button>
                     </div>
                   ))}
@@ -301,7 +318,7 @@ export function ShowInvitesBlock({
               )}
               {mine!.accepted.length > 0 && (
                 <div className="space-y-2 pt-2" data-testid="world-show-invites-coming">
-                  <p className={subClass}>Shows you&rsquo;re coming to:</p>
+                  <p className={subClass}>{t("worldScheduleRelease.invComingTo")}</p>
                   {mine!.accepted.map((invite) => {
                     const target = walkTarget(invite);
                     return (
@@ -316,7 +333,7 @@ export function ShowInvitesBlock({
                             “{invite.eventTitle}”
                           </span>
                           <span className={`block truncate text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-                            {invite.hostName} is hosting · {showWhenLabel(invite.startsAt)}
+                            {t("worldScheduleRelease.invHostingLine", { host: invite.hostName })} · {showWhenLabel(invite.startsAt, i18n.language)}
                           </span>
                         </span>
                         {target && (
@@ -327,7 +344,7 @@ export function ShowInvitesBlock({
                             data-testid="world-show-invite-walk"
                           >
                             <DoorOpen className="h-3.5 w-3.5" />{" "}
-                            {target === "room" ? "Go to the show" : "Open the contest desk"}
+                            {target === "room" ? t("worldScheduleRelease.invGoToShow") : t("worldScheduleRelease.invOpenContestDesk")}
                           </button>
                         )}
                       </div>
@@ -353,28 +370,28 @@ export function ShowInvitesBlock({
       {hasShows && (
         <div className={cardClass} data-testid="world-show-invites-send">
           <p className={headingClass}>
-            <UserPlus className="h-4 w-4 text-[#d4af37]" /> Invite to your show
+            <UserPlus className="h-4 w-4 text-[#d4af37]" /> {t("worldScheduleRelease.invSendTitle")}
           </p>
           {showsFailed ? (
             <div className="flex flex-col items-start gap-2 pt-2">
-              <p className={subClass}>Your shows wouldn&rsquo;t load — the calendar is fine, the list slipped.</p>
+              <p className={subClass}>{t("worldScheduleRelease.invShowsLoadFailed")}</p>
               <button
                 type="button"
                 onClick={() => setShowsTick((n) => n + 1)}
                 className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105"
               >
-                Try again
+                {t("worldScheduleRelease.invTryAgain")}
               </button>
             </div>
           ) : (
             <>
               <p className={`${subClass} pt-1`}>
-                Pick your show, pick a person — the invite goes out under your name, carrying the show, and they choose.
+                {t("worldScheduleRelease.invSendIntro")}
               </p>
               <select
                 value={selectedEventId}
                 onChange={(e) => setSelectedEventId(e.target.value)}
-                aria-label="Pick your show"
+                aria-label={t("worldScheduleRelease.invPickShowAria")}
                 className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none transition ${
                   isLight
                     ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] focus:border-[#7A5A12]"
@@ -384,7 +401,7 @@ export function ShowInvitesBlock({
               >
                 {(shows ?? []).map((show) => (
                   <option key={show.id} value={show.id}>
-                    {show.title} — {showWhenLabel(show.startsAt)}
+                    {show.title} — {showWhenLabel(show.startsAt, i18n.language)}
                   </option>
                 ))}
               </select>
@@ -392,8 +409,8 @@ export function ShowInvitesBlock({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search members by name…"
-                aria-label="Search members to invite"
+                placeholder={t("worldScheduleRelease.invSearchPlaceholder")}
+                aria-label={t("worldScheduleRelease.invSearchAria")}
                 className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none transition ${
                   isLight
                     ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/60 focus:border-[#7A5A12]"
@@ -403,16 +420,16 @@ export function ShowInvitesBlock({
               />
               <div className="space-y-2 pt-2">
                 {candidatesFailed ? (
-                  <p className={subClass}>The member list wouldn&rsquo;t load — try the search again in a moment.</p>
+                  <p className={subClass}>{t("worldScheduleRelease.invMembersLoadFailed")}</p>
                 ) : candidates === null ? (
                   <p className={`inline-flex items-center gap-2 ${subClass}`}>
-                    <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> Opening the member list…
+                    <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {t("worldScheduleRelease.invMembersLoading")}
                   </p>
                 ) : candidates.length === 0 ? (
                   <p className={subClass}>
                     {query.trim()
-                      ? "Nobody on the member list matches that name."
-                      : "No other member is on the list yet — it fills as creators arrive."}
+                      ? t("worldScheduleRelease.invNoMatch")
+                      : t("worldScheduleRelease.invNoMembers")}
                   </p>
                 ) : (
                   candidates.map((candidate) => {
@@ -434,7 +451,7 @@ export function ShowInvitesBlock({
                         </span>
                         {sent ? (
                           <span className={`inline-flex items-center gap-1 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                            <Check className="h-3.5 w-3.5" /> Invite sent
+                            <Check className="h-3.5 w-3.5" /> {t("worldScheduleRelease.invInviteSent")}
                           </span>
                         ) : (
                           <button
@@ -444,7 +461,7 @@ export function ShowInvitesBlock({
                             className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
                             data-testid="world-show-invite-send-button"
                           >
-                            {sendingId === candidate.userId ? "Sending…" : "Invite"}
+                            {sendingId === candidate.userId ? t("worldScheduleRelease.invSending") : t("worldScheduleRelease.invInvite")}
                           </button>
                         )}
                       </div>
