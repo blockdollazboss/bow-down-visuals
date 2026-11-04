@@ -838,7 +838,7 @@ describe("Ring 2 Create Wing depth — storyboard / wizard / song tabs / thumbna
 
   it("2.11 cover rails: presets are the page's grid, attribution rides the payload, showcase/share builders", async () => {
     const m = await import("./create-desks");
-    expect(m.COVER_ART_PRESETS.map((p) => p.style)).toEqual(["luxury-gold", "dark-moody", "vibrant-pop", "cinematic"]);
+    expect(m.COVER_ART_PRESETS.map((p) => p.style)).toEqual(["luxury-gold", "dark-moody", "vibrant-pop"]);
     expect(m.buildCoverArtPayload("mood", { songTitle: "T", artistName: "A", style: "retro", aspectRatio: "1:1", tier: "standard", attribution: true }).attribution).toBe(true);
     expect(m.buildShowcasePublishPayload({ title: " T ", mediaType: "image", mediaUrl: "u", thumbnailUrl: "u" })).toEqual({ title: "T", description: "", mediaType: "image", mediaUrl: "u", thumbnailUrl: "u", creatorName: undefined });
     expect(m.showcaseSlugOfResponse({ item: { slug: "my-cover" } })).toBe("my-cover");

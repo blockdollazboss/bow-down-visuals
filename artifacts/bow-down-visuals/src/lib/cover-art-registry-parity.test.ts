@@ -15,11 +15,16 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { COVER_ART_RATIOS, COVER_ART_STYLES, COVER_ART_TIERS } from "./cover-art";
+import { COVER_ART_PRESETS, COVER_ART_RATIOS, COVER_ART_STYLES, COVER_ART_TIERS } from "./cover-art";
 import { CREDIT_COSTS } from "./credit-costs";
 
 function readApi(rel: string): string {
   const url = new URL(`../../../api-server/src/${rel}`, import.meta.url);
+  return readFileSync(url, "utf8");
+}
+
+function readFe(rel: string): string {
+  const url = new URL(`../${rel}`, import.meta.url);
   return readFileSync(url, "utf8");
 }
 
@@ -98,5 +103,31 @@ describe("cover-art registry parity — API owns, FE mirrors", () => {
   it("tiers: the standard price is the credit-costs registry's base row", () => {
     const standard = COVER_ART_TIERS.find((t) => t.key === "standard");
     expect(standard?.credits).toBe(CREDIT_COSTS["/api/cover-art"]?.cost);
+  });
+
+  it("presets: every one-tap chip names a style the rail will honor", () => {
+    const registryKeys = new Set(COVER_ART_STYLES.map((s) => s.key));
+    expect(COVER_ART_PRESETS.length).toBeGreaterThanOrEqual(3);
+    for (const preset of COVER_ART_PRESETS) {
+      expect(registryKeys.has(preset.style), `preset "${preset.label}" → ${preset.style}`).toBe(true);
+    }
+    // The pre-dedupe chip pointed at "cinematic" — no such style exists
+    // on the rail, and tapping it failed the request. Never again.
+    expect(COVER_ART_PRESETS.map((p) => p.style)).not.toContain("cinematic");
+  });
+
+  it("consumers: page and World desk ride the one shared preset list", () => {
+    const page = readFe("pages/cover-art.tsx");
+    expect(page).toContain("COVER_ART_PRESETS");
+    expect(page).not.toContain("const COVER_PRESETS");
+    const worldModule = readFe("lib/world/create-desks.ts");
+    expect(worldModule).toContain('export { COVER_ART_PRESETS } from "../cover-art"');
+    expect(page).not.toContain('style: "cinematic"');
+    expect(worldModule).not.toContain('style: "cinematic"');
+  });
+
+  it("ownership pointers: both files name this parity pin", () => {
+    expect(apiSrc).toContain("cover-art-registry-parity");
+    expect(readFe("lib/cover-art.ts")).toContain("cover-art-registry-parity");
   });
 });

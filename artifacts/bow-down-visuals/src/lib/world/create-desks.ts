@@ -576,14 +576,12 @@ export function buildCoverArtPayload(
   };
 }
 
-/** Ring 2 (2.11) — cover-art.tsx's one-tap vibe preset grid, verbatim:
- *  picking a preset sets the desk's style + mood (prompt) fields. */
-export const COVER_ART_PRESETS: ReadonlyArray<{ label: string; style: string; mood: string }> = [
-  { label: "💎 Luxury Gold", style: "luxury-gold", mood: "luxurious and premium" },
-  { label: "🌙 Dark Moody", style: "dark-moody", mood: "dark and atmospheric" },
-  { label: "🎨 Vibrant Pop", style: "vibrant-pop", mood: "bold and energetic" },
-  { label: "🎬 Cinematic", style: "cinematic", mood: "epic and dramatic" },
-];
+/** Ring 2 (2.11) — the Cover Art page's one-tap vibe preset grid:
+ *  picking a preset sets the desk's style + mood (prompt) fields.
+ *  The list itself lives in lib/cover-art (COVER_ART_PRESETS) next to
+ *  the style registry its keys must belong to — re-exported here so
+ *  this module's consumers keep one import site. */
+export { COVER_ART_PRESETS } from "../cover-art";
 
 /** Session history cap for the Cover Art Desk's "This session" strip. */
 export const COVER_HISTORY_LIMIT = 12;
