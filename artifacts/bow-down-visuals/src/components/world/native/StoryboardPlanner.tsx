@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft, ArrowRight, Clapperboard, ImagePlus, Loader2, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -56,6 +57,7 @@ export function StoryboardPlanner(props: {
   editorBusy?: boolean;
 }) {
   const { isLight } = props;
+  const { t, i18n } = useTranslation();
   const { refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
@@ -123,10 +125,10 @@ export function StoryboardPlanner(props: {
         body: JSON.stringify({ title: "Untitled storyboard" }),
       });
       const next = storyboardOfResponse(await res.json().catch(() => null));
-      if (!res.ok || !next) throw new Error("The storyboard didn't start — try again.");
+      if (!res.ok || !next) throw new Error(t("worldCreateMedia.plErrStartRetry"));
       adoptBoard(next);
     } catch (err) {
-      setError(plainErrorText(err, "The storyboard didn't start."));
+      setError(plainErrorText(err, t("worldCreateMedia.plErrStart")));
     } finally {
       setBusy(null);
     }
@@ -143,10 +145,10 @@ export function StoryboardPlanner(props: {
         body: JSON.stringify({ title }),
       });
       const next = storyboardOfResponse(await res.json().catch(() => null));
-      if (!res.ok || !next) throw new Error("The rename didn't land — the old title stands.");
+      if (!res.ok || !next) throw new Error(t("worldCreateMedia.plErrRenameStands"));
       adoptBoard(next);
     } catch (err) {
-      setError(plainErrorText(err, "The rename didn't land."));
+      setError(plainErrorText(err, t("worldCreateMedia.plErrRename")));
       setBoardTitleDraft(board.title);
     }
   };
@@ -160,14 +162,14 @@ export function StoryboardPlanner(props: {
         method: "DELETE",
         headers: await authHeaders(),
       });
-      if (!res.ok) throw new Error("The storyboard didn't delete — it's still saved.");
+      if (!res.ok) throw new Error(t("worldCreateMedia.plErrDeleteSaved"));
       const remaining = boards.filter((b) => b.id !== board.id);
       setBoards(remaining);
       setBoard(remaining[0] ?? null);
       setBoardTitleDraft(remaining[0]?.title ?? "");
       setSavedProject(false);
     } catch (err) {
-      setError(plainErrorText(err, "The storyboard didn't delete."));
+      setError(plainErrorText(err, t("worldCreateMedia.plErrDelete")));
     } finally {
       setBusy(null);
     }
@@ -185,11 +187,11 @@ export function StoryboardPlanner(props: {
       });
       const data = await res.json().catch(() => null);
       const next = storyboardOfResponse(data);
-      if (!res.ok || !next) throw new Error("The panel didn't land — the board is unchanged.");
+      if (!res.ok || !next) throw new Error(t("worldCreateMedia.plErrPanelLanded"));
       adoptBoard(next);
       setSavedProject(false);
     } catch (err) {
-      setError(plainErrorText(err, "The panel didn't land."));
+      setError(plainErrorText(err, t("worldCreateMedia.plErrPanel")));
     } finally {
       setBusy(null);
     }
@@ -236,7 +238,7 @@ export function StoryboardPlanner(props: {
       if (!res.ok || !next) throw new Error("move failed");
       adoptBoard(next);
     } catch {
-      setError("That move didn't land — the order is back to the saved one.");
+      setError(t("worldCreateMedia.plErrMove"));
       void loadBoards(board.id);
     }
   };
@@ -251,11 +253,11 @@ export function StoryboardPlanner(props: {
         headers: await authHeaders(),
       });
       const next = storyboardOfResponse(await res.json().catch(() => null));
-      if (!res.ok || !next) throw new Error("The panel didn't delete — it's still on the board.");
+      if (!res.ok || !next) throw new Error(t("worldCreateMedia.plErrPanelDeleteSaved"));
       adoptBoard(next);
       setSavedProject(false);
     } catch (err) {
-      setError(plainErrorText(err, "The panel didn't delete."));
+      setError(plainErrorText(err, t("worldCreateMedia.plErrPanelDelete")));
     } finally {
       setBusy(null);
     }
@@ -276,7 +278,7 @@ export function StoryboardPlanner(props: {
         panels: prev.panels.map((p) => (p.id === savedPanel.id ? savedPanel : p)),
       } : prev);
     } catch {
-      setError("The frame didn't clear — it's still on the panel.");
+      setError(t("worldCreateMedia.plErrClearFrame"));
     }
   };
 
@@ -290,7 +292,7 @@ export function StoryboardPlanner(props: {
     const prompt = framePromptForPanel(draft);
     if (!prompt) {
       setFrameStates((s) => ({ ...s, [panel.id]: "failed" }));
-      setFrameErrors((e) => ({ ...e, [panel.id]: "Give the panel a title or a few words first — the frame is made from them." }));
+      setFrameErrors((e) => ({ ...e, [panel.id]: t("worldCreateMedia.plErrFrameNeedsWords") }));
       return;
     }
     /* Words first: the frame is made from the panel's saved words. */
@@ -304,7 +306,7 @@ export function StoryboardPlanner(props: {
         body: JSON.stringify(buildArtistImagePayload(prompt, DEFAULT_ARTIST_IMAGE_MODEL, STORYBOARD_FRAME_RATIO)),
       });
       const data = (await res.json().catch(() => ({}))) as { taskId?: string; status?: string; url?: string | null; error?: string; message?: string };
-      if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, "The frame make didn't start."));
+      if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, t("worldCreateMedia.plErrFrameStart")));
 
       const finishWithUrl = async (url: string) => {
         const save = await fetch(storyboardPanelPath(board.id, panel.id), {
@@ -313,7 +315,7 @@ export function StoryboardPlanner(props: {
           body: JSON.stringify(buildPanelPayload({ imageUrl: url, imagePrompt: prompt })),
         });
         const savedPanel = panelOfResponse(await save.json().catch(() => null));
-        if (!save.ok || !savedPanel) throw new Error("The frame was made but didn't save to the panel — generate again to retry the save.");
+        if (!save.ok || !savedPanel) throw new Error(t("worldCreateMedia.plErrFrameSave"));
         setBoard((prev) => prev ? {
           ...prev,
           panels: prev.panels.map((p) => (p.id === savedPanel.id ? savedPanel : p)),
@@ -337,7 +339,7 @@ export function StoryboardPlanner(props: {
             delete framePolls.current[panel.id];
             if (read.failed || !read.url) {
               setFrameStates((s) => ({ ...s, [panel.id]: "failed" }));
-              setFrameErrors((e) => ({ ...e, [panel.id]: read.error ?? "Frame generation failed — nothing was saved to the panel." }));
+              setFrameErrors((e) => ({ ...e, [panel.id]: read.error ?? t("worldCreateMedia.plErrFrameNothingSaved") }));
             } else {
               await finishWithUrl(read.url);
             }
@@ -346,12 +348,12 @@ export function StoryboardPlanner(props: {
           clearInterval(framePolls.current[panel.id]);
           delete framePolls.current[panel.id];
           setFrameStates((s) => ({ ...s, [panel.id]: "failed" }));
-          setFrameErrors((e) => ({ ...e, [panel.id]: "Network error while the frame was making — the panel is unchanged." }));
+          setFrameErrors((e) => ({ ...e, [panel.id]: t("worldCreateMedia.plErrFrameNetwork") }));
         }
       }, 5000);
     } catch (err) {
       setFrameStates((s) => ({ ...s, [panel.id]: "failed" }));
-      setFrameErrors((e) => ({ ...e, [panel.id]: plainErrorText(err, "Frame generation failed.") }));
+      setFrameErrors((e) => ({ ...e, [panel.id]: plainErrorText(err, t("worldCreateMedia.plFrameFailed")) }));
     }
   };
 
@@ -371,12 +373,12 @@ export function StoryboardPlanner(props: {
           headers: { "Content-Type": "application/json", ...(await authHeaders()) },
           body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error("Saving the project didn't land — your storyboard is still saved here.");
+        if (!res.ok) throw new Error(t("worldCreateMedia.plErrProjectLanded"));
       }
       setSavedProject(true);
       void quest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "Saving the project failed."));
+      setError(plainErrorText(err, t("worldCreateMedia.saveProjectFailed")));
     } finally {
       setBusy(null);
     }
@@ -393,12 +395,12 @@ export function StoryboardPlanner(props: {
     <div data-testid="world-storyboard-planner" className={`space-y-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
       <div className="flex flex-wrap items-center gap-2">
         <p className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-          <Clapperboard className="h-3.5 w-3.5" /> Storyboard planner — plan it panel by panel
+          <Clapperboard className="h-3.5 w-3.5" /> {t("worldCreateMedia.plHeading")}
         </p>
         {boards.length > 1 ? (
           <select
             data-testid="world-storyboard-planner-open"
-            aria-label="Open a storyboard"
+            aria-label={t("worldCreateMedia.plOpenLabel")}
             value={board?.id ?? ""}
             onChange={(e) => {
               const next = boards.find((b) => b.id === e.target.value) ?? null;
@@ -409,39 +411,39 @@ export function StoryboardPlanner(props: {
             className={`ml-auto rounded-lg border px-2 py-1 text-xs bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`}
           >
             {boards.map((b) => (
-              <option key={b.id} value={b.id}>{b.title} · {b.panelCount} panels</option>
+              <option key={b.id} value={b.id}>{t("worldCreateMedia.plBoardOption", { title: b.title, count: b.panelCount })}</option>
             ))}
           </select>
         ) : null}
         <button type="button" data-testid="world-storyboard-planner-new" onClick={() => void createBoard()} disabled={busy !== null} className={`${chipCls} ${boards.length > 1 ? "" : "ml-auto"}`}>
-          <Plus className="h-3.5 w-3.5" /> New storyboard
+          <Plus className="h-3.5 w-3.5" /> {t("worldCreateMedia.plNew")}
         </button>
       </div>
 
       {loadState === "loading" ? (
-        <p className={`flex items-center gap-2 text-xs font-semibold ${muted}`}><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading your storyboards…</p>
+        <p className={`flex items-center gap-2 text-xs font-semibold ${muted}`}><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("worldCreateMedia.plLoading")}</p>
       ) : loadState === "failed" ? (
         <div className="space-y-2">
-          <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>Your storyboards didn't load — nothing was changed.</p>
-          <button type="button" data-testid="world-storyboard-planner-retry" onClick={() => void loadBoards(board?.id)} className={chipCls}>Try again</button>
+          <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{t("worldCreateMedia.plLoadFailed")}</p>
+          <button type="button" data-testid="world-storyboard-planner-retry" onClick={() => void loadBoards(board?.id)} className={chipCls}>{t("worldCreateMedia.tryAgain")}</button>
         </div>
       ) : !board ? (
-        <p className={`text-xs ${muted}`}>No storyboard yet. Start one and plan the video panel by panel — each panel is a shot: a frame, a title, your notes.</p>
+        <p className={`text-xs ${muted}`}>{t("worldCreateMedia.plEmpty")}</p>
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
             <input
               data-testid="world-storyboard-planner-title"
-              aria-label="Storyboard title"
+              aria-label={t("worldCreateMedia.plTitleLabel")}
               value={boardTitleDraft}
               onChange={(e) => setBoardTitleDraft(e.target.value)}
               onBlur={() => void renameBoard()}
-              placeholder="Storyboard title"
+              placeholder={t("worldCreateMedia.plTitleLabel")}
               className={`${inputCls} max-w-xs font-bold`}
             />
-            <span className={`text-xs font-semibold ${muted}`}>{board.panels.length} {board.panels.length === 1 ? "panel" : "panels"} · saved on the server as you work</span>
+            <span className={`text-xs font-semibold ${muted}`}>{t(board.panels.length === 1 ? "worldCreateMedia.plPanelCountOne" : "worldCreateMedia.plPanelsCountMany", { count: board.panels.length })}</span>
             <button type="button" data-testid="world-storyboard-planner-delete" onClick={() => void deleteBoard()} disabled={busy !== null} className={`${chipCls} ml-auto`}>
-              <Trash2 className="h-3.5 w-3.5" /> Delete storyboard
+              <Trash2 className="h-3.5 w-3.5" /> {t("worldCreateMedia.plDelete")}
             </button>
           </div>
 
@@ -454,59 +456,66 @@ export function StoryboardPlanner(props: {
                 return (
                   <div key={panel.id} data-testid="world-storyboard-panel" className={`w-[240px] shrink-0 space-y-2 rounded-xl border p-2.5 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black">Panel {i + 1}</span>
+                      <span className="text-xs font-black">{t("worldCreateMedia.plPanelLabel", { number: i + 1 })}</span>
                       <span className={`ml-auto flex items-center gap-1`}>
-                        <button type="button" data-testid="world-storyboard-panel-left" aria-label="Move panel earlier" onClick={() => void movePanel(panel, "up")} disabled={busy !== null || i === 0} className={chipCls}><ArrowLeft className="h-3 w-3" /></button>
-                        <button type="button" data-testid="world-storyboard-panel-right" aria-label="Move panel later" onClick={() => void movePanel(panel, "down")} disabled={busy !== null || i === board.panels.length - 1} className={chipCls}><ArrowRight className="h-3 w-3" /></button>
-                        <button type="button" data-testid="world-storyboard-panel-delete" aria-label="Delete panel" onClick={() => void deletePanel(panel)} disabled={busy !== null} className={chipCls}><Trash2 className="h-3 w-3" /></button>
+                        <button type="button" data-testid="world-storyboard-panel-left" aria-label={t("worldCreateMedia.plMoveEarlier")} onClick={() => void movePanel(panel, "up")} disabled={busy !== null || i === 0} className={chipCls}><ArrowLeft className="h-3 w-3" /></button>
+                        <button type="button" data-testid="world-storyboard-panel-right" aria-label={t("worldCreateMedia.plMoveLater")} onClick={() => void movePanel(panel, "down")} disabled={busy !== null || i === board.panels.length - 1} className={chipCls}><ArrowRight className="h-3 w-3" /></button>
+                        <button type="button" data-testid="world-storyboard-panel-delete" aria-label={t("worldCreateMedia.plDeletePanel")} onClick={() => void deletePanel(panel)} disabled={busy !== null} className={chipCls}><Trash2 className="h-3 w-3" /></button>
                       </span>
                     </div>
 
                     {panel.imageUrl ? (
-                      <img src={panel.imageUrl} alt={draft.title || `Panel ${i + 1} frame`} className="aspect-video w-full rounded-lg object-cover" />
+                      <img src={panel.imageUrl} alt={draft.title || t("worldCreateMedia.plPanelFrameAlt", { number: i + 1 })} className="aspect-video w-full rounded-lg object-cover" />
                     ) : frameState === "running" ? (
                       <div className={`flex aspect-video w-full items-center justify-center gap-2 rounded-lg border border-dashed text-xs font-semibold ${isLight ? "border-[#C9A84C]/50 text-[#6B5B36]" : "border-white/20 text-white/60"}`}>
-                        <Loader2 className="h-4 w-4 animate-spin" /> Making the frame…
+                        <Loader2 className="h-4 w-4 animate-spin" /> {t("worldCreateMedia.plMakingFrame")}
                       </div>
                     ) : (
                       <div data-testid="world-storyboard-panel-noframe" className={`flex aspect-video w-full items-center justify-center rounded-lg border border-dashed px-3 text-center text-xs font-semibold ${isLight ? "border-[#C9A84C]/50 text-[#6B5B36]" : "border-white/20 text-white/60"}`}>
-                        No frame yet — a notes-only panel. It still films from its words.
+                        {t("worldCreateMedia.plNoFrame")}
                       </div>
                     )}
                     {frameState === "failed" ? (
-                      <p data-testid="world-storyboard-panel-frame-error" className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{frameErrors[panel.id] || "Frame generation failed."}</p>
+                      <p data-testid="world-storyboard-panel-frame-error" className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{frameErrors[panel.id] || t("worldCreateMedia.plFrameFailed")}</p>
                     ) : null}
 
                     <input
                       data-testid="world-storyboard-panel-title"
-                      aria-label="Panel title"
+                      aria-label={t("worldCreateMedia.plPanelTitleLabel")}
                       value={draft.title}
                       onChange={(e) => setDrafts((d) => ({ ...d, [panel.id]: { title: e.target.value, notes: draft.notes } }))}
                       onBlur={() => void savePanelWords(panel)}
-                      placeholder="Panel title — the shot in a few words"
+                      placeholder={t("worldCreateMedia.plPanelTitlePlaceholder")}
                       className={inputCls}
                     />
                     <textarea
                       data-testid="world-storyboard-panel-notes"
-                      aria-label="Panel notes"
+                      aria-label={t("worldCreateMedia.plPanelNotesLabel")}
                       value={draft.notes}
                       onChange={(e) => setDrafts((d) => ({ ...d, [panel.id]: { title: draft.title, notes: e.target.value } }))}
                       onBlur={() => void savePanelWords(panel)}
                       rows={3}
-                      placeholder="Notes — what happens, what it looks like, the line it covers"
+                      placeholder={t("worldCreateMedia.plPanelNotesPlaceholder")}
                       className={inputCls}
                     />
-                    {saveState === "saving" ? <p className={`text-[11px] font-semibold ${muted}`}>Saving…</p> : null}
-                    {saveState === "saved" ? <p className={`text-[11px] font-semibold ${muted}`}>Saved.</p> : null}
-                    {saveState === "failed" ? <p data-testid="world-storyboard-panel-save-error" className={`text-[11px] font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>Couldn't save — your words are still here; tap out of the box to try again.</p> : null}
+                    {saveState === "saving" ? <p className={`text-[11px] font-semibold ${muted}`}>{t("worldCreateMedia.plSaving")}</p> : null}
+                    {saveState === "saved" ? <p className={`text-[11px] font-semibold ${muted}`}>{t("worldCreateMedia.plSaved")}</p> : null}
+                    {saveState === "failed" ? <p data-testid="world-storyboard-panel-save-error" className={`text-[11px] font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{t("worldCreateMedia.plSaveError")}</p> : null}
 
                     <div className="flex flex-wrap items-center gap-2">
                       <button type="button" data-testid="world-storyboard-panel-frame" onClick={() => void generateFrame(panel)} disabled={frameState === "running"} className={chipCls}>
                         {frameState === "running" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
-                        {frameState === "failed" ? "Retry the frame" : panel.imageUrl ? "Remake the frame" : "Generate a frame"} · {frameCost.toLocaleString("en-US")} Visual Bucs
+                        {t(
+                          frameState === "failed"
+                            ? "worldCreateMedia.plRetryFrame"
+                            : panel.imageUrl
+                              ? "worldCreateMedia.plRemakeFrame"
+                              : "worldCreateMedia.plGenerateFrame",
+                          { cost: frameCost.toLocaleString(i18n.language) },
+                        )}
                       </button>
                       {panel.imageUrl ? (
-                        <button type="button" data-testid="world-storyboard-panel-clearframe" onClick={() => void clearFrame(panel)} disabled={busy !== null} className={chipCls}>Remove frame</button>
+                        <button type="button" data-testid="world-storyboard-panel-clearframe" onClick={() => void clearFrame(panel)} disabled={busy !== null} className={chipCls}>{t("worldCreateMedia.plRemoveFrame")}</button>
                       ) : null}
                     </div>
                   </div>
@@ -514,20 +523,20 @@ export function StoryboardPlanner(props: {
               })}
             </div>
           ) : (
-            <p className={`text-xs ${muted}`}>An empty board. Add the first panel — a shot, a moment, a line to cover.</p>
+            <p className={`text-xs ${muted}`}>{t("worldCreateMedia.plEmptyBoard")}</p>
           )}
 
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" data-testid="world-storyboard-add-panel" onClick={() => void addPanel()} disabled={busy !== null} className={chipCls}>
-              {busy === "add-panel" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add a panel
+              {busy === "add-panel" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} {t("worldCreateMedia.plAddPanel")}
             </button>
             <button type="button" data-testid="world-storyboard-handoff" onClick={() => void handoff()} disabled={busy !== null || props.editorBusy || board.panels.length === 0} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
-              {props.onSendToEditor ? "Use in a video — save + open in the editor" : "Use in a video — save as a project"}
+              {props.onSendToEditor ? t("worldCreateMedia.plUseOpenEditor") : t("worldCreateMedia.plUseSaveProject")}
             </button>
             {savedProject ? (
               <span className={`text-xs font-semibold ${muted}`}>
-                Saved as a project — its scenes are these panels, in this order.{" "}
-                <a data-testid="world-storyboard-projects-link" href="/my-projects" className="underline">Open your projects on the website ↗</a>
+                {t("worldCreateMedia.plSavedProjectNote")}{" "}
+                <a data-testid="world-storyboard-projects-link" href="/my-projects" className="underline">{t("worldCreateMedia.plOpenProjects")}</a>
               </span>
             ) : null}
           </div>
@@ -536,7 +545,7 @@ export function StoryboardPlanner(props: {
 
       {error ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p> : null}
       <QuestProgressChip isLight={isLight} lines={quest.lines} />
-      <p className={`text-[11px] ${muted}`}>Frames are made on the site's image rail from the panel's own words, wide (16:9). A panel without a frame is a plan card — the editor films it from its title and notes.</p>
+      <p className={`text-[11px] ${muted}`}>{t("worldCreateMedia.plFootnote")}</p>
     </div>
   );
 }
