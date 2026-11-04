@@ -109,6 +109,9 @@ import {
   Crown,
   Rocket,
   LayoutGrid,
+  GalleryHorizontal,
+  ScanSearch,
+  Upload,
   type LucideIcon,
 
 } from "lucide-react";
@@ -241,6 +244,10 @@ const SECTIONS: NavSection[] = [
       { href: "/my-projects", labelKey: "nav.myProjects", icon: FolderOpen, searchTerms: "projects my projects work" },
       { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck, tour: "nav-artist-vault", searchTerms: "vault files safe storage" },
       { href: "/library", labelKey: "nav.library", icon: Library, searchTerms: "library saved media uploads" },
+      /* My Music + Media Import — the member's own catalogue doors
+         (Stack100 wave 1): both routes lived on page links only. */
+      { href: "/my-music", labelKey: "nav.myMusic", icon: Disc, searchTerms: "my music songs tracks albums library mine" },
+      { href: "/import", labelKey: "nav.mediaImport", icon: Upload, searchTerms: "import media upload files bring in migrate" },
       { href: "/extension", labelKey: "nav.chromeExtension", icon: Puzzle, badge: "NEW", searchTerms: "chrome extension browser" },
       { href: "/app", labelKey: "nav.getTheApp", icon: Smartphone, searchTerms: "app mobile android download phone" },
     ],
@@ -262,6 +269,11 @@ const SECTIONS: NavSection[] = [
       { href: "/audio-studio", labelKey: "nav.audioStudio", icon: AudioWaveform, searchTerms: "audio studio music sound voice podcast mastering" },
       { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb, searchTerms: "hook hooks studio ideas titles scripts" },
       { href: "/thumbnail-studio", labelKey: "nav.thumbnailStudio", icon: Sparkles, searchTerms: "thumbnail thumbnails studio click image duels" },
+      /* Carousel Maker + Media Detector — the two Create tools with no
+         shell door (Stack100 wave 1). Carousel Maker reuses the
+         existing nav.carouselMaker key, present in all 10 catalogs. */
+      { href: "/carousel-maker", labelKey: "nav.carouselMaker", icon: GalleryHorizontal, searchTerms: "carousel maker posts slides swipe instagram" },
+      { href: "/detector", labelKey: "nav.mediaDetector", icon: ScanSearch, searchTerms: "detector media detector ai check scan authenticity" },
       { href: "/books", labelKey: "nav.thyBooks", icon: BookOpen, searchTerms: "books book ebook read" },
     ],
   },
