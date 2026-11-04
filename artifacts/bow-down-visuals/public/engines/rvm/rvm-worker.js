@@ -93,6 +93,8 @@
  */
 
 var RVM_STEPS = [
+  { feedCap: 960, ratio: 0.4 },
+  { feedCap: 832, ratio: 0.45 },
   { feedCap: 640, ratio: 0.5 },
   { feedCap: 640, ratio: 0.42 },
   { feedCap: 512, ratio: 0.5 },

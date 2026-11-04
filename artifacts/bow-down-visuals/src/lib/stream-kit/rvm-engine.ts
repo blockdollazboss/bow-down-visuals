@@ -97,7 +97,7 @@ export function rvmModelUrls(): string[] {
  * hash from the shipped file — edit the worker without bumping
  * this stamp and the suite fails.
  */
-export const RVM_WORKER_VERSION = "1c8b1b9131e9";
+export const RVM_WORKER_VERSION = "87710f6c442a";
 
 /**
  * The worker script's URL. Workers cannot be constructed
@@ -170,14 +170,28 @@ export class RvmEngineError extends Error {
  *  the ladder never hands the session to another engine, it walks
  *  within RVM or holds the floor step. `feedCap` bounds the width
  *  fed to the model; `ratio` is RVM's downsample_ratio (the
- *  model's low-res branch works at feed * ratio). The table is
- *  tuned around RVM's designed operating point — a 512–640px
- *  feed with the internal branch at ~205–320px — instead of the
- *  old 896px fp32 heroics the ladder spent every phone session
- *  retreating from (see greenscreen-matting-scope-2026-10-25.md).
- *  The worker (public/engines/rvm/rvm-worker.js) carries a mirror
+ *  model's low-res branch works at feed * ratio).
+ *
+ *  STEP-UP (Nov 4, 2026 — the owner's verdict: "nowhere near
+ *  Apple's level… whatever is wrong needs to be fixed"): the old
+ *  table topped out at a 640px feed, so the matte that reached a
+ *  1080p composite was a 640×360 picture stretched ×3 — every
+ *  edge, including hair, was a low-res edge smeared over three
+ *  output pixels, and no post-processing can invent the detail
+ *  that was never computed. Two higher steps now lead the table
+ *  (960 and 832 feeds): a device that can hold them runs a matte
+ *  at half the output's width or better, and the perf ladder —
+ *  which only moves on SUSTAINED slowness (slowMs 200, judged on
+ *  round trips) — walks a device that cannot back down through
+ *  the old steps to the same floor as before. The ratios at the
+ *  new steps keep the model's internal branch in its designed
+ *  ~320–385px band (960×0.4 = 384, 832×0.45 ≈ 374), the same
+ *  band the old table was tuned around (640×0.5 = 320). The
+ *  worker (public/engines/rvm/rvm-worker.js) carries a mirror
  *  of this table; rvm-engine.test.ts pins the two together. */
 export const RVM_STEPS: ReadonlyArray<{ feedCap: number; ratio: number | "auto" }> = [
+  { feedCap: 960, ratio: 0.4 },
+  { feedCap: 832, ratio: 0.45 },
   { feedCap: 640, ratio: 0.5 },
   { feedCap: 640, ratio: 0.42 },
   { feedCap: 512, ratio: 0.5 },
