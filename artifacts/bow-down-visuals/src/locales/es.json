@@ -9873,6 +9873,12 @@
         "tooManySpeakers": "El diálogo admite hasta {{max}} interlocutores.",
         "voiceFor": "Primero elige una voz para «{{name}}»."
       }
+    },
+    "templates": {
+      "title": "Plantillas de episodio",
+      "note": "Elige una estructura inicial: solo rellena el formulario de abajo, con encabezados de capítulo y líneas iniciales para que las edites. Nunca inicia una generación.",
+      "apply": "Usar esta estructura",
+      "applied": "Estructura cargada"
     }
   },
   "presave": {

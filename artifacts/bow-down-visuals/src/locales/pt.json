@@ -9618,6 +9618,12 @@
         "tooManySpeakers": "O diálogo suporta até {{max}} participantes.",
         "voiceFor": "Primeiro escolha uma voz para “{{name}}”."
       }
+    },
+    "templates": {
+      "title": "Modelos de episódio",
+      "note": "Escolha uma estrutura inicial — ela só preenche o formulário abaixo, com títulos de capítulo e linhas iniciais para você editar. Nunca inicia uma geração.",
+      "apply": "Usar esta estrutura",
+      "applied": "Estrutura carregada"
     }
   },
   "presave": {
