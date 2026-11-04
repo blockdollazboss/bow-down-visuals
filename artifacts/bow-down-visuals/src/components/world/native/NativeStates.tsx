@@ -1,4 +1,5 @@
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /* ─── Native honest states (NATIVE-PLAN §3.0) ───────────────────────
    Loading, empty, and failed states for native surfaces, in palace
@@ -10,11 +11,13 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 
 export function NativeLoadingState({
   isLight,
-  message = "Opening the desk…",
+  message,
 }: {
   isLight: boolean;
   message?: string;
 }) {
+  const { t } = useTranslation();
+  const label = message ?? t("worldPrimitives.stLoadingDefault");
   return (
     <p
       data-testid="world-native-loading"
@@ -22,7 +25,7 @@ export function NativeLoadingState({
         isLight ? "text-[#6B5B36]" : "text-white/55"
       }`}
     >
-      <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {message}
+      <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {label}
     </p>
   );
 }
@@ -48,7 +51,7 @@ export function NativeEmptyState({
 
 export function NativeErrorState({
   isLight,
-  title = "This desk wouldn't open in the palace",
+  title,
   message,
   onRetry,
 }: {
@@ -57,6 +60,8 @@ export function NativeErrorState({
   message: string;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation();
+  const heading = title ?? t("worldPrimitives.stErrorTitleDefault");
   return (
     <div
       data-testid="world-native-error"
@@ -67,7 +72,7 @@ export function NativeErrorState({
           isLight ? "text-[#2a1e07]" : "text-white"
         }`}
       >
-        <AlertTriangle className="h-4 w-4 text-[#d4af37]" /> {title}
+        <AlertTriangle className="h-4 w-4 text-[#d4af37]" /> {heading}
       </p>
       <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>{message}</p>
       <button
@@ -75,7 +80,7 @@ export function NativeErrorState({
         onClick={onRetry}
         className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
       >
-        Try again
+        {t("worldPrimitives.stTryAgain")}
       </button>
     </div>
   );

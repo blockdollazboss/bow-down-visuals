@@ -26,6 +26,7 @@ import {
   Swords,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTranslation } from "react-i18next";
 import { NativeBoard, NativeBoardRow } from "./NativeBoard";
 import { NativeCard } from "./NativeCard";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
@@ -138,6 +139,7 @@ function GameStepthrough({
   onReturn: () => void;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -168,7 +170,7 @@ function GameStepthrough({
               isLight ? "text-[#6B5B36]" : "text-white/50"
             }`}
           >
-            — stepped through, still in the palace
+            {t("worldPrimitives.gmSteppedThrough")}
           </span>
         </span>
         <button
@@ -177,7 +179,7 @@ function GameStepthrough({
           onClick={onReturn}
           className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
-          <X className="h-4 w-4" /> Return to the palace
+          <X className="h-4 w-4" /> {t("worldPrimitives.gmReturnToPalace")}
         </button>
       </div>
       <div
@@ -211,6 +213,7 @@ type DropState =
 
 function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
   const authHeaders = useAuthHeaders();
+  const { t, i18n } = useTranslation();
   const { refreshProfile } = useAuth();
   const [playing, setPlaying] = useState<ArcadeGameId | null>(null);
   const [myBests, setMyBests] = useState<Partial<Record<ArcadeGameId, number | null>>>({});
@@ -269,7 +272,7 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
           body: JSON.stringify(result),
         });
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        if (!res.ok) throw new Error(apiErrorMessage(data, "save failed"));
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("worldPrimitives.gmSaveFailedError")));
         setOutcomes((prev) => ({ ...prev, [result.game]: outcomeForSavedScore(result.score, data) }));
         setBoardNonce((n) => n + 1);
         void loadMyBests();
@@ -278,13 +281,13 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
           ...prev,
           [result.game]: outcomeForFailedScore(
             result.score,
-            plainErrorText(err, "Could not save your score"),
+            plainErrorText(err, t("worldPrimitives.gmCouldNotSaveScore")),
           ),
         }));
       }
       void checkDropRail(result);
     },
-    [authHeaders, checkDropRail, loadMyBests],
+    [authHeaders, checkDropRail, loadMyBests, t],
   );
 
   const claimDrop = useCallback(async () => {
@@ -314,20 +317,25 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
     if (!o.saved) {
       return (
         <p className="text-sm font-semibold text-[#e0654f]">
-          Score {o.score.toLocaleString()} — couldn&rsquo;t save it ({o.error}). Your run
-          still counted here; try the next one.
+          {t("worldPrimitives.gmScoreSaveFailed", {
+            score: o.score.toLocaleString(i18n.language),
+            error: o.error,
+          })}
         </p>
       );
     }
     return (
       <p className={`text-sm ${muted}`}>
-        Saved: <span className={`font-black ${ink}`}>{o.score.toLocaleString()}</span>
+        {t("worldPrimitives.gmScoreSaved")}{" "}
+        <span className={`font-black ${ink}`}>{o.score.toLocaleString(i18n.language)}</span>
         {o.isPersonalBest ? (
-          <span className="ml-2 font-bold text-[#C9A84C]">New personal best!</span>
+          <span className="ml-2 font-bold text-[#C9A84C]">{t("worldPrimitives.gmNewPersonalBest")}</span>
         ) : (
-          <span> · best {o.personalBest?.toLocaleString()}</span>
+          <span>{t("worldPrimitives.gmScoreBestSuffix", { score: o.personalBest?.toLocaleString(i18n.language) })}</span>
         )}
-        {o.rank ? <span> · ranked #{o.rank}</span> : null}
+        {o.rank ? (
+          <span>{t("worldPrimitives.gmScoreRankSuffix", { rank: o.rank })}</span>
+        ) : null}
       </p>
     );
   };
@@ -341,33 +349,37 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
       {dropState.kind === "offer" && (
         <>
           <p className={`flex-1 text-sm font-bold ${ink}`}>
-            The King dropped you {dropState.drop.amount.toLocaleString()} Visual Bucs for
-            that run.
+            {t("worldPrimitives.gmDropOffer", {
+              amount: dropState.drop.amount.toLocaleString(i18n.language),
+            })}
           </p>
           <button
             type="button"
             onClick={() => void claimDrop()}
             className="rounded-xl bg-gradient-to-r from-[#f0d878] to-[#C9A84C] px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
           >
-            Claim {dropState.drop.amount.toLocaleString()} VB
+            {t("worldPrimitives.gmDropClaim", {
+              amount: dropState.drop.amount.toLocaleString(i18n.language),
+            })}
           </button>
         </>
       )}
       {dropState.kind === "claiming" && (
         <p className={`inline-flex items-center gap-2 text-sm font-bold ${ink}`}>
-          <Loader2 className="h-4 w-4 animate-spin" /> Claiming…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("worldPrimitives.gmDropClaiming")}
         </p>
       )}
       {dropState.kind === "claimed" && (
         <p className={`inline-flex items-center gap-2 text-sm font-bold ${ink}`}>
-          <Check className="h-4 w-4 text-[#C9A84C]" /> {dropState.amount.toLocaleString()}{" "}
-          Visual Bucs added to your balance.
+          <Check className="h-4 w-4 text-[#C9A84C]" />{" "}
+          {t("worldPrimitives.gmDropClaimed", {
+            amount: dropState.amount.toLocaleString(i18n.language),
+          })}
         </p>
       )}
       {dropState.kind === "claim-error" && (
         <p className="text-sm font-bold text-[#e0654f]">
-          The claim didn&rsquo;t go through — the drop stays waiting for you in the
-          Treasury&rsquo;s Shark Drops.
+          {t("worldPrimitives.gmDropClaimError")}
         </p>
       )}
     </div>
@@ -391,7 +403,7 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
           >
             <h2 className={`text-lg font-black ${ink}`}>{cabinet.title}</h2>
             <p className={`mb-4 mt-1 text-sm ${muted}`}>{cabinet.tagline}</p>
-            <Suspense fallback={<StepthroughLoading label="Warming up the cabinet…" />}>
+            <Suspense fallback={<StepthroughLoading label={t("worldPrimitives.gmWarmingUp")} />}>
               {playing === "runner" ? (
                 <SharkRunnerGame light={isLight} onGameOver={handleGameOver} />
               ) : (
@@ -408,7 +420,7 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
 
   return (
     <div className="space-y-3" data-testid="world-arcade-lobby">
-      <NativeBoard isLight={isLight} title="The cabinets">
+      <NativeBoard isLight={isLight} title={t("worldPrimitives.gmCabinetsTitle")}>
         <div className="grid gap-2 sm:grid-cols-2">
           {ARCADE_CABINETS.map((cabinet) => (
             <NativeCard key={cabinet.id} isLight={isLight}>
@@ -418,9 +430,9 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
                 </span>
                 <span className={`flex-1 text-xs ${muted}`}>{cabinet.tagline}</span>
                 <span className={`text-xs font-bold ${muted}`}>
-                  Your best:{" "}
+                  {t("worldPrimitives.gmYourBest")}{" "}
                   <span className={ink}>
-                    {myBests[cabinet.id] != null ? myBests[cabinet.id]!.toLocaleString() : "—"}
+                    {myBests[cabinet.id] != null ? myBests[cabinet.id]!.toLocaleString(i18n.language) : "—"}
                   </span>
                 </span>
                 {outcomes[cabinet.id] && <div>{outcomeLine(cabinet.id)}</div>}
@@ -430,7 +442,7 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
                   onClick={() => setPlaying(cabinet.id)}
                   className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 bdv-touch-target"
                 >
-                  <Play className="h-4 w-4" /> Play
+                  <Play className="h-4 w-4" /> {t("worldPrimitives.spPlay")}
                 </button>
               </div>
             </NativeCard>
@@ -462,6 +474,7 @@ function WinnerStandingRow({
   isLight: boolean;
   showChallenge: boolean;
 }) {
+  const { t, i18n } = useTranslation();
   const ink = isLight ? "text-[#2a1e07]" : "text-white";
   const muted = isLight ? "text-[#6B5B36]" : "text-white/55";
   return (
@@ -475,7 +488,7 @@ function WinnerStandingRow({
             ? `“${winner.entryTitle}”`
             : winner.challengeTitle
       }
-      meta={winner.prizeCredits > 0 ? `${winner.prizeCredits.toLocaleString()} VB` : undefined}
+      meta={winner.prizeCredits > 0 ? t("worldPrimitives.gmPrizeMeta", { amount: winner.prizeCredits.toLocaleString(i18n.language) }) : undefined}
       action={
         <span
           className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black ${
@@ -496,6 +509,7 @@ function WinnerStandingRow({
 
 function ContestsWall({ isLight }: { isLight: boolean }) {
   const authHeaders = useAuthHeaders();
+  const { t, i18n } = useTranslation();
   const [weekly, setWeekly] = useState<WeeklyContest | null>(null);
   const [lastWeek, setLastWeek] = useState<{
     challengeTitle: string;
@@ -554,17 +568,17 @@ function ContestsWall({ isLight }: { isLight: boolean }) {
 
   return (
     <>
-      <NativeBoard isLight={isLight} title="This week's contest">
+      <NativeBoard isLight={isLight} title={t("worldPrimitives.gmContestTitle")}>
         {failed ? (
           <p className={`px-1 py-2 text-sm ${muted}`}>
-            The contest wall wouldn&rsquo;t load just now — the contest itself is fine.
+            {t("worldPrimitives.gmContestLoadFailed")}
           </p>
         ) : weekly === null && circle === null ? (
-          <NativeLoadingState isLight={isLight} message="Reading the contest wall…" />
+          <NativeLoadingState isLight={isLight} message={t("worldPrimitives.gmContestLoading")} />
         ) : weekly === null ? (
           <NativeEmptyState
             isLight={isLight}
-            message="No contest is running this week — the next crown is still being forged."
+            message={t("worldPrimitives.gmContestEmpty")}
           />
         ) : (
           <div className="space-y-2 px-1 py-1" data-testid="world-contest-current">
@@ -575,13 +589,17 @@ function ContestsWall({ isLight }: { isLight: boolean }) {
               )}
             </p>
             <p className={`text-xs font-semibold ${muted}`}>
-              {contestStatusLine(weekly.status)} · {weekly.entryCount.toLocaleString()}{" "}
-              entr{weekly.entryCount === 1 ? "y" : "ies"} in
+              {contestStatusLine(weekly.status)} ·{" "}
+              {t(weekly.entryCount === 1 ? "worldPrimitives.gmContestEntriesOne" : "worldPrimitives.gmContestEntriesMany", {
+                count: weekly.entryCount.toLocaleString(i18n.language),
+              })}
               {weekly.prizePoolCredits > 0 && (
                 <>
-                  {" "}· playing for{" "}
+                  {" "}{t("worldPrimitives.gmContestPlayingFor")}{" "}
                   <span className={ink}>
-                    {weekly.prizePoolCredits.toLocaleString()} Visual Bucs
+                    {t("worldPrimitives.gmPlayingForAmount", {
+                      amount: weekly.prizePoolCredits.toLocaleString(i18n.language),
+                    })}
                   </span>
                 </>
               )}
@@ -589,7 +607,12 @@ function ContestsWall({ isLight }: { isLight: boolean }) {
             {weekly.prizes.length > 0 && weekly.status !== "winners" && (
               <p className={`text-xs ${muted}`}>
                 {weekly.prizes
-                  .map((p) => `#${p.place} takes ${p.prizeCredits.toLocaleString()} VB`)
+                  .map((p) =>
+                    t("worldPrimitives.gmPrizeTakes", {
+                      place: p.place,
+                      amount: p.prizeCredits.toLocaleString(i18n.language),
+                    }),
+                  )
                   .join(" · ")}
               </p>
             )}
@@ -607,16 +630,19 @@ function ContestsWall({ isLight }: { isLight: boolean }) {
             ) : standings && standings.length > 0 ? (
               <div data-testid="world-contest-standings">
                 <p className={`pb-1 text-[11px] font-black uppercase tracking-wide ${muted}`}>
-                  Who&rsquo;s ahead
+                  {t("worldPrimitives.gmWhosAhead")}
                 </p>
                 {standings.map((s) => (
                   <NativeBoardRow
                     key={`${s.rank}-${s.creatorName}`}
                     isLight={isLight}
                     highlighted={s.rank === 1}
-                    title={`${s.rank}. ${s.creatorName}${s.rank === 1 ? " — in the lead" : ""}`}
+                    title={`${s.rank}. ${s.creatorName}${s.rank === 1 ? t("worldPrimitives.gmInTheLead") : ""}`}
                     detail={s.entryTitle ? `“${s.entryTitle}”` : undefined}
-                    meta={`${s.votes.toLocaleString()} votes · ${s.views.toLocaleString()} views`}
+                    meta={t("worldPrimitives.gmVotesViewsMeta", {
+                      votes: s.votes.toLocaleString(i18n.language),
+                      views: s.views.toLocaleString(i18n.language),
+                    })}
                     action={
                       s.rank === 1 ? (
                         <Crown className="h-4 w-4 text-[#C9A84C]" />
@@ -627,33 +653,33 @@ function ContestsWall({ isLight }: { isLight: boolean }) {
               </div>
             ) : weekly.status !== "winners" ? (
               <p className={`text-xs ${muted}`}>
-                No entries yet — the lead is there for the taking.
+                {t("worldPrimitives.gmNoEntries")}
               </p>
             ) : null}
           </div>
         )}
       </NativeBoard>
 
-      <NativeBoard isLight={isLight} title="The Winners' Circle">
+      <NativeBoard isLight={isLight} title={t("worldPrimitives.gmWinnersCircleTitle")}>
         {circle === null ? (
           failed ? (
             <p className={`px-1 py-2 text-sm ${muted}`}>
-              The Circle wouldn&rsquo;t load just now.
+              {t("worldPrimitives.gmCircleLoadFailed")}
             </p>
           ) : (
-            <NativeLoadingState isLight={isLight} message="Gathering the crowned…" />
+            <NativeLoadingState isLight={isLight} message={t("worldPrimitives.gmCircleLoading")} />
           )
         ) : circle.length === 0 && !lastWeek ? (
           <NativeEmptyState
             isLight={isLight}
-            message="No crowns on the wall yet — this week's contest writes the first names."
+            message={t("worldPrimitives.gmCircleEmpty")}
           />
         ) : (
           <div data-testid="world-winners-circle">
             {lastWeek && (
               <>
                 <p className={`px-1 pb-1 text-[11px] font-black uppercase tracking-wide ${muted}`}>
-                  Last week — {lastWeek.challengeTitle}
+                  {t("worldPrimitives.gmLastWeek", { title: lastWeek.challengeTitle })}
                 </p>
                 {lastWeek.winners.map((w) => (
                   <WinnerStandingRow
@@ -668,7 +694,7 @@ function ContestsWall({ isLight }: { isLight: boolean }) {
             {circle.length > 0 && (
               <>
                 <p className={`px-1 pb-1 pt-2 text-[11px] font-black uppercase tracking-wide ${muted}`}>
-                  All-time crowns
+                  {t("worldPrimitives.gmAllTimeCrowns")}
                 </p>
                 {circle.map((w, i) => (
                   <WinnerStandingRow
@@ -706,6 +732,7 @@ function MarbleTablePanel({
   partyInvite?: PartyInviteProp | null;
 }) {
   const authHeaders = useAuthHeaders();
+  const { t, i18n } = useTranslation();
   const [activeCode, setActiveCode] = useState<string | null>(null);
   const [rooms, setRooms] = useState<PartyOpenRoom[] | null>(null);
   const [roomsFailed, setRoomsFailed] = useState(false);
@@ -822,34 +849,34 @@ function MarbleTablePanel({
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       const code = parseCreatedPartyRoom(data);
-      if (!res.ok || !code) throw new Error(apiErrorMessage(data, "Could not open the table"));
+      if (!res.ok || !code) throw new Error(apiErrorMessage(data, t("worldPrimitives.gmCouldNotOpenTable")));
       setActiveCode(code);
     } catch (err) {
-      setCreateError(plainErrorText(err, "Could not open the table"));
+      setCreateError(plainErrorText(err, t("worldPrimitives.gmCouldNotOpenTable")));
     } finally {
       setCreating(false);
     }
     // tableHome is derived from homeKind + the loaded homes each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authHeaders, game, homeKind, mySlug, myStream]);
+  }, [authHeaders, game, homeKind, mySlug, myStream, t]);
 
   const join = useCallback(() => {
     const code = normalizePartyCode(joinCode);
     if (!isPartyRoomCode(code)) {
-      setJoinError("Room codes are 6 letters and numbers — check the code and try again.");
+      setJoinError(t("worldPrimitives.gmJoinCodeError"));
       return;
     }
     setJoinError(null);
     setActiveCode(code);
-  }, [joinCode]);
+  }, [joinCode, t]);
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/55";
   const ink = isLight ? "text-[#2a1e07]" : "text-white";
 
   if (activeCode) {
     return (
-      <GameStepthrough title="The Marble Table" isLight={isLight} onReturn={leaveRoom}>
-        <Suspense fallback={<StepthroughLoading label="Taking your seat…" />}>
+      <GameStepthrough title={t("worldPrimitives.gmMarbleTableTitle")} isLight={isLight} onReturn={leaveRoom}>
+        <Suspense fallback={<StepthroughLoading label={t("worldPrimitives.gmTakingSeat")} />}>
           <PartyRoomView
             key={activeCode}
             code={activeCode}
@@ -878,22 +905,26 @@ function MarbleTablePanel({
           {summonsRoom ? (
             partyTableSeatState(summonsRoom) === "full" ? (
               <p className={`flex-1 text-sm font-bold ${ink}`}>
-                {partySummonsHeadline(summonsRoom)} —{" "}
-                {summonsRoom.players}/{PARTY_GAME_META[summonsRoom.game].seats} seated,
-                and every seat is taken. The code stays filled in below if a seat
-                opens up, and the open tables are right here.
+                {t("worldPrimitives.gmSummonsFull", {
+                  headline: partySummonsHeadline(summonsRoom),
+                  players: summonsRoom.players,
+                  seats: PARTY_GAME_META[summonsRoom.game].seats,
+                })}
               </p>
             ) : (
               <>
                 <p className={`flex-1 text-sm font-bold ${ink}`}>
-                  {partySummonsHeadline(summonsRoom)} —{" "}
-                  {summonsRoom.players}/{PARTY_GAME_META[summonsRoom.game].seats} seated
+                  {t("worldPrimitives.gmSummonsSeated", {
+                    headline: partySummonsHeadline(summonsRoom),
+                    players: summonsRoom.players,
+                    seats: PARTY_GAME_META[summonsRoom.game].seats,
+                  })}
                   {summonsRoom.profileSlug
-                    ? `, playing at @${summonsRoom.profileSlug}`
+                    ? t("worldPrimitives.gmSummonsAtProfile", { slug: summonsRoom.profileSlug })
                     : summonsRoom.streamId
-                      ? ", on a live stream"
+                      ? t("worldPrimitives.gmSummonsOnStream")
                       : ""}
-                  . Your seat is waiting.
+                  {t("worldPrimitives.gmSummonsSeatWaiting")}
                 </p>
                 <button
                   type="button"
@@ -901,20 +932,18 @@ function MarbleTablePanel({
                   onClick={() => setActiveCode(summonsRoom.code)}
                   className="rounded-xl bg-gradient-to-r from-[#f0d878] to-[#C9A84C] px-4 py-2 text-sm font-black text-black transition hover:brightness-110"
                 >
-                  Take your seat
+                  {t("worldPrimitives.gmTakeYourSeat")}
                 </button>
               </>
             )
           ) : (
             <p className={`flex-1 text-sm font-bold ${ink}`}>
-              You were summoned to table {partyInvite.code}, but that table has closed —
-              the code is filled in below if it reopens, and the open tables are right
-              here.
+              {t("worldPrimitives.gmSummonsClosed", { code: partyInvite.code })}
             </p>
           )}
           <button
             type="button"
-            aria-label="Dismiss the summons"
+            aria-label={t("worldPrimitives.gmDismissSummonsAria")}
             onClick={() => setSummonsDismissed(true)}
             className={`rounded-full border px-2 py-1 text-xs font-bold bdv-touch-box ${
               isLight
@@ -928,32 +957,41 @@ function MarbleTablePanel({
       )}
       {record && record.totalMatches > 0 && (
         <p className={`px-1 text-xs font-bold ${muted}`}>
-          Your record: {record.totalMatches} match{record.totalMatches === 1 ? "" : "es"} ·{" "}
+          {t("worldPrimitives.gmRecordLabel")}{" "}
+          {t(record.totalMatches === 1 ? "worldPrimitives.gmRecordMatchOne" : "worldPrimitives.gmRecordMatchMany", {
+            count: record.totalMatches,
+          })}{" "}
+          ·{" "}
           <span className={ink}>
-            {record.totalWins} crown{record.totalWins === 1 ? "" : "s"}
+            {t(record.totalWins === 1 ? "worldPrimitives.gmRecordCrownOne" : "worldPrimitives.gmRecordCrownMany", {
+              count: record.totalWins,
+            })}
           </span>
           {record.games.map((g) => (
             <span key={g.game}>
-              {" "}· {PARTY_GAME_META[g.game].title}: best {g.bestScore.toLocaleString()}
+              {t("worldPrimitives.gmRecordGameBest", {
+                title: PARTY_GAME_META[g.game].title,
+                score: g.bestScore.toLocaleString(i18n.language),
+              })}
             </span>
           ))}
         </p>
       )}
 
-      <NativeBoard isLight={isLight} title="Open tables">
+      <NativeBoard isLight={isLight} title={t("worldPrimitives.gmOpenTablesTitle")}>
         {roomsFailed ? (
           <NativeErrorState
             isLight={isLight}
-            title="The tables wouldn't come into view"
-            message="Open party rooms wouldn't load — the tables themselves are fine. Try again."
+            title={t("worldPrimitives.gmTablesLoadTitle")}
+            message={t("worldPrimitives.gmTablesLoadMessage")}
             onRetry={() => setTick((n) => n + 1)}
           />
         ) : rooms === null ? (
-          <NativeLoadingState isLight={isLight} message="Looking for open tables…" />
+          <NativeLoadingState isLight={isLight} message={t("worldPrimitives.gmTablesLoading")} />
         ) : rooms.length === 0 ? (
           <NativeEmptyState
             isLight={isLight}
-            message="No tables are open right now — open the first one below."
+            message={t("worldPrimitives.gmTablesEmpty")}
           />
         ) : (
           rooms.map((room) => {
@@ -971,7 +1009,7 @@ function MarbleTablePanel({
                       type="button"
                       data-testid={`world-party-invite-${room.code}`}
                       onClick={() => void copyInvite(room.code)}
-                      title="Copy a World invite link — it lands your friend at this table"
+                      title={t("worldPrimitives.gmInviteTitle")}
                       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
                         isLight
                           ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
@@ -983,7 +1021,7 @@ function MarbleTablePanel({
                       ) : (
                         <Link2 className="h-3.5 w-3.5" />
                       )}
-                      {copiedCode === room.code ? "Copied" : "Invite"}
+                      {copiedCode === room.code ? t("worldPrimitives.gmCopied") : t("worldPrimitives.gmInvite")}
                     </button>
                     <button
                       type="button"
@@ -991,7 +1029,7 @@ function MarbleTablePanel({
                       onClick={() => setActiveCode(room.code)}
                       className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                     >
-                      <Users className="h-3.5 w-3.5" /> Take a seat
+                      <Users className="h-3.5 w-3.5" /> {t("worldPrimitives.gmTakeASeat")}
                     </button>
                   </span>
                 }
@@ -1001,7 +1039,7 @@ function MarbleTablePanel({
         )}
       </NativeBoard>
 
-      <NativeCard isLight={isLight} title="Open a table">
+      <NativeCard isLight={isLight} title={t("worldPrimitives.gmOpenATableTitle")}>
         <div className="grid gap-2 sm:grid-cols-2">
           {(Object.keys(PARTY_GAME_META) as PartyGame[]).map((g) => {
             const meta = PARTY_GAME_META[g];
@@ -1029,7 +1067,7 @@ function MarbleTablePanel({
         {(mySlug || myStream) && (
           <div className="mt-3" data-testid="world-party-home-picker">
             <p className={`text-[11px] font-black uppercase tracking-wide ${muted}`}>
-              Hold the table…
+              {t("worldPrimitives.gmHoldTheTable")}
             </p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               <button
@@ -1044,7 +1082,7 @@ function MarbleTablePanel({
                       : "border-white/15 text-white/70"
                 }`}
               >
-                <Hash className="h-3.5 w-3.5" /> Right here
+                <Hash className="h-3.5 w-3.5" /> {t("worldPrimitives.gmHomePlain")}
               </button>
               {mySlug && (
                 <button
@@ -1059,7 +1097,7 @@ function MarbleTablePanel({
                         : "border-white/15 text-white/70"
                   }`}
                 >
-                  <CircleUserRound className="h-3.5 w-3.5" /> At your profile · @{mySlug}
+                  <CircleUserRound className="h-3.5 w-3.5" /> {t("worldPrimitives.gmHomeProfile", { slug: mySlug })}
                 </button>
               )}
               {myStream && (
@@ -1075,17 +1113,17 @@ function MarbleTablePanel({
                         : "border-white/15 text-white/70"
                   }`}
                 >
-                  <Radio className="h-3.5 w-3.5" /> On your live stream
+                  <Radio className="h-3.5 w-3.5" /> {t("worldPrimitives.gmHomeStream")}
                   {myStream.title ? ` · ${myStream.title}` : ""}
                 </button>
               )}
             </div>
             <p className={`mt-1.5 text-xs ${muted}`}>
               {homeKind === "profile" && mySlug
-                ? `This table lives on your profile — players see “Playing at @${mySlug}”.`
+                ? t("worldPrimitives.gmHomeProfileDesc", { slug: mySlug })
                 : homeKind === "stream" && myStream
-                  ? "This table rides your live stream — your audience finds it there."
-                  : "A plain palace table, right here in the Game Rooms."}
+                  ? t("worldPrimitives.gmHomeStreamDesc")
+                  : t("worldPrimitives.gmHomePlainDesc")}
             </p>
           </div>
         )}
@@ -1100,18 +1138,18 @@ function MarbleTablePanel({
           className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
         >
           {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-          {creating ? "Opening…" : "Open a table & take the host seat"}
+          {creating ? t("worldPrimitives.gmOpening") : t("worldPrimitives.gmOpenTableCta")}
         </button>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wide ${muted}`}>
-            <Hash className="h-3.5 w-3.5 text-[#d4af37]" /> Join with a code
+            <Hash className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldPrimitives.gmJoinWithCode")}
           </span>
           <input
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === "Enter" && join()}
             placeholder="ABC234"
-            aria-label="Join code"
+            aria-label={t("worldPrimitives.gmJoinCodeAria")}
             maxLength={6}
             data-testid="world-party-join-input"
             className={`w-36 rounded-xl border px-3 py-2 text-center text-sm font-black uppercase tracking-[0.25em] bdv-touch-target ${
@@ -1129,23 +1167,23 @@ function MarbleTablePanel({
                 : "border-white/15 text-white/75 hover:text-white"
             }`}
           >
-            Join
+            {t("worldPrimitives.gmJoin")}
           </button>
           {joinError && <p className="w-full text-sm font-semibold text-[#e0654f]">{joinError}</p>}
         </div>
       </NativeCard>
 
-      <NativeBoard isLight={isLight} title="Palace leaderboard">
+      <NativeBoard isLight={isLight} title={t("worldPrimitives.gmLeaderboardTitle")}>
         {boardFailed ? (
           <p className={`px-1 py-2 text-sm ${muted}`}>
-            The board wouldn&rsquo;t load just now — matches still count.
+            {t("worldPrimitives.gmBoardLoadFailed")}
           </p>
         ) : board === null ? (
-          <NativeLoadingState isLight={isLight} message="Reading the board…" />
+          <NativeLoadingState isLight={isLight} message={t("worldPrimitives.gmBoardLoading")} />
         ) : board.rows.length === 0 ? (
           <NativeEmptyState
             isLight={isLight}
-            message="No crowns claimed yet — the first finished match writes history."
+            message={t("worldPrimitives.gmBoardEmpty")}
           />
         ) : (
           <>
@@ -1154,9 +1192,13 @@ function MarbleTablePanel({
                 key={row.userId}
                 isLight={isLight}
                 highlighted={row.isYou}
-                title={`${row.rank}. ${row.name}${row.isYou ? " — you" : ""}`}
-                detail={`${row.matches} match${row.matches === 1 ? "" : "es"}`}
-                meta={`${row.points.toLocaleString()} pts`}
+                title={`${row.rank}. ${row.name}${row.isYou ? t("worldPrimitives.gmYouSuffix") : ""}`}
+                detail={t(row.matches === 1 ? "worldPrimitives.gmRecordMatchOne" : "worldPrimitives.gmRecordMatchMany", {
+                  count: row.matches,
+                })}
+                meta={t("worldPrimitives.gmPointsMeta", {
+                  points: row.points.toLocaleString(i18n.language),
+                })}
                 action={
                   <span className="inline-flex items-center gap-1 text-xs font-black text-[#C9A84C]">
                     {row.rank === 1 ? (
@@ -1171,8 +1213,9 @@ function MarbleTablePanel({
             ))}
             {board.viewerRank !== null && board.viewerRank > 10 && (
               <p className={`px-1 pt-1 text-xs font-bold ${muted}`}>
-                You stand at <span className={ink}>#{board.viewerRank}</span> — the top of
-                the board is in sight.
+                {t("worldPrimitives.gmYouStandAt")}{" "}
+                <span className={ink}>#{board.viewerRank}</span>{" "}
+                {t("worldPrimitives.gmBoardInSight")}
               </p>
             )}
           </>

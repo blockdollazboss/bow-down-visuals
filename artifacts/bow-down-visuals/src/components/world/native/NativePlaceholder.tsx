@@ -1,4 +1,5 @@
 import { Hammer } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { PalaceStation } from "@/lib/world/stations";
 import { NativeCard } from "./NativeCard";
 
@@ -17,6 +18,7 @@ export interface NativePlaceholderProps {
 }
 
 export function NativePlaceholder({ station, isLight }: NativePlaceholderProps) {
+  const { t } = useTranslation();
   return (
     <NativeCard isLight={isLight}>
       <div
@@ -27,12 +29,10 @@ export function NativePlaceholder({ station, isLight }: NativePlaceholderProps) 
         <p
           className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}
         >
-          This desk is being rebuilt for the palace
+          {t("worldPrimitives.phTitle")}
         </p>
         <p className={`max-w-sm text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-          {station.name} is being refitted to work right here in the room — its work will
-          happen where you stand, with no website page pulled up. Until the new desk
-          lands, everything it does today waits on the website, one tap below.
+          {t("worldPrimitives.phBody", { name: station.name })}
         </p>
       </div>
     </NativeCard>

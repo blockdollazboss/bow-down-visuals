@@ -115,7 +115,12 @@ describe("the landing consumes the link — offer, full, closed, guest", () => {
   it("a valid, open table gets the seat offer — banner and panel", () => {
     expect(worldPage).toContain("partySummonsHeadline(inviteRoom)");
     expect(worldPage).toContain("Take me to the table");
-    expect(gamesPanels).toContain("Your seat is waiting.");
+    /* Locale unit 51: the panel's seat-waiting copy lives in worldPrimitives. */
+    expect(gamesPanels).toContain('t("worldPrimitives.gmSummonsSeatWaiting")');
+    const en = JSON.parse(
+      readFileSync(new URL("../../locales/en.json", import.meta.url), "utf8"),
+    ) as any;
+    expect(en.worldPrimitives.gmSummonsSeatWaiting).toBe(". Your seat is waiting.");
     expect(gamesPanels).toContain("setActiveCode(summonsRoom.code)");
   });
 
@@ -126,10 +131,15 @@ describe("the landing consumes the link — offer, full, closed, guest", () => {
       worldPage.indexOf('partyTableSeatState(inviteRoom) === "full"'),
     ).toBeLessThan(worldPage.indexOf("Join your party?"));
     expect(gamesPanels).toContain('partyTableSeatState(summonsRoom) === "full"');
-    expect(gamesPanels).toContain("every seat is taken");
+    /* Locale unit 51: the full-table copy lives in worldPrimitives.gmSummonsFull. */
+    expect(gamesPanels).toContain('t("worldPrimitives.gmSummonsFull"');
+    const en = JSON.parse(
+      readFileSync(new URL("../../locales/en.json", import.meta.url), "utf8"),
+    ) as any;
+    expect(en.worldPrimitives.gmSummonsFull).toContain("every seat is taken");
     expect(
       gamesPanels.indexOf('partyTableSeatState(summonsRoom) === "full"'),
-    ).toBeLessThan(gamesPanels.indexOf("Your seat is waiting."));
+    ).toBeLessThan(gamesPanels.indexOf("gmSummonsSeatWaiting"));
     /* The walk survives the full state — the banner's action on a
        full table is the Game Rooms, like the closed state's. */
     expect(worldPage).toContain("Go to the Game Rooms");
@@ -137,7 +147,12 @@ describe("the landing consumes the link — offer, full, closed, guest", () => {
 
   it("an ended table meets the honest closed state, not a dead end", () => {
     expect(worldPage).toContain("That party table has closed");
-    expect(gamesPanels).toContain("that table has closed");
+    /* Locale unit 51: the panel's closed copy lives in worldPrimitives. */
+    expect(gamesPanels).toContain('t("worldPrimitives.gmSummonsClosed"');
+    const en = JSON.parse(
+      readFileSync(new URL("../../locales/en.json", import.meta.url), "utf8"),
+    ) as any;
+    expect(en.worldPrimitives.gmSummonsClosed).toContain("that table has closed");
   });
 
   it("a guest is gated to sign-in with the invite preserved as the return", () => {

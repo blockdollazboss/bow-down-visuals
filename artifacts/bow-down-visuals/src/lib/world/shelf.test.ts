@@ -511,13 +511,21 @@ describe("source pins — the Now Playing card's thread (2.13, stack-20 hardenin
     expect(card).toContain("setCommentsFailed(true)");
     expect(card).not.toContain("setComments([])");
     expect(card).toContain("commentsFailed ? (");
-    expect(card).toContain('title="The conversation wouldn\'t load"');
+    /* Locale unit 51: the copy lives in the worldPrimitives catalog now —
+       the card passes the key, the catalog carries the original wording. */
+    expect(card).toContain('title={t("worldPrimitives.spCommentsLoadTitle")}');
+    const en = JSON.parse(read("../../locales/en.json")) as any;
+    expect(en.worldPrimitives.spCommentsLoadTitle).toBe("The conversation wouldn't load");
     expect(card).toContain("onRetry={retryThread}");
   });
 
   it("the header count is the server's true total, and a truncated window says so", () => {
     expect(card).toContain("shelfThreadCount(");
-    expect(card).toContain("Comments{threadTotal > 0 ? ` · ${threadTotal}` : \"\"}");
+    /* Locale unit 51: header copy rides worldPrimitives (with/without count). */
+    expect(card).toContain('threadTotal > 0 ? t("worldPrimitives.spCommentsTitleWithCount", { count: threadTotal }) : t("worldPrimitives.spCommentsTitle")');
+    const en = JSON.parse(read("../../locales/en.json")) as any;
+    expect(en.worldPrimitives.spCommentsTitle).toBe("Comments");
+    expect(en.worldPrimitives.spCommentsTitleWithCount).toBe("Comments · {{count}}");
     expect(card).toContain("shelfThreadWindowNote(threadTotal, comments.length)");
   });
 
@@ -527,10 +535,13 @@ describe("source pins — the Now Playing card's thread (2.13, stack-20 hardenin
   });
 
   it("guests read the thread and meet the pitch at the composer — no fake affordance", () => {
-    expect(card).toContain("Sign in to join the conversation — reading is open to everyone here.");
+    /* Locale unit 51: the pitch copy lives in worldPrimitives.spSignInToComment. */
+    expect(card).toContain('t("worldPrimitives.spSignInToComment")');
+    const en = JSON.parse(read("../../locales/en.json")) as any;
+    expect(en.worldPrimitives.spSignInToComment).toBe("Sign in to join the conversation — reading is open to everyone here.");
     expect(card).toContain('data-testid="world-shelf-comment-input"');
     /* The composer block only exists inside the member branch. */
-    const pitchAt = card.indexOf("Sign in to join the conversation");
+    const pitchAt = card.indexOf('t("worldPrimitives.spSignInToComment")');
     const memberBranchAt = card.lastIndexOf("user ? (", pitchAt);
     expect(memberBranchAt).toBeGreaterThan(-1);
     expect(card.indexOf('data-testid="world-shelf-comment-input"')).toBeGreaterThan(memberBranchAt);
