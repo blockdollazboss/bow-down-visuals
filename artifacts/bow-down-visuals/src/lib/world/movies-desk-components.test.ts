@@ -33,29 +33,29 @@ describe("both modes, focusable and complete", () => {
     expect(desk).toContain('data-testid="world-movies-desk-run"');
     expect(desk).toContain("disabled={busy || !ready}");
     expect(desk).toContain("moviesDeskInputReady(mode, { idea, description })");
-    expect(desk).toContain("need 50+");
+    expect(desk).toContain("movies.need50");
   });
 
   it("Advanced fields dock behind the shared expander (episode count / stream length / clip count)", () => {
     expect(desk).toContain("AdvancedExpander");
-    expect(desk).toContain("Episodes (series formats)");
-    expect(desk).toContain("Stream length");
-    expect(desk).toContain("Clips wanted");
-    expect(desk).toContain("Genre (optional)");
-    expect(desk).toContain("Stream / VOD URL (optional)");
+    expect(desk).toContain("worldCatalogLibrary.moviesEpisodesLabel");
+    expect(desk).toContain("worldCatalogLibrary.moviesStreamLengthLabel");
+    expect(desk).toContain("worldCatalogLibrary.moviesClipsWantedLabel");
+    expect(desk).toContain("worldCatalogLibrary.moviesGenreLabel");
+    expect(desk).toContain("worldCatalogLibrary.moviesStreamUrlLabel");
   });
 });
 
 describe("results render in-panel — the full packages", () => {
   it("concept result: title, logline, episodes/scenes, character bible, pilot hook, comparables", () => {
     for (const needle of [
-      "Three-Act Structure",
-      "Episode Breakdown",
-      "Character Bible",
-      "Pilot Hook",
-      "Comparables",
-      "Saved to your hub project as a script asset",
-      "Develop another concept",
+      "movies.threeAct",
+      "movies.episodeBreakdown",
+      "movies.characterBible",
+      "movies.pilotHook",
+      "movies.comparables",
+      "worldCatalogLibrary.moviesSavedLine",
+      "worldCatalogLibrary.moviesDevelopAnother",
     ]) {
       expect(desk, needle).toContain(needle);
     }
@@ -63,12 +63,12 @@ describe("results render in-panel — the full packages", () => {
 
   it("detection result: summary, clip moments with meta, posting strategy, server note verbatim", () => {
     for (const needle of [
-      "Stream Summary",
-      "Clip-Worthy Moments",
-      "Posting Strategy",
-      "Virality",
+      "movies.streamSummary",
+      "movies.clipMoments",
+      "movies.postingStrategy",
+      "worldCatalogLibrary.moviesVirality",
       "detectNote",
-      "Analyze another stream",
+      "worldCatalogLibrary.moviesAnalyzeAnother",
     ]) {
       expect(desk, needle).toContain(needle);
     }
@@ -90,13 +90,13 @@ describe("theme parity + honest states", () => {
   });
 
   it("out-of-credits and failure notes are plain sentences, distinct from empty", () => {
-    expect(desk).toContain("out of Visual Bucs — top up at the Visual Buc Packs desk");
-    expect(desk).toContain("a failed make is refunded");
-    expect(desk).toContain("came back empty — a failed make is refunded");
+    expect(desk).toContain("worldCatalogLibrary.moviesOutOfBucs");
+    expect(desk).toContain("worldCatalogLibrary.moviesFailStudio");
+    expect(desk).toContain("worldCatalogLibrary.moviesFailConceptEmpty");
   });
 
   it("the session strip is labelled session-only — no saved-projects claim anywhere", () => {
-    expect(desk).toContain("This session");
+    expect(desk).toContain("worldCatalogLibrary.moviesSessionTitle");
     expect(seam).toContain("SAVED PROJECTS — THE GAP, VERBATIM");
     expect(desk).not.toContain("Saved projects");
     expect(desk).not.toContain("My Movies");

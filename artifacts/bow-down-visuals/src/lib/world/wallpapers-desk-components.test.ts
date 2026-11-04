@@ -34,10 +34,10 @@ describe("one native desk, house shape", () => {
       'data-testid="world-wallpapers-desk-ss-render"',
       'data-testid="world-wallpapers-desk-session"',
       'data-testid="world-wallpapers-desk-zip"',
-      "1 · Make the art",
-      "2 · Pick the device size",
-      "3 · Pack of 10 clean wallpapers",
-      "4 · Living wallpaper",
+      "worldCatalogLibrary.wpSectionArt",
+      "worldCatalogLibrary.wpSectionSize",
+      "worldCatalogLibrary.wpSectionPack",
+      "worldCatalogLibrary.wpSectionLiving",
     ]) {
       expect(desk, needle).toContain(needle);
     }
@@ -59,9 +59,9 @@ describe("spend discipline in source", () => {
   });
 
   it("printed prices come from the constants, never literals", () => {
-    expect(desk).toContain("WALLPAPER_GENERATE_COST.toLocaleString()");
-    expect(desk).toContain("WALLPAPER_CLEAN_RENDER_COST.toLocaleString()");
-    expect(desk).toContain("WALLPAPERS_SCREENSAVER_COST.toLocaleString()");
+    expect(desk).toContain("WALLPAPER_GENERATE_COST.toLocaleString(i18n.language)");
+    expect(desk).toContain("WALLPAPER_CLEAN_RENDER_COST.toLocaleString(i18n.language)");
+    expect(desk).toContain("WALLPAPERS_SCREENSAVER_COST.toLocaleString(i18n.language)");
   });
 
   it("the pack run is gated on exactly ten picks (the seam's rule)", () => {
@@ -72,11 +72,11 @@ describe("spend discipline in source", () => {
   it("the brand stamp reads the member's own brand kit — logo whole or name only", () => {
     expect(desk).toContain("fetchBrandKit(getAccessToken)");
     expect(desk).toContain("brandKit?.logoUrl");
-    expect(desk).toContain("your logo goes on whole, exactly as you saved it");
+    expect(desk).toContain("worldCatalogLibrary.wpCostBrandedLogo");
   });
 
   it("402 reads as out-of-Visual-Bucs with the Treasury pointer", () => {
-    expect(desk).toContain("Visual Buc Packs desk in the Treasury");
+    expect(desk).toContain("worldCatalogLibrary.wpOutOfBucs");
   });
 });
 

@@ -36,16 +36,16 @@ describe("the board-desk shape + the My Studio mount", () => {
 describe("the whole pipeline in-panel", () => {
   it("scan, pick + fetch, upload, rebuild, approve, approve-all, dismiss", () => {
     for (const needle of [
-      "Scan for my posts",
+      "worldCatalogLibrary.importScan",
       'data-testid="world-catalog-desk-fetch-picked"',
-      "Bring home the picked",
+      "worldCatalogLibrary.importFetchPicked",
       'data-testid="world-catalog-desk-file-input"',
       'data-testid="world-catalog-desk-choose"',
-      "Approve — put it home",
+      "catalogImport.approvePutHome",
       'data-testid="world-catalog-desk-approve-all"',
-      "Approve all ready",
-      "Rebuild the details",
-      "Dismiss",
+      "catalogImport.approveAllReady",
+      "catalogImport.rebuildDetails",
+      "catalogImport.dismiss",
     ]) {
       expect(desk, needle).toContain(needle);
     }
@@ -70,7 +70,7 @@ describe("honesty in the frame", () => {
     expect(desk).toContain('data-testid="world-catalog-desk-honesty"');
     expect(desk).toContain("state.honesty.movesLine");
     expect(desk).toContain("item.statusNote");
-    expect(desk).toContain("CATALOG_STATUS_LABELS[item.status]");
+    expect(desk).toContain("t(STATUS_LABEL_KEYS[item.status])");
   });
 
   it("state re-reads after every action; no spend path exists", () => {

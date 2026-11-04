@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowDown, ArrowLeft, ArrowUp, Check, Copy, Disc3, Loader2, Plus, Rocket, Trash2,
 } from "lucide-react";
@@ -62,7 +63,18 @@ const iconBtn = (isLight: boolean) =>
 
 const EMPTY_FORM: AlbumForm = { title: "", albumType: "album", releaseNotes: "", coverArtUrl: "" };
 
+/** Catalog keys for the seam's album-type labels — the seam keeps
+ *  the English labels as defaults; the desk renders its own
+ *  language, falling back to the seam label for unknown types. */
+const ALBUM_TYPE_KEYS: Record<string, string> = {
+  album: "worldCatalogLibrary.albumsTypeAlbum",
+  ep: "worldCatalogLibrary.albumsTypeEp",
+};
+
 export function AlbumsDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
+  const typeLabel = (key: string): string =>
+    ALBUM_TYPE_KEYS[key] ? t(ALBUM_TYPE_KEYS[key]) : albumTypeLabel(key);
   const authHeaders = useDeskAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
@@ -117,7 +129,7 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
       try {
         const res = await fetch(SONGS_PATH, { headers: await authHeaders() });
         if (!res.ok) return;
-        const parsed = normalizeLibrarySongs(await res.json());
+        const parsed = normalizeLibrarySongs(await res.json(), t("worldCatalogLibrary.albumsUntitledSong"));
         if (!cancelled && parsed) setSongs(parsed);
       } catch {
         /* tolerant — pickers read empty */
@@ -139,7 +151,7 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
     try {
       const res = await fetch(albumPath(id), { headers: await authHeaders() });
       if (!res.ok) throw new Error(`album ${res.status}`);
-      const parsed = normalizeAlbumDetail(await res.json());
+      const parsed = normalizeAlbumDetail(await res.json(), t("worldCatalogLibrary.albumsUntitledSong"));
       if (!parsed) throw new Error("album shape");
       setDetail(parsed);
       setEditForm({
@@ -164,20 +176,20 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildAlbumCreateBody(createForm, [...createPicks])),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't create the album (${res.status})`));
-      const made = normalizeAlbumDetail(data);
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.albumsCreateErrorStatus", { status: res.status })));
+      const made = normalizeAlbumDetail(data, t("worldCatalogLibrary.albumsUntitledSong"));
       setCreateForm(EMPTY_FORM);
       setCreatePicks(new Set());
       setShowCreate(false);
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
       if (made) {
-        setNote(`“${made.title}” is drafted — shape the tracklist, then publish when it's ready.`);
+        setNote(t("worldCatalogLibrary.albumsCreatedNote", { title: made.title }));
         void openAlbum(made.id);
       } else {
-        setNote("Album drafted.");
+        setNote(t("worldCatalogLibrary.albumsDraftedNote"));
       }
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't create the album — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.albumsCreateError")));
     } finally {
       setCreating(false);
     }
@@ -194,17 +206,17 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildTracklistBody(ids)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't save the tracklist (${res.status})`));
-      const byId = new Map(detail.tracks.map((t) => [t.songId, t]));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.albumsTracklistErrorStatus", { status: res.status })));
+      const byId = new Map(detail.tracks.map((tr) => [tr.songId, tr]));
       const songById = new Map(songs.map((s) => [s.id, s]));
       setDetail({
         ...detail,
-        tracks: ids.map((id) => byId.get(id) ?? { songId: id, title: songById.get(id)?.title ?? "Untitled song" }),
+        tracks: ids.map((id) => byId.get(id) ?? { songId: id, title: songById.get(id)?.title ?? t("worldCatalogLibrary.albumsUntitledSong") }),
         trackCount: ids.length,
       });
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't save the tracklist — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.albumsTracklistError")));
     } finally {
       setBusy(null);
     }
@@ -221,7 +233,7 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildAlbumPatchBody(editForm)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't save (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.albumsSaveErrorStatus", { status: res.status })));
       setDetail({
         ...detail,
         title: editForm.title.trim(),
@@ -229,10 +241,10 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
         releaseNotes: editForm.releaseNotes.trim(),
         coverArtUrl: editForm.coverArtUrl.trim() || null,
       });
-      setNote("Saved.");
-      setTick((t) => t + 1);
+      setNote(t("worldCatalogLibrary.sharedSaved"));
+      setTick((n) => n + 1);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't save — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.albumsSaveError")));
     } finally {
       setBusy(null);
     }
@@ -256,12 +268,12 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't publish (${res.status})`));
-      setNote("Published — your album has its public page. Copy the link below and share it anywhere.");
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.albumsPublishErrorStatus", { status: res.status })));
+      setNote(t("worldCatalogLibrary.albumsPublishedNote"));
       await openAlbum(detail.id);
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't publish — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.albumsPublishError")));
     } finally {
       setBusy(null);
     }
@@ -281,14 +293,14 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
         headers: await authHeaders(),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't delete (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.albumsDeleteErrorStatus", { status: res.status })));
       setOpenId(null);
       setDetail(null);
       setConfirmDelete(false);
-      setNote("Album deleted. The songs themselves stay in your library.");
-      setTick((t) => t + 1);
+      setNote(t("worldCatalogLibrary.albumsDeletedNote"));
+      setTick((n) => n + 1);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't delete — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.albumsDeleteError")));
     } finally {
       setBusy(null);
     }
@@ -311,47 +323,47 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
     <div className="space-y-2">
       <input
         className={deskInputCls(isLight)}
-        placeholder="Title"
+        placeholder={t("worldCatalogLibrary.albumsPlaceholderTitle")}
         maxLength={120}
         value={form.title}
         onChange={(e) => setForm({ ...form, title: e.target.value })}
-        aria-label={`${prefix} title`}
+        aria-label={t("worldCatalogLibrary.albumsAriaTitle", { prefix })}
       />
       <div className="flex flex-wrap gap-2">
         <select
           className={deskInputCls(isLight)}
           value={form.albumType}
           onChange={(e) => setForm({ ...form, albumType: e.target.value })}
-          aria-label={`${prefix} type`}
+          aria-label={t("worldCatalogLibrary.albumsAriaType", { prefix })}
         >
-          {ALBUM_TYPE_OPTIONS.map((t) => (
-            <option key={t.key} value={t.key}>
-              {t.label}
+          {ALBUM_TYPE_OPTIONS.map((opt) => (
+            <option key={opt.key} value={opt.key}>
+              {typeLabel(opt.key)}
             </option>
           ))}
         </select>
         <input
           className={deskInputCls(isLight)}
-          placeholder="Cover art link (optional)"
+          placeholder={t("worldCatalogLibrary.albumsPlaceholderCover")}
           value={form.coverArtUrl}
           onChange={(e) => setForm({ ...form, coverArtUrl: e.target.value })}
-          aria-label={`${prefix} cover art link`}
+          aria-label={t("worldCatalogLibrary.albumsAriaCover", { prefix })}
         />
       </div>
       <textarea
         className={deskInputCls(isLight)}
-        placeholder="Release notes (optional)"
+        placeholder={t("worldCatalogLibrary.albumsPlaceholderNotes")}
         rows={2}
         maxLength={2000}
         value={form.releaseNotes}
         onChange={(e) => setForm({ ...form, releaseNotes: e.target.value })}
-        aria-label={`${prefix} release notes`}
+        aria-label={t("worldCatalogLibrary.albumsAriaNotes", { prefix })}
       />
     </div>
   );
 
   return (
-    <NativeCard isLight={isLight} title="Albums & EPs">
+    <NativeCard isLight={isLight} title={t("worldCatalogLibrary.albumsTitle")}>
       <div data-testid="world-albums-desk" className="space-y-3">
         {error ? <p className={`text-xs ${isLight ? "text-[#8a2f1b]" : "text-red-300"}`}>{error}</p> : null}
         {note ? <p className={`text-xs font-semibold ${strong}`}>{note}</p> : null}
@@ -360,20 +372,19 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
           <>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className={`text-sm ${muted}`}>
-                Bundle your songs into albums and EPs. Drafting is free — publishing costs{" "}
-                {ALBUM_PUBLISH_COST_VB} Bucs and mints the public page.
+                {t("worldCatalogLibrary.albumsIntro", { cost: ALBUM_PUBLISH_COST_VB })}
               </p>
               <button type="button" className={goldBtn} onClick={() => setShowCreate((s) => !s)} aria-expanded={showCreate}>
-                <Plus className="h-3.5 w-3.5" /> New album
+                <Plus className="h-3.5 w-3.5" /> {t("worldCatalogLibrary.albumsNew")}
               </button>
             </div>
 
             {showCreate ? (
               <div data-testid="world-albums-create" className="space-y-2">
-                {formFields(createForm, setCreateForm, "New album")}
+                {formFields(createForm, setCreateForm, t("worldCatalogLibrary.albumsPrefixNew"))}
                 {songs.length > 0 ? (
                   <div className="space-y-1">
-                    <p className={`text-xs font-bold ${muted}`}>Start with songs (you can change the list after):</p>
+                    <p className={`text-xs font-bold ${muted}`}>{t("worldCatalogLibrary.albumsStartSongs")}</p>
                     {songs.slice(0, 30).map((s) => (
                       <label key={s.id} className={`flex cursor-pointer items-center gap-2 text-sm bdv-touch-target ${strong}`}>
                         <input
@@ -401,7 +412,7 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
                   onClick={() => void create()}
                 >
                   {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Draft it — free
+                  {t("worldCatalogLibrary.albumsDraftButton")}
                 </button>
               </div>
             ) : null}
@@ -409,17 +420,17 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
             {loadFailed ? (
               <NativeErrorState
                 isLight={isLight}
-                title="Your albums wouldn't open"
-                message="Your albums are safe on the real rails — the shelf just didn't answer. Try again."
-                onRetry={() => setTick((t) => t + 1)}
+                title={t("worldCatalogLibrary.albumsLoadErrorTitle")}
+                message={t("worldCatalogLibrary.albumsLoadErrorMessage")}
+                onRetry={() => setTick((n) => n + 1)}
               />
             ) : albums === null ? (
-              <NativeLoadingState isLight={isLight} message="Reading your albums…" />
+              <NativeLoadingState isLight={isLight} message={t("worldCatalogLibrary.albumsLoading")} />
             ) : albums.length === 0 ? (
               <NativeEmptyState
                 isLight={isLight}
-                message="No albums yet."
-                detail="Draft your first above — it stays private until you publish it."
+                message={t("worldCatalogLibrary.albumsEmpty")}
+                detail={t("worldCatalogLibrary.albumsEmptyDetail")}
               />
             ) : (
               albums.map((a) => (
@@ -432,11 +443,12 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
                   <Disc3 className="h-4 w-4 text-[#d4af37]" />
                   <span className={`text-sm font-bold ${strong}`}>{a.title}</span>
                   <span className={`text-xs ${muted}`}>
-                    {albumTypeLabel(a.albumType)} · {a.trackCount} track{a.trackCount === 1 ? "" : "s"} ·{" "}
-                    {a.status === "published" ? "Published" : "Draft"}
+                    {typeLabel(a.albumType)} ·{" "}
+                    {t(a.trackCount === 1 ? "worldCatalogLibrary.albumsTrackOne" : "worldCatalogLibrary.albumsTrackMany", { count: a.trackCount })} ·{" "}
+                    {a.status === "published" ? t("worldCatalogLibrary.albumsStatusPublished") : t("worldCatalogLibrary.albumsStatusDraft")}
                   </span>
                   <button type="button" className={chipBtn(isLight)} onClick={() => void openAlbum(a.id)}>
-                    Open
+                    {t("worldCatalogLibrary.sharedOpen")}
                   </button>
                 </div>
               ))
@@ -445,30 +457,30 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
         ) : detailFailed ? (
           <div className="space-y-2">
             <button type="button" className={chipBtn(isLight)} onClick={() => setOpenId(null)}>
-              <ArrowLeft className="h-3.5 w-3.5" /> All albums
+              <ArrowLeft className="h-3.5 w-3.5" /> {t("worldCatalogLibrary.albumsAllBack")}
             </button>
             <NativeErrorState
               isLight={isLight}
-              title="That album wouldn't open"
-              message="The album is safe — it just didn't answer. Try again."
+              title={t("worldCatalogLibrary.albumsDetailErrorTitle")}
+              message={t("worldCatalogLibrary.albumsDetailErrorMessage")}
               onRetry={() => openId && void openAlbum(openId)}
             />
           </div>
         ) : detail === null ? (
-          <NativeLoadingState isLight={isLight} message="Opening the album…" />
+          <NativeLoadingState isLight={isLight} message={t("worldCatalogLibrary.albumsDetailLoading")} />
         ) : (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className={chipBtn(isLight)} onClick={() => setOpenId(null)}>
-                <ArrowLeft className="h-3.5 w-3.5" /> All albums
+                <ArrowLeft className="h-3.5 w-3.5" /> {t("worldCatalogLibrary.albumsAllBack")}
               </button>
               <span className={`text-sm font-black ${strong}`}>{detail.title}</span>
               <span className={`text-xs ${muted}`}>
-                {albumTypeLabel(detail.albumType)} · {detail.status === "published" ? "Published" : "Draft"}
+                {typeLabel(detail.albumType)} · {detail.status === "published" ? t("worldCatalogLibrary.albumsStatusPublished") : t("worldCatalogLibrary.albumsStatusDraft")}
               </span>
             </div>
 
-            {formFields(editForm, setEditForm, "Album")}
+            {formFields(editForm, setEditForm, t("worldCatalogLibrary.albumsPrefixAlbum"))}
             <button
               type="button"
               className={chipBtn(isLight)}
@@ -476,33 +488,33 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
               onClick={() => void saveEdits()}
             >
               {busy === "save" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Save the words — free
+              {t("worldCatalogLibrary.albumsSaveWords")}
             </button>
 
             <div className="space-y-1.5">
-              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Tracklist</p>
+              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{t("worldCatalogLibrary.albumsTracklistTitle")}</p>
               {detail.tracks.length === 0 ? (
                 <NativeEmptyState
                   isLight={isLight}
-                  message="No tracks yet."
-                  detail="Add songs from your library below — an album needs at least one to publish."
+                  message={t("worldCatalogLibrary.albumsNoTracks")}
+                  detail={t("worldCatalogLibrary.albumsNoTracksDetail")}
                 />
               ) : (
-                detail.tracks.map((t, i) => {
+                detail.tracks.map((tr, i) => {
                   const ids = detail.tracks.map((x) => x.songId);
                   return (
                     <div
-                      key={`${t.songId}-${i}`}
+                      key={`${tr.songId}-${i}`}
                       className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 ${
                         isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"
                       }`}
                     >
                       <span className={`w-5 text-xs font-black ${muted}`}>{i + 1}</span>
-                      <span className={`flex-1 text-sm ${strong}`}>{t.title}</span>
+                      <span className={`flex-1 text-sm ${strong}`}>{tr.title}</span>
                       <button
                         type="button"
                         className={iconBtn(isLight)}
-                        aria-label={`Move ${t.title} up`}
+                        aria-label={t("worldCatalogLibrary.albumsMoveUp", { title: tr.title })}
                         disabled={i === 0 || busy !== null}
                         onClick={() => void patchTracks(moveTrackId(ids, i, -1), "tracks")}
                       >
@@ -511,7 +523,7 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
                       <button
                         type="button"
                         className={iconBtn(isLight)}
-                        aria-label={`Move ${t.title} down`}
+                        aria-label={t("worldCatalogLibrary.albumsMoveDown", { title: tr.title })}
                         disabled={i === detail.tracks.length - 1 || busy !== null}
                         onClick={() => void patchTracks(moveTrackId(ids, i, 1), "tracks")}
                       >
@@ -520,7 +532,7 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
                       <button
                         type="button"
                         className={iconBtn(isLight)}
-                        aria-label={`Remove ${t.title}`}
+                        aria-label={t("worldCatalogLibrary.albumsRemove", { title: tr.title })}
                         disabled={busy !== null}
                         onClick={() => void patchTracks(ids.filter((_, j) => j !== i), "tracks")}
                       >
@@ -532,7 +544,7 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
               )}
               {songs.filter((s) => !detail.tracks.some((t) => t.songId === s.id)).length > 0 ? (
                 <div className="space-y-1 pt-1">
-                  <p className={`text-xs font-bold ${muted}`}>Add from your library:</p>
+                  <p className={`text-xs font-bold ${muted}`}>{t("worldCatalogLibrary.albumsAddFromLibrary")}</p>
                   {songs
                     .filter((s) => !detail.tracks.some((t) => t.songId === s.id))
                     .slice(0, 30)
@@ -547,7 +559,7 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
                             void patchTracks([...detail.tracks.map((t) => t.songId), s.id], "tracks")
                           }
                         >
-                          <Plus className="h-3.5 w-3.5" /> Add
+                          <Plus className="h-3.5 w-3.5" /> {t("worldCatalogLibrary.albumsAdd")}
                         </button>
                       </div>
                     ))}
@@ -568,12 +580,12 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
                   ) : (
                     <Rocket className="h-3.5 w-3.5" />
                   )}
-                  Publish — {ALBUM_PUBLISH_COST_VB} Bucs
+                  {t("worldCatalogLibrary.albumsPublishButton", { cost: ALBUM_PUBLISH_COST_VB })}
                 </button>
               ) : detail.slug ? (
                 <button type="button" className={chipBtn(isLight)} onClick={copyPublicLink}>
                   {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? "Link copied" : "Copy the public link"}
+                  {copied ? t("worldCatalogLibrary.albumsLinkCopied") : t("worldCatalogLibrary.albumsCopyLink")}
                 </button>
               ) : null}
               <button
@@ -583,17 +595,16 @@ export function AlbumsDesk({ isLight }: { isLight: boolean }) {
                 onClick={() => void remove()}
               >
                 {busy === "delete" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                {confirmDelete ? "Tap again to delete for good" : "Delete album"}
+                {confirmDelete ? t("worldCatalogLibrary.sharedDeleteConfirm") : t("worldCatalogLibrary.albumsDelete")}
               </button>
             </div>
             {outOfCredits ? (
               <p className={`text-xs font-semibold ${strong}`}>
-                Not enough Visual Bucs to publish — it costs {ALBUM_PUBLISH_COST_VB}. Top up at the
-                Treasury; nothing was charged.
+                {t("worldCatalogLibrary.albumsOutOfCredits", { cost: ALBUM_PUBLISH_COST_VB })}
               </p>
             ) : null}
             {detail.status !== "published" && detail.tracks.length === 0 ? (
-              <p className={`text-xs ${muted}`}>Add at least one song and the Publish button arms.</p>
+              <p className={`text-xs ${muted}`}>{t("worldCatalogLibrary.albumsPublishHint")}</p>
             ) : null}
           </div>
         )}

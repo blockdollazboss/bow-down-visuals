@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft, BookOpen, Check, Download, Image as ImageIcon, Loader2, Package,
   PenLine, Plus, Printer, Sparkles, Trash2,
@@ -105,7 +106,36 @@ const chipBtn = (isLight: boolean) =>
       : "border-white/15 text-white/75 hover:text-white"
   }`;
 
+/** Catalog keys for the seam's label lists — the seam keeps the
+ *  English labels as defaults; the desk renders its own language. */
+const ASSIST_LABEL_KEYS: Record<BookAssistAction, string> = {
+  continue: "worldCatalogLibrary.booksAssistContinue",
+  rewrite: "worldCatalogLibrary.booksAssistRewrite",
+  expand: "worldCatalogLibrary.booksAssistExpand",
+  outline: "worldCatalogLibrary.booksAssistOutline",
+  "title-ideas": "worldCatalogLibrary.booksAssistTitleIdeas",
+  blurb: "worldCatalogLibrary.booksAssistBlurb",
+};
+const PRINT_COLOR_KEYS: Record<string, string> = {
+  bw: "worldCatalogLibrary.booksPrintColorBw",
+  color: "worldCatalogLibrary.booksPrintColorColor",
+};
+const ADDRESS_FIELD_KEYS: Record<keyof BookPrintAddressForm, string> = {
+  name: "worldCatalogLibrary.booksAddrName",
+  street1: "worldCatalogLibrary.booksAddrStreet1",
+  street2: "worldCatalogLibrary.booksAddrStreet2",
+  city: "worldCatalogLibrary.booksAddrCity",
+  stateCode: "worldCatalogLibrary.booksAddrState",
+  postcode: "worldCatalogLibrary.booksAddrPostcode",
+  countryCode: "worldCatalogLibrary.booksAddrCountry",
+  phoneNumber: "worldCatalogLibrary.booksAddrPhone",
+  contactEmail: "worldCatalogLibrary.booksAddrEmail",
+};
+
 export function BooksDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
+  const usd = (n: number): string =>
+    new Intl.NumberFormat(i18n.language, { style: "currency", currency: "USD" }).format(n);
   const authHeaders = useDeskAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
@@ -253,19 +283,19 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildBookBody(createForm)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't create the book (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksCreateErrorStatus", { status: res.status })));
       const made = normalizeBookDetail({ book: data["book"], chapters: [] });
       setCreateForm(EMPTY_BOOK_FORM);
       setShowCreate(false);
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
       if (made) {
-        setNote(`“${made.book.title}” is started — add a chapter and write.`);
+        setNote(t("worldCatalogLibrary.booksCreatedNote", { title: made.book.title }));
         void openBook(made.book.id);
       } else {
-        setNote("Book started.");
+        setNote(t("worldCatalogLibrary.booksStartedNote"));
       }
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't create the book — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksCreateError")));
     } finally {
       setCreating(false);
     }
@@ -282,7 +312,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildBookBody(editForm)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't save the book (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksSaveBookErrorStatus", { status: res.status })));
       setDetail({
         ...detail,
         book: {
@@ -294,10 +324,10 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
           description: editForm.description.trim() || null,
         },
       });
-      setNote("Saved.");
-      setTick((t) => t + 1);
+      setNote(t("worldCatalogLibrary.sharedSaved"));
+      setTick((n) => n + 1);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't save — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksSaveError")));
     } finally {
       setBusy(null);
     }
@@ -317,14 +347,14 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         headers: await authHeaders(),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't delete (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksDeleteErrorStatus", { status: res.status })));
       setOpenId(null);
       setDetail(null);
       setConfirmDeleteBook(false);
-      setNote("Book deleted, chapters with it.");
-      setTick((t) => t + 1);
+      setNote(t("worldCatalogLibrary.booksDeletedNote"));
+      setTick((n) => n + 1);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't delete — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksDeleteError")));
     } finally {
       setBusy(null);
     }
@@ -332,7 +362,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
 
   async function addChapter() {
     if (!detail || busy) return;
-    const title = newChapterTitle.trim() || `Chapter ${detail.chapters.length + 1}`;
+    const title = newChapterTitle.trim() || t("worldCatalogLibrary.booksChapterDefault", { count: detail.chapters.length + 1 });
     if (!chapterTitleReady(title)) return;
     setBusy("add-chapter");
     setError(null);
@@ -343,15 +373,15 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildChapterCreateBody(title)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't add the chapter (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksAddChapterErrorStatus", { status: res.status })));
       const ch = normalizeCreatedChapter(data);
       if (!ch) throw new Error("chapter shape");
       setDetail({ ...detail, chapters: [...detail.chapters, ch] });
       setNewChapterTitle("");
       selectChapter(ch);
-      setNote("Chapter added.");
+      setNote(t("worldCatalogLibrary.booksChapterAddedNote"));
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't add the chapter — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksAddChapterError")));
     } finally {
       setBusy(null);
     }
@@ -368,7 +398,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildChapterContentBody(content)),
       });
       const data = (await res.json().catch(() => ({}))) as { wordCount?: unknown };
-      if (!res.ok) throw new Error(apiErrorMessage(data as Record<string, unknown>, `Couldn't save the chapter (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data as Record<string, unknown>, t("worldCatalogLibrary.booksSaveChapterErrorStatus", { status: res.status })));
       const wc = typeof data.wordCount === "number" ? data.wordCount : countBookWords(content);
       setDetail({
         ...detail,
@@ -376,9 +406,9 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
           c.id === activeChapter.id ? { ...c, content, wordCount: wc } : c,
         ),
       });
-      setNote("Chapter saved.");
+      setNote(t("worldCatalogLibrary.booksChapterSavedNote"));
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't save the chapter — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksSaveChapterError")));
     } finally {
       setBusy(null);
     }
@@ -395,7 +425,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildChapterTitleBody(chapterTitleDraft)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't rename the chapter (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksRenameChapterErrorStatus", { status: res.status })));
       setDetail({
         ...detail,
         chapters: detail.chapters.map((c) =>
@@ -403,7 +433,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         ),
       });
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't rename the chapter — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksRenameChapterError")));
     } finally {
       setBusy(null);
     }
@@ -423,7 +453,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         headers: await authHeaders(),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't delete the chapter (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksDeleteChapterErrorStatus", { status: res.status })));
       const rest = detail.chapters.filter((c) => c.id !== ch.id);
       setDetail({ ...detail, chapters: rest });
       setConfirmDeleteChapterId(null);
@@ -436,9 +466,9 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
           setChapterTitleDraft("");
         }
       }
-      setNote("Chapter deleted.");
+      setNote(t("worldCatalogLibrary.booksChapterDeletedNote"));
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't delete the chapter — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksDeleteChapterError")));
     } finally {
       setBusy(null);
     }
@@ -448,7 +478,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
     if (!detail || assistRunning) return;
     const needsChapter = assistActionChapterOnly(action);
     if (needsChapter && !activeChapter) {
-      setError("Pick a chapter first — that assist works on chapter text.");
+      setError(t("worldCatalogLibrary.booksAssistPickChapter"));
       return;
     }
     setAssistRunning(action);
@@ -477,12 +507,12 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error(apiErrorMessage(data, `The ghostwriter stumbled (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksAssistErrorStatus", { status: res.status })));
       const text = normalizeAssistResult(data);
       if (!text) throw new Error("assist shape");
       setAssistResult({ action, text });
     } catch (err) {
-      setError(plainErrorText(err, "The ghostwriter stumbled — a failed assist is refunded by the rail; try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksAssistError")));
     } finally {
       setAssistRunning(null);
     }
@@ -491,7 +521,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
   function insertAssistResult() {
     if (!assistResult || !assistResultInsertable(assistResult.action)) return;
     setContent(content ? `${content}\n\n${assistResult.text}` : assistResult.text);
-    setNote("Inserted into the chapter — Save chapter to keep it.");
+    setNote(t("worldCatalogLibrary.booksInsertNote"));
   }
 
   async function generateCover() {
@@ -513,14 +543,14 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Cover generation failed (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksCoverErrorStatus", { status: res.status })));
       const url = normalizeCoverResult(data);
       if (!url) throw new Error("cover shape");
       setDetail({ ...detail, book: { ...detail.book, coverUrl: url } });
-      setNote("Cover generated — it leads the book everywhere it shows.");
-      setTick((t) => t + 1);
+      setNote(t("worldCatalogLibrary.booksCoverDoneNote"));
+      setTick((n) => n + 1);
     } catch (err) {
-      setError(plainErrorText(err, "Cover generation failed — a failed cover is refunded by the rail; try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksCoverError")));
     } finally {
       setCoverBusy(false);
     }
@@ -537,7 +567,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        throw new Error(apiErrorMessage(data, `Export failed (${res.status})`));
+        throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksExportErrorStatus", { status: res.status })));
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -548,9 +578,9 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      setNote(`${format.toUpperCase()} exported — the file is yours, downloaded right here.`);
+      setNote(t("worldCatalogLibrary.booksExportNote", { format: format.toUpperCase() }));
     } catch (err) {
-      setError(plainErrorText(err, "Export failed — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksExportError")));
     } finally {
       setExporting(null);
     }
@@ -559,7 +589,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
   async function getPrintQuote() {
     if (!detail || printBusy) return;
     if (!printAddressReady(printForm) || !printQuantityReady(quantity)) {
-      setError("Fill in the shipping details first — name, street, city, postcode, phone, and an email for order updates.");
+      setError(t("worldCatalogLibrary.booksQuoteGateError"));
       return;
     }
     setPrintBusy("quote");
@@ -573,7 +603,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
       });
       if (!res) return;
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Quote failed (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksQuoteErrorStatus", { status: res.status })));
       const parsed = normalizePrintQuote(data);
       if (!parsed) throw new Error("quote shape");
       setQuote(parsed);
@@ -581,7 +611,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         setShippingLevel(parsed.shippingOptions[0].id);
       }
     } catch (err) {
-      setError(plainErrorText(err, "Quote failed — print-on-demand may not be configured yet, or the printer didn't answer."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksQuoteError")));
     } finally {
       setPrintBusy(null);
     }
@@ -608,17 +638,17 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Order failed (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksOrderErrorStatus", { status: res.status })));
       const placed = normalizePrintOrderPlaced(data);
       setQuote(null);
       setNote(
         placed
-          ? `Print order placed — ${placed.priceVb.toLocaleString("en-US")} Bucs. Track it in your print orders below.`
-          : "Print order placed. Track it in your print orders below.",
+          ? t("worldCatalogLibrary.booksOrderPlacedAmount", { amount: placed.priceVb.toLocaleString(i18n.language) })
+          : t("worldCatalogLibrary.booksOrderPlaced"),
       );
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (err) {
-      setError(plainErrorText(err, "Order failed — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksOrderError")));
     } finally {
       setPrintBusy(null);
     }
@@ -630,11 +660,11 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
     try {
       const res = await fetch(bookPrintOrderStatusPath(order.id), { headers: await authHeaders() });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Status check failed (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksStatusErrorStatus", { status: res.status })));
       const status = typeof data["status"] === "string" ? data["status"] : order.status;
       setOrders((os) => (os ?? []).map((o) => (o.id === order.id ? { ...o, status } : o)));
     } catch (err) {
-      setError(plainErrorText(err, "Status check failed — try again."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksStatusError")));
     } finally {
       setPrintBusy(null);
     }
@@ -653,12 +683,12 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         headers: await authHeaders(),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Cancel failed (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.booksCancelErrorStatus", { status: res.status })));
       setConfirmCancelOrderId(null);
       setOrders((os) => (os ?? []).map((o) => (o.id === order.id ? { ...o, status: "canceled" } : o)));
-      setNote("Print order canceled.");
+      setNote(t("worldCatalogLibrary.booksCanceledNote"));
     } catch (err) {
-      setError(plainErrorText(err, "Cancel failed — the order may already be in production."));
+      setError(plainErrorText(err, t("worldCatalogLibrary.booksCancelError")));
     } finally {
       setPrintBusy(null);
     }
@@ -668,53 +698,53 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
     <div className="space-y-2">
       <input
         className={deskInputCls(isLight)}
-        placeholder="Title *"
+        placeholder={t("worldCatalogLibrary.booksPlaceholderTitle")}
         maxLength={200}
         value={form.title}
         onChange={(e) => setForm({ ...form, title: e.target.value })}
-        aria-label={`${prefix} title`}
+        aria-label={t("worldCatalogLibrary.booksAriaTitle", { prefix })}
       />
       <div className="flex flex-wrap gap-2">
         <input
           className={deskInputCls(isLight)}
-          placeholder="Author name"
+          placeholder={t("worldCatalogLibrary.booksPlaceholderAuthor")}
           maxLength={200}
           value={form.authorName}
           onChange={(e) => setForm({ ...form, authorName: e.target.value })}
-          aria-label={`${prefix} author name`}
+          aria-label={t("worldCatalogLibrary.booksAriaAuthor", { prefix })}
         />
         <input
           className={deskInputCls(isLight)}
-          placeholder="Subtitle (optional)"
+          placeholder={t("worldCatalogLibrary.booksPlaceholderSubtitle")}
           maxLength={200}
           value={form.subtitle}
           onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
-          aria-label={`${prefix} subtitle`}
+          aria-label={t("worldCatalogLibrary.booksAriaSubtitle", { prefix })}
         />
         <input
           className={deskInputCls(isLight)}
-          placeholder="Genre"
+          placeholder={t("worldCatalogLibrary.booksPlaceholderGenre")}
           maxLength={100}
           value={form.genre}
           onChange={(e) => setForm({ ...form, genre: e.target.value })}
-          aria-label={`${prefix} genre`}
+          aria-label={t("worldCatalogLibrary.booksAriaGenre", { prefix })}
         />
       </div>
       <textarea
         className={deskInputCls(isLight)}
-        placeholder="What is this book about? The ghostwriter works from this."
+        placeholder={t("worldCatalogLibrary.booksPlaceholderDescription")}
         rows={2}
         maxLength={2000}
         value={form.description}
         onChange={(e) => setForm({ ...form, description: e.target.value })}
-        aria-label={`${prefix} description`}
+        aria-label={t("worldCatalogLibrary.booksAriaDescription", { prefix })}
       />
     </div>
   );
 
   const printOrdersStrip = orders && orders.length > 0 ? (
     <div className="space-y-1.5" data-testid="world-books-print-orders">
-      <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Your print orders</p>
+      <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{t("worldCatalogLibrary.booksOrdersTitle")}</p>
       {orders.slice(0, 10).map((o) => (
         <div
           key={o.id}
@@ -724,12 +754,12 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         >
           <Package className="h-4 w-4 text-[#d4af37]" />
           <span className={`text-xs font-bold ${strong}`}>
-            {o.quantity} × · {o.pageCount} pages · {o.status}
-            {o.amountCents > 0 ? ` · $${(o.amountCents / 100).toFixed(2)}` : ""}
+            {t("worldCatalogLibrary.booksOrderRow", { quantity: o.quantity, pages: o.pageCount, status: o.status })}
+            {o.amountCents > 0 ? ` · ${usd(o.amountCents / 100)}` : ""}
           </span>
           <button type="button" className={chipBtn(isLight)} disabled={printBusy !== null} onClick={() => void refreshOrderStatus(o)}>
             {printBusy === `status-${o.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-            Refresh status
+            {t("worldCatalogLibrary.booksRefreshStatus")}
           </button>
           {o.status !== "canceled" ? (
             <button
@@ -738,7 +768,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
               disabled={printBusy !== null}
               onClick={() => void cancelOrder(o)}
             >
-              {confirmCancelOrderId === o.id ? "Tap again to cancel the order" : "Cancel"}
+              {confirmCancelOrderId === o.id ? t("worldCatalogLibrary.booksCancelConfirm") : t("worldCatalogLibrary.booksCancel")}
             </button>
           ) : null}
         </div>
@@ -747,13 +777,13 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
   ) : null;
 
   return (
-    <NativeCard isLight={isLight} title="Thy Books — write, design, publish">
+    <NativeCard isLight={isLight} title={t("worldCatalogLibrary.booksTitle")}>
       <div data-testid="world-books-desk" className="space-y-3">
         {error ? <p className={`text-xs ${errCls}`}>{error}</p> : null}
         {note ? <p className={`text-xs font-semibold ${strong}`}>{note}</p> : null}
         {outOfCredits ? (
           <p className={`text-xs font-semibold ${strong}`}>
-            Not enough Visual Bucs for that — nothing was charged. Top up at the Treasury and try again.
+            {t("worldCatalogLibrary.booksOutOfCredits")}
           </p>
         ) : null}
 
@@ -761,18 +791,16 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
           <>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className={`text-sm ${muted}`}>
-                Your books, written right here. Drafting is free; the ghostwriter costs{" "}
-                {BOOK_AI_ASSIST_COST_VB} Bucs a turn and a cover {BOOK_COVER_COST_VB} Bucs — both
-                named again before anything charges.
+                {t("worldCatalogLibrary.booksIntro", { assist: BOOK_AI_ASSIST_COST_VB, cover: BOOK_COVER_COST_VB })}
               </p>
               <button type="button" className={goldBtn} onClick={() => setShowCreate((s) => !s)} aria-expanded={showCreate}>
-                <Plus className="h-3.5 w-3.5" /> New book
+                <Plus className="h-3.5 w-3.5" /> {t("worldCatalogLibrary.booksNew")}
               </button>
             </div>
 
             {showCreate ? (
               <div data-testid="world-books-create" className="space-y-2">
-                {bookFields(createForm, setCreateForm, "New book")}
+                {bookFields(createForm, setCreateForm, t("worldCatalogLibrary.booksPrefixNew"))}
                 <button
                   type="button"
                   className={goldBtn}
@@ -780,7 +808,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                   onClick={() => void create()}
                 >
                   {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Start the book — free
+                  {t("worldCatalogLibrary.booksStartButton")}
                 </button>
               </div>
             ) : null}
@@ -788,17 +816,17 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
             {loadFailed ? (
               <NativeErrorState
                 isLight={isLight}
-                title="Your books wouldn't open"
-                message="A failed load is not an empty shelf — your books are safe on the real rails. Members only: if you're visiting as a guest, sign in and your shelf stands here."
-                onRetry={() => setTick((t) => t + 1)}
+                title={t("worldCatalogLibrary.booksLoadErrorTitle")}
+                message={t("worldCatalogLibrary.booksLoadErrorMessage")}
+                onRetry={() => setTick((n) => n + 1)}
               />
             ) : books === null ? (
-              <NativeLoadingState isLight={isLight} message="Reading your bookshelf…" />
+              <NativeLoadingState isLight={isLight} message={t("worldCatalogLibrary.booksLoading")} />
             ) : books.length === 0 ? (
               <NativeEmptyState
                 isLight={isLight}
-                message="No books yet."
-                detail="Start your first above — the ghostwriter helps you write every chapter."
+                message={t("worldCatalogLibrary.booksEmpty")}
+                detail={t("worldCatalogLibrary.booksEmptyDetail")}
               />
             ) : (
               books.map((b) => (
@@ -818,7 +846,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                     {[b.genre, b.authorName].filter(Boolean).join(" · ")}
                   </span>
                   <button type="button" className={chipBtn(isLight)} onClick={() => void openBook(b.id)}>
-                    Open
+                    {t("worldCatalogLibrary.sharedOpen")}
                   </button>
                 </div>
               ))
@@ -828,32 +856,32 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
         ) : detailFailed ? (
           <div className="space-y-2">
             <button type="button" className={chipBtn(isLight)} onClick={() => setOpenId(null)}>
-              <ArrowLeft className="h-3.5 w-3.5" /> All books
+              <ArrowLeft className="h-3.5 w-3.5" /> {t("worldCatalogLibrary.booksAllBack")}
             </button>
             <NativeErrorState
               isLight={isLight}
-              title="That book wouldn't open"
-              message="The book is safe — it just didn't answer. Try again."
+              title={t("worldCatalogLibrary.booksDetailErrorTitle")}
+              message={t("worldCatalogLibrary.booksDetailErrorMessage")}
               onRetry={() => openId && void openBook(openId)}
             />
           </div>
         ) : detail === null ? (
-          <NativeLoadingState isLight={isLight} message="Opening the book…" />
+          <NativeLoadingState isLight={isLight} message={t("worldCatalogLibrary.booksDetailLoading")} />
         ) : (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className={chipBtn(isLight)} onClick={() => setOpenId(null)}>
-                <ArrowLeft className="h-3.5 w-3.5" /> All books
+                <ArrowLeft className="h-3.5 w-3.5" /> {t("worldCatalogLibrary.booksAllBack")}
               </button>
               <span className={`text-sm font-black ${strong}`}>{detail.book.title}</span>
               <span className={`text-xs ${muted}`}>
-                {detail.chapters.length} chapter{detail.chapters.length === 1 ? "" : "s"} ·{" "}
-                {totalBookWords(detail.chapters, activeChapterId, content).toLocaleString("en-US")} words
+                {t(detail.chapters.length === 1 ? "worldCatalogLibrary.booksChapterOne" : "worldCatalogLibrary.booksChapterMany", { count: detail.chapters.length })} ·{" "}
+                {t("worldCatalogLibrary.booksWordsCount", { count: totalBookWords(detail.chapters, activeChapterId, content).toLocaleString(i18n.language) })}
               </span>
             </div>
 
             {/* Book fields */}
-            {bookFields(editForm, setEditForm, "Book")}
+            {bookFields(editForm, setEditForm, t("worldCatalogLibrary.booksPrefixBook"))}
             <button
               type="button"
               className={chipBtn(isLight)}
@@ -861,17 +889,17 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
               onClick={() => void saveBookFields()}
             >
               {busy === "save-book" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Save the book&rsquo;s words — free
+              {t("worldCatalogLibrary.booksSaveWords")}
             </button>
 
             {/* Chapters */}
             <div className="space-y-1.5">
-              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Chapters</p>
+              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{t("worldCatalogLibrary.booksChaptersTitle")}</p>
               {detail.chapters.length === 0 ? (
                 <NativeEmptyState
                   isLight={isLight}
-                  message="No chapters yet."
-                  detail="Add one below to start writing — exports arm once the book has a chapter."
+                  message={t("worldCatalogLibrary.booksNoChapters")}
+                  detail={t("worldCatalogLibrary.booksNoChaptersDetail")}
                 />
               ) : (
                 detail.chapters.map((c, i) => (
@@ -894,7 +922,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                       onClick={() => selectChapter(c)}
                     >
                       {c.title}
-                      <span className={`ml-2 text-xs ${muted}`}>{c.wordCount.toLocaleString("en-US")} words</span>
+                      <span className={`ml-2 text-xs ${muted}`}>{t("worldCatalogLibrary.booksWordsCount", { count: c.wordCount.toLocaleString(i18n.language) })}</span>
                     </button>
                     <button
                       type="button"
@@ -903,7 +931,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                       onClick={() => void removeChapter(c)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                      {confirmDeleteChapterId === c.id ? "Tap again to delete" : ""}
+                      {confirmDeleteChapterId === c.id ? t("worldCatalogLibrary.booksDeleteChapterConfirm") : ""}
                     </button>
                   </div>
                 ))
@@ -911,16 +939,16 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
               <div className="flex gap-2">
                 <input
                   className={deskInputCls(isLight)}
-                  placeholder="New chapter title"
+                  placeholder={t("worldCatalogLibrary.booksNewChapterPlaceholder")}
                   maxLength={200}
                   value={newChapterTitle}
                   onChange={(e) => setNewChapterTitle(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && void addChapter()}
-                  aria-label="New chapter title"
+                  aria-label={t("worldCatalogLibrary.booksAriaNewChapter")}
                 />
                 <button type="button" className={goldBtn} disabled={busy !== null} onClick={() => void addChapter()}>
                   {busy === "add-chapter" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                  Add chapter
+                  {t("worldCatalogLibrary.booksAddChapter")}
                 </button>
               </div>
             </div>
@@ -935,22 +963,22 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                     maxLength={200}
                     onChange={(e) => setChapterTitleDraft(e.target.value)}
                     onBlur={() => void saveChapterTitle()}
-                    aria-label="Chapter title"
+                    aria-label={t("worldCatalogLibrary.booksAriaChapterTitle")}
                   />
                 </div>
                 <textarea
                   className={deskInputCls(isLight)}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="Start writing… or ask the ghostwriter below."
+                  placeholder={t("worldCatalogLibrary.booksEditorPlaceholder")}
                   rows={10}
-                  aria-label="Chapter text"
+                  aria-label={t("worldCatalogLibrary.booksAriaChapterText")}
                 />
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`text-xs ${muted}`}>{countBookWords(content).toLocaleString("en-US")} words in this chapter</span>
+                  <span className={`text-xs ${muted}`}>{t("worldCatalogLibrary.booksWordsInChapter", { count: countBookWords(content).toLocaleString(i18n.language) })}</span>
                   <button type="button" className={goldBtn} disabled={busy !== null} onClick={() => void saveChapterContent()}>
                     {busy === "save-chapter" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                    Save chapter
+                    {t("worldCatalogLibrary.booksSaveChapter")}
                   </button>
                 </div>
               </div>
@@ -959,15 +987,15 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
             {/* AI ghostwriter */}
             <div className="space-y-2" data-testid="world-books-assist">
               <p className={`inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] ${muted}`}>
-                <Sparkles className="h-3.5 w-3.5 text-[#d4af37]" /> AI ghostwriter — {BOOK_AI_ASSIST_COST_VB} Bucs per assist
+                <Sparkles className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldCatalogLibrary.booksAssistTitle", { cost: BOOK_AI_ASSIST_COST_VB })}
               </p>
               <input
                 className={deskInputCls(isLight)}
-                placeholder="Optional instruction — e.g. 'make it funnier', 'more tension'…"
+                placeholder={t("worldCatalogLibrary.booksAssistInstructionPlaceholder")}
                 maxLength={2000}
                 value={instruction}
                 onChange={(e) => setInstruction(e.target.value)}
-                aria-label="Ghostwriter instruction"
+                aria-label={t("worldCatalogLibrary.booksAriaAssistInstruction")}
               />
               <div className="flex flex-wrap gap-2">
                 {BOOK_ASSIST_ACTIONS.map((a) => (
@@ -979,7 +1007,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                     onClick={() => void runAssist(a.id)}
                   >
                     {assistRunning === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PenLine className="h-3.5 w-3.5" />}
-                    {a.label}
+                    {t(ASSIST_LABEL_KEYS[a.id])}
                   </button>
                 ))}
               </div>
@@ -989,11 +1017,11 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                   <div className="mt-2 flex flex-wrap gap-2">
                     {assistResultInsertable(assistResult.action) && activeChapter ? (
                       <button type="button" className={goldBtn} onClick={insertAssistResult}>
-                        Insert into chapter
+                        {t("worldCatalogLibrary.booksInsert")}
                       </button>
                     ) : null}
                     <button type="button" className={chipBtn(isLight)} onClick={() => setAssistResult(null)}>
-                      Dismiss
+                      {t("worldCatalogLibrary.booksDismiss")}
                     </button>
                   </div>
                 </div>
@@ -1003,32 +1031,34 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
             {/* Cover */}
             <div className="space-y-2" data-testid="world-books-cover">
               <p className={`inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] ${muted}`}>
-                <ImageIcon className="h-3.5 w-3.5 text-[#d4af37]" /> Cover — {BOOK_COVER_COST_VB} Bucs
+                <ImageIcon className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldCatalogLibrary.booksCoverTitle", { cost: BOOK_COVER_COST_VB })}
               </p>
               {detail.book.coverUrl ? (
-                <img src={detail.book.coverUrl} alt={`Cover of ${detail.book.title}`} className="h-36 w-24 rounded-lg object-cover" />
+                <img src={detail.book.coverUrl} alt={t("worldCatalogLibrary.booksCoverAlt", { title: detail.book.title })} className="h-36 w-24 rounded-lg object-cover" />
               ) : (
-                <p className={`text-xs ${muted}`}>No cover yet — generate one and it leads the book everywhere it shows.</p>
+                <p className={`text-xs ${muted}`}>{t("worldCatalogLibrary.booksNoCover")}</p>
               )}
               <div className="flex gap-2">
                 <input
                   className={deskInputCls(isLight)}
-                  placeholder="Style (optional) — e.g. watercolor, noir, minimal"
+                  placeholder={t("worldCatalogLibrary.booksCoverStylePlaceholder")}
                   maxLength={200}
                   value={coverStyle}
                   onChange={(e) => setCoverStyle(e.target.value)}
-                  aria-label="Cover style"
+                  aria-label={t("worldCatalogLibrary.booksAriaCoverStyle")}
                 />
                 <button type="button" className={goldBtn} disabled={coverBusy} onClick={() => void generateCover()}>
                   {coverBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
-                  {detail.book.coverUrl ? "New cover" : "Generate cover"} — {BOOK_COVER_COST_VB} Bucs
+                  {detail.book.coverUrl
+                    ? t("worldCatalogLibrary.booksCoverNew", { cost: BOOK_COVER_COST_VB })
+                    : t("worldCatalogLibrary.booksCoverGenerate", { cost: BOOK_COVER_COST_VB })}
                 </button>
               </div>
             </div>
 
             {/* Publish outputs: export + print */}
             <div className="space-y-2" data-testid="world-books-publish">
-              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Publish outputs</p>
+              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{t("worldCatalogLibrary.booksPublishTitle")}</p>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -1037,7 +1067,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                   onClick={() => void exportBook("epub")}
                 >
                   {exporting === "epub" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                  EPUB — free
+                  {t("worldCatalogLibrary.booksExportEpub")}
                 </button>
                 <button
                   type="button"
@@ -1046,7 +1076,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                   onClick={() => void exportBook("pdf")}
                 >
                   {exporting === "pdf" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                  Print-ready PDF — free
+                  {t("worldCatalogLibrary.booksExportPdf")}
                 </button>
                 <button
                   type="button"
@@ -1055,7 +1085,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                   onClick={() => setShowPrint((s) => !s)}
                   aria-expanded={showPrint}
                 >
-                  <Printer className="h-3.5 w-3.5" /> Print a paperback
+                  <Printer className="h-3.5 w-3.5" /> {t("worldCatalogLibrary.booksPrintButton")}
                 </button>
                 <button
                   type="button"
@@ -1064,22 +1094,21 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                   onClick={() => void removeBook()}
                 >
                   {busy === "delete-book" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                  {confirmDeleteBook ? "Tap again to delete for good" : "Delete book"}
+                  {confirmDeleteBook ? t("worldCatalogLibrary.sharedDeleteConfirm") : t("worldCatalogLibrary.booksDelete")}
                 </button>
               </div>
               {!bookExportReady(detail.chapters.length) ? (
-                <p className={`text-xs ${muted}`}>Add at least one chapter and the export + print buttons arm.</p>
+                <p className={`text-xs ${muted}`}>{t("worldCatalogLibrary.booksExportHint")}</p>
               ) : null}
 
               {showPrint ? (
                 <div className="space-y-2" data-testid="world-books-print">
                   <p className={`text-xs ${muted}`}>
-                    6″×9″ paperback, printed on demand and shipped to you. The printer quotes the price —
-                    the desk shows the server&rsquo;s own Visual Buc number before anything charges.
+                    {t("worldCatalogLibrary.booksPrintIntro")}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <label className={`flex items-center gap-2 text-xs font-bold ${strong}`}>
-                      Copies
+                      {t("worldCatalogLibrary.booksCopies")}
                       <input
                         type="number"
                         min={1}
@@ -1087,10 +1116,10 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                         className={deskInputCls(isLight)}
                         value={quantity}
                         onChange={(e) => setQuantity(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
-                        aria-label="Print copies"
+                        aria-label={t("worldCatalogLibrary.booksAriaCopies")}
                       />
                     </label>
-                    <div className="flex gap-2" role="group" aria-label="Print interior">
+                    <div className="flex gap-2" role="group" aria-label={t("worldCatalogLibrary.booksAriaInterior")}>
                       {BOOK_PRINT_COLORS.map((c) => (
                         <button
                           key={c.key}
@@ -1099,33 +1128,21 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                           onClick={() => setColor(c.key)}
                           aria-pressed={color === c.key}
                         >
-                          {c.label}
+                          {t(PRINT_COLOR_KEYS[c.key] ?? c.key)}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {(
-                      [
-                        ["name", "Full name"],
-                        ["street1", "Street address"],
-                        ["street2", "Apt / suite (optional)"],
-                        ["city", "City"],
-                        ["stateCode", "State (optional)"],
-                        ["postcode", "Postal code"],
-                        ["countryCode", "Country (2 letters)"],
-                        ["phoneNumber", "Phone"],
-                        ["contactEmail", "Email (order updates)"],
-                      ] as Array<[keyof BookPrintAddressForm, string]>
-                    ).map(([key, label]) => (
+                    {(Object.keys(ADDRESS_FIELD_KEYS) as Array<keyof BookPrintAddressForm>).map((key) => (
                       <input
                         key={key}
                         className={deskInputCls(isLight)}
-                        placeholder={label}
+                        placeholder={t(ADDRESS_FIELD_KEYS[key])}
                         maxLength={key === "countryCode" ? 2 : 200}
                         value={printForm[key]}
                         onChange={(e) => setPrintForm({ ...printForm, [key]: e.target.value })}
-                        aria-label={label}
+                        aria-label={t(ADDRESS_FIELD_KEYS[key])}
                       />
                     ))}
                   </div>
@@ -1136,14 +1153,18 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                     onClick={() => void getPrintQuote()}
                   >
                     {printBusy === "quote" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                    Get the print quote — free
+                    {t("worldCatalogLibrary.booksQuoteButton")}
                   </button>
 
                   {quote ? (
                     <div className={`space-y-2 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
                       <p className={`text-sm ${strong}`}>
-                        {quote.quantity} × 6″×9″ paperback ({quote.pageCount} pages) — print{" "}
-                        {quote.priceVb.toLocaleString("en-US")} Bucs (${quote.printCostUsd.toFixed(2)})
+                        {t("worldCatalogLibrary.booksQuoteLine", {
+                          quantity: quote.quantity,
+                          pages: quote.pageCount,
+                          price: quote.priceVb.toLocaleString(i18n.language),
+                          usd: quote.printCostUsd.toFixed(2),
+                        })}
                       </p>
                       <div className="space-y-1">
                         {quote.shippingOptions.map((s) => (
@@ -1163,7 +1184,7 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                             aria-pressed={shippingLevel === s.id}
                           >
                             <span>{s.label}</span>
-                            <span className="font-bold">${s.costUsd.toFixed(2)}</span>
+                            <span className="font-bold">{usd(s.costUsd)}</span>
                           </button>
                         ))}
                       </div>
@@ -1174,9 +1195,9 @@ export function BooksDesk({ isLight }: { isLight: boolean }) {
                         onClick={() => void placePrintOrder()}
                       >
                         {printBusy === "order" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Package className="h-3.5 w-3.5" />}
-                        Confirm order —{" "}
-                        {printTotalVb(quote, quote.shippingOptions.find((s) => s.id === shippingLevel)?.costUsd ?? 0).toLocaleString("en-US")}{" "}
-                        Bucs
+                        {t("worldCatalogLibrary.booksOrderConfirm", {
+                          total: printTotalVb(quote, quote.shippingOptions.find((s) => s.id === shippingLevel)?.costUsd ?? 0).toLocaleString(i18n.language),
+                        })}
                       </button>
                     </div>
                   ) : null}

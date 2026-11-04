@@ -25,7 +25,7 @@ describe("P3-F catalog-export desk contracts", () => {
     expect(exportDesk).toContain("fetch(exportBuildPath(), {");
     expect(exportDesk).toContain('method: "POST"');
     expect(exportDesk).toContain("exportBuildPayload(kind, fields, format)");
-    expect(exportDesk).toContain("exportBuildProblem(kind, fields)");
+    expect(exportDesk).toContain("exportBuildProblem(kind, fields, problemStrings, t(KIND_LABEL_KEYS[kind]))");
     expect(exportDesk).toContain("parseExportBuildResult(kind, format, text, truncatedHeader)");
   });
 
@@ -36,7 +36,7 @@ describe("P3-F catalog-export desk contracts", () => {
     expect(exportDesk).toContain("a.download = catalogFileName(kind, format)");
     expect(exportDesk).toContain('data-testid="world-catalog-export-desk"');
     expect(exportDesk).toContain('data-testid="world-catalog-export-build"');
-    expect(exportDesk).toContain("exportResultLine(result)");
+    expect(exportDesk).toContain("exportResultLine(result, resultStrings, t(KIND_LABEL_KEYS[result.kind]), i18n.language)");
   });
 
   it("never walks out of the room", () => {

@@ -145,7 +145,7 @@ describe("the desk stands in My Studio and rides the confirmation", () => {
     expect(deskSrc).toContain('data-testid="world-albums-desk"');
     expect(deskSrc).toContain("confirmedFetch(albumPublishPath(detail.id)");
     expect(deskSrc).toContain("overrideCost: ALBUM_PUBLISH_COST_VB");
-    expect(deskSrc).toContain("Tap again to delete for good");
+    expect(deskSrc).toContain("worldCatalogLibrary.sharedDeleteConfirm");
     expect(deskSrc).toContain('method: "PATCH"');
     expect(deskSrc).toContain("buildTracklistBody(ids)");
   });

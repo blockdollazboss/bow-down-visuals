@@ -393,8 +393,8 @@ describe("the desk stands in My Studio and rides the confirmations", () => {
     expect(deskSrc).not.toContain("useLocation");
     expect(deskSrc).not.toContain("window.location");
     /* Deletes are two-step, spoken in-world. */
-    expect(deskSrc).toContain("Tap again to delete for good");
+    expect(deskSrc).toContain("worldCatalogLibrary.sharedDeleteConfirm");
     /* A failed load is never dressed as an empty shelf. */
-    expect(deskSrc).toContain("A failed load is not an empty shelf");
+    expect(deskSrc).toContain("worldCatalogLibrary.booksLoadErrorMessage");
   });
 });

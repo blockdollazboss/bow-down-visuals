@@ -123,7 +123,7 @@ export interface AlbumDetail extends AlbumSummary {
   tracks: AlbumTrack[];
 }
 
-export function normalizeAlbumDetail(payload: unknown): AlbumDetail | null {
+export function normalizeAlbumDetail(payload: unknown, untitled = "Untitled song"): AlbumDetail | null {
   const root = asRecord(payload);
   const album = root ? asRecord(root["album"]) : null;
   if (!album) return null;
@@ -136,7 +136,7 @@ export function normalizeAlbumDetail(payload: unknown): AlbumDetail | null {
       if (!t) return null;
       const songId = str(t["song_id"]) || str(t["id"]);
       if (!songId) return null;
-      tracks.push({ songId, title: str(t["title"]) || "Untitled song" });
+      tracks.push({ songId, title: str(t["title"]) || untitled });
     }
   }
   return { ...base, trackCount: tracks.length, tracks };
@@ -149,7 +149,7 @@ export interface LibrarySong {
   title: string;
 }
 
-export function normalizeLibrarySongs(payload: unknown): LibrarySong[] | null {
+export function normalizeLibrarySongs(payload: unknown, untitled = "Untitled song"): LibrarySong[] | null {
   const root = asRecord(payload);
   if (!root || !Array.isArray(root["songs"])) return null;
   const out: LibrarySong[] = [];
@@ -158,7 +158,7 @@ export function normalizeLibrarySongs(payload: unknown): LibrarySong[] | null {
     if (!r) return null;
     const id = str(r["id"]);
     if (!id) return null;
-    out.push({ id, title: str(r["title"]) || "Untitled song" });
+    out.push({ id, title: str(r["title"]) || untitled });
   }
   return out;
 }

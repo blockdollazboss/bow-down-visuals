@@ -41,17 +41,17 @@ describe("the shelf in-panel", () => {
 
   it("gone rows say so plainly and still offer the Unsave", () => {
     expect(desk).toContain("item.gone");
-    expect(desk).toContain("isn&rsquo;t available anymore");
-    expect(desk).toContain("Unsave");
+    expect(desk).toContain("worldCatalogLibrary.savedGoneLine");
+    expect(desk).toContain("worldCatalogLibrary.savedUnsave");
   });
 });
 
 describe("the honest states + free rails", () => {
   it("empty and failed-with-retry render as themselves", () => {
     expect(desk).toContain('data-testid="world-saved-desk-empty"');
-    expect(desk).toContain("Nothing saved yet");
+    expect(desk).toContain("worldCatalogLibrary.savedEmptyAll");
     expect(desk).toContain('data-testid="world-saved-desk-failed"');
-    expect(desk).toContain("Try again");
+    expect(desk).toContain("worldCatalogLibrary.sharedTryAgain");
   });
 
   it("plain fetches only, never confirmedFetch", () => {
