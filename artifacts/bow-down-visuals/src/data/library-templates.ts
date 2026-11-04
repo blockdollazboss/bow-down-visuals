@@ -62,15 +62,22 @@ const CAROUSEL_DEEP_LINK = "/carousel-maker";
 
 interface CarouselSeed { slug: string; title: string; blurb: string; niche: string; emoji: string; gradient: string; }
 
-const CAROUSEL_SEEDS: CarouselSeed[] = [
+/* Seed slugs are CONTRACT: slug minus the "carousel-" prefix IS the
+   template id in lib/carousel-renderer (CAROUSEL_TEMPLATES), resolved
+   exactly by resolveCarouselTemplate. Five slugs were aligned to their
+   templates in Stack 100 wave 2 item 11 (listicle-5 → listicle,
+   tutorial-steps → tutorial, quote-pack → quote, stat-drop → stats,
+   story-arc → story) so no seed ever needs a fuzzy match again;
+   carousel-library-parity.test.ts pins the whole set. */
+export const CAROUSEL_SEEDS: CarouselSeed[] = [
   { slug: "carousel-bold-statement", title: "Bold Statement", blurb: "One massive claim per slide. Built for hot takes that get saved and shared.", niche: "Viral", emoji: "🔥", gradient: "linear-gradient(135deg,#7c2d12 0%,#0a0a0a 100%)" },
-  { slug: "carousel-listicle-5", title: "5-Thing Listicle", blurb: "Numbered list slides — the highest-saving carousel format on Instagram.", niche: "Growth", emoji: "📋", gradient: "linear-gradient(135deg,#1e3a8a 0%,#020617 100%)" },
+  { slug: "carousel-listicle", title: "5-Thing Listicle", blurb: "Numbered list slides — the highest-saving carousel format on Instagram.", niche: "Growth", emoji: "📋", gradient: "linear-gradient(135deg,#1e3a8a 0%,#020617 100%)" },
   { slug: "carousel-before-after", title: "Before / After", blurb: "Transformation story across slides. Fitness, business, glow-ups.", niche: "Fitness", emoji: "🔄", gradient: "linear-gradient(135deg,#14532d 0%,#020617 100%)" },
   { slug: "carousel-myth-buster", title: "Myth Buster", blurb: "Myth on slide one, truth bomb on slide two. Comment bait.", niche: "Viral", emoji: "💣", gradient: "linear-gradient(135deg,#831843 0%,#0a0a0a 100%)" },
-  { slug: "carousel-tutorial-steps", title: "Tutorial Steps", blurb: "Step-by-step how-to. Each slide is one clear action.", niche: "Education", emoji: "🪜", gradient: "linear-gradient(135deg,#713f12 0%,#0a0a0a 100%)" },
-  { slug: "carousel-quote-pack", title: "Quote Pack", blurb: "Punchy quotes on luxe backgrounds. Made for shares.", niche: "Motivation", emoji: "💬", gradient: "linear-gradient(135deg,#4c1d95 0%,#0a0a0a 100%)" },
-  { slug: "carousel-stat-drop", title: "Stat Drop", blurb: "One shocking stat per slide with bold data viz styling.", niche: "Finance", emoji: "📊", gradient: "linear-gradient(135deg,#0c4a6e 0%,#020617 100%)" },
-  { slug: "carousel-story-arc", title: "Story Arc", blurb: "Hook → struggle → turning point → win. Narrative carousels that get read to the end.", niche: "Personal Brand", emoji: "📖", gradient: "linear-gradient(135deg,#713f12 0%,#1a0a00 100%)" },
+  { slug: "carousel-tutorial", title: "Tutorial Steps", blurb: "Step-by-step how-to. Each slide is one clear action.", niche: "Education", emoji: "🪜", gradient: "linear-gradient(135deg,#713f12 0%,#0a0a0a 100%)" },
+  { slug: "carousel-quote", title: "Quote Pack", blurb: "Punchy quotes on luxe backgrounds. Made for shares.", niche: "Motivation", emoji: "💬", gradient: "linear-gradient(135deg,#4c1d95 0%,#0a0a0a 100%)" },
+  { slug: "carousel-stats", title: "Stat Drop", blurb: "One shocking stat per slide with bold data viz styling.", niche: "Finance", emoji: "📊", gradient: "linear-gradient(135deg,#0c4a6e 0%,#020617 100%)" },
+  { slug: "carousel-story", title: "Story Arc", blurb: "Hook → struggle → turning point → win. Narrative carousels that get read to the end.", niche: "Personal Brand", emoji: "📖", gradient: "linear-gradient(135deg,#713f12 0%,#1a0a00 100%)" },
   { slug: "carousel-vs-battle", title: "VS Battle", blurb: "This vs that. Two options duke it out across slides — comments explode.", niche: "Viral", emoji: "⚔️", gradient: "linear-gradient(135deg,#7f1d1d 0%,#0a0a0a 100%)" },
   { slug: "carousel-mistakes", title: "Mistakes To Avoid", blurb: "\"Stop doing this\" format. Authority-building and highly saved.", niche: "Education", emoji: "🚫", gradient: "linear-gradient(135deg,#991b1b 0%,#0a0a0a 100%)" },
   { slug: "carousel-tools-roundup", title: "Tools Roundup", blurb: "Your favorite tools, one per slide. Affiliate-friendly.", niche: "Business", emoji: "🧰", gradient: "linear-gradient(135deg,#1e40af 0%,#020617 100%)" },
