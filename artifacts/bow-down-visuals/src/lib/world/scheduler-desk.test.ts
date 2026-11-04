@@ -404,7 +404,7 @@ describe("schedule-success receipt (Stack-100 #2 item 71)", () => {
       new URL("../../components/world/native/SchedulerDesk.tsx", import.meta.url),
       "utf8",
     );
-    expect(desk).toContain("setSavedLine(schedulerSavedReceipt(post, draft, willSchedule))");
+    expect(desk).toContain("setSavedLine(schedulerSavedReceipt(post, draft, willSchedule, {");
     expect(desk).toContain('data-testid="world-scheduler-saved"');
   });
 });

@@ -283,9 +283,9 @@ describe("wiring", () => {
   it("guests read the calendar but never get a walk button", () => {
     expect(block).toContain("if (isGuest) return undefined;");
     expect(block).toContain("world-kingdom-calendar");
-    expect(block).toContain("Sign in to join in");
+    expect(block).toContain("worldScheduleRelease.calSignInToJoin");
     /* The look back's bound is named in its own title. */
-    expect(block).toContain("Earlier at the palace");
+    expect(block).toContain("worldScheduleRelease.calRecentTitle");
     expect(block).toContain("CALENDAR_RECENT_WINDOW_DAYS");
   });
 
@@ -306,13 +306,13 @@ describe("wiring", () => {
 
   it("an open failure is a failure with a retry — never a fake empty week", () => {
     expect(block).toContain("NativeErrorState");
-    expect(block).toContain("The calendar wouldn't open");
+    expect(block).toContain("worldScheduleRelease.calLoadFailedTitle");
   });
 
   it("the quest reset rides the slate — shaped from the quest week, walked to the Quest Board", () => {
-    expect(block).toContain("questResetCalendarEvent(Date.now())");
+    expect(block).toContain("questResetCalendarEvent(Date.now(), t(\"worldScheduleRelease.calQuestResetTitle\"))");
     expect(block).toContain("QUEST_RESET_KIND");
-    expect(block).toContain("See the quests");
+    expect(block).toContain("worldScheduleRelease.calSeeQuests");
     /* The reset is never read off the events rail — the block
        derives it from the quest week (palace-calendar.ts) and the
        rail read stays the slate's own. */
