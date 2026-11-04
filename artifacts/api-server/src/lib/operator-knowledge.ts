@@ -162,9 +162,25 @@ function stem(t: string): string {
     : t;
 }
 
+/** The -y plural fold: stripping the trailing "s" off "replies" leaves
+    "replie", which never equals the singular "reply" the registry and
+    price names carry — so a member asking about "replies" silently
+    missed every tier whose text uses the singular. Fold a trailing
+    "-ie" left by the plural strip back to "-y" on BOTH sides of the
+    comparison, so singular and plural spellings of -y nouns meet.
+    (Symmetric, so identical words still match identically; "movies"
+    and "movie" both fold to "movy" and keep matching each other.) */
+function foldIePlural(s: string): string {
+  return s.length > 3 && s.endsWith("ie") ? `${s.slice(0, -2)}y` : s;
+}
+
 function stemIncludes(list: string[], t: string): boolean {
   const s = stem(t);
-  return list.some((x) => stem(x) === s);
+  const fs = foldIePlural(s);
+  return list.some((x) => {
+    const xs = stem(x);
+    return xs === s || foldIePlural(xs) === fs;
+  });
 }
 
 /* ── Collection intent ─────────────────────────────────────────────────
@@ -262,23 +278,32 @@ function collectionBonus(f: OperatorFeature, q: string[], ctx: MatchContext): nu
 }
 
 /** Score one feature against the query tokens. Name words are the strongest
-    signal, then path words, then description words. */
-function scoreFeature(f: OperatorFeature, q: string[], ctx: MatchContext): number {
+    signal, then path words, then description words. Also reports COVERAGE:
+    how many of the query's distinct tokens the feature matched in any
+    tier. A feature can stack every tier on ONE repeated word (a tab
+    whose name, path, price and description all say "replies") and tie
+    with the feature that matches nearly every word the member said —
+    coverage is the honest difference between them, so it breaks ties
+    before the (meaningless) alphabetical order does. */
+function scoreFeature(f: OperatorFeature, q: string[], ctx: MatchContext): { score: number; covered: number } {
   const names = nameTokens(f);
   const paths = pathTokens(f);
   const desc = f.description ? tokens(f.description) : [];
   const priceNames = f.prices.flatMap((p) => tokens(p.feature));
   let score = 0;
+  let covered = 0;
   for (const t of q) {
-    if (names.includes(t)) score += 5;
-    else if (names.some((n) => n.startsWith(t) || t.startsWith(n))) score += 2;
-    if (stemIncludes(paths, t)) score += 3;
+    let hit = false;
+    if (names.includes(t)) { score += 5; hit = true; }
+    else if (names.some((n) => n.startsWith(t) || t.startsWith(n))) { score += 2; hit = true; }
+    if (stemIncludes(paths, t)) { score += 3; hit = true; }
     // The price-name tier exists for price questions. Under collection
     // intent the member is locating their own things, not buying — what
     // a page can charge for must not outrank the collection page itself
     // (the Songs tab's "Analyze Song Sections" price nearly did).
-    if (!ctx.collection && stemIncludes(priceNames, t)) score += 3;
-    if (stemIncludes(desc, t)) score += 1;
+    if (!ctx.collection && stemIncludes(priceNames, t)) { score += 3; hit = true; }
+    if (stemIncludes(desc, t)) { score += 1; hit = true; }
+    if (hit) covered += 1;
   }
   // Whole-phrase name mention ("make a song", "brand deals") is the
   // surest hit there is: the query's words, in order, spelling the name.
@@ -296,7 +321,7 @@ function scoreFeature(f: OperatorFeature, q: string[], ctx: MatchContext): numbe
     score += 8;
   }
   score += collectionBonus(f, q, ctx);
-  return score;
+  return { score, covered };
 }
 
 /** Best-matching real features for a message, strongest first. */
@@ -304,9 +329,9 @@ export function findFeatures(message: string, limit = 4): OperatorFeature[] {
   const q = tokens(message);
   if (q.length === 0) return [];
   const ctx = matchContext(message, q);
-  return OPERATOR_FEATURES.map((f) => ({ f, s: scoreFeature(f, q, ctx) }))
-    .filter((x) => x.s >= 3)
-    .sort((a, b) => b.s - a.s || a.f.name.localeCompare(b.f.name))
+  return OPERATOR_FEATURES.map((f) => ({ f, ...scoreFeature(f, q, ctx) }))
+    .filter((x) => x.score >= 3)
+    .sort((a, b) => b.score - a.score || b.covered - a.covered || a.f.name.localeCompare(b.f.name))
     .slice(0, limit)
     .map((x) => x.f);
 }
