@@ -535,13 +535,13 @@ describe("source pins — the Now Playing card's thread (2.13, stack-20 hardenin
   });
 
   it("guests read the thread and meet the pitch at the composer — no fake affordance", () => {
-    /* Locale unit 51: the pitch copy lives in worldPrimitives.spCommentsSignIn. */
-    expect(card).toContain('t("worldPrimitives.spCommentsSignIn")');
+    /* Locale unit 51: the pitch copy lives in worldPrimitives.spSignInToComment. */
+    expect(card).toContain('t("worldPrimitives.spSignInToComment")');
     const en = JSON.parse(read("../../locales/en.json")) as any;
-    expect(en.worldPrimitives.spCommentsSignIn).toBe("Sign in to join the conversation — reading is open to everyone here.");
+    expect(en.worldPrimitives.spSignInToComment).toBe("Sign in to join the conversation — reading is open to everyone here.");
     expect(card).toContain('data-testid="world-shelf-comment-input"');
     /* The composer block only exists inside the member branch. */
-    const pitchAt = card.indexOf('t("worldPrimitives.spCommentsSignIn")');
+    const pitchAt = card.indexOf('t("worldPrimitives.spSignInToComment")');
     const memberBranchAt = card.lastIndexOf("user ? (", pitchAt);
     expect(memberBranchAt).toBeGreaterThan(-1);
     expect(card.indexOf('data-testid="world-shelf-comment-input"')).toBeGreaterThan(memberBranchAt);

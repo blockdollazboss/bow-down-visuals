@@ -114,19 +114,19 @@ describe("unit 51 extraction (worldPrimitives)", () => {
     expect(sources.GamesPanels).not.toContain("Room codes are 6 letters and numbers");
     expect(sources.GamesPanels).not.toContain('aria-label="Dismiss the summons"');
     expect(sources.ShelfPlayer).not.toContain('aria-label="Seek"');
-    expect(sources.NativePlaceholder).not.toContain("This desk is being built");
+    expect(sources.NativePlaceholder).not.toContain("This desk is being rebuilt");
   });
 
   it("en copy is the files' original wording, verbatim", () => {
-    expect(enNs.stLoadingDefault).toBe("Loading…");
-    expect(enNs.stErrorTitleDefault).toBe("This panel hit a snag");
+    expect(enNs.stLoadingDefault).toBe("Opening the desk…");
+    expect(enNs.stErrorTitleDefault).toBe("This desk wouldn't open in the palace");
     expect(enNs.stTryAgain).toBe("Try again");
-    expect(enNs.phTitle).toBe("This desk is being built");
+    expect(enNs.phTitle).toBe("This desk is being rebuilt for the palace");
     expect(enNs.phBody).toBe(
-      "{{name}} is being finished for the World — the full desk lands here soon, in the palace, without leaving for the website.",
+      "{{name}} is being refitted to work right here in the room — its work will happen where you stand, with no website page pulled up. Until the new desk lands, everything it does today waits on the website, one tap below.",
     );
-    expect(enNs.spNowPlaying).toBe("Now playing");
-    expect(enNs.spCommentsSignIn).toBe(
+    expect(enNs.spNowPlayingTitle).toBe("Now playing — here in the palace");
+    expect(enNs.spSignInToComment).toBe(
       "Sign in to join the conversation — reading is open to everyone here.",
     );
     expect(enNs.gmContestTitle).toBe("This week's contest");
