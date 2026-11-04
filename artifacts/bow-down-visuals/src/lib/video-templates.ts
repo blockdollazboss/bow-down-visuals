@@ -310,6 +310,43 @@ export function buildWinnerReelHref(input: { title: string; hook: string }): str
   return `/video-editor?${params.toString()}`;
 }
 
+/* ── The editor side of the ?make= deep link ───────────────────────────
+   A claim-to-asset door names a template but carries no project — the
+   editor's one project convention is ?project=<id>, and an arrival
+   without it used to land on the "No project selected" gate with the
+   template executed into state the gate hid (the Build Winner Reel
+   dead-end, found by the Stack 100 Gate-1 capture). The editor now
+   parses the link with this one reader and, when it names a template
+   but no project, resolves a project context before anything renders:
+   the member's newest project (the palace step-through's own pattern,
+   lib/world/station-panel newestEditorProjectId) or — for a member
+   with none — a real project created through POST /api/projects, the
+   same create-then-open rail the generation flows use. Pure parsing
+   lives here; the fetching stays in the page. */
+export interface MakeDeepLink {
+  templateId: VideoTemplateId;
+  title: string | null;
+  hook: string | null;
+}
+
+/** Parse a ?make= deep link's search string. Unknown template ids are
+ *  NOT a link — never resolved through the Blank Canvas fallback, so a
+ *  bad link can never build (or bootstrap a project for) a timeline
+ *  the member didn't ask for. */
+export function parseMakeDeepLink(search: string): MakeDeepLink | null {
+  const params = new URLSearchParams(search);
+  const make = params.get("make");
+  if (!make || !isVideoTemplateId(make)) return null;
+  return { templateId: make, title: params.get("title"), hook: params.get("hook") };
+}
+
+/** True when the arrival is a ?make= deep link that still owes the
+ *  editor a project: it names a template but no ?project=. */
+export function makeDeepLinkNeedsProject(search: string): boolean {
+  if (parseMakeDeepLink(search) === null) return false;
+  return !new URLSearchParams(search).get("project");
+}
+
 /* ── localStorage: custom card order + last choice ── */
 
 const ORDER_KEY = "bdv-template-order";

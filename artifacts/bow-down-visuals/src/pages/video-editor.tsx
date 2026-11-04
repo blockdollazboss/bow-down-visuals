@@ -148,8 +148,10 @@ import {
 import { ALIGN_CREDITS as LYRIC_ALIGN_CREDITS, RENDER_CREDITS as LYRIC_RENDER_CREDITS } from "@/lib/lyric-video";
 import {
   getVideoTemplate, setLastTemplate, getLastTemplate, isVideoTemplateId,
+  parseMakeDeepLink, makeDeepLinkNeedsProject,
   type VideoTemplateId,
 } from "@/lib/video-templates";
+import { newestEditorProjectId, type EditorProjectRow } from "@/lib/world/station-panel";
 import { executeVideoTemplate } from "@/lib/template-execution";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
 import {
@@ -331,7 +333,7 @@ export default function VideoEditor() {
      (its preview renders captionFontFamily outside CaptionsSection). */
   useEffect(() => { ensureCaptionFonts(); }, []);
   const search = useSearch();
-  const projectId = new URLSearchParams(search).get("project");
+  const urlProjectId = new URLSearchParams(search).get("project");
   /* QC-200 fix queue #7 — the Locations library is a per-user surface: the
      /api/locations rails key on the account, never on a project. Yet every
      door to it — the /locations redirect (App.tsx), Scene Studio's links,
@@ -345,6 +347,85 @@ export default function VideoEditor() {
      cannot re-bury the library for door arrivals. */
   const locationsDeepLink = new URLSearchParams(search).get("tab") === "locations";
   const { user, getAccessToken } = useAuth();
+
+  /* ── ?make= project bootstrap ─────────────────────────────────────────
+     Claim-to-asset doors (the winners' circle "Build Winner Reel") name
+     a template to execute but carry no ?project= — and the editor's one
+     project convention is the URL param, so those arrivals landed on
+     the "No project selected" gate with the template executed into
+     state the gate hid: a dead-end door (Stack 100 Gate-1 capture).
+     The palace's editor door never strands the walker this way: the
+     world page resolves the walker's newest project and seeds the
+     step-through with it (world.tsx + newestEditorProjectId). The
+     editor does the same for a ?make= arrival that owes it a project:
+     newest project if one exists; a member with none gets a REAL
+     project created through POST /api/projects — the create-then-open
+     rail every generation flow uses — titled with the door's own
+     content. The seeded id then feeds the same load path ?project=
+     always feeds. A failed read/create falls back to the gate,
+     never blocks the editor on the fetch. */
+  const [seededProjectId, setSeededProjectId] = useState<string | null>(null);
+  const projectId = urlProjectId ?? seededProjectId;
+  const [makeBootstrap, setMakeBootstrap] = useState<
+    "not-needed" | "resolving" | "resolved" | "failed"
+  >(() => (makeDeepLinkNeedsProject(search) ? "resolving" : "not-needed"));
+  const makeBootstrapStartedRef = useRef(false);
+  useEffect(() => {
+    if (makeBootstrap !== "resolving" || makeBootstrapStartedRef.current) return;
+    if (!user) return; // auth still settling; ProtectedRoute owns signed-out
+    makeBootstrapStartedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      const link = parseMakeDeepLink(search);
+      if (!link) {
+        if (!cancelled) setMakeBootstrap("not-needed");
+        return;
+      }
+      try {
+        const token = await getAccessToken();
+        const authHeaders = { Authorization: `Bearer ${token ?? ""}` };
+        let id: string | null = null;
+        const listRes = await fetch("/api/projects", { headers: authHeaders });
+        if (listRes.ok) {
+          const data = (await listRes.json()) as { projects?: EditorProjectRow[] };
+          if (Array.isArray(data.projects)) id = newestEditorProjectId(data.projects);
+        }
+        if (!id) {
+          const createRes = await fetch("/api/projects", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders },
+            body: JSON.stringify({
+              projectType: "Make a Music Video",
+              title: link.title?.trim() || getVideoTemplate(link.templateId).name,
+              creditsUsed: 0,
+            }),
+          });
+          if (createRes.ok) {
+            const created = (await createRes.json()) as { id?: string };
+            id = typeof created.id === "string" && created.id ? created.id : null;
+          }
+        }
+        if (cancelled) return;
+        if (id) {
+          setSeededProjectId(id);
+          /* Reflect the seed in the URL so a refresh or a shared link
+             keeps the project (the load itself keys off state above). */
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.set("project", id);
+            window.history.replaceState(null, "", url.toString());
+          } catch { /* cosmetic only — the seeded state already loads it */ }
+          setMakeBootstrap("resolved");
+        } else {
+          setMakeBootstrap("failed");
+        }
+      } catch {
+        if (!cancelled) setMakeBootstrap("failed");
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot bootstrap; re-arms only via makeBootstrap/user identity
+  }, [makeBootstrap, user?.id]);
 
   /* ── Live collaboration presence (Supabase Realtime, no-op without project/Supabase) ── */
   const collabUserName =
@@ -1058,13 +1139,24 @@ export default function VideoEditor() {
      ids are ignored outright — NOT resolved through getVideoTemplate's
      Blank Canvas fallback: a bad link must never build a timeline the
      member didn't ask for. One-shot: params are stripped once consumed
-     so a re-render or a shared URL never re-executes. */
+     so a re-render or a shared URL never re-executes.
+     Sequencing (Stack 100 winner-door fix): execution waits for the
+     project context — the bootstrap above seeds one when the door
+     carried none, and the project's own load must land first, because
+     the load REPLACES scenes/settings wholesale; executing on mount
+     ran against empty state and was silently overwritten (and with no
+     project at all, the NoProject gate hid the result entirely). The
+     wait is the ?t= seek's own gate: loading done + project present.
+     If the bootstrap failed or the load errored, execution stands
+     down — the gate / error state owns the screen, honestly. */
   const makeConsumedRef = useRef(false);
   useEffect(() => {
     if (makeConsumedRef.current) return;
     const params = new URLSearchParams(search);
     const make = params.get("make");
     if (!make || !isVideoTemplateId(make)) return;
+    if (makeBootstrap === "resolving") return;
+    if (!projectId || loading || !project || loadError) return;
     makeConsumedRef.current = true;
     applyTemplate(make, {
       title: params.get("title"),
@@ -1076,7 +1168,7 @@ export default function VideoEditor() {
     url.searchParams.delete("hook");
     window.history.replaceState(null, "", url.toString());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
+  }, [search, makeBootstrap, projectId, loading, project, loadError]);
   /* ── Pro Tools deep link: /video-editor?tab=pro-tools ──
      Lands the user straight on the Pro Tools tab where the AI Filler-Word
      Remover lives. Pairs with ?videoUrl= for hub handoffs. Simple-mode
@@ -3214,7 +3306,15 @@ export default function VideoEditor() {
       <div className="flex-1 flex flex-col min-h-0 relative">
         <Link href="/my-projects" className="sr-only">{t("videoEditor.backToProjects")}</Link>
 
-        {!projectId && !locationsDeepLink ? (
+        {!projectId && makeBootstrap === "resolving" ? (
+          /* A ?make= arrival still resolving the project it is owed
+             (bootstrap above): a brief loader — the NoProject gate must
+             never flash, or worse settle, mid-resolution. */
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 py-20 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm vv-ink-50">{t("videoEditor.makeBootstrapLoading", { defaultValue: "Opening your project…" })}</p>
+          </div>
+        ) : !projectId && !locationsDeepLink ? (
           <NoProject />
         ) : !projectId ? (
           /* Locations with no project loaded (QC-200 fix queue #7): the

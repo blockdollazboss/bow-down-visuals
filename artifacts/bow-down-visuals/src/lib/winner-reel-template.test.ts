@@ -23,6 +23,8 @@ import {
   getVideoTemplate,
   isVideoTemplateId,
   buildWinnerReelHref,
+  parseMakeDeepLink,
+  makeDeepLinkNeedsProject,
   getTemplateOrder,
   type VideoTemplate,
 } from "./video-templates";
@@ -253,5 +255,64 @@ describe("winner-reel — the Build Winner Reel door", () => {
     expect(page).toContain('params.get("make")');
     expect(page).toContain("isVideoTemplateId(make)");
     expect(page).toContain("applyTemplate(make, {");
+  });
+});
+
+describe("winner-reel — the door lands on a project (dead-end fix)", () => {
+  /* The Gate-1 capture followed the door exactly as a user would and
+     landed on the "No project selected" gate: the href carries a
+     template but no project, and the editor's one project convention
+     is ?project=<id>. The fix follows the palace step-through's own
+     pattern — resolve the member's newest project and seed the editor
+     with it — with the generation flows' create-then-open rail for a
+     member who has no project yet. */
+
+  it("parses the door's link into template + the door's real content", () => {
+    const link = parseMakeDeepLink("?make=winner-reel&title=Neon+Skyline&hook=Took+1st");
+    expect(link).toEqual({ templateId: "winner-reel", title: "Neon Skyline", hook: "Took 1st" });
+    expect(parseMakeDeepLink("?make=winner-reel")).toEqual({
+      templateId: "winner-reel",
+      title: null,
+      hook: null,
+    });
+  });
+
+  it("a bad or absent make is not a link — never Blank-Canvas-resolved", () => {
+    expect(parseMakeDeepLink("?make=no-such-template&title=X")).toBeNull();
+    expect(parseMakeDeepLink("?title=X")).toBeNull();
+    expect(parseMakeDeepLink("")).toBeNull();
+  });
+
+  it("owes a project exactly when the link names a template but no project", () => {
+    expect(makeDeepLinkNeedsProject("?make=winner-reel&title=X")).toBe(true);
+    expect(makeDeepLinkNeedsProject("?make=winner-reel&project=p1")).toBe(false);
+    expect(makeDeepLinkNeedsProject("?project=p1")).toBe(false);
+    expect(makeDeepLinkNeedsProject("?make=no-such-template")).toBe(false);
+    expect(makeDeepLinkNeedsProject("")).toBe(false);
+  });
+
+  it("the editor bootstraps the owed project the palace way: newest, else create-then-open", () => {
+    const page = readFileSync(new URL("../pages/video-editor.tsx", import.meta.url), "utf8");
+    expect(page).toContain("makeDeepLinkNeedsProject(search)");
+    expect(page).toContain("newestEditorProjectId(data.projects)");
+    expect(page).toContain('projectType: "Make a Music Video"');
+    expect(page).toContain("urlProjectId ?? seededProjectId");
+    expect(page).toContain('setMakeBootstrap("resolved")');
+    expect(page).toContain('setMakeBootstrap("failed")');
+  });
+
+  it("while the bootstrap resolves, the gate stands down for a loader", () => {
+    const page = readFileSync(new URL("../pages/video-editor.tsx", import.meta.url), "utf8");
+    expect(page).toContain('!projectId && makeBootstrap === "resolving"');
+    expect(page).toContain("videoEditor.makeBootstrapLoading");
+  });
+
+  it("execution waits for the project's own load — it can no longer be overwritten by it", () => {
+    const page = readFileSync(new URL("../pages/video-editor.tsx", import.meta.url), "utf8");
+    const start = page.indexOf("const makeConsumedRef");
+    const body = page.slice(start, page.indexOf("window.history.replaceState", start));
+    expect(body).toContain('if (makeBootstrap === "resolving") return;');
+    expect(body).toContain("if (!projectId || loading || !project || loadError) return;");
+    expect(body).toContain("applyTemplate(make, {");
   });
 });
