@@ -55,21 +55,43 @@ export function jukeboxNeedsSeek(
   return Math.abs(elementPositionSec - desired.positionSec) > JUKEBOX_DRIFT_TOLERANCE_SEC;
 }
 
+/** The denial lines, one per room reason. The panel passes its
+ *  active language's bundle (worldAudioDesk keys); other callers
+ *  get these English defaults, byte-identical to the pre-i18n
+ *  copy. */
+export interface JukeboxDeniedStrings {
+  guests: string;
+  unplayable: string;
+  queueFull: string;
+  listeningParty: string;
+  notYours: string;
+  fallback: string;
+}
+
+export const JUKEBOX_DENIED_STRINGS_EN: JukeboxDeniedStrings = {
+  guests: "Guests listen in — sign in to put a song on.",
+  unplayable: "That song can't play here — it isn't a published track the room can reach.",
+  queueFull: "The queue is full — twenty songs deep is the room's whole evening.",
+  listeningParty: "A listening party owns the queue right now — the host's program plays out first.",
+  notYours: "That hand isn't yours — the song's adder (or the host) works this transport.",
+  fallback: "The jukebox said no — nothing changed.",
+};
+
 /** The denial reasons the room sends, in the words the panel
  *  speaks them. Unknown reasons fall back to an honest shrug. */
-export function jukeboxDeniedCopy(reason: string): string {
+export function jukeboxDeniedCopy(reason: string, strings: JukeboxDeniedStrings = JUKEBOX_DENIED_STRINGS_EN): string {
   switch (reason) {
     case "guests":
-      return "Guests listen in — sign in to put a song on.";
+      return strings.guests;
     case "unplayable":
-      return "That song can't play here — it isn't a published track the room can reach.";
+      return strings.unplayable;
     case "queue-full":
-      return "The queue is full — twenty songs deep is the room's whole evening.";
+      return strings.queueFull;
     case "listening-party":
-      return "A listening party owns the queue right now — the host's program plays out first.";
+      return strings.listeningParty;
     case "not-yours":
-      return "That hand isn't yours — the song's adder (or the host) works this transport.";
+      return strings.notYours;
     default:
-      return "The jukebox said no — nothing changed.";
+      return strings.fallback;
   }
 }

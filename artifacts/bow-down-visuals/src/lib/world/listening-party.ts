@@ -96,35 +96,82 @@ interface ListeningPartyBody {
 
 type BuildResult = { ok: true; body: ListeningPartyBody } | { ok: false; error: string };
 
+/** The booking form's own words — the draft problems and the
+ *  failed-booking lines. The panel passes its active language's
+ *  bundle (worldAudioDesk keys); other callers get these English
+ *  defaults, byte-identical to the pre-i18n copy. */
+export interface ListeningPartyStrings {
+  nameFirst: string;
+  nameTooLong: string;
+  queueEmpty: string;
+  /** Template carrying one {{max}} token. */
+  queueTooLong: string;
+  notCatalog: string;
+  slotTooShort: string;
+  slotTooLong: string;
+  pickStart: string;
+  startPast: string;
+  tooFarAhead: string;
+  slotTaken: string;
+  invalidWindow: string;
+  invalidPayload: string;
+  roomMismatch: string;
+  signIn: string;
+  didntLand: string;
+}
+
+export const LISTENING_PARTY_STRINGS_EN: ListeningPartyStrings = {
+  nameFirst: "Give the party a name first.",
+  nameTooLong: "That name is too long — 120 characters at most.",
+  queueEmpty: "Pick at least one song — a party needs a queue.",
+  queueTooLong: "A party queue holds at most {{max}} songs.",
+  notCatalog: "One of those songs isn't a catalog track the jukebox can play.",
+  slotTooShort: "A party slot is at least 5 minutes.",
+  slotTooLong: "A party slot is at most 4 hours.",
+  pickStart: "Pick a start time for the party.",
+  startPast: "That start time is already past.",
+  tooFarAhead: "Parties can be booked at most 30 days ahead.",
+  slotTaken: "The Music Hall is already booked at that time — pick another hour.",
+  invalidWindow: "That time doesn't work — a slot is 5 minutes to 4 hours, up to 30 days ahead.",
+  invalidPayload: "That queue can't play — every song must be a published catalog track.",
+  roomMismatch: "Listening parties live in the Music Hall.",
+  signIn: "Sign in as a member to book the Music Hall.",
+  didntLand: "The booking didn't land — nothing was scheduled. Try again.",
+};
+
 /** Validate a draft against the server's booking rules and shape
  *  the POST body. `nowMs` is injected so the window math is pure. */
-export function buildListeningPartyBody(draft: ListeningPartyDraft, nowMs: number): BuildResult {
+export function buildListeningPartyBody(
+  draft: ListeningPartyDraft,
+  nowMs: number,
+  strings: ListeningPartyStrings = LISTENING_PARTY_STRINGS_EN,
+): BuildResult {
   const title = draft.title.trim();
-  if (!title) return { ok: false, error: "Give the party a name first." };
-  if (title.length > 120) return { ok: false, error: "That name is too long — 120 characters at most." };
+  if (!title) return { ok: false, error: strings.nameFirst };
+  if (title.length > 120) return { ok: false, error: strings.nameTooLong };
   if (draft.queue.length === 0) {
-    return { ok: false, error: "Pick at least one song — a party needs a queue." };
+    return { ok: false, error: strings.queueEmpty };
   }
   if (draft.queue.length > PARTY_QUEUE_MAX) {
-    return { ok: false, error: `A party queue holds at most ${PARTY_QUEUE_MAX} songs.` };
+    return { ok: false, error: strings.queueTooLong.split("{{max}}").join(String(PARTY_QUEUE_MAX)) };
   }
   if (draft.queue.some((q) => !CATALOG_TRACK_ID.test(q.id))) {
-    return { ok: false, error: "One of those songs isn't a catalog track the jukebox can play." };
+    return { ok: false, error: strings.notCatalog };
   }
   if (draft.durationMin < PARTY_MIN_DURATION_MIN) {
-    return { ok: false, error: "A party slot is at least 5 minutes." };
+    return { ok: false, error: strings.slotTooShort };
   }
   if (draft.durationMin > PARTY_MAX_DURATION_MIN) {
-    return { ok: false, error: "A party slot is at most 4 hours." };
+    return { ok: false, error: strings.slotTooLong };
   }
   if (!Number.isFinite(draft.startsAtMs)) {
-    return { ok: false, error: "Pick a start time for the party." };
+    return { ok: false, error: strings.pickStart };
   }
   if (draft.startsAtMs < nowMs - PARTY_START_GRACE_MS) {
-    return { ok: false, error: "That start time is already past." };
+    return { ok: false, error: strings.startPast };
   }
   if (draft.startsAtMs > nowMs + PARTY_MAX_AHEAD_MS) {
-    return { ok: false, error: "Parties can be booked at most 30 days ahead." };
+    return { ok: false, error: strings.tooFarAhead };
   }
   const startsAt = new Date(draft.startsAtMs);
   const endsAt = new Date(draft.startsAtMs + draft.durationMin * 60_000);
@@ -149,25 +196,29 @@ export function buildListeningPartyBody(draft: ListeningPartyDraft, nowMs: numbe
 /** Map a failed booking response to the words the form shows. The
  *  server's own message wins when it sent one (it names the rule);
  *  the known codes get the form's plainer phrasing first. */
-export function listeningPartyErrorCopy(status: number, payload: unknown): string {
+export function listeningPartyErrorCopy(
+  status: number,
+  payload: unknown,
+  strings: ListeningPartyStrings = LISTENING_PARTY_STRINGS_EN,
+): string {
   const p = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
   const code = typeof p["error"] === "string" ? p["error"] : "";
   const message = typeof p["message"] === "string" ? p["message"] : "";
   switch (code) {
     case "SLOT_TAKEN":
-      return "The Music Hall is already booked at that time — pick another hour.";
+      return strings.slotTaken;
     case "INVALID_WINDOW":
-      return message || "That time doesn't work — a slot is 5 minutes to 4 hours, up to 30 days ahead.";
+      return message || strings.invalidWindow;
     case "INVALID_PAYLOAD":
-      return message || "That queue can't play — every song must be a published catalog track.";
+      return message || strings.invalidPayload;
     case "ROOM_MISMATCH":
-      return "Listening parties live in the Music Hall.";
+      return strings.roomMismatch;
     default:
       break;
   }
-  if (status === 401 || status === 403) return "Sign in as a member to book the Music Hall.";
+  if (status === 401 || status === 403) return strings.signIn;
   if (message) return message;
-  return "The booking didn't land — nothing was scheduled. Try again.";
+  return strings.didntLand;
 }
 
 /* ── "Mine": the host's own bookings ────────────────────────────── */

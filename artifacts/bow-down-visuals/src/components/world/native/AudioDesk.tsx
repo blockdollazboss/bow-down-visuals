@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
@@ -20,6 +21,7 @@ import {
   AUDIO_BENCHES,
   audioBenchJobIdOf,
   audioBenchOf,
+  audioBenchResultStrings,
   buildHarmonyPayload,
   buildPodcastPayload,
   buildSingingVoicePayload,
@@ -85,7 +87,6 @@ import {
   type AudioDeskTabId,
 } from "@/lib/world/audio-desk-tabs";
 import {
-  abAfterLabelForBench,
   abComparableOutput,
 } from "@/lib/world/audio-ab";
 import {
@@ -112,12 +113,54 @@ import { LibraryTab, SoundPacksTab, StemRemixPanel, StemsTab } from "./AudioDesk
 
 type BenchTool = "cleanup" | "deverb" | "finish" | "beat" | "sfx";
 
-const TOOL_LABELS: Record<BenchTool, string> = {
-  cleanup: "Clean up",
-  deverb: "De-reverb",
-  finish: "Finish my song",
-  beat: "Beat",
-  sfx: "Sound effect",
+/* The desks' words live in the worldAudioDesk catalog namespace;
+   these maps carry the catalog KEY for each seam id (the seam
+   label stays the English source the tests pin). */
+const TOOL_LABEL_KEYS: Record<BenchTool, string> = {
+  cleanup: "worldAudioDesk.toolCleanup",
+  deverb: "worldAudioDesk.toolDeverb",
+  finish: "worldAudioDesk.toolFinish",
+  beat: "worldAudioDesk.toolBeat",
+  sfx: "worldAudioDesk.toolSfx",
+};
+
+const TAB_LABEL_KEYS: Record<AudioDeskTabId, string> = {
+  benches: "worldAudioDesk.tabBenches",
+  packs: "worldAudioDesk.tabPacks",
+  library: "worldAudioDesk.tabLibrary",
+  stems: "worldAudioDesk.tabStems",
+};
+
+const BENCH_LABEL_KEYS: Record<AudioBenchId, string> = {
+  master: "worldAudioDesk.benchMaster",
+  "quick-master": "worldAudioDesk.benchQuickMaster",
+  mix: "worldAudioDesk.benchMix",
+  stems: "worldAudioDesk.benchStems",
+  "vocal-removal": "worldAudioDesk.benchVocalRemoval",
+  "vocal-polish": "worldAudioDesk.benchVocalPolish",
+  harmony: "worldAudioDesk.benchHarmony",
+  "singing-voice": "worldAudioDesk.benchSing",
+  "vocal-tune": "worldAudioDesk.benchTune",
+  "lufs-analyze": "worldAudioDesk.benchLufsAnalyze",
+  "lufs-normalize": "worldAudioDesk.benchNormalize",
+  "rate-my-mix": "worldAudioDesk.benchRateMyMix",
+  podcast: "worldAudioDesk.benchPodcast",
+  voiceover: "worldAudioDesk.benchVoiceover",
+  hum: "worldAudioDesk.benchHum",
+  arrangement: "worldAudioDesk.benchArrangement",
+};
+
+/** The A/B After-tab words per comparable bench — the catalog
+ *  mirror of audio-ab's abAfterLabelForBench (which stays the
+ *  English source its tests pin). */
+const AFTER_LABEL_KEYS: Partial<Record<AudioBenchId, string>> = {
+  master: "worldAudioDesk.afterMastered",
+  "quick-master": "worldAudioDesk.afterMastered",
+  "vocal-tune": "worldAudioDesk.afterTuned",
+  "lufs-normalize": "worldAudioDesk.afterNormalized",
+  "vocal-polish": "worldAudioDesk.afterPolished",
+  "singing-voice": "worldAudioDesk.afterNewVoice",
+  harmony: "worldAudioDesk.afterWithHarmony",
 };
 
 function toolCost(tool: BenchTool): number {
@@ -137,6 +180,7 @@ function toolCost(tool: BenchTool): number {
 
 export function AudioDesk(props: CreateDeskProps) {
   const { isLight } = props;
+  const { t, i18n } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const [tool, setTool] = useState<BenchTool>("cleanup");
@@ -242,7 +286,7 @@ export function AudioDesk(props: CreateDeskProps) {
         const res = await fetch("/api/deverb/status");
         const data = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
         if (!cancelled && res.ok && data.ok === false) {
-          setGateNote(apiErrorMessage(data, "De-reverb isn't switched on yet — nothing will be charged."));
+          setGateNote(apiErrorMessage(data, t("worldAudioDesk.gateDeverbOff")));
         } else if (!cancelled) {
           setGateNote(null);
         }
@@ -265,7 +309,7 @@ export function AudioDesk(props: CreateDeskProps) {
       setPrompt(song.title);
       setError(null);
     } catch {
-      setError("Couldn't fetch that song's audio — try again or upload the file instead.");
+      setError(t("worldAudioDesk.pickSongFailed"));
     } finally {
       setPickingId(null);
     }
@@ -281,7 +325,7 @@ export function AudioDesk(props: CreateDeskProps) {
         if (read.done) {
           stopPolling();
           if (read.failed) {
-            setError(apiErrorMessage(read, "The job didn't finish."));
+            setError(apiErrorMessage(read, t("worldAudioDesk.resultJobFailed")));
             setState("failed");
           } else {
             setResultUrl(read.url);
@@ -300,7 +344,7 @@ export function AudioDesk(props: CreateDeskProps) {
   const run = async () => {
     if (state === "running") return;
     if (isFileTool && !file) {
-      setError("Pick a song from your library or upload a file first — the bench works on your audio.");
+      setError(t("worldAudioDesk.needFileFirst"));
       setState("failed");
       return;
     }
@@ -320,10 +364,10 @@ export function AudioDesk(props: CreateDeskProps) {
         const res = await fetch(path, { method: "POST", headers: await authHeaders(), body: form });
         const data = (await res.json().catch(() => ({}))) as { jobId?: string; error?: string; message?: string };
         if (res.status === 402 && data.error === "pricing_pending") {
-          throw new Error(apiErrorMessage(data, "De-reverb pricing hasn't been approved yet — nothing was charged."));
+          throw new Error(apiErrorMessage(data, t("worldAudioDesk.gateDeverbPricing")));
         }
-        if (!res.ok || !data.jobId) throw new Error(apiErrorMessage(data, "The job didn't start."));
-        startJobPoll(path, data.jobId, tool === "cleanup" ? "Your cleaned audio" : "Your de-reverbed audio");
+        if (!res.ok || !data.jobId) throw new Error(apiErrorMessage(data, t("worldAudioDesk.jobDidntStart")));
+        startJobPoll(path, data.jobId, tool === "cleanup" ? t("worldAudioDesk.resultCleaned") : t("worldAudioDesk.resultDeverbed"));
         return;
       }
       if (tool === "finish") {
@@ -337,9 +381,9 @@ export function AudioDesk(props: CreateDeskProps) {
           body: form,
         });
         const data = (await res.json().catch(() => ({}))) as { songUrl?: string; error?: string; message?: string };
-        if (!res.ok || !data.songUrl) throw new Error(apiErrorMessage(data, "Could not finish the song."));
+        if (!res.ok || !data.songUrl) throw new Error(apiErrorMessage(data, t("worldAudioDesk.finishFailed")));
         setResultUrl(data.songUrl);
-        setResultTitle("Your finished song");
+        setResultTitle(t("worldAudioDesk.resultFinishedSong"));
         refreshProfile();
         setState("done");
         void quest.checkAfter();
@@ -362,18 +406,18 @@ export function AudioDesk(props: CreateDeskProps) {
         ),
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
-      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Generation failed."));
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, t("worldAudioDesk.generationFailed")));
       setResultUrl(data.url);
       setResultTitle(
         isBeat
           ? beatResultTitleOf({ title: beatTitle, genre: beatGenre, bpm: beatBpm, musicalKey: beatKey, lengthSeconds: beatLength })
-          : "Your sound effect",
+          : t("worldAudioDesk.resultSfx"),
       );
       refreshProfile();
       setState("done");
       void quest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "The bench hit a snag."));
+      setError(plainErrorText(err, t("worldAudioDesk.benchSnag")));
       setState("failed");
     }
   };
@@ -406,54 +450,54 @@ export function AudioDesk(props: CreateDeskProps) {
 
   return (
     <div className="space-y-3" data-testid="world-create-audio-desk">
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Audio Desk sections">
-        {AUDIO_DESK_TABS.map((t) => (
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldAudioDesk.tabsAriaLabel")}>
+        {AUDIO_DESK_TABS.map((tab) => (
           <button
-            key={t.id}
+            key={tab.id}
             type="button"
             role="tab"
-            aria-selected={deskTab === t.id}
-            data-testid={`world-audio-desk-tab-${t.id}`}
-            onClick={() => setDeskTab(t.id)}
+            aria-selected={deskTab === tab.id}
+            data-testid={`world-audio-desk-tab-${tab.id}`}
+            onClick={() => setDeskTab(tab.id)}
             className={`rounded-full border px-3.5 py-1.5 text-xs font-black transition bdv-touch-target ${
-              deskTab === t.id
+              deskTab === tab.id
                 ? "border-[#d4af37] bg-[#d4af37] text-black"
                 : isLight
                   ? "border-[#7A5A12]/40 text-[#7A5A12] hover:text-[#2a1e07]"
                   : "border-[#d4af37]/30 text-[#e8c86a] hover:text-white"
             }`}
           >
-            {t.label}
+            {t(TAB_LABEL_KEYS[tab.id])}
           </button>
         ))}
       </div>
 
       {deskTab === "benches" && (
         <>
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Audio bench tools">
-        {(Object.keys(TOOL_LABELS) as BenchTool[]).map((t) => (
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldAudioDesk.toolsAriaLabel")}>
+        {(Object.keys(TOOL_LABEL_KEYS) as BenchTool[]).map((toolId) => (
           <button
-            key={t}
+            key={toolId}
             type="button"
             role="tab"
-            aria-selected={tool === t}
-            data-testid={`world-create-audio-tool-${t}`}
+            aria-selected={tool === toolId}
+            data-testid={`world-create-audio-tool-${toolId}`}
             onClick={() => {
-              setTool(t);
+              setTool(toolId);
               setState("idle");
               setResultUrl(null);
               setResultSourceFile(null);
               setError(null);
             }}
             className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
-              tool === t
+              tool === toolId
                 ? "border-[#d4af37] bg-[#d4af37] text-black"
                 : isLight
                   ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
                   : "border-white/15 text-white/75 hover:text-white"
             }`}
           >
-            {TOOL_LABELS[t]} · {toolCost(t).toLocaleString("en-US")} VB
+            {t("worldAudioDesk.tabLabelCost", { label: t(TOOL_LABEL_KEYS[toolId]), cost: toolCost(toolId).toLocaleString(i18n.language) })}
           </button>
         ))}
       </div>
@@ -466,7 +510,7 @@ export function AudioDesk(props: CreateDeskProps) {
                 isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
               }`}
             >
-              {file ? `File: ${file.name}` : "Upload a song or file"}
+              {file ? t("worldAudioDesk.fileChosen", { name: file.name }) : t("worldAudioDesk.uploadSongOrFile")}
               <input
                 type="file"
                 accept="audio/*"
@@ -484,10 +528,10 @@ export function AudioDesk(props: CreateDeskProps) {
             {state === "running" && <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" />}
           </div>
           {songsFailed ? (
-            <p className={`text-xs ${muted}`}>Your song library wouldn&rsquo;t open — uploading a file still works.</p>
+            <p className={`text-xs ${muted}`}>{t("worldAudioDesk.songsLoadFailed")}</p>
           ) : songs === null ? (
             <p className={`inline-flex items-center gap-2 text-xs ${muted}`}>
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> Opening your song library…
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldAudioDesk.songsLoading")}
             </p>
           ) : songs.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
@@ -512,7 +556,7 @@ export function AudioDesk(props: CreateDeskProps) {
               ))}
             </div>
           ) : (
-            <p className={`text-xs ${muted}`}>No songs in your library yet — upload a file to use the bench.</p>
+            <p className={`text-xs ${muted}`}>{t("worldAudioDesk.songsEmpty")}</p>
           )}
           {gateNote && tool === "deverb" ? (
             <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{gateNote}</p>
@@ -524,79 +568,79 @@ export function AudioDesk(props: CreateDeskProps) {
         {tool === "cleanup" && (
           <DeskSelectField
             isLight={isLight}
-            label="Cleanup mode"
+            label={t("worldAudioDesk.cleanupModeLabel")}
             value={cleanupMode}
             onChange={setCleanupMode}
             options={[
-              { value: "voice", label: "Voice" },
-              { value: "music", label: "Music" },
-              { value: "denoise", label: "Denoise" },
+              { value: "voice", label: t("worldAudioDesk.cleanupModeVoice") },
+              { value: "music", label: t("worldAudioDesk.cleanupModeMusic") },
+              { value: "denoise", label: t("worldAudioDesk.cleanupModeDenoise") },
             ]}
           />
         )}
         {tool === "deverb" && (
           <DeskSelectField
             isLight={isLight}
-            label="De-reverb mode"
+            label={t("worldAudioDesk.deverbModeLabel")}
             value={deverbMode}
             onChange={setDeverbMode}
             options={[
-              { value: "dialogue", label: "Dialogue" },
-              { value: "vocal", label: "Vocal" },
+              { value: "dialogue", label: t("worldAudioDesk.deverbModeDialogue") },
+              { value: "vocal", label: t("worldAudioDesk.deverbModeVocal") },
             ]}
           />
         )}
         {tool === "finish" && (
-          <DeskTextField isLight={isLight} label="Notes for the finish" value={notes} onChange={setNotes} placeholder="What the song still needs…" />
+          <DeskTextField isLight={isLight} label={t("worldAudioDesk.finishNotesLabel")} value={notes} onChange={setNotes} placeholder={t("worldAudioDesk.finishNotesPlaceholder")} />
         )}
         {tool === "beat" && (
           <div className="space-y-3">
             <DeskSelectField
               isLight={isLight}
-              label="Genre"
+              label={t("worldAudioDesk.genreLabel")}
               value={beatGenre}
               onChange={setBeatGenre}
               options={["hip-hop", "trap", "drill", "r&b", "afrobeats", "pop", "edm", "lofi", "dancehall", "jersey-club"].map((g) => ({ value: g, label: g }))}
             />
             <div className="grid gap-3 sm:grid-cols-2">
-              <DeskTextField isLight={isLight} label="BPM" value={String(beatBpm)} onChange={(v) => setBeatBpm(beatBpmInputOf(v))} />
+              <DeskTextField isLight={isLight} label={t("worldAudioDesk.bpmLabel")} value={String(beatBpm)} onChange={(v) => setBeatBpm(beatBpmInputOf(v))} />
               <DeskSelectField
                 isLight={isLight}
-                label="Musical key"
+                label={t("worldAudioDesk.musicalKeyLabel")}
                 value={beatKey}
                 onChange={setBeatKey}
                 options={BEAT_KEYS.map((k) => ({ value: k, label: k }))}
               />
               <DeskSelectField
                 isLight={isLight}
-                label="Length"
+                label={t("worldAudioDesk.lengthLabel")}
                 value={String(beatLength)}
                 onChange={(v) => setBeatLength(beatLengthOf(Number(v)))}
                 options={BEAT_LENGTHS.map((d) => ({ value: String(d.value), label: d.label }))}
               />
-              <DeskTextField isLight={isLight} label="Beat title" value={beatTitle} onChange={(v) => setBeatTitle(v.slice(0, BEAT_TITLE_MAX))} />
+              <DeskTextField isLight={isLight} label={t("worldAudioDesk.beatTitleLabel")} value={beatTitle} onChange={(v) => setBeatTitle(v.slice(0, BEAT_TITLE_MAX))} />
             </div>
           </div>
         )}
         {tool === "sfx" && (
           <DeskSelectField
             isLight={isLight}
-            label="Category"
+            label={t("worldAudioDesk.categoryLabel")}
             value={sfxCategory}
             onChange={setSfxCategory}
             options={[
-              { value: "impacts", label: "Impacts" },
-              { value: "whooshes", label: "Whooshes" },
-              { value: "risers", label: "Risers" },
-              { value: "ui", label: "UI" },
-              { value: "ambient", label: "Ambient" },
-              { value: "foley", label: "Foley" },
+              { value: "impacts", label: t("worldAudioDesk.sfxImpacts") },
+              { value: "whooshes", label: t("worldAudioDesk.sfxWhooshes") },
+              { value: "risers", label: t("worldAudioDesk.sfxRisers") },
+              { value: "ui", label: t("worldAudioDesk.sfxUiOption") },
+              { value: "ambient", label: t("worldAudioDesk.sfxAmbient") },
+              { value: "foley", label: t("worldAudioDesk.sfxFoley") },
             ]}
           />
         )}
         {isFileTool && (
           <p className={`text-xs ${muted}`}>
-            The full workbench — mix &amp; master, stems, arrangement and the voice benches — is docked right below.
+            {t("worldAudioDesk.workbenchDockedNote")}
           </p>
         )}
       </AdvancedExpander>
@@ -605,10 +649,10 @@ export function AudioDesk(props: CreateDeskProps) {
         isLight={isLight}
         promptLabel={
           tool === "beat"
-            ? "Describe the beat"
+            ? t("worldAudioDesk.promptDescribeBeat")
             : tool === "sfx"
-              ? "Describe the sound effect"
-              : "Name this bench job"
+              ? t("worldAudioDesk.promptDescribeSfx")
+              : t("worldAudioDesk.promptNameJob")
         }
         prompt={prompt}
         onPromptChange={setPrompt}
@@ -618,25 +662,25 @@ export function AudioDesk(props: CreateDeskProps) {
         onRun={run}
         runLabel={
           tool === "cleanup"
-            ? "Clean it up"
+            ? t("worldAudioDesk.runCleanup")
             : tool === "deverb"
-              ? "De-reverb it"
+              ? t("worldAudioDesk.runDeverb")
               : tool === "finish"
-                ? "Finish my song"
+                ? t("worldAudioDesk.toolFinish")
                 : tool === "beat"
-                  ? "Make the beat"
-                  : "Make the sound"
+                  ? t("worldAudioDesk.runBeat")
+                  : t("worldAudioDesk.runSfx")
         }
         result={
           resultUrl ? (
             <div>
               {tool === "cleanup" || tool === "deverb" || tool === "finish" ? (
                 <div className="space-y-2">
-                  <p className="text-sm font-bold">{resultTitle} — hear the difference</p>
+                  <p className="text-sm font-bold">{t("worldAudioDesk.hearDifference", { title: resultTitle })}</p>
                   <ABAudioPlayer
                     isLight={isLight}
-                    beforeLabel={tool === "finish" ? "Your demo" : "Original"}
-                    afterLabel={tool === "cleanup" ? "Cleaned" : tool === "deverb" ? "De-reverbed" : "Finished"}
+                    beforeLabel={tool === "finish" ? t("worldAudioDesk.abBeforeDemo") : t("worldAudioDesk.abBeforeOriginal")}
+                    afterLabel={tool === "cleanup" ? t("worldAudioDesk.abAfterCleaned") : tool === "deverb" ? t("worldAudioDesk.abAfterDeverbed") : t("worldAudioDesk.abAfterFinished")}
                     beforeSource={resultSourceFile}
                     afterUrl={resultUrl}
                   />
@@ -661,7 +705,7 @@ export function AudioDesk(props: CreateDeskProps) {
       />
       {state === "running" && isFileTool && (
         <p className={`text-xs font-semibold ${muted}`}>
-          Working on your audio — the job runs on the server, so it finishes even if you wander off.
+          {t("worldAudioDesk.quickRunningNote")}
         </p>
       )}
       <AudioFullBench isLight={isLight} file={file} sourceSongId={sourceSongId} sourceSong={pickedSong} />
@@ -714,6 +758,7 @@ function AudioFullBench(props: {
   sourceSong: LibrarySong | null;
 }) {
   const { isLight } = props;
+  const { t, i18n } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const authHeaders = useDeskAuthHeaders();
@@ -844,7 +889,7 @@ function AudioFullBench(props: {
 
   const finishWith = (read: AudioBenchResult) => {
     if (read.failed) {
-      setError(apiErrorMessage(read, "The bench didn't finish."));
+      setError(apiErrorMessage(read, t("worldAudioDesk.benchDidntFinish")));
       setBusy(false);
       return;
     }
@@ -863,7 +908,7 @@ function AudioFullBench(props: {
       try {
         const res = await fetch(path, { headers: await authHeaders() });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        const read = interpretAudioBenchResponse(benchId, data);
+        const read = interpretAudioBenchResponse(benchId, data, audioBenchResultStrings(t));
         if (read.done) {
           stopPolling();
           finishWith(read);
@@ -886,7 +931,7 @@ function AudioFullBench(props: {
     try {
       /* ── hum: analyze (free) then generate, the page's two steps ── */
       if (benchId === "hum") {
-        if (!props.file && !humRef) throw new Error("Pick a hum file above first (upload or a library song).");
+        if (!props.file && !humRef) throw new Error(t("worldAudioDesk.humPickFirst"));
         let ref = humRef;
         if (!ref) {
           const form = new FormData();
@@ -894,26 +939,26 @@ function AudioFullBench(props: {
           for (const [k, v] of humAnalyzeFields()) form.append(k, v);
           const res = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
           const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string };
-          if (!res.ok) throw new Error(apiErrorMessage(data, "Could not analyze that hum."));
+          if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.humAnalyzeFailed")));
           const parsed = humAnalysisOfResponse(data);
-          if (!parsed) throw new Error("Analysis came back incomplete — try again.");
+          if (!parsed) throw new Error(t("worldAudioDesk.analysisIncomplete"));
           ref = parsed.humRef;
           setHumRef(ref);
-          setHumNote("Heard your hum — building the song around it…");
+          setHumNote(t("worldAudioDesk.humHeardNote"));
         }
         const form = new FormData();
         for (const [k, v] of humGenerateFields({ humRef: ref, mode: "simple" })) form.append(k, v);
         const res = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
         const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-        if (!res.ok) throw new Error(apiErrorMessage(data, "Song generation failed."));
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.humSongFailed")));
         const url = humSongUrlOfResponse(data);
-        if (!url) throw new Error("The song came back without audio.");
-        finishWith({ done: true, failed: false, urls: [{ label: "Your hum, as a song", url }], text: null, error: null });
+        if (!url) throw new Error(t("worldAudioDesk.humSongNoAudio"));
+        finishWith({ done: true, failed: false, urls: [{ label: t("worldAudioDesk.humResultTitle"), url }], text: null, error: null });
         return;
       }
       /* ── text benches ── */
       if (def.input === "text") {
-        if (!script.trim()) throw new Error("Write the script first — the bench works on your words.");
+        if (!script.trim()) throw new Error(t("worldAudioDesk.scriptFirst"));
         const isPodcast = benchId === "podcast";
         const res = await fetch(def.endpoint, {
           method: "POST",
@@ -925,17 +970,17 @@ function AudioFullBench(props: {
           ),
         });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
-        if (!res.ok) throw new Error(apiErrorMessage(data, "Generation failed."));
-        const read = interpretAudioBenchResponse(benchId, data);
-        if (!read.done) throw new Error("The make came back without audio.");
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.generationFailed")));
+        const read = interpretAudioBenchResponse(benchId, data, audioBenchResultStrings(t));
+        if (!read.done) throw new Error(t("worldAudioDesk.makeNoAudio"));
         finishWith(read);
         return;
       }
       /* ── URL benches (vocal polish / harmony / singing voice) ── */
       if (def.input === "url") {
-        if (!sourceUrl) throw new Error("Pick a song from your library above (its hosted audio is the source), or paste an audio URL.");
+        if (!sourceUrl) throw new Error(t("worldAudioDesk.urlSourceFirst"));
         if (benchId === "singing-voice" && singConfigured === false) {
-          throw new Error("Singing-voice conversion isn't connected yet — nothing was charged.");
+          throw new Error(t("worldAudioDesk.singingNotConnected"));
         }
         /* Stack-100 #51: harmony runs through the modal's own
            confirmed rail — the AI mode's price comes from the
@@ -957,16 +1002,16 @@ function AudioFullBench(props: {
             return;
           }
           const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string; code?: string };
-          if (res.status === 402) throw new Error("You're out of Visual Bucs — top up to make harmonies.");
+          if (res.status === 402) throw new Error(t("worldAudioDesk.harmonyOutOfBucs"));
           if (res.status === 503 && typeof data.code === "string" && data.code.includes("not_configured")) {
             /* The modal's honest AI-not-wired state, with the
                one-tap classic fallback below. */
             setHarmonyAiUnavailable(true);
-            throw new Error(apiErrorMessage(data, "AI harmonies aren't connected on this server yet — classic doubles still work."));
+            throw new Error(apiErrorMessage(data, t("worldAudioDesk.harmonyAiNotConnected")));
           }
-          if (!res.ok) throw new Error(apiErrorMessage(data, "The bench didn't start."));
-          const read = interpretAudioBenchResponse(benchId, data);
-          if (!read.done) throw new Error("The harmony came back without audio.");
+          if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.benchDidntStart")));
+          const read = interpretAudioBenchResponse(benchId, data, audioBenchResultStrings(t));
+          if (!read.done) throw new Error(t("worldAudioDesk.harmonyNoAudio"));
           finishWith(read);
           return;
         }
@@ -980,27 +1025,27 @@ function AudioFullBench(props: {
           body: JSON.stringify(body),
         });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
-        if (!res.ok) throw new Error(apiErrorMessage(data, "The bench didn't start."));
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.benchDidntStart")));
         const jobId = audioBenchJobIdOf(data);
-        if (!jobId) throw new Error("The bench didn't start.");
+        if (!jobId) throw new Error(t("worldAudioDesk.benchDidntStart"));
         startPoll(jobId);
         return;
       }
       /* ── file benches ── */
       if (def.input === "stem-files") {
-        if (stemFiles.length === 0) throw new Error("Add your stem files first — the mix bench mixes the files you give it.");
+        if (stemFiles.length === 0) throw new Error(t("worldAudioDesk.stemFilesFirst"));
         const form = new FormData();
         for (const f of stemFiles) form.append(MIX_STEMS_FIELD, f);
         for (const [k, v] of mixFields({ genre, intensity, loudness, vocalLevelDb: vocalDb })) form.append(k, v);
         const res = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
-        if (!res.ok) throw new Error(apiErrorMessage(data, "The mix didn't start."));
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.mixDidntStart")));
         const jobId = audioBenchJobIdOf(data);
-        if (!jobId) throw new Error("The mix didn't start.");
+        if (!jobId) throw new Error(t("worldAudioDesk.mixDidntStart"));
         startPoll(jobId);
         return;
       }
-      if (!props.file) throw new Error("Pick a song from your library or upload a file above first — this bench works on your audio.");
+      if (!props.file) throw new Error(t("worldAudioDesk.fileBenchNeedsFile"));
       const form = new FormData();
       if (benchId === "rate-my-mix") {
         form.append(RATE_MY_MIX_FILE_FIELD, props.file);
@@ -1015,21 +1060,21 @@ function AudioFullBench(props: {
       }
       const res = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "The bench didn't start."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.benchDidntStart")));
       if (!def.pollPath) {
-        const read = interpretAudioBenchResponse(benchId, data);
-        if (!read.done) throw new Error("The bench came back without a result.");
+        const read = interpretAudioBenchResponse(benchId, data, audioBenchResultStrings(t));
+        if (!read.done) throw new Error(t("worldAudioDesk.benchNoResult"));
         finishWith(read);
         return;
       }
       const jobId = audioBenchJobIdOf(data);
-      if (!jobId) throw new Error("The bench didn't start.");
+      if (!jobId) throw new Error(t("worldAudioDesk.benchDidntStart"));
       /* Stack-100 #51: the stems job id is the remix rail's key —
          the remix panel below addresses this exact job. */
       if (benchId === "stems") setStemsJobId(jobId);
       startPoll(jobId);
     } catch (err) {
-      setError(plainErrorText(err, "The bench hit a snag."));
+      setError(plainErrorText(err, t("worldAudioDesk.benchSnag")));
       setBusy(false);
     }
   };
@@ -1040,16 +1085,17 @@ function AudioFullBench(props: {
      that is a treated version of the captured source, when the
      bench carries one (lib/world/audio-ab decides). Remaining
      outputs (harmony's stem) keep their own plain players. */
-  const comparable = result ? abComparableOutput(benchId, result) : null;
-  const comparableAfterLabel = comparable ? abAfterLabelForBench(benchId) : null;
+  const comparable = result ? abComparableOutput(benchId, result, t("worldAudioDesk.resultHarmonyMix")) : null;
+  const comparableAfterKey = comparable ? AFTER_LABEL_KEYS[benchId] : undefined;
+  const comparableAfterLabel = comparableAfterKey ? t(comparableAfterKey) : null;
   const restUrls = result && comparable ? result.urls.filter((u) => u.url !== comparable.url) : [];
 
   return (
     <div data-testid="world-audio-full-bench" className={`space-y-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
       <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-        The full workbench — the Audio Studio&rsquo;s benches, in here
+        {t("worldAudioDesk.fullBenchTitle")}
       </p>
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Full audio benches">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldAudioDesk.fullBenchesAriaLabel")}>
         {AUDIO_BENCHES.map((b) => (
           <button
             key={b.id}
@@ -1071,42 +1117,46 @@ function AudioFullBench(props: {
                   : "border-white/15 text-white/75 hover:text-white"
             }`}
           >
-            {b.label} · {b.id === "voiceover" ? "per minute" : b.cost() === 0 ? "Free" : `${b.cost().toLocaleString("en-US")} VB`}
+            {b.id === "voiceover"
+              ? t("worldAudioDesk.tabLabelPerMinute", { label: t(BENCH_LABEL_KEYS[b.id]) })
+              : b.cost() === 0
+                ? t("worldAudioDesk.tabLabelFree", { label: t(BENCH_LABEL_KEYS[b.id]) })
+                : t("worldAudioDesk.tabLabelCost", { label: t(BENCH_LABEL_KEYS[b.id]), cost: b.cost().toLocaleString(i18n.language) })}
           </button>
         ))}
       </div>
 
       {def.input === "file" || def.input === "stem-files" ? (
         <p className={`text-xs ${muted}`}>
-          {props.file ? `Working on: ${props.file.name}` : "Pick a song or upload a file at the top of this desk — file benches work on it."}
+          {props.file ? t("worldAudioDesk.workingOnFile", { name: props.file.name }) : t("worldAudioDesk.pickFileAtTop")}
         </p>
       ) : null}
       {def.input === "stem-files" ? (
         <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
-          {stemFiles.length > 0 ? `${stemFiles.length} stem file(s) ready` : "Add the stem files"}
+          {stemFiles.length > 0 ? t("worldAudioDesk.stemFilesReady", { count: stemFiles.length }) : t("worldAudioDesk.addStemFiles")}
           <input type="file" accept="audio/*" multiple className="hidden" onChange={(e) => setStemFiles(Array.from(e.target.files ?? []))} />
         </label>
       ) : null}
       {def.input === "url" ? (
-        <DeskTextField isLight={isLight} label="Audio URL (or pick a library song above)" value={audioUrlInput} onChange={setAudioUrlInput} placeholder={props.sourceSong ? props.sourceSong.title : "https://…"} />
+        <DeskTextField isLight={isLight} label={t("worldAudioDesk.audioUrlLabel")} value={audioUrlInput} onChange={setAudioUrlInput} placeholder={props.sourceSong ? props.sourceSong.title : "https://…"} />
       ) : null}
       {def.input === "text" ? (
         <div className="space-y-3">
           {benchId === "podcast" ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <DeskTextField isLight={isLight} label="Episode title" value={podTitle} onChange={setPodTitle} />
-              <DeskSelectField isLight={isLight} label="Mode" value={podMode} onChange={setPodMode} options={[{ value: "script", label: "From my script" }, { value: "topic", label: "From a topic" }]} />
+              <DeskTextField isLight={isLight} label={t("worldAudioDesk.episodeTitleLabel")} value={podTitle} onChange={setPodTitle} />
+              <DeskSelectField isLight={isLight} label={t("worldAudioDesk.modeLabel")} value={podMode} onChange={setPodMode} options={[{ value: "script", label: t("worldAudioDesk.podcastModeScript") }, { value: "topic", label: t("worldAudioDesk.podcastModeTopic") }]} />
             </div>
           ) : null}
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{benchId === "podcast" ? "Script / topic" : "Voiceover script"}</span>
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{benchId === "podcast" ? t("worldAudioDesk.scriptTopicLabel") : t("worldAudioDesk.voiceoverScriptLabel")}</span>
             <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={4} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
           </label>
           {benchId === "voiceover" ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <DeskSelectField isLight={isLight} label="Voice" value={voiceId} onChange={setVoiceId} options={voices.length > 0 ? voices.map((v) => ({ value: v.voice_id, label: v.name })) : [{ value: "", label: "Voices loading…" }]} />
-              <DeskSelectField isLight={isLight} label="Emotion" value={emotion} onChange={setEmotion} options={["energetic", "calm", "dramatic", "conversational"].map((e) => ({ value: e, label: e }))} />
-              <DeskSelectField isLight={isLight} label="Format" value={voFormat} onChange={setVoFormat} options={[{ value: "mp3", label: "MP3" }, { value: "wav", label: "WAV" }]} />
+              <DeskSelectField isLight={isLight} label={t("worldAudioDesk.voiceLabel")} value={voiceId} onChange={setVoiceId} options={voices.length > 0 ? voices.map((v) => ({ value: v.voice_id, label: v.name })) : [{ value: "", label: t("worldAudioDesk.voicesLoading") }]} />
+              <DeskSelectField isLight={isLight} label={t("worldAudioDesk.emotionLabel")} value={emotion} onChange={setEmotion} options={["energetic", "calm", "dramatic", "conversational"].map((e) => ({ value: e, label: e }))} />
+              <DeskSelectField isLight={isLight} label={t("worldAudioDesk.formatLabel")} value={voFormat} onChange={setVoFormat} options={[{ value: "mp3", label: "MP3" }, { value: "wav", label: "WAV" }]} />
             </div>
           ) : null}
         </div>
@@ -1114,26 +1164,26 @@ function AudioFullBench(props: {
 
       {(benchId === "master" || benchId === "mix") && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <DeskSelectField isLight={isLight} label="Genre" value={genre} onChange={setGenre} options={["trap", "hip-hop", "r&b", "pop", "afrobeats", "rock", "edm", "lofi"].map((g) => ({ value: g, label: g }))} />
-          <DeskSelectField isLight={isLight} label="Intensity" value={intensity} onChange={setIntensity} options={["gentle", "balanced", "aggressive"].map((g) => ({ value: g, label: g }))} />
-          <DeskSelectField isLight={isLight} label="Loudness" value={loudness} onChange={setLoudness} options={["streaming", "club", "radio", "dynamic"].map((g) => ({ value: g, label: g }))} />
-          {benchId === "mix" ? <DeskTextField isLight={isLight} label="Vocal level (dB)" value={String(vocalDb)} onChange={(v) => setVocalDb(Number(v.replace(/[^0-9-]/g, "")) || 0)} /> : null}
+          <DeskSelectField isLight={isLight} label={t("worldAudioDesk.genreLabel")} value={genre} onChange={setGenre} options={["trap", "hip-hop", "r&b", "pop", "afrobeats", "rock", "edm", "lofi"].map((g) => ({ value: g, label: g }))} />
+          <DeskSelectField isLight={isLight} label={t("worldAudioDesk.intensityLabel")} value={intensity} onChange={setIntensity} options={["gentle", "balanced", "aggressive"].map((g) => ({ value: g, label: g }))} />
+          <DeskSelectField isLight={isLight} label={t("worldAudioDesk.loudnessLabel")} value={loudness} onChange={setLoudness} options={["streaming", "club", "radio", "dynamic"].map((g) => ({ value: g, label: g }))} />
+          {benchId === "mix" ? <DeskTextField isLight={isLight} label={t("worldAudioDesk.vocalLevelLabel")} value={String(vocalDb)} onChange={(v) => setVocalDb(Number(v.replace(/[^0-9-]/g, "")) || 0)} /> : null}
         </div>
       )}
       {benchId === "quick-master" && (
-        <DeskSelectField isLight={isLight} label="Preset" value={preset} onChange={setPreset} options={["balanced", "warm", "bright", "loud", "gentle"].map((g) => ({ value: g, label: g }))} />
+        <DeskSelectField isLight={isLight} label={t("worldAudioDesk.presetLabel")} value={preset} onChange={setPreset} options={["balanced", "warm", "bright", "loud", "gentle"].map((g) => ({ value: g, label: g }))} />
       )}
       {benchId === "stems" && (
         <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
           <input type="checkbox" checked={proStems} onChange={(e) => setProStems(e.target.checked)} />
-          Pro stems (adds guitar + piano — same {audioBenchOf("stems").cost().toLocaleString("en-US")} Visual Bucs)
+          {t("worldAudioDesk.proStems", { cost: audioBenchOf("stems").cost().toLocaleString(i18n.language) })}
         </label>
       )}
       {benchId === "vocal-polish" && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <DeskTextField isLight={isLight} label="Correction strength (0–1)" value={String(strength)} onChange={(v) => setStrength(Math.min(1, Math.max(0, Number(v) || 0)))} />
-          <DeskTextField isLight={isLight} label="Key shift (semitones)" value={String(keyShift)} onChange={(v) => setKeyShift(Number(v.replace(/[^0-9-]/g, "")) || 0)} />
-          <DeskTextField isLight={isLight} label="Tempo (%)" value={String(tempoPercent)} onChange={(v) => setTempoPercent(Number(v.replace(/[^0-9]/g, "")) || 100)} />
+          <DeskTextField isLight={isLight} label={t("worldAudioDesk.correctionStrengthLabel")} value={String(strength)} onChange={(v) => setStrength(Math.min(1, Math.max(0, Number(v) || 0)))} />
+          <DeskTextField isLight={isLight} label={t("worldAudioDesk.keyShiftLabel")} value={String(keyShift)} onChange={(v) => setKeyShift(Number(v.replace(/[^0-9-]/g, "")) || 0)} />
+          <DeskTextField isLight={isLight} label={t("worldAudioDesk.tempoLabel")} value={String(tempoPercent)} onChange={(v) => setTempoPercent(Number(v.replace(/[^0-9]/g, "")) || 100)} />
         </div>
       )}
       {benchId === "harmony" && (
@@ -1141,7 +1191,7 @@ function AudioFullBench(props: {
           {/* Stack-100 #51: the two harmony modes, priced by the
               modes probe (classic = registry doubles; AI = the
               probe's server price, confirmed before it runs). */}
-          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Harmony mode" data-testid="world-audio-harmony-modes">
+          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldAudioDesk.harmonyModeAriaLabel")} data-testid="world-audio-harmony-modes">
             {(["classic", "ai"] as const).map((m) => {
               const info = harmonyProbe?.modes.find((x) => x.key === m);
               const unavailable = m === "ai" && info !== undefined && !info.available;
@@ -1161,15 +1211,15 @@ function AudioFullBench(props: {
                         : "border-white/15 text-white/75 hover:text-white"
                   }`}
                 >
-                  {m === "ai" ? "AI harmonies" : "Classic doubles"} · {harmonyModeCost(harmonyProbe, m).toLocaleString("en-US")} VB
-                  {unavailable ? " · needs setup" : ""}
+                  {t("worldAudioDesk.tabLabelCost", { label: m === "ai" ? t("worldAudioDesk.harmonyAi") : t("worldAudioDesk.harmonyClassic"), cost: harmonyModeCost(harmonyProbe, m).toLocaleString(i18n.language) })}
+                  {unavailable ? t("worldAudioDesk.needsSetupSuffix") : ""}
                 </button>
               );
             })}
           </div>
           {harmonyMode === "ai" && harmonyProbe?.modes.find((x) => x.key === "ai")?.available === false ? (
             <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-              AI harmonies need setup on this server — the make will say so honestly if you try, and classic doubles always work.
+              {t("worldAudioDesk.harmonyAiUnavailableNote")}
             </p>
           ) : null}
           {harmonyAiUnavailable ? (
@@ -1179,49 +1229,49 @@ function AudioFullBench(props: {
               onClick={() => setHarmonyMode("classic")}
               className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}
             >
-              Use classic doubles instead · {harmonyModeCost(harmonyProbe, "classic").toLocaleString("en-US")} VB
+              {t("worldAudioDesk.harmonyUseClassic", { cost: harmonyModeCost(harmonyProbe, "classic").toLocaleString(i18n.language) })}
             </button>
           ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             {harmonyProbe && harmonyProbe.styles.length > 0 ? (
-              <DeskSelectField isLight={isLight} label="Style" value={harmonyStyle} onChange={setHarmonyStyle} options={harmonyProbe.styles.map((s) => ({ value: s.key, label: s.label }))} />
+              <DeskSelectField isLight={isLight} label={t("worldAudioDesk.styleLabel")} value={harmonyStyle} onChange={setHarmonyStyle} options={harmonyProbe.styles.map((s) => ({ value: s.key, label: s.label }))} />
             ) : (
-              <DeskTextField isLight={isLight} label="Style" value={harmonyStyle} onChange={setHarmonyStyle} />
+              <DeskTextField isLight={isLight} label={t("worldAudioDesk.styleLabel")} value={harmonyStyle} onChange={setHarmonyStyle} />
             )}
-            <DeskTextField isLight={isLight} label="Key hint (optional)" value={keyHint} onChange={setKeyHint} />
-            <DeskTextField isLight={isLight} label="Harmony level (%)" value={String(mixLevel)} onChange={(v) => setMixLevel(Math.min(100, Math.max(0, Number(v) || 0)))} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.keyHintLabel")} value={keyHint} onChange={setKeyHint} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.harmonyLevelLabel")} value={String(mixLevel)} onChange={(v) => setMixLevel(Math.min(100, Math.max(0, Number(v) || 0)))} />
           </div>
         </div>
       )}
       {benchId === "singing-voice" && (
         <div className="space-y-2">
           {singConfigured === false ? (
-            <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>Singing-voice conversion isn&rsquo;t connected yet — the bench stays shut and nothing is charged.</p>
+            <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{t("worldAudioDesk.singingNotConnectedBench")}</p>
           ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
-            <DeskSelectField isLight={isLight} label="Singing voice" value={singVoiceId} onChange={setSingVoiceId} options={singVoices.length > 0 ? singVoices.map((v) => ({ value: v.id, label: `${v.name} — ${v.style}` })) : [{ value: "", label: "Voices loading…" }]} />
-            <DeskTextField isLight={isLight} label="Strength (0–1)" value={String(strength)} onChange={(v) => setStrength(Math.min(1, Math.max(0, Number(v) || 0)))} />
+            <DeskSelectField isLight={isLight} label={t("worldAudioDesk.singingVoiceLabel")} value={singVoiceId} onChange={setSingVoiceId} options={singVoices.length > 0 ? singVoices.map((v) => ({ value: v.id, label: `${v.name} — ${v.style}` })) : [{ value: "", label: t("worldAudioDesk.voicesLoading") }]} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.strengthLabel")} value={String(strength)} onChange={(v) => setStrength(Math.min(1, Math.max(0, Number(v) || 0)))} />
           </div>
           <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
             <input type="checkbox" checked={keepInstrumental} onChange={(e) => setKeepInstrumental(e.target.checked)} />
-            Keep the instrumental under the new voice
+            {t("worldAudioDesk.keepInstrumentalLabel")}
           </label>
         </div>
       )}
       {benchId === "vocal-tune" && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <DeskSelectField isLight={isLight} label="Style" value={tuneStyle} onChange={setTuneStyle} options={["smooth", "hard", "natural"].map((g) => ({ value: g, label: g }))} />
-          <DeskTextField isLight={isLight} label="Key shift (semitones)" value={String(keyShift)} onChange={(v) => setKeyShift(Number(v.replace(/[^0-9-]/g, "")) || 0)} />
+          <DeskSelectField isLight={isLight} label={t("worldAudioDesk.styleLabel")} value={tuneStyle} onChange={setTuneStyle} options={["smooth", "hard", "natural"].map((g) => ({ value: g, label: g }))} />
+          <DeskTextField isLight={isLight} label={t("worldAudioDesk.keyShiftLabel")} value={String(keyShift)} onChange={(v) => setKeyShift(Number(v.replace(/[^0-9-]/g, "")) || 0)} />
         </div>
       )}
       {benchId === "lufs-normalize" && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <DeskSelectField isLight={isLight} label="Target" value={String(targetLufs)} onChange={(v) => setTargetLufs(Number(v))} options={[{ value: "-14", label: "Streaming · -14 LUFS" }, { value: "-11", label: "Loud · -11 LUFS" }, { value: "-16", label: "Podcast · -16 LUFS" }]} />
-          <DeskSelectField isLight={isLight} label="Format" value={lufsFormat} onChange={setLufsFormat} options={[{ value: "mp3", label: "MP3" }, { value: "wav", label: "WAV" }]} />
+          <DeskSelectField isLight={isLight} label={t("worldAudioDesk.targetLabel")} value={String(targetLufs)} onChange={(v) => setTargetLufs(Number(v))} options={[{ value: "-14", label: t("worldAudioDesk.lufsStreaming") }, { value: "-11", label: t("worldAudioDesk.lufsLoud") }, { value: "-16", label: t("worldAudioDesk.lufsPodcast") }]} />
+          <DeskSelectField isLight={isLight} label={t("worldAudioDesk.formatLabel")} value={lufsFormat} onChange={setLufsFormat} options={[{ value: "mp3", label: "MP3" }, { value: "wav", label: "WAV" }]} />
         </div>
       )}
-      {benchId === "rate-my-mix" && <DeskTextField isLight={isLight} label="Genre (optional)" value={rateGenre} onChange={setRateGenre} />}
-      {benchId === "hum" && <p className={`text-xs ${muted}`}>{humNote ?? "Uses the file picked at the top of this desk: first it listens (free), then it builds the song."}</p>}
+      {benchId === "rate-my-mix" && <DeskTextField isLight={isLight} label={t("worldAudioDesk.genreOptionalLabel")} value={rateGenre} onChange={setRateGenre} />}
+      {benchId === "hum" && <p className={`text-xs ${muted}`}>{humNote ?? t("worldAudioDesk.humBenchNote")}</p>}
       {/* Stack-100 #52 — the arrangement deep end: the SITE'S OWN
           ArrangementStudio mounted in-world. It is the same
           component the Audio Studio renders — same local + server
@@ -1235,7 +1285,7 @@ function AudioFullBench(props: {
       {benchId === "arrangement" ? (
         <div className="space-y-2" data-testid="world-audio-arrangement-studio">
           <p className={`text-xs ${muted}`}>
-            The full arrangement studio — clips, comping, automation, FX chains and the export render — on the same draft the Audio Studio opens. Editing is free; only the export charges, confirmed before it runs.
+            {t("worldAudioDesk.arrangementNote")}
           </p>
           <div className="rounded-2xl bg-[#0d0a04] p-3 text-white">
             <ArrangementStudio />
@@ -1246,25 +1296,25 @@ function AudioFullBench(props: {
       {benchId !== "arrangement" ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className={`text-xs font-semibold ${muted}`}>
-            {cost === 0 ? "Free — shown before anything runs." : `Costs ${cost.toLocaleString("en-US")} Visual Bucs — shown before anything runs.`}
+            {cost === 0 ? t("worldAudioDesk.freeLine") : t("worldAudioDesk.costsLine", { cost: cost.toLocaleString(i18n.language) })}
           </span>
           <button type="button" data-testid="world-audio-full-bench-run" onClick={() => void run()} disabled={busy} className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {busy ? "Working…" : `Run — ${def.label}`}
+            {busy ? t("worldAudioDesk.workingLabel") : t("worldAudioDesk.runBench", { label: t(BENCH_LABEL_KEYS[benchId]) })}
           </button>
         </div>
       ) : null}
       {error ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p> : null}
-      {busy && def.pollPath ? <p className={`text-xs font-semibold ${muted}`}>Working on the server — it finishes even if you wander off.</p> : null}
+      {busy && def.pollPath ? <p className={`text-xs font-semibold ${muted}`}>{t("worldAudioDesk.workingOnServer")}</p> : null}
       {result ? (
         <div className="space-y-2" data-testid="world-audio-full-bench-result">
           {comparable && comparableAfterLabel ? (
             <>
               <div className="space-y-2">
-                <p className="text-sm font-bold">{comparable.label} — hear the difference</p>
+                <p className="text-sm font-bold">{t("worldAudioDesk.hearDifference", { title: comparable.label })}</p>
                 <ABAudioPlayer
                   isLight={isLight}
-                  beforeLabel="Original"
+                  beforeLabel={t("worldAudioDesk.abBeforeOriginal")}
                   afterLabel={comparableAfterLabel}
                   beforeSource={resultSource}
                   afterUrl={comparable.url}
@@ -1288,7 +1338,7 @@ function AudioFullBench(props: {
             <StemRemixPanel
               isLight={isLight}
               jobId={stemsJobId}
-              stemKeys={result.urls.map((u) => stemKeyOfResultLabel(u.label)).filter((k): k is string => k !== null)}
+              stemKeys={result.urls.map((u) => stemKeyOfResultLabel(u.label, t("worldAudioDesk.stemLabel"))).filter((k): k is string => k !== null)}
             />
           ) : null}
           <QuestProgressChip isLight={isLight} lines={quest.lines} />

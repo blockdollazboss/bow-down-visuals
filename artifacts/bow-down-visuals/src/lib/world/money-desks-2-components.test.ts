@@ -50,8 +50,8 @@ describe("#65 beats station contracts", () => {
     expect(beats).toContain('fetch("/api/beats/license-templates/mine"');
     expect(beats).toContain("`/api/beats/license-templates/${tplEditingId}`");
     expect(beats).toContain('method: "DELETE"');
-    expect(beats).toContain("BEATS_COMMISSION_LINE");
-    expect(beats).toContain("BEATS_PAYMENT_NOTE");
+    expect(beats).toContain('t("beats.heroSubtitle")');
+    expect(beats).toContain('t("beats.paymentNote")');
     expect(beats).toContain('data-testid="world-beats-desk"');
   });
 
@@ -70,13 +70,13 @@ describe("#65 beats station contracts", () => {
      title + the delivery links from the licenses/mine rows, with a
      named failure state instead of a silent swallow. */
   it("sell form carries the page's preview + stems slots (X4 parity)", () => {
-    expect(beats).toContain('aria-label="Preview URL (optional)"');
+    expect(beats).toContain('aria-label={t("worldAudioDesk.sellAriaPreviewUrl")}');
     expect(beats).toContain("listingForm.previewUrl");
     expect(beats).toContain("setL({ previewUrl: e.target.value })");
-    expect(beats).toContain('aria-label="Stems URL (optional)"');
+    expect(beats).toContain('aria-label={t("worldAudioDesk.sellAriaStemsUrl")}');
     expect(beats).toContain("listingForm.stemsUrl");
     expect(beats).toContain("setL({ stemsUrl: e.target.value })");
-    expect(beats).toContain("without one, the full track plays as the preview");
+    expect(beats).toContain('t("beats.previewUrlHint")');
   });
 
   /* Stack1200 Y1-gap parity: the dashboard's "Your beats" rows carry
@@ -88,7 +88,7 @@ describe("#65 beats station contracts", () => {
     expect(beats).toContain("confirmedFetch(beatAiTagsPath(beat.id)");
     expect(beats).toContain("overrideCost: BEAT_AI_TAGS_COST_VB");
     expect(beats).toContain("overrideFeature: BEAT_AI_TAGS_FEATURE");
-    expect(beats).toContain("beatAiTagsOutcome({ status: res.status, data }, beat.genre)");
+    expect(beats).toContain("beatAiTagsOutcome({ status: res.status, data }, beat.genre, {");
     expect(beats).toContain('data-testid="world-beats-ai-tags"');
     expect(beats).toContain('data-testid="world-beats-ai-tags-suggestion"');
     expect(beats).toContain("suggestion.genre");
@@ -97,8 +97,8 @@ describe("#65 beats station contracts", () => {
     expect(beats).toContain('method: "PATCH"');
     expect(beats).toContain("body: JSON.stringify(beatAiTagApplyPayload(suggestion))");
     expect(beats).toContain('data-testid="world-beats-ai-tags-apply"');
-    expect(beats).toContain("Not enough Visual Bucs for AI tags");
-    expect(beats).toContain("nothing was charged");
+    expect(beats).toContain("worldAudioDesk.aiTagsCreditsNote");
+    expect(beats).toContain("{ cost: BEAT_AI_TAGS_COST_VB }");
     /* The desk consumes only the owner's dashboard rows — the
        public presentation rail is never touched. */
     expect(beats).not.toContain("presentBeatPublic");

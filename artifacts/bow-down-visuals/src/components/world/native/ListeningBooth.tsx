@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Download, Link2, ListMusic, ListPlus, Pause, Play, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -122,6 +123,7 @@ function AddToPlaylistPicker({
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
+  const { t } = useTranslation();
   const [lists, setLists] = useState<ShelfPlaylistSummary[] | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [busy, setBusy] = useState(false);
@@ -146,7 +148,7 @@ function AddToPlaylistPicker({
     setBusy(true);
     try {
       const ok = await addItemToPlaylist(playlistId, target.kind, target.id, await authHeaders());
-      if (ok) onDone(`“${target.title}” is on “${title}” now — play the playlist any time from your shelf.`);
+      if (ok) onDone(t("worldAudioDesk.addedToPlaylistNote", { title: target.title, list: title }));
       else setFailed(true);
     } finally {
       setBusy(false);
@@ -181,15 +183,14 @@ function AddToPlaylistPicker({
       data-testid="world-shelf-playlist-picker"
     >
       <p className={`text-xs font-bold ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
-        Add “{target.title}” to a playlist
+        {t("worldAudioDesk.pickerTitle", { title: target.title })}
       </p>
       {failed ? (
         <p className={`mt-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-          The playlist rails didn&rsquo;t answer — if you haven&rsquo;t set up a creator profile yet, playlists
-          start there. Nothing was changed.
+          {t("worldAudioDesk.pickerFailedNote")}
         </p>
       ) : lists === null ? (
-        <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>Opening your playlists…</p>
+        <p className={`mt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{t("worldAudioDesk.openingPlaylists")}</p>
       ) : (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {lists.map((pl) => (
@@ -206,7 +207,7 @@ function AddToPlaylistPicker({
           ))}
           {lists.length === 0 && (
             <span className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-              No playlists yet — start one below.
+              {t("worldAudioDesk.noPlaylistsYetPicker")}
             </span>
           )}
         </div>
@@ -217,8 +218,8 @@ function AddToPlaylistPicker({
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void createAndAdd(); }}
-          placeholder="New playlist name…"
-          aria-label="New playlist name"
+          placeholder={t("worldAudioDesk.newPlaylistPlaceholder")}
+          aria-label={t("worldAudioDesk.newPlaylistAria")}
           maxLength={80}
           data-testid="world-shelf-playlist-new-name"
           className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${
@@ -234,10 +235,10 @@ function AddToPlaylistPicker({
           onClick={() => void createAndAdd()}
           className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
         >
-          <Plus className="h-3.5 w-3.5" /> Create &amp; add
+          <Plus className="h-3.5 w-3.5" /> {t("worldAudioDesk.createAndAddBtn")}
         </button>
         <button type="button" onClick={onClose} className={chipBtn}>
-          Done
+          {t("worldAudioDesk.doneBtn")}
         </button>
       </div>
     </div>
@@ -245,6 +246,7 @@ function AddToPlaylistPicker({
 }
 
 export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: ListeningBoothProps) {
+  const { t, i18n } = useTranslation();
   const { getAccessToken } = useAuth();
   const [purchases, setPurchases] = useState<ShelfPurchase[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -324,15 +326,13 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
     try {
       const input = await resolvePurchase(p);
       if (!input) {
-        setNote(
-          `“${p.title}” couldn't be opened for playing here — it may no longer be published. Your purchase is safe; its full page is one tap below.`,
-        );
+        setNote(t("worldAudioDesk.purchaseUnplayableNote", { title: p.title }));
         return;
       }
       shelfPlayer.play(input);
       recordPlay(input.kind, input.id);
     } catch {
-      setNote("The shelf player stumbled opening that one — nothing was charged or changed. Try it again.");
+      setNote(t("worldAudioDesk.playerStumbledNote"));
     } finally {
       setResolvingId(null);
     }
@@ -345,17 +345,17 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
     try {
       const input = await resolvePurchase(p);
       if (!input) {
-        setNote(`“${p.title}” couldn't be queued — it may no longer be published. Your purchase is safe.`);
+        setNote(t("worldAudioDesk.queueUnplayableNote", { title: p.title }));
         return;
       }
       shelfPlayer.queueNext(input);
       setNote(
         shelfPlayer.current
-          ? `“${p.title}” is up next on your player — when this one ends, that's the moment it lands.`
-          : `“${p.title}” is queued — press Play on anything and it follows.`,
+          ? t("worldAudioDesk.queueUpNextNote", { title: p.title })
+          : t("worldAudioDesk.queueQueuedNote", { title: p.title }),
       );
     } catch {
-      setNote("The queue stumbled — nothing was charged or changed. Try it again.");
+      setNote(t("worldAudioDesk.queueStumbledNote"));
     } finally {
       setResolvingId(null);
     }
@@ -364,7 +364,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
   const playMyMusic = (row: MyMusicTrack) => {
     const input = playInputFromMyMusic(row);
     if (!input) {
-      setNote(`“${row.title}” has no playable file yet — finish the upload and it plays here.`);
+      setNote(t("worldAudioDesk.noPlayableFile", { title: row.title }));
       return;
     }
     if (shelfPlayer.current && isSameShelfItem(shelfPlayer.current, input)) {
@@ -378,7 +378,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
     setNote(
       row.isPublished
         ? null
-        : `“${row.title}” is playing for you alone — it's yours and it isn't published yet.`,
+        : t("worldAudioDesk.playingForYouAlone", { title: row.title }),
     );
   };
 
@@ -386,7 +386,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
     const input = playInputFromMyMusic(row);
     if (!input) return;
     shelfPlayer.queueNext(input);
-    setNote(`“${row.title}” is up next on your player.`);
+    setNote(t("worldAudioDesk.upNextNote", { title: row.title }));
   };
 
   const playPlaylist = async (pl: ShelfPlaylistSummary) => {
@@ -397,7 +397,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
       const r = await fetchPlaylist(pl.id);
       const inputs = r ? playInputsFromPlaylist(r.playlist) : [];
       if (inputs.length === 0) {
-        setNote(`“${pl.title}” has nothing playable in it yet — add a song from your shelf and it runs here.`);
+        setNote(t("worldAudioDesk.playlistEmptyNote", { title: pl.title }));
         return;
       }
       const [first, ...rest] = inputs;
@@ -406,11 +406,11 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
       recordPlay(first!.kind, first!.id);
       setNote(
         rest.length > 0
-          ? `“${pl.title}” is on — ${inputs.length} songs lined up, the rest waiting in Up Next.`
-          : `“${pl.title}” is on.`,
+          ? t("worldAudioDesk.playlistOnManyNote", { title: pl.title, count: inputs.length })
+          : t("worldAudioDesk.playlistOnOneNote", { title: pl.title }),
       );
     } catch {
-      setNote("That playlist wouldn't open — your shelf is untouched. Try it again.");
+      setNote(t("worldAudioDesk.playlistOpenFailedNote"));
     } finally {
       setResolvingId(null);
     }
@@ -428,16 +428,14 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
     try {
       const created = await createPlaylist(title, await authHeaders());
       if (!created) {
-        setNote(
-          "That playlist couldn't be started — if you haven't set up a creator profile yet, playlists start there. Nothing was changed.",
-        );
+        setNote(t("worldAudioDesk.startPlaylistFailedProfileNote"));
         return;
       }
       setNewListTitle("");
-      setNote(`“${created.title ?? title}” is started — add songs to it from your shelf and it plays here.`);
+      setNote(t("worldAudioDesk.playlistStartedNote", { title: created.title ?? title }));
       void load();
     } catch {
-      setNote("That playlist couldn't be started — the rails hiccuped. Nothing was changed.");
+      setNote(t("worldAudioDesk.startPlaylistFailedNote"));
     } finally {
       setCreatingList(false);
     }
@@ -451,12 +449,12 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
       const raw = await mintStoreDownloadLink(p.id, await authHeaders());
       const mint = parseDownloadMint(raw);
       if (!mint) {
-        setNote(`A download link for “${p.title}” couldn't be made — the content may no longer be available. Your purchase record below still stands.`);
+        setNote(t("worldAudioDesk.mintFailedNote", { title: p.title }));
         return;
       }
       setMints((prev) => ({ ...prev, [p.id]: mint }));
     } catch {
-      setNote("The download link wouldn't mint — nothing was spent or changed. Try it again.");
+      setNote(t("worldAudioDesk.mintStumbledNote"));
     } finally {
       setMintBusyId(null);
     }
@@ -478,7 +476,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
       setSharedId(p.id);
       setTimeout(() => setSharedId((cur) => (cur === p.id ? null : cur)), 2500);
     } else {
-      setNote("The link wouldn't copy — the share rails hiccuped. The song itself is fine.");
+      setNote(t("worldAudioDesk.linkCopyFailedNote"));
     }
   };
 
@@ -496,7 +494,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
       setSharedMusicId(row.id);
       setTimeout(() => setSharedMusicId((cur) => (cur === row.id ? null : cur)), 2500);
     } else {
-      setNote("The link wouldn't copy — the share rails hiccuped. The song itself is fine.");
+      setNote(t("worldAudioDesk.linkCopyFailedNote"));
     }
   };
 
@@ -505,7 +503,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
     if (!trackId) return;
     onJukeboxAdd(trackId);
     setQueuedId(p.id);
-    setNote(`“${p.title}” is on its way to the Music Hall jukebox — the room hears it together there.`);
+    setNote(t("worldAudioDesk.jukeboxOnItsWayNote", { title: p.title }));
     setTimeout(() => setQueuedId((cur) => (cur === p.id ? null : cur)), 2500);
   };
 
@@ -513,14 +511,14 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
     return (
       <NativeErrorState
         isLight={isLight}
-        title="The shelf wouldn't open in the palace"
-        message="Your library wouldn't load — your purchases are safe on the real rails."
+        title={t("worldAudioDesk.shelfErrorTitle")}
+        message={t("worldAudioDesk.shelfErrorMessage")}
         onRetry={() => setTick((n) => n + 1)}
       />
     );
   }
   if (purchases === null) {
-    return <NativeLoadingState isLight={isLight} message="Lining up your shelf…" />;
+    return <NativeLoadingState isLight={isLight} message={t("worldAudioDesk.shelfLoading")} />;
   }
 
   const chipBtn = `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
@@ -538,10 +536,10 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
      the full shelf) so the build path never disappears. */
   const playlistsBlock = playlists !== null && (
     <>
-      <p className={sectionTitle}>Your playlists</p>
+      <p className={sectionTitle}>{t("worldAudioDesk.yourPlaylistsHeading")}</p>
       {playlists.length === 0 ? (
         <p className={`px-1 pt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-          No playlists yet — start one here, then fill it from your shelf.
+          {t("worldAudioDesk.noPlaylistsYetBooth")}
         </p>
       ) : (
         <NativeShelf>
@@ -550,7 +548,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
               key={pl.id}
               isLight={isLight}
               title={pl.title}
-              detail={`${pl.itemCount} ${pl.itemCount === 1 ? "item" : "items"} · yours`}
+              detail={t("worldAudioDesk.playlistItemCount", { count: pl.itemCount })}
               artworkUrl={pl.coverUrl}
               action={
                 <button
@@ -561,7 +559,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                   className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                 >
                   <Play className="h-3.5 w-3.5" />
-                  {resolvingId === pl.id ? "Opening…" : "Play it here"}
+                  {resolvingId === pl.id ? t("worldAudioDesk.openingBtn") : t("worldAudioDesk.playItHere")}
                 </button>
               }
             />
@@ -574,10 +572,10 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
           value={newListTitle}
           onChange={(e) => setNewListTitle(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void startPlaylist(); }}
-          placeholder="New playlist name…"
+          placeholder={t("worldAudioDesk.newPlaylistPlaceholder")}
           maxLength={80}
           data-testid="world-shelf-playlist-start-name"
-          aria-label="New playlist name"
+          aria-label={t("worldAudioDesk.newPlaylistAria")}
           className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${
             isLight
               ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07] placeholder:text-[#6B5B36]/60"
@@ -591,7 +589,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
           onClick={() => void startPlaylist()}
           className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
         >
-          <Plus className="h-3.5 w-3.5" /> Start a playlist
+          <Plus className="h-3.5 w-3.5" /> {t("worldAudioDesk.startPlaylistBtn")}
         </button>
       </div>
     </>
@@ -602,8 +600,8 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
       <div>
         <NativeEmptyState
           isLight={isLight}
-          message="Your shelf is bare — nothing bought, made or lined up yet."
-          detail="When you buy a track, video, course or any digital drop, it lands here forever, playable where you stand. Your own songs and playlists live here too."
+          message={t("worldAudioDesk.shelfEmptyMessage")}
+          detail={t("worldAudioDesk.shelfEmptyDetail")}
         />
         {playlistsBlock}
         {note && (
@@ -630,7 +628,10 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                 <NativeShelfRow
                   isLight={isLight}
                   title={p.title}
-                  detail={shelfDetailLine(p)}
+                  detail={shelfDetailLine(p, {
+                    lang: i18n.language,
+                    kindLabels: { track: t("worldAudioDesk.kindSong"), video: t("worldAudioDesk.kindVideo") },
+                  })}
                   artworkUrl={p.artworkUrl}
                   action={
                     <>
@@ -647,11 +648,11 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                           ) : (
                             <Play className="h-3.5 w-3.5" />
                           )}
-                          {resolvingId === p.id ? "Opening…" : isCurrent ? (shelfPlayer.playing ? "Pause" : "Resume") : "Play it here"}
+                          {resolvingId === p.id ? t("worldAudioDesk.openingBtn") : isCurrent ? (shelfPlayer.playing ? t("worldAudioDesk.pauseLabel") : t("worldAudioDesk.resumeLabel")) : t("worldAudioDesk.playItHere")}
                         </button>
                       ) : (
                         <span className={`inline-flex items-center gap-1.5 px-1 text-[11px] font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                          <ListMusic className="h-3.5 w-3.5" /> Not playable here
+                          <ListMusic className="h-3.5 w-3.5" /> {t("worldAudioDesk.notPlayableHere")}
                         </span>
                       )}
                       {playable && (
@@ -662,7 +663,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                           disabled={resolvingId === p.id}
                           className={chipBtn}
                         >
-                          <ListPlus className="h-3.5 w-3.5 text-[#d4af37]" /> Queue next
+                          <ListPlus className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldAudioDesk.queueNext")}
                         </button>
                       )}
                       {playable && (
@@ -674,7 +675,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                           }
                           className={chipBtn}
                         >
-                          <ListMusic className="h-3.5 w-3.5 text-[#d4af37]" /> Add to playlist
+                          <ListMusic className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldAudioDesk.addToPlaylistBtn")}
                         </button>
                       )}
                       {jukeboxId && (
@@ -685,7 +686,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                           className={chipBtn}
                         >
                           <ListMusic className="h-3.5 w-3.5 text-[#d4af37]" />
-                          {queuedId === p.id ? "On the jukebox ✓" : "Put it on the jukebox"}
+                          {queuedId === p.id ? t("worldAudioDesk.onJukeboxBtn") : t("worldAudioDesk.putOnJukeboxBtn")}
                         </button>
                       )}
                       <button
@@ -696,7 +697,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                         className={chipBtn}
                       >
                         <Download className="h-3.5 w-3.5 text-[#d4af37]" />
-                        {mintBusyId === p.id ? "Making link…" : mint ? "Make a fresh link" : "Download link"}
+                        {mintBusyId === p.id ? t("worldAudioDesk.makingLinkBtn") : mint ? t("worldAudioDesk.makeFreshLinkBtn") : t("worldAudioDesk.downloadLinkBtn")}
                       </button>
                       <button
                         type="button"
@@ -705,7 +706,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                         className={chipBtn}
                       >
                         <Link2 className="h-3.5 w-3.5 text-[#d4af37]" />
-                        {sharedId === p.id ? "Link copied!" : "Share"}
+                        {sharedId === p.id ? t("worldAudioDesk.linkCopiedBtn") : t("worldAudioDesk.shareBtn")}
                       </button>
                     </>
                   }
@@ -713,7 +714,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                 {/* The receipt (2.16): every purchase carries its
                     receipt line right on the shelf. */}
                 <p className={`px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                  {shelfReceiptLine(p)}
+                  {shelfReceiptLine(p, { lang: i18n.language, receiptTemplate: t("worldAudioDesk.receiptLabel") })}
                 </p>
                 {mint && (
                   <div
@@ -721,7 +722,16 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                     data-testid="world-shelf-download-mint"
                   >
                     <p className={`text-[11px] font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-                      {downloadMintCopy(mint)}
+                      {downloadMintCopy(mint, {
+                        lang: i18n.language,
+                        strings: {
+                          start: t("worldAudioDesk.mintCopyStart"),
+                          usesCount: t("worldAudioDesk.mintUsesCount"),
+                          usesLimited: t("worldAudioDesk.mintUsesLimited"),
+                          expiresPart: t("worldAudioDesk.mintExpiresPart"),
+                          end: t("worldAudioDesk.mintCopyEnd"),
+                        },
+                      })}
                     </p>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <code className={`min-w-0 flex-1 truncate rounded-lg px-2 py-1 text-[11px] ${isLight ? "bg-black/[.04] text-[#2a1e07]" : "bg-white/[.06] text-white/80"}`}>
@@ -729,7 +739,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                       </code>
                       <button type="button" data-testid="world-shelf-download-copy" onClick={() => void copyMint(p)} className={chipBtn}>
                         {mintCopiedId === p.id ? <Check className="h-3.5 w-3.5 text-[#d4af37]" /> : <Link2 className="h-3.5 w-3.5 text-[#d4af37]" />}
-                        {mintCopiedId === p.id ? "Copied!" : "Copy link"}
+                        {mintCopiedId === p.id ? t("worldAudioDesk.copiedBtn") : t("worldAudioDesk.copyLinkBtn")}
                       </button>
                     </div>
                   </div>
@@ -757,7 +767,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
 
       {(myMusic ?? []).length > 0 && (
         <>
-          <p className={sectionTitle}>Your songs — published or not</p>
+          <p className={sectionTitle}>{t("worldAudioDesk.yourSongsHeading")}</p>
           <NativeShelf>
             {(myMusic ?? []).map((row) => {
               const input = playInputFromMyMusic(row);
@@ -769,9 +779,9 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                     isLight={isLight}
                     title={row.title}
                     detail={[
-                      row.artistName ?? "You",
+                      row.artistName ?? t("worldAudioDesk.youFallback"),
                       row.genre,
-                      row.isPublished ? "Published" : "Not published yet — yours only",
+                      row.isPublished ? t("worldAudioDesk.publishedLabel") : t("worldAudioDesk.notPublishedDetail"),
                     ]
                       .filter(Boolean)
                       .join(" · ")}
@@ -785,7 +795,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                           className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                         >
                           {isCurrent && shelfPlayer.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                          {isCurrent ? (shelfPlayer.playing ? "Pause" : "Resume") : "Play it here"}
+                          {isCurrent ? (shelfPlayer.playing ? t("worldAudioDesk.pauseLabel") : t("worldAudioDesk.resumeLabel")) : t("worldAudioDesk.playItHere")}
                         </button>
                         <button
                           type="button"
@@ -793,7 +803,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                           onClick={() => queueNextMyMusic(row)}
                           className={chipBtn}
                         >
-                          <ListPlus className="h-3.5 w-3.5 text-[#d4af37]" /> Queue next
+                          <ListPlus className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldAudioDesk.queueNext")}
                         </button>
                         <button
                           type="button"
@@ -807,7 +817,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                           }
                           className={chipBtn}
                         >
-                          <ListMusic className="h-3.5 w-3.5 text-[#d4af37]" /> Add to playlist
+                          <ListMusic className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldAudioDesk.addToPlaylistBtn")}
                         </button>
                         {sharePath && (
                           <button
@@ -817,12 +827,12 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
                             className={chipBtn}
                           >
                             <Link2 className="h-3.5 w-3.5 text-[#d4af37]" />
-                            {sharedMusicId === row.id ? "Link copied!" : "Share"}
+                            {sharedMusicId === row.id ? t("worldAudioDesk.linkCopiedBtn") : t("worldAudioDesk.shareBtn")}
                           </button>
                         )}
                         {!row.isPublished && (
                           <span className="inline-flex items-center rounded-full bg-[#d4af37]/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#e8c86a]">
-                            Not published yet
+                            {t("worldAudioDesk.notPublishedBadge")}
                           </span>
                         )}
                       </>
@@ -852,9 +862,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
         <p className={`px-1 pt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>
       )}
       <p className={`px-1 pt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-        Your shelf is your bought library — the same one My Music keeps — plus your playlists and your own
-        songs. Play it here and it plays for you alone; queue what&rsquo;s next and the moment lands when the
-        current song ends; put it on the jukebox and the whole Music Hall hears it together.
+        {t("worldAudioDesk.shelfFooterNote")}
       </p>
     </div>
   );

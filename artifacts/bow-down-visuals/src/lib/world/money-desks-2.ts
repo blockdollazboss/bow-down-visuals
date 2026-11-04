@@ -469,11 +469,35 @@ export function emptyBeatListingForm(): BeatListingForm {
   };
 }
 
-export function beatListingProblem(form: BeatListingForm): string | null {
-  if (!form.title.trim() || !form.audioUrl.trim()) return "A listing needs a title and an audio URL.";
-  for (const [label, v] of [["Basic", form.basicPrice], ["Premium", form.premiumPrice], ["Exclusive", form.exclusivePrice]] as const) {
+/** The listing form's problem lines, in the desk's words. The
+ *  desk passes its active language's bundle (worldAudioDesk
+ *  keys; tier names from the beats tier labels); other callers
+ *  get these English defaults, byte-identical to the page copy. */
+export interface BeatListingProblemStrings {
+  needsTitleUrl: string;
+  /** Template carrying one {{tier}} token. */
+  priceLine: string;
+  tierBasic: string;
+  tierPremium: string;
+  tierExclusive: string;
+}
+
+export const BEAT_LISTING_PROBLEM_STRINGS_EN: BeatListingProblemStrings = {
+  needsTitleUrl: "A listing needs a title and an audio URL.",
+  priceLine: "Enter a {{tier}} price of $0 or more.",
+  tierBasic: "Basic",
+  tierPremium: "Premium",
+  tierExclusive: "Exclusive",
+};
+
+export function beatListingProblem(
+  form: BeatListingForm,
+  strings: BeatListingProblemStrings = BEAT_LISTING_PROBLEM_STRINGS_EN,
+): string | null {
+  if (!form.title.trim() || !form.audioUrl.trim()) return strings.needsTitleUrl;
+  for (const [label, v] of [[strings.tierBasic, form.basicPrice], [strings.tierPremium, form.premiumPrice], [strings.tierExclusive, form.exclusivePrice]] as const) {
     const n = Number(v);
-    if (v.trim() === "" || !Number.isFinite(n) || n < 0) return `Enter a ${label} price of $0 or more.`;
+    if (v.trim() === "" || !Number.isFinite(n) || n < 0) return strings.priceLine.split("{{tier}}").join(label);
   }
   return null;
 }
@@ -581,10 +605,25 @@ export function buildBeatTemplatePayload(form: BeatTemplateForm): Record<string,
   };
 }
 
-export function beatTemplateProblem(form: BeatTemplateForm): string | null {
-  if (!form.name.trim()) return "Give the license a name first.";
+/** The template form's problem lines, in the desk's words —
+ *  same strings-bundle rule as the listing form above. */
+export interface BeatTemplateProblemStrings {
+  needsName: string;
+  priceInvalid: string;
+}
+
+export const BEAT_TEMPLATE_PROBLEM_STRINGS_EN: BeatTemplateProblemStrings = {
+  needsName: "Give the license a name first.",
+  priceInvalid: "Enter a price of $0 or more.",
+};
+
+export function beatTemplateProblem(
+  form: BeatTemplateForm,
+  strings: BeatTemplateProblemStrings = BEAT_TEMPLATE_PROBLEM_STRINGS_EN,
+): string | null {
+  if (!form.name.trim()) return strings.needsName;
   const price = Number(form.priceDollars || "0");
-  if (!Number.isFinite(price) || price < 0) return "Enter a price of $0 or more.";
+  if (!Number.isFinite(price) || price < 0) return strings.priceInvalid;
   return null;
 }
 
@@ -656,9 +695,25 @@ export type BeatAiTagsOutcome =
  *  already carries the refund note), else the desk's plain retry
  *  line. An OK answer in an unreadable shape is an error too,
  *  never a suggestion the desk invented. */
+/** The suggester outcome's own words — the unreadable-shape line
+ *  is refund copy (money law: the English source rides verbatim
+ *  in every catalog) and the run-failed line is the error
+ *  fallback; the desk passes its active language's pair. */
+export interface BeatAiTagsOutcomeStrings {
+  unreadable: string;
+  runFailed: string;
+}
+
+export const BEAT_AI_TAGS_OUTCOME_STRINGS_EN: BeatAiTagsOutcomeStrings = {
+  unreadable:
+    "The suggester answered in a shape this desk can't read — the rail refunds failed generations; if Bucs left your balance, the refund lands on its own.",
+  runFailed: "The tag suggester couldn't run — try again.",
+};
+
 export function beatAiTagsOutcome(
   result: { status: number; data: unknown },
   fallbackGenre: string,
+  strings: BeatAiTagsOutcomeStrings = BEAT_AI_TAGS_OUTCOME_STRINGS_EN,
 ): BeatAiTagsOutcome {
   const { status, data } = result;
   if (status === 402) return { kind: "credits" };
@@ -667,12 +722,12 @@ export function beatAiTagsOutcome(
     if (suggestion) return { kind: "ok", suggestion };
     return {
       kind: "error",
-      message: "The suggester answered in a shape this desk can't read — the rail refunds failed generations; if Bucs left your balance, the refund lands on its own.",
+      message: strings.unreadable,
     };
   }
   return {
     kind: "error",
-    message: apiErrorLine(data, "The tag suggester couldn't run — try again."),
+    message: apiErrorLine(data, strings.runFailed),
   };
 }
 

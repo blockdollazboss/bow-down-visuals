@@ -291,7 +291,7 @@ describe("wiring pins — the Music Hall panel walks the whole loop", () => {
   });
 
   it("guests get the pitch, never the form (the section returns before any booking UI)", () => {
-    const guestReturn = panel.indexOf("Members book this hall for an hour");
+    const guestReturn = panel.indexOf("worldAudioDesk.guestPartiesPrefix");
     const form = panel.indexOf("world-party-submit");
     expect(guestReturn).toBeGreaterThan(-1);
     expect(form).toBeGreaterThan(guestReturn);

@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Download, ListPlus, Loader2, Pause, Play, Scissors } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { recordPlay } from "@/lib/streaming";
@@ -24,6 +25,7 @@ import {
 import {
   audioBenchJobIdOf,
   audioBenchOf,
+  audioBenchResultStrings,
   buildStemRemixPayload,
   interpretAudioBenchResponse,
   MASTER_FILE_FIELD,
@@ -93,6 +95,7 @@ export function StemRemixPanel({
   jobId: string;
   stemKeys: readonly string[];
 }) {
+  const { t } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const [levels, setLevels] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
@@ -114,12 +117,12 @@ export function StemRemixPanel({
         body: JSON.stringify(buildStemRemixPayload(stemKeys, levels)),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "The remix didn't land."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.remixDidntLand")));
       const url = stemRemixUrlOfResponse(data);
-      if (!url) throw new Error("The remix came back without audio.");
+      if (!url) throw new Error(t("worldAudioDesk.remixNoAudio"));
       setRemixUrl(url);
     } catch (err) {
-      setError(plainErrorText(err, "The remix didn't land."));
+      setError(plainErrorText(err, t("worldAudioDesk.remixDidntLand")));
     } finally {
       setBusy(false);
     }
@@ -128,7 +131,7 @@ export function StemRemixPanel({
   return (
     <div className="space-y-2 rounded-xl border border-dashed border-[#d4af37]/30 p-3" data-testid="world-audio-stem-remix">
       <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-        Remix the levels — free, the split was paid for
+        {t("worldAudioDesk.remixTitle")}
       </p>
       {stemKeys.map((key) => {
         const level = typeof levels[key] === "number" ? levels[key]! : 1;
@@ -152,16 +155,16 @@ export function StemRemixPanel({
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" data-testid="world-audio-stem-remix-run" onClick={() => void exportMix()} disabled={busy} className={goldBtn}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {busy ? "Mixing…" : "Export the mix · Free"}
+          {busy ? t("worldAudioDesk.mixingLabel") : t("worldAudioDesk.exportMixFree")}
         </button>
         {remixUrl ? (
           <a href={remixUrl} download="remix.wav" className={chipBtnFor(isLight)}>
-            <Download className="h-3.5 w-3.5" /> Download remix.wav
+            <Download className="h-3.5 w-3.5" /> {t("worldAudioDesk.downloadRemix")}
           </a>
         ) : null}
       </div>
       {error ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p> : null}
-      {remixUrl ? <AudioResult url={remixUrl} title="Your remix" /> : null}
+      {remixUrl ? <AudioResult url={remixUrl} title={t("worldAudioDesk.yourRemix")} /> : null}
     </div>
   );
 }
@@ -175,6 +178,7 @@ export function SoundPacksTab({
   isLight: boolean;
   shelfPlayer?: ShelfPlayerController;
 }) {
+  const { t, i18n } = useTranslation();
   const { refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
@@ -240,18 +244,18 @@ export function SoundPacksTab({
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
       if (res.status === 402) {
-        setOutOfCredits(apiErrorMessage(data, `This pack costs ${cost.toLocaleString("en-US")} Visual Bucs — top up and build it here.`));
+        setOutOfCredits(apiErrorMessage(data, t("worldAudioDesk.packOutOfCredits", { cost: cost.toLocaleString(i18n.language) })));
         return;
       }
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Pack generation failed."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.packGenFailed")));
       const built = parseGeneratedSamples(data);
-      if (built.length === 0) throw new Error("The pack came back empty — nothing was kept, try building it again.");
+      if (built.length === 0) throw new Error(t("worldAudioDesk.packEmpty"));
       setSamples(built);
       setPackName(samplePackName({ genre, bpm, musicalKey }));
       refreshProfile();
       void quest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "Pack generation failed."));
+      setError(plainErrorText(err, t("worldAudioDesk.packGenFailed")));
     } finally {
       setGenerating(false);
     }
@@ -261,7 +265,7 @@ export function SoundPacksTab({
     if (!shelfPlayer) return;
     const input = samplePlayInput(sample);
     if (!input) {
-      setNote(`“${sample.name}” has no playable file — the rest of the pack still plays.`);
+      setNote(t("worldAudioDesk.sampleNoFile", { name: sample.name }));
       return;
     }
     if (shelfPlayer.current && isSameShelfItem(shelfPlayer.current, input)) {
@@ -284,7 +288,7 @@ export function SoundPacksTab({
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(apiErrorMessage(data, "The pack download didn't start."));
+        throw new Error(apiErrorMessage(data, t("worldAudioDesk.packDownloadFailed")));
       }
       const blob = await res.blob();
       const a = document.createElement("a");
@@ -295,7 +299,7 @@ export function SoundPacksTab({
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     } catch (err) {
-      setError(plainErrorText(err, "The pack download didn't start."));
+      setError(plainErrorText(err, t("worldAudioDesk.packDownloadFailed")));
     } finally {
       setZipping(false);
     }
@@ -308,22 +312,22 @@ export function SoundPacksTab({
   return (
     <div data-testid="world-audio-packs-tab" className="space-y-3">
       <p className={`text-xs ${muted}`}>
-        Build a royalty-free pack of one-shots and loops — pick the sound, we cook it, you keep it.
+        {t("worldAudioDesk.packsIntro")}
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <DeskSelectField isLight={isLight} label="Genre" value={genre} onChange={setGenre} options={genreOptions.map((g) => ({ value: g, label: g }))} />
-        <DeskSelectField isLight={isLight} label="Key" value={musicalKey} onChange={setMusicalKey} options={keyOptions.map((k) => ({ value: k, label: k }))} />
+        <DeskSelectField isLight={isLight} label={t("worldAudioDesk.genreLabel")} value={genre} onChange={setGenre} options={genreOptions.map((g) => ({ value: g, label: g }))} />
+        <DeskSelectField isLight={isLight} label={t("worldAudioDesk.keyLabel")} value={musicalKey} onChange={setMusicalKey} options={keyOptions.map((k) => ({ value: k, label: k }))} />
       </div>
       <label className="block text-xs font-bold">
-        Tempo — {bpm} BPM
+        {t("worldAudioDesk.packTempo", { bpm })}
         <input type="range" min={60} max={180} value={bpm} onChange={(e) => setBpm(Number(e.target.value))} className="mt-1 w-full accent-[#d4af37] bdv-touch-target" />
       </label>
       <div>
-        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Pack size</span>
+        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldAudioDesk.packSizeLabel")}</span>
         <div className="flex flex-wrap gap-1.5">
           {PACK_SIZE_OPTIONS.map((o) => (
             <button key={o.size} type="button" data-testid="world-audio-packs-size" onClick={() => setPackSize(o.size)} className={tabChip(isLight, packSize === o.size)}>
-              {o.size} samples · {o.credits.toLocaleString("en-US")} VB
+              {t("worldAudioDesk.packSizeOption", { size: o.size, credits: o.credits.toLocaleString(i18n.language) })}
             </button>
           ))}
         </div>
@@ -331,7 +335,7 @@ export function SoundPacksTab({
       {catalog && catalog.types.length > 0 ? (
         <div>
           <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            In the pack <span className={`normal-case ${muted}`}>(none picked = the full set)</span>
+            {t("worldAudioDesk.inThePackLabel")} <span className={`normal-case ${muted}`}>{t("worldAudioDesk.fullSetNote")}</span>
           </span>
           <div className="flex flex-wrap gap-1.5">
             {catalog.types.map((type) => (
@@ -344,7 +348,7 @@ export function SoundPacksTab({
       ) : null}
       <button type="button" data-testid="world-audio-packs-generate" onClick={() => void generate()} disabled={generating} className={goldBtn}>
         {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        {generating ? "Cooking your pack…" : `Build the pack · ${cost.toLocaleString("en-US")} Visual Bucs`}
+        {generating ? t("worldAudioDesk.cookingPack") : t("worldAudioDesk.buildPack", { cost: cost.toLocaleString(i18n.language) })}
       </button>
       {catalog?.license ? <p className={`text-[11px] ${muted}`}>{catalog.license}</p> : null}
       {outOfCredits ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{outOfCredits}</p> : null}
@@ -354,11 +358,11 @@ export function SoundPacksTab({
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              Your pack — {packName}
+              {t("worldAudioDesk.yourPack", { name: packName })}
             </p>
             <button type="button" data-testid="world-audio-packs-zip" onClick={() => void downloadZip()} disabled={zipping} className={`ml-auto ${chipBtnFor(isLight)}`}>
               {zipping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5 text-[#d4af37]" />}
-              Download the pack (.zip)
+              {t("worldAudioDesk.downloadPackZip")}
             </button>
           </div>
           <NativeShelf>
@@ -372,8 +376,8 @@ export function SoundPacksTab({
                   title={sample.name}
                   detail={[
                     sample.typeLabel,
-                    sample.bpm ? `${sample.bpm} BPM` : null,
-                    sample.musicalKey ? `Key ${sample.musicalKey}` : null,
+                    sample.bpm ? t("worldAudioDesk.bpmValue", { bpm: sample.bpm }) : null,
+                    sample.musicalKey ? t("worldAudioDesk.packKeyDetail", { key: sample.musicalKey }) : null,
                     sample.durationSec ? formatDuration(sample.durationSec) : null,
                     originBadge(sample.origin).label,
                   ]
@@ -389,7 +393,7 @@ export function SoundPacksTab({
                         className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                       >
                         {isCurrent && shelfPlayer.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                        {isCurrent ? (shelfPlayer.playing ? "Pause" : "Resume") : "Audition"}
+                        {isCurrent ? (shelfPlayer.playing ? t("worldAudioDesk.pauseLabel") : t("worldAudioDesk.resumeLabel")) : t("worldAudioDesk.auditionLabel")}
                       </button>
                     ) : undefined
                   }
@@ -421,6 +425,7 @@ export function LibraryTab({
   onRetry: () => void;
   onSplitStems: (row: MyMusicTrack) => void;
 }) {
+  const { t } = useTranslation();
   const [note, setNote] = useState<string | null>(null);
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
 
@@ -431,7 +436,7 @@ export function LibraryTab({
     if (!shelfPlayer) return;
     const input = playInputFromMyMusic(row);
     if (!input) {
-      setNote(`“${row.title}” has no playable file yet — finish the upload and it plays here.`);
+      setNote(t("worldAudioDesk.noPlayableFile", { title: row.title }));
       return;
     }
     if (shelfPlayer.current && isSameShelfItem(shelfPlayer.current, input)) {
@@ -440,7 +445,7 @@ export function LibraryTab({
     }
     shelfPlayer.play(input);
     if (row.isPublished) recordPlay("track", row.id);
-    setNote(row.isPublished ? null : `“${row.title}” is playing for you alone — it's yours and it isn't published yet.`);
+    setNote(row.isPublished ? null : t("worldAudioDesk.playingForYouAlone", { title: row.title }));
   };
 
   const queueRow = (row: MyMusicTrack) => {
@@ -448,15 +453,15 @@ export function LibraryTab({
     const input = playInputFromMyMusic(row);
     if (!input) return;
     shelfPlayer.queueNext(input);
-    setNote(`“${row.title}” is up next on your player.`);
+    setNote(t("worldAudioDesk.upNextNote", { title: row.title }));
   };
 
   if (failed) {
     return (
       <div className="space-y-2" data-testid="world-audio-library-tab">
-        <p className={`text-xs ${muted}`}>Your library wouldn&rsquo;t open — your songs are fine, the shelf slipped.</p>
+        <p className={`text-xs ${muted}`}>{t("worldAudioDesk.libraryLoadFailed")}</p>
         <button type="button" onClick={onRetry} className={tabChip(isLight, false)}>
-          Try again
+          {t("worldAudioDesk.tryAgain")}
         </button>
       </div>
     );
@@ -464,14 +469,14 @@ export function LibraryTab({
   if (rows === null) {
     return (
       <p className={`inline-flex items-center gap-2 text-xs ${muted}`} data-testid="world-audio-library-tab">
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> Opening your library…
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldAudioDesk.openingLibrary")}
       </p>
     );
   }
   if (rows.length === 0) {
     return (
       <p className={`text-xs ${muted}`} data-testid="world-audio-library-tab">
-        No songs in your library yet — make one at the Song Desk and it lands here, ready to play and split.
+        {t("worldAudioDesk.libraryEmptySongs")}
       </p>
     );
   }
@@ -487,10 +492,10 @@ export function LibraryTab({
               isLight={isLight}
               title={row.title}
               detail={[
-                row.artistName ?? "You",
+                row.artistName ?? t("worldAudioDesk.youFallback"),
                 row.genre,
                 row.durationSec > 0 ? formatShelfClock(row.durationSec) : null,
-                row.isPublished ? "Published" : "Not published yet — yours only",
+                row.isPublished ? t("worldAudioDesk.publishedLabel") : t("worldAudioDesk.notPublishedDetail"),
               ]
                 .filter(Boolean)
                 .join(" · ")}
@@ -506,19 +511,19 @@ export function LibraryTab({
                         className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                       >
                         {isCurrent && shelfPlayer.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                        {isCurrent ? (shelfPlayer.playing ? "Pause" : "Resume") : "Play it here"}
+                        {isCurrent ? (shelfPlayer.playing ? t("worldAudioDesk.pauseLabel") : t("worldAudioDesk.resumeLabel")) : t("worldAudioDesk.playItHere")}
                       </button>
                       <button type="button" data-testid="world-audio-library-queue" onClick={() => queueRow(row)} className={chipBtnFor(isLight)}>
-                        <ListPlus className="h-3.5 w-3.5 text-[#d4af37]" /> Queue next
+                        <ListPlus className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldAudioDesk.queueNext")}
                       </button>
                     </>
                   ) : null}
                   <button type="button" data-testid="world-audio-library-split" onClick={() => onSplitStems(row)} className={chipBtnFor(isLight)}>
-                    <Scissors className="h-3.5 w-3.5 text-[#d4af37]" /> Split stems
+                    <Scissors className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldAudioDesk.splitStems")}
                   </button>
                   {!row.isPublished && (
                     <span className="inline-flex items-center rounded-full bg-[#d4af37]/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#e8c86a]">
-                      Not published yet
+                      {t("worldAudioDesk.notPublishedBadge")}
                     </span>
                   )}
                 </>
@@ -549,6 +554,7 @@ export function StemsTab({
   picked: MyMusicTrack | null;
   onPick: (row: MyMusicTrack) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const { refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
@@ -571,7 +577,7 @@ export function StemsTab({
 
   const finishWith = (read: AudioBenchResult) => {
     if (read.failed) {
-      setError(apiErrorMessage(read, "The split didn't finish."));
+      setError(apiErrorMessage(read, t("worldAudioDesk.splitDidntFinish")));
       setBusy(false);
       return;
     }
@@ -590,7 +596,7 @@ export function StemsTab({
     void quest.snapshot();
     try {
       const res = await fetch(picked.audioUrl);
-      if (!res.ok) throw new Error("Couldn't fetch that song's audio — try again or pick another track.");
+      if (!res.ok) throw new Error(t("worldAudioDesk.splitFetchFailed"));
       const blob = await res.blob();
       const type = blob.type || "audio/mpeg";
       const file = new File([blob], stemSourceFileName(picked.title, type), { type });
@@ -599,18 +605,18 @@ export function StemsTab({
       for (const [k, v] of stemsFields({ pro })) form.append(k, v);
       const post = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
       const data = (await post.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
-      if (!post.ok) throw new Error(apiErrorMessage(data, "The split didn't start."));
+      if (!post.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.splitDidntStart")));
       const jobId = audioBenchJobIdOf(data);
-      if (!jobId) throw new Error("The split didn't start.");
+      if (!jobId) throw new Error(t("worldAudioDesk.splitDidntStart"));
       setSplitJobId(jobId);
-      if (!def.pollPath) throw new Error("The split didn't start.");
+      if (!def.pollPath) throw new Error(t("worldAudioDesk.splitDidntStart"));
       const path = def.pollPath(jobId);
       stopPolling();
       pollRef.current = setInterval(async () => {
         try {
           const pollRes = await fetch(path, { headers: await authHeaders() });
           const pollData = (await pollRes.json().catch(() => ({}))) as Record<string, unknown>;
-          const read = interpretAudioBenchResponse("stems", pollData);
+          const read = interpretAudioBenchResponse("stems", pollData, audioBenchResultStrings(t));
           if (read.done) {
             stopPolling();
             finishWith(read);
@@ -620,7 +626,7 @@ export function StemsTab({
         }
       }, 3000);
     } catch (err) {
-      setError(plainErrorText(err, "The split hit a snag."));
+      setError(plainErrorText(err, t("worldAudioDesk.splitSnag")));
       setBusy(false);
     }
   };
@@ -628,9 +634,9 @@ export function StemsTab({
   if (failed) {
     return (
       <div className="space-y-2" data-testid="world-audio-stems-tab">
-        <p className={`text-xs ${muted}`}>Your library wouldn&rsquo;t open — the splitter needs one of your tracks to work on.</p>
+        <p className={`text-xs ${muted}`}>{t("worldAudioDesk.stemsLoadFailed")}</p>
         <button type="button" onClick={onRetry} className={tabChip(isLight, false)}>
-          Try again
+          {t("worldAudioDesk.tryAgain")}
         </button>
       </div>
     );
@@ -638,17 +644,17 @@ export function StemsTab({
   if (rows === null) {
     return (
       <p className={`inline-flex items-center gap-2 text-xs ${muted}`} data-testid="world-audio-stems-tab">
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> Opening your library…
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldAudioDesk.openingLibrary")}
       </p>
     );
   }
   return (
     <div data-testid="world-audio-stems-tab" className="space-y-3">
       <p className={`text-xs ${muted}`}>
-        Split one of your tracks into its stems — vocals, drums, bass and the rest — on the same rail the Audio Studio runs.
+        {t("worldAudioDesk.stemsIntro")}
       </p>
       {rows.length === 0 ? (
-        <p className={`text-xs ${muted}`}>You have no tracks to split yet — make a song first, then bring it here.</p>
+        <p className={`text-xs ${muted}`}>{t("worldAudioDesk.stemsNoTracks")}</p>
       ) : (
         <>
           <div className="flex flex-wrap gap-1.5">
@@ -672,21 +678,21 @@ export function StemsTab({
           </div>
           <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
             <input type="checkbox" checked={pro} onChange={(e) => setPro(e.target.checked)} />
-            Pro stems (adds guitar + piano — same {cost.toLocaleString("en-US")} Visual Bucs)
+            {t("worldAudioDesk.proStems", { cost: cost.toLocaleString(i18n.language) })}
           </label>
           <div className="flex flex-wrap items-center gap-3">
             <span className={`text-xs font-semibold ${muted}`}>
-              {cost === 0 ? "Free — shown before anything runs." : `Costs ${cost.toLocaleString("en-US")} Visual Bucs — shown before anything runs.`}
+              {cost === 0 ? t("worldAudioDesk.freeLine") : t("worldAudioDesk.costsLine", { cost: cost.toLocaleString(i18n.language) })}
             </span>
             <button type="button" data-testid="world-audio-stems-run" onClick={() => void run()} disabled={busy || !picked} className={`${goldBtn} ml-auto`}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4" />}
-              {busy ? "Splitting…" : picked ? `Split “${picked.title}”` : "Pick a track first"}
+              {busy ? t("worldAudioDesk.splittingLabel") : picked ? t("worldAudioDesk.splitTitleBtn", { title: picked.title }) : t("worldAudioDesk.pickTrackFirst")}
             </button>
           </div>
         </>
       )}
       {error ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p> : null}
-      {busy ? <p className={`text-xs font-semibold ${muted}`}>Splitting on the server — keep this tab open and the stems land right here.</p> : null}
+      {busy ? <p className={`text-xs font-semibold ${muted}`}>{t("worldAudioDesk.splittingOnServer")}</p> : null}
       {result ? (
         <div className="space-y-2" data-testid="world-audio-stems-result">
           {result.urls.map((u) => (
@@ -696,7 +702,7 @@ export function StemsTab({
             <StemRemixPanel
               isLight={isLight}
               jobId={splitJobId}
-              stemKeys={result.urls.map((u) => stemKeyOfResultLabel(u.label)).filter((k): k is string => k !== null)}
+              stemKeys={result.urls.map((u) => stemKeyOfResultLabel(u.label, t("worldAudioDesk.stemLabel"))).filter((k): k is string => k !== null)}
             />
           ) : null}
           <QuestProgressChip isLight={isLight} lines={quest.lines} />

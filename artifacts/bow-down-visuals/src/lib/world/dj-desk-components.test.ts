@@ -33,20 +33,21 @@ describe("the whole prep in-panel", () => {
   it("library, analyze, crates, proposal, exports, delete", () => {
     for (const needle of [
       'data-testid="world-dj-desk-analyze-all"',
-      "Analyze all new",
+      /* Unit 39: button words ride the worldAudioDesk catalog. */
+      't("worldAudioDesk.analyzeAllNew"',
       'data-testid="world-dj-desk-crate-create"',
       'data-testid="world-dj-desk-crate-detail"',
       'data-testid="world-dj-desk-propose"',
-      "Propose my order",
+      't("worldAudioDesk.proposeOrderBtn")',
       'data-testid="world-dj-desk-proposal"',
       'data-testid="world-dj-desk-apply-proposal"',
-      "Use this order",
-      "Keep mine",
+      't("worldAudioDesk.useThisOrderBtn")',
+      't("worldAudioDesk.keepMineBtn")',
       'data-testid="world-dj-desk-export-rekordbox"',
       'data-testid="world-dj-desk-export-m3u"',
       'data-testid="world-dj-desk-delete"',
-      "Tap again to delete",
-      "Not analyzed yet",
+      't("worldAudioDesk.tapAgainDeleteBtn")',
+      't("worldAudioDesk.notAnalyzedYet")',
     ]) {
       expect(desk, needle).toContain(needle);
     }
@@ -70,7 +71,8 @@ describe("the whole prep in-panel", () => {
   it("an empty crate can't be ordered or exported — the desk says so first", () => {
     expect(desk).toContain("disabled={proposing || selected.tracks.length < 2}");
     expect(desk).toContain("disabled={selected.tracks.length === 0}");
-    expect(desk).toContain("An empty crate can&rsquo;t");
+    /* Unit 39: the words ride the worldAudioDesk catalog. */
+    expect(desk).toContain('t("worldAudioDesk.crateEmptyNote")');
   });
 });
 

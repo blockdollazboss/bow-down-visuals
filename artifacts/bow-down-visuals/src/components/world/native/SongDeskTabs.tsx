@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { callGenerateApi } from "@/lib/generate-api";
@@ -54,6 +55,7 @@ const goldBtn =
 /* ─── Inspo ───────────────────────────────────────────────────────── */
 
 export function SongInspoBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
@@ -97,12 +99,12 @@ export function SongInspoBench({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildInspoAnalyzePayload(playlistInput, notes)),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Vibe analysis failed."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.inspoAnalyzeFailed")));
       const parsed = styleDnaOfResponse(data);
-      if (!parsed) throw new Error("The vibe came back without a style — try describing it another way.");
+      if (!parsed) throw new Error(t("worldAudioDesk.inspoNoStyle"));
       setDna(parsed);
     } catch (err) {
-      setError(plainErrorText(err, "Vibe analysis failed."));
+      setError(plainErrorText(err, t("worldAudioDesk.inspoAnalyzeFailed")));
     } finally {
       setBusy(null);
     }
@@ -120,12 +122,12 @@ export function SongInspoBench({ isLight }: { isLight: boolean }) {
         buildInspoGeneratePayload({ styleDna: dna, notes, artistName, songTitle }),
         token,
       );
-      if (!result) throw new Error("The inspo make didn't start.");
+      if (!result) throw new Error(t("worldAudioDesk.inspoDidntStart"));
       setRawResult(result.rawResult);
       if (result.creditsRemaining !== undefined) refreshProfile();
       void quest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "Inspo generation failed."));
+      setError(plainErrorText(err, t("worldAudioDesk.inspoGenFailed")));
     } finally {
       setBusy(null);
     }
@@ -159,19 +161,19 @@ export function SongInspoBench({ isLight }: { isLight: boolean }) {
   return (
     <div data-testid="world-song-inspo-bench" className="space-y-3">
       <label className="block">
-        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Drop the vibe — playlist links, artist names, or words</span>
+        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldAudioDesk.inspoVibeLabel")}</span>
         <textarea value={playlistInput} onChange={(e) => setPlaylistInput(e.target.value)} rows={3} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
       </label>
-      <DeskTextField isLight={isLight} label="Notes for the vibe" value={notes} onChange={setNotes} />
+      <DeskTextField isLight={isLight} label={t("worldAudioDesk.inspoNotesLabel")} value={notes} onChange={setNotes} />
       <button type="button" data-testid="world-song-inspo-analyze" onClick={() => void analyze()} disabled={busy !== null || !playlistInput.trim()} className={goldBtn}>
         {busy === "analyze" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        Decode the vibe · {inspoAnalyzeCost() === 0 ? "Free" : `${inspoAnalyzeCost()} Visual Bucs`}
+        {inspoAnalyzeCost() === 0 ? t("worldAudioDesk.decodeVibeFree") : t("worldAudioDesk.decodeVibeCost", { cost: inspoAnalyzeCost() })}
       </button>
       {presets.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {presets.map((p) => (
             <button key={p.id} type="button" onClick={() => setDna(p.styleDna)} className={tabBtn(isLight, false)}>
-              My Vibe: {p.name}
+              {t("worldAudioDesk.myVibePreset", { name: p.name })}
             </button>
           ))}
         </div>
@@ -179,34 +181,34 @@ export function SongInspoBench({ isLight }: { isLight: boolean }) {
       {dna ? (
         <div className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <DeskTextField isLight={isLight} label="Genre" value={dnaText("genre")} onChange={setDnaText("genre")} />
-            <DeskTextField isLight={isLight} label="Sub-genre" value={dnaText("subGenre")} onChange={setDnaText("subGenre")} />
-            <DeskTextField isLight={isLight} label="BPM" value={dnaText("bpm")} onChange={setDnaText("bpm")} />
-            <DeskTextField isLight={isLight} label="Key" value={dnaText("key")} onChange={setDnaText("key")} />
-            <DeskTextField isLight={isLight} label="Mood (comma list)" value={dnaText("mood")} onChange={setDnaText("mood")} />
-            <DeskTextField isLight={isLight} label="Vocal character" value={dnaText("vocalCharacter")} onChange={setDnaText("vocalCharacter")} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.genreLabel")} value={dnaText("genre")} onChange={setDnaText("genre")} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.dnaSubGenre")} value={dnaText("subGenre")} onChange={setDnaText("subGenre")} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.bpmLabel")} value={dnaText("bpm")} onChange={setDnaText("bpm")} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.keyLabel")} value={dnaText("key")} onChange={setDnaText("key")} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.dnaMood")} value={dnaText("mood")} onChange={setDnaText("mood")} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.dnaVocalCharacter")} value={dnaText("vocalCharacter")} onChange={setDnaText("vocalCharacter")} />
           </div>
-          <DeskTextField isLight={isLight} label="Vibe summary" value={dnaText("vibeSummary")} onChange={setDnaText("vibeSummary")} />
+          <DeskTextField isLight={isLight} label={t("worldAudioDesk.dnaVibeSummary")} value={dnaText("vibeSummary")} onChange={setDnaText("vibeSummary")} />
           <div className="grid gap-3 sm:grid-cols-2">
-            <DeskTextField isLight={isLight} label="Artist name" value={artistName} onChange={setArtistName} />
-            <DeskTextField isLight={isLight} label="Song title" value={songTitle} onChange={setSongTitle} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.artistNameLabel")} value={artistName} onChange={setArtistName} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.songTitleLabel")} value={songTitle} onChange={setSongTitle} />
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" data-testid="world-song-inspo-generate" onClick={() => void generate()} disabled={busy !== null} className={goldBtn}>
               {busy === "generate" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Make the song from this vibe · {inspoGenerateCost().toLocaleString("en-US")} Visual Bucs
+              {t("worldAudioDesk.inspoGenerate", { cost: inspoGenerateCost().toLocaleString(i18n.language) })}
             </button>
           </div>
           <div className="flex flex-wrap items-end gap-2">
-            <DeskTextField isLight={isLight} label="Save this vibe as a preset" value={presetName} onChange={setPresetName} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.inspoSavePresetLabel")} value={presetName} onChange={setPresetName} />
             <button type="button" onClick={() => void savePreset()} disabled={busy !== null || !presetName.trim()} className={tabBtn(isLight, false)}>
-              Save preset · Free
+              {t("worldAudioDesk.inspoSavePresetFree")}
             </button>
           </div>
         </div>
       ) : null}
       {error ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p> : null}
-      {rawResult ? <TextResult isLight={isLight} title={songTitle || "Your inspo song"} text={rawResult.slice(0, 600)} /> : null}
+      {rawResult ? <TextResult isLight={isLight} title={songTitle || t("worldAudioDesk.inspoResultFallback")} text={rawResult.slice(0, 600)} /> : null}
       <QuestProgressChip isLight={isLight} lines={quest.lines} />
     </div>
   );
@@ -215,6 +217,7 @@ export function SongInspoBench({ isLight }: { isLight: boolean }) {
 /* ─── Mashup ──────────────────────────────────────────────────────── */
 
 export function SongMashupBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
@@ -257,14 +260,14 @@ export function SongMashupBench({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildMashupPayload({ songAId: songA, songBId: songB, style, balance, crossfadeSec, title })),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "The mashup didn't land."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.mashupDidntLand")));
       const parsed = mashupResultOfResponse(data);
-      if (!parsed) throw new Error("The mashup came back without audio — nothing to play.");
+      if (!parsed) throw new Error(t("worldAudioDesk.mashupNoAudio"));
       setResult(parsed);
       refreshProfile();
       void quest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "Mashup failed."));
+      setError(plainErrorText(err, t("worldAudioDesk.mashupFailed")));
     } finally {
       setBusy(false);
     }
@@ -274,28 +277,28 @@ export function SongMashupBench({ isLight }: { isLight: boolean }) {
   return (
     <div data-testid="world-song-mashup-bench" className="space-y-3">
       {songs === null ? (
-        <p className={`inline-flex items-center gap-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}><Loader2 className="h-3.5 w-3.5 animate-spin" /> Opening your song library…</p>
+        <p className={`inline-flex items-center gap-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("worldAudioDesk.openingSongLibrary")}</p>
       ) : songs.length < 2 ? (
-        <p className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>A mashup needs two songs in your library — make or upload songs first, then blend them here.</p>
+        <p className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{t("worldAudioDesk.mashupNeedsTwo")}</p>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
-            <DeskSelectField isLight={isLight} label="First song" value={songA} onChange={setSongA} options={[{ value: "", label: "Pick a song" }, ...songOptions]} />
-            <DeskSelectField isLight={isLight} label="Second song" value={songB} onChange={setSongB} options={[{ value: "", label: "Pick a song" }, ...songOptions]} />
-            <DeskSelectField isLight={isLight} label="Blend style" value={style} onChange={setStyle} options={["blend", "versus", "medley", "remix"].map((s) => ({ value: s, label: s }))} />
-            <DeskTextField isLight={isLight} label="Mashup title" value={title} onChange={setTitle} />
+            <DeskSelectField isLight={isLight} label={t("worldAudioDesk.firstSongLabel")} value={songA} onChange={setSongA} options={[{ value: "", label: t("worldAudioDesk.pickSongOption") }, ...songOptions]} />
+            <DeskSelectField isLight={isLight} label={t("worldAudioDesk.secondSongLabel")} value={songB} onChange={setSongB} options={[{ value: "", label: t("worldAudioDesk.pickSongOption") }, ...songOptions]} />
+            <DeskSelectField isLight={isLight} label={t("worldAudioDesk.blendStyleLabel")} value={style} onChange={setStyle} options={["blend", "versus", "medley", "remix"].map((s) => ({ value: s, label: s }))} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.mashupTitleLabel")} value={title} onChange={setTitle} />
           </div>
           <label className="block text-xs font-bold">
-            Balance toward the first song — {balance}%
+            {t("worldAudioDesk.balanceLabel", { pct: balance })}
             <input type="range" min={0} max={100} value={balance} onChange={(e) => setBalance(Number(e.target.value))} className="w-full bdv-touch-target" />
           </label>
           <label className="block text-xs font-bold">
-            Crossfade — {crossfadeSec}s
+            {t("worldAudioDesk.crossfadeLabel", { sec: crossfadeSec })}
             <input type="range" min={0} max={12} value={crossfadeSec} onChange={(e) => setCrossfadeSec(Number(e.target.value))} className="w-full bdv-touch-target" />
           </label>
           <button type="button" data-testid="world-song-mashup-run" onClick={() => void run()} disabled={busy || !songA || !songB || songA === songB} className={goldBtn}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Blend them · {mashupCost().toLocaleString("en-US")} Visual Bucs
+            {t("worldAudioDesk.mashupRun", { cost: mashupCost().toLocaleString(i18n.language) })}
           </button>
         </>
       )}
@@ -309,6 +312,7 @@ export function SongMashupBench({ isLight }: { isLight: boolean }) {
 /* ─── Hum-to-Song ─────────────────────────────────────────────────── */
 
 export function SongHumBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const { refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
@@ -333,13 +337,13 @@ export function SongHumBench({ isLight }: { isLight: boolean }) {
       for (const [k, v] of humAnalyzeFields()) form.append(k, v);
       const res = await fetch("/api/hum-to-song", { method: "POST", headers: await authHeaders(), body: form });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not analyze that audio."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.humAnalyzeAudioFailed")));
       const parsed = humAnalysisOfResponse(data);
-      if (!parsed) throw new Error("Analysis came back incomplete — try again.");
+      if (!parsed) throw new Error(t("worldAudioDesk.analysisIncomplete"));
       setHumRef(parsed.humRef);
       setAnalysis(parsed.analysis);
     } catch (err) {
-      setError(plainErrorText(err, "Analysis failed."));
+      setError(plainErrorText(err, t("worldAudioDesk.humAnalysisFailed")));
     } finally {
       setBusy(null);
     }
@@ -355,14 +359,14 @@ export function SongHumBench({ isLight }: { isLight: boolean }) {
       for (const [k, v] of humGenerateFields({ humRef, mode, stylePrompt, songTitle, artistName })) form.append(k, v);
       const res = await fetch("/api/hum-to-song", { method: "POST", headers: await authHeaders(), body: form });
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Song generation failed."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.humSongFailed")));
       const url = humSongUrlOfResponse(data);
-      if (!url) throw new Error("The song came back without audio — nothing to play.");
+      if (!url) throw new Error(t("worldAudioDesk.humNoAudioPlay"));
       setSongUrl(url);
       refreshProfile();
       void quest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "Song generation failed."));
+      setError(plainErrorText(err, t("worldAudioDesk.humSongFailed")));
     } finally {
       setBusy(null);
     }
@@ -371,33 +375,35 @@ export function SongHumBench({ isLight }: { isLight: boolean }) {
   return (
     <div data-testid="world-song-hum-bench" className="space-y-3">
       <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
-        {file ? `Hum file: ${file.name}` : "Upload or record your hum"}
+        {file ? t("worldAudioDesk.humFileLabel", { name: file.name }) : t("worldAudioDesk.humUploadLabel")}
         <input type="file" accept="audio/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFile(f); setHumRef(null); setAnalysis(null); } }} />
       </label>
       <button type="button" data-testid="world-song-hum-analyze" onClick={() => void analyze()} disabled={busy !== null || !file} className={goldBtn}>
         {busy === "analyze" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        Hear my hum · Free
+        {t("worldAudioDesk.humAnalyzeBtn")}
       </button>
       {analysis ? (
         <div className="space-y-3">
           <p className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-            Heard it — {typeof analysis.tempoBpm === "number" ? `~${analysis.tempoBpm} BPM` : "tempo found"}
-            {typeof analysis.keyEstimate === "string" ? `, key of ${analysis.keyEstimate}` : ""}. Now build the song around it.
+            {t("worldAudioDesk.humHeardLine", {
+              tempo: typeof analysis.tempoBpm === "number" ? t("worldAudioDesk.humHeardBpm", { bpm: analysis.tempoBpm }) : t("worldAudioDesk.humHeardTempoFound"),
+              keyPart: typeof analysis.keyEstimate === "string" ? t("worldAudioDesk.humHeardKeyPart", { key: analysis.keyEstimate }) : "",
+            })}
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <DeskSelectField isLight={isLight} label="Mode" value={mode} onChange={setMode} options={[{ value: "simple", label: "Turbo — we arrange it" }, { value: "custom", label: "Advanced — my style notes" }]} />
-            <DeskTextField isLight={isLight} label="Song title" value={songTitle} onChange={setSongTitle} />
-            <DeskTextField isLight={isLight} label="Artist name" value={artistName} onChange={setArtistName} />
-            {mode === "custom" ? <DeskTextField isLight={isLight} label="Style notes" value={stylePrompt} onChange={setStylePrompt} /> : null}
+            <DeskSelectField isLight={isLight} label={t("worldAudioDesk.modeLabel")} value={mode} onChange={setMode} options={[{ value: "simple", label: t("worldAudioDesk.humModeTurbo") }, { value: "custom", label: t("worldAudioDesk.humModeCustom") }]} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.songTitleLabel")} value={songTitle} onChange={setSongTitle} />
+            <DeskTextField isLight={isLight} label={t("worldAudioDesk.artistNameLabel")} value={artistName} onChange={setArtistName} />
+            {mode === "custom" ? <DeskTextField isLight={isLight} label={t("worldAudioDesk.styleNotesLabel")} value={stylePrompt} onChange={setStylePrompt} /> : null}
           </div>
           <button type="button" data-testid="world-song-hum-generate" onClick={() => void generate()} disabled={busy !== null} className={goldBtn}>
             {busy === "generate" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Build the song · {humToSongCost().toLocaleString("en-US")} Visual Bucs
+            {t("worldAudioDesk.humBuildSong", { cost: humToSongCost().toLocaleString(i18n.language) })}
           </button>
         </div>
       ) : null}
       {error ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p> : null}
-      {songUrl ? <AudioResult url={songUrl} title={songTitle || "Your hum, as a song"} /> : null}
+      {songUrl ? <AudioResult url={songUrl} title={songTitle || t("worldAudioDesk.humResultTitle")} /> : null}
       <QuestProgressChip isLight={isLight} lines={quest.lines} />
     </div>
   );

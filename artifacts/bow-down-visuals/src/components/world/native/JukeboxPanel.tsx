@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   X, Loader2, Play, Pause, SkipForward, XCircle,
@@ -55,6 +56,7 @@ function fmtClock(sec: number): string {
 }
 
 export default function JukeboxPanel(props: StationPanelProps) {
+  const { t, i18n } = useTranslation();
   const { jukebox, jukeboxDenied, isGuest, isLight, myPeerId, isAdmin } = props;
   const authHeaders = useDeskAuthHeaders();
   const [catalog, setCatalog] = useState<{ mine: JukeboxCatalogItem[]; public: JukeboxCatalogItem[] } | null>(null);
@@ -149,10 +151,10 @@ export default function JukeboxPanel(props: StationPanelProps) {
           </span>
           <div className="min-w-0">
             <p className={`truncate text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-              Listening party: {jukebox.party.title}
+              {t("worldAudioDesk.partyBannerTitle", { title: jukebox.party.title })}
             </p>
             <p className={`truncate text-xs ${muted}`}>
-              Hosted by {jukebox.party.hostName} — the queue below is the party&rsquo;s program until it ends.
+              {t("worldAudioDesk.partyBannerHost", { name: jukebox.party.hostName })}
             </p>
           </div>
         </div>
@@ -172,10 +174,13 @@ export default function JukeboxPanel(props: StationPanelProps) {
               {cur.entry.track.title}
             </p>
             <p className={`truncate text-xs ${muted}`}>
-              {cur.entry.track.creatorName ? `${cur.entry.track.creatorName} · ` : ""}put on by {cur.entry.addedByName}
-              {" · "}
-              {cur.playback.playing ? "playing" : "paused"} at {fmtClock(positionNow)}
-              {cur.entry.track.durationSec > 0 ? ` of ${fmtClock(cur.entry.track.durationSec)}` : ""}
+              {t("worldAudioDesk.nowPlayingLine", {
+                creatorPart: cur.entry.track.creatorName ? t("worldAudioDesk.creatorPart", { creator: cur.entry.track.creatorName }) : "",
+                name: cur.entry.addedByName,
+                state: cur.playback.playing ? t("worldAudioDesk.playingWord") : t("worldAudioDesk.pausedWord"),
+                position: fmtClock(positionNow),
+                durationPart: cur.entry.track.durationSec > 0 ? t("worldAudioDesk.durationPart", { clock: fmtClock(cur.entry.track.durationSec) }) : "",
+              })}
             </p>
           </div>
           {canDrive ? (
@@ -187,7 +192,7 @@ export default function JukeboxPanel(props: StationPanelProps) {
                 className={chipBtn}
               >
                 {cur.playback.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                {cur.playback.playing ? "Pause for the room" : "Play for the room"}
+                {cur.playback.playing ? t("worldAudioDesk.pauseForRoomBtn") : t("worldAudioDesk.playForRoomBtn")}
               </button>
               <button
                 type="button"
@@ -195,26 +200,25 @@ export default function JukeboxPanel(props: StationPanelProps) {
                 onClick={() => props.onJukeboxSkip()}
                 className={chipBtn}
               >
-                <SkipForward className="h-3.5 w-3.5" /> Skip
+                <SkipForward className="h-3.5 w-3.5" /> {t("worldAudioDesk.skipBtn")}
               </button>
             </span>
           ) : (
             <span className={`ml-auto text-[11px] font-semibold ${muted}`}>
-              The transport answers to {cur.entry.addedByName}
-              {isAdmin ? "" : " — or the host"}.
+              {t("worldAudioDesk.transportAnswersTo", { name: cur.entry.addedByName, hostSuffix: isAdmin ? "" : t("worldAudioDesk.hostSuffixPart") })}
             </span>
           )}
         </div>
       ) : (
         <p className={`px-1 text-sm ${muted}`}>
-          The jukebox is quiet — no song on. Put the first one on and the whole room hears it together.
+          {t("worldAudioDesk.jukeboxQuietLine")}
         </p>
       )}
 
       {jukebox && jukebox.queue.length > 0 && (
         <div className="space-y-1.5">
           <p className={`px-1 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            Up next
+            {t("worldAudioDesk.upNextHeading")}
           </p>
           {jukebox.queue.map((entry, i) => (
             <div
@@ -228,7 +232,7 @@ export default function JukeboxPanel(props: StationPanelProps) {
                 {entry.track.title}
               </span>
               <span className={`truncate text-xs ${muted}`}>
-                {entry.track.creatorName ? `${entry.track.creatorName} · ` : ""}by {entry.addedByName}
+                {entry.track.creatorName ? t("worldAudioDesk.creatorPart", { creator: entry.track.creatorName }) : ""}{t("worldAudioDesk.byAdderPart", { name: entry.addedByName })}
               </span>
               {(isAdmin || entry.addedByPeerId === myPeerId) && (
                 <button
@@ -241,7 +245,7 @@ export default function JukeboxPanel(props: StationPanelProps) {
                       : "border-red-400/40 text-red-300 hover:text-red-200"
                   }`}
                 >
-                  <XCircle className="h-3 w-3" /> Pull it
+                  <XCircle className="h-3 w-3" /> {t("worldAudioDesk.pullItBtn")}
                 </button>
               )}
             </div>
@@ -251,33 +255,40 @@ export default function JukeboxPanel(props: StationPanelProps) {
 
       {jukeboxDenied && (
         <p className={`px-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-          {jukeboxDeniedCopy(jukeboxDenied)}
+          {jukeboxDeniedCopy(jukeboxDenied, {
+            guests: t("worldAudioDesk.deniedGuests"),
+            unplayable: t("worldAudioDesk.deniedUnplayable"),
+            queueFull: t("worldAudioDesk.deniedQueueFull"),
+            listeningParty: t("worldAudioDesk.deniedListeningParty"),
+            notYours: t("worldAudioDesk.deniedNotYours"),
+            fallback: t("worldAudioDesk.deniedFallback"),
+          })}
         </p>
       )}
 
       <div>
         <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-          Put a song on
+          {t("worldAudioDesk.putSongOnHeading")}
         </p>
         {isGuest ? (
           <p className={`mt-1.5 text-sm ${muted}`}>
-            Guests listen in — <Link href={GUEST_SIGN_IN_HREF} className="font-bold text-[#d4af37] underline underline-offset-2">sign in</Link>{" "}
-            to feed the jukebox. The queue is published songs only: yours, and everyone&rsquo;s on a public profile.
+            {t("worldAudioDesk.jukeboxGuestPrefix")} <Link href={GUEST_SIGN_IN_HREF} className="font-bold text-[#d4af37] underline underline-offset-2">{t("worldAudioDesk.signInLinkWord")}</Link>{" "}
+            {t("worldAudioDesk.jukeboxGuestSuffix")}
           </p>
         ) : catalogFailed ? (
-          <p className={`mt-1.5 text-sm ${muted}`}>The song catalog wouldn&rsquo;t open — the jukebox itself still plays what&rsquo;s queued.</p>
+          <p className={`mt-1.5 text-sm ${muted}`}>{t("worldAudioDesk.catalogFailedLine")}</p>
         ) : catalog === null ? (
           <p className={`mt-1.5 inline-flex items-center gap-2 text-sm ${muted}`}>
-            <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> Opening the catalog…
+            <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {t("worldAudioDesk.openingCatalog")}
           </p>
         ) : catalog.mine.length + catalog.public.length === 0 ? (
           <p className={`mt-1.5 text-sm ${muted}`}>
-            Nothing published to feed it yet — publish a song on a profile and it can play for the whole room.
+            {t("worldAudioDesk.catalogEmptyLine")}
           </p>
         ) : (
           <div className="mt-1.5 space-y-2">
-            {catalogSection("Yours", catalog.mine)}
-            {catalogSection("From the palace", catalog.public)}
+            {catalogSection(t("worldAudioDesk.yoursSectionLabel"), catalog.mine)}
+            {catalogSection(t("worldAudioDesk.fromPalaceLabel"), catalog.public)}
           </div>
         )}
       </div>
@@ -302,11 +313,11 @@ export default function JukeboxPanel(props: StationPanelProps) {
    server's; lib/world/listening-party mirrors them so the form
    refuses a bad booking in the same words before it round-trips. */
 
-function fmtPartyWhen(iso: string): string {
+function fmtPartyWhen(iso: string, lang?: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleString(undefined, {
+    : d.toLocaleString(lang, {
         weekday: "short",
         month: "short",
         day: "numeric",
@@ -321,6 +332,7 @@ function ListeningPartySection(props: {
   catalog: { mine: JukeboxCatalogItem[]; public: JukeboxCatalogItem[] } | null;
   authHeaders: () => Promise<Record<string, string>>;
 }) {
+  const { t, i18n } = useTranslation();
   const { isLight, isGuest, catalog, authHeaders } = props;
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -380,11 +392,11 @@ function ListeningPartySection(props: {
   if (isGuest) {
     return (
       <div>
-        <p className={headingCls}>Listening parties</p>
+        <p className={headingCls}>{t("worldAudioDesk.partiesHeading")}</p>
         <p className={`mt-1.5 text-sm ${muted}`}>
-          Members book this hall for an hour and the room hears their queue together —{" "}
-          <Link href={GUEST_SIGN_IN_HREF} className="font-bold text-[#d4af37] underline underline-offset-2">sign in</Link>{" "}
-          to host one. Tonight&rsquo;s parties are on the palace board.
+          {t("worldAudioDesk.guestPartiesPrefix")}{" "}
+          <Link href={GUEST_SIGN_IN_HREF} className="font-bold text-[#d4af37] underline underline-offset-2">{t("worldAudioDesk.signInLinkWord")}</Link>{" "}
+          {t("worldAudioDesk.guestPartiesSuffix")}
         </p>
       </div>
     );
@@ -398,7 +410,7 @@ function ListeningPartySection(props: {
       durationSec: item.durationSec,
     });
     if (result.outcome === "full") {
-      setError(`The queue is full — ${PARTY_QUEUE_MAX} songs is a party's whole program.`);
+      setError(t("worldAudioDesk.queueFullError", { max: PARTY_QUEUE_MAX }));
       return;
     }
     setError(null);
@@ -412,20 +424,20 @@ function ListeningPartySection(props: {
     try {
       const got = await fetchPlaylist(pickedPlaylist);
       if (!got) {
-        setError("That playlist wouldn't open — pick songs by hand instead.");
+        setError(t("worldAudioDesk.playlistOpenError"));
         return;
       }
       const fold = playlistQueueFold(got.playlist);
       if (fold.items.length === 0) {
-        setError("None of that playlist's songs can ride the jukebox — it plays published tracks only.");
+        setError(t("worldAudioDesk.playlistNonePlayableError"));
         return;
       }
       setQueue(fold.items);
       setPlaylistId(pickedPlaylist);
       setPlaylistNote(
-        `${fold.items.length} song${fold.items.length === 1 ? "" : "s"} from “${got.playlist.title}” are in the queue.` +
+        t("worldAudioDesk.playlistFoldSongs", { count: fold.items.length, title: got.playlist.title }) +
           (fold.skipped > 0
-            ? ` ${fold.skipped} item${fold.skipped === 1 ? "" : "s"} couldn't come along (videos and unpublished tracks stay behind).`
+            ? t("worldAudioDesk.playlistFoldSkipped", { count: fold.skipped })
             : ""),
       );
     } finally {
@@ -433,17 +445,37 @@ function ListeningPartySection(props: {
     }
   };
 
+  const partyStrings = {
+    nameFirst: t("worldAudioDesk.partyErrNameFirst"),
+    nameTooLong: t("worldAudioDesk.partyErrNameTooLong"),
+    queueEmpty: t("worldAudioDesk.partyErrQueueEmpty"),
+    queueTooLong: t("worldAudioDesk.partyErrQueueTooLong"),
+    notCatalog: t("worldAudioDesk.partyErrNotCatalog"),
+    slotTooShort: t("worldAudioDesk.partyErrSlotTooShort"),
+    slotTooLong: t("worldAudioDesk.partyErrSlotTooLong"),
+    pickStart: t("worldAudioDesk.partyErrPickStart"),
+    startPast: t("worldAudioDesk.partyErrStartPast"),
+    tooFarAhead: t("worldAudioDesk.partyErrTooFarAhead"),
+    slotTaken: t("worldAudioDesk.partyErrSlotTaken"),
+    invalidWindow: t("worldAudioDesk.partyErrInvalidWindow"),
+    invalidPayload: t("worldAudioDesk.partyErrInvalidPayload"),
+    roomMismatch: t("worldAudioDesk.partyErrRoomMismatch"),
+    signIn: t("worldAudioDesk.partyErrSignIn"),
+    didntLand: t("worldAudioDesk.bookingDidntLand"),
+  };
+
   const submit = async () => {
     setError(null);
     setNotice(null);
     const startsAtMs = parsePartyStartInput(startValue);
     if (startsAtMs === null) {
-      setError("Pick a start time for the party.");
+      setError(t("worldAudioDesk.partyErrPickStart"));
       return;
     }
     const built = buildListeningPartyBody(
       { title, startsAtMs, durationMin, queue, playlistId },
       Date.now(),
+      partyStrings,
     );
     if (!built.ok) {
       setError(built.error);
@@ -458,10 +490,10 @@ function ListeningPartySection(props: {
       });
       const data: unknown = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(listeningPartyErrorCopy(res.status, data));
+        setError(listeningPartyErrorCopy(res.status, data, partyStrings));
         return;
       }
-      setNotice(`Booked — the Music Hall is yours ${fmtPartyWhen(built.body.startsAt)}. It's on the palace board now.`);
+      setNotice(t("worldAudioDesk.bookedNotice", { when: fmtPartyWhen(built.body.startsAt, i18n.language) }));
       setOpen(false);
       setTitle("");
       setQueue([]);
@@ -469,7 +501,7 @@ function ListeningPartySection(props: {
       setPlaylistNote(null);
       await refreshMine();
     } catch {
-      setError("The booking didn't land — nothing was scheduled. Try again.");
+      setError(t("worldAudioDesk.bookingDidntLand"));
     } finally {
       setBusy(false);
     }
@@ -484,13 +516,13 @@ function ListeningPartySection(props: {
         headers: await authHeaders(),
       });
       if (!res.ok) {
-        setError("That party wouldn't cancel — try again.");
+        setError(t("worldAudioDesk.cancelFailedError"));
         return;
       }
-      setNotice(`“${party.title}” is cancelled — the slot is open again.`);
+      setNotice(t("worldAudioDesk.partyCancelledNotice", { title: party.title }));
       await refreshMine();
     } catch {
-      setError("That party wouldn't cancel — try again.");
+      setError(t("worldAudioDesk.cancelFailedError"));
     } finally {
       setBusy(false);
     }
@@ -536,7 +568,7 @@ function ListeningPartySection(props: {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <p className={headingCls}>Listening parties</p>
+        <p className={headingCls}>{t("worldAudioDesk.partiesHeading")}</p>
         {!open && (
           <button
             type="button"
@@ -548,7 +580,7 @@ function ListeningPartySection(props: {
             }}
             className={`${chipBtn} ml-auto`}
           >
-            <CalendarDays className="h-3.5 w-3.5 text-[#d4af37]" /> Book the hall
+            <CalendarDays className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldAudioDesk.bookHallBtn")}
           </button>
         )}
       </div>
@@ -571,8 +603,10 @@ function ListeningPartySection(props: {
                 {party.title}
               </span>
               <span className={`truncate text-xs ${muted}`}>
-                {party.status === "live" ? "Live now" : fmtPartyWhen(party.startsAt)} · {party.trackCount} song
-                {party.trackCount === 1 ? "" : "s"}
+                {t("worldAudioDesk.partyMetaLine", {
+                  when: party.status === "live" ? t("worldAudioDesk.liveNowLabel") : fmtPartyWhen(party.startsAt, i18n.language),
+                  songs: t("worldAudioDesk.partySongsCount", { count: party.trackCount }),
+                })}
               </span>
               <button
                 type="button"
@@ -585,7 +619,7 @@ function ListeningPartySection(props: {
                     : "border-red-400/40 text-red-300 hover:text-red-200"
                 }`}
               >
-                <X className="h-3 w-3" /> Cancel
+                <X className="h-3 w-3" /> {t("worldAudioDesk.cancelBtn")}
               </button>
             </div>
           ))}
@@ -595,21 +629,21 @@ function ListeningPartySection(props: {
       {open && (
         <div className="space-y-3">
           <div>
-            <label className={`text-[11px] font-bold ${muted}`} htmlFor="party-title">Party name</label>
+            <label className={`text-[11px] font-bold ${muted}`} htmlFor="party-title">{t("worldAudioDesk.partyNameLabel")}</label>
             <input
               id="party-title"
               data-testid="world-party-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={120}
-              placeholder="Album Night"
+              placeholder={t("worldAudioDesk.partyNamePlaceholder")}
               className={`${inputCls} mt-1`}
             />
           </div>
 
           <div className="flex flex-wrap gap-3">
             <div className="min-w-44 flex-1">
-              <label className={`text-[11px] font-bold ${muted}`} htmlFor="party-start">Starts</label>
+              <label className={`text-[11px] font-bold ${muted}`} htmlFor="party-start">{t("worldAudioDesk.startsLabel")}</label>
               <input
                 id="party-start"
                 data-testid="world-party-start"
@@ -620,7 +654,7 @@ function ListeningPartySection(props: {
               />
             </div>
             <div>
-              <p className={`text-[11px] font-bold ${muted}`}>Length</p>
+              <p className={`text-[11px] font-bold ${muted}`}>{t("worldAudioDesk.lengthLabel")}</p>
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {PARTY_DURATION_PRESETS_MIN.map((min) => (
                   <button
@@ -630,7 +664,7 @@ function ListeningPartySection(props: {
                     onClick={() => setDurationMin(min)}
                     className={`${chipBtn} ${durationMin === min ? "border-[#d4af37] bg-[#d4af37]/20 text-[#d4af37]" : ""}`}
                   >
-                    {min >= 60 ? `${min / 60} hr` : `${min} min`}
+                    {min >= 60 ? t("worldAudioDesk.durationHour", { hours: min / 60 }) : t("worldAudioDesk.durationMin", { minutes: min })}
                   </button>
                 ))}
               </div>
@@ -641,7 +675,7 @@ function ListeningPartySection(props: {
             <div className="flex flex-wrap items-end gap-2">
               <div className="min-w-44 flex-1">
                 <label className={`text-[11px] font-bold ${muted}`} htmlFor="party-playlist">
-                  Start from one of your playlists
+                  {t("worldAudioDesk.fromPlaylistLabel")}
                 </label>
                 <select
                   id="party-playlist"
@@ -650,7 +684,7 @@ function ListeningPartySection(props: {
                   onChange={(e) => setPickedPlaylist(e.target.value)}
                   className={`${inputCls} mt-1`}
                 >
-                  <option value="">Choose a playlist…</option>
+                  <option value="">{t("worldAudioDesk.choosePlaylistOption")}</option>
                   {playlists.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.title} ({p.itemCount})
@@ -665,7 +699,7 @@ function ListeningPartySection(props: {
                 onClick={() => void applyPlaylist()}
                 className={chipBtn}
               >
-                Use its songs
+                {t("worldAudioDesk.useItsSongsBtn")}
               </button>
             </div>
           )}
@@ -673,10 +707,10 @@ function ListeningPartySection(props: {
 
           <div>
             <p className={`text-[11px] font-bold ${muted}`}>
-              The queue — plays in order ({queue.length}/{PARTY_QUEUE_MAX})
+              {t("worldAudioDesk.queueHeadingLine", { count: queue.length, max: PARTY_QUEUE_MAX })}
             </p>
             {queue.length === 0 ? (
-              <p className={`mt-1 text-sm ${muted}`}>Nothing picked yet — tap songs below to line them up.</p>
+              <p className={`mt-1 text-sm ${muted}`}>{t("worldAudioDesk.queueEmptyLine")}</p>
             ) : (
               <div className="mt-1 space-y-1.5">
                 {queue.map((item, i) => (
@@ -694,7 +728,7 @@ function ListeningPartySection(props: {
                     <span className="ml-auto inline-flex gap-1">
                       <button
                         type="button"
-                        aria-label="Move up"
+                        aria-label={t("worldAudioDesk.moveUpAria")}
                         disabled={i === 0}
                         onClick={() => setQueue(movePartyQueueItem(queue, i, -1))}
                         className={`${chipBtn} bdv-touch-box`}
@@ -703,7 +737,7 @@ function ListeningPartySection(props: {
                       </button>
                       <button
                         type="button"
-                        aria-label="Move down"
+                        aria-label={t("worldAudioDesk.moveDownAria")}
                         disabled={i === queue.length - 1}
                         onClick={() => setQueue(movePartyQueueItem(queue, i, 1))}
                         className={`${chipBtn} bdv-touch-box`}
@@ -712,7 +746,7 @@ function ListeningPartySection(props: {
                       </button>
                       <button
                         type="button"
-                        aria-label="Remove"
+                        aria-label={t("worldAudioDesk.removeAria")}
                         onClick={() => setQueue(queue.filter((q) => q.id !== item.id))}
                         className={`${chipBtn} bdv-touch-box`}
                       >
@@ -728,12 +762,12 @@ function ListeningPartySection(props: {
           <div className="space-y-2">
             {catalog === null ? (
               <p className={`inline-flex items-center gap-2 text-sm ${muted}`}>
-                <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> Opening the catalog…
+                <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {t("worldAudioDesk.openingCatalog")}
               </p>
             ) : (
               <>
-                {pickSection("Yours", catalog.mine)}
-                {pickSection("From the palace", catalog.public)}
+                {pickSection(t("worldAudioDesk.yoursSectionLabel"), catalog.mine)}
+                {pickSection(t("worldAudioDesk.fromPalaceLabel"), catalog.public)}
               </>
             )}
           </div>
@@ -751,14 +785,14 @@ function ListeningPartySection(props: {
               className={`inline-flex items-center gap-1.5 rounded-full border border-[#d4af37] bg-[#d4af37]/20 px-4 py-2 text-xs font-black text-[#d4af37] transition hover:bg-[#d4af37]/30 disabled:opacity-50 bdv-touch-target`}
             >
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarDays className="h-3.5 w-3.5" />}
-              Book this party
+              {t("worldAudioDesk.bookPartyBtn")}
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
               className={chipBtn}
             >
-              Not now
+              {t("worldAudioDesk.notNowBtn")}
             </button>
           </div>
         </div>

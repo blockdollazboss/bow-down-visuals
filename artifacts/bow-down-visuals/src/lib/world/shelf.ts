@@ -119,16 +119,28 @@ const KIND_LABELS: Record<string, string> = {
   video: "Video",
 };
 
-function shelfKindLabel(itemKind: string): string {
-  return KIND_LABELS[itemKind] ?? itemKind;
+function shelfKindLabel(itemKind: string, overrides?: Record<string, string>): string {
+  return overrides?.[itemKind] ?? KIND_LABELS[itemKind] ?? itemKind;
 }
 
+/** Display options for the shelf's composed lines: the date
+ *  language (the desk passes i18n.language) and the caller's own
+ *  words for the pieces it renders. Every default is the
+ *  pre-i18n English behavior, byte-identical — other surfaces
+ *  (the Charts board) keep it until their own locale unit. */
+export interface ShelfDetailOptions {
+  lang?: string;
+  kindLabels?: Record<string, string>;
+}
+
+const SHELF_DATE_OPTS: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
+
 /** A shelf row's detail line: artist · kind · when you got it. */
-export function shelfDetailLine(p: ShelfPurchase): string {
-  const parts = [p.artistName, shelfKindLabel(p.itemKind)];
+export function shelfDetailLine(p: ShelfPurchase, opts?: ShelfDetailOptions): string {
+  const parts = [p.artistName, shelfKindLabel(p.itemKind, opts?.kindLabels)];
   const when = Date.parse(p.purchasedAt);
   if (Number.isFinite(when)) {
-    parts.push(new Date(when).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }));
+    parts.push(new Date(when).toLocaleDateString(opts?.lang ?? "en-US", SHELF_DATE_OPTS));
   }
   if (p.amount) parts.push(p.amount);
   return parts.join(" · ");
@@ -493,25 +505,57 @@ export function parseDownloadMint(payload: unknown): ShelfDownloadMint | null {
   };
 }
 
+/** The mint copy's pieces, in the caller's words. usesCount
+ *  carries one {{count}} token; expiresPart one {{date}} token.
+ *  The desk passes its active language's pieces (worldAudioDesk
+ *  keys); the English defaults are byte-identical to the
+ *  pre-i18n sentence. */
+export interface DownloadMintCopyStrings {
+  start: string;
+  usesCount: string;
+  usesLimited: string;
+  expiresPart: string;
+  end: string;
+}
+
+export const DOWNLOAD_MINT_COPY_STRINGS_EN: DownloadMintCopyStrings = {
+  start: "This is a download link for the file you bought.",
+  usesCount: " It works {{count}} times",
+  usesLimited: " It works a limited number of times",
+  expiresPart: " and expires {{date}}",
+  end: " — every time the link is opened, one use is spent, so send it only where you mean it to land.",
+};
+
 /** The honest burn-a-use wording for a minted link. */
-export function downloadMintCopy(mint: ShelfDownloadMint): string {
-  const uses = mint.maxUses !== null ? ` It works ${mint.maxUses} times` : " It works a limited number of times";
+export function downloadMintCopy(
+  mint: ShelfDownloadMint,
+  opts?: { lang?: string; strings?: DownloadMintCopyStrings },
+): string {
+  const s = opts?.strings ?? DOWNLOAD_MINT_COPY_STRINGS_EN;
+  const uses =
+    mint.maxUses !== null ? s.usesCount.split("{{count}}").join(String(mint.maxUses)) : s.usesLimited;
   const expiry = mint.expiresAt
-    ? ` and expires ${new Date(mint.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+    ? s.expiresPart
+        .split("{{date}}")
+        .join(new Date(mint.expiresAt).toLocaleDateString(opts?.lang ?? "en-US", SHELF_DATE_OPTS))
     : "";
-  return `This is a download link for the file you bought.${uses}${expiry} — every time the link is opened, one use is spent, so send it only where you mean it to land.`;
+  return `${s.start}${uses}${expiry}${s.end}`;
 }
 
 /** A purchase's receipt line: receipt id + what was paid + when.
  *  The purchases payload already carries all three (receiptId is the
- *  checkout session id, falling back to the sale id server-side). */
-export function shelfReceiptLine(p: ShelfPurchase): string {
+ *  checkout session id, falling back to the sale id server-side).
+ *  `receiptTemplate` carries one {{id}} token. */
+export function shelfReceiptLine(
+  p: ShelfPurchase,
+  opts?: { lang?: string; receiptTemplate?: string },
+): string {
   const parts: string[] = [];
-  if (p.receiptId) parts.push(`Receipt ${p.receiptId}`);
+  if (p.receiptId) parts.push((opts?.receiptTemplate ?? "Receipt {{id}}").split("{{id}}").join(p.receiptId));
   if (p.amount) parts.push(p.amount);
   const when = Date.parse(p.purchasedAt);
   if (Number.isFinite(when)) {
-    parts.push(new Date(when).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }));
+    parts.push(new Date(when).toLocaleDateString(opts?.lang ?? "en-US", SHELF_DATE_OPTS));
   }
   return parts.join(" · ");
 }
