@@ -368,31 +368,14 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // env MOVIE_CONCEPT_CREDIT_COST / CLIP_DETECT_CREDIT_COST).
   "/api/movies/concept": { cost: 400, feature: "Movie/Series Concept" },
   "/api/movies/clip-detect": { cost: 300, feature: "Stream Clip Detection" },
-  // DETECTION_CREDITS (routes/generate/media-detector.ts, env
-  // MEDIA_DETECTION_CREDIT_COST) — the /detector page's CREDIT_COST
-  // badge agrees at 200. Added stack1500 parity wave #3 so the
-  // in-World Detector Desk reads its price from the registry.
-  "/api/detect/media": { cost: 200, feature: "AI Media Detection" },
-  // INTERVIEW_PREP_CREDIT_COST / INTERVIEW_FEEDBACK_CREDIT_COST
-  // (routes/generate/interview-prep.ts) — the /interview-prep page's
-  // header figures agree (200 per session, 100 per practice answer).
-  "/api/interview-prep/session": { cost: 200, feature: "Interview Prep Session" },
-  "/api/interview-prep/feedback": { cost: 100, feature: "Interview Practice Feedback" },
   // SETLIST_FLOW_CREDIT_COST (routes/generate/setlist.ts) — the
   // builder itself is free; only the AI flow suggestion charges.
   "/api/setlist/flow": { cost: 100, feature: "Setlist Flow Suggestion" },
-  // LLC_GUIDE_CREDIT_COST (routes/generate/llc-guide.ts) — one
-  // constant charges both the Q&A and the filing plan.
-  "/api/llc-guide/ask": { cost: 100, feature: "LLC Guide Answer" },
-  "/api/llc-guide/plan": { cost: 100, feature: "LLC Guide Plan" },
   // COPYRIGHT_DRAFT_CREDITS / COPYRIGHT_ASK_CREDITS
   // (routes/generate/copyright.ts) — the /copyright page's header
   // figures agree (100 each).
   "/api/copyright/draft": { cost: 100, feature: "Copyright Filing Draft" },
   "/api/copyright/ask": { cost: 100, feature: "Copyright Answer" },
-  // BRAND_CALC_CREDIT_COST (routes/generate/brand-calculator.ts) —
-  // the /brand-calculator page's CREDIT_COST badge agrees at 200.
-  "/api/brand-calculator/calculate": { cost: 200, feature: "Brand Deal Calculator" },
   // Free actions (cost 0, same pattern as Inspo Vibe Analysis and
   // Stock Media Search above): the surface's route handlers charge
   // nothing, and the registry records that so the operator can say

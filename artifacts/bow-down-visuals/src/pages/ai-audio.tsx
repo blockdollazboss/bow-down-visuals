@@ -14,7 +14,6 @@ import {
   Cloud, Footprints, Library, Package, Check, Sparkles, Copy, ClipboardPaste,
   Volume2, VolumeX, Clapperboard, Piano, Metronome,
   Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat, Gauge, Upload, ChevronDown, Layers, Dices,
-  Plus, Minus, X, ChevronLeft, ChevronRight, ListMusic, Repeat, Gauge, Upload, ChevronDown, Layers,
   FolderDown, LayoutGrid,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -1929,6 +1928,8 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
       }
     }
     setPackResults(results);
+  };
+
   /* Remove a saved library sound everywhere: the rail deletes the row
    * + stored object, the registry forgets it, and any track using it
    * returns to its built-in voice. A failed delete changes nothing and
