@@ -20,6 +20,11 @@ import {
   ControllerRemoteClient, controllerSocketUrl,
   type ControllerSocketLike,
 } from "@/lib/stream-controller";
+import { LayoutTemplate } from "lucide-react";
+import {
+  SCENE_PRESET_OPTIONS, SCENE_PRESET_APPLY_COMMAND, SCENE_PRESET_PICKER_NOTE,
+  scenePresetApplyArgs,
+} from "@/lib/world/live-desk";
 import {
   createStreamTransport, SITE_DESTINATION, WhipTransport, OwnServerTransport,
   TransportError, type StreamTransport,
@@ -113,6 +118,10 @@ import type { NoiseCancellationLevel } from "@/lib/stream-kit/voice-isolator";
    - LiveControllerDesk (#89): the StreamDeck driven by
      ControllerRemoteClient over the per-account controller relay —
      the phone remote's exact surface, in-world.
+     Wave IV (#94) adds the scene preset picker under the deck: the
+     stream-kit preset registry, relayed as scene.preset.apply to
+     the running studio, whose stage applies it through the
+     ScenesPanel's own path and frames it in Preview.
    - LiveWatchDesk (#90): for the stream on the big screen — the
      watch page's LiveChatPanel, its follow rail (FollowButton +
      PushAlertsToggle), on-stage guest chips and presence heartbeat.
@@ -2310,6 +2319,48 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
           notice={client?.notice ?? null}
           onCommand={(cmd, args) => { client?.send(cmd, args); }}
         />
+        {/* ── #94 Scene presets — the registry, relayed ──────────────
+            The picker IS the stream-kit registry (the seam's
+            SCENE_PRESET_OPTIONS — the array ScenesPanel renders).
+            There is no Stage in the World: a pick sends
+            scene.preset.apply over the same relay and the running
+            studio's stage applies it through applyScenePreset, the
+            panel's own path — the built scene lands in the studio's
+            Preview, Program untouched, and the deck learns it from
+            the studio's confirmed state like every other button.
+            The panel below rides the deck box's dark-lock styling. */}
+        <div className="mt-4 border-t border-white/10 pt-3" data-testid="world-live-scene-presets">
+          <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#fbbf24]/80">
+            <LayoutTemplate className="h-3.5 w-3.5" /> Scene presets
+          </p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {SCENE_PRESET_OPTIONS.map((preset) => {
+              const isP = client?.isPending(SCENE_PRESET_APPLY_COMMAND, preset.id) ?? false;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  disabled={!(stageConnected && socketUp) || !state}
+                  onClick={() => { client?.send(SCENE_PRESET_APPLY_COMMAND, scenePresetApplyArgs(preset.id)); }}
+                  data-testid={`world-live-preset-${preset.id}`}
+                  className={`relative rounded-2xl border px-3 py-2.5 text-left transition-colors ${
+                    !(stageConnected && socketUp) || !state
+                      ? "cursor-not-allowed border-white/10 bg-white/[0.04] opacity-40"
+                      : "border-white/10 bg-white/[0.04] hover:border-[#C9A84C]/70 hover:bg-[#C9A84C]/10"
+                  }`}
+                >
+                  <span className="block pr-5 text-sm font-bold leading-tight text-white/90">{preset.name}</span>
+                  <span className="mt-0.5 block text-[11px] leading-snug text-white/50">{preset.blurb}</span>
+                  <span className="mt-1 block text-[10px] font-black uppercase tracking-widest text-white/40">
+                    {isP ? "Sending…" : "Adds scene to Preview"}
+                  </span>
+                  {isP && <Loader2 className="absolute right-2.5 top-2.5 h-3.5 w-3.5 animate-spin text-white/70" />}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] leading-snug text-white/50">{SCENE_PRESET_PICKER_NOTE}</p>
+        </div>
       </div>
     </div>
   );
