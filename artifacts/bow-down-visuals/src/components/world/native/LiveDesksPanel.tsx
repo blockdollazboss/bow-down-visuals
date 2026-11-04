@@ -16,6 +16,7 @@ import {
   LiveControllerDesk,
   LiveWatchDesk,
   LivePremiereDesk,
+  LiveSongRequestsDesk,
 } from "./LiveDesk";
 import { LiveShoppingDesk } from "./LiveShoppingDesk";
 import { LiveCopilotDesk } from "./LiveCopilotDesk";
@@ -45,6 +46,11 @@ export default function LiveDesksPanel({ isLight, screen, onStreamChange }: Live
       <LiveControllerDesk isLight={isLight} />
       <LiveWatchDesk isLight={isLight} screen={screen} />
       <LivePremiereDesk isLight={isLight} />
+      {/* Stack100 wave 3, item 17: Song Requests — the creator's
+          queue desk (rules + the live queue doors) on the 2D
+          surfaces' rails; the fan face rides inside the watch
+          desk above. Same members-only panel, same one queue. */}
+      <LiveSongRequestsDesk isLight={isLight} />
       {/* World parity wave 1, item 1: Live Shopping — pin products
           to a live selling session, the pinned card + purchase
           alerts + per-stream revenue, on the 2D page's own rails;
