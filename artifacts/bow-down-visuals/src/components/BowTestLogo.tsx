@@ -230,7 +230,7 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
       </span>
       </div>
       {rewardCredits !== null && (
-        <SecretChallengePopup credits={rewardCredits} onClaim={() => setRewardCredits(null)} />
+        <SecretChallengePopup credits={rewardCredits} onClaim={() => setRewardCredits(null)} onDismiss={() => setRewardCredits(null)} />
       )}
     </>
   );

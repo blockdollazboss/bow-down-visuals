@@ -1,5 +1,7 @@
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { useState } from "react";
+import { X } from "lucide-react";
 import { mediaUrl } from "@/lib/media-cdn";
 
 const popupArt = mediaUrl("assets/bow-winner-popup.webp");
@@ -17,6 +19,15 @@ const popupArt = mediaUrl("assets/bow-winner-popup.webp");
    bare public/ path, so a stale cache can never 404 it. If the image
    still fails to load for any reason, a pure-CSS fallback card renders
    instead — the popup (and its Claim button) always works.
+
+   DISMISS CONTRACT (QC-200 fix queue #1): this popup must never be a
+   trap. Alongside Claim it always offers a neutral dismiss —
+   Escape (via the house useModalA11y contract), a visible Close
+   button, and a backdrop click — all routed to onDismiss, which
+   closes WITHOUT claiming and changes no state. In every caller the
+   award is already settled before the popup shows (the Bow Test
+   server grants at win time; the admin previews grant nothing), so
+   dismissing can never lose or duplicate a prize.
    ============================================================ */
 
 /** Amount baked into bow-winner-popup.webp — keep in sync with the artwork. */
@@ -25,25 +36,44 @@ const BAKED_IN_CREDITS = 50;
 export function SecretChallengePopup({
   credits,
   onClaim,
+  onDismiss,
 }: {
   credits: number;
   onClaim: () => void;
+  onDismiss: () => void;
 }) {
   const isLight = useIsLightTheme();
   const [imgFailed, setImgFailed] = useState(false);
+  // House dialog contract: Escape closes (topmost-only), focus is
+  // trapped inside the popup and restored on close.
+  const dialogRef = useModalA11y<HTMLDivElement>(true, onDismiss);
   // Cover the baked-in amount only when the real award differs from it.
   const needsAmountOverlay = credits !== BAKED_IN_CREDITS;
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/85 p-4"
       role="dialog"
       aria-modal="true"
       aria-label="You cracked the code"
+      onClick={(e) => {
+        // Backdrop click dismisses; clicks on the card/art do not.
+        if (e.target === e.currentTarget) onDismiss();
+      }}
     >
       {imgFailed ? (
         /* Fallback card — no image dependency, always tappable. */
-        <div className={`${isLight ? "w-[min(94vw,560px)] rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-8 text-center shadow-[0_0_60px_rgba(201,168,76,0.35)]" : "w-[min(94vw,560px)] rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#1a1408] to-[#0d0a04] p-8 text-center shadow-[0_0_60px_rgba(201,168,76,0.35)]"}`}>
+        <div className={`relative ${isLight ? "w-[min(94vw,560px)] rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-8 text-center shadow-[0_0_60px_rgba(201,168,76,0.35)]" : "w-[min(94vw,560px)] rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#1a1408] to-[#0d0a04] p-8 text-center shadow-[0_0_60px_rgba(201,168,76,0.35)]"}`}>
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Close"
+            className={`absolute right-3 top-3 rounded-full p-1.5 transition ${isLight ? "text-[#6B5B36] hover:bg-black/5" : "text-white/60 hover:bg-white/10 hover:text-white"}`}
+          >
+            <X className="h-5 w-5" />
+          </button>
           <div className="text-5xl" aria-hidden="true">
             👑
           </div>
@@ -101,6 +131,18 @@ export function SecretChallengePopup({
           )}
           {/* Screen-reader announcement of the real amount */}
           <span className="sr-only">You&rsquo;ve been awarded {credits.toLocaleString("en-US")} Visual Bucs.</span>
+
+          {/* Neutral dismiss — always available, never claims. Sits
+              before Claim in DOM order so it takes initial focus (a
+              visible target, unlike the transparent Claim overlay). */}
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Close"
+            className="absolute right-2 top-2 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-[#C9A84C]/70 bg-black/70 text-[#e8c86a] transition hover:bg-black/90 hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </button>
 
           {/* Working Claim button over the baked-in Claim art
               (measured at 38.8–60.4% x, 65.4–71.6% y). */}

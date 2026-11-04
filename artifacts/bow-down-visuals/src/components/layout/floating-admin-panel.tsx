@@ -579,6 +579,7 @@ function BowRaceControls({
       <SecretChallengePopup
         credits={parseInt(reward, 10) || 50}
         onClaim={() => setTestPopup(false)}
+        onDismiss={() => setTestPopup(false)}
       />
     )}
     </>

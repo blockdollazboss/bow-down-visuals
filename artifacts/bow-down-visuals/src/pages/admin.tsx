@@ -2131,6 +2131,7 @@ export default function AdminPage() {
               <SecretChallengePopup
                 credits={parseInt(bowReward, 10) || 50}
                 onClaim={() => setBowTestPopup(false)}
+                onDismiss={() => setBowTestPopup(false)}
               />
             )}
           </div>
