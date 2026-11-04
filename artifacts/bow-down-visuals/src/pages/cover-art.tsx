@@ -20,7 +20,9 @@ import {
   COVER_ART_PRESETS,
   COVER_ART_STYLES,
   COVER_ART_RATIOS,
+  COVER_ART_LAYOUTS,
   COVER_ART_TIERS,
+  coverArtLayoutDiagram,
   getCoverArtTier,
   type CoverArtResult,
 } from "@/lib/cover-art";
@@ -50,6 +52,9 @@ export default function CoverArt() {
   const [mood, setMood] = useState("");
   const [style, setStyle] = useState("luxury-gold");
   const [aspectRatio, setAspectRatio] = useState("1:1");
+  /* Layout template — "" is Freeform: no layout is sent and the rail
+     behaves exactly as it did before layouts existed. */
+  const [layout, setLayout] = useState("");
   const [tier, setTier] = useState<"standard" | "premium">("standard");
   const [generating, setGenerating] = useState(false);
   /* Creator font library (Stack-200 fonts lane): the cover TITLE font,
@@ -104,6 +109,9 @@ export default function CoverArt() {
           mood: mood.trim(),
           style,
           aspectRatio,
+          /* Layout rides only when one is picked — Freeform omits the
+             field entirely, keeping the request byte-identical to before. */
+          ...(layout ? { layout } : {}),
           tier,
           /* Virality: opt-in attribution credit (paid export → opt-in). */
           attribution,
@@ -315,6 +323,74 @@ export default function CoverArt() {
                     <span className="block text-[10px] text-white/40">{r.blurb}</span>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.layout", { defaultValue: "Layout" })}<span className="normal-case text-white/25">{t("cover-art.optional")}</span>
+              </label>
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {/* Freeform — nothing is sent; the art director free-styles
+                    the typography (the pre-layout behavior). */}
+                <button
+                  type="button"
+                  onClick={() => setLayout("")}
+                  className={`rounded-xl border p-2.5 text-left transition ${
+                    layout === ""
+                      ? "border-primary/70 bg-primary/10"
+                      : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                  }`}
+                >
+                  <span className={`relative block aspect-square overflow-hidden rounded-lg border border-dashed mb-1.5 ${isLight ? "border-[#C9A84C]/50 bg-[#EFE3C2]" : "border-white/20 bg-white/[0.03]"}`}>
+                    <span className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-black ${isLight ? "text-[#7A5E1E]" : "text-white/40"}`}>Aa</span>
+                  </span>
+                  <span className="block text-xs font-bold">{t("cover-art.layoutFreeform", { defaultValue: "Freeform" })}</span>
+                  <span className="block text-[10px] text-white/40">{t("cover-art.layoutFreeformBlurb", { defaultValue: "Art director's choice" })}</span>
+                </button>
+                {COVER_ART_LAYOUTS.map((l) => {
+                  const d = coverArtLayoutDiagram(l);
+                  return (
+                    <button
+                      key={l.key}
+                      type="button"
+                      onClick={() => setLayout(l.key)}
+                      className={`rounded-xl border p-2.5 text-left transition ${
+                        layout === l.key
+                          ? "border-primary/70 bg-primary/10"
+                          : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                      }`}
+                    >
+                      {/* Schematic derived from the layout's own placement
+                          spec — the picture is the composition you get. */}
+                      <span className={`relative block aspect-square overflow-hidden rounded-lg border mb-1.5 ${isLight ? "border-[#C9A84C]/40 bg-[#EFE3C2]" : "border-white/10 bg-black/40"}`}>
+                        <span
+                          className="absolute bg-primary/25"
+                          style={{ top: d.subject.top, left: d.subject.left, width: d.subject.width, height: d.subject.height }}
+                        />
+                        {d.title && (
+                          <span
+                            className={`absolute h-[9%] rounded-sm ${isLight ? "bg-[#7A5E1E]" : "bg-white/80"}`}
+                            style={{ top: d.title.top, left: d.title.left, width: d.title.width }}
+                          />
+                        )}
+                        {d.artist && (
+                          <span
+                            className={`absolute h-[6%] rounded-sm ${isLight ? "bg-[#7A5E1E]/50" : "bg-white/45"}`}
+                            style={{ top: d.artist.top, left: d.artist.left, width: d.artist.width }}
+                          />
+                        )}
+                        {d.badge && (
+                          <span
+                            className="absolute h-[13%] w-[13%] rounded-sm bg-primary"
+                            style={{ bottom: d.badge.bottom, right: d.badge.right }}
+                          />
+                        )}
+                      </span>
+                      <span className="block text-xs font-bold">{l.label}</span>
+                      <span className="block text-[10px] text-white/40">{l.blurb}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

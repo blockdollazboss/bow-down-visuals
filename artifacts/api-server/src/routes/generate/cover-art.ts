@@ -103,6 +103,104 @@ export function resolveCoverArtCredits(tier: string): number {
   return tier === "premium" ? COVER_ART_PREMIUM_CREDITS : COVER_ART_STANDARD_CREDITS;
 }
 
+/* ─── Layout templates ──────────────────────────────────────────────────────
+   Composition templates on top of styles + ratios: where the title sits,
+   where the artist name goes, which zone stays clean for them. The FE
+   mirror lives in lib/cover-art.ts (COVER_ART_LAYOUTS — keep keys, labels,
+   and blurbs in sync). Layout is OPTIONAL on the request: when a client
+   sends none, the prompts are built exactly as they were before layouts
+   existed — the art director free-styles the typography. */
+export const COVER_ART_LAYOUTS = [
+  {
+    key: "center-stage",
+    label: "Center Stage",
+    blurb: "Title front and center, artist right beneath",
+    direction:
+      "centered composition — the song title sits dead-center of the frame " +
+      "at hero size in a bold stacked treatment, with the artist name " +
+      "directly beneath it in smaller letter-spaced capitals; the artwork's " +
+      "subject frames the center so the text zone stays clean and uncluttered",
+    imageZone:
+      "Leave the center of the composition clean and uncluttered where the song title will sit.",
+  },
+  {
+    key: "headline-top",
+    label: "Headline Top",
+    blurb: "Artist up top, title right under it — classic billing",
+    direction:
+      "classic top billing — the artist name in small capitals across the " +
+      "very top of the frame, the song title large directly beneath it; " +
+      "the artwork's subject fills the lower two-thirds and the top band " +
+      "stays clean for the text",
+    imageZone:
+      "Leave a clean uncluttered band across the top of the composition where the title will sit.",
+  },
+  {
+    key: "bottom-band",
+    label: "Bottom Band",
+    blurb: "Artwork breathes up top, title band along the bottom",
+    direction:
+      "the artwork fills the upper two-thirds of the frame; a clean band " +
+      "across the bottom carries the song title large and left-aligned, " +
+      "with the artist name beneath it in smaller type",
+    imageZone:
+      "Leave a clean uncluttered band across the bottom of the composition where the title will sit.",
+  },
+  {
+    key: "split-frame",
+    label: "Split Frame",
+    blurb: "Subject on one side, words on the other",
+    direction:
+      "split composition — the artwork's subject occupies the right half " +
+      "of the frame while the left half stays clean and uncluttered for a " +
+      "left-aligned text block: the song title large near the top, the " +
+      "artist name beneath it",
+    imageZone:
+      "Leave the left half of the composition clean and uncluttered where the title will sit.",
+  },
+  {
+    key: "corner-mark",
+    label: "Corner Mark",
+    blurb: "Small title block in the corner — art does the talking",
+    direction:
+      "artwork-first composition filling the whole frame; the only text " +
+      "is a small block tucked into the bottom-left corner — the song " +
+      "title in compact type with the artist name beneath it — and " +
+      "everything else stays pure artwork",
+    imageZone:
+      "Leave only a small clean area in the bottom-left corner where the title will sit, and fill the rest of the frame fully.",
+  },
+  {
+    key: "corner-seal",
+    label: "Corner Seal",
+    blurb: "Title up top, artist at the foot, corner kept clear for a seal",
+    direction:
+      "the song title sits centered across the top of the frame at medium " +
+      "size and the artist name sits centered at the very bottom in small " +
+      "type; the bottom-right corner stays clean and uncluttered, " +
+      "reserved for a small seal or badge",
+    imageZone:
+      "Leave a clean uncluttered strip across the top of the composition and keep the bottom-right corner clear where the title and a small seal will sit.",
+  },
+  {
+    key: "pure-art",
+    label: "Pure Art",
+    blurb: "No words at all — the artwork is the cover",
+    direction:
+      "no typography at all — the artwork fills the entire frame edge to " +
+      "edge and no text zone is reserved; the image alone is the cover",
+    imageZone: "Fill the entire frame with the artwork — no text zone needed.",
+  },
+] as const;
+export type CoverArtLayoutKey = (typeof COVER_ART_LAYOUTS)[number]["key"];
+
+/** No key (or an absent field) means freeform — returns undefined so the
+    prompt builders can leave their wording exactly as it was pre-layouts. */
+export function resolveCoverArtLayout(key: string | undefined) {
+  if (!key) return undefined;
+  return COVER_ART_LAYOUTS.find((l) => l.key === key);
+}
+
 /* ─── Request validation ──────────────────────────────────────────────────── */
 export const coverArtSchema = z.object({
   songTitle: z.string().min(1, "Song title is required.").max(120),
@@ -120,6 +218,13 @@ export const coverArtSchema = z.object({
       message: "Unknown aspect ratio.",
     })
     .default("1:1"),
+  /** Optional composition template — absent means freeform (pre-layout behavior). */
+  layout: z
+    .string()
+    .refine((v) => COVER_ART_LAYOUTS.some((l) => l.key === v), {
+      message: "Unknown layout template.",
+    })
+    .optional(),
   tier: z.enum(["standard", "premium"]).default("standard"),
   /** Virality: opt-in "Made with Bow Down Visuals" corner credit burned post-generation (paid export → opt-in). */
   attribution: attributionOptIn(),
@@ -140,6 +245,8 @@ interface ArtDirection {
 export function buildArtDirectionRequest(input: CoverArtInput) {
   const style = resolveCoverArtStyle(input.style);
   const moodLine = input.mood.trim() ? ` Mood/genre: "${input.mood.trim()}".` : "";
+  const layout = resolveCoverArtLayout(input.layout);
+  const layoutLine = layout ? ` Layout: ${layout.direction}.` : "";
   return {
     model: getTextModel(),
     messages: [
@@ -148,7 +255,7 @@ export function buildArtDirectionRequest(input: CoverArtInput) {
         content:
           `You are an award-winning album-cover art director. ` +
           `Design a cover for the song "${input.songTitle}" by ${input.artistName}.${moodLine} ` +
-          `Style: ${style.direction}. ` +
+          `Style: ${style.direction}.${layoutLine} ` +
           `Write: (1) a one-paragraph visual concept for the artwork (no text in the concept ` +
           `itself — the image model cannot render words); (2) typography direction — exactly ` +
           `how the song title "${input.songTitle}" and artist name "${input.artistName}" ` +
@@ -196,10 +303,16 @@ export function buildCoverImagePrompt(input: CoverArtInput, art: ArtDirection): 
   const style = resolveCoverArtStyle(input.style);
   const conceptLine = art.concept ? ` Concept: ${art.concept}` : "";
   const paletteLine = art.palette.length > 0 ? ` Color palette: ${art.palette.join(",")}.` : "";
+  /* With a layout, the clean zone moves to the layout's placement; without
+     one this sentence is byte-identical to the pre-layout wording. */
+  const layout = resolveCoverArtLayout(input.layout);
+  const zoneLine = layout
+    ? ` ${layout.imageZone}`
+    : " Leave a clean uncluttered area in the composition where a song title can be placed.";
   return (
     `Album cover artwork, no text, no words, no letters, no logos. ` +
-    `${style.direction}.${conceptLine}${paletteLine} ` +
-    `Leave a clean uncluttered area in the composition where a song title can be placed. ` +
+    `${style.direction}.${conceptLine}${paletteLine}` +
+    `${zoneLine} ` +
     `Professional music-industry quality, high detail, striking focal point.`
   ).slice(0, 4000);
 }
@@ -348,7 +461,13 @@ router.post("/cover-art", requireAuth, async (req, res) => {
     }
 
     logger.info(
-      { userId: req.userId, style: input.style, ratio: input.aspectRatio, tier: input.tier },
+      {
+        userId: req.userId,
+        style: input.style,
+        ratio: input.aspectRatio,
+        tier: input.tier,
+        layout: input.layout ?? "freeform",
+      },
       "[cover-art] generation succeeded",
     );
     res.json({
