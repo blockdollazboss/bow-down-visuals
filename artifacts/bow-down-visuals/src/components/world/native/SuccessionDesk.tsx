@@ -1,5 +1,6 @@
 import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
 import { deskInputCls, useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
@@ -22,6 +23,7 @@ import {
   type LegacyContact,
   type LegacyDesignation,
   type LegacyDesignationState,
+  type SuccessionStrings,
 } from "@/lib/world/get-paid-tail";
 
 /* ─── SuccessionDesk — legacy & succession settings, in the
@@ -49,6 +51,7 @@ import {
    The EarningsBoard already pitches guests. */
 
 export function SuccessionDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const [state, setState] = useState<LegacyDesignationState | null>(null);
   const [stateFailed, setStateFailed] = useState(false);
@@ -69,6 +72,19 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
   const [contactBusy, setContactBusy] = useState(false);
   const [contactNote, setContactNote] = useState<string | null>(null);
   const [contactError, setContactError] = useState<string | null>(null);
+
+  const successionStrings: SuccessionStrings = {
+    problemHeirEmpty: t("worldIdentityMisc.sucProblemHeirEmpty"),
+    problemHeirShape: t("worldIdentityMisc.sucProblemHeirShape"),
+    problemInstructionsCap: t("worldIdentityMisc.sucProblemInstructionsCap"),
+    problemNameEmpty: t("worldIdentityMisc.sucProblemNameEmpty"),
+    problemNameCap: t("worldIdentityMisc.sucProblemNameCap"),
+    problemEmailEmpty: t("worldIdentityMisc.sucProblemEmailEmpty"),
+    problemEmailShape: t("worldIdentityMisc.sucProblemEmailShape"),
+    problemNoteCap: t("worldIdentityMisc.sucProblemNoteCap"),
+    designationNone: t("worldIdentityMisc.sucDesigNone"),
+    designationCurrent: t("worldIdentityMisc.sucDesigCurrent"),
+  };
 
   const loadDesignation = useCallback(async () => {
     try {
@@ -105,7 +121,7 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
 
   const saveDesignation = async () => {
     if (desBusy) return;
-    const problem = designationProblem(heir, instructions);
+    const problem = designationProblem(heir, instructions, successionStrings);
     if (problem) { setDesError(problem); setDesNote(null); return; }
     setDesBusy("save");
     setDesError(null);
@@ -117,12 +133,12 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(designationPayload(heir, instructions)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Could not save your designation."));
-      if (!parseLegacyDesignationAnswer(data)) throw new Error("Could not save your designation.");
-      setDesNote("Saved. Your heir sees a pending designation and chooses whether to accept.");
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldIdentityMisc.sucErrorSave")));
+      if (!parseLegacyDesignationAnswer(data)) throw new Error(t("worldIdentityMisc.sucErrorSave"));
+      setDesNote(t("worldIdentityMisc.sucNoteSaved"));
       await loadDesignation();
     } catch (e) {
-      setDesError(plainErrorText(e, "Could not save your designation."));
+      setDesError(plainErrorText(e, t("worldIdentityMisc.sucErrorSave")));
     } finally { setDesBusy(null); }
   };
 
@@ -137,13 +153,13 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
         headers: await authHeaders(),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Could not remove your designation."));
-      setDesNote("Designation removed.");
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldIdentityMisc.sucErrorRemove")));
+      setDesNote(t("worldIdentityMisc.sucNoteRemoved"));
       setHeir("");
       setInstructions("");
       await loadDesignation();
     } catch (e) {
-      setDesError(plainErrorText(e, "Could not remove your designation."));
+      setDesError(plainErrorText(e, t("worldIdentityMisc.sucErrorRemove")));
     } finally { setDesBusy(null); }
   };
 
@@ -159,17 +175,17 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(legacyRespondPayload(response)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Could not record your answer."));
-      setDesNote(response === "accept" ? "You accepted the designation." : "You declined the designation.");
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldIdentityMisc.sucErrorRespond")));
+      setDesNote(response === "accept" ? t("worldIdentityMisc.sucNoteAccepted") : t("worldIdentityMisc.sucNoteDeclined"));
       await loadDesignation();
     } catch (e) {
-      setDesError(plainErrorText(e, "Could not record your answer."));
+      setDesError(plainErrorText(e, t("worldIdentityMisc.sucErrorRespond")));
     } finally { setDesBusy(null); }
   };
 
   const saveContact = async () => {
     if (contactBusy) return;
-    const problem = legacyContactProblem(cName, cEmail, cNote);
+    const problem = legacyContactProblem(cName, cEmail, cNote, successionStrings);
     if (problem) { setContactError(problem); setContactNote(null); return; }
     setContactBusy(true);
     setContactError(null);
@@ -181,11 +197,11 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(legacyContactPayload(cName, cEmail, cNote)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Could not save your legacy contact."));
-      setContactNote("Legacy contact saved.");
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldIdentityMisc.sucContactErrorSave")));
+      setContactNote(t("worldIdentityMisc.sucContactNoteSaved"));
       await loadContact();
     } catch (e) {
-      setContactError(plainErrorText(e, "Could not save your legacy contact."));
+      setContactError(plainErrorText(e, t("worldIdentityMisc.sucContactErrorSave")));
     } finally { setContactBusy(false); }
   };
 
@@ -200,15 +216,15 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
         headers: await authHeaders(),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Could not remove your legacy contact."));
-      setContactNote("Legacy contact removed.");
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldIdentityMisc.sucContactErrorRemove")));
+      setContactNote(t("worldIdentityMisc.sucContactNoteRemoved"));
       setConfirmingRemove(false);
       setCName("");
       setCEmail("");
       setCNoteText("");
       await loadContact();
     } catch (e) {
-      setContactError(plainErrorText(e, "Could not remove your legacy contact."));
+      setContactError(plainErrorText(e, t("worldIdentityMisc.sucContactErrorRemove")));
     } finally { setContactBusy(false); }
   };
 
@@ -222,52 +238,51 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
 
   return (
     <div className="space-y-3">
-      <NativeCard isLight={isLight} title="Legacy & succession">
+      <NativeCard isLight={isLight} title={t("worldIdentityMisc.sucTitle")}>
         <div data-testid="world-succession-desk">
           <p className={`text-xs ${muted}`}>
-            Name the creator who should take over your catalog and your page if you can&rsquo;t. Your heir would
-            control your <strong>catalog and page</strong> — never your private messages, and never your payment
-            rails or payout credentials. Nothing transfers automatically: activation is a manual review by our
-            team, and this desk only records your designation and your instructions.
+            {t("worldIdentityMisc.sucIntroA")}
+            <strong>{t("worldIdentityMisc.sucIntroStrong")}</strong>
+            {t("worldIdentityMisc.sucIntroB")}
           </p>
           {stateFailed ? (
             <p className={`mt-2 text-xs ${muted}`}>
-              Couldn&rsquo;t load your legacy settings — nothing about them changed.{" "}
-              <button type="button" data-testid="world-succession-retry" onClick={() => void loadDesignation()} className="font-bold text-[#d4af37]">Try again</button>
+              {t("worldIdentityMisc.sucLoadFailed")}{" "}
+              <button type="button" data-testid="world-succession-retry" onClick={() => void loadDesignation()} className="font-bold text-[#d4af37]">{t("worldIdentityMisc.tryAgain")}</button>
             </p>
           ) : state === null ? (
             <p className={`mt-2 inline-flex items-center gap-2 text-xs ${muted}`}>
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> Reading your designation…
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldIdentityMisc.sucReading")}
             </p>
           ) : (
             <>
               <p className={`mt-2 text-xs ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
-                {legacyDesignationLine(state)}
+                {legacyDesignationLine(state, successionStrings)}
               </p>
               {state.includes.length > 0 && (
-                <p className={`mt-1 text-[11px] ${muted}`}>Covers: {state.includes.join(" and ")}.</p>
+                <p className={`mt-1 text-[11px] ${muted}`}>{t("worldIdentityMisc.sucCovers", { list: state.includes.join(t("worldIdentityMisc.sucJoinAnd")) })}</p>
               )}
               {state.excludes.length > 0 && (
-                <p className={`mt-0.5 text-[11px] ${muted}`}>Never covers: {state.excludes.join(", ")}.</p>
+                <p className={`mt-0.5 text-[11px] ${muted}`}>{t("worldIdentityMisc.sucNeverCovers", { list: state.excludes.join(", ") })}</p>
               )}
               <div className="mt-3 grid gap-2">
-                <input aria-label="Heir's account ID" value={heir}
+                <input aria-label={t("worldIdentityMisc.sucHeirLabel")} value={heir}
                   onChange={(e) => setHeir(e.target.value)}
-                  placeholder="Heir's account ID (ask them for it from their settings)"
+                  placeholder={t("worldIdentityMisc.sucHeirPlaceholder")}
                   className={inputCls} />
-                <textarea aria-label="Instructions for your heir" value={instructions} rows={3}
+                <textarea aria-label={t("worldIdentityMisc.sucInstructionsLabel")} value={instructions} rows={3}
                   onChange={(e) => setInstructions(e.target.value)}
-                  placeholder="Your instructions for your heir (optional)"
+                  placeholder={t("worldIdentityMisc.sucInstructionsPlaceholder")}
                   className={inputCls} />
                 <div className="flex flex-wrap items-center gap-1.5">
                   <button type="button" data-testid="world-succession-save" disabled={desBusy !== null || !heir.trim()}
                     onClick={() => void saveDesignation()} className={chip(true)}>
-                    {desBusy === "save" ? "Saving…" : "Save designation"}
+                    {desBusy === "save" ? t("worldIdentityMisc.saving") : t("worldIdentityMisc.sucSave")}
                   </button>
                   {standing && (
                     <button type="button" data-testid="world-succession-remove" disabled={desBusy !== null}
                       onClick={() => void revokeDesignation()} className={chip(false)}>
-                      {desBusy === "revoke" ? "Removing…" : "Remove designation"}
+                      {desBusy === "revoke" ? t("worldIdentityMisc.removing") : t("worldIdentityMisc.sucRemove")}
                     </button>
                   )}
                 </div>
@@ -277,22 +292,22 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
 
               {inbox !== null && inbox.length > 0 && (
                 <div className={`mt-3 border-t pt-3 ${isLight ? "border-[#7A5A12]/15" : "border-white/10"}`}>
-                  <p className={`text-[11px] font-bold uppercase tracking-wide ${muted}`}>Designations naming you</p>
+                  <p className={`text-[11px] font-bold uppercase tracking-wide ${muted}`}>{t("worldIdentityMisc.sucInboxTitle")}</p>
                   <div className="mt-1.5 space-y-2">
                     {inbox.map((row) => (
                       <div key={row.id} className="flex flex-wrap items-center gap-1.5 text-xs">
                         <span className={isLight ? "text-[#2a1e07]" : "text-white/85"}>
-                          Account {row.userId} named you — status: <strong>{row.status}</strong>
+                          {t("worldIdentityMisc.sucInboxRow", { userId: row.userId })}<strong>{row.status}</strong>
                         </span>
                         {row.status === "pending" && (
                           <>
                             <button type="button" data-testid="world-succession-accept" disabled={desBusy !== null}
                               onClick={() => void respond(row, "accept")} className={chip(false)}>
-                              {desBusy === row.id ? "Working…" : "Accept"}
+                              {desBusy === row.id ? t("worldIdentityMisc.sucWorking") : t("worldIdentityMisc.sucAccept")}
                             </button>
                             <button type="button" data-testid="world-succession-decline" disabled={desBusy !== null}
                               onClick={() => void respond(row, "decline")} className={chip(false)}>
-                              Decline
+                              {t("worldIdentityMisc.sucDecline")}
                             </button>
                           </>
                         )}
@@ -306,61 +321,61 @@ export function SuccessionDesk({ isLight }: { isLight: boolean }) {
         </div>
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="Legacy contact">
+      <NativeCard isLight={isLight} title={t("worldIdentityMisc.sucContactTitle")}>
         <div data-testid="world-legacy-contact-desk">
           <p className={`text-xs ${muted}`}>
-            The name and email of any person Bow Down Visuals should contact about your account and your work if
-            you no longer can. It does <strong>not</strong> transfer your account, your catalog, or any money,
-            and it has no legal effect — and the email stays private, never on any public profile.
+            {t("worldIdentityMisc.sucContactIntroA")}
+            <strong>{t("worldIdentityMisc.sucContactIntroStrong")}</strong>
+            {t("worldIdentityMisc.sucContactIntroB")}
           </p>
           {contactFailed ? (
             <p className={`mt-2 text-xs ${muted}`}>
-              Couldn&rsquo;t load your legacy contact — it&rsquo;s unchanged.{" "}
-              <button type="button" data-testid="world-legacy-contact-retry" onClick={() => void loadContact()} className="font-bold text-[#d4af37]">Try again</button>
+              {t("worldIdentityMisc.sucContactLoadFailed")}{" "}
+              <button type="button" data-testid="world-legacy-contact-retry" onClick={() => void loadContact()} className="font-bold text-[#d4af37]">{t("worldIdentityMisc.tryAgain")}</button>
             </p>
           ) : !contactLoaded ? (
             <p className={`mt-2 inline-flex items-center gap-2 text-xs ${muted}`}>
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> Reading your legacy contact…
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldIdentityMisc.sucContactReading")}
             </p>
           ) : (
             <>
               {contact ? (
                 <p className={`mt-2 text-xs ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
-                  Current legacy contact: <strong>{contact.name}</strong> ({contact.email})
+                  {t("worldIdentityMisc.sucContactCurrentPrefix")} <strong>{contact.name}</strong>{t("worldIdentityMisc.sucContactCurrentSuffix", { email: contact.email })}
                 </p>
               ) : (
-                <p className={`mt-2 text-xs ${muted}`}>No legacy contact recorded.</p>
+                <p className={`mt-2 text-xs ${muted}`}>{t("worldIdentityMisc.sucContactNone")}</p>
               )}
               <div className="mt-3 grid gap-2">
-                <input aria-label="Legacy contact name" value={cName}
-                  onChange={(e) => setCName(e.target.value)} placeholder="Their name" className={inputCls} />
-                <input aria-label="Legacy contact email" value={cEmail}
-                  onChange={(e) => setCEmail(e.target.value)} placeholder="Their email" className={inputCls} />
-                <input aria-label="Legacy contact note" value={cNote}
-                  onChange={(e) => setCNoteText(e.target.value)} placeholder="Note (optional)" className={inputCls} />
+                <input aria-label={t("worldIdentityMisc.sucContactNameLabel")} value={cName}
+                  onChange={(e) => setCName(e.target.value)} placeholder={t("worldIdentityMisc.sucContactNamePlaceholder")} className={inputCls} />
+                <input aria-label={t("worldIdentityMisc.sucContactEmailLabel")} value={cEmail}
+                  onChange={(e) => setCEmail(e.target.value)} placeholder={t("worldIdentityMisc.sucContactEmailPlaceholder")} className={inputCls} />
+                <input aria-label={t("worldIdentityMisc.sucContactNoteLabel")} value={cNote}
+                  onChange={(e) => setCNoteText(e.target.value)} placeholder={t("worldIdentityMisc.sucContactNotePlaceholder")} className={inputCls} />
                 <div className="flex flex-wrap items-center gap-1.5">
                   <button type="button" data-testid="world-legacy-contact-save" disabled={contactBusy || !cName.trim() || !cEmail.trim()}
                     onClick={() => void saveContact()} className={chip(true)}>
-                    {contactBusy && !confirmingRemove ? "Saving…" : "Save legacy contact"}
+                    {contactBusy && !confirmingRemove ? t("worldIdentityMisc.saving") : t("worldIdentityMisc.sucContactSave")}
                   </button>
                   {contact && !confirmingRemove && (
                     <button type="button" data-testid="world-legacy-contact-remove" disabled={contactBusy}
                       onClick={() => setConfirmingRemove(true)} className={chip(false)}>
-                      Remove legacy contact
+                      {t("worldIdentityMisc.sucContactRemove")}
                     </button>
                   )}
                   {contact && confirmingRemove && (
                     <>
                       <span className={`text-xs ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
-                        Remove {contact.name} as your legacy contact?
+                        {t("worldIdentityMisc.sucContactRemoveAsk", { name: contact.name })}
                       </span>
                       <button type="button" data-testid="world-legacy-contact-remove-confirm" disabled={contactBusy}
                         onClick={() => void removeContact()} className={chip(true)}>
-                        {contactBusy ? "Removing…" : "Yes, remove"}
+                        {contactBusy ? t("worldIdentityMisc.removing") : t("worldIdentityMisc.sucContactRemoveConfirm")}
                       </button>
                       <button type="button" data-testid="world-legacy-contact-remove-cancel" disabled={contactBusy}
                         onClick={() => setConfirmingRemove(false)} className={chip(false)}>
-                        Keep
+                        {t("worldIdentityMisc.sucContactKeep")}
                       </button>
                     </>
                   )}

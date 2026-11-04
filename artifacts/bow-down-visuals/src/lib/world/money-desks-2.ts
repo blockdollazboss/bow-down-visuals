@@ -831,12 +831,48 @@ export function tipCheckoutUrl(payload: unknown): string | null {
   return str(payload["checkoutUrl"]);
 }
 
-export function tipAmountProblem(amountDollars: number | null): string | null {
+/* ─── Tip strings (stack100 locale unit 49) ───────────────────────
+   The tip helpers below render through the catalogs under
+   worldIdentityMisc.* (PortraitTip / TipJarDesk pass their
+   bundles); the EN defaults are the original wording verbatim, so
+   an unbundled caller (and every existing pin) reads exactly what
+   it read before. The min/max lines are MONEY lines — the English
+   source rides every catalog verbatim, figures by interpolation. */
+
+export interface TipStrings {
+  problemPickFirst: string;
+  /** "Minimum tip is ${{amount}}." */
+  problemMin: string;
+  /** "Maximum tip is ${{amount}}." */
+  problemMax: string;
+  feedStatusIntent: string;
+  feedStatusReceived: string;
+  feedStatusUnavailable: string;
+}
+
+export const TIP_STRINGS_EN: TipStrings = {
+  problemPickFirst: "Pick or enter an amount first.",
+  problemMin: "Minimum tip is ${{amount}}.",
+  problemMax: "Maximum tip is ${{amount}}.",
+  feedStatusIntent: "Intent recorded",
+  feedStatusReceived: "Received",
+  feedStatusUnavailable: "Status unavailable",
+};
+
+export function tipAmountProblem(
+  amountDollars: number | null,
+  strings: TipStrings = TIP_STRINGS_EN,
+  locale = "en-US",
+): string | null {
   if (amountDollars === null || !Number.isFinite(amountDollars) || amountDollars <= 0) {
-    return "Pick or enter an amount first.";
+    return strings.problemPickFirst;
   }
-  if (amountDollars < TIP_MIN_DOLLARS) return `Minimum tip is $${TIP_MIN_DOLLARS}.`;
-  if (amountDollars > TIP_MAX_DOLLARS) return `Maximum tip is $${TIP_MAX_DOLLARS.toLocaleString("en-US")}.`;
+  if (amountDollars < TIP_MIN_DOLLARS) {
+    return strings.problemMin.replace("{{amount}}", String(TIP_MIN_DOLLARS));
+  }
+  if (amountDollars > TIP_MAX_DOLLARS) {
+    return strings.problemMax.replace("{{amount}}", TIP_MAX_DOLLARS.toLocaleString(locale));
+  }
   return null;
 }
 
@@ -948,10 +984,10 @@ export function parseTipJarDashboard(payload: unknown): TipJarDashboard | null {
  *  carries it by design); a settled tip ("paid" on the tip rail,
  *  "completed" elsewhere) is "Received". Any other internal token
  *  is never passed through raw (stack800 lane 3, QC Q15 family). */
-export function tipFeedStatusLabel(status: string): string {
-  if (status === "pending_payment") return "Intent recorded";
-  if (status === "paid" || status === "completed") return "Received";
-  return "Status unavailable";
+export function tipFeedStatusLabel(status: string, strings: TipStrings = TIP_STRINGS_EN): string {
+  if (status === "pending_payment") return strings.feedStatusIntent;
+  if (status === "paid" || status === "completed") return strings.feedStatusReceived;
+  return strings.feedStatusUnavailable;
 }
 
 /* ─── 67 · Money management: permanence + Content-ID claims ──────── */

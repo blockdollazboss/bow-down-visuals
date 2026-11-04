@@ -186,10 +186,33 @@ export interface PortraitSummaryRow {
   detail: string;
 }
 
+/* ─── Portrait summary strings (stack100 locale unit 49) ─────────
+   The two composed words below render through the catalogs under
+   worldIdentityMisc.* (PortraitCard passes its bundle); the EN
+   defaults are the original wording verbatim. Both are MONEY
+   lines (a free-price statement and a price cadence) — the
+   English source rides every catalog verbatim. */
+
+export interface PortraitSummaryStrings {
+  membershipFallback: string;
+  freeLabel: string;
+  /** " / month" — appended to a priced tier's dollar figure. */
+  perMonthSuffix: string;
+}
+
+export const PORTRAIT_SUMMARY_STRINGS_EN: PortraitSummaryStrings = {
+  membershipFallback: "Membership",
+  freeLabel: "Free",
+  perMonthSuffix: " / month",
+};
+
 /** Membership summary from GET /api/memberships/public/:userId —
  *  active tiers only (profile-website.ts membershipsViewState's
  *  rule: inactive tiers never render for anyone). */
-export function membershipSummaryRows(payload: unknown): PortraitSummaryRow[] {
+export function membershipSummaryRows(
+  payload: unknown,
+  strings: PortraitSummaryStrings = PORTRAIT_SUMMARY_STRINGS_EN,
+): PortraitSummaryRow[] {
   const tiers = (payload as { tiers?: unknown })?.tiers;
   if (!Array.isArray(tiers)) return [];
   return tiers
@@ -199,11 +222,11 @@ export function membershipSummaryRows(payload: unknown): PortraitSummaryRow[] {
     )
     .slice(0, 3)
     .map((t) => ({
-      label: typeof t.name === "string" && t.name ? t.name : "Membership",
+      label: typeof t.name === "string" && t.name ? t.name : strings.membershipFallback,
       detail:
         typeof t.priceCents === "number" && t.priceCents > 0
-          ? `$${String(t.priceDollars ?? "")} / month`
-          : "Free",
+          ? `$${String(t.priceDollars ?? "")}${strings.perMonthSuffix}`
+          : strings.freeLabel,
     }));
 }
 

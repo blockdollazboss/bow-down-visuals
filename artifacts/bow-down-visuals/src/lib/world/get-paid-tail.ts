@@ -431,17 +431,57 @@ export function legacyRespondPayload(response: "accept" | "decline"): { response
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/* ─── Succession strings (stack100 locale unit 49) ────────────────
+   The succession half of this seam renders through the catalogs
+   under worldIdentityMisc.* (SuccessionDesk passes its bundle);
+   the EN defaults below are the desk's original wording verbatim,
+   so an unbundled caller (and every existing pin) reads exactly
+   what it read before. The catalog-export half above belongs to
+   the Catalog/Library unit's bundle — a different section of this
+   file, threaded separately. */
+
+export interface SuccessionStrings {
+  problemHeirEmpty: string;
+  problemHeirShape: string;
+  problemInstructionsCap: string;
+  problemNameEmpty: string;
+  problemNameCap: string;
+  problemEmailEmpty: string;
+  problemEmailShape: string;
+  problemNoteCap: string;
+  designationNone: string;
+  /** "Current designation: {{status}} — heir account {{heir}}." */
+  designationCurrent: string;
+}
+
+export const SUCCESSION_STRINGS_EN: SuccessionStrings = {
+  problemHeirEmpty: "Enter your heir's account ID — ask them for it from their settings.",
+  problemHeirShape: "That doesn't look like an account ID — it should be the full ID from your heir's settings.",
+  problemInstructionsCap: "Instructions are capped at 2,000 characters — trim them and save again.",
+  problemNameEmpty: "Enter your legacy contact's name.",
+  problemNameCap: "Names are capped at 120 characters.",
+  problemEmailEmpty: "Enter your legacy contact's email.",
+  problemEmailShape: "That email doesn't look complete — check it and save again.",
+  problemNoteCap: "The note is capped at 1,000 characters — trim it and save again.",
+  designationNone: "No designation recorded — your catalog and page have no named heir.",
+  designationCurrent: "Current designation: {{status}} — heir account {{heir}}.",
+};
+
 /** The desk-side refusal for a designation the server would 400
  *  (heir must be an account UUID — z.string().uuid() — and
  *  instructions are capped at 2,000 characters). Self-naming is
  *  the server's own 400 and can't be checked here (the desk
  *  doesn't hold the caller's id) — its error line surfaces
  *  verbatim instead. */
-export function designationProblem(heirUserId: string, instructions: string): string | null {
+export function designationProblem(
+  heirUserId: string,
+  instructions: string,
+  strings: SuccessionStrings = SUCCESSION_STRINGS_EN,
+): string | null {
   const heir = heirUserId.trim();
-  if (!heir) return "Enter your heir's account ID — ask them for it from their settings.";
-  if (!UUID_RE.test(heir)) return "That doesn't look like an account ID — it should be the full ID from your heir's settings.";
-  if (instructions.length > 2000) return "Instructions are capped at 2,000 characters — trim them and save again.";
+  if (!heir) return strings.problemHeirEmpty;
+  if (!UUID_RE.test(heir)) return strings.problemHeirShape;
+  if (instructions.length > 2000) return strings.problemInstructionsCap;
   return null;
 }
 
@@ -451,21 +491,31 @@ export function designationProblem(heirUserId: string, instructions: string): st
  *  light shape test (one @, a dot after it); the server's zod
  *  email parse is the real gate and its refusal surfaces
  *  verbatim. */
-export function legacyContactProblem(name: string, email: string, note: string): string | null {
+export function legacyContactProblem(
+  name: string,
+  email: string,
+  note: string,
+  strings: SuccessionStrings = SUCCESSION_STRINGS_EN,
+): string | null {
   const n = name.trim();
   const e = email.trim();
-  if (!n) return "Enter your legacy contact's name.";
-  if (n.length > 120) return "Names are capped at 120 characters.";
-  if (!e) return "Enter your legacy contact's email.";
-  if (e.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return "That email doesn't look complete — check it and save again.";
-  if (note.length > 1000) return "The note is capped at 1,000 characters — trim it and save again.";
+  if (!n) return strings.problemNameEmpty;
+  if (n.length > 120) return strings.problemNameCap;
+  if (!e) return strings.problemEmailEmpty;
+  if (e.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return strings.problemEmailShape;
+  if (note.length > 1000) return strings.problemNoteCap;
   return null;
 }
 
 /** The standing line for the current designation, in the rail's
  *  own terms — or the honest absence. */
-export function legacyDesignationLine(state: LegacyDesignationState): string {
+export function legacyDesignationLine(
+  state: LegacyDesignationState,
+  strings: SuccessionStrings = SUCCESSION_STRINGS_EN,
+): string {
   const d = state.designation;
-  if (!d || d.status === "revoked") return "No designation recorded — your catalog and page have no named heir.";
-  return `Current designation: ${d.status} — heir account ${d.heirUserId}.`;
+  if (!d || d.status === "revoked") return strings.designationNone;
+  return strings.designationCurrent
+    .replace("{{status}}", d.status)
+    .replace("{{heir}}", d.heirUserId);
 }

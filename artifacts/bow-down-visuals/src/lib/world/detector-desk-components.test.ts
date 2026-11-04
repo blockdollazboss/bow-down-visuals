@@ -23,8 +23,8 @@ describe("both modes, focusable and complete", () => {
   it("mode tabs are real buttons with testids in a tablist", () => {
     expect(desk).toContain('data-testid={`world-detector-desk-mode-${key}`}');
     expect(desk).toContain('role="tablist"');
-    expect(desk).toContain('"Image URL"');
-    expect(desk).toContain('"Upload a file"');
+    expect(desk).toContain('"worldIdentityMisc.detModeUrl"');
+    expect(desk).toContain('"worldIdentityMisc.detModeFile"');
   });
 
   it("the file picker is a hidden input + a real button, gated by the seam's kind/size gates", () => {
@@ -39,7 +39,7 @@ describe("both modes, focusable and complete", () => {
     expect(desk).toContain('data-testid="world-detector-desk-run"');
     expect(desk).toContain("disabled={busy || !ready}");
     expect(desk).toContain("detectorUrlReady(mediaUrl)");
-    expect(desk).toContain("Run the check");
+    expect(desk).toContain("worldIdentityMisc.detRun");
   });
 
   it("video frames are extracted in-panel the page's way (3 frames, 640px, JPEG)", () => {
@@ -54,15 +54,15 @@ describe("results render in-panel — the full verdict package", () => {
   it("verdict, confidence bar, summary, signals, frame notes, disclaimer", () => {
     for (const needle of [
       'data-testid="world-detector-desk-result"',
-      "DETECTOR_VERDICT_LABELS[result.verdict]",
-      "% confidence",
-      "What the check found",
-      "points to AI",
-      "points to human",
-      "Frame notes",
+      "t(VERDICT_LABEL_KEYS[result.verdict])",
+      "worldIdentityMisc.detConfidence",
+      "worldIdentityMisc.detSignalsTitle",
+      "mediaDetector.pointsToAi",
+      "mediaDetector.pointsToHuman",
+      "worldIdentityMisc.detFrameNotes",
       "result.disclaimer",
-      "Check another piece",
-      "This session",
+      "worldIdentityMisc.detCheckAnother",
+      "worldIdentityMisc.detSessionTitle",
     ]) {
       expect(desk, needle).toContain(needle);
     }
@@ -76,7 +76,7 @@ describe("results render in-panel — the full verdict package", () => {
 
   it("402 reads as out-of-Visual-Bucs with the Treasury pointer, like its sibling desks", () => {
     expect(desk).toContain("out_of_credits");
-    expect(desk).toContain("Visual Buc Packs desk in the Treasury");
+    expect(desk).toContain("worldIdentityMisc.detOutOfCredits");
   });
 });
 
