@@ -284,6 +284,10 @@ const SECTIONS: NavSection[] = [
       { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock, searchTerms: "scheduler schedule calendar posts" },
       { href: "/go-live", labelKey: "nav.goLive", icon: Radio, searchTerms: "live stream streaming broadcast go live green screen background backdrop" },
       { href: "/live-shopping", labelKey: "nav.liveShopping", icon: ShoppingCart, searchTerms: "live shopping shop live sell stream" },
+      /* Tour Planner + Setlist — the show-craft doors (Stack100 wave 1):
+         both routes were reachable only from in-flow page links. */
+      { href: "/tour", labelKey: "nav.tourPlanner", icon: MapPin, searchTerms: "tour planner tour dates shows route gigs travel" },
+      { href: "/setlist", labelKey: "nav.setlistBuilder", icon: ListMusic, searchTerms: "setlist set list builder show songs order live set" },
       /* Publish — the PROMOTE hand-off step itself — gets its door
          (org wave, stack1400): the route lived inside AuthedLayout but
          was reachable only from a CTA in the player finale. Label is
@@ -293,6 +297,10 @@ const SECTIONS: NavSection[] = [
          ("publish") in sidebar search. */
       { href: "/publish", labelKey: "nav.publish", icon: Send, searchTerms: "publish release post share upload platforms" },
       { href: "/press-kit", labelKey: "nav.pressKit", icon: Newspaper, searchTerms: "press kit media kit epk bio" },
+      /* Interview Prep + Label Pitch — the press/pitch family beside
+         Press Kit (Stack100 wave 1); page links were their only doors. */
+      { href: "/interview-prep", labelKey: "nav.interviewPrep", icon: Mic2, searchTerms: "interview prep questions press media talk show" },
+      { href: "/label-pitch", labelKey: "nav.labelPitch", icon: Send, searchTerms: "label pitch record labels demo deal sign" },
       { href: "/email-list", labelKey: "nav.emailList", icon: Mail, searchTerms: "email list subscribers newsletter audience" },
     ],
   },
