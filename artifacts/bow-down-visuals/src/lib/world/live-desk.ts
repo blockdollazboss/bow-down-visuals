@@ -702,6 +702,16 @@ export function chromaSettingsFor(source: { chroma: ChromaSettings | null }): Ch
   return source.chroma ?? CHROMA_DEFAULTS;
 }
 
+/** One tuning slider's write: the named setting at the slider's
+ *  stored value (slider ÷ 100), the other settings untouched. */
+export function chromaWithSlider(
+  settings: ChromaSettings,
+  key: "similarity" | "smoothness",
+  value: number,
+): ChromaSettings {
+  return key === "similarity" ? { ...settings, similarity: value } : { ...settings, smoothness: value };
+}
+
 /** The relay args for one change — parameters only: the ids, the
  *  mode, and (when keying) the key settings. For the "kit" flip
  *  the settings are omitted entirely, exactly the panel's

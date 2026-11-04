@@ -17,8 +17,9 @@ import PushAlertsToggle from "@/components/live/PushAlertsToggle";
 import StreamDeck from "@/components/live/StreamDeck";
 import {
   ControllerRemoteClient, controllerSocketUrl,
-  type ControllerSocketLike,
+  type ControllerSocketLike, type ControllerCameraSource, type ChromaUpdate,
 } from "@/lib/stream-controller";
+import { Wand2 } from "lucide-react";
 import {
   createStreamTransport, SITE_DESTINATION, WhipTransport, OwnServerTransport,
   TransportError, type StreamTransport,
@@ -69,6 +70,9 @@ import {
   BACKGROUND_MODE_OPTIONS, BACKGROUND_QUALITY_OPTIONS,
   fineTuneSlidersForMode, engineKindLabel, engineFallbackNote, engineDownFromStatus,
   backdropTileActive,
+  SOURCE_CHROMA_UPDATE_COMMAND, CAMERA_MODE_OPTIONS, CHROMA_SLIDERS,
+  chromaSettingsFor, chromaWithSlider, chromaUpdateArgs, isChromaUpdateReady,
+  SOURCE_CHROMA_NOTE, type ChromaSettings,
 } from "@/lib/world/live-desk";
 
 /* ─── Live Wave I (stack-100 #85–#87) ───────────────────────────────
@@ -115,8 +119,17 @@ import {
      ride the kit's device store (bdv-greenscreen-finetune), the
      same store the 2D studio reads and writes. The scene kit's
      per-source chroma key is NOT this — it rides the stage
-     compositor, which has no in-world instance; it stays a named
-     follow-on in the seam, never a second keyer here. */
+     compositor, which has no in-world instance; wave IV (#95)
+     carries it on the controller desk via the relay instead,
+     never a second keyer here.
+
+   Live Wave IV (#95) extends the controller desk:
+   - Per-source chroma key: the Stream Controller desk gains the
+     running studio's Preview-scene camera sources with
+     SourcesPanel's mode pills, key color and Similarity /
+     Smoothness sliders, sent as the protocol's scene.chroma.update
+     command and executed by the studio through Stage.updateSource
+     — the panel's own write. */
 
 function useToken() {
   const { getAccessToken } = useAuth();
@@ -2026,6 +2039,63 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
   const state = client?.state ?? null;
   const stageConnected = !!client?.presence.stageConnected;
   const socketUp = !!client?.socketUp;
+
+  /* #95 per-source chroma drafts: the desk edits a local copy of a
+     source's mode + settings and sends on commit (pointer/key
+     release, blur, pill press) — a slider dragged through twenty
+     values must not queue twenty relay presses that supersede each
+     other into false "didn't go through" notices. A draft retires
+     when the studio's confirmed state already matches it, so after
+     a press lands it is the publish doing the showing. */
+  const [chromaDrafts, setChromaDrafts] = useState<
+    Record<string, { cameraMode: "kit" | "chroma"; chroma: ChromaSettings }>
+  >({});
+  useEffect(() => {
+    const sources = state?.cameraSources;
+    if (!sources) return;
+    setChromaDrafts((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const source of sources) {
+        const draft = next[source.sourceId];
+        if (!draft) continue;
+        const settings = chromaSettingsFor(source);
+        if (
+          draft.cameraMode === source.cameraMode &&
+          draft.chroma.color === settings.color &&
+          draft.chroma.similarity === settings.similarity &&
+          draft.chroma.smoothness === settings.smoothness
+        ) {
+          delete next[source.sourceId];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [state]);
+  const chromaShown = (source: ControllerCameraSource) =>
+    chromaDrafts[source.sourceId] ?? { cameraMode: source.cameraMode, chroma: chromaSettingsFor(source) };
+  const sendChroma = (
+    source: ControllerCameraSource,
+    next: { cameraMode: "kit" | "chroma"; chroma: ChromaSettings },
+  ) => {
+    const update: ChromaUpdate = {
+      sceneId: source.sceneId,
+      sourceId: source.sourceId,
+      cameraMode: next.cameraMode,
+      chroma: next.cameraMode === "chroma" ? next.chroma : null,
+    };
+    if (!isChromaUpdateReady(update)) return;
+    setChromaDrafts((prev) => ({ ...prev, [source.sourceId]: next }));
+    void client?.send(SOURCE_CHROMA_UPDATE_COMMAND, chromaUpdateArgs(update));
+  };
+  const editChroma = (source: ControllerCameraSource, chroma: ChromaSettings) => {
+    setChromaDrafts((prev) => ({ ...prev, [source.sourceId]: { cameraMode: "chroma", chroma } }));
+  };
+  const commitChroma = (source: ControllerCameraSource) => {
+    const draft = chromaDrafts[source.sourceId];
+    if (draft) sendChroma(source, draft);
+  };
   const view = {
     started: !!client,
     socketUp,
@@ -2059,6 +2129,105 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
           notice={client?.notice ?? null}
           onCommand={(cmd, args) => { client?.send(cmd, args); }}
         />
+        {/* #95 — per-source chroma key: the running studio's
+            Preview-scene camera sources with SourcesPanel's mode
+            pills, key color and tuning sliders, over the relay.
+            The studio executes Stage.updateSource (the panel's own
+            write); the deck confirms on the exact signature in its
+            published state — nothing optimistic, no keyer here. */}
+        <div className="mt-4 border-t border-white/10 pt-3" data-testid="world-live-source-chroma">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">
+            <Wand2 className="h-3.5 w-3.5" /> Source green screen
+          </div>
+          {state?.cameraSources === undefined ? (
+            <p className="mt-2 text-xs leading-relaxed text-white/60" data-testid="world-live-chroma-unavailable">
+              {state
+                ? "This studio isn't reporting its camera sources yet, so their green screens stay on the studio screen for now."
+                : "Waiting for the studio to report its camera sources…"}
+            </p>
+          ) : state.cameraSources.length === 0 ? (
+            <p className="mt-2 text-xs leading-relaxed text-white/60" data-testid="world-live-chroma-empty">
+              The studio&rsquo;s Preview scene has no camera sources to key.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-4">
+              {state.cameraSources.map((source) => {
+                const shown = chromaShown(source);
+                const sending = client?.isPending(SOURCE_CHROMA_UPDATE_COMMAND, source.sourceId) ?? false;
+                return (
+                  <div key={source.sourceId} data-testid={`world-live-chroma-${source.sourceId}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-white/85">{source.name}</span>
+                      {sending ? (
+                        <span className="flex items-center gap-1 text-[11px] text-white/50">
+                          <Loader2 className="h-3 w-3 animate-spin" /> Sending…
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-1.5 grid grid-cols-2 gap-1">
+                      {CAMERA_MODE_OPTIONS.map((option) => (
+                        <button
+                          key={option.mode}
+                          type="button"
+                          disabled={!stageConnected || !socketUp || sending}
+                          onClick={() => sendChroma(source, { cameraMode: option.mode, chroma: shown.chroma })}
+                          className={`rounded-lg px-2 py-1.5 text-[11px] font-semibold transition disabled:opacity-40 ${
+                            shown.cameraMode === option.mode
+                              ? "bg-[#d4af37] text-black"
+                              : "bg-white/10 text-white/80 hover:bg-white/15"
+                          }`}
+                          data-testid={`world-live-chroma-mode-${option.mode}-${source.sourceId}`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                    {shown.cameraMode === "chroma" ? (
+                      <div className="mt-2 space-y-2">
+                        <label className="flex items-center justify-between gap-2 text-[11px] text-white/60">
+                          Key color
+                          <input
+                            type="color"
+                            value={shown.chroma.color.toLowerCase()}
+                            disabled={!stageConnected || !socketUp}
+                            onChange={(e) => editChroma(source, { ...shown.chroma, color: e.target.value })}
+                            onBlur={() => commitChroma(source)}
+                            className="h-6 w-10 cursor-pointer rounded bg-transparent disabled:opacity-40"
+                            data-testid={`world-live-chroma-color-${source.sourceId}`}
+                          />
+                        </label>
+                        {CHROMA_SLIDERS.map((slider) => (
+                          <label key={slider.key} className="block text-[11px] text-white/60">
+                            <span className="flex items-center justify-between">
+                              <span>{slider.label}</span>
+                              <span>{Math.round(shown.chroma[slider.key] * 100)}</span>
+                            </span>
+                            <input
+                              type="range"
+                              min={0}
+                              max={slider.max}
+                              value={Math.round(shown.chroma[slider.key] * 100)}
+                              disabled={!stageConnected || !socketUp}
+                              onChange={(e) =>
+                                editChroma(source, chromaWithSlider(shown.chroma, slider.key, Number(e.target.value) / 100))
+                              }
+                              onPointerUp={() => commitChroma(source)}
+                              onKeyUp={() => commitChroma(source)}
+                              onBlur={() => commitChroma(source)}
+                              className="w-full accent-amber-400 disabled:opacity-40"
+                              data-testid={`world-live-chroma-${slider.key}-${source.sourceId}`}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p className="mt-3 text-[11px] leading-relaxed text-white/45">{SOURCE_CHROMA_NOTE}</p>
+        </div>
       </div>
     </div>
   );
