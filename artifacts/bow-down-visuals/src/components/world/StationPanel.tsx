@@ -190,6 +190,7 @@ const SmartCardsStand = lazy(() => import("@/components/world/native/SmartCardsS
 const MerchBench = lazy(() => import("@/components/world/native/MerchBench").then((m) => ({ default: m.MerchBench })));
 const AccountDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.AccountDesk })));
 const AcademyDesk = lazy(() => import("@/components/world/native/AcademyDesk").then((m) => ({ default: m.AcademyDesk })));
+const AdminDesk = lazy(() => import("@/components/world/native/AdminDesk").then((m) => ({ default: m.AdminDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
 const WinnersCirclePanel = lazy(() => import("@/components/world/native/WinnersCirclePanel").then((m) => ({ default: m.WinnersCirclePanel })));
@@ -1169,6 +1170,22 @@ export default function StationPanel(props: StationPanelProps) {
                     like the locked /academy route on the website. */}
                 <DeskDoor isLight={isLight}>
                   <AcademyDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Admin benches (stack1500 parity wave #5, census
+                    item 46): the website's /admin benches native in
+                    the palace — reports, DMCA, content removal,
+                    Pitch & Fix, payment reversals, operator actions,
+                    studio gear, challenges, community grants, Remix
+                    King, the Bow Challenge, palace drops, spotlight,
+                    contact, member admin and store orders — riding
+                    the existing /api/admin rails. The desk probes the
+                    same /admin/status answer the site enforces with
+                    and every rail re-checks the ADMIN_EMAILS
+                    allowlist server-side, fail-closed: a non-admin
+                    session sees only the gate's own "Not authorized."
+                    state, never a bench. */}
+                <DeskDoor isLight={isLight}>
+                  <AdminDesk isLight={isLight} />
                 </DeskDoor>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
