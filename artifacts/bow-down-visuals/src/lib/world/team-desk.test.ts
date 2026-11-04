@@ -7,7 +7,6 @@ import {
   TEAM_INVITE_ROLES,
   TEAM_NAME_MAX,
   TEAM_ROLES,
-  TEAM_SHARED_VAULTS_NOTE,
   TEAM_TIER_GATE_MESSAGE,
   activeTeamFromList,
   buildCreateTeamPayload,
@@ -137,11 +136,10 @@ describe("rails + prices", () => {
     expect(isTierGateError(500, TEAM_TIER_GATE_MESSAGE)).toBe(false);
   });
 
-  it("the shared-vaults note + fallback hints are the page's i18n, verbatim", () => {
+  it("the fallback hints are the page's i18n, verbatim", () => {
     const en = JSON.parse(read("../../locales/en.json")) as {
       team: Record<string, string>;
     };
-    expect(TEAM_SHARED_VAULTS_NOTE).toBe(en.team["sharedVaultsNote"]);
     expect(TEAM_FALLBACK_ON_HINT).toBe(en.team["fallbackOnHint"]);
     expect(TEAM_FALLBACK_OFF_HINT).toBe(en.team["fallbackOffHint"]);
   });

@@ -40,7 +40,11 @@ describe("TeamDesk rides the seam", () => {
       "isTierGateError",
       "fundAmountFromInput",
       "inviteEmailValid",
-      "TEAM_SHARED_VAULTS_NOTE",
+      "VAULTS_PATH",
+      "vaultSharePath",
+      "buildVaultSharePayload",
+      "parseOwnVaults",
+      "parseVaultShareResult",
     ]) {
       expect(desk, name).toContain(name);
     }
@@ -119,15 +123,20 @@ describe("every station panel is present", () => {
       'data-testid="world-team-members"',
       'data-testid="world-team-group-product"',
       'data-testid="world-team-danger"',
+      'data-testid="world-team-vaults"',
     ]) {
       expect(desk, id).toContain(id);
     }
   });
 
-  it("the fallback toggle is a pressed-state button and the vault note is present", () => {
+  it("the fallback toggle is a pressed-state button, and the vault note is retired for the working share toggle", () => {
     expect(desk).toContain('data-testid="world-team-fallback-toggle"');
     expect(desk).toContain("aria-pressed={team.allowPersonalFallback}");
-    expect(desk).toContain("TEAM_SHARED_VAULTS_NOTE");
+    // stack100 wave 5, item 28: the "mark it shared from the Creator
+    // Vault page" note is gone — the toggle itself is in the desk
+    // (its full contract is pinned in team-vault-share-components).
+    expect(desk).not.toContain("TEAM_SHARED_VAULTS_NOTE");
+    expect(desk).toContain('data-testid="world-team-vault-share-toggle"');
   });
 
   it("destructive actions are two-tap confirms, never one-click", () => {
