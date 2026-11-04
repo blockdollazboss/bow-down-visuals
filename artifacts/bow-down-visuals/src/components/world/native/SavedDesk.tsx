@@ -15,22 +15,38 @@
  * always be cleaned. Free throughout — the rails charge nothing.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   SAVES_PATH,
   SAVE_KINDS,
-  SAVE_KIND_LABELS,
-  SAVE_KIND_SINGULAR,
   saveCounts,
   saveDeletePath,
   savesForTab,
   savesOfResponse,
   withoutSave,
+  type SaveKind,
   type SavedItem,
   type SavedTab,
 } from "@/lib/world/saved-desk";
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
 
+/** Catalog keys for the seam's kind labels — the seam keeps the
+ *  English labels as defaults; the desk renders its own language. */
+const KIND_LABEL_KEYS: Record<SaveKind, string> = {
+  post: "worldCatalogLibrary.savedKindPost",
+  track: "worldCatalogLibrary.savedKindTrack",
+  video: "worldCatalogLibrary.savedKindVideo",
+  profile: "worldCatalogLibrary.savedKindProfile",
+};
+const KIND_SINGULAR_KEYS: Record<SaveKind, string> = {
+  post: "worldCatalogLibrary.savedKindPostOne",
+  track: "worldCatalogLibrary.savedKindTrackOne",
+  video: "worldCatalogLibrary.savedKindVideoOne",
+  profile: "worldCatalogLibrary.savedKindProfileOne",
+};
+
 export function SavedDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const deskHeaders = useDeskAuthHeaders();
   const [items, setItems] = useState<SavedItem[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -84,7 +100,7 @@ export function SavedDesk({ isLight }: { isLight: boolean }) {
       });
       if (!res.ok) throw new Error("unsave failed");
     } catch {
-      setNote("That unsave didn't land — the item is back on your shelf. Try again in a moment.");
+      setNote(t("worldCatalogLibrary.savedUnsaveError"));
       void load();
     } finally {
       setBusyKey(null);
@@ -97,13 +113,13 @@ export function SavedDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-3" data-testid="world-saved-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Saved</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldCatalogLibrary.savedTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          Everything you bookmarked across the site — kept here, cleared here.
+          {t("worldCatalogLibrary.savedIntro")}
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Saved kinds">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldCatalogLibrary.savedAriaKinds")}>
         <button
           type="button"
           role="tab"
@@ -112,7 +128,7 @@ export function SavedDesk({ isLight }: { isLight: boolean }) {
           className={chipCls(tab === "all")}
           onClick={() => setTab("all")}
         >
-          All{items ? ` (${items.length})` : ""}
+          {t("worldCatalogLibrary.savedTabAll")}{items ? ` (${items.length})` : ""}
         </button>
         {SAVE_KINDS.map((kind) => (
           <button
@@ -124,7 +140,7 @@ export function SavedDesk({ isLight }: { isLight: boolean }) {
             className={chipCls(tab === kind)}
             onClick={() => setTab(kind)}
           >
-            {SAVE_KIND_LABELS[kind]}
+            {t(KIND_LABEL_KEYS[kind])}
             {counts ? ` (${counts[kind]})` : ""}
           </button>
         ))}
@@ -132,18 +148,20 @@ export function SavedDesk({ isLight }: { isLight: boolean }) {
 
       {failed ? (
         <div data-testid="world-saved-desk-failed">
-          <p className={errCls}>Your saved shelf wouldn&rsquo;t load. Give it another shot.</p>
+          <p className={errCls}>{t("worldCatalogLibrary.savedLoadError")}</p>
           <button type="button" className={`mt-2 ${chipCls(false)}`} onClick={() => void load()}>
-            Try again
+            {t("worldCatalogLibrary.sharedTryAgain")}
           </button>
         </div>
       ) : items === null ? (
-        <p className={`text-sm ${muted}`}>Loading your shelf…</p>
+        <p className={`text-sm ${muted}`}>{t("worldCatalogLibrary.savedLoading")}</p>
       ) : visible.length === 0 ? (
         <p className={`text-sm ${muted}`} data-testid="world-saved-desk-empty">
           {items.length === 0
-            ? "Nothing saved yet — the bookmark buttons across the site fill this shelf."
-            : `Nothing saved under ${tab === "all" ? "this tab" : SAVE_KIND_LABELS[tab]} yet.`}
+            ? t("worldCatalogLibrary.savedEmptyAll")
+            : t("worldCatalogLibrary.savedEmptyTab", {
+                tab: tab === "all" ? t("worldCatalogLibrary.savedThisTab") : t(KIND_LABEL_KEYS[tab]),
+              })}
         </p>
       ) : (
         <ul className="space-y-1.5">
@@ -155,12 +173,11 @@ export function SavedDesk({ isLight }: { isLight: boolean }) {
                 className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${cardCls}`}
                 data-testid={`world-saved-desk-item-${key}`}
               >
-                <span className={chipCls(false)}>{SAVE_KIND_LABELS[item.kind]}</span>
+                <span className={chipCls(false)}>{t(KIND_LABEL_KEYS[item.kind])}</span>
                 <div className="min-w-0">
                   {item.gone ? (
                     <p className={`text-sm ${muted}`}>
-                      This {SAVE_KIND_SINGULAR[item.kind]} isn&rsquo;t available anymore — it has
-                      gone or been made private since you saved it.
+                      {t("worldCatalogLibrary.savedGoneLine", { kind: t(KIND_SINGULAR_KEYS[item.kind]) })}
                     </p>
                   ) : (
                     <>
@@ -176,7 +193,7 @@ export function SavedDesk({ isLight }: { isLight: boolean }) {
                   disabled={busyKey !== null}
                   onClick={() => void unsave(item)}
                 >
-                  {busyKey === key ? "Unsaving…" : "Unsave"}
+                  {busyKey === key ? t("worldCatalogLibrary.savedUnsaving") : t("worldCatalogLibrary.savedUnsave")}
                 </button>
               </li>
             );
