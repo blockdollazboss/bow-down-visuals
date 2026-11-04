@@ -191,28 +191,31 @@
  *
  * STEP-UP (Nov 4, 2026 — the owner: "better than before, but
  * nowhere near Apple's level — whatever is wrong needs to be
- * fixed"). End-to-end audit of the shipped path found the
- * quality ceiling was RESOLUTION, not tuning: the Pro matte was
- * computed at a ≤640px feed and stretched ×3 over the 1080p
- * composite with a plain bilinear drawImage, so every edge —
- * hair above all — was a low-res edge smeared three output
- * pixels wide, and the fine-tune sliders (long since shipped)
- * could only tune a picture whose detail was never computed.
- * Two changes: (1) RVM_STEPS leads with 960px and 832px feeds
- * (rvm-engine.ts) — the ladder walks down from them only on
- * sustained slowness, exactly as it always governed its steps;
- * (2) a landed matte is now upsampled to the output size GUIDED
- * by the frame it describes (matte-upsample.ts, in
- * _storeLandedMatte), so the edge lands where the full-res
- * picture's edge actually is instead of where the feed grid
- * put it — the browser-feasible half of Apple's full-res
- * segmentation. The upsampler carries a cost governor: two
- * consecutive over-budget calls latch it off and the plain
- * raster returns. What this does NOT change: inference is still
- * WASM (the vendored runtime's WebGPU provider cannot run this
- * graph — see rvm-worker.js), so matte rate on weak devices is
- * still bounded by CPU; the step-up buys edge truth, not
- * inference speed.
+ * fixed"). End-to-end audit + a headless bench of the vendored
+ * model found TWO stacked caps. (1) RATIOS: the step table ran
+ * RVM's low-res branch at 205–320px wide; the bench proved the
+ * branch's operating band tops out near ~210px — above it the
+ * matte under-fires on textured content and collapses almost
+ * empty on flat content, and the ladder (which walks only on
+ * slowness) never rescued a fast device from the worst step.
+ * RVM_STEPS now holds the branch at ~155–210px at every step
+ * and raises the top FEED to 960px (rvm-engine.ts has the full
+ * bench table). (2) RESOLUTION: the matte was stretched from
+ * feed size over the 1080p composite with a plain bilinear
+ * drawImage, so every edge smeared across the scale factor and
+ * the fine-tune sliders could only tune a picture whose detail
+ * was never computed. A landed matte is now upsampled to the
+ * output size GUIDED by the frame it describes
+ * (matte-upsample.ts, in _storeLandedMatte), so the edge lands
+ * where the full-res picture's edge actually is instead of
+ * where the feed grid put it — the browser-feasible half of
+ * Apple's full-res segmentation. The upsampler carries a cost
+ * governor: two consecutive over-budget calls latch it off and
+ * the plain raster returns. What this does NOT change:
+ * inference is still WASM (the vendored runtime's WebGPU
+ * provider cannot run this graph — see rvm-worker.js), so
+ * matte rate on weak devices is still bounded by CPU; the
+ * step-up buys edge truth, not inference speed.
  *
  * Audio: pass `audio: true` to carry the mic, and `noiseCancellation:
  * 'on' | 'max'` to run it through the VoiceIsolator (voice-isolator.ts)

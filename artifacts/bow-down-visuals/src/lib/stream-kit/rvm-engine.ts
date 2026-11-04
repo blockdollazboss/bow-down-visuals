@@ -97,7 +97,7 @@ export function rvmModelUrls(): string[] {
  * hash from the shipped file — edit the worker without bumping
  * this stamp and the suite fails.
  */
-export const RVM_WORKER_VERSION = "87710f6c442a";
+export const RVM_WORKER_VERSION = "f1533c221948";
 
 /**
  * The worker script's URL. Workers cannot be constructed
@@ -173,29 +173,39 @@ export class RvmEngineError extends Error {
  *  model's low-res branch works at feed * ratio).
  *
  *  STEP-UP (Nov 4, 2026 — the owner's verdict: "nowhere near
- *  Apple's level… whatever is wrong needs to be fixed"): the old
- *  table topped out at a 640px feed, so the matte that reached a
- *  1080p composite was a 640×360 picture stretched ×3 — every
- *  edge, including hair, was a low-res edge smeared over three
- *  output pixels, and no post-processing can invent the detail
- *  that was never computed. Two higher steps now lead the table
- *  (960 and 832 feeds): a device that can hold them runs a matte
- *  at half the output's width or better, and the perf ladder —
- *  which only moves on SUSTAINED slowness (slowMs 200, judged on
- *  round trips) — walks a device that cannot back down through
- *  the old steps to the same floor as before. The ratios at the
- *  new steps keep the model's internal branch in its designed
- *  ~320–385px band (960×0.4 = 384, 832×0.45 ≈ 374), the same
- *  band the old table was tuned around (640×0.5 = 320). The
- *  worker (public/engines/rvm/rvm-worker.js) carries a mirror
- *  of this table; rvm-engine.test.ts pins the two together. */
+ *  Apple's level… whatever is wrong needs to be fixed"). A
+ *  headless bench of the vendored model (synthetic portrait with
+ *  ground truth, flat and textured variants) found the shipped
+ *  table's real defect was not the feed size but the RATIOS:
+ *  RVM's low-res branch has a narrow operating band. Measured by
+ *  mean alpha against a ~0.25 true coverage: branch width 160 →
+ *  healthy (0.244), 192–208 → healthy (0.237–0.251), 240 → weak
+ *  (0.066), 256–384 → COLLAPSED (0.003–0.038, an almost empty
+ *  matte) on flat content; textured content at width 320
+ *  survives but still under-fires (0.205 vs 0.261 in-band). The
+ *  shipped table ran branch widths of 320/269/256/205 — its top
+ *  three steps in or near the collapse zone, and the ladder only
+ *  walks on slowness, never on matte quality, so a fast device
+ *  sat in the worst step forever: a chronically weak, thin,
+ *  fringe-prone matte. (The old comment here claimed the table
+ *  was "tuned around" a 205–320px branch; the bench disproved
+ *  that band.)
+ *
+ *  The new table holds the branch at ~155–210px wide at EVERY
+ *  step and lets the FEED carry the quality: 960px at the top
+ *  (matte MAE 0.029 vs the old top step's 0.206 on the flat
+ *  bench scene), descending feeds below it so each ladder step
+ *  down is real cost relief (inference cost tracks feed area).
+ *  The worker (public/engines/rvm/rvm-worker.js) carries a
+ *  mirror of this table; rvm-engine.test.ts pins the two
+ *  together. */
 export const RVM_STEPS: ReadonlyArray<{ feedCap: number; ratio: number | "auto" }> = [
-  { feedCap: 960, ratio: 0.4 },
-  { feedCap: 832, ratio: 0.45 },
-  { feedCap: 640, ratio: 0.5 },
-  { feedCap: 640, ratio: 0.42 },
-  { feedCap: 512, ratio: 0.5 },
-  { feedCap: 512, ratio: 0.4 },
+  { feedCap: 960, ratio: 0.2 },
+  { feedCap: 832, ratio: 0.25 },
+  { feedCap: 640, ratio: 0.25 },
+  { feedCap: 512, ratio: 0.35 },
+  { feedCap: 448, ratio: 0.4 },
+  { feedCap: 384, ratio: 0.45 },
 ];
 export const RVM_MAX_STEP = RVM_STEPS.length - 1;
 
