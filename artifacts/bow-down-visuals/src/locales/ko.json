@@ -12418,17 +12418,17 @@
   "outOfCredits": {
     "addedBtn": "Visual Bucs가 추가됐습니다!",
     "adding": "추가 중…",
-    "balanceErrorTitle": "We couldn't check your balance",
-    "balanceErrorBody": "Your balance didn't come through, so we can't tell whether you have enough Visual Bucs for this. Try again — nothing was charged.",
+    "balanceErrorTitle": "잔액을 확인할 수 없습니다",
+    "balanceErrorBody": "잔액이 전송되지 않아, 이에 충분한 Visual Bucs가 있는지 확인할 수 없습니다. 다시 시도해 주세요 — 청구된 금액은 없습니다.",
     "addTestBtn": "테스트 Visual Bucs 10개 추가 (dev)",
     "body": "Visual Bucs가 부족합니다. 계속하려면 Visual Bucs를 더 구매하세요.",
     "buyBtn": "Visual Bucs 더 구매",
-    "checkingBalance": "Checking your balance…",
+    "checkingBalance": "잔액을 확인하는 중…",
     "dismissAria": "닫기",
     "errAdd": "Visual Bucs 추가 실패",
     "errFailed": "실패",
     "historyBtn": "Visual Buc 내역 보기",
-    "retryBtn": "Try again",
+    "retryBtn": "다시 시도",
     "title": "Visual Bucs 부족"
   },
   "showcasePublish": {

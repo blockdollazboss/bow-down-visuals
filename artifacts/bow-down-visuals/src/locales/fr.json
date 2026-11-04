@@ -14564,17 +14564,17 @@
   "outOfCredits": {
     "addedBtn": "Visual Bucs ajoutés !",
     "adding": "Ajout…",
-    "balanceErrorTitle": "We couldn't check your balance",
-    "balanceErrorBody": "Your balance didn't come through, so we can't tell whether you have enough Visual Bucs for this. Try again — nothing was charged.",
+    "balanceErrorTitle": "Impossible de vérifier votre solde",
+    "balanceErrorBody": "Votre solde ne nous est pas parvenu, nous ne pouvons donc pas savoir si vous avez assez de Visual Bucs pour cela. Réessayez — rien n'a été débité.",
     "addTestBtn": "Ajouter 10 Visual Bucs de test (dev)",
     "body": "Pas assez de Visual Bucs. Achetez plus de Visual Bucs pour continuer.",
     "buyBtn": "Acheter plus de Visual Bucs",
-    "checkingBalance": "Checking your balance…",
+    "checkingBalance": "Vérification de votre solde…",
     "dismissAria": "Ignorer",
     "errAdd": "Échec de l'ajout de Visual Bucs",
     "errFailed": "Échec",
     "historyBtn": "Voir l'historique des Visual Bucs",
-    "retryBtn": "Try again",
+    "retryBtn": "Réessayer",
     "title": "Visual Bucs insuffisants"
   },
   "showcasePublish": {
