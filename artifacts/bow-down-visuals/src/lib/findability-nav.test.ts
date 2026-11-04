@@ -428,8 +428,19 @@ describe("findability — legacy routes redirect, wired pages live in the shell"
     /* Inside the content panel a min-h-screen root forces a viewport-tall
        block mid-page (dead scroll). The wrapped pages and the roots
        embedded in them shed it; the panel supplies the min-height. */
-    for (const page of ["coach", "academy", "guides", "branding-kit", "branding-shop"]) {
+    for (const page of ["coach", "academy", "branding-kit"]) {
       expect(read(`../pages/${page}.tsx`), `${page} root`).not.toContain(
+        '<div className="min-h-screen bg-black text-white">',
+      );
+    }
+    /* The guides + branding-shop surfaces are components/ modules now
+       (stack100 A5) — the same embedded-root rule, read at their new
+       homes. */
+    for (const [label, mod] of [
+      ["guides", "../components/courses/Guides.tsx"],
+      ["branding-shop", "../components/branding/BrandingShop.tsx"],
+    ] as const) {
+      expect(read(mod), `${label} root`).not.toContain(
         '<div className="min-h-screen bg-black text-white">',
       );
     }
