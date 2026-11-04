@@ -43,6 +43,7 @@ import {
   type BeatMelodicVoiceId,
   type BeatMelodyLanes,
 } from "@/lib/beat-melody";
+import { BEAT_GENRES, BEAT_PRESETS, beatPresetById } from "@/lib/beat-presets";
 import { scheduleMidiVoice } from "@/lib/midi-synth";
 import { stashBeatHandoff } from "@/lib/beat-handoff";
 import { audioBufferToMp3 } from "@/lib/beat-mp3";
@@ -194,11 +195,6 @@ import {
 
 /* Single source of truth for the AI beat price — the credit-cost registry. */
 const BEAT_COST = CREDIT_COSTS["/api/beat/generate"]?.cost ?? 300;
-
-const BEAT_GENRES = [
-  "hip-hop", "trap", "drill", "r&b", "afrobeats", "pop",
-  "edm", "lofi", "dancehall", "jersey-club",
-] as const;
 
 const DURATIONS = [
   { labelKey: "beatMaker.duration30s", value: 30 },
@@ -633,114 +629,6 @@ function noiseBurst(
   src.start(t); src.stop(t + dur + 0.02);
 }
 
-/* Presets — classic starting patterns. Values: 0 = off, 1 = hit, 2 = accent.
-   Rows: kick,snare,clap,chat,ohat,808,perc,shk,crash. Bass: MIDI notes per step (null = rest). */
-const PRESETS: Record<string, { nameKey: string; fallback: string; bpm: number; grid: number[][]; bass: (number | null)[]; melody?: BeatMelodyLanes }> = {
-  trap: {
-    nameKey: "beatMaker.presetTrap", fallback: "Trap", bpm: 140,
-    grid: [
-      [1,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0],
-      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
-      [0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0],
-      [1,0,2,1,0,1,0,1,1,0,1,2,0,1,1,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
-      [1,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0],
-      [0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0],
-      [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1],
-      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    ],
-    bass: [36,null,null,null,null,null,36,null,null,null,34,null,32,null,31,null],
-    /* Simple melodic seed in the same step shape the roll edits. */
-    melody: {
-      keys: [
-        { id: "seed-trap-keys-1", pitch: 60, startStep: 0, lengthSteps: 2, velocity: 90 },
-        { id: "seed-trap-keys-2", pitch: 63, startStep: 4, lengthSteps: 2, velocity: 85 },
-        { id: "seed-trap-keys-3", pitch: 65, startStep: 8, lengthSteps: 2, velocity: 90 },
-        { id: "seed-trap-keys-4", pitch: 63, startStep: 12, lengthSteps: 2, velocity: 80 },
-      ],
-      pluck: [
-        { id: "seed-trap-pluck-1", pitch: 72, startStep: 2, lengthSteps: 0.5, velocity: 80 },
-        { id: "seed-trap-pluck-2", pitch: 72, startStep: 6, lengthSteps: 0.5, velocity: 80 },
-        { id: "seed-trap-pluck-3", pitch: 70, startStep: 10, lengthSteps: 0.5, velocity: 75 },
-        { id: "seed-trap-pluck-4", pitch: 72, startStep: 14, lengthSteps: 0.5, velocity: 80 },
-      ],
-      pad: [],
-    },
-  },
-  drill: {
-    nameKey: "beatMaker.presetDrill", fallback: "Drill", bpm: 142,
-    grid: [
-      [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0],
-      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,2],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0],
-      [0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0],
-      [0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1],
-      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    ],
-    bass: [33,null,null,33,null,null,33,null,31,null,null,29,null,null,null,null],
-  },
-  boombap: {
-    nameKey: "beatMaker.presetBoomBap", fallback: "Boom Bap", bpm: 92,
-    grid: [
-      [2,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0],
-      [0,0,0,0,2,0,0,0,0,0,0,0,1,0,0,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [1,0,1,0,1,0,1,0,1,0,1,0,1,1,0,1],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [0,0,1,0,0,1,0,0,1,0,0,0,0,1,0,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    ],
-    bass: [36,null,null,null,null,null,null,null,43,null,null,null,41,null,null,null],
-    melody: {
-      keys: [
-        { id: "seed-boombap-keys-1", pitch: 69, startStep: 0, lengthSteps: 1, velocity: 85 },
-        { id: "seed-boombap-keys-2", pitch: 67, startStep: 4, lengthSteps: 1, velocity: 80 },
-        { id: "seed-boombap-keys-3", pitch: 65, startStep: 10, lengthSteps: 1, velocity: 80 },
-      ],
-      pluck: [],
-      pad: [
-        { id: "seed-boombap-pad-1", pitch: 57, startStep: 0, lengthSteps: 8, velocity: 70 },
-        { id: "seed-boombap-pad-2", pitch: 53, startStep: 8, lengthSteps: 8, velocity: 70 },
-      ],
-    },
-  },
-  afrobeats: {
-    nameKey: "beatMaker.presetAfrobeats", fallback: "Afrobeats", bpm: 102,
-    grid: [
-      [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0],
-      [0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0],
-      [0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0],
-      [1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [1,0,0,0,1,0,0,1,0,0,1,0,0,1,0,0],
-      [1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1],
-      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    ],
-    bass: [36,null,null,null,36,null,null,null,34,null,null,null,32,null,null,null],
-  },
-  house: {
-    nameKey: "beatMaker.presetHouse", fallback: "House", bpm: 124,
-    grid: [
-      [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
-      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
-      [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
-      [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
-      [0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    ],
-    bass: [36,null,null,null,36,null,null,null,36,null,null,null,39,null,38,null],
-  },
-};
-
 /* 808 bass range: C1 (24) .. B2 (47) */
 const BASS_LO = 24;
 const BASS_HI = 47;
@@ -904,7 +792,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
           PATTERN_IDS.map((id) => [id, cloneBeatPattern(restored.patterns[id])]),
         ) as Record<PatternId, PatternData>)
       : {
-          A: { ...emptyBeatPattern(), grid: PRESETS.trap.grid.map((r) => [...r]), bass: [...PRESETS.trap.bass], melody: cloneBeatMelody(PRESETS.trap.melody ?? emptyBeatMelody()) },
+          A: { ...emptyBeatPattern(), grid: BEAT_PRESETS.trap.grid.map((r) => [...r]), bass: [...BEAT_PRESETS.trap.bass], melody: cloneBeatMelody(BEAT_PRESETS.trap.melody ?? emptyBeatMelody()) },
           B: emptyBeatPattern(),
           C: emptyBeatPattern(),
           D: emptyBeatPattern(),
@@ -2003,7 +1891,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   };
 
   const loadPreset = (key: string) => {
-    const p = PRESETS[key];
+    const p = beatPresetById(key);
     if (!p) return;
     stop();
     /* Presets are 1-bar patterns; loading one resets the slot to
@@ -2645,7 +2533,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
 
       {/* Presets + randomize */}
       <div className="flex flex-wrap gap-2">
-        {Object.entries(PRESETS).map(([key, p]) => (
+        {Object.entries(BEAT_PRESETS).map(([key, p]) => (
           <button
             key={key} type="button" onClick={() => loadPreset(key)}
             className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${T.pill}`}
