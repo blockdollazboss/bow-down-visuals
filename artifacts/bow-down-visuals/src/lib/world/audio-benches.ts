@@ -582,6 +582,30 @@ function fillToken(template: string, token: string, value: string): string {
   return template.split(token).join(value);
 }
 
+/** Build the bundle from a translate function (the desk's `t`):
+ *  every field reads its worldAudioDesk catalog key, templates
+ *  included — the interpreter fills their tokens itself. */
+export function audioBenchResultStrings(translate: (key: string) => string): AudioBenchResultStrings {
+  return {
+    jobFailed: translate("worldAudioDesk.resultJobFailed"),
+    splitEmpty: translate("worldAudioDesk.resultSplitEmpty"),
+    jobEmpty: translate("worldAudioDesk.resultJobEmpty"),
+    harmonyMix: translate("worldAudioDesk.resultHarmonyMix"),
+    harmonyStem: translate("worldAudioDesk.resultHarmonyStem"),
+    podcastEpisode: translate("worldAudioDesk.resultPodcastEpisode"),
+    voiceover: translate("worldAudioDesk.resultVoiceover"),
+    instrumental: translate("worldAudioDesk.resultInstrumental"),
+    vocalsOnly: translate("worldAudioDesk.resultVocalsOnly"),
+    yourAudio: translate("worldAudioDesk.resultYourAudio"),
+    finishedAudio: translate("worldAudioDesk.resultFinishedAudio"),
+    stemLabel: translate("worldAudioDesk.stemLabel"),
+    lufsIntegrated: translate("worldAudioDesk.lufsIntegrated"),
+    lufsRange: translate("worldAudioDesk.lufsRange"),
+    lufsTruePeak: translate("worldAudioDesk.lufsTruePeak"),
+    lufsDuration: translate("worldAudioDesk.lufsDuration"),
+  };
+}
+
 const EMPTY: AudioBenchResult = { done: false, failed: false, urls: [], text: null, error: null };
 
 function failed(error: string | null, strings: AudioBenchResultStrings): AudioBenchResult {

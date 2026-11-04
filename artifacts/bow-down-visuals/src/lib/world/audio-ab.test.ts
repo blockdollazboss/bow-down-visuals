@@ -190,13 +190,17 @@ describe("source pins — the player and the desks stay honest", () => {
 
   it("the finish tool gets the A/B too — a demo and its finished song both exist", () => {
     expect(audioDesk).toContain('tool === "cleanup" || tool === "deverb" || tool === "finish"');
-    expect(audioDesk).toContain('tool === "finish" ? "Your demo" : "Original"');
+    /* Unit 39: the labels ride the worldAudioDesk catalog — the
+       finish tool's Before is the demo key, the rest the original. */
+    expect(audioDesk).toContain('tool === "finish" ? t("worldAudioDesk.abBeforeDemo") : t("worldAudioDesk.abBeforeOriginal")');
   });
 
   it("the full workbench pairs against the source captured at Run, through the seam", () => {
     expect(audioDesk).toContain('runSourceRef.current = def.input === "url" ? sourceUrl || null : def.input === "file" ? props.file : null');
     expect(audioDesk).toContain("setResultSource(runSourceRef.current)");
-    expect(audioDesk).toContain("abComparableOutput(benchId, result)");
+    /* Unit 39: the seam gets the active language's harmony label
+       so the comparable output is found in every locale. */
+    expect(audioDesk).toContain('abComparableOutput(benchId, result, t("worldAudioDesk.resultHarmonyMix"))');
     expect(audioDesk).toContain("beforeSource={resultSource}");
     expect(audioDesk).toContain("afterUrl={comparable.url}");
     /* Non-comparable outputs keep their plain players beside it. */
