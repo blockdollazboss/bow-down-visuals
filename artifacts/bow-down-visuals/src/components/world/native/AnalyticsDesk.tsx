@@ -1413,14 +1413,12 @@ function CompetitorCard({ isLight }: { isLight: boolean }) {
               disabled={look.busy}
               className={goldButtonCls(look.busy)}
               onClick={() => {
-                if (form.name.trim().length < 2 && form.url.trim().length < 4) {
+                if (!competitorReady(form)) {
                   look.setError(
-                    "Name the competitor (2+ characters) or paste their channel URL first.",
+                    form.niche.trim().length < 2
+                      ? "Add the niche you share — 2+ characters."
+                      : "Name the competitor (2+ characters) or paste their channel URL first.",
                   );
-                  return;
-                }
-                if (form.niche.trim().length < 2) {
-                  look.setError("Add the niche you share — 2+ characters.");
                   return;
                 }
                 void look.run(COMPETITOR_ANALYSIS_PATH, buildCompetitorBody(form));
