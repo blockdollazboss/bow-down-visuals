@@ -196,6 +196,7 @@ const SmartCardsStand = lazy(() => import("@/components/world/native/SmartCardsS
 const MerchBench = lazy(() => import("@/components/world/native/MerchBench").then((m) => ({ default: m.MerchBench })));
 const AccountDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.AccountDesk })));
 const AcademyDesk = lazy(() => import("@/components/world/native/AcademyDesk").then((m) => ({ default: m.AcademyDesk })));
+const AnalyticsDesk = lazy(() => import("@/components/world/native/AnalyticsDesk").then((m) => ({ default: m.AnalyticsDesk })));
 const BriefDesk = lazy(() => import("@/components/world/native/BriefDesk").then((m) => ({ default: m.BriefDesk })));
 const SocialProofDesk = lazy(() => import("@/components/world/native/SocialProofDesk").then((m) => ({ default: m.SocialProofDesk })));
 const DjDesk = lazy(() => import("@/components/world/native/DjDesk").then((m) => ({ default: m.DjDesk })));
@@ -1251,6 +1252,19 @@ export default function StationPanel(props: StationPanelProps) {
                     like the locked /academy route on the website. */}
                 <DeskDoor isLight={isLight}>
                   <AcademyDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Analytics Desk (stack100 wave 4, item 24, desk
+                    #98): the Analytics Hub's DEPTH tools — the free
+                    connected overview, AI Insights + content
+                    suggestions over the connected numbers, the
+                    Growth Plan over the creator's own hub stats
+                    (the same localStorage store the website page
+                    keeps), Channel Audit, Virality Pre-Flight,
+                    Competitor Tracker and the AI Coach — each on
+                    its existing registry-priced rail, stacked at
+                    the My Studio board. */}
+                <DeskDoor isLight={isLight}>
+                  <AnalyticsDesk isLight={isLight} />
                 </DeskDoor>
                 {/* DJ Set Prep (stack1500 parity wave #3): tempo +
                     key analysis, crates, the harmonic order

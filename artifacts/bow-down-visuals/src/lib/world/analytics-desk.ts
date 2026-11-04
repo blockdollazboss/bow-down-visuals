@@ -661,6 +661,9 @@ export interface AuditDimension {
   score: number;
   finding: string;
   fix: string;
+  /** The rail's own grade color class (gradeColorFor in the
+   *  route); "" when the answer didn't carry one. */
+  gradeColor: string;
 }
 
 export interface ChannelAuditResult {
@@ -697,6 +700,7 @@ export function normalizeChannelAudit(data: unknown): ChannelAuditResult | null 
       score: dScore,
       finding: str(d.finding),
       fix: str(d.fix),
+      gradeColor: str(d.gradeColor),
     });
   }
   if (dimensions.length === 0) return null;
