@@ -214,6 +214,7 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
           <input
             className={`${inputCls} w-24`}
             data-testid="world-llc-desk-chat-state"
+            aria-label="Your state, for the LLC chat"
             placeholder="State (GA)"
             maxLength={2}
             value={chatState}
@@ -222,6 +223,7 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
           <input
             className={`${inputCls} min-w-52 flex-1`}
             data-testid="world-llc-desk-question"
+            aria-label="Ask about your LLC"
             placeholder="Ask about your LLC…"
             maxLength={1000}
             value={question}
@@ -250,6 +252,7 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
           <input
             className={`${inputCls} w-24`}
             data-testid="world-llc-desk-plan-state"
+            aria-label="Your state, for the filing plan"
             placeholder="State (GA)"
             maxLength={2}
             value={planState}
@@ -257,6 +260,7 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
           />
           <input
             className={`${inputCls} min-w-44 flex-1`}
+            aria-label="Business name (optional)"
             placeholder="Business name (optional)"
             maxLength={120}
             value={businessName}

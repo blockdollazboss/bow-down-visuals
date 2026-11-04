@@ -383,6 +383,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
         <div className="mt-2 flex gap-2">
           <input
             data-testid="world-wallpapers-desk-prompt"
+            aria-label="Describe the wallpaper art"
             className={inputCls}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -541,6 +542,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
         <div className="mt-2 flex gap-2">
           <input
             data-testid="world-wallpapers-desk-video-prompt"
+            aria-label="Describe the moving wallpaper"
             className={inputCls}
             value={videoPrompt}
             onChange={(e) => setVideoPrompt(e.target.value)}

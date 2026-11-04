@@ -329,6 +329,7 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
           <input
             className={`${inputCls} min-w-52 flex-1`}
             data-testid="world-copyright-desk-question"
+            aria-label="Ask about copyright"
             placeholder="Ask about copyright…"
             maxLength={1000}
             value={question}

@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "2eb3bc54beb1d6435f570c9d6eb83a7e571c595f",
+  "baseCommit": "b1d4128755c0df0a761a67628b04e59c91bb0c9c",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-03",
+  "generatedAt": "2026-11-04",
   "counts": {
     "routesInApp": 245,
     "pageFiles": 188,
@@ -22,8 +22,8 @@
     "withDescriptions": 251,
     "withoutDescriptions": 0,
     "serverRouteFiles": 430,
-    "serverEndpoints": 1732,
-    "serverEndpointsVisible": 1070,
+    "serverEndpoints": 1737,
+    "serverEndpointsVisible": 1074,
     "serverFilesClassified": 100
   },
   "packs": [
@@ -4116,6 +4116,7 @@
         "/api/loop-exchange/loops/:param",
         "/api/loop-exchange/loops/:param/builds",
         "/api/loop-exchange/mine",
+        "/api/publish/upload",
         "/api/referrals/apply",
         "/api/referrals/me",
         "/api/sound-fit/:param"
@@ -7683,6 +7684,10 @@
         "/api/distribution/roster/invites/:param/access",
         "/api/distribution/roster/invites/:param/respond",
         "/api/distribution/strategy",
+        "/api/distribution/toolost/auth-url",
+        "/api/distribution/toolost/releases/:param/submit",
+        "/api/distribution/toolost/status",
+        "/api/distribution/toolost/submissions",
         "/api/drop-day-kits",
         "/api/drop-day-kits/:param",
         "/api/drop-day-kits/:param/status",
@@ -7762,6 +7767,10 @@
         "/api/distribution/roster/invites/:param/access",
         "/api/distribution/roster/invites/:param/respond",
         "/api/distribution/strategy",
+        "/api/distribution/toolost/auth-url",
+        "/api/distribution/toolost/releases/:param/submit",
+        "/api/distribution/toolost/status",
+        "/api/distribution/toolost/submissions",
         "/api/drop-day-kits",
         "/api/drop-day-kits/:param",
         "/api/drop-day-kits/:param/status",
@@ -17953,8 +17962,8 @@
       },
       {
         "file": "artifacts/api-server/src/routes/distribution-legacy.ts",
-        "endpoints": 24,
-        "visible": 16,
+        "endpoints": 29,
+        "visible": 20,
         "unseen": [
           "/api/distribution/change-requests/:id",
           "/api/distribution/presave/:slug/account-presave",
@@ -17962,6 +17971,7 @@
           "/api/distribution/spotify/auth-url",
           "/api/distribution/spotify/callback",
           "/api/distribution/spotify/status",
+          "/api/distribution/toolost/callback",
           "/api/promote/unlock-gates/:slug/record-share",
           "/api/promote/unlock-gates/:slug/unlock"
         ]

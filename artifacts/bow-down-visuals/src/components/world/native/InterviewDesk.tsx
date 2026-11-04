@@ -344,6 +344,7 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
           <p className={`text-sm font-bold ${strong}`}>Your answer to: {activeQuestion.question}</p>
           <textarea
             data-testid="world-interview-desk-answer"
+            aria-label="Your answer"
             className={`${inputCls} mt-2`}
             rows={4}
             maxLength={3000}

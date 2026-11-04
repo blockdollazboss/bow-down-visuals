@@ -233,6 +233,7 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
               words.
             </p>
             <textarea
+              aria-label="Your grant report-back"
               className={`${inputCls} mt-2`}
               rows={4}
               maxLength={4000}

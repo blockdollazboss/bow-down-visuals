@@ -356,6 +356,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
         <div className="mt-2 flex gap-2">
           <input
             data-testid="world-dj-desk-crate-name"
+            aria-label="Name a new crate"
             className={inputCls}
             value={newCrateName}
             maxLength={80}

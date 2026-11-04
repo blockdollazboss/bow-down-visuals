@@ -235,6 +235,7 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         <input
           className={`${inputCls} mt-2`}
           data-testid="world-trends-desk-custom-niche"
+          aria-label="Your own niche"
           placeholder="…or your own niche"
           maxLength={120}
           value={customNiche}

@@ -174,6 +174,7 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
       <div className="flex gap-2">
         <input
           data-testid="world-setlist-desk-new-title"
+          aria-label="Song title"
           className={inputCls}
           value={newTitle}
           maxLength={200}
@@ -182,6 +183,7 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
         />
         <input
           data-testid="world-setlist-desk-new-artist"
+          aria-label="Artist (optional)"
           className={inputCls}
           value={newArtist}
           maxLength={200}
