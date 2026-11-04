@@ -7,8 +7,9 @@
  * /api/tour/dates rails the website's Tour Planner keeps, so
  * the desk and the page are two faces of ONE list. Date work
  * is free, exactly like the page. The AI route + budget
- * optimizer (300 Visual Bucs, confirmed here first — the
- * page's unconfirmed post is not copied) orders the stops to
+ * optimizer (Visual Bucs at the registry price, confirmed
+ * here first — the page's unconfirmed post is not copied)
+ * orders the stops to
  * minimize travel and estimates the budget; the figures are
  * AI estimates, and the desk says so in the page's own words.
  *
