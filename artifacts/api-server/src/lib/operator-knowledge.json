@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "4ca89d2a34da2bf9b158c1320673b2c4338f96cc",
+  "baseCommit": "fb1f8fa2efea09dde421dcdccbe6f05b5b7a4c22",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -10,21 +10,21 @@
   "generatedAt": "2026-11-04",
   "counts": {
     "routesInApp": 245,
-    "pageFiles": 186,
-    "features": 251,
+    "pageFiles": 179,
+    "features": 252,
     "excludedRoutes": 74,
-    "excludedPageFiles": 33,
-    "pricedActions": 256,
+    "excludedPageFiles": 26,
+    "pricedActions": 258,
     "routeFileEndpoints": 0,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 251,
+    "withDescriptions": 252,
     "withoutDescriptions": 0,
     "serverRouteFiles": 431,
     "serverEndpoints": 1740,
-    "serverEndpointsVisible": 1077,
-    "serverFilesClassified": 100
+    "serverEndpointsVisible": 1079,
+    "serverFilesClassified": 99
   },
   "packs": [
     {
@@ -159,6 +159,14 @@
       "serverValue": 300,
       "serverSource": "artifacts/api-server/src/routes/wallpapers.ts",
       "registryValue": 300,
+      "agree": true
+    },
+    {
+      "constant": "CHAT_SPEAK_CREDITS",
+      "endpoint": "/api/chat/speak",
+      "serverValue": 100,
+      "serverSource": "artifacts/api-server/src/routes/chat-speak.ts",
+      "registryValue": 100,
       "agree": true
     }
   ],
@@ -5727,9 +5735,9 @@
     {
       "id": "carousel-maker",
       "name": "Carousel Maker",
-      "nameSource": "App.tsx component name",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/carousel-maker",
-      "stage": "studio",
+      "stage": "create",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/carousel-maker.tsx",
       "component": "CarouselMaker",
@@ -5753,7 +5761,13 @@
       ],
       "description": "Swipeable Instagram, TikTok & LinkedIn carousels — designed in seconds.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"carouselMaker.pageDescription\" (page's own string)",
-      "nextSteps": []
+      "nextSteps": [
+        {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
     },
     {
       "id": "catalog-import",
@@ -7723,10 +7737,10 @@
     },
     {
       "id": "creator-domains",
-      "name": "Creator Domains Page",
-      "nameSource": "App.tsx component name",
+      "name": "Creator Domains",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/creator/domains",
-      "stage": "studio",
+      "stage": "brand",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/creator-domains.tsx",
       "component": "CreatorDomainsPage",
@@ -7739,7 +7753,13 @@
         "/api/referrals/apply"
       ],
       "prices": [],
-      "nextSteps": [],
+      "nextSteps": [
+        {
+          "label": "Promote",
+          "path": "/promote",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ],
       "description": "Connect a custom domain to your Bow Down Visuals creator site and storefront.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/creator-domains.tsx usePageTitle meta description"
     },
@@ -7852,11 +7872,36 @@
       "nextSteps": []
     },
     {
+      "id": "spoken-replies",
+      "name": "Spoken Replies",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/dashboard",
+      "stage": "account",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/dashboard.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/chat/speak",
+        "/api/chat/speak/status"
+      ],
+      "prices": [
+        {
+          "feature": "Spoken Reply",
+          "vb": 100,
+          "endpoint": "/api/chat/speak",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "Thy Cheat Code can read his chat replies aloud in his own voice, right inside this chat: turn on spoken replies at the top of the chat, then tap the speak button on a reply to hear it out loud. Replays are free and a failed speak is refunded; while his voice is still being cast, nothing is charged.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": []
+    },
+    {
       "id": "detector",
       "name": "Media Detector",
-      "nameSource": "App.tsx component name",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/detector",
-      "stage": "studio",
+      "stage": "create",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/media-detector.tsx",
       "component": "MediaDetector",
@@ -7878,7 +7923,13 @@
       ],
       "description": "Upload an image, video, or audio file — or paste a link — and get a forensic AI assessment: verdict, confidence score, and the exact tells it found.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"mediaDetector.subtitle\" (page's own string)",
-      "nextSteps": []
+      "nextSteps": [
+        {
+          "label": "Branding Kit",
+          "path": "/branding-kit",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
     },
     {
       "id": "distribute",
@@ -9761,8 +9812,8 @@
     },
     {
       "id": "import",
-      "name": "Media Import",
-      "nameSource": "App.tsx component name",
+      "name": "Import Media",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/import",
       "stage": "studio",
       "access": "members",
@@ -9787,9 +9838,9 @@
     {
       "id": "interview-prep",
       "name": "Interview Prep",
-      "nameSource": "App.tsx component name",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/interview-prep",
-      "stage": "studio",
+      "stage": "promote",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/interview-prep.tsx",
       "component": "InterviewPrep",
@@ -9816,7 +9867,13 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": [],
+      "nextSteps": [
+        {
+          "label": "Monetization Coach",
+          "path": "/coach",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ],
       "description": "Prep for interviews and press with AI-coached answers.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/interview-prep.tsx usePageTitle meta description"
     },
@@ -9838,9 +9895,9 @@
     {
       "id": "jewelry-shop",
       "name": "Jewelry Shop",
-      "nameSource": "App.tsx component name",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/jewelry-shop",
-      "stage": "studio",
+      "stage": "brand",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/jewelry-shop.tsx",
       "component": "JewelryShop",
@@ -9853,7 +9910,13 @@
         "/api/referrals/apply"
       ],
       "prices": [],
-      "nextSteps": [],
+      "nextSteps": [
+        {
+          "label": "Promote",
+          "path": "/promote",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ],
       "description": "The Bow Down Visuals jewelry line — signature pieces for creators.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/jewelry-shop.tsx usePageTitle meta description"
     },
@@ -9877,9 +9940,9 @@
     {
       "id": "label-pitch",
       "name": "Label Pitch",
-      "nameSource": "App.tsx component name",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/label-pitch",
-      "stage": "studio",
+      "stage": "promote",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/label-pitch.tsx",
       "component": "LabelPitch",
@@ -9937,7 +10000,13 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
-      "nextSteps": [],
+      "nextSteps": [
+        {
+          "label": "Monetization Coach",
+          "path": "/coach",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ],
       "description": "AI analyzes your song, then builds a professional demo submission package — the email, your one-sheet, and the follow-up. Labels rarely sign from cold demos, but the right package opens doors that talent alone can't.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"labelPitch.heroSubtitle\""
     },
@@ -9946,7 +10015,7 @@
       "name": "Playlist Pitch",
       "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
       "path": "/label-pitch?mode=playlists",
-      "stage": "studio",
+      "stage": "promote",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/label-pitch.tsx",
       "component": null,
@@ -9975,14 +10044,20 @@
       ],
       "description": "AI analyzes your song, then writes a professional curator pitch — the email, the DM, and the follow-up. Pitching improves your odds; it never guarantees placement. Every pitch you're working toward, in one place — what's due next is always on top. Nothing here sends email; it's your board.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"playlistPitch.heroDescription\" + artifacts/bow-down-visuals/src/locales/en.json \"playlistPitch.deadlinesIntro\"",
-      "nextSteps": []
+      "nextSteps": [
+        {
+          "label": "Monetization Coach",
+          "path": "/coach",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
     },
     {
       "id": "playlist-pitch-packet",
       "name": "Pitch packet",
       "nameSource": "artifacts/bow-down-visuals/src/locales/en.json \"playlistPitch.packetTitle\"",
       "path": "/label-pitch?mode=playlists",
-      "stage": "studio",
+      "stage": "promote",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/label-pitch.tsx",
       "component": null,
@@ -9992,7 +10067,13 @@
       "prices": [],
       "description": "Built from your release record — real data only. Anything the record doesn't have is listed as missing, never made up.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"playlistPitch.packetIntro\"",
-      "nextSteps": []
+      "nextSteps": [
+        {
+          "label": "Monetization Coach",
+          "path": "/coach",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
     },
     {
       "id": "library",
@@ -10006,10 +10087,14 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/content-warning/preferences",
         "/api/credits/claim-trial",
+        "/api/posts/:param/content-warning/reveal",
         "/api/product-gifts/:param/:param",
         "/api/product-gifts/mine",
         "/api/referrals/apply",
+        "/api/saves",
+        "/api/saves/mine",
         "/api/shops/my-purchases",
         "/api/wishlists",
         "/api/wishlists/:param/:param"
@@ -10321,9 +10406,9 @@
     {
       "id": "movies",
       "name": "Movies",
-      "nameSource": "App.tsx component name",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/movies",
-      "stage": "studio",
+      "stage": "social",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/movies.tsx",
       "component": "Movies",
@@ -10359,7 +10444,7 @@
     {
       "id": "my-music",
       "name": "My Music",
-      "nameSource": "App.tsx component name",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/my-music",
       "stage": "studio",
       "access": "members",
@@ -11580,9 +11665,9 @@
     {
       "id": "saved",
       "name": "Saved",
-      "nameSource": "App.tsx component name",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/saved",
-      "stage": "studio",
+      "stage": "social",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/saved.tsx",
       "component": "Saved",
@@ -12058,9 +12143,9 @@
     {
       "id": "setlist",
       "name": "Setlist Builder",
-      "nameSource": "App.tsx component name",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/setlist",
-      "stage": "studio",
+      "stage": "promote",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/setlist.tsx",
       "component": "SetlistBuilder",
@@ -12083,7 +12168,13 @@
       ],
       "description": "Build your live show like a director — order the arc, time the runtime, and let AI place your opener, peaks, and closer.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"setlist.pageDescription\" (page's own string)",
-      "nextSteps": []
+      "nextSteps": [
+        {
+          "label": "Monetization Coach",
+          "path": "/coach",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ]
     },
     {
       "id": "settings",
@@ -13858,9 +13949,9 @@
     {
       "id": "tour",
       "name": "Tour Planner",
-      "nameSource": "App.tsx component name",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/tour",
-      "stage": "studio",
+      "stage": "promote",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/tour.tsx",
       "component": "TourPlanner",
@@ -13874,8 +13965,21 @@
         "/api/tour/dates/:param",
         "/api/tour/optimize"
       ],
-      "prices": [],
-      "nextSteps": [],
+      "prices": [
+        {
+          "feature": "Tour Planner — AI routing + budget",
+          "vb": 300,
+          "endpoint": "/api/tour/optimize",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "nextSteps": [
+        {
+          "label": "Monetization Coach",
+          "path": "/coach",
+          "source": "CREATE → BRAND → PROMOTE → MONEY journey"
+        }
+      ],
       "description": "Map your dates, let AI find the smartest route, and budget the run — then promote every city like a headliner.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"tour.heroSubtitle\""
     },
@@ -13906,9 +14010,9 @@
     {
       "id": "trending",
       "name": "Trending",
-      "nameSource": "App.tsx component name",
+      "nameSource": "app-sidebar.tsx nav label (en.json)",
       "path": "/trending",
-      "stage": "studio",
+      "stage": "social",
       "access": "members",
       "pageFile": "artifacts/bow-down-visuals/src/pages/trending.tsx",
       "component": "Trending",
@@ -17776,16 +17880,6 @@
     },
     {
       "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/ai-audio.tsx",
-      "reason": "Legacy standalone page — route /ai-audio now redirects to /audio-studio?tab=aiaudio; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/branding-shop.tsx",
-      "reason": "Legacy standalone page — route /branding-shop now redirects to /branding-kit?tab=shop; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/broadcast.tsx",
       "reason": "Legacy standalone page — route /broadcast now redirects to /go-live; the live feature is covered by the target's knowledge entry."
     },
@@ -17816,23 +17910,8 @@
     },
     {
       "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/guides.tsx",
-      "reason": "Legacy standalone page — route /guides now redirects to /academy?tab=guides; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/hub.tsx",
-      "reason": "Legacy standalone page — route /hub now redirects to /create?panel=hub; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/intros-outros.tsx",
       "reason": "Legacy standalone page — route /intros-outros now redirects to /branding-kit?tab=intros; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/jewelry.tsx",
-      "reason": "Legacy standalone page — route /jewelry now redirects to /branding-kit?tab=jewelry; the live feature is covered by the target's knowledge entry."
     },
     {
       "kind": "pageFile",
@@ -17886,11 +17965,6 @@
     },
     {
       "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/shows.tsx",
-      "reason": "Legacy standalone page — route /shows now redirects to /go-live?tab=shows; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/song-and-video.tsx",
       "reason": "Legacy standalone page — route /song-and-video now redirects to /create?panel=song-video; the live feature is covered by the target's knowledge entry."
     },
@@ -17908,11 +17982,6 @@
       "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/songs/dj-set-prep.tsx",
       "reason": "Tab panel component (the DJ Sets tab) imported by the songs library page (pages/songs.tsx); not a route of its own."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/sounds.tsx",
-      "reason": "Legacy standalone page — route /sounds now redirects to /audio-studio?tab=sounds; the live feature is covered by the target's knowledge entry."
     },
     {
       "kind": "pageFile",
@@ -18122,15 +18191,8 @@
       {
         "file": "artifacts/api-server/src/routes/chat-speak.ts",
         "endpoints": 2,
-        "visible": 0,
-        "unseen": [
-          "/api/chat/speak",
-          "/api/chat/speak/status"
-        ],
-        "classification": {
-          "surface": "operator",
-          "reason": "The operator's spoken-reply rail (speak + speak/status) behind the chat surface; no page of its own."
-        }
+        "visible": 2,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/chat-voice.ts",
