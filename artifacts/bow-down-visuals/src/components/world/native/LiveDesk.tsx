@@ -5,6 +5,7 @@ import {
   Eye, Trophy, UserPlus, Trash2, ArrowUpCircle, ArrowDownCircle, UserX, Send,
   LogOut, Link2, ShieldCheck, CalendarPlus, CalendarClock, Clapperboard, Pencil,
   Gamepad2, Users, X, ImagePlus,
+  ListMusic, Music2, Play, SkipForward, XCircle, CircleDollarSign,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeLoadingState, NativeEmptyState } from "@/components/world/native";
@@ -46,6 +47,10 @@ import {
 } from "@/lib/go-live/guest-api";
 import { BackstageClient, type BackstagePeer } from "@/lib/go-live/backstage-client";
 import {
+  upfrontRuleLines, requestStatusLabel, type SongRequestDto,
+} from "@/lib/song-requests";
+import { formatBucs } from "@/lib/visual-bucs";
+import {
   LIVE_STATUS_PATH, LIVE_STREAM_PATH, LIVE_STREAM_END_PATH,
   INGEST_KEY_PATH, INGEST_KEY_REVEAL_PATH, INGEST_KEY_REGENERATE_PATH, INGEST_KEY_REVOKE_PATH,
   MY_PROFILE_PATH,
@@ -66,6 +71,13 @@ import {
   GENERATED_CLIPS_PATH,
   normalizeFinishedClips, premiereDraftReady, isOwnPremiere,
   type FinishedClipOption,
+  SONG_REQUESTS_PATH, SONG_REQUEST_PLAY_NEXT_PATH, SONG_REQUEST_CLOSE_PATH,
+  SONG_REQUEST_SKIP_PATH, SONG_REQUEST_RULES_PATH,
+  normalizeSongRequestQueuePayload, normalizeSongRequestRulesPayload,
+  songRequestSubmitBody, songRequestRulesBody,
+  songRequestTipReady, songRequestMinTipReady, songRequestMinTipValue,
+  songRequestRequestableSongs,
+  type SongRequestQueueView, type SongRequestRulesView,
   BACKGROUND_MODE_OPTIONS, BACKGROUND_QUALITY_OPTIONS,
   fineTuneSlidersForMode, engineKindLabel, engineFallbackNote, engineDownFromStatus,
   backdropTileActive,
@@ -2207,10 +2219,589 @@ export function LiveWatchDesk({ isLight, screen }: { isLight: boolean; screen: {
         </div>
       )}
 
+      {/* Song Requests (stack100 item 17): the watch page's fan
+          panel, in-world — the up-front rules, the live queue and
+          the tipped request form, on the same queue rails the
+          creator's desk below runs. Defined under the Song
+          Requests section further down this file. */}
+      <LiveSongRequestPanel isLight={isLight} streamId={streamId} isLive={isLive} />
+
       {/* The dedicated stream chat — the watch page's own panel, so
           its rules (sign-in, slow mode, mutes, moderation) are the
           site's, enforced by the same server rails. */}
       <LiveChatPanel streamId={streamId} className="h-[380px]" />
+    </div>
+  );
+}
+
+/* ── Song Requests (stack100 wave 3, item 17) ─────────────────────
+   The 2D Song Requests surfaces (components/live/SongRequests.tsx),
+   in-world on their exact rails — one queue, two faces:
+   - LiveSongRequestPanel: the fan face, docked into the watch desk
+     above (the stream on the big screen), mirroring the panel the
+     live-watch page docks. Rules and the refund deal print UP
+     FRONT, before anyone tips — the words are built only from
+     what the server sent (lib/song-requests' upfrontRuleLines).
+   - LiveSongRequestsDesk: the creator face, docked in the panel
+     under LiveDesksPanel — rules are set here BEFORE the stream
+     (persisted per creator on the rules rail), and while live
+     the same desk runs the queue (play-next / skip / close).
+   A request placed on either face is the same row on the same
+   rail: the desk and the 2D surfaces read and move one queue. */
+
+/** The queue rows both faces render — the 2D QueueList's rows,
+ *  word for word: title, requester, the tip, the honest status
+ *  label (refunds stated), and — on the creator face only — the
+ *  skip door for queued rows. */
+function SongRequestQueueRows({
+  isLight, queue, myUserId, onSkip, skippingId,
+}: {
+  isLight: boolean;
+  queue: SongRequestDto[];
+  myUserId?: string | null;
+  onSkip?: (r: SongRequestDto) => void;
+  skippingId?: string | null;
+}) {
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const strong = isLight ? "text-[#2a1e07]" : "text-white";
+  if (queue.length === 0) {
+    return <p className={`text-sm ${muted}`}>No requests yet. The line is empty.</p>;
+  }
+  return (
+    <ol className="space-y-2" data-testid="world-live-songreq-queue">
+      {queue.map((r) => {
+        const mine = !!myUserId && r.fanUserId === myUserId;
+        return (
+          <li
+            key={r.id}
+            className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${
+              r.status === "playing"
+                ? isLight
+                  ? "border-[#C9A84C]/60 bg-[#C9A84C]/15"
+                  : "border-[#C9A84C]/50 bg-[#C9A84C]/10"
+                : isLight
+                  ? "border-[#C9A84C]/25 bg-white/40"
+                  : "border-white/10 bg-black/30"
+            }`}
+            data-testid="world-live-songreq-row"
+          >
+            <Music2 className={`h-4 w-4 shrink-0 ${r.status === "playing" ? "text-[#b8912c]" : "opacity-40"}`} />
+            <span className="min-w-0 flex-1">
+              <span className={`block truncate text-sm font-bold ${strong}`}>
+                {r.songTitle}
+                {mine && <span className="ml-2 text-xs font-black uppercase tracking-wider text-[#b8912c]">Yours</span>}
+              </span>
+              <span className={`block text-xs ${muted}`}>
+                Requested by {r.fan.displayName} · {formatBucs(r.amountVb)} tip
+              </span>
+            </span>
+            <span className={`shrink-0 text-xs font-bold ${r.status === "playing" ? "text-[#b8912c]" : muted}`}>
+              {requestStatusLabel(r)}
+            </span>
+            {onSkip && r.status === "queued" && (
+              <button
+                type="button"
+                onClick={() => onSkip(r)}
+                disabled={skippingId === r.id}
+                className={chipBtn(isLight)}
+                data-testid="world-live-songreq-skip"
+              >
+                {skippingId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
+                Skip · refund
+              </button>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/* ── The fan face (the watch desk's request panel) ───────────────── */
+
+export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: boolean; streamId: string; isLive: boolean }) {
+  const { user } = useAuth();
+  const authHeaders = useAuthHeaders();
+  const [view, setView] = useState<SongRequestQueueView | null>(null);
+  const [songId, setSongId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const intentKeyRef = useRef("");
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(SONG_REQUESTS_PATH(streamId));
+      if (!res.ok) return;
+      setView(normalizeSongRequestQueuePayload(await res.json()));
+    } catch {
+      /* the next poll retries */
+    }
+  }, [streamId]);
+
+  useEffect(() => {
+    void load();
+    if (!isLive) return;
+    const t = setInterval(load, 10_000);
+    return () => clearInterval(t);
+  }, [load, isLive]);
+
+  if (!view) return null;
+
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const strong = isLight ? "text-[#2a1e07]" : "text-white";
+  const heading = (
+    <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
+      <ListMusic className="h-4 w-4 text-[#d4af37]" /> Song requests
+    </p>
+  );
+
+  if (!view.available) {
+    return (
+      <div className="space-y-2" data-testid="world-live-songreq-panel">
+        {heading}
+        <p className={`text-sm ${muted}`}>Song requests aren&rsquo;t switched on yet.</p>
+      </div>
+    );
+  }
+
+  const requestable = songRequestRequestableSongs(view);
+  const amountReady = songRequestTipReady(amount, view.rules, view.tipBounds);
+  const canSubmit = isLive && view.rules.requestsOpen && !!songId && amountReady && !submitting;
+
+  async function submit() {
+    if (!user || !canSubmit) return;
+    setSubmitting(true);
+    setError(null);
+    setNote(null);
+    try {
+      if (!intentKeyRef.current) {
+        intentKeyRef.current =
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `song-request-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      }
+      const res = await fetch(SONG_REQUESTS_PATH(streamId), {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify(songRequestSubmitBody(songId, Number(amount), intentKeyRef.current)),
+      });
+      const d = (await res.json().catch(() => null)) as { error?: string; request?: SongRequestDto } | null;
+      if (!res.ok) {
+        setError(apiErrorMessage(d, "That request didn't go through. Try again."));
+        return;
+      }
+      intentKeyRef.current = "";
+      setNote(
+        d?.request?.position
+          ? `You're in line — #${d.request.position} for “${d.request.songTitle}”.`
+          : "Your request is in the queue.",
+      );
+      setAmount("");
+      await load();
+    } catch {
+      setError("That request didn't go through. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3" data-testid="world-live-songreq-panel">
+      {heading}
+
+      {/* The rules + the refund deal, up front — before anyone tips. */}
+      <div
+        className={`rounded-xl border px-3 py-2.5 text-xs leading-relaxed ${
+          isLight ? "border-[#C9A84C]/30 bg-white/50" : "border-white/10 bg-black/30"
+        }`}
+        data-testid="world-live-songreq-rules-upfront"
+      >
+        {view.rules.requestsOpen ? (
+          <>
+            {view.tipBounds && upfrontRuleLines(view.rules, view.tipBounds).map((line) => <p key={line}>{line}</p>)}
+            {view.refundCopy && <p className="mt-1 font-semibold">{view.refundCopy}</p>}
+          </>
+        ) : (
+          <p>Song requests are closed for this stream — the creator has them off.</p>
+        )}
+      </div>
+
+      <SongRequestQueueRows isLight={isLight} queue={view.queue} myUserId={user?.id ?? null} />
+
+      {isLive && view.rules.requestsOpen && (
+        <div data-testid="world-live-songreq-form">
+          {view.catalog.length === 0 ? (
+            <p className={`text-sm ${muted}`}>
+              This creator hasn&rsquo;t added songs to their catalog yet — there&rsquo;s nothing to request yet.
+            </p>
+          ) : requestable.length === 0 ? (
+            <p className={`text-sm ${muted}`}>Every catalog song is out of requests for this stream.</p>
+          ) : !user ? (
+            <p className={`text-sm ${muted}`}>Song requests are for signed-in members.</p>
+          ) : (
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="min-w-[180px] flex-1">
+                <span className={`mb-1 block text-xs font-bold uppercase tracking-wider ${muted}`}>Song</span>
+                <select
+                  value={songId}
+                  onChange={(e) => setSongId(e.target.value)}
+                  className={`${selectCls(isLight)} w-full`}
+                  data-testid="world-live-songreq-song"
+                  aria-label="Song to request"
+                >
+                  <option value="">Pick a song…</option>
+                  {view.catalog.map((s) => (
+                    <option key={s.id} value={s.id} disabled={s.excluded}>
+                      {s.title}
+                      {s.excluded ? " — not requestable" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="w-32">
+                <span className={`mb-1 block text-xs font-bold uppercase tracking-wider ${muted}`}>Tip (VB)</span>
+                <input
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
+                  inputMode="numeric"
+                  placeholder={
+                    view.rules.minTipVb !== null
+                      ? `Min ${view.rules.minTipVb.toLocaleString("en-US")}`
+                      : view.tipBounds
+                        ? `From ${view.tipBounds.minVb.toLocaleString("en-US")}`
+                        : "Tip"
+                  }
+                  className={inputCls(isLight)}
+                  data-testid="world-live-songreq-amount"
+                  aria-label="Tip amount in Visual Bucs"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void submit()}
+                disabled={!canSubmit}
+                className={goldBtn}
+                data-testid="world-live-songreq-submit"
+              >
+                {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CircleDollarSign className="h-3.5 w-3.5" />}
+                Request it
+              </button>
+            </div>
+          )}
+          {note && (
+            <p className="mt-2 text-xs font-semibold text-emerald-500" role="status" data-testid="world-live-songreq-panel-note">
+              {note}
+            </p>
+          )}
+          {error && (
+            <p className="mt-2 text-xs font-semibold text-red-400" role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── The creator face (the queue desk) ───────────────────────────── */
+
+export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
+  const authHeaders = useAuthHeaders();
+  const [view, setView] = useState<SongRequestRulesView | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [queueView, setQueueView] = useState<SongRequestQueueView | null>(null);
+  const [open, setOpen] = useState(true);
+  const [catalogOnly, setCatalogOnly] = useState(true);
+  const [minTip, setMinTip] = useState("");
+  const [excluded, setExcluded] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [savedNote, setSavedNote] = useState<string | null>(null);
+  const [deskError, setDeskError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [skippingId, setSkippingId] = useState<string | null>(null);
+
+  const loadRules = useCallback(async () => {
+    try {
+      const res = await fetch(SONG_REQUEST_RULES_PATH, { headers: await authHeaders() });
+      if (!res.ok) throw new Error("rules");
+      const v = normalizeSongRequestRulesPayload(await res.json());
+      setView(v);
+      setOpen(v.rules.requestsOpen);
+      setCatalogOnly(v.rules.catalogOnly);
+      setMinTip(v.rules.minTipVb !== null ? String(v.rules.minTipVb) : "");
+      setExcluded(v.rules.excludedSongIds);
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => { void loadRules(); }, [loadRules]);
+
+  const liveStreamId = view?.liveStreamId ?? null;
+  const loadQueue = useCallback(async () => {
+    if (!liveStreamId) return;
+    try {
+      const res = await fetch(SONG_REQUESTS_PATH(liveStreamId));
+      if (!res.ok) return;
+      setQueueView(normalizeSongRequestQueuePayload(await res.json()));
+    } catch {
+      /* the next poll retries */
+    }
+  }, [liveStreamId]);
+
+  useEffect(() => {
+    void loadQueue();
+    if (!liveStreamId) return;
+    const t = setInterval(loadQueue, 8_000);
+    return () => clearInterval(t);
+  }, [loadQueue, liveStreamId]);
+
+  async function saveRules() {
+    if (!songRequestMinTipReady(minTip, view?.tipBounds ?? null)) {
+      setDeskError("That minimum tip doesn't fit the request range — clear it, or set an amount inside the range the panel shows.");
+      return;
+    }
+    setSaving(true);
+    setSavedNote(null);
+    setDeskError(null);
+    try {
+      const res = await fetch(SONG_REQUEST_RULES_PATH, {
+        method: "PUT",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify(songRequestRulesBody({
+          requestsOpen: open,
+          catalogOnly,
+          excludedSongIds: excluded,
+          minTipVb: songRequestMinTipValue(minTip),
+        })),
+      });
+      const d = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) {
+        setDeskError(apiErrorMessage(d, "Your rules couldn't be saved. Try again."));
+        return;
+      }
+      setSavedNote("Rules saved — fans see them up front on the request panel.");
+      await loadRules();
+    } catch {
+      setDeskError("Your rules couldn't be saved. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function queueAction(path: string, key: string) {
+    if (!liveStreamId) return;
+    setBusy(key);
+    setDeskError(null);
+    try {
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const d = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) setDeskError(apiErrorMessage(d, "That didn't go through. Try again."));
+      await loadQueue();
+    } catch {
+      setDeskError("That didn't go through. Try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function skip(r: SongRequestDto) {
+    if (!liveStreamId) return;
+    setSkippingId(r.id);
+    try {
+      const res = await fetch(SONG_REQUEST_SKIP_PATH(liveStreamId, r.id), {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const d = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) setDeskError(apiErrorMessage(d, "That skip didn't go through. Try again."));
+      await loadQueue();
+    } catch {
+      setDeskError("That skip didn't go through. Try again.");
+    } finally {
+      setSkippingId(null);
+    }
+  }
+
+  const toggleExcluded = (id: string) =>
+    setExcluded((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
+  const strong = isLight ? "text-[#2a1e07]" : "text-white";
+
+  return (
+    <div className="space-y-3" data-testid="world-live-song-requests">
+      <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
+        <ListMusic className="h-4 w-4 text-[#d4af37]" /> Song Requests — your queue desk
+      </p>
+      <p className={`text-sm ${muted}`}>
+        Set your rules before you go live — fans see them, and the refund deal, up front before anyone tips.{" "}
+        {view?.refundCopy}
+      </p>
+
+      {failed ? (
+        <p className={`text-sm ${muted}`}>
+          Your request rules couldn&rsquo;t load.{" "}
+          <button type="button" className="font-bold underline" onClick={() => void loadRules()}>
+            Try again
+          </button>
+        </p>
+      ) : view === null ? (
+        <NativeLoadingState isLight={isLight} message="Loading your request rules…" />
+      ) : (
+        <>
+          {!view.available && (
+            <p className={`text-sm font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
+              Song requests aren&rsquo;t switched on yet — your rules will save once the queue is live.
+            </p>
+          )}
+
+          {/* Rules — set before the stream, editable between streams. */}
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="flex items-center gap-2.5 text-sm font-semibold select-none">
+              <input
+                type="checkbox"
+                checked={open}
+                onChange={(e) => setOpen(e.target.checked)}
+                className="h-4 w-4 accent-[#d4af37]"
+                data-testid="world-live-songreq-rules-open"
+                aria-label="Requests open"
+              />
+              Requests open
+            </label>
+            <label className="flex items-center gap-2.5 text-sm font-semibold select-none">
+              <input
+                type="checkbox"
+                checked={catalogOnly}
+                onChange={(e) => setCatalogOnly(e.target.checked)}
+                className="h-4 w-4 accent-[#d4af37]"
+                data-testid="world-live-songreq-rules-catalog-only"
+                aria-label="Catalog only — requests must be my own songs"
+              />
+              Catalog only — requests must be my own songs
+            </label>
+            <label className="block">
+              <span className={`mb-1 block text-xs font-bold uppercase tracking-wider ${muted}`}>
+                Minimum tip (VB) — yours to set, blank = none
+              </span>
+              <input
+                value={minTip}
+                onChange={(e) => setMinTip(e.target.value.replace(/[^0-9]/g, ""))}
+                inputMode="numeric"
+                placeholder="No minimum"
+                className={inputCls(isLight)}
+                data-testid="world-live-songreq-rules-min-tip"
+                aria-label="Minimum tip in Visual Bucs"
+              />
+            </label>
+          </div>
+
+          {view.catalog.length > 0 ? (
+            <fieldset>
+              <legend className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Take songs out of requests</legend>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {view.catalog.map((s) => (
+                  <label
+                    key={s.id}
+                    className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold select-none ${
+                      excluded.includes(s.id)
+                        ? isLight
+                          ? "border-red-400/50 bg-red-500/10 text-red-700"
+                          : "border-red-400/40 bg-red-500/10 text-red-200"
+                        : isLight
+                          ? "border-[#C9A84C]/30 bg-white/40"
+                          : "border-white/10 bg-black/30"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={excluded.includes(s.id)}
+                      onChange={() => toggleExcluded(s.id)}
+                      className="h-3.5 w-3.5 accent-red-400"
+                      data-testid={`world-live-songreq-exclude-${s.id}`}
+                      aria-label={`Take ${s.title} out of requests`}
+                    />
+                    {s.title}
+                    {excluded.includes(s.id) ? " · out" : ""}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : (
+            <p className={`text-sm ${muted}`}>
+              You have no songs in your catalog yet — once you add songs, fans can request them here.
+            </p>
+          )}
+
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => void saveRules()} disabled={saving} className={goldBtn} data-testid="world-live-songreq-rules-save">
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Save rules
+            </button>
+            {savedNote && (
+              <span className="text-xs font-semibold text-emerald-500" role="status">
+                {savedNote}
+              </span>
+            )}
+          </div>
+
+          {/* The live queue controls — only while this creator is live. */}
+          {liveStreamId ? (
+            <div className="border-t border-[#C9A84C]/20 pt-4" data-testid="world-live-songreq-live-controls">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className={`mr-auto text-sm font-black uppercase tracking-wider ${strong}`}>Live queue</h3>
+                <button
+                  type="button"
+                  onClick={() => void queueAction(SONG_REQUEST_PLAY_NEXT_PATH(liveStreamId), "play")}
+                  disabled={busy === "play"}
+                  className={goldBtn}
+                  data-testid="world-live-songreq-play-next"
+                >
+                  {busy === "play" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                  Play next
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void queueAction(SONG_REQUEST_CLOSE_PATH(liveStreamId), "close")}
+                  disabled={busy === "close"}
+                  className={chipBtn(isLight)}
+                  data-testid="world-live-songreq-close"
+                >
+                  {busy === "close" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <SkipForward className="h-3.5 w-3.5" />}
+                  Close queue · refund the line
+                </button>
+              </div>
+              <div className="mt-3">
+                <SongRequestQueueRows
+                  isLight={isLight}
+                  queue={queueView?.queue ?? []}
+                  onSkip={(r) => void skip(r)}
+                  skippingId={skippingId}
+                />
+              </div>
+            </div>
+          ) : (
+            <p className={`border-t border-[#C9A84C]/20 pt-4 text-sm ${muted}`}>
+              You&rsquo;re not live right now — your queue controls appear here while you stream. Ending a stream
+              automatically refunds every request that never played.
+            </p>
+          )}
+          {deskError && (
+            <p className="text-xs font-semibold text-red-400" role="alert">
+              {deskError}
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }
