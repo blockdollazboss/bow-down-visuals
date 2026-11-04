@@ -3,9 +3,9 @@
  *
  * The Shoutouts desk is the marketplace's buy-side native form.
  * These pins hold: the creators guard reads the rail's exact row
- * shape and drops drift; payment truth never comes from the
- * creators list's stale v1 `paymentsLive: false` flag (the desk
- * takes it from the request + checkout + verify answers); the
+ * shape and drops drift; money-moment payment truth never comes
+ * from the creators list's rail-level `paymentsLive` flag (the
+ * desk takes it from the request + checkout + verify answers); the
  * checkout outcome helpers read the rail's own branches
  * (clientSecret vs checkoutUrl); the payload builders mirror the
  * route schemas' bounds; the fee is the flat 5% the route charges,
@@ -44,7 +44,8 @@ const CREATORS = {
     { id: "s4", displayName: "Drifty", priceDollars: "10", turnaroundDays: 2, guidelines: "" },
     "not-a-row",
   ],
-  /* The v1 flag the desk must never read payment truth from. */
+  /* The rail-level flag the desk must never read money-moment
+     payment truth from (its value is ignored either way). */
   paymentsLive: false,
 };
 
