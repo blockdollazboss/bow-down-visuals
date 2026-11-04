@@ -138,7 +138,9 @@ describe("Create media benches extraction (unit 38)", () => {
   it("no extracted display literal survives in the six files", () => {
     for (const frag of [
       "Write it for me ·",
-      "Local Scenes",
+      // ("Local Scenes" survives only in ScenesDesk's header comment — a
+      // code comment, not a display literal; the heading itself resolves
+      // via worldCreateMedia.scenesTitle, pinned above.)
       "Pro benches —",
       "This session",
       "Didn&rsquo;t land",
