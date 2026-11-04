@@ -1,4 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
+import { GAMERS_IDEAS_COST } from "@/lib/gamers-prices";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { Link } from "wouter";
@@ -19,8 +20,6 @@ import { useTranslation } from "react-i18next";
    Everything on this page ships fully populated: the AI generator comes
    pre-filled with a game and shows a labeled sample output on first load,
    the ticker/setup/playbook are curated editorial — zero empty states. */
-
-const CREDIT_COST = 100;
 
 type ContentTypeKey = "stream" | "video" | "shorts";
 
@@ -290,7 +289,7 @@ export default function GamersHub() {
             {[
               { n: "5", l: "Gamer tools wired in" },
               { n: "3", l: "Content types" },
-              { n: "1", l: "Visual Buc per idea pack" },
+              { n: String(GAMERS_IDEAS_COST), l: "Visual Bucs per idea pack" },
             ].map((s) => (
               <div key={s.l} className={`rounded-2xl border px-3 py-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <p className="gamers-rgb-text text-3xl font-black">{s.n}</p>
@@ -325,7 +324,7 @@ export default function GamersHub() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/40 bg-fuchsia-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-fuchsia-300">
-                  <Wand2 className="h-3 w-3" aria-hidden="true" /> AI powered · {CREDIT_COST} Visual Buc
+                  <Wand2 className="h-3 w-3" aria-hidden="true" /> AI powered · {GAMERS_IDEAS_COST} Visual Bucs
                 </p>
                 <h2 className="text-2xl font-black uppercase tracking-tight md:text-3xl">{t("gamers.stream_title")}<span className="gamers-rgb-text">&amp; Idea Generator</span>
                 </h2>
@@ -389,7 +388,7 @@ export default function GamersHub() {
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{t("gamers.generating")}</>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" aria-hidden="true" /> Generate ideas · {CREDIT_COST} Visual Buc
+                  <Sparkles className="h-4 w-4" aria-hidden="true" /> Generate ideas · {GAMERS_IDEAS_COST} Visual Bucs
                 </>
               )}
             </button>
