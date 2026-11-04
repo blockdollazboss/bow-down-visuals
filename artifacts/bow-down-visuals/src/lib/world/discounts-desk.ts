@@ -146,9 +146,27 @@ export function buildDiscountPayload(form: DiscountForm): Record<string, unknown
   return { code, percentOff, maxUses, expiresAt };
 }
 
+export interface DiscountUsageStrings {
+  ofLimit: string;
+  noLimit: string;
+}
+
+/** The seam's English defaults — byte-identical to the desk's
+ *  original literals; the component passes catalog templates
+ *  (worldCommerceStands.discountsUsageOf / discountsUsageNoLimit). */
+export const DISCOUNT_USAGE_EN: DiscountUsageStrings = {
+  ofLimit: "{{used}} of {{max}} used",
+  noLimit: "{{used}} used · no limit",
+};
+
 /** "12 of 50 used" / "3 used · no limit" — the desk's usage line. */
-export function discountUsageLine(code: Pick<DiscountCode, "usedCount" | "maxUses">): string {
+export function discountUsageLine(
+  code: Pick<DiscountCode, "usedCount" | "maxUses">,
+  strings: DiscountUsageStrings = DISCOUNT_USAGE_EN,
+): string {
   return code.maxUses === -1
-    ? `${code.usedCount} used · no limit`
-    : `${code.usedCount} of ${code.maxUses} used`;
+    ? strings.noLimit.replace("{{used}}", String(code.usedCount))
+    : strings.ofLimit
+        .replace("{{used}}", String(code.usedCount))
+        .replace("{{max}}", String(code.maxUses));
 }
