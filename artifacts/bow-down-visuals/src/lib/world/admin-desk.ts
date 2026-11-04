@@ -78,6 +78,17 @@
      - Card + jewelry     GET /api/nfc-cards/admin/orders ·
        orders             GET /api/jewelry/admin/orders (read-only
                           lists; the CSV exports are named gaps).
+     - Discord Bot        GET /api/discord-bot/config ·
+                          POST /api/discord-bot/config ·
+                          GET /api/discord-bot/install-url ·
+                          GET /api/discord-bot/live (the public
+                          LIVE-badge state, read here for the bench's
+                          live line). The config answer's env block
+                          is PRESENCE ONLY — which of the server's
+                          DISCORD_* keys exist, as booleans; no key
+                          value ever crosses this seam (the parser
+                          below reads the three *_set flags and
+                          nothing else from env).
 
    PRICES: no bench charges the admin and the desk invents none —
    lib/credit-costs.ts has no /api/admin rows. The money the benches
@@ -1327,3 +1338,188 @@ export function parseJewelryOrders(json: unknown): StoreOrderRow[] | null {
   }
   return rows;
 }
+
+/* ─── discord bot (GET/POST /api/discord-bot/config,
+       GET /api/discord-bot/install-url, GET /api/discord-bot/live)
+       ──────────────────────────────────────────────────────────────
+   The Live Companion Bot's wiring bench — the same rails the
+   website's /discord-bot setup page drives, in the page's shapes.
+
+   PRESENCE ONLY: the config answer's `env` block says which of the
+   server's DISCORD_* keys EXIST, as booleans (client_id_set /
+   bot_token_set / shared_secret_set). The key VALUES never leave
+   the server and this seam never asks for them: the parser reads
+   exactly the three *_set flags out of env — even a hypothetical
+   answer smuggling a value into env could not carry it into the
+   desk, because the parsed read has no field that could hold it.
+   The saved wiring row itself (guild / channel / role / streamer
+   IDs the admin typed) is the admin's own data, not a secret.
+
+   THE HONESTY (the website desk's, stack1600 fix queue #8): until
+   the server can see ALL THREE core keys the bot is NOT connected —
+   an unset key reads amber "not set up" (a setup step, never a
+   failure), the wiring form stays LOCKED with the reason shown
+   (saved wiring would announce nothing), and the install link
+   stays off while the client ID is unset (the rail refuses to
+   build it: 400). Configured reads as configured. */
+
+export const DISCORD_BOT_CONFIG_PATH = "/api/discord-bot/config";
+export const DISCORD_BOT_INSTALL_URL_PATH = "/api/discord-bot/install-url";
+export const DISCORD_BOT_LIVE_PATH = "/api/discord-bot/live";
+
+/** The saved wiring, camelCased off the rail's snake_case row. */
+export interface DiscordBotWiring {
+  guildId: string;
+  announceChannelId: string;
+  announceRoleId: string;
+  mentionEveryone: boolean;
+  streamerDiscordUserId: string;
+  streamerDiscordUsername: string;
+  enabled: boolean;
+}
+
+export interface DiscordBotRead {
+  /** The admin's saved wiring row, or null when none is saved yet. */
+  wiring: DiscordBotWiring | null;
+  /** Presence flags ONLY — which server keys exist. */
+  env: {
+    clientIdSet: boolean;
+    botTokenSet: boolean;
+    sharedSecretSet: boolean;
+  };
+}
+
+/** { config, env } — strict where it matters: the env block must
+ *  carry the three presence booleans or the whole read fails (a
+ *  bench that can't tell set from unset must not guess); the wiring
+ *  row is null or mapped field-by-field. */
+export function parseDiscordBotConfig(json: unknown): DiscordBotRead | null {
+  if (!isRecord(json) || !isRecord(json["env"])) return null;
+  const env = json["env"];
+  if (
+    typeof env["client_id_set"] !== "boolean" ||
+    typeof env["bot_token_set"] !== "boolean" ||
+    typeof env["shared_secret_set"] !== "boolean"
+  ) {
+    return null;
+  }
+  let wiring: DiscordBotWiring | null = null;
+  const cfg = json["config"];
+  if (cfg !== null && cfg !== undefined) {
+    if (!isRecord(cfg)) return null;
+    wiring = {
+      guildId: strOr(cfg["guild_id"], ""),
+      announceChannelId: strOr(cfg["announce_channel_id"], ""),
+      announceRoleId: strOr(cfg["announce_role_id"], ""),
+      mentionEveryone: cfg["mention_everyone"] === true,
+      streamerDiscordUserId: strOr(cfg["streamer_discord_user_id"], ""),
+      streamerDiscordUsername: strOr(cfg["streamer_discord_username"], ""),
+      enabled: cfg["enabled"] !== false,
+    };
+  }
+  return {
+    wiring,
+    env: {
+      clientIdSet: env["client_id_set"],
+      botTokenSet: env["bot_token_set"],
+      sharedSecretSet: env["shared_secret_set"],
+    },
+  };
+}
+
+/** Connected = the server can see all three core keys — the
+ *  website desk's rule, verbatim in spirit: anything less and the
+ *  bot announces nothing. */
+export function discordBotConfigured(read: DiscordBotRead): boolean {
+  return read.env.clientIdSet && read.env.botTokenSet && read.env.sharedSecretSet;
+}
+
+export function discordBotUnconfigured(read: DiscordBotRead): boolean {
+  return !discordBotConfigured(read);
+}
+
+/** The install rail builds its URL from DISCORD_CLIENT_ID and
+ *  refuses (400) without it — the bench keeps the button off while
+ *  the ID is known to be unset, with the reason shown. */
+export function discordInstallBlocked(read: DiscordBotRead): boolean {
+  return !read.env.clientIdSet;
+}
+
+/** The bench's editable draft: the six fields the website form
+ *  carries (the streamer username rides the row for display; the
+ *  bot itself keeps it current from its own sightings, and the
+ *  save body omits it so a save never wipes it). */
+export interface DiscordBotDraft {
+  guildId: string;
+  announceChannelId: string;
+  announceRoleId: string;
+  mentionEveryone: boolean;
+  streamerDiscordUserId: string;
+  enabled: boolean;
+}
+
+/** Seed the form from the saved row — or the page's blanks, with
+ *  announcements enabled by default, exactly like the page's
+ *  `form.enabled ?? true`. */
+export function discordBotDraftFrom(read: DiscordBotRead): DiscordBotDraft {
+  const w = read.wiring;
+  return {
+    guildId: w?.guildId ?? "",
+    announceChannelId: w?.announceChannelId ?? "",
+    announceRoleId: w?.announceRoleId ?? "",
+    mentionEveryone: w?.mentionEveryone ?? false,
+    streamerDiscordUserId: w?.streamerDiscordUserId ?? "",
+    enabled: w?.enabled ?? true,
+  };
+}
+
+/** The POST body in the rail's snake_case schema — exactly the six
+ *  fields the website form sends, IDs trimmed (an ID carries no
+ *  spaces; a stray one would only 400 the save). */
+export function buildDiscordBotConfigBody(draft: DiscordBotDraft): {
+  guild_id: string;
+  announce_channel_id: string;
+  announce_role_id: string;
+  mention_everyone: boolean;
+  streamer_discord_user_id: string;
+  enabled: boolean;
+} {
+  return {
+    guild_id: draft.guildId.trim(),
+    announce_channel_id: draft.announceChannelId.trim(),
+    announce_role_id: draft.announceRoleId.trim(),
+    mention_everyone: draft.mentionEveryone,
+    streamer_discord_user_id: draft.streamerDiscordUserId.trim(),
+    enabled: draft.enabled,
+  };
+}
+
+/** { install_url } or a failed read (null). */
+export function parseDiscordInstallUrl(json: unknown): string | null {
+  if (!isRecord(json)) return null;
+  return str(json["install_url"]);
+}
+
+export interface DiscordBotLive {
+  isLive: boolean;
+  configured: boolean;
+  startedAt: string | null;
+  endedAt: string | null;
+  channelName: string | null;
+  streamTitle: string | null;
+}
+
+/** The public LIVE-badge state, parsed strictly on the two
+ *  booleans the rail always sends. */
+export function parseDiscordBotLive(json: unknown): DiscordBotLive | null {
+  if (!isRecord(json) || typeof json["is_live"] !== "boolean") return null;
+  return {
+    isLive: json["is_live"],
+    configured: json["configured"] === true,
+    startedAt: str(json["started_at"]),
+    endedAt: str(json["ended_at"]),
+    channelName: str(json["channel_name"]),
+    streamTitle: str(json["stream_title"]),
+  };
+}
+
