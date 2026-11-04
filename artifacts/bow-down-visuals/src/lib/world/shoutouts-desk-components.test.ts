@@ -42,7 +42,8 @@ describe("the board + the request form", () => {
 
   it("a free request lands without touching checkout", () => {
     expect(desk).toContain("!made.paymentsLive || made.priceCents === 0");
-    expect(desk).toContain("Request sent");
+    expect(desk).toContain("worldSponsorPress.soNoteSentOne"); // the "Request sent — …" note — via the catalog (unit 47)
+    expect(desk).toContain("worldSponsorPress.soNoteSentOther");
   });
 });
 
@@ -103,6 +104,6 @@ describe("the honest states", () => {
     expect(desk).toContain("NativeLoadingState");
     expect(desk).toContain("NativeEmptyState");
     expect(desk).toContain("NativeErrorState");
-    expect(desk).toContain("No creators are taking shoutout requests right now");
+    expect(desk).toContain("worldSponsorPress.soEmptyMessage"); // "No creators are taking shoutout requests right now" — via the catalog (unit 47)
   });
 });

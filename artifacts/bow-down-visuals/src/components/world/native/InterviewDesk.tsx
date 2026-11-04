@@ -19,6 +19,7 @@
  * never dresses them up as saved.
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -46,27 +47,48 @@ import {
 } from "@/lib/world/interview-desk";
 
 function GuestGate({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   return (
     <div
       className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-white/60" : "border-white/10 bg-white/5"}`}
       data-testid="world-interview-desk-guest"
     >
       <p className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-        Interview Prep — rehearse before they ask
+        {t("worldSponsorPress.ivGuestTitle")}
       </p>
       <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-        The coach builds sessions around your name, your project and your story — guests can look
-        around the palace, but this desk only opens for members.{" "}
+        {t("worldSponsorPress.ivGuestLead")}{" "}
         <Link href="/login" className="font-bold text-[#d4af37] underline underline-offset-2">
-          Sign in
+          {t("worldSponsorPress.ivGuestSignIn")}
         </Link>{" "}
-        and the desk is yours, right here in the room.
+        {t("worldSponsorPress.ivGuestTrail")}
       </p>
     </div>
   );
 }
 
+/* Type / category chip labels (stack100 locale unit 47): the
+   seam's label records stay the pinned English mirrors; the desk
+   renders the names from the catalog — the four interview kinds
+   ride the 2D page's own interviewPrep keys, the question
+   categories are the desk's own (its names differ from the
+   page's set). */
+const TYPE_KEYS: Record<string, string> = {
+  podcast: "interviewPrep.typePodcast",
+  press: "interviewPrep.typePress",
+  red_carpet: "interviewPrep.typeRedCarpet",
+  livestream: "interviewPrep.typeLiveStream",
+};
+const CATEGORY_KEYS: Record<string, string> = {
+  warmup: "worldSponsorPress.ivCatWarmup",
+  craft: "worldSponsorPress.ivCatCraft",
+  story: "worldSponsorPress.ivCatStory",
+  tough: "worldSponsorPress.ivCatTough",
+  rapid_fire: "worldSponsorPress.ivCatRapidFire",
+};
+
 export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   const { refreshProfile } = useAuth();
 
@@ -134,18 +156,18 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
         return;
       }
       if (!res.ok) {
-        throw new Error(apiErrorMessage(data, "The prep session could not be built — any charge was refunded. Try again in a moment."));
+        throw new Error(apiErrorMessage(data, t("worldSponsorPress.ivBuildErrorRefunded")));
       }
       const built = sessionOfResponse(data);
       if (!built) {
-        throw new Error("The prep session came back unusable — your Visual Bucs were refunded. Try again.");
+        throw new Error(t("worldSponsorPress.ivBuildErrorUnusable"));
       }
       setSession(built);
       setPracticeIdx(null);
       setFeedback(null);
       refreshProfile();
     } catch (e) {
-      setBuildError(plainErrorText(e, "The prep session could not be built. Try again in a moment."));
+      setBuildError(plainErrorText(e, t("worldSponsorPress.ivBuildErrorPlain")));
     } finally {
       setBuilding(false);
     }
@@ -174,14 +196,14 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
         return;
       }
       if (!res.ok) {
-        throw new Error(apiErrorMessage(data, "The feedback could not be scored — any charge was refunded. Try again in a moment."));
+        throw new Error(apiErrorMessage(data, t("worldSponsorPress.ivFeedbackErrorRefunded")));
       }
       const scored = feedbackOfResponse(data);
-      if (!scored) throw new Error("The feedback came back unusable — your Visual Bucs were refunded. Try again.");
+      if (!scored) throw new Error(t("worldSponsorPress.ivFeedbackErrorUnusable"));
       setFeedback(scored);
       refreshProfile();
     } catch (e) {
-      setFeedbackError(plainErrorText(e, "The feedback could not be scored. Try again in a moment."));
+      setFeedbackError(plainErrorText(e, t("worldSponsorPress.ivFeedbackErrorPlain")));
     } finally {
       setFeedbackBusy(false);
     }
@@ -192,16 +214,16 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
   return (
     <div className="space-y-3" data-testid="world-interview-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Interview Prep</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldSponsorPress.ivTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          Rehearse the questions before they ask them — a session is{" "}
-          {INTERVIEW_SESSION_COST.toLocaleString()} Visual Bucs, scored practice{" "}
-          {INTERVIEW_FEEDBACK_COST.toLocaleString()} a round. Sessions live for this sitting,
-          like the website's.
+          {t("worldSponsorPress.ivIntro", {
+            sessionCost: INTERVIEW_SESSION_COST.toLocaleString(i18n.language),
+            feedbackCost: INTERVIEW_FEEDBACK_COST.toLocaleString(i18n.language),
+          })}
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Interview kind">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldSponsorPress.ivKindAria")}>
         {INTERVIEW_TYPES.map((type: InterviewType) => (
           <button
             key={type}
@@ -212,59 +234,59 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             className={chipCls(form.interviewType === type)}
             onClick={() => set({ interviewType: type })}
           >
-            {INTERVIEW_TYPE_LABELS[type]}
+            {TYPE_KEYS[type] ? t(TYPE_KEYS[type]) : INTERVIEW_TYPE_LABELS[type]}
           </button>
         ))}
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
         <label className={`block text-xs ${muted}`}>
-          Your artist name (required)
+          {t("worldSponsorPress.ivNameLabel")}
           <input
             data-testid="world-interview-desk-name"
             className={`${inputCls} mt-1`}
             value={form.artistName}
             maxLength={100}
             onChange={(e) => set({ artistName: e.target.value })}
-            placeholder="The name they will call you"
+            placeholder={t("worldSponsorPress.ivNamePlaceholder")}
           />
         </label>
         <label className={`block text-xs ${muted}`}>
-          Genre
+          {t("interviewPrep.genre")}
           <input
             data-testid="world-interview-desk-genre"
             className={`${inputCls} mt-1`}
             value={form.genre}
             maxLength={100}
             onChange={(e) => set({ genre: e.target.value })}
-            placeholder="Trap soul, drill, R&B…"
+            placeholder={t("worldSponsorPress.ivGenrePlaceholder")}
           />
         </label>
         <label className={`block text-xs ${muted}`}>
-          Latest project
+          {t("interviewPrep.latestProject")}
           <input
             data-testid="world-interview-desk-project"
             className={`${inputCls} mt-1`}
             value={form.latestProject}
             maxLength={300}
             onChange={(e) => set({ latestProject: e.target.value })}
-            placeholder="The tape, the single, the tour…"
+            placeholder={t("worldSponsorPress.ivProjectPlaceholder")}
           />
         </label>
         <label className={`block text-xs ${muted}`}>
-          Audience size
+          {t("interviewPrep.audienceSize")}
           <input
             data-testid="world-interview-desk-audience"
             className={`${inputCls} mt-1`}
             value={form.audienceSize}
             maxLength={50}
             onChange={(e) => set({ audienceSize: e.target.value })}
-            placeholder="12k followers, first TV spot…"
+            placeholder={t("worldSponsorPress.ivAudiencePlaceholder")}
           />
         </label>
       </div>
       <label className={`block text-xs ${muted}`}>
-        Your story right now
+        {t("worldSponsorPress.ivStoryLabel")}
         <textarea
           data-testid="world-interview-desk-story"
           className={`${inputCls} mt-1`}
@@ -272,13 +294,13 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
           maxLength={500}
           value={form.currentStory}
           onChange={(e) => set({ currentStory: e.target.value })}
-          placeholder="What is happening in your career that they will ask about?"
+          placeholder={t("worldSponsorPress.ivStoryPlaceholder")}
         />
       </label>
 
       <div className="flex flex-wrap items-center gap-3">
         <span className={`text-xs font-semibold ${muted}`} data-testid="world-interview-desk-cost">
-          Session — {INTERVIEW_SESSION_COST.toLocaleString()} Visual Bucs, confirmed before anything runs.
+          {t("worldSponsorPress.ivSessionCostLine", { cost: INTERVIEW_SESSION_COST.toLocaleString(i18n.language) })}
         </span>
         <button
           type="button"
@@ -287,13 +309,12 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
           disabled={building || !interviewFormReady(form)}
           onClick={() => void buildSession()}
         >
-          {building ? "Building…" : session ? "Build a fresh session" : "Build my session"}
+          {building ? t("worldSponsorPress.ivBuilding") : session ? t("worldSponsorPress.ivBuildFresh") : t("worldSponsorPress.ivBuild")}
         </button>
       </div>
       {outOfCredits ? (
         <p className={errCls}>
-          You&rsquo;re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and
-          the coach is ready again.
+          {t("worldSponsorPress.ivOutOfCredits")}
         </p>
       ) : null}
       {buildError ? (
@@ -303,7 +324,7 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       {session ? (
         <div className="space-y-3" data-testid="world-interview-desk-session">
           <div className={`rounded-xl border px-3 py-2 ${cardCls}`}>
-            <p className={`text-sm font-bold ${strong}`}>Your talking points — land these no matter what</p>
+            <p className={`text-sm font-bold ${strong}`}>{t("worldSponsorPress.ivTalkingPointsTitle")}</p>
             <ul className={`mt-1 list-disc space-y-1 pl-5 text-sm ${muted}`}>
               {session.talkingPoints.map((point, i) => (
                 <li key={i}>{point}</li>
@@ -314,10 +335,10 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             {session.questions.map((q, i) => (
               <div key={i} className={`rounded-xl border px-3 py-2 ${cardCls}`}>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={chipCls(false)}>{QUESTION_CATEGORY_LABELS[q.category]}</span>
+                  <span className={chipCls(false)}>{CATEGORY_KEYS[q.category] ? t(CATEGORY_KEYS[q.category]) : QUESTION_CATEGORY_LABELS[q.category]}</span>
                   <p className={`text-sm font-bold ${strong}`}>{q.question}</p>
                 </div>
-                {q.tip ? <p className={`mt-1 text-xs ${muted}`}>Coach&rsquo;s tip: {q.tip}</p> : null}
+                {q.tip ? <p className={`mt-1 text-xs ${muted}`}>{t("worldSponsorPress.ivCoachTip", { tip: q.tip })}</p> : null}
                 <button
                   type="button"
                   data-testid={`world-interview-desk-practice-${i}`}
@@ -330,7 +351,7 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                     setFeedbackError(null);
                   }}
                 >
-                  Practice this one — {INTERVIEW_FEEDBACK_COST.toLocaleString()} Bucs a round
+                  {t("worldSponsorPress.ivPracticeButton", { cost: INTERVIEW_FEEDBACK_COST.toLocaleString(i18n.language) })}
                 </button>
               </div>
             ))}
@@ -341,22 +362,22 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
 
       {activeQuestion ? (
         <div className={`rounded-xl border p-3 ${cardCls}`} data-testid="world-interview-desk-practice">
-          <p className={`text-sm font-bold ${strong}`}>Your answer to: {activeQuestion.question}</p>
+          <p className={`text-sm font-bold ${strong}`}>{t("worldSponsorPress.ivYourAnswerTo", { question: activeQuestion.question })}</p>
           <textarea
             data-testid="world-interview-desk-answer"
-            aria-label="Your answer"
+            aria-label={t("worldSponsorPress.ivAnswerAria")}
             className={`${inputCls} mt-2`}
             rows={4}
             maxLength={3000}
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
-            placeholder="Answer it like the mic is live…"
+            placeholder={t("worldSponsorPress.ivAnswerPlaceholder")}
           />
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <span className={`text-xs ${muted}`}>
               {answer.trim().length < INTERVIEW_ANSWER_MIN
-                ? `Give it a real shot — at least ${INTERVIEW_ANSWER_MIN} characters.`
-                : "Ready when you are."}
+                ? t("worldSponsorPress.ivAnswerTooShort", { min: INTERVIEW_ANSWER_MIN })
+                : t("worldSponsorPress.ivAnswerReady")}
             </span>
             <button
               type="button"
@@ -365,7 +386,7 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
               disabled={feedbackBusy || !answerReady(answer)}
               onClick={() => void submitAnswer()}
             >
-              {feedbackBusy ? "Scoring…" : `Score my answer — ${INTERVIEW_FEEDBACK_COST.toLocaleString()} Bucs`}
+              {feedbackBusy ? t("interviewPrep.scoring") : t("worldSponsorPress.ivScoreButton", { cost: INTERVIEW_FEEDBACK_COST.toLocaleString(i18n.language) })}
             </button>
           </div>
           {feedbackError ? (
@@ -377,7 +398,7 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                 {feedback.score} <span className={`text-sm font-bold ${muted}`}>/ 100</span>
               </p>
               <div>
-                <p className={`text-xs font-bold ${strong}`}>What landed</p>
+                <p className={`text-xs font-bold ${strong}`}>{t("interviewPrep.whatLanded")}</p>
                 <ul className={`list-disc pl-5 text-sm ${muted}`}>
                   {feedback.strengths.map((s, i) => (
                     <li key={i}>{s}</li>
@@ -385,7 +406,7 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                 </ul>
               </div>
               <div>
-                <p className={`text-xs font-bold ${strong}`}>Tighten this</p>
+                <p className={`text-xs font-bold ${strong}`}>{t("worldSponsorPress.ivTightenThis")}</p>
                 <ul className={`list-disc pl-5 text-sm ${muted}`}>
                   {feedback.improvements.map((s, i) => (
                     <li key={i}>{s}</li>
@@ -393,7 +414,7 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                 </ul>
               </div>
               <div>
-                <p className={`text-xs font-bold ${strong}`}>A model answer</p>
+                <p className={`text-xs font-bold ${strong}`}>{t("worldSponsorPress.ivModelAnswer")}</p>
                 <p className={`text-sm ${muted}`}>{feedback.modelAnswer}</p>
               </div>
               {feedback.disclaimer ? <p className={`text-xs italic ${muted}`}>{feedback.disclaimer}</p> : null}

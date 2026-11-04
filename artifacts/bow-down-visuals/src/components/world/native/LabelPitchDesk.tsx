@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   Building2, Check, ClipboardList, Copy, Disc3, ListMusic, Loader2,
@@ -31,6 +32,8 @@ import {
   labelSubmissionReady,
   packetAsText,
   packetMissingLabel,
+  packetMissingStrings,
+  packetTextStrings,
   parseCuratorDirectory,
   parseDeadlineBoard,
   parseLabelDirectory,
@@ -102,22 +105,32 @@ const selectCls = (isLight: boolean) =>
       : "border-white/10 bg-white/5 text-white/80"
   }`;
 
+/* Directory type-filter plurals (stack100 locale unit 47): the
+   desk renders `${type}s` today; the plural words are catalog
+   keys so a language can spell them properly. */
+const TYPE_PLURAL_KEYS: Record<string, string> = {
+  major: "worldSponsorPress.lpTypeMajor",
+  imprint: "worldSponsorPress.lpTypeImprint",
+  indie: "worldSponsorPress.lpTypeIndie",
+};
+
 function GuestGate({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   return (
-    <NativeCard isLight={isLight} title="Label Pitch — pitch labels & playlists">
+    <NativeCard isLight={isLight} title={t("worldSponsorPress.lpGuestTitle")}>
       <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-        The pitch desk works on your own songs, your own kits and your own tracker — guests can
-        look around the palace, but this desk only opens for members.{" "}
+        {t("worldSponsorPress.lpGuestLead")}{" "}
         <Link href="/login" className="font-bold text-[#d4af37] underline underline-offset-2">
-          Sign in
+          {t("worldSponsorPress.lpGuestSignIn")}
         </Link>{" "}
-        and the desk is yours, right here in the room.
+        {t("worldSponsorPress.lpGuestTrail")}
       </p>
     </NativeCard>
   );
 }
 
 function CopyTextButton({ text, label, isLight }: { text: string; label: string; isLight: boolean }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -132,7 +145,7 @@ function CopyTextButton({ text, label, isLight }: { text: string; label: string;
       }}
     >
       {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? "Copied" : label}
+      {copied ? t("labelPitch.copied") : label}
     </button>
   );
 }
@@ -150,6 +163,7 @@ function DeleteButton({
   onDelete: () => void;
   label: string;
 }) {
+  const { t } = useTranslation();
   return (
     <button
       type="button"
@@ -161,7 +175,7 @@ function DeleteButton({
           : "border-white/15 text-white/50 hover:text-white"
       }`}
     >
-      <Trash2 className="h-3.5 w-3.5" /> {armed ? "Tap again to delete" : "Delete"}
+      <Trash2 className="h-3.5 w-3.5" /> {armed ? t("worldSponsorPress.lpDeleteArmed") : t("common.delete")}
     </button>
   );
 }
@@ -177,6 +191,7 @@ function StatusRow({
   onPick: (status: string) => void;
   isLight: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap gap-1.5">
       {statuses.map((s) => (
@@ -187,7 +202,7 @@ function StatusRow({
           onClick={() => onPick(s)}
           className={chipBtn(isLight, s === current)}
         >
-          {s === current ? `${s} · now` : `Mark ${s.replace(/_/g, " ")}`}
+          {s === current ? t("worldSponsorPress.lpStatusNow", { status: s }) : t("playlistPitch.markStatus", { status: s.replace(/_/g, " ") })}
         </button>
       ))}
     </div>
@@ -195,6 +210,7 @@ function StatusRow({
 }
 
 function AnalysisBlock({ kit, fitLabel, isLight }: { kit: LabelKit | PlaylistKit; fitLabel: string; isLight: boolean }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   const a = kit.analysis;
@@ -202,12 +218,12 @@ function AnalysisBlock({ kit, fitLabel, isLight }: { kit: LabelKit | PlaylistKit
     <div className="space-y-2">
       <p className={`border-l-2 border-[#d4af37]/60 pl-3 text-sm italic ${strong}`}>“{a.oneLiner}”</p>
       <div className="flex flex-wrap gap-x-5 gap-y-1">
-        <span className={`text-xs ${muted}`}>Genre: <span className={strong}>{a.genre || "—"}</span></span>
-        <span className={`text-xs ${muted}`}>Mood: <span className={strong}>{a.mood || "—"}</span></span>
-        <span className={`text-xs ${muted}`}>Energy: <span className={strong}>{a.energy}/100 · {a.tempoFeel}</span></span>
+        <span className={`text-xs ${muted}`}>{t("worldSponsorPress.lpAnalysisGenre")} <span className={strong}>{a.genre || "—"}</span></span>
+        <span className={`text-xs ${muted}`}>{t("worldSponsorPress.lpAnalysisMood")} <span className={strong}>{a.mood || "—"}</span></span>
+        <span className={`text-xs ${muted}`}>{t("worldSponsorPress.lpAnalysisEnergy")} <span className={strong}>{t("worldSponsorPress.lpAnalysisEnergyValue", { energy: a.energy, tempo: a.tempoFeel })}</span></span>
       </div>
       {a.comparableArtists.length > 0 ? (
-        <p className={`text-xs ${muted}`}>Sounds like: {a.comparableArtists.join(" · ")}</p>
+        <p className={`text-xs ${muted}`}>{t("worldSponsorPress.lpAnalysisSoundsLike")} {a.comparableArtists.join(" · ")}</p>
       ) : null}
       {a.fit.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -242,25 +258,26 @@ function SongPicker({
   songTitle: string;
   setSongTitle: (v: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         <button type="button" className={chipBtn(isLight, source === "library")} onClick={() => setSource("library")}>
-          From my library{library.length ? ` (${library.length})` : ""}
+          {t("worldSponsorPress.lpPickerFromLibrary")}{library.length ? t("worldSponsorPress.lpPickerCountSuffix", { count: library.length }) : ""}
         </button>
         <button type="button" className={chipBtn(isLight, source === "manual")} onClick={() => setSource("manual")}>
-          Type the title
+          {t("worldSponsorPress.lpSourceManual")}
         </button>
       </div>
       {source === "library" ? (
-        <select aria-label="Library song" className={`${selectCls(isLight)} w-full`} value={librarySongId} onChange={(e) => setLibrarySongId(e.target.value)}>
-          <option value="">Pick a song…</option>
+        <select aria-label={t("worldSponsorPress.lpLibrarySongAria")} className={`${selectCls(isLight)} w-full`} value={librarySongId} onChange={(e) => setLibrarySongId(e.target.value)}>
+          <option value="">{t("labelPitch.pickSong")}</option>
           {library.map((s) => (
-            <option key={s.id} value={s.id}>{s.title || "Untitled song"}</option>
+            <option key={s.id} value={s.id}>{s.title || t("labelPitch.untitledSong")}</option>
           ))}
         </select>
       ) : (
-        <input aria-label="Song title" className={deskInputCls(isLight)} value={songTitle} maxLength={200} onChange={(e) => setSongTitle(e.target.value)} placeholder="Song title" />
+        <input aria-label={t("worldSponsorPress.lpSongTitle")} className={deskInputCls(isLight)} value={songTitle} maxLength={200} onChange={(e) => setSongTitle(e.target.value)} placeholder={t("worldSponsorPress.lpSongTitle")} />
       )}
     </div>
   );
@@ -295,6 +312,7 @@ function pickedTitle(source: "library" | "manual", library: LibrarySong[], libra
 /* ═══ Labels mode ══════════════════════════════════════════════════ */
 
 function LabelsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -394,18 +412,18 @@ function LabelsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
       if (res.status === 402) { setOutOfCredits(true); refreshProfile(); return; }
       const parsed = parseLabelKit(data);
       if (!res.ok || !parsed) {
-        setKitError("The demo kit didn't come together — a failed kit is refunded by the rail. Try again.");
+        setKitError(t("worldSponsorPress.lpLabelKitError"));
         return;
       }
       setKit(parsed);
       refreshProfile();
     } catch {
-      setKitError("The pitch desk didn't answer. Try again.");
+      setKitError(t("worldSponsorPress.lpDeskNoAnswer"));
     } finally { setGenerating(false); }
   };
 
   const addSubmission = async () => {
-    if (!labelSubmissionReady(draft)) { setTrackerNote("A submission needs a song title and a label name."); return; }
+    if (!labelSubmissionReady(draft)) { setTrackerNote(t("worldSponsorPress.lpSubmissionNeeds")); return; }
     setTrackerNote(null);
     try {
       const res = await fetch(LABEL_PITCH_TRACKER_PATH, {
@@ -419,7 +437,7 @@ function LabelsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
       setSubmissions((prev) => [row, ...(prev ?? [])]);
       setDraft({ songTitle: "", artistName: "", labelName: "", notes: "" });
       setShowAdd(false);
-    } catch { setTrackerNote("That submission didn't save. Try again."); }
+    } catch { setTrackerNote(t("worldSponsorPress.lpSubmissionSaveError")); }
   };
 
   const updateStatus = async (id: string, status: string) => {
@@ -433,7 +451,7 @@ function LabelsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
       const row = parseLabelSubmissionAnswer(await res.json());
       if (!row) throw new Error("update shape");
       setSubmissions((prev) => (prev ?? []).map((p) => (p.id === id ? row : p)));
-    } catch { setTrackerNote("That status didn't save. Try again."); }
+    } catch { setTrackerNote(t("worldSponsorPress.lpStatusSaveError")); }
   };
 
   const deleteSubmission = async (id: string) => {
@@ -442,67 +460,67 @@ function LabelsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
       const res = await fetch(labelPitchTrackerItemPath(id), { method: "DELETE", headers: await authHeaders() });
       if (!res.ok) throw new Error("delete");
       setSubmissions((prev) => (prev ?? []).filter((p) => p.id !== id));
-    } catch { setTrackerNote("That submission couldn't be removed — it's still on your tracker. Try again."); }
+    } catch { setTrackerNote(t("worldSponsorPress.lpSubmissionDeleteError")); }
   };
 
   return (
     <div className="space-y-3">
-      <NativeCard isLight={isLight} title="Demo kit — pitch a label">
+      <NativeCard isLight={isLight} title={t("worldSponsorPress.lpLabelKitCardTitle")}>
         <div className="space-y-3">
           <SongPicker isLight={isLight} library={library} source={source} setSource={setSource} librarySongId={librarySongId} setLibrarySongId={setLibrarySongId} songTitle={songTitle} setSongTitle={setSongTitle} />
           <div className="grid gap-2 sm:grid-cols-2">
-            <input aria-label="Artist name" className={deskInputCls(isLight)} value={artistName} maxLength={200} onChange={(e) => setArtistName(e.target.value)} placeholder="Artist name" />
-            <input aria-label="Genre" className={deskInputCls(isLight)} value={genre} maxLength={100} onChange={(e) => setGenre(e.target.value)} placeholder="Genre (hip-hop, r&b, pop…)" />
-            <input aria-label="Mood" className={deskInputCls(isLight)} value={mood} maxLength={200} onChange={(e) => setMood(e.target.value)} placeholder="Mood" />
-            <input aria-label="Tempo" className={deskInputCls(isLight)} value={tempo} maxLength={50} onChange={(e) => setTempo(e.target.value)} placeholder="Tempo feel" />
+            <input aria-label={t("worldSponsorPress.lpArtistName")} className={deskInputCls(isLight)} value={artistName} maxLength={200} onChange={(e) => setArtistName(e.target.value)} placeholder={t("worldSponsorPress.lpArtistName")} />
+            <input aria-label={t("worldSponsorPress.lpGenreAria")} className={deskInputCls(isLight)} value={genre} maxLength={100} onChange={(e) => setGenre(e.target.value)} placeholder={t("worldSponsorPress.lpGenrePlaceholder")} />
+            <input aria-label={t("worldSponsorPress.lpMood")} className={deskInputCls(isLight)} value={mood} maxLength={200} onChange={(e) => setMood(e.target.value)} placeholder={t("worldSponsorPress.lpMood")} />
+            <input aria-label={t("worldSponsorPress.lpTempo")} className={deskInputCls(isLight)} value={tempo} maxLength={50} onChange={(e) => setTempo(e.target.value)} placeholder={t("worldSponsorPress.lpTempoPlaceholder")} />
           </div>
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wider ${muted}`}>Energy — {energy}/100</span>
-            <input aria-label="Energy" type="range" min={0} max={100} value={energy} onChange={(e) => setEnergy(Number(e.target.value))} className="w-full accent-[#d4af37] bdv-touch-target" />
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wider ${muted}`}>{t("labelPitch.energyLabel", { energy })}</span>
+            <input aria-label={t("worldSponsorPress.lpEnergyAria")} type="range" min={0} max={100} value={energy} onChange={(e) => setEnergy(Number(e.target.value))} className="w-full accent-[#d4af37] bdv-touch-target" />
           </label>
-          <textarea aria-label="Song description" className={deskInputCls(isLight)} value={description} maxLength={1000} rows={2} onChange={(e) => setDescription(e.target.value)} placeholder="What is this song? (optional)" />
-          <input aria-label="Target label" className={deskInputCls(isLight)} value={labelName} maxLength={200} onChange={(e) => setLabelName(e.target.value)} placeholder="Target label (optional — the email personalizes to it)" />
+          <textarea aria-label={t("worldSponsorPress.lpSongDescriptionAria")} className={deskInputCls(isLight)} value={description} maxLength={1000} rows={2} onChange={(e) => setDescription(e.target.value)} placeholder={t("worldSponsorPress.lpSongDescriptionPlaceholder")} />
+          <input aria-label={t("worldSponsorPress.lpTargetLabelAria")} className={deskInputCls(isLight)} value={labelName} maxLength={200} onChange={(e) => setLabelName(e.target.value)} placeholder={t("worldSponsorPress.lpTargetLabelPlaceholder")} />
           <button type="button" className={`text-xs font-bold bdv-touch-target ${muted}`} aria-expanded={showAdvanced} onClick={() => setShowAdvanced((v) => !v)}>
-            {showAdvanced ? "Hide advanced details" : "Advanced details — bio, stats, lyrics"}
+            {showAdvanced ? t("worldSponsorPress.lpHideAdvanced") : t("worldSponsorPress.lpShowAdvancedLabels")}
           </button>
           {showAdvanced ? (
             <div className="space-y-2">
-              <textarea aria-label="Artist bio" className={deskInputCls(isLight)} value={artistBio} maxLength={2000} rows={2} onChange={(e) => setArtistBio(e.target.value)} placeholder="Artist bio (optional)" />
-              <input aria-label="Social and streaming stats" className={deskInputCls(isLight)} value={socialStats} maxLength={500} onChange={(e) => setSocialStats(e.target.value)} placeholder="Social / streaming stats (optional)" />
-              <textarea aria-label="Lyrics" className={deskInputCls(isLight)} value={lyrics} maxLength={5000} rows={3} onChange={(e) => setLyrics(e.target.value)} placeholder="Lyrics (optional — analyzed for themes)" />
+              <textarea aria-label={t("worldSponsorPress.lpArtistBioAria")} className={deskInputCls(isLight)} value={artistBio} maxLength={2000} rows={2} onChange={(e) => setArtistBio(e.target.value)} placeholder={t("worldSponsorPress.lpArtistBioPlaceholder")} />
+              <input aria-label={t("worldSponsorPress.lpSocialStatsAria")} className={deskInputCls(isLight)} value={socialStats} maxLength={500} onChange={(e) => setSocialStats(e.target.value)} placeholder={t("worldSponsorPress.lpSocialStatsPlaceholder")} />
+              <textarea aria-label={t("worldSponsorPress.lpLyricsAria")} className={deskInputCls(isLight)} value={lyrics} maxLength={5000} rows={3} onChange={(e) => setLyrics(e.target.value)} placeholder={t("worldSponsorPress.lpLyricsPlaceholder")} />
             </div>
           ) : null}
           {kitError ? <p className="text-xs font-semibold text-red-400">{kitError}</p> : null}
-          {outOfCredits ? <p className="text-xs font-semibold text-red-400">Out of Visual Bucs — top up and the demo kit maker is ready again.</p> : null}
+          {outOfCredits ? <p className="text-xs font-semibold text-red-400">{t("worldSponsorPress.lpLabelOutOfCredits")}</p> : null}
           <button type="button" data-testid="world-label-pitch-generate" className={goldBtn} disabled={generating || !labelKitReady({ songTitle: pickedTitle(source, library, librarySongId, songTitle) })} onClick={() => void generateKit()}>
             {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {generating ? "Building your package…" : `Build my demo kit — ${LABEL_PITCH_KIT_COST_VISUAL_BUCS} Visual Bucs`}
+            {generating ? t("worldSponsorPress.lpLabelKitBuilding") : t("worldSponsorPress.lpLabelKitButton", { cost: LABEL_PITCH_KIT_COST_VISUAL_BUCS })}
           </button>
-          <p className={`text-[11px] ${muted}`}>Song analysis, submission email, artist one-sheet and a follow-up — confirmed before it charges, refunded if it fails.</p>
+          <p className={`text-[11px] ${muted}`}>{t("worldSponsorPress.lpLabelKitNote")}</p>
         </div>
         {kit ? (
           <div className="mt-4 space-y-4" data-testid="world-label-pitch-kit-result">
-            <AnalysisBlock kit={kit} fitLabel="Best label fit" isLight={isLight} />
+            <AnalysisBlock kit={kit} fitLabel={t("labelPitch.bestLabelFit")} isLight={isLight} />
             <div>
               <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                <p className={`inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider ${strong}`}><Mail className="h-3.5 w-3.5 text-[#d4af37]" /> Submission email</p>
-                <CopyTextButton isLight={isLight} label="Copy email" text={`Subject: ${kit.emailSubject}\n\n${kit.emailBody}`} />
+                <p className={`inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider ${strong}`}><Mail className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldSponsorPress.lpSubmissionEmailTitle")}</p>
+                <CopyTextButton isLight={isLight} label={t("labelPitch.copyTemplate", { label: t("labelPitch.labelEmail") })} text={`${t("labelPitch.subjectLabel")}${kit.emailSubject}\n\n${kit.emailBody}`} />
               </div>
               <p className={`text-sm font-semibold ${strong}`}>{kit.emailSubject}</p>
               <p className={`mt-1 whitespace-pre-wrap text-sm ${muted}`}>{kit.emailBody}</p>
             </div>
             <div>
               <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                <p className={`text-xs font-black uppercase tracking-wider ${strong}`}>Artist one-sheet</p>
-                <CopyTextButton isLight={isLight} label="Copy one-sheet" text={kit.oneSheet} />
+                <p className={`text-xs font-black uppercase tracking-wider ${strong}`}>{t("worldSponsorPress.lpOneSheetTitle")}</p>
+                <CopyTextButton isLight={isLight} label={t("labelPitch.copyTemplate", { label: t("labelPitch.labelOneSheet") })} text={kit.oneSheet} />
               </div>
               <p className={`whitespace-pre-wrap text-sm ${muted}`}>{kit.oneSheet}</p>
             </div>
             {kit.followUp ? (
               <div>
                 <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                  <p className={`text-xs font-black uppercase tracking-wider ${strong}`}>Follow-up</p>
-                  <CopyTextButton isLight={isLight} label="Copy follow-up" text={kit.followUp} />
+                  <p className={`text-xs font-black uppercase tracking-wider ${strong}`}>{t("worldSponsorPress.lpFollowUpTitle")}</p>
+                  <CopyTextButton isLight={isLight} label={t("labelPitch.copyTemplate", { label: t("labelPitch.labelFollowUp") })} text={kit.followUp} />
                 </div>
                 <p className={`text-sm ${muted}`}>{kit.followUp}</p>
               </div>
@@ -512,23 +530,23 @@ function LabelsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
         ) : null}
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="Label directory — free">
+      <NativeCard isLight={isLight} title={t("worldSponsorPress.lpLabelDirectoryTitle")}>
         <div className="mb-2 flex flex-wrap gap-1.5">
           {["all", ...LABEL_PITCH_GENRES].map((g) => (
-            <button key={g} type="button" className={chipBtn(isLight, genreFilter === g)} onClick={() => setGenreFilter(g)}>{g === "all" ? "All genres" : g}</button>
+            <button key={g} type="button" className={chipBtn(isLight, genreFilter === g)} onClick={() => setGenreFilter(g)}>{g === "all" ? t("playlistPitch.allGenres") : g}</button>
           ))}
         </div>
         <div className="mb-3 flex flex-wrap gap-1.5">
           {(["all", "major", "imprint", "indie"] as const).map((tp) => (
-            <button key={tp} type="button" className={chipBtn(isLight, typeFilter === tp)} onClick={() => setTypeFilter(tp)}>{tp === "all" ? "All types" : `${tp}s`}</button>
+            <button key={tp} type="button" className={chipBtn(isLight, typeFilter === tp)} onClick={() => setTypeFilter(tp)}>{tp === "all" ? t("worldSponsorPress.lpAllTypes") : t(TYPE_PLURAL_KEYS[tp])}</button>
           ))}
         </div>
         {labelsFailed ? (
-          <NativeErrorState isLight={isLight} title="The label directory wouldn't open" message="The directory is safe on the real rails — it just didn't answer. Try again." onRetry={() => setLabelsTick((n) => n + 1)} />
+          <NativeErrorState isLight={isLight} title={t("worldSponsorPress.lpLabelsErrorTitle")} message={t("worldSponsorPress.lpDirectoryErrorMessage")} onRetry={() => setLabelsTick((n) => n + 1)} />
         ) : labels === null ? (
-          <NativeLoadingState isLight={isLight} message="Opening the label directory…" />
+          <NativeLoadingState isLight={isLight} message={t("worldSponsorPress.lpLabelsLoading")} />
         ) : labels.length === 0 ? (
-          <NativeEmptyState isLight={isLight} message="No labels match that filter." detail="Widen the genre or type — the starter list is small and honest." />
+          <NativeEmptyState isLight={isLight} message={t("worldSponsorPress.lpNoLabelsMessage")} detail={t("worldSponsorPress.lpNoLabelsDetail")} />
         ) : (
           <div className="space-y-2">
             {labels.map((l) => (
@@ -540,9 +558,9 @@ function LabelsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
                 <p className={`text-[11px] ${muted}`}>{l.parent}</p>
                 <p className={`mt-1 text-xs ${muted}`}>{l.knownFor}</p>
                 {l.genres.length ? <p className={`mt-1 text-[11px] ${muted}`}>{l.genres.join(" · ")}</p> : null}
-                <p className={`mt-1.5 text-xs ${strong}`}>How to submit: <span className={muted}>{l.submitVia}</span></p>
+                <p className={`mt-1.5 text-xs ${strong}`}>{t("worldSponsorPress.lpHowToSubmit")} <span className={muted}>{l.submitVia}</span></p>
                 <button type="button" className={`${chipBtn(isLight)} mt-2`} onClick={() => { setLabelName(l.name); setDraft((d) => ({ ...d, labelName: l.name })); }}>
-                  Pitch {l.name}
+                  {t("worldSponsorPress.lpPitchLabelButton", { name: l.name })}
                 </button>
               </div>
             ))}
@@ -551,45 +569,45 @@ function LabelsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
         {labelNotice ? <p className={`mt-2 text-[11px] ${muted}`}>{labelNotice}</p> : null}
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="Submission tracker — free">
+      <NativeCard isLight={isLight} title={t("worldSponsorPress.lpTrackerCardTitle")}>
         {trackerFailed ? (
-          <NativeErrorState isLight={isLight} title="Your pitch tracker wouldn't open" message="Your logged pitches are safe — the tracker just didn't answer. Try again." onRetry={() => setTrackerTick((n) => n + 1)} />
+          <NativeErrorState isLight={isLight} title={t("worldSponsorPress.lpTrackerErrorTitle")} message={t("worldSponsorPress.lpTrackerErrorMessage")} onRetry={() => setTrackerTick((n) => n + 1)} />
         ) : submissions === null ? (
-          <NativeLoadingState isLight={isLight} message="Opening your tracker…" />
+          <NativeLoadingState isLight={isLight} message={t("worldSponsorPress.lpTrackerLoading")} />
         ) : (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className={`text-xs ${muted}`}>
-                {submissions.length} logged{submissions.filter((s) => s.status === "signed").length > 0 ? ` · ${submissions.filter((s) => s.status === "signed").length} signed` : ""}
+                {t("worldSponsorPress.lpSubmissionsLogged", { count: submissions.length })}{submissions.filter((s) => s.status === "signed").length > 0 ? t("labelPitch.signedSuffix", { count: submissions.filter((s) => s.status === "signed").length }) : ""}
               </p>
               <button type="button" className={chipBtn(isLight, showAdd)} aria-expanded={showAdd} onClick={() => setShowAdd((v) => !v)}>
-                <Plus className="h-3.5 w-3.5" /> Log a submission
+                <Plus className="h-3.5 w-3.5" /> {t("worldSponsorPress.lpLogSubmission")}
               </button>
             </div>
             {showAdd ? (
               <div className="space-y-2">
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <input aria-label="Song title" className={deskInputCls(isLight)} value={draft.songTitle} maxLength={200} onChange={(e) => setDraft({ ...draft, songTitle: e.target.value })} placeholder="Song title" />
-                  <input aria-label="Label name" className={deskInputCls(isLight)} value={draft.labelName} maxLength={200} onChange={(e) => setDraft({ ...draft, labelName: e.target.value })} placeholder="Label name" />
-                  <input aria-label="Artist name" className={deskInputCls(isLight)} value={draft.artistName} maxLength={200} onChange={(e) => setDraft({ ...draft, artistName: e.target.value })} placeholder="Artist name (optional)" />
-                  <input aria-label="Notes" className={deskInputCls(isLight)} value={draft.notes} maxLength={1000} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} placeholder="Notes (optional)" />
+                  <input aria-label={t("worldSponsorPress.lpSongTitle")} className={deskInputCls(isLight)} value={draft.songTitle} maxLength={200} onChange={(e) => setDraft({ ...draft, songTitle: e.target.value })} placeholder={t("worldSponsorPress.lpSongTitle")} />
+                  <input aria-label={t("worldSponsorPress.lpLabelName")} className={deskInputCls(isLight)} value={draft.labelName} maxLength={200} onChange={(e) => setDraft({ ...draft, labelName: e.target.value })} placeholder={t("worldSponsorPress.lpLabelName")} />
+                  <input aria-label={t("worldSponsorPress.lpArtistName")} className={deskInputCls(isLight)} value={draft.artistName} maxLength={200} onChange={(e) => setDraft({ ...draft, artistName: e.target.value })} placeholder={t("worldSponsorPress.lpArtistNameOptional")} />
+                  <input aria-label={t("worldSponsorPress.lpNotesAria")} className={deskInputCls(isLight)} value={draft.notes} maxLength={1000} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} placeholder={t("worldSponsorPress.lpNotesOptional")} />
                 </div>
-                <button type="button" className={goldBtn} onClick={() => void addSubmission()}>Save submission — free</button>
+                <button type="button" className={goldBtn} onClick={() => void addSubmission()}>{t("worldSponsorPress.lpSaveSubmission")}</button>
               </div>
             ) : null}
             {trackerNote ? <p className="text-xs font-semibold text-red-400">{trackerNote}</p> : null}
             {submissions.length === 0 ? (
-              <NativeEmptyState isLight={isLight} message="No submissions logged yet." detail="Build a kit above, send it, and log it here — the tracker keeps the whole outreach in one place." />
+              <NativeEmptyState isLight={isLight} message={t("worldSponsorPress.lpNoSubmissionsMessage")} detail={t("worldSponsorPress.lpNoSubmissionsDetail")} />
             ) : (
               submissions.map((s) => (
                 <div key={s.id} className={`space-y-2 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className={`truncate text-sm font-black ${strong}`}>{s.songTitle}</p>
-                      <p className={`text-xs ${muted}`}>→ {s.labelName}{s.artistName ? ` · ${s.artistName}` : ""}{s.contactedAt ? ` · sent ${new Date(s.contactedAt).toLocaleDateString()}` : ""}</p>
+                      <p className={`text-xs ${muted}`}>→ {s.labelName}{s.artistName ? ` · ${s.artistName}` : ""}{s.contactedAt ? t("worldSponsorPress.lpSentSuffix", { date: new Date(s.contactedAt).toLocaleDateString(i18n.language) }) : ""}</p>
                       {s.notes ? <p className={`mt-1 text-xs ${muted}`}>{s.notes}</p> : null}
                     </div>
-                    <DeleteButton armed={armedDeleteId === s.id} onArm={() => setArmedDeleteId(s.id)} onDelete={() => void deleteSubmission(s.id)} label={`Delete submission ${s.songTitle}`} />
+                    <DeleteButton armed={armedDeleteId === s.id} onArm={() => setArmedDeleteId(s.id)} onDelete={() => void deleteSubmission(s.id)} label={t("worldSponsorPress.lpDeleteSubmissionAria", { name: s.songTitle })} />
                   </div>
                   <StatusRow isLight={isLight} statuses={LABEL_PITCH_STATUSES} current={s.status} onPick={(st) => void updateStatus(s.id, st)} />
                 </div>
@@ -605,6 +623,7 @@ function LabelsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
 /* ═══ Playlists mode ═══════════════════════════════════════════════ */
 
 function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -768,18 +787,18 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
       if (res.status === 402) { setOutOfCredits(true); refreshProfile(); return; }
       const parsed = parsePlaylistKit(data);
       if (!res.ok || !parsed) {
-        setKitError("The pitch kit didn't come together — a failed kit is refunded by the rail. Try again.");
+        setKitError(t("worldSponsorPress.lpPlaylistKitError"));
         return;
       }
       setKit(parsed);
       refreshProfile();
     } catch {
-      setKitError("The pitch desk didn't answer. Try again.");
+      setKitError(t("worldSponsorPress.lpDeskNoAnswer"));
     } finally { setGenerating(false); }
   };
 
   const addPitch = async () => {
-    if (!playlistPitchReady(draft)) { setTrackerNote("A pitch needs a song title and a playlist name."); return; }
+    if (!playlistPitchReady(draft)) { setTrackerNote(t("worldSponsorPress.lpPitchNeeds")); return; }
     setTrackerNote(null);
     try {
       const res = await fetch(PLAYLIST_PITCH_TRACKER_PATH, {
@@ -793,7 +812,7 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
       setPitches((prev) => [row, ...(prev ?? [])]);
       setDraft({ songTitle: "", artistName: "", curatorName: "", playlistName: "", notes: "" });
       setShowAdd(false);
-    } catch { setTrackerNote("That pitch didn't save. Try again."); }
+    } catch { setTrackerNote(t("worldSponsorPress.lpPitchSaveError")); }
   };
 
   const updatePitchStatus = async (id: string, status: string) => {
@@ -807,7 +826,7 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
       const row = parsePlaylistPitchAnswer(await res.json());
       if (!row) throw new Error("update shape");
       setPitches((prev) => (prev ?? []).map((p) => (p.id === id ? row : p)));
-    } catch { setTrackerNote("That status didn't save. Try again."); }
+    } catch { setTrackerNote(t("worldSponsorPress.lpStatusSaveError")); }
   };
 
   const deletePitch = async (id: string) => {
@@ -816,11 +835,11 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
       const res = await fetch(playlistPitchTrackerItemPath(id), { method: "DELETE", headers: await authHeaders() });
       if (!res.ok) throw new Error("delete");
       setPitches((prev) => (prev ?? []).filter((p) => p.id !== id));
-    } catch { setTrackerNote("That pitch couldn't be removed — it's still on your tracker. Try again."); }
+    } catch { setTrackerNote(t("worldSponsorPress.lpPitchDeleteError")); }
   };
 
   const addDeadline = async () => {
-    if (!deadlineReady(deadlineDraft)) { setDeadlineNote("A deadline needs a playlist name and a date."); return; }
+    if (!deadlineReady(deadlineDraft)) { setDeadlineNote(t("worldSponsorPress.lpDeadlineNeeds")); return; }
     setDeadlineNote(null);
     try {
       const res = await fetch(PLAYLIST_PITCH_DEADLINES_PATH, {
@@ -832,7 +851,7 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
       setDeadlineDraft({ playlistName: "", curatorName: "", deadlineDate: "", releaseId: "" });
       setShowDeadlineForm(false);
       void loadDeadlines();
-    } catch { setDeadlineNote("That deadline didn't save. Try again."); }
+    } catch { setDeadlineNote(t("worldSponsorPress.lpDeadlineSaveError")); }
   };
 
   const updateDeadlineStatus = async (id: string, status: string) => {
@@ -844,7 +863,7 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
       });
       if (!res.ok) throw new Error("deadline update");
       void loadDeadlines();
-    } catch { setDeadlineNote("That deadline status didn't save. Try again."); }
+    } catch { setDeadlineNote(t("worldSponsorPress.lpDeadlineStatusError")); }
   };
 
   const deleteDeadline = async (id: string) => {
@@ -853,7 +872,7 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
       const res = await fetch(playlistPitchDeadlineItemPath(id), { method: "DELETE", headers: await authHeaders() });
       if (!res.ok) throw new Error("deadline delete");
       void loadDeadlines();
-    } catch { setDeadlineNote("That deadline couldn't be removed — it's still on your board. Try again."); }
+    } catch { setDeadlineNote(t("worldSponsorPress.lpDeadlineDeleteError")); }
   };
 
   const logCurator = (c: PlaylistCurator) => {
@@ -864,63 +883,63 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
 
   return (
     <div className="space-y-3">
-      <NativeCard isLight={isLight} title="Playlist pitch kit">
+      <NativeCard isLight={isLight} title={t("worldSponsorPress.lpPlaylistKitCardTitle")}>
         <div className="space-y-3">
           <SongPicker isLight={isLight} library={library} source={source} setSource={setSource} librarySongId={librarySongId} setLibrarySongId={setLibrarySongId} songTitle={songTitle} setSongTitle={setSongTitle} />
           <div className="grid gap-2 sm:grid-cols-2">
-            <input aria-label="Artist name" className={deskInputCls(isLight)} value={artistName} maxLength={200} onChange={(e) => setArtistName(e.target.value)} placeholder="Artist name" />
-            <input aria-label="Genre" className={deskInputCls(isLight)} value={genre} maxLength={100} onChange={(e) => setGenre(e.target.value)} placeholder="Genre (hip-hop, r&b, pop…)" />
-            <input aria-label="Curator name" className={deskInputCls(isLight)} value={curatorName} maxLength={200} onChange={(e) => setCuratorName(e.target.value)} placeholder="Curator name (optional)" />
-            <input aria-label="Playlist name" className={deskInputCls(isLight)} value={playlistName} maxLength={200} onChange={(e) => setPlaylistName(e.target.value)} placeholder="Playlist name (optional)" />
+            <input aria-label={t("worldSponsorPress.lpArtistName")} className={deskInputCls(isLight)} value={artistName} maxLength={200} onChange={(e) => setArtistName(e.target.value)} placeholder={t("worldSponsorPress.lpArtistName")} />
+            <input aria-label={t("worldSponsorPress.lpGenreAria")} className={deskInputCls(isLight)} value={genre} maxLength={100} onChange={(e) => setGenre(e.target.value)} placeholder={t("worldSponsorPress.lpGenrePlaceholder")} />
+            <input aria-label={t("worldSponsorPress.lpCuratorNameAria")} className={deskInputCls(isLight)} value={curatorName} maxLength={200} onChange={(e) => setCuratorName(e.target.value)} placeholder={t("worldSponsorPress.lpCuratorNameOptional")} />
+            <input aria-label={t("worldSponsorPress.lpPlaylistName")} className={deskInputCls(isLight)} value={playlistName} maxLength={200} onChange={(e) => setPlaylistName(e.target.value)} placeholder={t("worldSponsorPress.lpPlaylistNameOptional")} />
           </div>
           <label className="block">
-            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wider ${muted}`}>Energy — {energy}/100</span>
-            <input aria-label="Energy" type="range" min={0} max={100} value={energy} onChange={(e) => setEnergy(Number(e.target.value))} className="w-full accent-[#d4af37] bdv-touch-target" />
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-wider ${muted}`}>{t("labelPitch.energyLabel", { energy })}</span>
+            <input aria-label={t("worldSponsorPress.lpEnergyAria")} type="range" min={0} max={100} value={energy} onChange={(e) => setEnergy(Number(e.target.value))} className="w-full accent-[#d4af37] bdv-touch-target" />
           </label>
           <button type="button" className={`text-xs font-bold bdv-touch-target ${muted}`} aria-expanded={showAdvanced} onClick={() => setShowAdvanced((v) => !v)}>
-            {showAdvanced ? "Hide advanced details" : "Advanced details — mood, tempo, description, lyrics"}
+            {showAdvanced ? t("worldSponsorPress.lpHideAdvanced") : t("worldSponsorPress.lpShowAdvancedPlaylists")}
           </button>
           {showAdvanced ? (
             <div className="space-y-2">
               <div className="grid gap-2 sm:grid-cols-2">
-                <input aria-label="Mood" className={deskInputCls(isLight)} value={mood} maxLength={200} onChange={(e) => setMood(e.target.value)} placeholder="Mood" />
-                <input aria-label="Tempo" className={deskInputCls(isLight)} value={tempo} maxLength={50} onChange={(e) => setTempo(e.target.value)} placeholder="Tempo feel" />
+                <input aria-label={t("worldSponsorPress.lpMood")} className={deskInputCls(isLight)} value={mood} maxLength={200} onChange={(e) => setMood(e.target.value)} placeholder={t("worldSponsorPress.lpMood")} />
+                <input aria-label={t("worldSponsorPress.lpTempo")} className={deskInputCls(isLight)} value={tempo} maxLength={50} onChange={(e) => setTempo(e.target.value)} placeholder={t("worldSponsorPress.lpTempoPlaceholder")} />
               </div>
-              <textarea aria-label="Song description" className={deskInputCls(isLight)} value={description} maxLength={1000} rows={2} onChange={(e) => setDescription(e.target.value)} placeholder="What is this song? (optional)" />
-              <textarea aria-label="Lyrics" className={deskInputCls(isLight)} value={lyrics} maxLength={5000} rows={3} onChange={(e) => setLyrics(e.target.value)} placeholder="Lyrics (optional)" />
+              <textarea aria-label={t("worldSponsorPress.lpSongDescriptionAria")} className={deskInputCls(isLight)} value={description} maxLength={1000} rows={2} onChange={(e) => setDescription(e.target.value)} placeholder={t("worldSponsorPress.lpSongDescriptionPlaceholder")} />
+              <textarea aria-label={t("worldSponsorPress.lpLyricsAria")} className={deskInputCls(isLight)} value={lyrics} maxLength={5000} rows={3} onChange={(e) => setLyrics(e.target.value)} placeholder={t("worldSponsorPress.lpLyricsPlainOptional")} />
             </div>
           ) : null}
           {kitError ? <p className="text-xs font-semibold text-red-400">{kitError}</p> : null}
-          {outOfCredits ? <p className="text-xs font-semibold text-red-400">Out of Visual Bucs — top up and the pitch kit maker is ready again.</p> : null}
+          {outOfCredits ? <p className="text-xs font-semibold text-red-400">{t("worldSponsorPress.lpPlaylistOutOfCredits")}</p> : null}
           <button type="button" data-testid="world-playlist-pitch-generate" className={goldBtn} disabled={generating || !playlistKitReady({ songTitle: pickedTitle(source, library, librarySongId, songTitle) })} onClick={() => void generateKit()}>
             {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {generating ? "Writing your kit…" : `Build my pitch kit — ${PLAYLIST_PITCH_KIT_COST_VISUAL_BUCS} Visual Bucs`}
+            {generating ? t("worldSponsorPress.lpPlaylistKitBuilding") : t("worldSponsorPress.lpPlaylistKitButton", { cost: PLAYLIST_PITCH_KIT_COST_VISUAL_BUCS })}
           </button>
-          <p className={`text-[11px] ${muted}`}>Song analysis, pitch email, a DM version and a follow-up — confirmed before it charges, refunded if it fails.</p>
+          <p className={`text-[11px] ${muted}`}>{t("worldSponsorPress.lpPlaylistKitNote")}</p>
         </div>
         {kit ? (
           <div className="mt-4 space-y-4" data-testid="world-playlist-pitch-kit-result">
-            <AnalysisBlock kit={kit} fitLabel="Playlist fit" isLight={isLight} />
+            <AnalysisBlock kit={kit} fitLabel={t("playlistPitch.playlistFit")} isLight={isLight} />
             <div>
               <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                <p className={`inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider ${strong}`}><Mail className="h-3.5 w-3.5 text-[#d4af37]" /> Pitch email</p>
-                <CopyTextButton isLight={isLight} label="Copy email" text={`Subject: ${kit.emailSubject}\n\n${kit.emailBody}`} />
+                <p className={`inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider ${strong}`}><Mail className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldSponsorPress.lpPitchEmailTitle")}</p>
+                <CopyTextButton isLight={isLight} label={t("playlistPitch.copyLabel", { label: t("playlistPitch.copyEmailLabel") })} text={`${t("labelPitch.subjectLabel")}${kit.emailSubject}\n\n${kit.emailBody}`} />
               </div>
               <p className={`text-sm font-semibold ${strong}`}>{kit.emailSubject}</p>
               <p className={`mt-1 whitespace-pre-wrap text-sm ${muted}`}>{kit.emailBody}</p>
             </div>
             <div>
               <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                <p className={`text-xs font-black uppercase tracking-wider ${strong}`}>DM version</p>
-                <CopyTextButton isLight={isLight} label="Copy DM" text={kit.dmPitch} />
+                <p className={`text-xs font-black uppercase tracking-wider ${strong}`}>{t("playlistPitch.dmVersion")}</p>
+                <CopyTextButton isLight={isLight} label={t("playlistPitch.copyLabel", { label: t("playlistPitch.copyDmLabel") })} text={kit.dmPitch} />
               </div>
               <p className={`text-sm ${muted}`}>{kit.dmPitch}</p>
             </div>
             {kit.followUp ? (
               <div>
                 <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                  <p className={`text-xs font-black uppercase tracking-wider ${strong}`}>Follow-up</p>
-                  <CopyTextButton isLight={isLight} label="Copy follow-up" text={kit.followUp} />
+                  <p className={`text-xs font-black uppercase tracking-wider ${strong}`}>{t("worldSponsorPress.lpFollowUpTitle")}</p>
+                  <CopyTextButton isLight={isLight} label={t("playlistPitch.copyLabel", { label: t("playlistPitch.copyFollowUpLabel") })} text={kit.followUp} />
                 </div>
                 <p className={`text-sm ${muted}`}>{kit.followUp}</p>
               </div>
@@ -930,18 +949,18 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
         ) : null}
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="Curator directory — free">
+      <NativeCard isLight={isLight} title={t("worldSponsorPress.lpCuratorDirectoryTitle")}>
         <div className="mb-3 flex flex-wrap gap-1.5">
           {["all", ...PLAYLIST_PITCH_GENRES].map((g) => (
-            <button key={g} type="button" className={chipBtn(isLight, genreFilter === g)} onClick={() => setGenreFilter(g)}>{g === "all" ? "All genres" : g}</button>
+            <button key={g} type="button" className={chipBtn(isLight, genreFilter === g)} onClick={() => setGenreFilter(g)}>{g === "all" ? t("playlistPitch.allGenres") : g}</button>
           ))}
         </div>
         {curatorsFailed ? (
-          <NativeErrorState isLight={isLight} title="The curator directory wouldn't open" message="The directory is safe on the real rails — it just didn't answer. Try again." onRetry={() => setCuratorsTick((n) => n + 1)} />
+          <NativeErrorState isLight={isLight} title={t("worldSponsorPress.lpCuratorsErrorTitle")} message={t("worldSponsorPress.lpDirectoryErrorMessage")} onRetry={() => setCuratorsTick((n) => n + 1)} />
         ) : curators === null ? (
-          <NativeLoadingState isLight={isLight} message="Opening the curator directory…" />
+          <NativeLoadingState isLight={isLight} message={t("worldSponsorPress.lpCuratorsLoading")} />
         ) : curators.length === 0 ? (
-          <NativeEmptyState isLight={isLight} message="No curators found for that genre." detail="Widen the filter — the starter list is small and honest." />
+          <NativeEmptyState isLight={isLight} message={t("worldSponsorPress.lpNoCuratorsMessage")} detail={t("worldSponsorPress.lpNoCuratorsDetail")} />
         ) : (
           <div className="space-y-2">
             {curators.map((c) => (
@@ -952,9 +971,9 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
                 </div>
                 <p className={`mt-1 text-xs ${muted}`}>{c.focus}</p>
                 {c.genres.length ? <p className={`mt-1 text-[11px] ${muted}`}>{c.genres.join(" · ")}</p> : null}
-                <p className={`mt-1.5 text-xs ${strong}`}>How to submit: <span className={muted}>{c.submitVia}</span></p>
+                <p className={`mt-1.5 text-xs ${strong}`}>{t("worldSponsorPress.lpHowToSubmit")} <span className={muted}>{c.submitVia}</span></p>
                 <button type="button" className={`${chipBtn(isLight)} mt-2`} onClick={() => logCurator(c)}>
-                  <Plus className="h-3.5 w-3.5" /> Log this curator in my tracker
+                  <Plus className="h-3.5 w-3.5" /> {t("worldSponsorPress.lpLogCuratorButton")}
                 </button>
               </div>
             ))}
@@ -963,25 +982,25 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
         {curatorNotice ? <p className={`mt-2 text-[11px] ${muted}`}>{curatorNotice}</p> : null}
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="Pitch packet — built from your release record">
-        <p className={`mb-3 text-xs ${muted}`}>Built from your release record — real data only. Anything the record doesn&rsquo;t have is listed as missing, never made up.</p>
+      <NativeCard isLight={isLight} title={t("worldSponsorPress.lpPacketCardTitle")}>
+        <p className={`mb-3 text-xs ${muted}`}>{t("playlistPitch.packetIntro")}</p>
         {releasesFailed ? (
-          <NativeErrorState isLight={isLight} title="Your releases wouldn't open" message="Your release records are safe — the packet desk just didn't reach them. Try again." onRetry={() => setReleasesTick((n) => n + 1)} />
+          <NativeErrorState isLight={isLight} title={t("worldSponsorPress.lpReleasesErrorTitle")} message={t("worldSponsorPress.lpReleasesErrorMessage")} onRetry={() => setReleasesTick((n) => n + 1)} />
         ) : releases === null ? (
-          <NativeLoadingState isLight={isLight} message="Opening your releases…" />
+          <NativeLoadingState isLight={isLight} message={t("worldSponsorPress.lpReleasesLoading")} />
         ) : releases.length === 0 ? (
-          <NativeEmptyState isLight={isLight} message="No releases yet." detail="Create one in Distribute and its packet will build itself here." />
+          <NativeEmptyState isLight={isLight} message={t("worldSponsorPress.lpNoReleasesMessage")} detail={t("worldSponsorPress.lpNoReleasesDetail")} />
         ) : (
           <div className="space-y-3">
-            <select aria-label="Release for the packet" className={`${selectCls(isLight)} w-full`} value={packetReleaseId} onChange={(e) => void loadPacket(e.target.value)}>
-              <option value="">Pick a release…</option>
+            <select aria-label={t("worldSponsorPress.lpReleaseSelectAria")} className={`${selectCls(isLight)} w-full`} value={packetReleaseId} onChange={(e) => void loadPacket(e.target.value)}>
+              <option value="">{t("playlistPitch.packetReleasePick")}</option>
               {releases.map((r) => (
                 <option key={r.id} value={r.id}>{r.title}{r.artistName ? ` — ${r.artistName}` : ""}</option>
               ))}
             </select>
-            {packetLoading ? <NativeLoadingState isLight={isLight} message="Building the packet…" /> : null}
+            {packetLoading ? <NativeLoadingState isLight={isLight} message={t("worldSponsorPress.lpPacketBuilding")} /> : null}
             {packetFailed ? (
-              <NativeErrorState isLight={isLight} title="We couldn't load this packet" message="The release record is safe — this desk just couldn't reach it. Try again." onRetry={() => void loadPacket(packetReleaseId)} />
+              <NativeErrorState isLight={isLight} title={t("worldSponsorPress.lpPacketErrorTitle")} message={t("worldSponsorPress.lpPacketErrorMessage")} onRetry={() => void loadPacket(packetReleaseId)} />
             ) : null}
             {packet ? (
               <div className="space-y-3" data-testid="world-playlist-pitch-packet">
@@ -991,28 +1010,28 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
                     <p className={`text-xs ${muted}`}>
                       {packet.releaseStatus}
                       {packet.releaseDate ? ` · ${packet.releaseDate}` : ""}
-                      {packet.followerCount != null ? ` · ${packet.followerCount.toLocaleString()} followers` : ""}
-                      {packet.totalPlays != null ? ` · ${packet.totalPlays.toLocaleString()} plays` : ""}
+                      {packet.followerCount != null ? ` · ${t("playlistPitch.packetFollowers", { count: packet.followerCount.toLocaleString(i18n.language) })}` : ""}
+                      {packet.totalPlays != null ? ` · ${t("playlistPitch.packetPlays", { count: packet.totalPlays.toLocaleString(i18n.language) })}` : ""}
                     </p>
                     {packet.artistBio ? <p className={`mt-1 text-xs ${muted}`}>{packet.artistBio}</p> : null}
                   </div>
-                  <CopyTextButton isLight={isLight} label="Copy packet" text={packetAsText(packet)} />
+                  <CopyTextButton isLight={isLight} label={t("playlistPitch.packetCopy")} text={packetAsText(packet, packetTextStrings(t))} />
                 </div>
-                {packet.genre.length ? <p className={`text-xs ${muted}`}>Genre: {packet.genre.join(", ")}</p> : null}
+                {packet.genre.length ? <p className={`text-xs ${muted}`}>{t("worldSponsorPress.lpPacketGenreLine", { genres: packet.genre.join(", ") })}</p> : null}
                 {packet.description ? <p className={`text-xs ${muted}`}>{packet.description}</p> : null}
                 <div className="space-y-0.5">
-                  {packet.presaveUrl ? <p className={`truncate text-xs ${muted}`}>Pre-save / smartlink: {packet.presaveUrl}</p> : null}
+                  {packet.presaveUrl ? <p className={`truncate text-xs ${muted}`}>{t("worldSponsorPress.lpPacketPresaveLine", { url: packet.presaveUrl })}</p> : null}
                   {Object.entries(packet.streaming).map(([platform, url]) => (
                     <p key={platform} className={`truncate text-xs ${muted}`}><span className={`capitalize ${strong}`}>{platform.replace(/_/g, " ")}</span> — {url}</p>
                   ))}
-                  {packet.audioUrl ? <p className={`truncate text-xs ${muted}`}>Track audio: {packet.audioUrl}</p> : null}
-                  {packet.profileUrl ? <p className={`truncate text-xs ${muted}`}>Artist profile: {packet.profileUrl}</p> : null}
+                  {packet.audioUrl ? <p className={`truncate text-xs ${muted}`}>{t("worldSponsorPress.lpPacketAudioLine", { url: packet.audioUrl })}</p> : null}
+                  {packet.profileUrl ? <p className={`truncate text-xs ${muted}`}>{t("worldSponsorPress.lpPacketProfileLine", { url: packet.profileUrl })}</p> : null}
                 </div>
                 <div className="flex flex-wrap gap-x-5 gap-y-1">
-                  <span className={`text-xs ${strong}`}>{packet.stats.presaves} pre-saves</span>
-                  <span className={`text-xs ${strong}`}>{packet.stats.shares} shares</span>
-                  <span className={`text-xs ${strong}`}>{packet.stats.linkViews} smartlink views</span>
-                  <span className={`text-xs ${strong}`}>{packet.stats.linkClicks} link clicks</span>
+                  <span className={`text-xs ${strong}`}>{t("worldSponsorPress.lpPacketStatPresaves", { count: packet.stats.presaves })}</span>
+                  <span className={`text-xs ${strong}`}>{t("worldSponsorPress.lpPacketStatShares", { count: packet.stats.shares })}</span>
+                  <span className={`text-xs ${strong}`}>{t("worldSponsorPress.lpPacketStatViews", { count: packet.stats.linkViews })}</span>
+                  <span className={`text-xs ${strong}`}>{t("worldSponsorPress.lpPacketStatClicks", { count: packet.stats.linkClicks })}</span>
                 </div>
                 {(packet.artworkUrl || packet.headline || packet.bannerUrl || packet.avatarUrl) ? (
                   <div>
@@ -1026,57 +1045,57 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
                 ) : null}
                 {packet.missing.length > 0 ? (
                   <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.07] p-3">
-                    <p className={`text-xs font-bold ${strong}`}>Not on the record yet</p>
+                    <p className={`text-xs font-bold ${strong}`}>{t("playlistPitch.packetMissingTitle")}</p>
                     <ul className={`mt-1 list-disc space-y-0.5 pl-5 text-xs ${muted}`}>
-                      {packet.missing.map((m) => (<li key={m}>{packetMissingLabel(m)}</li>))}
+                      {packet.missing.map((m) => (<li key={m}>{packetMissingLabel(m, packetMissingStrings(t))}</li>))}
                     </ul>
                   </div>
                 ) : null}
               </div>
             ) : !packetLoading && !packetFailed ? (
-              <p className={`text-xs ${muted}`}>Pick a release above and its packet builds itself from the record.</p>
+              <p className={`text-xs ${muted}`}>{t("playlistPitch.packetNone")}</p>
             ) : null}
           </div>
         )}
       </NativeCard>
 
-      <NativeCard isLight={isLight} title="Pitch tracker & deadlines — free">
+      <NativeCard isLight={isLight} title={t("worldSponsorPress.lpTrackerDeadlinesTitle")}>
         <div className="space-y-3">
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className={`text-xs font-black uppercase tracking-wider ${strong}`}>Submission deadlines</p>
+              <p className={`text-xs font-black uppercase tracking-wider ${strong}`}>{t("playlistPitch.deadlinesTitle")}</p>
               <button type="button" className={chipBtn(isLight, showDeadlineForm)} aria-expanded={showDeadlineForm} onClick={() => setShowDeadlineForm((v) => !v)}>
-                <Plus className="h-3.5 w-3.5" /> Add a deadline
+                <Plus className="h-3.5 w-3.5" /> {t("playlistPitch.deadlineAdd")}
               </button>
             </div>
             {dueNext ? (
               <p className={`mt-2 rounded-xl border px-3 py-2 text-xs ${dueNext.overdue ? "border-red-500/40 bg-red-500/10 text-red-200" : isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
-                <span className="font-black uppercase">Due next:</span> {dueNext.playlistName}
-                {dueNext.curatorName ? ` · ${dueNext.curatorName}` : ""} · {new Date(dueNext.deadlineAt).toLocaleDateString()}
-                {dueNext.overdue ? " · OVERDUE" : ""}
+                <span className="font-black uppercase">{t("worldSponsorPress.lpDueNextLabel")}</span> {dueNext.playlistName}
+                {dueNext.curatorName ? ` · ${dueNext.curatorName}` : ""} · {new Date(dueNext.deadlineAt).toLocaleDateString(i18n.language)}
+                {dueNext.overdue ? t("worldSponsorPress.lpOverdueSuffix") : ""}
               </p>
             ) : null}
             {showDeadlineForm ? (
               <div className="mt-2 space-y-2">
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <input aria-label="Playlist name" className={deskInputCls(isLight)} value={deadlineDraft.playlistName} maxLength={200} onChange={(e) => setDeadlineDraft({ ...deadlineDraft, playlistName: e.target.value })} placeholder="Playlist name" />
-                  <input aria-label="Curator name" className={deskInputCls(isLight)} value={deadlineDraft.curatorName} maxLength={200} onChange={(e) => setDeadlineDraft({ ...deadlineDraft, curatorName: e.target.value })} placeholder="Curator name (optional)" />
-                  <input aria-label="Deadline date" type="date" className={deskInputCls(isLight)} value={deadlineDraft.deadlineDate} onChange={(e) => setDeadlineDraft({ ...deadlineDraft, deadlineDate: e.target.value })} />
-                  <select aria-label="Deadline release" className={selectCls(isLight)} value={deadlineDraft.releaseId} onChange={(e) => setDeadlineDraft({ ...deadlineDraft, releaseId: e.target.value })}>
-                    <option value="">No release linked</option>
+                  <input aria-label={t("worldSponsorPress.lpPlaylistName")} className={deskInputCls(isLight)} value={deadlineDraft.playlistName} maxLength={200} onChange={(e) => setDeadlineDraft({ ...deadlineDraft, playlistName: e.target.value })} placeholder={t("worldSponsorPress.lpPlaylistName")} />
+                  <input aria-label={t("worldSponsorPress.lpCuratorNameAria")} className={deskInputCls(isLight)} value={deadlineDraft.curatorName} maxLength={200} onChange={(e) => setDeadlineDraft({ ...deadlineDraft, curatorName: e.target.value })} placeholder={t("worldSponsorPress.lpCuratorNameOptional")} />
+                  <input aria-label={t("worldSponsorPress.lpDeadlineDateAria")} type="date" className={deskInputCls(isLight)} value={deadlineDraft.deadlineDate} onChange={(e) => setDeadlineDraft({ ...deadlineDraft, deadlineDate: e.target.value })} />
+                  <select aria-label={t("worldSponsorPress.lpDeadlineReleaseAria")} className={selectCls(isLight)} value={deadlineDraft.releaseId} onChange={(e) => setDeadlineDraft({ ...deadlineDraft, releaseId: e.target.value })}>
+                    <option value="">{t("worldSponsorPress.lpNoReleaseLinked")}</option>
                     {(releases ?? []).map((r) => (<option key={r.id} value={r.id}>{r.title}</option>))}
                   </select>
                 </div>
-                <button type="button" className={goldBtn} onClick={() => void addDeadline()}>Save deadline — free</button>
+                <button type="button" className={goldBtn} onClick={() => void addDeadline()}>{t("worldSponsorPress.lpSaveDeadline")}</button>
               </div>
             ) : null}
             {deadlineNote ? <p className="mt-1 text-xs font-semibold text-red-400">{deadlineNote}</p> : null}
             {deadlinesFailed ? (
-              <NativeErrorState isLight={isLight} title="Your deadlines wouldn't open" message="Your deadline board is safe — it just didn't answer. Try again." onRetry={() => setDeadlinesTick((n) => n + 1)} />
+              <NativeErrorState isLight={isLight} title={t("worldSponsorPress.lpDeadlinesErrorTitle")} message={t("worldSponsorPress.lpDeadlinesErrorMessage")} onRetry={() => setDeadlinesTick((n) => n + 1)} />
             ) : deadlines === null ? (
-              <NativeLoadingState isLight={isLight} message="Opening your deadlines…" />
+              <NativeLoadingState isLight={isLight} message={t("worldSponsorPress.lpDeadlinesLoading")} />
             ) : deadlines.length === 0 ? (
-              <NativeEmptyState isLight={isLight} message="No deadlines yet." detail="Add one above and the board keeps what's due — and what's due next — in one place." />
+              <NativeEmptyState isLight={isLight} message={t("worldSponsorPress.lpNoDeadlinesMessage")} detail={t("worldSponsorPress.lpNoDeadlinesDetail")} />
             ) : (
               <div className="mt-2 space-y-2">
                 {deadlines.map((d) => (
@@ -1084,9 +1103,9 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <p className={`text-sm font-black ${strong}`}>{d.playlistName}{d.curatorName ? <span className={`font-normal ${muted}`}> · {d.curatorName}</span> : null}</p>
-                        <p className={`text-xs ${muted}`}>Due {new Date(d.deadlineAt).toLocaleDateString()}{d.overdue ? " · OVERDUE" : ""}{d.notes ? ` · ${d.notes}` : ""}</p>
+                        <p className={`text-xs ${muted}`}>{t("worldSponsorPress.lpDeadlineDueLine", { date: new Date(d.deadlineAt).toLocaleDateString(i18n.language) })}{d.overdue ? t("worldSponsorPress.lpOverdueSuffix") : ""}{d.notes ? ` · ${d.notes}` : ""}</p>
                       </div>
-                      <DeleteButton armed={armedDeadlineId === d.id} onArm={() => setArmedDeadlineId(d.id)} onDelete={() => void deleteDeadline(d.id)} label={`Delete deadline ${d.playlistName}`} />
+                      <DeleteButton armed={armedDeadlineId === d.id} onArm={() => setArmedDeadlineId(d.id)} onDelete={() => void deleteDeadline(d.id)} label={t("worldSponsorPress.lpDeleteDeadlineAria", { name: d.playlistName })} />
                     </div>
                     <StatusRow isLight={isLight} statuses={PLAYLIST_DEADLINE_STATUSES} current={d.status} onPick={(st) => void updateDeadlineStatus(d.id, st)} />
                   </div>
@@ -1097,42 +1116,42 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
 
           <div className="border-t border-[#d4af37]/20 pt-3">
             {trackerFailed ? (
-              <NativeErrorState isLight={isLight} title="Your pitch tracker wouldn't open" message="Your logged pitches are safe — the tracker just didn't answer. Try again." onRetry={() => setTrackerTick((n) => n + 1)} />
+              <NativeErrorState isLight={isLight} title={t("worldSponsorPress.lpTrackerErrorTitle")} message={t("worldSponsorPress.lpTrackerErrorMessage")} onRetry={() => setTrackerTick((n) => n + 1)} />
             ) : pitches === null ? (
-              <NativeLoadingState isLight={isLight} message="Opening your tracker…" />
+              <NativeLoadingState isLight={isLight} message={t("worldSponsorPress.lpTrackerLoading")} />
             ) : (
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className={`inline-flex items-center gap-1.5 text-xs ${muted}`}><ClipboardList className="h-3.5 w-3.5" /> {pitches.length} pitches · {pitches.filter((p) => p.status === "accepted").length} accepted</p>
+                  <p className={`inline-flex items-center gap-1.5 text-xs ${muted}`}><ClipboardList className="h-3.5 w-3.5" /> {t("worldSponsorPress.lpPitchesCount", { count: pitches.length, accepted: pitches.filter((p) => p.status === "accepted").length })}</p>
                   <button type="button" className={chipBtn(isLight, showAdd)} aria-expanded={showAdd} onClick={() => setShowAdd((v) => !v)}>
-                    <Plus className="h-3.5 w-3.5" /> Log a pitch
+                    <Plus className="h-3.5 w-3.5" /> {t("worldSponsorPress.lpLogPitch")}
                   </button>
                 </div>
                 {showAdd ? (
                   <div className="space-y-2">
                     <div className="grid gap-2 sm:grid-cols-2">
-                      <input aria-label="Song title" className={deskInputCls(isLight)} value={draft.songTitle} maxLength={200} onChange={(e) => setDraft({ ...draft, songTitle: e.target.value })} placeholder="Song title" />
-                      <input aria-label="Playlist name" className={deskInputCls(isLight)} value={draft.playlistName} maxLength={200} onChange={(e) => setDraft({ ...draft, playlistName: e.target.value })} placeholder="Playlist name" />
-                      <input aria-label="Artist name" className={deskInputCls(isLight)} value={draft.artistName} maxLength={200} onChange={(e) => setDraft({ ...draft, artistName: e.target.value })} placeholder="Artist name (optional)" />
-                      <input aria-label="Curator name" className={deskInputCls(isLight)} value={draft.curatorName} maxLength={200} onChange={(e) => setDraft({ ...draft, curatorName: e.target.value })} placeholder="Curator name (optional)" />
+                      <input aria-label={t("worldSponsorPress.lpSongTitle")} className={deskInputCls(isLight)} value={draft.songTitle} maxLength={200} onChange={(e) => setDraft({ ...draft, songTitle: e.target.value })} placeholder={t("worldSponsorPress.lpSongTitle")} />
+                      <input aria-label={t("worldSponsorPress.lpPlaylistName")} className={deskInputCls(isLight)} value={draft.playlistName} maxLength={200} onChange={(e) => setDraft({ ...draft, playlistName: e.target.value })} placeholder={t("worldSponsorPress.lpPlaylistName")} />
+                      <input aria-label={t("worldSponsorPress.lpArtistName")} className={deskInputCls(isLight)} value={draft.artistName} maxLength={200} onChange={(e) => setDraft({ ...draft, artistName: e.target.value })} placeholder={t("worldSponsorPress.lpArtistNameOptional")} />
+                      <input aria-label={t("worldSponsorPress.lpCuratorNameAria")} className={deskInputCls(isLight)} value={draft.curatorName} maxLength={200} onChange={(e) => setDraft({ ...draft, curatorName: e.target.value })} placeholder={t("worldSponsorPress.lpCuratorNameOptional")} />
                     </div>
-                    <textarea aria-label="Notes" className={deskInputCls(isLight)} value={draft.notes} maxLength={1000} rows={2} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} placeholder="Notes (optional)" />
-                    <button type="button" className={goldBtn} onClick={() => void addPitch()}>Save pitch — free</button>
+                    <textarea aria-label={t("worldSponsorPress.lpNotesAria")} className={deskInputCls(isLight)} value={draft.notes} maxLength={1000} rows={2} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} placeholder={t("worldSponsorPress.lpNotesOptional")} />
+                    <button type="button" className={goldBtn} onClick={() => void addPitch()}>{t("worldSponsorPress.lpSavePitch")}</button>
                   </div>
                 ) : null}
                 {trackerNote ? <p className="text-xs font-semibold text-red-400">{trackerNote}</p> : null}
                 {pitches.length === 0 ? (
-                  <NativeEmptyState isLight={isLight} message="No pitches logged yet." detail="Build a kit above, send it, and log it here." />
+                  <NativeEmptyState isLight={isLight} message={t("worldSponsorPress.lpNoPitchesMessage")} detail={t("worldSponsorPress.lpNoPitchesDetail")} />
                 ) : (
                   pitches.map((p) => (
                     <div key={p.id} className={`space-y-2 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className={`truncate text-sm font-black ${strong}`}>{p.songTitle}{p.artistName ? <span className={`font-normal ${muted}`}> — {p.artistName}</span> : null}</p>
-                          <p className={`text-xs ${muted}`}>{p.playlistName}{p.curatorName ? ` · ${p.curatorName}` : ""}{p.contactedAt ? ` · ${new Date(p.contactedAt).toLocaleDateString()}` : ""}</p>
+                          <p className={`text-xs ${muted}`}>{p.playlistName}{p.curatorName ? ` · ${p.curatorName}` : ""}{p.contactedAt ? ` · ${new Date(p.contactedAt).toLocaleDateString(i18n.language)}` : ""}</p>
                           {p.notes ? <p className={`mt-1 text-xs italic ${muted}`}>{p.notes}</p> : null}
                         </div>
-                        <DeleteButton armed={armedDeleteId === p.id} onArm={() => setArmedDeleteId(p.id)} onDelete={() => void deletePitch(p.id)} label={`Delete pitch ${p.songTitle}`} />
+                        <DeleteButton armed={armedDeleteId === p.id} onArm={() => setArmedDeleteId(p.id)} onDelete={() => void deletePitch(p.id)} label={t("worldSponsorPress.lpDeletePitchAria", { name: p.songTitle })} />
                       </div>
                       <StatusRow isLight={isLight} statuses={PLAYLIST_PITCH_STATUSES} current={p.status} onPick={(st) => void updatePitchStatus(p.id, st)} />
                     </div>
@@ -1150,19 +1169,20 @@ function PlaylistsMode({ isLight, isGuest }: { isLight: boolean; isGuest: boolea
 /* ═══ The desk ═════════════════════════════════════════════════════ */
 
 export function LabelPitchDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<"labels" | "playlists">("labels");
   if (isGuest) return <GuestGate isLight={isLight} />;
   return (
     <div className="space-y-3" data-testid="world-label-pitch-desk">
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Label Pitch mode">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label={t("worldSponsorPress.lpModeAria")}>
         <button type="button" role="tab" aria-selected={mode === "labels"} className={chipBtn(isLight, mode === "labels")} onClick={() => setMode("labels")}>
-          <Building2 className="h-3.5 w-3.5" /> Labels
+          <Building2 className="h-3.5 w-3.5" /> {t("worldSponsorPress.lpTabLabels")}
         </button>
         <button type="button" role="tab" aria-selected={mode === "playlists"} className={chipBtn(isLight, mode === "playlists")} onClick={() => setMode("playlists")}>
-          <ListMusic className="h-3.5 w-3.5" /> Playlists
+          <ListMusic className="h-3.5 w-3.5" /> {t("worldSponsorPress.lpTabPlaylists")}
         </button>
         <span className={`inline-flex items-center gap-1.5 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/45"}`}>
-          <Disc3 className="h-3.5 w-3.5 text-[#d4af37]" /> Pick a song, pitch it, track it — labels, playlists and the packet, all right here.
+          <Disc3 className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldSponsorPress.lpTagline")}
         </span>
       </div>
       {mode === "labels" ? (

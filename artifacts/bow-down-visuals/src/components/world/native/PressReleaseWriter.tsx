@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Copy, Download, Loader2, Megaphone } from "lucide-react";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -12,6 +13,7 @@ import {
   buildPressReleaseBody,
   formatReleaseText,
   parseGeneratedRelease,
+  releaseTextStrings,
   pressReleaseReady,
   savedReleasesForKit,
   type GeneratedRelease,
@@ -42,6 +44,17 @@ const chipBtn = (isLight: boolean) =>
       : "border-white/15 text-white/75 hover:text-white"
   }`;
 
+/* Announcement-type labels (stack100 locale unit 47): the seam's
+   ANNOUNCEMENT_TYPE_OPTIONS stays the pinned English mirror; the
+   desk renders the type names from the catalog by key. */
+const TYPE_KEYS: Record<string, string> = {
+  single: "worldSponsorPress.prTypeSingle",
+  album: "worldSponsorPress.prTypeAlbum",
+  tour: "worldSponsorPress.prTypeTour",
+  launch: "worldSponsorPress.prTypeLaunch",
+  milestone: "worldSponsorPress.prTypeMilestone",
+};
+
 export function PressReleaseWriter({
   isLight,
   kitId,
@@ -55,6 +68,7 @@ export function PressReleaseWriter({
   artistNameSeed: string;
   onSavedToKit?: () => void;
 }) {
+  const { t } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
@@ -102,17 +116,17 @@ export function PressReleaseWriter({
         return;
       }
       if (!res.ok) {
-        setError(apiErrorMessage(data, "The release wouldn't write — try again."));
+        setError(apiErrorMessage(data, t("worldSponsorPress.prErrorWrite")));
         return;
       }
       const parsed = parseGeneratedRelease(data);
       if (!parsed) {
-        setError("The writer answered in a shape the desk can't read — your Bucs were charged for the generation; copy the desk's wording and try once more, and if it repeats, file it at Pitch & Fix.");
+        setError(t("worldSponsorPress.prErrorShape"));
         return;
       }
       setRelease(parsed);
     } catch (err) {
-      setError(plainErrorText(err, "The release wouldn't write — try again."));
+      setError(plainErrorText(err, t("worldSponsorPress.prErrorWrite")));
     } finally {
       setGenerating(false);
     }
@@ -121,7 +135,7 @@ export function PressReleaseWriter({
   function copyRelease() {
     if (!release) return;
     void navigator.clipboard
-      ?.writeText(formatReleaseText(release, form.artistName.trim()))
+      ?.writeText(formatReleaseText(release, form.artistName.trim(), releaseTextStrings(t)))
       .catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -135,7 +149,7 @@ export function PressReleaseWriter({
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "")
         .slice(0, 60) || "press-release";
-    const blob = new Blob([formatReleaseText(release, form.artistName.trim())], {
+    const blob = new Blob([formatReleaseText(release, form.artistName.trim(), releaseTextStrings(t))], {
       type: "text/plain;charset=utf-8",
     });
     const url = URL.createObjectURL(blob);
@@ -164,12 +178,12 @@ export function PressReleaseWriter({
         body: JSON.stringify({ press_releases: [...existing, entry] }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save the release into your kit."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldSponsorPress.prErrorSave")));
       setRelease(null);
-      setSavedNote("Saved into your press kit — it rides the kit wherever the kit goes.");
+      setSavedNote(t("worldSponsorPress.prSavedNote"));
       onSavedToKit?.();
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't save the release into your kit — it is still written above; copy or download it so the work isn't lost."));
+      setError(plainErrorText(err, t("worldSponsorPress.prErrorSaveLong")));
     } finally {
       setSaving(false);
     }
@@ -178,11 +192,10 @@ export function PressReleaseWriter({
   return (
     <div data-testid="world-press-release-writer" className="space-y-3">
       <p className={`inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-        <Megaphone className="h-4 w-4" /> Press release writer
+        <Megaphone className="h-4 w-4" /> {t("worldSponsorPress.prTitle")}
       </p>
       <p className={`text-sm ${muted}`}>
-        A publicist-grade release for your next announcement — headline, dateline, body, boilerplate
-        and a social version. {PRESS_RELEASE_COST_VB} Visual Bucs a draft, named before you confirm.
+        {t("worldSponsorPress.prIntro", { cost: PRESS_RELEASE_COST_VB })}
       </p>
 
       <div className="grid gap-2">
@@ -191,89 +204,88 @@ export function PressReleaseWriter({
             className={deskInputCls(isLight)}
             value={form.announcementType}
             onChange={(e) => set({ announcementType: e.target.value })}
-            aria-label="Announcement type"
+            aria-label={t("press-kit.pressRelease.form.announcementType")}
           >
-            {ANNOUNCEMENT_TYPE_OPTIONS.map((t) => (
-              <option key={t.key} value={t.key}>
-                {t.label}
+            {ANNOUNCEMENT_TYPE_OPTIONS.map((opt) => (
+              <option key={opt.key} value={opt.key}>
+                {TYPE_KEYS[opt.key] ? t(TYPE_KEYS[opt.key]) : opt.label}
               </option>
             ))}
           </select>
           <input
             className={deskInputCls(isLight)}
-            placeholder="Dateline city (e.g. Atlanta, GA) — optional"
+            placeholder={t("worldSponsorPress.prDatelinePlaceholder")}
             maxLength={80}
             value={form.datelineCity}
             onChange={(e) => set({ datelineCity: e.target.value })}
-            aria-label="Dateline city"
+            aria-label={t("press-kit.pressRelease.form.datelineCity")}
           />
         </div>
         <input
           className={deskInputCls(isLight)}
-          placeholder="Artist / brand name"
+          placeholder={t("press-kit.pressRelease.form.artistName")}
           maxLength={120}
           value={form.artistName}
           onChange={(e) => set({ artistName: e.target.value })}
-          aria-label="Artist or brand name"
+          aria-label={t("worldSponsorPress.prArtistAria")}
         />
         <textarea
           className={deskInputCls(isLight)}
-          placeholder="The story — what, when, where (at least a sentence or two)"
+          placeholder={t("worldSponsorPress.prTopicPlaceholder")}
           rows={3}
           maxLength={2000}
           value={form.topic}
           onChange={(e) => set({ topic: e.target.value })}
-          aria-label="Announcement details"
+          aria-label={t("worldSponsorPress.prTopicAria")}
         />
         <textarea
           className={deskInputCls(isLight)}
-          placeholder={"Key facts — one per line (dates, venues, numbers, names)\nOut Friday, Nov 6\nProduced by …"}
+          placeholder={t("worldSponsorPress.prKeyFactsPlaceholder")}
           rows={3}
           value={form.keyFactsText}
           onChange={(e) => set({ keyFactsText: e.target.value })}
-          aria-label="Key facts, one per line"
+          aria-label={t("worldSponsorPress.prKeyFactsAria")}
         />
         <textarea
           className={deskInputCls(isLight)}
-          placeholder="A quote in your own words — optional; the writer drafts one if you leave it blank"
+          placeholder={t("worldSponsorPress.prQuotePlaceholder")}
           rows={2}
           maxLength={600}
           value={form.quote}
           onChange={(e) => set({ quote: e.target.value })}
-          aria-label="Quote (optional)"
+          aria-label={t("worldSponsorPress.prQuoteAria")}
         />
         <div className="flex flex-wrap gap-2">
           <input
             className={deskInputCls(isLight)}
-            placeholder="Press contact name"
+            placeholder={t("press-kit.pressRelease.form.contactName")}
             maxLength={120}
             value={form.contactName}
             onChange={(e) => set({ contactName: e.target.value })}
-            aria-label="Press contact name"
+            aria-label={t("press-kit.pressRelease.form.contactName")}
           />
           <input
             className={deskInputCls(isLight)}
-            placeholder="Press contact email"
+            placeholder={t("press-kit.pressRelease.form.contactEmail")}
             maxLength={160}
             value={form.contactEmail}
             onChange={(e) => set({ contactEmail: e.target.value })}
-            aria-label="Press contact email"
+            aria-label={t("press-kit.pressRelease.form.contactEmail")}
           />
           <input
             className={deskInputCls(isLight)}
-            placeholder="Press contact phone"
+            placeholder={t("press-kit.pressRelease.form.contactPhone")}
             maxLength={40}
             value={form.contactPhone}
             onChange={(e) => set({ contactPhone: e.target.value })}
-            aria-label="Press contact phone"
+            aria-label={t("press-kit.pressRelease.form.contactPhone")}
           />
         </div>
       </div>
 
       {outOfCredits ? (
         <p className={`text-xs font-semibold ${strong}`}>
-          Not enough Visual Bucs for a draft — the writer costs {PRESS_RELEASE_COST_VB}. Top up at the
-          Treasury and come back; nothing was charged.
+          {t("worldSponsorPress.prOutOfCredits", { cost: PRESS_RELEASE_COST_VB })}
         </p>
       ) : null}
       {error ? (
@@ -289,7 +301,7 @@ export function PressReleaseWriter({
         onClick={() => void generate()}
       >
         {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Megaphone className="h-3.5 w-3.5" />}
-        Write my release — {PRESS_RELEASE_COST_VB} Bucs
+        {t("worldSponsorPress.prGenerateButton", { cost: PRESS_RELEASE_COST_VB })}
       </button>
 
       {release ? (
@@ -316,16 +328,16 @@ export function PressReleaseWriter({
           ) : null}
           {release.social ? (
             <p className={`text-xs ${muted}`}>
-              <span className="font-bold">Social version:</span> {release.social}
+              <span className="font-bold">{t("worldSponsorPress.prSocialVersion")}</span> {release.social}
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2 pt-1">
             <button type="button" className={chipBtn(isLight)} onClick={copyRelease}>
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? "Copied" : "Copy the release"}
+              {copied ? t("press-kit.pressRelease.copied") : t("worldSponsorPress.prCopyButton")}
             </button>
             <button type="button" className={chipBtn(isLight)} onClick={downloadRelease}>
-              <Download className="h-3.5 w-3.5" /> Download .txt
+              <Download className="h-3.5 w-3.5" /> {t("worldSponsorPress.prDownloadButton")}
             </button>
             {kitId ? (
               <button
@@ -335,11 +347,11 @@ export function PressReleaseWriter({
                 onClick={() => void saveToKit()}
               >
                 {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                Save into my press kit
+                {t("worldSponsorPress.prSaveButton")}
               </button>
             ) : (
               <span className={`inline-flex items-center text-xs ${muted}`}>
-                Make your press kit above and this draft can save straight into it.
+                {t("worldSponsorPress.prNoKitNote")}
               </span>
             )}
           </div>

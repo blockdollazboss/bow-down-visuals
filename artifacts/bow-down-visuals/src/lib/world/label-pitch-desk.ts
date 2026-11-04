@@ -665,25 +665,97 @@ const PACKET_MISSING_LABELS: Record<string, string> = {
   artistBio: "Your profile bio",
 };
 
-export function packetMissingLabel(key: string): string {
+/* ─── Display strings (i18n seam, stack100 locale unit 47) ────────
+   The packet's words are the 2D page's own (locales playlistPitch
+   .missing* / packet* keys): the bundles below default to the
+   English above, byte-identical, and the desk builds them from
+   those catalog keys so the room and the page speak the same
+   words in every language. */
+
+export interface PacketMissingStrings {
+  genre: string;
+  description: string;
+  releaseDate: string;
+  trackAudio: string;
+  streamingLinks: string;
+  artwork: string;
+  headline: string;
+  artistProfile: string;
+  artistBio: string;
+}
+
+/** Build the bundle from a translate function (the desk's `t`). */
+export function packetMissingStrings(translate: (key: string) => string): PacketMissingStrings {
+  return {
+    genre: translate("playlistPitch.missingGenre"),
+    description: translate("playlistPitch.missingDescription"),
+    releaseDate: translate("playlistPitch.missingReleaseDate"),
+    trackAudio: translate("playlistPitch.missingTrackAudio"),
+    streamingLinks: translate("playlistPitch.missingStreamingLinks"),
+    artwork: translate("playlistPitch.missingArtwork"),
+    headline: translate("playlistPitch.missingHeadline"),
+    artistProfile: translate("playlistPitch.missingArtistProfile"),
+    artistBio: translate("playlistPitch.missingArtistBio"),
+  };
+}
+
+export function packetMissingLabel(key: string, strings?: PacketMissingStrings): string {
+  if (strings && key in strings) return strings[key as keyof PacketMissingStrings];
   return PACKET_MISSING_LABELS[key] ?? key;
+}
+
+export interface PacketTextStrings {
+  genreLabel: string;
+  releaseDateLabel: string;
+  presaveLabel: string;
+  linksLabel: string;
+  statPresaves: string;
+  statShares: string;
+  statViews: string;
+  statClicks: string;
+}
+
+export const PACKET_TEXT_STRINGS_EN: PacketTextStrings = {
+  genreLabel: "Genre",
+  releaseDateLabel: "Release date",
+  presaveLabel: "Pre-save / smartlink",
+  linksLabel: "Links",
+  statPresaves: "Pre-saves",
+  statShares: "Shares",
+  statViews: "Smartlink views",
+  statClicks: "Link clicks",
+};
+
+/** Build the bundle from a translate function (the desk's `t`) —
+ *  every label is the 2D packet's own playlistPitch.packet* key. */
+export function packetTextStrings(translate: (key: string) => string): PacketTextStrings {
+  return {
+    genreLabel: translate("playlistPitch.packetGenre"),
+    releaseDateLabel: translate("playlistPitch.packetReleaseDate"),
+    presaveLabel: translate("playlistPitch.packetPresaveLabel"),
+    linksLabel: translate("playlistPitch.packetLinks"),
+    statPresaves: translate("playlistPitch.packetStatPresaves"),
+    statShares: translate("playlistPitch.packetStatShares"),
+    statViews: translate("playlistPitch.packetStatViews"),
+    statClicks: translate("playlistPitch.packetStatClicks"),
+  };
 }
 
 /** The packet as one copyable text — the 2D page's packetAsText
  *  construction, in the same order, from the packet's own fields. */
-export function packetAsText(packet: PitchPacket): string {
+export function packetAsText(packet: PitchPacket, strings: PacketTextStrings = PACKET_TEXT_STRINGS_EN): string {
   const lines: string[] = [`${packet.releaseTitle} — ${packet.artistName}`];
-  if (packet.genre.length) lines.push(`Genre: ${packet.genre.join(", ")}`);
+  if (packet.genre.length) lines.push(`${strings.genreLabel}: ${packet.genre.join(", ")}`);
   if (packet.description) lines.push(packet.description);
-  if (packet.releaseDate) lines.push(`Release date: ${packet.releaseDate}`);
+  if (packet.releaseDate) lines.push(`${strings.releaseDateLabel}: ${packet.releaseDate}`);
   for (const [platform, url] of Object.entries(packet.streaming)) {
     lines.push(`${platform}: ${url}`);
   }
-  if (packet.presaveUrl) lines.push(`Pre-save / smartlink: ${packet.presaveUrl}`);
-  if (packet.profileUrl) lines.push(`Links: ${packet.profileUrl}`);
+  if (packet.presaveUrl) lines.push(`${strings.presaveLabel}: ${packet.presaveUrl}`);
+  if (packet.profileUrl) lines.push(`${strings.linksLabel}: ${packet.profileUrl}`);
   lines.push(
-    `Pre-saves: ${packet.stats.presaves} · Shares: ${packet.stats.shares} · ` +
-      `Smartlink views: ${packet.stats.linkViews} · Link clicks: ${packet.stats.linkClicks}`,
+    `${strings.statPresaves}: ${packet.stats.presaves} · ${strings.statShares}: ${packet.stats.shares} · ` +
+      `${strings.statViews}: ${packet.stats.linkViews} · ${strings.statClicks}: ${packet.stats.linkClicks}`,
   );
   return lines.join("\n");
 }

@@ -115,9 +115,9 @@ function numOrNull(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
-export function sponsorMoneyCents(cents: number | null | undefined): string {
+export function sponsorMoneyCents(cents: number | null | undefined, locale: string = "en-US"): string {
   if (cents == null) return "—";
-  return "$" + (Number(cents) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return "$" + (Number(cents) / 100).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /** The index of a deal status on the lifecycle steps (-1 when the
@@ -344,20 +344,66 @@ export const EMPTY_SPONSOR_POST_FORM: SponsorPostForm = {
   deadline: "",
 };
 
+/* ─── Display strings (i18n seam, stack100 locale unit 47) ────────
+   The seam's user-facing sentences take optional strings bundles
+   whose defaults are the original English, byte-identical; the
+   desk builds the bundles from the worldSponsorPress catalog keys
+   (the description error and the paused-spending sentence ride the
+   2D post page's own sponsorsPost keys — the same words there). */
+
+export interface SponsorPostFormStrings {
+  brandRequired: string;
+  brandLong: string;
+  budgetMin: string;
+  budgetMax: string;
+  niche: string;
+  deliverables: string;
+  description: string;
+  deadline: string;
+  deadlineValid: string;
+}
+
+export const SPONSOR_POST_FORM_STRINGS_EN: SponsorPostFormStrings = {
+  brandRequired: "Add your brand name.",
+  brandLong: "Brand name is too long (max 120 characters).",
+  budgetMin: "Add the lowest budget.",
+  budgetMax: "The top budget must be at least the lowest budget.",
+  niche: "Add the niche you're hiring for.",
+  deliverables: "Say what the creator delivers.",
+  description: "Describe the deal.",
+  deadline: "Pick a deadline.",
+  deadlineValid: "Pick a valid deadline.",
+};
+
+/** Build the bundle from a translate function (the desk's `t`). */
+export function sponsorPostFormStrings(translate: (key: string) => string): SponsorPostFormStrings {
+  return {
+    brandRequired: translate("worldSponsorPress.spFormErrBrandRequired"),
+    brandLong: translate("worldSponsorPress.spFormErrBrandLong"),
+    budgetMin: translate("worldSponsorPress.spFormErrBudgetMin"),
+    budgetMax: translate("worldSponsorPress.spFormErrBudgetMax"),
+    niche: translate("worldSponsorPress.spFormErrNiche"),
+    deliverables: translate("worldSponsorPress.spFormErrDeliverables"),
+    description: translate("sponsorsPost.errorDescription"),
+    deadline: translate("worldSponsorPress.spFormErrDeadline"),
+    deadlineValid: translate("worldSponsorPress.spFormErrDeadlineValid"),
+  };
+}
+
 /** The first validation problem, in the 2D page's own check order —
  *  null when the form is ready to post. */
-export function sponsorPostFormError(form: SponsorPostForm): string | null {
+export function sponsorPostFormError(form: SponsorPostForm, strings: SponsorPostFormStrings = SPONSOR_POST_FORM_STRINGS_EN): string | null {
   const min = Number(form.budgetMin);
   const max = Number(form.budgetMax);
-  if (!form.brandName.trim()) return "Add your brand name.";
-  if (form.brandName.trim().length > 120) return "Brand name is too long (max 120 characters).";
-  if (!Number.isFinite(min) || min < 0 || form.budgetMin.trim() === "") return "Add the lowest budget.";
-  if (!Number.isFinite(max) || max < min) return "The top budget must be at least the lowest budget.";
-  if (!form.niche.trim()) return "Add the niche you're hiring for.";
-  if (!form.deliverables.trim()) return "Say what the creator delivers.";
-  if (!form.description.trim()) return "Describe the deal.";
-  if (!form.deadline) return "Pick a deadline.";
-  if (Number.isNaN(new Date(form.deadline).getTime())) return "Pick a valid deadline.";
+  if (!form.brandName.trim()) return strings.brandRequired;
+  if (form.brandName.trim().length > 120) return strings.brandLong;
+  if (!Number.isFinite(min) || min < 0 || form.budgetMin.trim() === "") return strings.budgetMin;
+  if (!Number.isFinite(max) || max < min) return strings.budgetMax;
+  if (!form.niche.trim()) return strings.niche;
+  if (!form.deliverables.trim()) return strings.deliverables;
+  if (!form.description.trim()) return strings.description;
+  if (!form.deadline) return strings.deadline;
+  if (Number.isNaN(new Date(form.deadline).getTime())) return strings.deadlineValid;
   return null;
 }
 
@@ -435,20 +481,44 @@ export function normalizeSponsorPitchResult(payload: unknown): string | null {
 /** Accept needs an agreed payout in dollars inside the deal's posted
  *  budget — the rail enforces the same range in cents and rejects
  *  outside it; the desk checks first so the brand hears it plainly. */
+export interface SponsorReviewStrings {
+  agreedRequired: string;
+  /** Template with a {{range}} token for the formatted budget range. */
+  agreedRange: string;
+}
+
+export const SPONSOR_REVIEW_STRINGS_EN: SponsorReviewStrings = {
+  agreedRequired: "Add the agreed payout before accepting.",
+  agreedRange: "Agreed payout must be within the posted budget ({{range}}).",
+};
+
+/** Build the bundle from a translate function (the desk's `t`).
+ *  The range template keeps its {{range}} token — the seam fills
+ *  it with the locale-formatted budget range at build time. */
+export function sponsorReviewStrings(translate: (key: string) => string): SponsorReviewStrings {
+  return {
+    agreedRequired: translate("worldSponsorPress.spReviewErrAgreedRequired"),
+    agreedRange: translate("worldSponsorPress.spReviewErrAgreedRange"),
+  };
+}
+
 export function buildSponsorReviewPayload(
   action: "accept" | "reject",
   agreedDollars: string,
   deal: Pick<SponsorFullDeal, "budgetMin" | "budgetMax">,
+  strings: SponsorReviewStrings = SPONSOR_REVIEW_STRINGS_EN,
+  locale: string = "en-US",
 ): { payload: Record<string, unknown> } | { error: string } {
   if (action === "reject") return { payload: { action } };
   const dollars = Number(agreedDollars);
   if (!agreedDollars.trim() || !Number.isFinite(dollars) || dollars <= 0) {
-    return { error: "Add the agreed payout before accepting." };
+    return { error: strings.agreedRequired };
   }
   const agreedAmountCents = Math.round(dollars * 100);
   if (agreedAmountCents < Math.max(100, deal.budgetMin * 100) || agreedAmountCents > deal.budgetMax * 100) {
+    const range = `$${deal.budgetMin.toLocaleString(locale)}–$${deal.budgetMax.toLocaleString(locale)}`;
     return {
-      error: `Agreed payout must be within the posted budget ($${deal.budgetMin.toLocaleString("en-US")}–$${deal.budgetMax.toLocaleString("en-US")}).`,
+      error: strings.agreedRange.replace("{{range}}", range),
     };
   }
   return { payload: { action, agreedAmountCents } };
@@ -507,21 +577,41 @@ export function normalizeSponsorCanSpend(payload: unknown): boolean | null {
  *  sentence wins; a raw internal code never renders. 402 and the
  *  CREDITS_DISABLED 403 keep their tailored words, matching the 2D
  *  pages' branches. */
-export function sponsorErrorMessage(payload: unknown, status: number, fallback: string): string {
+export interface SponsorErrorStrings {
+  pausedMessage: string;
+  outOfCreditsMessage: string;
+}
+
+export const SPONSOR_ERROR_STRINGS_EN: SponsorErrorStrings = {
+  pausedMessage: "Credit spending is paused on this account right now — nothing was charged.",
+  outOfCreditsMessage: "You're out of Visual Bucs — top up to continue.",
+};
+
+/** Build the bundle from a translate function (the desk's `t`).
+ *  The paused sentence rides the 2D post page's own sponsorsPost
+ *  key — the same words for the same rail state. */
+export function sponsorErrorStrings(translate: (key: string) => string): SponsorErrorStrings {
+  return {
+    pausedMessage: translate("sponsorsPost.errorSpendingPaused"),
+    outOfCreditsMessage: translate("worldSponsorPress.spOutOfCreditsFallback"),
+  };
+}
+
+export function sponsorErrorMessage(payload: unknown, status: number, fallback: string, strings: SponsorErrorStrings = SPONSOR_ERROR_STRINGS_EN): string {
   const root = asRecord(payload);
   if (root) {
     if (status === 403 && root["code"] === "CREDITS_DISABLED") {
-      return str(root["error"]) || "Credit spending is paused on this account right now — nothing was charged.";
+      return str(root["error"]) || strings.pausedMessage;
     }
     const message = str(root["message"]);
     const error = str(root["error"]);
     if (status === 402 || error === "out_of_credits") {
-      return message || "You're out of Visual Bucs — top up to continue.";
+      return message || strings.outOfCreditsMessage;
     }
     if (error && error !== "out_of_credits") return error;
     if (message) return message;
   }
-  if (status === 402) return "You're out of Visual Bucs — top up to continue.";
+  if (status === 402) return strings.outOfCreditsMessage;
   return fallback;
 }
 
