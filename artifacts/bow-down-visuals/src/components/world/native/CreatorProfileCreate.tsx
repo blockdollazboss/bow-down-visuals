@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BadgeCheck, Crown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeCard } from "./NativeCard";
@@ -8,6 +9,7 @@ import {
   buildCreatorProfilePayload,
   creatorProfileErrorLine,
   creatorProfileFormProblem,
+  creatorProfileStrings,
   creatorSlugProblem,
   normalizeCreatorSlug,
   parseMyCreatorProfile,
@@ -18,6 +20,20 @@ import {
   type MyCreatorProfile,
   type SlugCheckState,
 } from "@/lib/world/creator-profile-create";
+
+/* The vertical labels render from the catalog (the seam's table
+   stays the rail's key list + the English fallback). */
+const VERTICAL_LABEL_KEYS: Record<string, string> = {
+  music: "worldCreatorRooms.profileVerticalMusic",
+  video: "worldCreatorRooms.profileVerticalVideo",
+  gaming: "worldCreatorRooms.profileVerticalGaming",
+  podcast: "worldCreatorRooms.profileVerticalPodcast",
+  film: "worldCreatorRooms.profileVerticalFilm",
+  tv: "worldCreatorRooms.profileVerticalTv",
+  influencer: "worldCreatorRooms.profileVerticalInfluencer",
+  education: "worldCreatorRooms.profileVerticalEducation",
+  other: "worldCreatorRooms.profileVerticalOther",
+};
 
 /* ─── Creator-profile creation, in-world (Stack-100 #48) ──────────
    A member with no creator profile was blocked at their first
@@ -55,6 +71,8 @@ export function CreatorProfileCreateCard({
   /** In the publish rail the card leads with why it's here. */
   compact?: boolean;
 }) {
+  const { t } = useTranslation();
+  const strings = creatorProfileStrings((k) => t(k));
   const authHeaders = useProfileAuthHeaders();
   const { user } = useAuth();
   const [state, setState] = useState<"loading" | "hidden" | "has" | "create" | "failed">("loading");
@@ -123,8 +141,8 @@ export function CreatorProfileCreateCard({
       setSlugCheck({ kind: "idle" });
       return;
     }
-    if (creatorSlugProblem(candidate)) {
-      setSlugCheck({ kind: "invalid", slug: candidate, message: creatorSlugProblem(candidate)! });
+    if (creatorSlugProblem(candidate, strings)) {
+      setSlugCheck({ kind: "invalid", slug: candidate, message: creatorSlugProblem(candidate, strings)! });
       return;
     }
     setSlugCheck({ kind: "checking" });
@@ -136,13 +154,13 @@ export function CreatorProfileCreateCard({
         });
         if (seq !== checkSeq.current) return;
         if (!res.ok) {
-          setSlugCheck({ kind: "invalid", slug: candidate, message: "The handle check didn't answer — try again." });
+          setSlugCheck({ kind: "invalid", slug: candidate, message: t("worldCreatorRooms.profileCheckDidntAnswer") });
           return;
         }
-        setSlugCheck(parseSlugCheck(await res.json().catch(() => null), candidate));
+        setSlugCheck(parseSlugCheck(await res.json().catch(() => null), candidate, strings));
       } catch {
         if (seq === checkSeq.current) {
-          setSlugCheck({ kind: "invalid", slug: candidate, message: "The handle check didn't answer — try again." });
+          setSlugCheck({ kind: "invalid", slug: candidate, message: t("worldCreatorRooms.profileCheckDidntAnswer") });
         }
       }
     }, 350);
@@ -152,7 +170,7 @@ export function CreatorProfileCreateCard({
 
   const create = async () => {
     if (busy) return;
-    const problem = creatorProfileFormProblem({ displayName, slug, slugCheck });
+    const problem = creatorProfileFormProblem({ displayName, slug, slugCheck }, strings);
     if (problem) {
       setError(problem);
       return;
@@ -167,7 +185,7 @@ export function CreatorProfileCreateCard({
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(creatorProfileErrorLine(data, "Your profile couldn't be created — try again."));
+        setError(creatorProfileErrorLine(data, t("worldCreatorRooms.profileCreateFallback")));
         // A 409 means the handle went between check and create:
         // re-run the live check so the form says so plainly.
         if (res.status === 409) {
@@ -177,14 +195,14 @@ export function CreatorProfileCreateCard({
       }
       const profile = parseMyCreatorProfile(data);
       if (!profile) {
-        setError("The profile was created but didn't read back — reload this panel before publishing.");
+        setError(t("worldCreatorRooms.profileCreatedUnread"));
         return;
       }
       setMine(profile);
       setState("has");
       onCreated?.(profile);
     } catch {
-      setError("The profile desk didn't answer. Try again.");
+      setError(t("worldCreatorRooms.profileDeskNoAnswer"));
     } finally {
       setBusy(false);
     }
@@ -194,16 +212,20 @@ export function CreatorProfileCreateCard({
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
-  const checkLine = slugCheckLine(slugCheck);
+  const checkLine = slugCheckLine(slugCheck, strings);
+  const verticalLabel = (key: string): string => {
+    const labelKey = VERTICAL_LABEL_KEYS[key];
+    return labelKey ? t(labelKey) : CREATOR_PROFILE_VERTICALS.find((v) => v.key === key)?.label ?? key;
+  };
 
   return (
-    <NativeCard isLight={isLight} title="Your creator profile">
+    <NativeCard isLight={isLight} title={t("worldCreatorRooms.profileCardTitle")}>
       <div data-testid="world-profile-create-card">
         {state === "loading" ? (
-          <NativeLoadingState isLight={isLight} message="Checking your creator profile…" />
+          <NativeLoadingState isLight={isLight} message={t("worldCreatorRooms.profileLoading")} />
         ) : state === "failed" ? (
           <p className={`text-sm ${muted}`}>
-            Your creator profile wouldn't load just now — publishing needs it, so try this panel again in a moment.
+            {t("worldCreatorRooms.profileLoadFailed")}
           </p>
         ) : state === "has" && mine ? (
           <div className="space-y-1" data-testid="world-profile-mine">
@@ -211,22 +233,21 @@ export function CreatorProfileCreateCard({
               <BadgeCheck className="h-4 w-4 text-[#d4af37]" /> {mine.displayName}
             </p>
             <p className={`text-xs ${muted}`}>
-              @{mine.slug} · {CREATOR_PROFILE_VERTICALS.find((v) => v.key === mine.vertical)?.label ?? mine.vertical} —
-              your profile is live, and everything you publish lands on it.
+              {t("worldCreatorRooms.profileMineLine", { slug: mine.slug, vertical: verticalLabel(mine.vertical) })}
             </p>
           </div>
         ) : (
           <div className="space-y-2" data-testid="world-profile-create-form">
             <p className={`text-sm ${muted}`}>
               {compact
-                ? "Publishing needs a creator profile — claim yours right here and the publish goes through without leaving the World. It's free."
-                : "You don't have a creator profile yet. Claim yours right here — it's free, and everything you publish in the World lands on it."}
+                ? t("worldCreatorRooms.profileIntroCompact")
+                : t("worldCreatorRooms.profileIntro")}
             </p>
             <input
-              aria-label="Display name"
+              aria-label={t("worldCreatorRooms.profileNameAria")}
               data-testid="world-profile-create-name"
               className={inputCls(isLight)}
-              placeholder="Display name (e.g. King Shark)"
+              placeholder={t("worldCreatorRooms.profileNamePlaceholder")}
               maxLength={80}
               value={displayName}
               onChange={(e) => {
@@ -236,7 +257,7 @@ export function CreatorProfileCreateCard({
             />
             <div>
               <input
-                aria-label="Your handle"
+                aria-label={t("worldCreatorRooms.profileSlugAria")}
                 data-testid="world-profile-create-slug"
                 className={inputCls(isLight)}
                 placeholder="your-handle"
@@ -267,12 +288,12 @@ export function CreatorProfileCreateCard({
               ) : null}
             </div>
             <textarea
-              aria-label="Bio"
+              aria-label={t("worldCreatorRooms.profileBioAria")}
               data-testid="world-profile-create-bio"
               className={inputCls(isLight)}
               rows={2}
               maxLength={2000}
-              placeholder="Bio — who you are, what you make"
+              placeholder={t("worldCreatorRooms.profileBioPlaceholder")}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
             />
@@ -289,12 +310,12 @@ export function CreatorProfileCreateCard({
                   onClick={() => setBio(suggested)}
                   className={`text-left text-xs font-semibold underline decoration-dotted underline-offset-2 ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}
                 >
-                  Use the suggested bio — written from your name and what you make
+                  {t("worldCreatorRooms.profileSuggestedBio")}
                 </button>
               ) : null;
             })() : null}
             <select
-              aria-label="What you make"
+              aria-label={t("worldCreatorRooms.profileVerticalAria")}
               data-testid="world-profile-create-vertical"
               className={inputCls(isLight)}
               style={{ colorScheme: isLight ? "light" : "dark" }}
@@ -303,7 +324,7 @@ export function CreatorProfileCreateCard({
             >
               {CREATOR_PROFILE_VERTICALS.map((v) => (
                 <option key={v.key} value={v.key}>
-                  {v.label}
+                  {verticalLabel(v.key)}
                 </option>
               ))}
             </select>
@@ -319,7 +340,7 @@ export function CreatorProfileCreateCard({
               disabled={busy}
               className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
             >
-              <Crown className="h-4 w-4" /> {busy ? "Claiming…" : "Create my creator profile — free"}
+              <Crown className="h-4 w-4" /> {busy ? t("worldCreatorRooms.profileClaiming") : t("worldCreatorRooms.profileCreateSubmit")}
             </button>
           </div>
         )}
