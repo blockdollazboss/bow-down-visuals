@@ -4,6 +4,7 @@ import {
   UserPlus, Users,
 } from "lucide-react";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
+import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { NativeCard } from "@/components/world/native/NativeCard";
 import {
@@ -15,8 +16,8 @@ import {
   TEAM_FALLBACK_OFF_HINT,
   TEAM_FALLBACK_ON_HINT,
   TEAM_NAME_MAX,
-  TEAM_SHARED_VAULTS_NOTE,
   TEAM_TIER_GATE_MESSAGE,
+  VAULTS_PATH,
   activeTeamFromList,
   buildCreateTeamPayload,
   buildFallbackPayload,
@@ -25,6 +26,7 @@ import {
   buildInvitePayload,
   buildRenamePayload,
   buildRolePayload,
+  buildVaultSharePayload,
   canChangeRoles,
   canRemoveMember,
   fundAmountFromInput,
@@ -35,9 +37,11 @@ import {
   isTierGateError,
   parseFundResult,
   parseGroupOwn,
+  parseOwnVaults,
   parseSpending,
   parseTeamDetail,
   parseTeamList,
+  parseVaultShareResult,
   teamAcceptPath,
   teamDeclinePath,
   teamDetailPath,
@@ -49,9 +53,11 @@ import {
   teamMemberPath,
   teamNameReady,
   teamSpendingPath,
+  vaultSharePath,
   type TeamDetail,
   type TeamList,
   type TeamSpendRow,
+  type TeamVaultRow,
 } from "@/lib/world/team-desk";
 import {
   GROUP_PRODUCT_KINDS,
@@ -107,6 +113,7 @@ type PreviewState = "idle" | "loading" | "ready" | "missing" | "failed";
 export function TeamDesk({ isLight }: { isLight: boolean }) {
   const authHeaders = useDeskAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
+  const { user } = useAuth();
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [failMessage, setFailMessage] = useState("");
@@ -114,6 +121,11 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
   const [detail, setDetail] = useState<TeamDetail | null>(null);
   const [spending, setSpending] = useState<TeamSpendRow[]>([]);
   const [spendingFailed, setSpendingFailed] = useState(false);
+
+  /* my own vaults for the share toggle (stack100 wave 5, item 28);
+     null until the read lands, failed reads carry their own state */
+  const [vaults, setVaults] = useState<TeamVaultRow[] | null>(null);
+  const [vaultsFailed, setVaultsFailed] = useState(false);
 
   const [groupPhase, setGroupPhase] = useState<GroupPhase>("loading");
   const [groupDto, setGroupDto] = useState<GroupProfileOwnDto | null>(null);
@@ -204,6 +216,21 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
     [api],
   );
 
+  /* The vault list carries teammates' shared vaults too; the seam
+     keeps only the caller's OWN rows — the share rail is owner-only,
+     so those are the only rows a toggle can honestly sit on. */
+  const loadVaults = useCallback(async () => {
+    try {
+      const rows = parseOwnVaults(await api(VAULTS_PATH), user?.id ?? null);
+      if (rows === null) throw new Error("vaults shape");
+      setVaults(rows);
+      setVaultsFailed(false);
+    } catch {
+      setVaults(null);
+      setVaultsFailed(true);
+    }
+  }, [api, user?.id]);
+
   const fillGroupForm = useCallback((dto: GroupProfileOwnDto) => {
     setGroupDto(dto);
     const g = dto.group;
@@ -292,6 +319,15 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
   const iAmOwner = isTeamOwner(myRole);
   const canManageGroup = canManageGroupProfile(myRole);
 
+  /* The share toggle lives in the team view: load my vaults once
+     the active team and my identity are both known (and again if
+     either changes). */
+  const activeTeamId = team?.id ?? null;
+  const myUserId = user?.id ?? null;
+  useEffect(() => {
+    if (activeTeamId && myUserId) void loadVaults();
+  }, [activeTeamId, myUserId, loadVaults]);
+
   /* ── actions ─────────────────────────────────────────────────── */
 
   async function run(key: string, work: () => Promise<void>) {
@@ -305,6 +341,34 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
     } finally {
       setBusy(null);
     }
+  }
+
+  /* Share / unshare one of my vaults — the 2D page's own call
+     (POST { share } to the vault's share rail). The row's new state
+     comes from the rail's answer (its teamId), never from the tap:
+     a failed or broken answer leaves the row exactly as it was and
+     the failure surfaces through the desk's error line. Free — the
+     rail has no price. */
+  async function handleVaultShare(vault: TeamVaultRow) {
+    const sharing = !vault.shared;
+    await run(`vault-share-${vault.id}`, async () => {
+      const data = await api(vaultSharePath(vault.id), {
+        method: "POST",
+        body: JSON.stringify(buildVaultSharePayload(sharing)),
+      });
+      const result = parseVaultShareResult(data);
+      if (!result) throw new Error("share shape");
+      setVaults((prev) =>
+        prev
+          ? prev.map((v) =>
+              v.id === vault.id
+                ? { ...v, teamId: result.teamId, shared: result.teamId !== null }
+                : v,
+            )
+          : prev,
+      );
+      setNote(sharing ? "Vault shared with the team." : "Vault unshared.");
+    });
   }
 
   async function handleCreate() {
@@ -1251,6 +1315,73 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                 )}
               </NativeCard>
 
+              {/* Shared vaults — the share toggle lives here now
+                  (stack100 wave 5, item 28), riding the vault's own
+                  share rail; the retired note that sent members back
+                  to the 2D vault page is gone. */}
+              <NativeCard isLight={isLight} title="Shared vaults">
+                <div data-testid="world-team-vaults">
+                  {vaultsFailed ? (
+                    <div data-testid="world-team-vaults-error">
+                      <p className="text-sm text-red-300">
+                        Your vaults couldn&rsquo;t load — their sharing state
+                        isn&rsquo;t hidden, it just didn&rsquo;t arrive.
+                      </p>
+                      <button
+                        type="button"
+                        className={`${goldBtn} mt-3`}
+                        onClick={() => void loadVaults()}
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  ) : vaults === null ? (
+                    <p className={`text-sm ${subCls}`}>Loading your vaults…</p>
+                  ) : vaults.length === 0 ? (
+                    <p className={`text-sm ${subCls}`}>
+                      You don&rsquo;t own any artist vaults yet — the vaults you
+                      create are yours to share from here.
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      {vaults.map((vault) => (
+                        <div key={vault.id} className={rowCls}>
+                          <div>
+                            <p className="text-sm font-semibold">{vault.name}</p>
+                            <p className={`text-xs ${subCls}`}>
+                              {vault.shared
+                                ? "Shared with the team — every active member can use it."
+                                : "Only you can use this vault."}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            data-testid="world-team-vault-share-toggle"
+                            aria-pressed={vault.shared}
+                            className={vault.shared ? goldBtn : ghostBtn}
+                            disabled={busy === `vault-share-${vault.id}`}
+                            onClick={() => void handleVaultShare(vault)}
+                          >
+                            <span className="inline-flex items-center gap-1.5">
+                              {busy === `vault-share-${vault.id}` ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Users className="h-4 w-4" />
+                              )}
+                              {vault.shared ? "Unshare" : "Share"}
+                            </span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className={`mt-3 text-xs ${subCls}`}>
+                    Sharing is free and takes effect at once — the whole team
+                    can use a shared vault until you unshare it.
+                  </p>
+                </div>
+              </NativeCard>
+
               {/* Danger zone */}
               <NativeCard isLight={isLight} title="Team">
                 <div data-testid="world-team-danger" className="flex flex-wrap gap-3">
@@ -1288,7 +1419,6 @@ export function TeamDesk({ isLight }: { isLight: boolean }) {
                     </button>
                   )}
                 </div>
-                <p className={`mt-3 text-xs ${subCls}`}>{TEAM_SHARED_VAULTS_NOTE}</p>
               </NativeCard>
             </>
           )}
