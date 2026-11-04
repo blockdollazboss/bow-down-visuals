@@ -8,7 +8,7 @@ import { apiErrorMessage } from "./api-error";
    search) are unit-tested in tutorials.test.ts; components stay
    thin shells over them. */
 
-type TutorialCategoryKey =
+export type TutorialCategoryKey =
   | "start-here"
   | "create"
   | "brand"
