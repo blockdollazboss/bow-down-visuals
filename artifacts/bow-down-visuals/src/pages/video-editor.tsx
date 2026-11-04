@@ -147,7 +147,7 @@ import {
 } from "@/lib/editor-sections";
 import { ALIGN_CREDITS as LYRIC_ALIGN_CREDITS, RENDER_CREDITS as LYRIC_RENDER_CREDITS } from "@/lib/lyric-video";
 import {
-  getVideoTemplate, setLastTemplate, getLastTemplate,
+  getVideoTemplate, setLastTemplate, getLastTemplate, isVideoTemplateId,
   type VideoTemplateId,
 } from "@/lib/video-templates";
 import { executeVideoTemplate } from "@/lib/template-execution";
@@ -555,7 +555,10 @@ export default function VideoEditor() {
   const [previewDropActive, setPreviewDropActive] = useState(false);
   const template = getVideoTemplate(templateId);
 
-  function applyTemplate(id: VideoTemplateId) {
+  function applyTemplate(
+    id: VideoTemplateId,
+    content?: { title?: string | null; hookText?: string | null },
+  ) {
     const tpl = getVideoTemplate(id);
     setTemplateId(id);
     setLastTemplate(id);
@@ -569,7 +572,10 @@ export default function VideoEditor() {
     // this, picking a template set only the format + caption preset.
     let report: ReturnType<typeof executeVideoTemplate>["report"] | null = null;
     setSettingsState((prev) => {
-      const executed = executeVideoTemplate(prev, tpl, scenes, { title: songTitle });
+      const executed = executeVideoTemplate(prev, tpl, scenes, {
+        title: content?.title ?? songTitle,
+        hookText: content?.hookText,
+      });
       report = executed.report;
       return executed.settings;
     });
@@ -1041,6 +1047,34 @@ export default function VideoEditor() {
       const key = params.get("template");
       if (key) setDeepLinkedTemplateKey(key);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+  /* ── Editor-template deep link: /video-editor?make=<template-id>&title=&hook= ──
+     Claim-to-asset doors (the winners' circle "Build Winner Reel") open
+     the editor with an EDITOR template EXECUTED on arrival — the same
+     applyTemplate path a picker click runs, with the door's real title /
+     hook content (the winning entry's title, the winner's crown line)
+     fed to the executor, which never invents text of its own. Unknown
+     ids are ignored outright — NOT resolved through getVideoTemplate's
+     Blank Canvas fallback: a bad link must never build a timeline the
+     member didn't ask for. One-shot: params are stripped once consumed
+     so a re-render or a shared URL never re-executes. */
+  const makeConsumedRef = useRef(false);
+  useEffect(() => {
+    if (makeConsumedRef.current) return;
+    const params = new URLSearchParams(search);
+    const make = params.get("make");
+    if (!make || !isVideoTemplateId(make)) return;
+    makeConsumedRef.current = true;
+    applyTemplate(make, {
+      title: params.get("title"),
+      hookText: params.get("hook"),
+    });
+    const url = new URL(window.location.href);
+    url.searchParams.delete("make");
+    url.searchParams.delete("title");
+    url.searchParams.delete("hook");
+    window.history.replaceState(null, "", url.toString());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
   /* ── Pro Tools deep link: /video-editor?tab=pro-tools ──

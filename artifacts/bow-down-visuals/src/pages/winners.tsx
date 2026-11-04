@@ -3,7 +3,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { Link, useRoute } from "wouter";
 import {
   Trophy, Loader2, ArrowLeft, Crown, Medal, Share2,
-  ChevronRight, Sparkles, AlertTriangle, RotateCcw,
+  ChevronRight, Sparkles, AlertTriangle, RotateCcw, Clapperboard,
 } from "lucide-react";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import ShareMenu from "@/components/ShareMenu";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import { formatBucs, formatBucsShort, ordinal } from "@/lib/visual-bucs";
+import { buildWinnerReelHref } from "@/lib/video-templates";
 
 const DESCRIPTION = "The Winners' Circle: meet the creators taking home Bow Down Visuals challenge crowns, and see the winning work that earned them.";
 
@@ -93,6 +94,18 @@ function WinnerCard({ w, showChallenge }: { w: WinnerItem; showChallenge: boolea
               className="h-20 w-14 rounded-lg object-cover" loading="lazy" />
           </Link>
         )}
+      </div>
+      {/* Claim-to-asset: the win becomes a promo — the editor opens with
+          the Winner Reel template executed (winning entry's title placed,
+          the crown line as the hook caption). */}
+      <div className="border-t border-white/10 px-4 py-2.5">
+        <Link
+          href={buildWinnerReelHref({ title: w.video.title, hook: shareText })}
+          className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:underline"
+          data-testid={`btn-build-winner-reel-${w.challenge.slug}-${w.place}`}
+        >
+          <Clapperboard className="h-3.5 w-3.5" /> Build Winner Reel
+        </Link>
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-white/10 px-4 py-2.5">
         <span className="mr-auto flex items-center gap-1.5 text-[11px] text-white/40">

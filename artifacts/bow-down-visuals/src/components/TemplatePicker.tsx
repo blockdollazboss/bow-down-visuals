@@ -11,7 +11,7 @@ import { useState } from "react";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
 import {
   Music2, Megaphone, Mic2, Video, Smartphone, Images, Sparkles,
-  LayoutDashboard, GripVertical, X,
+  LayoutDashboard, GripVertical, X, Trophy,
 } from "lucide-react";
 import {
   VIDEO_TEMPLATES, getVideoTemplate,
@@ -28,6 +28,7 @@ const ICONS: Record<TemplateIconName, React.ReactNode> = {
   images:      <Images className="h-6 w-6" />,
   sparkles:    <Sparkles className="h-6 w-6" />,
   layout:      <LayoutDashboard className="h-6 w-6" />,
+  trophy:      <Trophy className="h-6 w-6" />,
 };
 
 interface TemplatePickerProps {
