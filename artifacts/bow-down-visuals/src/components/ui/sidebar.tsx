@@ -228,6 +228,14 @@ function Sidebar({
       />
       <div
         data-slot="sidebar-container"
+        // QC-200 fix #3: in offcanvas mode a collapsed sidebar is slid
+        // fully off-screen, but its nav links used to stay in the DOM
+        // as ghost links — present to automation/keyboard focus yet
+        // unclickable. `inert` takes the whole subtree out of hit
+        // testing AND the tab order while collapsed, so a collapsed
+        // sidebar renders no clickable-or-focusable ghosts. (Icon
+        // mode is exempt: its rail links are meant to stay usable.)
+        inert={collapsible === "offcanvas" && state === "collapsed"}
         className={cn(
           "fixed inset-y-0 z-10 hidden h-svh w-[var(--sidebar-width)] transition-[left,right,width] duration-200 ease-linear md:flex",
           side === "left"
