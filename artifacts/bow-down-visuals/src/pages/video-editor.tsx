@@ -3306,16 +3306,18 @@ export default function VideoEditor() {
       <div className="flex-1 flex flex-col min-h-0 relative">
         <Link href="/my-projects" className="sr-only">{t("videoEditor.backToProjects")}</Link>
 
-        {!projectId && makeBootstrap === "resolving" ? (
-          /* A ?make= arrival still resolving the project it is owed
-             (bootstrap above): a brief loader — the NoProject gate must
-             never flash, or worse settle, mid-resolution. */
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 py-20 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm vv-ink-50">{t("videoEditor.makeBootstrapLoading", { defaultValue: "Opening your project…" })}</p>
-          </div>
-        ) : !projectId && !locationsDeepLink ? (
-          <NoProject />
+        {!projectId && !locationsDeepLink ? (
+          makeBootstrap === "resolving" ? (
+            /* A ?make= arrival still resolving the project it is owed
+               (bootstrap above): a brief loader — the NoProject gate
+               must never flash, or worse settle, mid-resolution. */
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 py-20 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm vv-ink-50">{t("videoEditor.makeBootstrapLoading", { defaultValue: "Opening your project…" })}</p>
+            </div>
+          ) : (
+            <NoProject />
+          )
         ) : !projectId ? (
           /* Locations with no project loaded (QC-200 fix queue #7): the
              exact panel the editor shows on its Locations tab once a

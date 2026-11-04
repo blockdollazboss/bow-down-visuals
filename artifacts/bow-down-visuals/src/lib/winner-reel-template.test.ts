@@ -303,8 +303,15 @@ describe("winner-reel — the door lands on a project (dead-end fix)", () => {
 
   it("while the bootstrap resolves, the gate stands down for a loader", () => {
     const page = readFileSync(new URL("../pages/video-editor.tsx", import.meta.url), "utf8");
-    expect(page).toContain('!projectId && makeBootstrap === "resolving"');
+    expect(page).toContain('makeBootstrap === "resolving" ? (');
     expect(page).toContain("videoEditor.makeBootstrapLoading");
+    // The gate itself is untouched for plain arrivals — the loader
+    // nests inside its branch, ahead of <NoProject />.
+    const gateAt = page.indexOf("{!projectId && !locationsDeepLink ? (");
+    const loaderAt = page.indexOf("videoEditor.makeBootstrapLoading", gateAt);
+    const noProjectAt = page.indexOf("<NoProject />", gateAt);
+    expect(loaderAt).toBeGreaterThan(gateAt);
+    expect(noProjectAt).toBeGreaterThan(loaderAt);
   });
 
   it("execution waits for the project's own load — it can no longer be overwritten by it", () => {
