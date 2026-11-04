@@ -109,8 +109,10 @@ describe("the analyzer is docked in the Promote Desk, framing intact", () => {
     expect(analyzerSrc).toContain("confirmedFetch(CONTRACTS_ANALYZE_PATH");
     expect(analyzerSrc).toContain("overrideCost: CONTRACT_ANALYSIS_COST_VB");
     expect(analyzerSrc).toContain("if (!res) return");
-    expect(analyzerSrc).toContain("An AI reading,");
-    expect(analyzerSrc).toContain("not legal advice");
+    // The framing line is catalog copy now (worldTeamLegal.contractIntro,
+    // en verbatim in every catalog — its "An AI reading, not legal advice"
+    // words are pinned against the catalog by team-legal-i18n.test).
+    expect(analyzerSrc).toContain('t("worldTeamLegal.contractIntro"');
     expect(analyzerSrc).toContain("result.disclaimer");
   });
 });

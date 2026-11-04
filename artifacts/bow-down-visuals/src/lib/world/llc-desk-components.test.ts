@@ -42,7 +42,9 @@ describe("the runs ride the confirmed-spend seam", () => {
     expect(desk).toContain("overrideCost: LLC_PLAN_COST");
     expect(desk).toContain("overrideFeature: LLC_FEATURE_PLAN");
     expect(desk).toContain("res.status === 402");
-    expect(desk).toContain("Treasury");
+    // The out-of-Bucs line (which names the Treasury's Packs desk) is
+    // catalog copy now (worldTeamLegal.outOfBucsLine).
+    expect(desk).toContain('t("worldTeamLegal.outOfBucsLine"');
   });
 
   it("the plan renders whole: steps, estimate, notes", () => {
@@ -54,8 +56,12 @@ describe("the runs ride the confirmed-spend seam", () => {
 
   it("the disclaimer sits at the foot, verbatim from the seam", () => {
     expect(desk).toContain('data-testid="world-llc-desk-disclaimer"');
-    expect(desk).toContain("{LLC_DISCLAIMER_TITLE}");
-    expect(desk).toContain("{LLC_DISCLAIMER_BODY}");
+    // The disclaimer rides the 2D page's own catalog keys now
+    // (llcGuide.disclaimerTitle / disclaimerBody — stack100 locale
+    // unit 46); the seam constants stay as the pinned source text
+    // and team-legal-i18n.test pins catalog == seam, byte for byte.
+    expect(desk).toContain('t("llcGuide.disclaimerTitle")');
+    expect(desk).toContain('t("llcGuide.disclaimerBody")');
   });
 });
 

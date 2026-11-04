@@ -40,7 +40,9 @@ describe("TeamDesk rides the seam", () => {
       "isTierGateError",
       "fundAmountFromInput",
       "inviteEmailValid",
-      "TEAM_SHARED_VAULTS_NOTE",
+      // The vault note rides the 2D page's own catalog key now
+      // (team.sharedVaultsNote — stack100 locale unit 46).
+      't("team.sharedVaultsNote")',
     ]) {
       expect(desk, name).toContain(name);
     }
@@ -67,7 +69,9 @@ describe("the funding spend", () => {
   it("out-of-Bucs is its own state naming the Visual Buc Packs desk", () => {
     expect(desk).toContain('data-testid="world-team-out-of-credits"');
     expect(desk).toContain('out_of_credits');
-    expect(desk).toMatch(/Visual Buc Packs desk\s+in the Treasury/);
+    // The line itself is catalog copy now (worldTeamLegal.teamOutOfCredits,
+    // en verbatim in every catalog — pinned by team-legal-i18n.test).
+    expect(desk).toContain('t("worldTeamLegal.teamOutOfCredits")');
   });
 });
 
@@ -80,7 +84,7 @@ describe("honest states", () => {
 
   it("a failed spending read is its own card with a retry, never silent", () => {
     expect(desk).toContain('data-testid="world-team-spending-error"');
-    expect(desk).toContain("Team spending couldn&rsquo;t load");
+    expect(desk).toContain('t("worldTeamLegal.teamSpendingError")');
     expect(desk).toContain('data-testid="world-team-spending"');
   });
 
@@ -92,7 +96,7 @@ describe("honest states", () => {
   it("the public preview is honest when the page is not public", () => {
     expect(desk).toContain('data-testid="world-team-public-preview"');
     expect(desk).toContain('previewState === "missing"');
-    expect(desk).toContain("answering yet");
+    expect(desk).toContain('t("worldTeamLegal.teamPreviewMissing")');
   });
 
   it("errors only travel the shared plain-text rail", () => {
@@ -127,13 +131,14 @@ describe("every station panel is present", () => {
   it("the fallback toggle is a pressed-state button and the vault note is present", () => {
     expect(desk).toContain('data-testid="world-team-fallback-toggle"');
     expect(desk).toContain("aria-pressed={team.allowPersonalFallback}");
-    expect(desk).toContain("TEAM_SHARED_VAULTS_NOTE");
+    expect(desk).toContain('t("team.sharedVaultsNote")');
   });
 
   it("destructive actions are two-tap confirms, never one-click", () => {
-    expect(desk).toContain("Tap again to leave");
-    expect(desk).toContain("Tap again to delete");
-    expect(desk).toContain("Tap again to remove");
+    // The tap-again labels are catalog copy now (worldTeamLegal).
+    expect(desk).toContain('t("worldTeamLegal.teamTapLeave"');
+    expect(desk).toContain('t("worldTeamLegal.teamTapDelete"');
+    expect(desk).toContain('t("worldTeamLegal.teamTapRemove")');
   });
 
   it("there is no pull-up of the 2D /team page", () => {
