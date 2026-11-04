@@ -16,6 +16,7 @@
  * export (the rail refuses and the desk says why first).
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   DJ_ANALYZE_PATH,
   DJ_CRATES_PATH,
@@ -45,6 +46,7 @@ import {
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
 
 export function DjDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const deskHeaders = useDeskAuthHeaders();
   const [tracks, setTracks] = useState<DjLibraryTrack[] | null>(null);
   const [crates, setCrates] = useState<DjCrate[] | null>(null);
@@ -129,15 +131,15 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
         const outcomes = analyzeOutcomesOf(await res.json().catch(() => ({})));
         if (!outcomes) throw new Error("analyze failed");
         for (const o of outcomes) {
-          if (o.status === "failed") failedTitles.push(titleById.get(o.songId) ?? "A track");
+          if (o.status === "failed") failedTitles.push(titleById.get(o.songId) ?? t("worldAudioDesk.analyzeFallbackTrack"));
         }
         setTracks((prev) => (prev ? applyAnalyzeOutcomes(prev, outcomes) : prev));
       }
       if (failedTitles.length > 0) {
-        setAnalyzeNote(`Could not analyze: ${failedTitles.join(", ")}. The rest landed fine.`);
+        setAnalyzeNote(t("worldAudioDesk.analyzeSomeFailed", { titles: failedTitles.join(", ") }));
       }
     } catch {
-      setAnalyzeNote("The analyzer didn't answer. Your tracks are unchanged — try again in a moment.");
+      setAnalyzeNote(t("worldAudioDesk.analyzerNoAnswer"));
     } finally {
       setAnalyzing((prev) => {
         const next = new Set(prev);
@@ -180,7 +182,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
       setSelectedId(crate.id);
       setNewCrateName("");
     } catch {
-      setCrateError("The crate couldn't be made. Try again in a moment.");
+      setCrateError(t("worldAudioDesk.crateCreateFailed"));
     } finally {
       setCrateBusy(false);
     }
@@ -194,7 +196,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
       await patchCrate(selected.id, { songIds });
       setProposal(null);
     } catch {
-      setCrateError("That change didn't save — the crate is unchanged. Try again in a moment.");
+      setCrateError(t("worldAudioDesk.crateChangeFailed"));
     } finally {
       setCrateBusy(false);
     }
@@ -212,7 +214,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
       if (!next) throw new Error("propose failed");
       setProposal(next);
     } catch {
-      setCrateError("An order couldn't be worked out. Try again in a moment.");
+      setCrateError(t("worldAudioDesk.proposeFailed"));
     } finally {
       setProposing(false);
     }
@@ -231,7 +233,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
       setProposal(null);
       setConfirmingDelete(false);
     } catch {
-      setCrateError("The crate couldn't be deleted. Try again in a moment.");
+      setCrateError(t("worldAudioDesk.crateDeleteFailed"));
     } finally {
       setCrateBusy(false);
     }
@@ -252,19 +254,19 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
       a.click();
       URL.revokeObjectURL(href);
     } catch {
-      setCrateError("The export didn't land. Try again in a moment.");
+      setCrateError(t("worldAudioDesk.exportFailed"));
     }
   }
 
   if (loadFailed) {
     return (
       <div className="space-y-3" data-testid="world-dj-desk">
-        <p className={`text-base font-black ${strong}`}>DJ Set Prep</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldAudioDesk.djTitle")}</p>
         <p className={errCls} data-testid="world-dj-desk-failed">
-          Your tracks wouldn&rsquo;t load. Give it another shot.
+          {t("worldAudioDesk.djLoadFailed")}
         </p>
         <button type="button" className={chipCls(false)} onClick={() => void load()}>
-          Try again
+          {t("worldAudioDesk.tryAgain")}
         </button>
       </div>
     );
@@ -273,16 +275,16 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-4" data-testid="world-dj-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>DJ Set Prep</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldAudioDesk.djTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          Tempo + key on your own songs, crates that blend, exports for the booth — all free.
+          {t("worldAudioDesk.djSubtitle")}
         </p>
       </div>
 
       {/* ── Library ─────────────────────────────────────────────── */}
       <section>
         <div className="flex flex-wrap items-center gap-2">
-          <p className={`text-sm font-bold ${strong}`}>Your tracks</p>
+          <p className={`text-sm font-bold ${strong}`}>{t("worldAudioDesk.yourTracksHeading")}</p>
           {unanalyzed.length > 0 ? (
             <button
               type="button"
@@ -291,16 +293,15 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
               disabled={analyzing.size > 0}
               onClick={() => void analyze(unanalyzed.map((t) => t.id))}
             >
-              Analyze all new ({unanalyzed.length})
+              {t("worldAudioDesk.analyzeAllNew", { count: unanalyzed.length })}
             </button>
           ) : null}
         </div>
         {tracks === null ? (
-          <p className={`mt-2 text-sm ${muted}`}>Loading your library…</p>
+          <p className={`mt-2 text-sm ${muted}`}>{t("worldAudioDesk.djLoadingLibrary")}</p>
         ) : tracks.length === 0 ? (
           <p className={`mt-2 text-sm ${muted}`} data-testid="world-dj-desk-empty">
-            No songs yet — make one at the Song Desk in the Create Wing and it lands here ready to
-            prep.
+            {t("worldAudioDesk.djEmptyLibrary")}
           </p>
         ) : (
           <ul className="mt-2 space-y-1.5">
@@ -314,7 +315,11 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
                   <div className="min-w-0">
                     <p className={`truncate text-sm font-bold ${strong}`}>{track.title}</p>
                     <p className={`text-xs ${muted}`}>
-                      {analysisLine(track.analysis)}
+                      {analysisLine(track.analysis, {
+                        notAnalyzed: t("worldAudioDesk.notAnalyzedYet"),
+                        bpm: t("worldAudioDesk.bpmValue"),
+                        noTempoOrKey: t("worldAudioDesk.analysisNoTempoOrKey"),
+                      })}
                       {durationLabel(track.durationSec) ? ` · ${durationLabel(track.durationSec)}` : ""}
                     </p>
                   </div>
@@ -327,7 +332,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
                         disabled={analyzing.has(track.id)}
                         onClick={() => void analyze([track.id])}
                       >
-                        {analyzing.has(track.id) ? "Analyzing…" : "Analyze"}
+                        {analyzing.has(track.id) ? t("worldAudioDesk.analyzingBtn") : t("worldAudioDesk.analyzeBtn")}
                       </button>
                     ) : null}
                     {selected ? (
@@ -338,7 +343,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
                         disabled={inCrate || crateBusy}
                         onClick={() => void mutateSelected(withAdded(crateSongIds(selected), track.id))}
                       >
-                        {inCrate ? "In the crate" : `Add to ${selected.name}`}
+                        {inCrate ? t("worldAudioDesk.inCrateBtn") : t("worldAudioDesk.addToCrateBtn", { name: selected.name })}
                       </button>
                     ) : null}
                   </span>
@@ -352,16 +357,16 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
 
       {/* ── Crates ──────────────────────────────────────────────── */}
       <section>
-        <p className={`text-sm font-bold ${strong}`}>Your crates</p>
+        <p className={`text-sm font-bold ${strong}`}>{t("worldAudioDesk.yourCratesHeading")}</p>
         <div className="mt-2 flex gap-2">
           <input
             data-testid="world-dj-desk-crate-name"
-            aria-label="Name a new crate"
+            aria-label={t("worldAudioDesk.crateNameAria")}
             className={inputCls}
             value={newCrateName}
             maxLength={80}
             onChange={(e) => setNewCrateName(e.target.value)}
-            placeholder="Name a new crate — Friday headline set…"
+            placeholder={t("worldAudioDesk.crateNamePlaceholder")}
           />
           <button
             type="button"
@@ -370,11 +375,11 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
             disabled={crateBusy || !newCrateName.trim()}
             onClick={() => void createCrate()}
           >
-            Create
+            {t("worldAudioDesk.createBtn")}
           </button>
         </div>
         {crates && crates.length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Crates">
+          <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldAudioDesk.cratesAria")}>
             {crates.map((crate) => (
               <button
                 key={crate.id}
@@ -389,12 +394,12 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
                   setConfirmingDelete(false);
                 }}
               >
-                {crate.name} ({crate.tracks.length})
+                {crate.name} ({crate.tracks.length.toLocaleString(i18n.language)})
               </button>
             ))}
           </div>
         ) : crates !== null ? (
-          <p className={`mt-2 text-sm ${muted}`}>No crates yet — name your first one above.</p>
+          <p className={`mt-2 text-sm ${muted}`}>{t("worldAudioDesk.noCratesYet")}</p>
         ) : null}
         {crateError ? <p className={`mt-2 ${errCls}`}>{crateError}</p> : null}
 
@@ -402,7 +407,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
           <div className={`mt-3 rounded-xl border p-3 ${cardCls}`} data-testid="world-dj-desk-crate-detail">
             <div className="flex flex-wrap items-center gap-2">
               <p className={`text-sm font-bold ${strong}`}>{selected.name}</p>
-              <span className={`text-xs ${muted}`}>{selected.tracks.length} tracks</span>
+              <span className={`text-xs ${muted}`}>{t("worldAudioDesk.crateTrackCount", { count: selected.tracks.length })}</span>
               <span className="ml-auto flex gap-1.5">
                 <button
                   type="button"
@@ -411,7 +416,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
                   disabled={proposing || selected.tracks.length < 2}
                   onClick={() => void propose()}
                 >
-                  {proposing ? "Working…" : "Propose my order"}
+                  {proposing ? t("worldAudioDesk.workingBtn") : t("worldAudioDesk.proposeOrderBtn")}
                 </button>
                 <button
                   type="button"
@@ -420,7 +425,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
                   disabled={selected.tracks.length === 0}
                   onClick={() => void exportCrate("rekordbox")}
                 >
-                  Rekordbox XML
+                  {t("worldAudioDesk.rekordboxBtn")}
                 </button>
                 <button
                   type="button"
@@ -429,7 +434,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
                   disabled={selected.tracks.length === 0}
                   onClick={() => void exportCrate("m3u")}
                 >
-                  M3U
+                  {t("worldAudioDesk.m3uBtn")}
                 </button>
                 <button
                   type="button"
@@ -442,15 +447,14 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
                     else setConfirmingDelete(true);
                   }}
                 >
-                  {confirmingDelete ? "Tap again to delete" : "Delete crate"}
+                  {confirmingDelete ? t("worldAudioDesk.tapAgainDeleteBtn") : t("worldAudioDesk.deleteCrateBtn")}
                 </button>
               </span>
             </div>
 
             {selected.tracks.length === 0 ? (
               <p className={`mt-2 text-sm ${muted}`}>
-                This crate is empty — add tracks from your library above. An empty crate can&rsquo;t
-                be ordered or exported.
+                {t("worldAudioDesk.crateEmptyNote")}
               </p>
             ) : (
               <ol className="mt-2 space-y-1.5">
@@ -464,15 +468,15 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
                       <span className={`text-xs font-black ${muted}`}>{i + 1}</span>
                       <span className={`text-sm font-bold ${strong}`}>{track.title}</span>
                       <span className={`text-xs ${muted}`}>
-                        {track.bpm !== null ? `${Math.round(track.bpm)} BPM` : ""}
+                        {track.bpm !== null ? t("worldAudioDesk.bpmValue", { bpm: Math.round(track.bpm) }) : ""}
                         {track.camelot ? ` · ${track.camelot}` : ""}
                         {track.keyLabel ? ` (${track.keyLabel})` : ""}
-                        {track.bpm === null && !track.camelot ? "Not analyzed yet" : ""}
+                        {track.bpm === null && !track.camelot ? t("worldAudioDesk.notAnalyzedYet") : ""}
                       </span>
                       <span className="ml-auto flex gap-1.5">
                         <button
                           type="button"
-                          aria-label={`Move ${track.title} up`}
+                          aria-label={t("worldAudioDesk.moveUpAria", { title: track.title })}
                           className={chipCls(false)}
                           disabled={crateBusy || i === 0}
                           onClick={() => void mutateSelected(moved(ids, i, -1))}
@@ -481,7 +485,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
                         </button>
                         <button
                           type="button"
-                          aria-label={`Move ${track.title} down`}
+                          aria-label={t("worldAudioDesk.moveDownAria", { title: track.title })}
                           className={chipCls(false)}
                           disabled={crateBusy || i === ids.length - 1}
                           onClick={() => void mutateSelected(moved(ids, i, 1))}
@@ -495,7 +499,7 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
                           disabled={crateBusy}
                           onClick={() => void mutateSelected(withoutId(ids, track.songId))}
                         >
-                          Remove
+                          {t("worldAudioDesk.removeBtn")}
                         </button>
                       </span>
                     </li>
@@ -506,22 +510,21 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
 
             {proposal ? (
               <div className={`mt-3 rounded-xl border p-3 ${cardCls}`} data-testid="world-dj-desk-proposal">
-                <p className={`text-sm font-bold ${strong}`}>The order that blends</p>
+                <p className={`text-sm font-bold ${strong}`}>{t("worldAudioDesk.proposalTitle")}</p>
                 <ol className="mt-1.5 space-y-1">
                   {proposal.order.map((songId, i) => {
-                    const handoff = proposal.transitions.find((t) => t.fromSongId === songId);
+                    const handoff = proposal.transitions.find((tr) => tr.fromSongId === songId);
                     return (
                       <li key={songId} className={`text-sm ${muted}`}>
-                        <span className={`font-bold ${strong}`}>{i + 1}. {titleById.get(songId) ?? "Track"}</span>
-                        {handoff && handoff.note ? <span> — blends out: {handoff.note}</span> : null}
+                        <span className={`font-bold ${strong}`}>{i + 1}. {titleById.get(songId) ?? t("worldAudioDesk.trackFallback")}</span>
+                        {handoff && handoff.note ? <span>{t("worldAudioDesk.blendsOutPart", { note: handoff.note })}</span> : null}
                       </li>
                     );
                   })}
                 </ol>
                 {proposal.unanalyzed.length > 0 ? (
                   <p className={`mt-2 text-xs ${muted}`}>
-                    {proposal.unanalyzed.length} track(s) have no tempo or key yet — they were
-                    placed by what is known. Analyze them and propose again for a tighter blend.
+                    {t("worldAudioDesk.proposalUnanalyzed", { count: proposal.unanalyzed.length })}
                   </p>
                 ) : null}
                 <div className="mt-2 flex gap-1.5">
@@ -532,14 +535,14 @@ export function DjDesk({ isLight }: { isLight: boolean }) {
                     disabled={crateBusy}
                     onClick={() => void mutateSelected(proposal.order)}
                   >
-                    Use this order
+                    {t("worldAudioDesk.useThisOrderBtn")}
                   </button>
                   <button
                     type="button"
                     className={chipCls(false)}
                     onClick={() => setProposal(null)}
                   >
-                    Keep mine
+                    {t("worldAudioDesk.keepMineBtn")}
                   </button>
                 </div>
               </div>
