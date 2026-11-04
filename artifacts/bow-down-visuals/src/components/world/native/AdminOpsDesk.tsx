@@ -1209,6 +1209,7 @@ function DiscordEnvBadge({
 }
 
 export function DiscordBench({ isLight }: { isLight: boolean }) {
+  const { i18n } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const cfg = useBench(async (a) => parseDiscordBotConfig(await a.get(DISCORD_BOT_CONFIG_PATH)));

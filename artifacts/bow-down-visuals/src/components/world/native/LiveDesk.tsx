@@ -2477,6 +2477,7 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
             })}
           </div>
           <p className="mt-2 text-[11px] leading-snug text-white/50">{SCENE_PRESET_PICKER_NOTE}</p>
+        </div>
         {/* #95 — per-source chroma key: the running studio's
             Preview-scene camera sources with SourcesPanel's mode
             pills, key color and tuning sliders, over the relay.

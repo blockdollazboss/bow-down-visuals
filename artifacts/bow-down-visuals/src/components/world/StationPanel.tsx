@@ -1332,6 +1332,7 @@ export default function StationPanel(props: StationPanelProps) {
                     Studio board beside the Setlist Builder. */}
                 <DeskDoor isLight={isLight}>
                   <TourDesk isLight={isLight} />
+                </DeskDoor>
                 {/* Publish (stack1600 parity wave #4, desk #99):
                     the /publish page's own surface — your tracks
                     and videos on the free /api/publish rails:
@@ -1342,6 +1343,7 @@ export default function StationPanel(props: StationPanelProps) {
                     library. */}
                 <DeskDoor isLight={isLight}>
                   <PublishDesk isLight={isLight} />
+                </DeskDoor>
                 {/* Templates (Stack-100 wave 4, item 27 / desk
                     #100): one browse desk for all four template
                     galleries (videos, hooks, captions, thumbnails)

@@ -2905,7 +2905,6 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
           where the money talk happens. */}
       <CoachPlanLadderSection isLight={isLight} />
 
-      <NativeBoard isLight={isLight} title="Folded in — status here, the bench one tap out">
       <NativeBoard isLight={isLight} title={t("worldCoachMoney.bizFoldedTitle")}>
         <div className="space-y-3">
           <NativeCard isLight={isLight} title={t("worldCoachMoney.bizCoachCardTitle")}>
