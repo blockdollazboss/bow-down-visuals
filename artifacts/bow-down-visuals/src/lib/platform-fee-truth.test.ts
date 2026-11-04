@@ -10,6 +10,12 @@
  * back into a display while the rails charge 5%. Other products keep
  * their own ratified fees (memberships 10%, beats/sponsors 15%, live
  * shopping 5%) — they are not this file's business.
+ *
+ * Stack-100 #34 adds the bookings-basis pins below: the performance
+ * booking rail takes its 15% out of the gross booking PRICE (Gate #5
+ * proved $37.50 on a $250 booking), and the three surfaces that once
+ * said "keeps 15% of the fee" — a fee-on-fee misreading — now state
+ * the price basis. The rail itself is pinned untouched.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -67,5 +73,33 @@ describe("storefront fee displays tell the single flat-5% story", () => {
     const sync = readApi("lib/creator-tier-sync.ts");
     expect(sync).toContain("One flat 5% platform fee on everything you sell");
     expect(sync).not.toContain("Lower platform fees on everything you sell");
+  });
+});
+
+describe("bookings fee copy states the price basis (stack100 #34)", () => {
+  it("BookArtistSection: 15% of the price, never 'of the fee'", () => {
+    const section = readFe("components/artist/BookArtistSection.tsx");
+    expect(section).toContain("keeps 15% of the price at release");
+    expect(section).not.toContain("15% of the fee");
+  });
+
+  it("performance-bookings route: header comment + list note state the price basis", () => {
+    const route = readApi("routes/performance-bookings.ts");
+    expect(route).toContain("keeps 15% of the booking");
+    expect(route).toContain("price at release (PERFORMANCE_BOOKING_FEE_BPS)");
+    expect(route).toContain(
+      "Bow Down Visuals keeps 15% of the price at release.",
+    );
+    expect(route).not.toContain("15% of the fee");
+  });
+
+  it("the rail itself is untouched: the split still reads 1500 bps of the gross", () => {
+    const rail = readApi("lib/performance-bookings.ts");
+    expect(rail).toContain(
+      'Number(process.env["PERFORMANCE_BOOKING_FEE_BPS"]) || 1500',
+    );
+    expect(rail).toContain(
+      "feeCents = Math.round((grossCents * PERFORMANCE_BOOKING_FEE_BPS) / 10000)",
+    );
   });
 });
