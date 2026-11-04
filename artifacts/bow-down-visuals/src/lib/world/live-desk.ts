@@ -46,11 +46,25 @@
  * own device store (greenscreen-finetune.ts), so the cutout tuned
  * on the 2D studio is the cutout the hall studio runs. Going live
  * and its effects are free on the 2D site; they are free here.
+ *
+ * Wave IV (#93) extends the seam once more: the changer follow-ons
+ * wave III named — camera effects, noise cancellation / voice
+ * effects, camera + mic switching and the mirror — carried into the
+ * same studio desk, on the same BackgroundChanger the desk already
+ * owns. The menus below ARE the kit's own libraries (CAMERA_EFFECTS
+ * / VOICE_EFFECTS), the spoken notes are BroadcastStudio's own
+ * words, and every pick drives the kit's own method or rides into
+ * its construction config exactly like the page's — never a
+ * World-only shadow setting. Free on the page; free here.
  */
 
-import type {
-  BackgroundMode, BackgroundQuality, BackgroundEngineKind, EngineStatusDetail,
+import {
+  CAMERA_EFFECTS,
+  type BackgroundMode, type BackgroundQuality, type BackgroundEngineKind, type EngineStatusDetail,
 } from "../stream-kit/background-changer";
+import {
+  VOICE_EFFECTS, type NoiseCancellationLevel, type VoiceIsolatorStatus,
+} from "../stream-kit/voice-isolator";
 import type { GreenScreenFineTune } from "../stream-kit/greenscreen-finetune";
 import {
   isSelectionActive, type BackdropSelection,
@@ -473,7 +487,6 @@ export const LIVE_NATIVE_FOLLOW_ONS = [
   "The controller deck's stage half lives in the studio that executes commands: the wave-I in-world studio does not yet publish ControllerStageClient state, so the deck drives a running 2D studio exactly like the phone remote does",
   "Broadcast channels (/broadcast) are posting surfaces, not scheduling — they stay with their own surface; #91 covers the premiere/broadcast scheduling the /broadcast page itself hosts",
   "The scene kit's per-source chroma key (scenes.ts cameraMode 'chroma') rides the stage compositor, which has no in-world instance — the in-world route to scenes is the #89 controller deck driving a running 2D studio. #92 carries the camera kit's own green screen (the BackgroundChanger matte), never a second keyer",
-  "Camera effects, noise cancellation / voice effects, and camera + mic switching ride the same BackgroundChanger the #92 desk now owns — named follow-ons, not yet carried",
   "RTMP ingest: the server's door exists (lib/rtmp-ingest, migration 0194) but opens only when the deployment sets LIVE_RTMP_INGEST=on — no member rail on either surface can switch it. The key doors and the ingest URL the key read returns are already carried (#85)",
 ] as const;
 
@@ -635,4 +648,87 @@ export function fineTuneSlidersForMode(mode: BackgroundMode): typeof GREENSCREEN
 
 export const LIVE_WAVE3_PROMOTIONS = [
   "#92 Behind me in the hall Screen panel: the 2D studio's green-screen depth on the SAME BackgroundChanger kit BroadcastStudio runs — background modes (Green Screen / Blur / Backdrop / Original), quality (Auto / Pro / MediaPipe), the backdrop picker (built-in scenes, your own photo upload, a pasted image link — backdrop-selection's ONE selection), and the fine-tune sliders over greenscreen-finetune's shared device settings (the same bdv-greenscreen-finetune store the 2D studio reads, so a tuned cutout follows the creator between surfaces), with the engine's live status and any fallback spoken plainly. Free, exactly as on the page",
+] as const;
+
+/* ── #93 Camera & voice — the changer's follow-ons, carried ─────────
+   Wave III named these as follow-ons riding "the same
+   BackgroundChanger the #92 desk now owns"; this section carries
+   them. The desk's Camera & voice card drives the ONE changer the
+   studio desk already constructs — its camera-effect library, its
+   VoiceIsolator chain (noise cancellation + voice effects), its
+   camera/mic switching and its mirror — through the kit's own
+   methods, with picks made before the camera starts held in state
+   and ridden into the construction config, exactly BroadcastStudio's
+   hand. The menus below are the kit's own libraries, not copies:
+   the selects ARE the menu, exactly like the background tables
+   above. */
+
+/** The camera-effect menu: the kit's CAMERA_EFFECTS library itself
+ *  (background-changer.ts) — the same array BroadcastStudio renders
+ *  its preset row from. */
+export const CAMERA_EFFECT_OPTIONS = CAMERA_EFFECTS;
+
+/** The voice-effect menu: the kit's VOICE_EFFECTS library itself
+ *  (voice-isolator.ts) — the same array BroadcastStudio renders its
+ *  preset rack from. */
+export const VOICE_EFFECT_OPTIONS = VOICE_EFFECTS;
+
+/** BroadcastStudio's noise-cancellation pills, in the page's order
+ *  with the page's labels. The page's default is "on": a fresh desk
+ *  starts where a fresh studio starts. */
+export const NOISE_CANCELLATION_OPTIONS = [
+  { level: "off", label: "Off" },
+  { level: "on", label: "On" },
+  { level: "max", label: "Max" },
+] as const satisfies ReadonlyArray<{ level: NoiseCancellationLevel; label: string }>;
+
+export const NOISE_CANCELLATION_DEFAULT: NoiseCancellationLevel = "on";
+
+/** The Camera & voice card's opening line — BroadcastStudio's
+ *  initial voice note, verbatim: before the camera runs, the honest
+ *  state of the voice chain is that it starts with the camera. */
+export const CAMERA_VOICE_OPENING_NOTE = "Noise cancellation starts with the camera.";
+
+/** BroadcastStudio's held-pick note for noise cancellation,
+ *  verbatim: with no changer running yet, the pick is held and the
+ *  creator is told what it means — off passes the mic through
+ *  unchanged; on/max start with the camera. */
+export function noiseHeldNote(level: NoiseCancellationLevel): string {
+  return level === "off"
+    ? "Noise cancellation is off — your mic will pass through unchanged."
+    : "Noise cancellation will start with the camera.";
+}
+
+/** BroadcastStudio's held-pick note for a voice effect, verbatim:
+ *  "none" reads as effects off; any other pick names the effect
+ *  that will be on the creator's voice when the camera starts. An
+ *  id the kit doesn't carry names nothing — the desk only renders
+ *  the kit's own library, so this fallback is unreachable from the
+ *  card; it exists so the helper never invents a label. */
+export function voiceEffectHeldNote(effectId: string): string {
+  if (effectId === "none") return "Voice effects are off.";
+  const label = VOICE_EFFECTS.find((e) => e.id === effectId)?.label;
+  return label ? `${label} will be on your voice when you start the camera.` : "Voice effects are off.";
+}
+
+/** The live noise truth, spoken the kit's way: the VoiceIsolator's
+ *  own status message (which carries the ML fallback at Max — the
+ *  isolator runs at On and says so), or nothing when the kit has
+ *  nothing to say. Never the wanted level dressed up as the live
+ *  one. */
+export function noiseStatusLine(status: (VoiceIsolatorStatus & { error?: unknown }) | null): string | null {
+  return status?.message ? status.message : null;
+}
+
+/** Device switching's honest gate: the selects exist only when the
+ *  browser exposed the device lists. When enumeration itself is
+ *  unavailable the kit's list methods throw UNSUPPORTED — the card
+ *  then shows the reason and NO select, never a dead picker over a
+ *  capability this browser doesn't have. */
+export function deviceSwitchingAvailable(enumerationFailed: boolean): boolean {
+  return !enumerationFailed;
+}
+
+export const LIVE_WAVE4_PROMOTIONS = [
+  "#93 Camera & voice in the hall Screen panel: the changer follow-ons wave III named, carried on the SAME BackgroundChanger the #92 desk owns — camera-effect presets (the kit's CAMERA_EFFECTS library), noise cancellation (Off / On / Max) and voice-effect presets (the kit's VOICE_EFFECTS library) on its VoiceIsolator chain, camera + microphone switching through the kit's own device methods, and the mirror toggle — picks made before the camera starts held and ridden into the kit's construction config exactly like BroadcastStudio, the isolator's live status (including the Max ML fallback) spoken in the card, and device switching shown unavailable with its reason when this browser exposes no device lists. Free, exactly as on the page",
 ] as const;
