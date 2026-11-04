@@ -460,7 +460,7 @@ export function AudioDesk(props: CreateDeskProps) {
             data-testid={`world-audio-desk-tab-${tab.id}`}
             onClick={() => setDeskTab(tab.id)}
             className={`rounded-full border px-3.5 py-1.5 text-xs font-black transition bdv-touch-target ${
-              deskTab === t.id
+              deskTab === tab.id
                 ? "border-[#d4af37] bg-[#d4af37] text-black"
                 : isLight
                   ? "border-[#7A5A12]/40 text-[#7A5A12] hover:text-[#2a1e07]"
