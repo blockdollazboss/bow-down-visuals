@@ -192,7 +192,7 @@ describe("brand kit desk verbs (Ring 4: generate / edit / apply in-world)", () =
     // Generate: the confirmed-charge POST, priced before it runs.
     expect(deskSrc).toContain('confirmedFetch("/api/brand-kit"');
     expect(deskSrc).toContain("overrideCost: BRAND_KIT_GENERATE_COST_VISUAL_BUCS");
-    expect(deskSrc).toContain('overrideFeature: "Brand Kit Generator"');
+    expect(deskSrc).toContain('overrideFeature: t("worldCoachMoney.bizFeatureBrandKit")');
     expect(deskSrc).toContain("buildBrandKitGeneratePayload(");
     // Tagline pick: the free PUT save through the shared client.
     expect(deskSrc).toContain("saveBrandKit(getAccessToken, { selectedTagline: line })");
@@ -684,9 +684,9 @@ describe("stream pack bench wiring (source pins)", () => {
   });
 
   it("the shelf's states are honest: a failed load retries, an empty pack says so", () => {
-    expect(desk).toContain("Your stream pack wouldn't open — your graphics are safe on the real rails.");
-    expect(desk).toContain("No stream graphics yet.");
-    expect(desk).toContain("Charged only when the graphic is made — a failed make is never charged.");
+    expect(desk).toContain('t("worldCoachMoney.bizStreamPackOpenFailed")');
+    expect(desk).toContain('t("worldCoachMoney.bizNoStreamGraphics")');
+    expect(desk).toContain('t("worldCoachMoney.bizStreamPackChargeNote")');
   });
 });
 
@@ -777,7 +777,7 @@ describe("Promote Desk gallery actions (source pins)", () => {
 
   it("the gallery copy no longer denies the saved shelf exists", () => {
     expect(desk).not.toContain("no saved card shelf yet");
-    expect(desk).toContain("recorded to your promo card history");
+    expect(desk).toContain('t("worldCoachMoney.bizNoCardsDetail")');
   });
 });
 
@@ -1021,7 +1021,7 @@ describe("coach on real inputs (Stack-100 #75)", () => {
     const desk = readFileSync(new URL("../../components/world/native/BusinessDesks.tsx", import.meta.url), "utf8");
     expect(desk).toContain('fetch("/api/money"');
     expect(desk).toContain("buildCoachPayload(coachInputs, coachSnapshot)");
-    expect(desk).toContain("buildMoneySnapshot(entries, new Date())");
+    expect(desk).toContain("buildMoneySnapshot(entries, new Date(), i18n.language)");
     expect(desk).toContain('data-testid="world-coach-form"');
     expect(desk).toContain('data-testid="world-coach-niche"');
     expect(desk).toContain('data-testid="world-coach-cadence"');
