@@ -1,4 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
+import { formatJewelryPrice } from "../lib/jewelry";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useState } from "react";
 import { Gem, Loader2, Download, RefreshCw } from "lucide-react";
@@ -123,7 +124,7 @@ export function JewelryOrdersAdmin({ authHeaders }: { authHeaders: () => Promise
                   <td className="px-3 py-2 text-xs">{o.finish} · {o.size_option}</td>
                   <td className="px-3 py-2 text-xs max-w-[160px] truncate" title={o.engraving ?? ""}>{o.engraving || "—"}</td>
                   <td className="px-3 py-2">{o.quantity}</td>
-                  <td className="px-3 py-2">${(o.total_cents / 100).toFixed(2)}</td>
+                  <td className="px-3 py-2">{formatJewelryPrice(o.total_cents)}</td>
                   <td className="px-3 py-2 text-xs">{o.full_name}<br /><span className="text-white/40">{o.email}</span></td>
                   <td className="px-3 py-2">
                     <span className="text-xs px-2 py-1 rounded-full bg-amber-400/10 text-amber-300">{o.status.replace("_", " ")}</span>
