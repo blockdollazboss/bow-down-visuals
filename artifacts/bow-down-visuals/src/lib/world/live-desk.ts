@@ -36,7 +36,25 @@
  * deck on its per-account relay socket, live-watch parity on
  * live-watch.tsx's doors, and premiere scheduling on reachApi's
  * premiere doors. All four are free rails on the 2D site too.
+ *
+ * Wave III (#92) extends the seam again: the 2D studio's "Behind me"
+ * green-screen depth — the BackgroundChanger kit's modes, quality,
+ * backdrop selection and fine-tune — carried into the wave-I studio
+ * desk. The processing path is the kit itself (no second keyer, no
+ * second settings shape): the desk owns a changer exactly like
+ * BroadcastStudio does, and the fine-tune settings ride the kit's
+ * own device store (greenscreen-finetune.ts), so the cutout tuned
+ * on the 2D studio is the cutout the hall studio runs. Going live
+ * and its effects are free on the 2D site; they are free here.
  */
+
+import type {
+  BackgroundMode, BackgroundQuality, BackgroundEngineKind, EngineStatusDetail,
+} from "../stream-kit/background-changer";
+import type { GreenScreenFineTune } from "../stream-kit/greenscreen-finetune";
+import {
+  isSelectionActive, type BackdropSelection,
+} from "../stream-kit/backdrop-selection";
 
 /* ── #85 studio rails ─────────────────────────────────────────────── */
 
@@ -454,4 +472,167 @@ export const LIVE_NATIVE_FOLLOW_ONS = [
   "Premiere edit/reschedule has no rail (the 2D flow offers create + cancel only) — in-world it is cancel + schedule anew, same as the website",
   "The controller deck's stage half lives in the studio that executes commands: the wave-I in-world studio does not yet publish ControllerStageClient state, so the deck drives a running 2D studio exactly like the phone remote does",
   "Broadcast channels (/broadcast) are posting surfaces, not scheduling — they stay with their own surface; #91 covers the premiere/broadcast scheduling the /broadcast page itself hosts",
+  "The scene kit's per-source chroma key (scenes.ts cameraMode 'chroma') rides the stage compositor, which has no in-world instance — the in-world route to scenes is the #89 controller deck driving a running 2D studio. #92 carries the camera kit's own green screen (the BackgroundChanger matte), never a second keyer",
+  "Camera effects, noise cancellation / voice effects, and camera + mic switching ride the same BackgroundChanger the #92 desk now owns — named follow-ons, not yet carried",
+  "RTMP ingest: the server's door exists (lib/rtmp-ingest, migration 0194) but opens only when the deployment sets LIVE_RTMP_INGEST=on — no member rail on either surface can switch it. The key doors and the ingest URL the key read returns are already carried (#85)",
+] as const;
+
+/* ── #92 Behind me — the green-screen depth ─────────────────────────
+   The 2D studio's "Behind me" panel (BroadcastStudio), carried into
+   the wave-I studio desk on the SAME kit: BroadcastStudio owns a
+   BackgroundChanger and everything downstream drinks its output
+   stream; the desk now does exactly that (its transport publishes
+   the changer's stream, so a mode/fine-tune/backdrop move lands in
+   the live broadcast the same way it does on the page). Every table
+   below mirrors the panel's own — the selects ARE the menu, exactly
+   like the loyalty menus above. */
+
+export const BACKGROUND_MODE_OPTIONS = [
+  { mode: "green", label: "Green Screen" },
+  { mode: "blur", label: "Blur" },
+  { mode: "image", label: "Backdrop" },
+  { mode: "none", label: "Original" },
+] as const satisfies ReadonlyArray<{ mode: BackgroundMode; label: string }>;
+
+export const BACKGROUND_QUALITY_OPTIONS = [
+  { quality: "auto", label: "Auto" },
+  { quality: "pro", label: "Pro" },
+  { quality: "tasks", label: "MediaPipe" },
+] as const satisfies ReadonlyArray<{ quality: BackgroundQuality; label: string }>;
+
+/** BroadcastStudio's engine status line, verbatim wording: the
+ *  engine ACTUALLY live, never the wanted one dressed up. */
+export function engineKindLabel(kind: BackgroundEngineKind): string {
+  return kind === "pro" ? "Pro" : kind === "tasks" ? "MediaPipe Tasks" : "Off";
+}
+
+/** BroadcastStudio's fallback note, verbatim: a fallen-back engine
+ *  reads as a fallback with its real reason, or nothing at all. */
+export function engineFallbackNote(detail: EngineStatusDetail | null): string | null {
+  if (!detail?.fellBack) return null;
+  return detail.reason === "pro-stopped"
+    ? "Pro engine stopped on this device — camera is running plain. Try MediaPipe, or reopen the studio."
+    : detail.reason === "tasks-stopped"
+      ? "MediaPipe engine stopped on this device — camera is running plain. Try Pro, or reopen the studio."
+      : detail.reason === "tasks-init-failed"
+        ? "MediaPipe engine couldn't start on this device — camera is running plain."
+        : "Pro engine couldn't start on this device — camera is running plain.";
+}
+
+/** BroadcastStudio's engine-down rule, verbatim: 'off' is only a
+ *  FAILURE when a backdrop mode is in play and the kit is carrying
+ *  an engine error. An engine off because the creator is on
+ *  Original (raw by choice, no error) must not read as "couldn't
+ *  load" or lock the backdrop pills. */
+export function engineDownFromStatus(kind: BackgroundEngineKind, mode: BackgroundMode, hasEngineError: boolean): boolean {
+  return kind === "off" && !(mode === "none" && !hasEngineError);
+}
+
+/** The backdrop grid's active rule, verbatim: the selection is the
+ *  active tile only while Backdrop mode is showing it (a held pick
+ *  in Green Screen mode is a pick, not the painted background). */
+export function backdropTileActive(
+  selection: BackdropSelection,
+  candidate: BackdropSelection,
+  mode: BackgroundMode,
+): boolean {
+  return isSelectionActive(selection, candidate) && mode === "image";
+}
+
+/* The Fine-tune sliders (greenscreen-finetune.ts): every row
+   drives ONE real pipeline parameter, live — the module header
+   there carries the census of what each one honestly moves.
+   `modes` gates the backdrop-specific rows (blur radius exists
+   only in Blur mode, backdrop dim only behind a photo). Mirrors
+   BroadcastStudio's FINE_TUNE_SLIDERS table row for row. */
+export const GREENSCREEN_FINE_TUNE_SLIDERS: Array<{
+  key: keyof GreenScreenFineTune;
+  label: string;
+  hint: string;
+  min: number;
+  max: number;
+  step: number;
+  modes: BackgroundMode[];
+  format: (v: number) => string;
+}> = [
+  {
+    key: "sensitivity",
+    label: "Cut sensitivity",
+    hint: "Up: faint edges stop counting as you. Down: wispy hair and soft edges survive.",
+    min: -50,
+    max: 50,
+    step: 1,
+    modes: ["green", "blur", "image"],
+    format: (v) => (v > 0 ? `+${v}` : `${v}`),
+  },
+  {
+    key: "edgeShift",
+    label: "Edge size",
+    hint: "Shrink pulls the cut in — it kills the colour halo. Grow pushes it out — it fills gaps.",
+    min: -3,
+    max: 3,
+    step: 1,
+    modes: ["green", "blur", "image"],
+    format: (v) => (v > 0 ? `+${v}` : `${v}`),
+  },
+  {
+    key: "softness",
+    label: "Edge softness",
+    hint: "More softens the rim between you and the background; less makes it crisper.",
+    min: -2,
+    max: 3,
+    step: 1,
+    modes: ["green", "blur", "image"],
+    format: (v) => (v > 0 ? `+${v}` : `${v}`),
+  },
+  {
+    key: "smoothing",
+    label: "Motion smoothing",
+    hint: "Up calms edge flicker while you sit still. Down follows fast moves tighter.",
+    min: 0,
+    max: 100,
+    step: 1,
+    modes: ["green", "blur", "image"],
+    format: (v) => `${v}%`,
+  },
+  {
+    key: "spill",
+    label: "Green spill cleanup",
+    hint: "Pulls the green fringe off your edges — from the green screen or the room light.",
+    min: 0,
+    max: 100,
+    step: 1,
+    modes: ["green", "blur", "image"],
+    format: (v) => `${v}%`,
+  },
+  {
+    key: "blur",
+    label: "Background blur",
+    hint: "How soft the room behind you melts.",
+    min: 0,
+    max: 40,
+    step: 1,
+    modes: ["blur"],
+    format: (v) => `${v}px`,
+  },
+  {
+    key: "dim",
+    label: "Backdrop dim",
+    hint: "Darkens the photo behind you so you stand out against it.",
+    min: 0,
+    max: 85,
+    step: 1,
+    modes: ["image"],
+    format: (v) => `${v}%`,
+  },
+];
+
+/** The sliders a mode shows — BroadcastStudio's modes gate,
+ *  verbatim (Original shows none: there is no cutout to tune). */
+export function fineTuneSlidersForMode(mode: BackgroundMode): typeof GREENSCREEN_FINE_TUNE_SLIDERS {
+  return GREENSCREEN_FINE_TUNE_SLIDERS.filter((s) => s.modes.includes(mode));
+}
+
+export const LIVE_WAVE3_PROMOTIONS = [
+  "#92 Behind me in the hall Screen panel: the 2D studio's green-screen depth on the SAME BackgroundChanger kit BroadcastStudio runs — background modes (Green Screen / Blur / Backdrop / Original), quality (Auto / Pro / MediaPipe), the backdrop picker (built-in scenes, your own photo upload, a pasted image link — backdrop-selection's ONE selection), and the fine-tune sliders over greenscreen-finetune's shared device settings (the same bdv-greenscreen-finetune store the 2D studio reads, so a tuned cutout follows the creator between surfaces), with the engine's live status and any fallback spoken plainly. Free, exactly as on the page",
 ] as const;

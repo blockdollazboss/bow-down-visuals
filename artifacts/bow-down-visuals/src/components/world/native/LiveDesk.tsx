@@ -4,7 +4,7 @@ import {
   Radio, Square, Loader2, Video, VideoOff, KeyRound, RefreshCw, Ban, Copy, Check,
   Eye, Trophy, UserPlus, Trash2, ArrowUpCircle, ArrowDownCircle, UserX, Send,
   LogOut, Link2, ShieldCheck, CalendarPlus, CalendarClock, Clapperboard, Pencil,
-  Gamepad2, Users, X,
+  Gamepad2, Users, X, ImagePlus,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeLoadingState, NativeEmptyState } from "@/components/world/native";
@@ -23,6 +23,20 @@ import {
   createStreamTransport, SITE_DESTINATION, WhipTransport, OwnServerTransport,
   TransportError, type StreamTransport,
 } from "@/lib/stream-kit/transport";
+import {
+  BackgroundChanger, BackgroundChangerError,
+  type BackgroundMode, type BackgroundQuality, type BackgroundEngineKind, type EngineStatusDetail,
+} from "@/lib/stream-kit/background-changer";
+import { BACKDROPS } from "@/lib/stream-kit/backdrops";
+import {
+  loadGreenScreenFineTune, saveGreenScreenFineTune, GREENSCREEN_FINETUNE_DEFAULTS,
+  type GreenScreenFineTune,
+} from "@/lib/stream-kit/greenscreen-finetune";
+import {
+  backdropSelectionSource, greenScreenCueVisible, validateBackdropUpload,
+  selectionAfterUpload, BACKDROP_UPLOAD_ACCEPT, DEFAULT_BACKDROP_SELECTION,
+  type BackdropSelection,
+} from "@/lib/stream-kit/backdrop-selection";
 import {
   mintGuestInvite, listGuestInvites, revokeGuestInvite, promoteGuest, demoteGuest,
   removeGuest, hostBackstageHistory, hostBackstagePost,
@@ -52,6 +66,9 @@ import {
   GENERATED_CLIPS_PATH,
   normalizeFinishedClips, premiereDraftReady, isOwnPremiere,
   type FinishedClipOption,
+  BACKGROUND_MODE_OPTIONS, BACKGROUND_QUALITY_OPTIONS,
+  fineTuneSlidersForMode, engineKindLabel, engineFallbackNote, engineDownFromStatus,
+  backdropTileActive,
 } from "@/lib/world/live-desk";
 
 /* ─── Live Wave I (stack-100 #85–#87) ───────────────────────────────
@@ -86,7 +103,20 @@ import {
      Audience chat, distinct from the backstage chat above.
    - LivePremiereDesk (#91): SchedulePremiereForm's flow via
      reachApi — schedule a premiere from finished clips, see the
-     upcoming list, cancel your own. */
+     upcoming list, cancel your own.
+
+   Live Wave III (parity wave 6, #92) extends the studio desk:
+   - Behind me: the 2D studio's green-screen depth. The desk owns
+     a BackgroundChanger exactly like BroadcastStudio — the kit
+     acquires the camera, its composited output stream is the feed
+     the preview shows and the transport publishes, and the mode /
+     quality / backdrop / fine-tune controls below move the live
+     picture through the kit's own methods. Fine-tune settings
+     ride the kit's device store (bdv-greenscreen-finetune), the
+     same store the 2D studio reads and writes. The scene kit's
+     per-source chroma key is NOT this — it rides the stage
+     compositor, which has no in-world instance; it stays a named
+     follow-on in the seam, never a second keyer here. */
 
 function useToken() {
   const { getAccessToken } = useAuth();
@@ -207,6 +237,168 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const transportRef = useRef<StreamTransport | null>(null);
 
+  /* ── #92 Behind me — BroadcastStudio's panel on the same kit ──────
+     The desk owns a BackgroundChanger exactly like the 2D studio:
+     the kit acquires the camera and its composited output stream
+     becomes camRef — the feed the preview shows and goLive
+     publishes — so every control below moves the live picture
+     through the kit's own methods, never a parallel pipeline.
+     Fresh sessions start on Original (raw), like the page. */
+  const [bgMode, setBgMode] = useState<BackgroundMode>("none");
+  const [bgQuality, setBgQuality] = useState<BackgroundQuality>("auto");
+  const [engineKind, setEngineKind] = useState<BackgroundEngineKind>("off");
+  const [engineDetail, setEngineDetail] = useState<EngineStatusDetail | null>(null);
+  const [engineDown, setEngineDown] = useState(false);
+  const [bgNote, setBgNote] = useState<string | null>(null);
+  const [fineTune, setFineTuneState] = useState<GreenScreenFineTune>(() => loadGreenScreenFineTune());
+  const [backdropSel, setBackdropSel] = useState<BackdropSelection>(DEFAULT_BACKDROP_SELECTION);
+  const [customBackdrop, setCustomBackdrop] = useState<{ source: File | string; thumb: string; name: string } | null>(null);
+  const changerRef = useRef<BackgroundChanger | null>(null);
+  const fineTuneRef = useRef<GreenScreenFineTune>(fineTune);
+  const bgModeRef = useRef<BackgroundMode>("none");
+  const backdropSelRef = useRef<BackdropSelection>(DEFAULT_BACKDROP_SELECTION);
+  const customBackdropRef = useRef<{ source: File | string; thumb: string; name: string } | null>(null);
+
+  /* BroadcastStudio's fine-tune hand, verbatim: ref + state + the
+     kit's device store + the running changer, on every move. */
+  const applyFineTune = useCallback((patch: Partial<GreenScreenFineTune>) => {
+    const next = { ...fineTuneRef.current, ...patch };
+    fineTuneRef.current = next;
+    setFineTuneState(next);
+    saveGreenScreenFineTune(next);
+    changerRef.current?.setFineTune(next);
+  }, []);
+
+  const resetFineTune = useCallback(() => {
+    const next = { ...GREENSCREEN_FINETUNE_DEFAULTS };
+    fineTuneRef.current = next;
+    saveGreenScreenFineTune(next);
+    setFineTuneState(next);
+    changerRef.current?.setFineTune(next);
+  }, []);
+
+  const chooseBackdrop = useCallback((sel: BackdropSelection) => {
+    backdropSelRef.current = sel;
+    setBackdropSel(sel);
+  }, []);
+
+  const holdCustomBackdrop = useCallback((held: { source: File | string; thumb: string; name: string } | null) => {
+    const prev = customBackdropRef.current;
+    if (prev && prev.thumb.startsWith("blob:") && prev.thumb !== held?.thumb) URL.revokeObjectURL(prev.thumb);
+    customBackdropRef.current = held;
+    setCustomBackdrop(held);
+  }, []);
+
+  /* Apply the held background choice to a changer — the ONE
+     selection resolved the same way at every call site, exactly
+     like BroadcastStudio's. False when the source couldn't load
+     (the changer keeps its previous backdrop). */
+  const applyBackdropSelection = useCallback(async (changer: BackgroundChanger): Promise<boolean> => {
+    const source = backdropSelectionSource(backdropSelRef.current, customBackdropRef.current?.source ?? null);
+    if (source === null) return false;
+    try {
+      await changer.setImage(source);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  /* Pick a background tile: held first, then applied; a source
+     that fails to load restores the previous choice — a bad pick
+     never costs the creator the background they already had. */
+  const pickBackdrop = useCallback(
+    async (sel: BackdropSelection) => {
+      const previous = backdropSelRef.current;
+      chooseBackdrop(sel);
+      setBgMode("image");
+      bgModeRef.current = "image";
+      const changer = changerRef.current;
+      if (!changer) {
+        setBgNote("Start your camera, then your backdrop applies.");
+        return;
+      }
+      changer.setMode("image");
+      const applied = await applyBackdropSelection(changer);
+      if (!applied) {
+        chooseBackdrop(previous);
+        setBgNote("That backdrop image could not be loaded.");
+      } else {
+        setBgNote(null);
+      }
+    },
+    [applyBackdropSelection, chooseBackdrop],
+  );
+
+  /* Upload your own photo — validated by the app's image rules; a
+     refused or unreadable file is announced and the previous
+     background stays. With the camera off the photo is HELD and
+     applied the moment the camera starts. */
+  const handleBackdropUpload = useCallback(
+    async (file: File | undefined) => {
+      if (!file) return;
+      const refusal = validateBackdropUpload(file);
+      if (refusal) {
+        setBgNote(refusal);
+        return;
+      }
+      const changer = changerRef.current;
+      if (changer) {
+        changer.setMode("image");
+        try {
+          await changer.setImage(file);
+        } catch (err) {
+          setBgNote(err instanceof BackgroundChangerError ? err.message : "That backdrop image could not be loaded.");
+          return;
+        }
+      }
+      holdCustomBackdrop({ source: file, thumb: URL.createObjectURL(file), name: file.name });
+      chooseBackdrop(selectionAfterUpload(backdropSelRef.current, { ok: true, name: file.name }));
+      setBgMode("image");
+      bgModeRef.current = "image";
+      setBgNote(changer ? null : "Got it — your photo goes behind you when the camera starts.");
+    },
+    [chooseBackdrop, holdCustomBackdrop],
+  );
+
+  /* A pasted image link is the same custom choice, held the same way. */
+  const handleBackdropUrl = useCallback(
+    async (url: string) => {
+      const changer = changerRef.current;
+      if (changer) {
+        changer.setMode("image");
+        try {
+          await changer.setImage(url);
+        } catch (err) {
+          setBgNote(err instanceof BackgroundChangerError ? err.message : "That backdrop image could not be loaded.");
+          return;
+        }
+      }
+      holdCustomBackdrop({ source: url, thumb: url, name: "Pasted image link" });
+      chooseBackdrop(selectionAfterUpload(backdropSelRef.current, { ok: true, name: "Pasted image link" }));
+      setBgMode("image");
+      bgModeRef.current = "image";
+      setBgNote(changer ? null : "Got it — that image goes behind you when the camera starts.");
+    },
+    [chooseBackdrop, holdCustomBackdrop],
+  );
+
+  function pickBgMode(m: BackgroundMode) {
+    setBgMode(m);
+    bgModeRef.current = m;
+    const changer = changerRef.current;
+    if (!changer) return;
+    changer.setMode(m);
+    if (m === "image" && !changer.hasBackdrop()) void applyBackdropSelection(changer);
+  }
+
+  async function pickBgQuality(q: BackgroundQuality) {
+    setBgQuality(q);
+    /* Live switch when the camera is running; before the first
+       start it simply rides into the kit's config. */
+    await changerRef.current?.setQuality(q).catch(() => undefined);
+  }
+
   const loadStatus = useCallback(async () => {
     try {
       const res = await fetch(LIVE_STATUS_PATH, { headers: await authHeaders() });
@@ -244,27 +436,78 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
   useEffect(
     () => () => {
       camRef.current?.getTracks().forEach((t) => t.stop());
+      void changerRef.current?.stop().catch(() => undefined);
+      changerRef.current = null;
     },
     [],
   );
 
+  /* BroadcastStudio's camera start, carried: construct the kit
+     once with the desk's held choices, start it (raw-first — the
+     camera is live before any engine settles), and take its
+     composited output stream as the feed. An engine error already
+     on the kit is the only engine-down truth at this point; a
+     still-warming engine is NOT down, and an Original session is
+     not a failure. */
   async function startCamera() {
     setNote(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      camRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (!changerRef.current) {
+        changerRef.current = new BackgroundChanger({
+          mode: bgMode,
+          quality: bgQuality,
+          fineTune,
+          audio: true,
+          onEngineStatus: (kind) => {
+            setEngineKind(kind);
+            const c = changerRef.current;
+            setEngineDown(engineDownFromStatus(kind, c?.mode ?? bgModeRef.current, !!c?.engineError));
+            /* Raw-first: when the engine lands after a backdrop was
+               already picked, load the chosen backdrop now. */
+            if (kind !== "off" && bgModeRef.current === "image" && c && !c.hasBackdrop()) {
+              void applyBackdropSelection(c);
+            }
+          },
+          onEngineStatusDetail: (detail) => setEngineDetail(detail),
+        });
+      }
+      const changer = changerRef.current;
+      await changer.start();
+      const feed = changer.getStream();
+      if (!feed) throw new Error("The camera kit produced no feed.");
+      camRef.current = feed;
+      if (videoRef.current) videoRef.current.srcObject = feed;
+      setEngineDown(bgMode !== "none" && !!changer.engineError);
+      setEngineKind(changer.getEngineKind());
+      setEngineDetail(changer.getEngineStatusDetail());
+      if (changer.segmentationAvailable && bgMode === "image" && !changer.hasBackdrop()) {
+        /* A held photo that can't load must not take the camera
+           down with it: fall back to the default built-in, say
+           so, and keep the creator's pick held for the next try. */
+        const applied = await applyBackdropSelection(changer);
+        if (!applied) {
+          chooseBackdrop(DEFAULT_BACKDROP_SELECTION);
+          await changer.setImage(backdropSelectionSource(DEFAULT_BACKDROP_SELECTION, null)).catch(() => undefined);
+          setBgNote("That background couldn't be loaded — the Gold Stage is behind you instead. Your pick is still saved in the panel.");
+        }
+      }
       setPhase("camera");
-    } catch {
-      setNote("Camera and mic couldn't start — check the browser's permission for this site, then try again.");
+    } catch (err) {
+      setNote(
+        err instanceof BackgroundChangerError
+          ? err.message
+          : "Camera and mic couldn't start — check the browser's permission for this site, then try again.",
+      );
     }
   }
 
-  function stopCamera() {
+  async function stopCamera() {
     if (phase === "live" || phase === "connecting") return;
-    camRef.current?.getTracks().forEach((t) => t.stop());
+    await changerRef.current?.stop().catch(() => undefined);
+    changerRef.current = null;
     camRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
+    setEngineDown(false);
     setPhase("off");
   }
 
@@ -378,7 +621,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
                   <Video className="h-3.5 w-3.5" /> Start camera
                 </button>
               ) : (
-                <button type="button" onClick={stopCamera} disabled={broadcastingHere} className={chipBtn(isLight)} data-testid="world-live-camera-stop">
+                <button type="button" onClick={() => void stopCamera()} disabled={broadcastingHere} className={chipBtn(isLight)} data-testid="world-live-camera-stop">
                   <VideoOff className="h-3.5 w-3.5" /> Stop camera
                 </button>
               )}
@@ -399,6 +642,203 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
             </div>
           </div>
           {note && <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-note">{note}</p>}
+
+          {/* #92 Behind me — the 2D studio's green-screen panel, on
+              the same kit: modes, quality, the ONE backdrop
+              selection, and the fine-tune sliders over the shared
+              device settings. */}
+          <LiveCard isLight={isLight} testId="world-live-behind-me">
+            <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
+              <ImagePlus className="h-4 w-4 text-[#d4af37]" /> Behind me
+            </p>
+            <p className={`mt-1 text-xs ${muted}`}>
+              Your background lives here — turn on the green screen or a backdrop, then pick what sits behind you in
+              this same panel: a built-in scene, or your own photo.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Background mode">
+              {BACKGROUND_MODE_OPTIONS.map(({ mode: m, label }) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={bgMode === m}
+                  disabled={engineDown && m !== "none"}
+                  onClick={() => pickBgMode(m)}
+                  className={bgMode === m ? goldBtn : chipBtn(isLight)}
+                  data-testid={`world-live-bg-mode-${m}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {engineDown && (
+              <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-bg-engine-down">
+                Background effects couldn&rsquo;t load — camera is running plain.
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label="Background quality">
+              <span className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Quality</span>
+              {BACKGROUND_QUALITY_OPTIONS.map(({ quality: q, label }) => (
+                <button
+                  key={q}
+                  type="button"
+                  aria-pressed={bgQuality === q}
+                  onClick={() => void pickBgQuality(q)}
+                  className={bgQuality === q ? goldBtn : chipBtn(isLight)}
+                  data-testid={`world-live-bg-quality-${q}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className={`mt-1 text-xs ${muted}`}>
+              Auto runs the Pro cutout and steps its quality down on its own if your device can&rsquo;t hold it — it never
+              swaps engines behind your back. Pro holds the sharpest cutout. MediaPipe is the lighter per-frame cutout:
+              easier on slower devices, less steady when you move. The engine only changes when you change it here.
+            </p>
+            {phase !== "off" && (
+              <p className={`mt-2 text-xs font-semibold ${muted}`} data-testid="world-live-bg-engine-status">
+                Background engine: {engineKindLabel(engineKind)}
+              </p>
+            )}
+            {phase !== "off" && engineFallbackNote(engineDetail) && (
+              <p className={`mt-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-bg-engine-fallback">
+                {engineFallbackNote(engineDetail)}
+              </p>
+            )}
+            {greenScreenCueVisible(bgMode) && (
+              <p className={`mt-4 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-bg-cue">
+                Green screen is on — pick any background below, or upload your own photo, and it goes right behind
+                you. It&rsquo;s all one step, right here.
+              </p>
+            )}
+            <p className={`mt-4 text-xs font-bold uppercase tracking-wider ${muted}`}>Your background</p>
+            <div className="mt-2 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4" role="group" aria-label="Your background">
+              {BACKDROPS.map((b) => {
+                const active = backdropTileActive(backdropSel, { kind: "builtin", id: b.id }, bgMode);
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    disabled={engineDown}
+                    onClick={() => void pickBackdrop({ kind: "builtin", id: b.id })}
+                    className={`overflow-hidden rounded-lg border p-1 text-center transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                      active
+                        ? "border-transparent bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C]"
+                        : isLight
+                          ? "border-[#C9A84C]/30 hover:border-[#C9A84C]"
+                          : "border-white/10 hover:border-white/30"
+                    }`}
+                    data-testid={`world-live-bg-backdrop-${b.id}`}
+                  >
+                    <img src={b.uri} alt="" className="aspect-video w-full rounded object-cover" />
+                    <span className={`mt-1 block text-[11px] font-bold leading-tight ${active ? "text-black" : muted}`}>{b.label}</span>
+                  </button>
+                );
+              })}
+              {customBackdrop && (
+                <button
+                  type="button"
+                  disabled={engineDown}
+                  onClick={() => void pickBackdrop({ kind: "custom", name: customBackdrop.name })}
+                  className={`overflow-hidden rounded-lg border p-1 text-center transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                    backdropTileActive(backdropSel, { kind: "custom", name: customBackdrop.name }, bgMode)
+                      ? "border-transparent bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C]"
+                      : isLight
+                        ? "border-[#C9A84C]/30 hover:border-[#C9A84C]"
+                        : "border-white/10 hover:border-white/30"
+                  }`}
+                  data-testid="world-live-bg-backdrop-custom"
+                >
+                  <img src={customBackdrop.thumb} alt="" className="aspect-video w-full rounded object-cover" />
+                  <span className={`mt-1 block truncate text-[11px] font-bold leading-tight ${backdropTileActive(backdropSel, { kind: "custom", name: customBackdrop.name }, bgMode) ? "text-black" : muted}`}>
+                    {customBackdrop.name}
+                  </span>
+                </button>
+              )}
+              <label
+                className={`cursor-pointer overflow-hidden rounded-lg border border-dashed p-1 text-center transition ${
+                  isLight ? "border-[#C9A84C]/50 hover:border-[#C9A84C]" : "border-white/25 hover:border-white/50"
+                } ${engineDown ? "pointer-events-none opacity-40" : ""}`}
+                data-testid="world-live-bg-upload"
+              >
+                <span className={`flex aspect-video w-full flex-col items-center justify-center gap-1 rounded ${muted}`}>
+                  <ImagePlus className="h-5 w-5" />
+                  <span className="text-[11px] font-bold leading-tight">Upload your photo</span>
+                </span>
+                <span className={`mt-1 block text-[11px] leading-tight ${muted}`}>JPG, PNG or WebP</span>
+                <input
+                  type="file"
+                  accept={BACKDROP_UPLOAD_ACCEPT}
+                  className="hidden"
+                  onChange={(e) => {
+                    void handleBackdropUpload(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                aria-label="Backdrop image URL"
+                placeholder="…or paste your own backdrop image URL"
+                className={`${inputCls(isLight)} min-w-[220px] flex-1`}
+                data-testid="world-live-bg-url"
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  const url = (e.target as HTMLInputElement).value.trim();
+                  if (!url) return;
+                  void handleBackdropUrl(url);
+                }}
+              />
+            </div>
+            {bgNote && (
+              <p className={`mt-2 text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-bg-note">{bgNote}</p>
+            )}
+            {bgMode !== "none" && (
+              <div className="mt-5 border-t border-dashed border-[#C9A84C]/25 pt-4" data-testid="world-live-bg-finetune">
+                <div className="flex items-center justify-between gap-2">
+                  <p className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Fine-tune your cutout</p>
+                  <button
+                    type="button"
+                    onClick={resetFineTune}
+                    className={`text-xs font-bold underline underline-offset-2 ${isLight ? "text-[#92600a]" : "text-amber-300"}`}
+                    data-testid="world-live-bg-finetune-reset"
+                  >
+                    Reset to standard
+                  </button>
+                </div>
+                <p className={`mt-1 text-xs ${muted}`}>
+                  Every slider applies live and stays saved on this device. Standard is the picture you already
+                  know — nothing changes until you move one.
+                </p>
+                <div className="mt-3 grid gap-x-5 gap-y-3 sm:grid-cols-2">
+                  {fineTuneSlidersForMode(bgMode).map((s) => (
+                    <label key={s.key} className="block">
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span className={`text-xs font-bold ${muted}`}>{s.label}</span>
+                        <span className={`text-xs font-black tabular-nums ${isLight ? "text-[#7A5A12]" : "text-[#fbbf24]"}`}>
+                          {s.format(fineTune[s.key])}
+                        </span>
+                      </span>
+                      <input
+                        type="range"
+                        min={s.min}
+                        max={s.max}
+                        step={s.step}
+                        value={fineTune[s.key]}
+                        aria-label={s.label}
+                        onChange={(e) => applyFineTune({ [s.key]: Number(e.target.value) })}
+                        className="mt-1 w-full accent-[#d4af37] bdv-touch-target"
+                        data-testid={`world-live-bg-finetune-${s.key}`}
+                      />
+                      <span className={`mt-0.5 block text-[11px] leading-snug ${muted}`}>{s.hint}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </LiveCard>
 
           <IngestKeySection isLight={isLight} />
           <DestinationKeysSection isLight={isLight} />
