@@ -376,7 +376,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Find sponsors & send pitch kits that land deals",
     route: "/brand-deals",
     category: "business",
-    creditCost: "100 Visual Bucs/search",
+    creditCost: "200 Visual Bucs/search",
     icon: Handshake,
   },
   {

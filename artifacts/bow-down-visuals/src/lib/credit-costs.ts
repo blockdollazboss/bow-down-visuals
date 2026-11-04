@@ -407,6 +407,40 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/social-proof/refresh": { cost: 0, feature: "Social Proof (free)" },
   "/api/storefront/claim": { cost: 0, feature: "Lead Magnet Claim (free)" },
   "/api/artist-vaults/:id/identity-photos": { cost: 0, feature: "Identity Set Photos (free)" },
+
+  // ── Price-coherence backfill (2026-11-03 census): these rails always
+  // charged; their pages/desks quoted server constants directly, so the
+  // registry (and therefore the operator KB) had no row to quote from.
+  // Each value mirrors the named server constant; the rail-truth suite
+  // pins every one. Adding a row never changes a charge — it only makes
+  // the price quotable.
+  "/api/songs/:id/remix": { cost: 300, feature: "Song Remix (Library)" }, // REMIX_CREDIT_COST, routes/songs.ts
+  "/api/llc-guide/ask": { cost: 100, feature: "LLC Guide — Ask" }, // LLC_GUIDE_CREDIT_COST
+  "/api/llc-guide/plan": { cost: 100, feature: "LLC Guide — Plan" }, // LLC_GUIDE_CREDIT_COST
+  "/api/detect/media": { cost: 200, feature: "AI Media Detector" }, // DETECTION_CREDITS, routes/generate/media-detector.ts
+  "/api/remove-video-background": { cost: 500, feature: "Remove Video Background" }, // VIDEO_BG_REMOVAL_COST
+  "/api/brand-calculator/calculate": { cost: 200, feature: "Brand Deal Calculator" }, // BRAND_CALC_CREDIT_COST
+  "/api/interview-prep/session": { cost: 200, feature: "Interview Prep — Session" }, // INTERVIEW_PREP_CREDIT_COST
+  "/api/interview-prep/feedback": { cost: 100, feature: "Interview Prep — Feedback" }, // INTERVIEW_FEEDBACK_CREDIT_COST
+  "/api/ai-interview/questions": { cost: 100, feature: "AI Interview — Questions" },
+  "/api/ai-interview/package": { cost: 200, feature: "AI Interview — Package" },
+  "/api/promo-generator": { cost: 100, feature: "Promo Generator" }, // PROMO_GENERATOR_CREDITS
+  "/api/brand-kit": { cost: 200, feature: "Brand Kit" }, // BRAND_KIT_COST (POST generate; GET is free)
+  "/api/contracts/analyze": { cost: 300, feature: "Contract Analyzer" }, // CONTRACT_ANALYSIS_CREDITS
+  "/api/cover-in-motion/animate": { cost: 400, feature: "Cover in Motion" }, // MOTION_CREDIT_COST
+  "/api/finish-my-song/complete": { cost: 400, feature: "Finish My Song" }, // FINISH_CREDIT_COST
+  "/api/rate-my-mix/analyze": { cost: 100, feature: "Rate My Mix" }, // MIX_CREDIT_COST
+  "/api/scheduler/posts": { cost: 100, feature: "Schedule Post (reservation)" }, // SCHEDULER_POST_CREDITS — reserved at booking, refunded on cancel
+  "/api/scheduler/best-time": { cost: 100, feature: "Scheduler Best Time" }, // SCHEDULER_BEST_TIME_CREDITS — distinct endpoint from /api/best-time (75)
+  "/api/ugc-ads/persona": { cost: 100, feature: "UGC Persona" }, // UGC_PERSONA_CREDIT_COST
+  "/api/ugc-ads/:id/generate": { cost: 400, feature: "UGC Video" }, // UGC_VIDEO_CREDIT_COST (= GEN45_CREDIT_COST)
+  "/api/memberships/ai-perks": { cost: 100, feature: "Membership AI Perks" }, // MEMBERSHIPS_AI_CREDITS
+  "/api/royalties/insights": { cost: 100, feature: "Royalty Insights" }, // ROYALTY_INSIGHTS_CREDITS
+  "/api/beats/:id/ai-tags": { cost: 100, feature: "AI Beat Tags" }, // BEAT_AI_TAGS_CREDIT_COST
+  "/api/contests/:id/announce": { cost: 100, feature: "Contest Winner Announcement" }, // CONTEST_ANNOUNCE_CREDIT_COST
+  "/api/distribution/metadata": { cost: 100, feature: "Distribution Metadata AI" }, // AI_CREDIT_COST, routes/generate/distribution.ts
+  "/api/distribution/strategy": { cost: 100, feature: "Distribution Strategy AI" }, // AI_CREDIT_COST, routes/generate/distribution.ts
+  "/api/distribution/releases/:id/submit": { cost: 1000, feature: "Distribution Release Submission (base tier)" }, // DISTRIBUTION_RELEASE_CREDITS base; Growth 2000 / Scale 3000 tiers via override
 };
 
 /** Flat transcription price covering the first TRANSCRIBE_INCLUDED_MINUTES. */

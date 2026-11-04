@@ -147,13 +147,20 @@ describe("Hub workflow cards (lib/hub-workflows.ts) — notes match their rails"
     expect(notesFor("A/B Test", "tab=abtest")).toEqual(["200 Visual Bucs"]);
   });
 
-  it("every cover-art panel step spans the real 100–200 model range (was 200–300)", () => {
+  it("every cover-art panel step spans the real 200–300 tier range", () => {
+    // Re-adjudicated by the 2026-11-03 price-coherence census: the
+    // cover-art rail charges COVER_ART_STANDARD_CREDITS 200 /
+    // COVER_ART_PREMIUM_CREDITS 300 per tier — 100–200 is the
+    // artist-image model range, not cover art's. The earlier pin had
+    // the two ranges swapped; the hub steps now quote the rail's tiers.
+    expect(deriveServerConstant("routes/generate/cover-art.ts", "COVER_ART_STANDARD_CREDITS")).toBe(200);
+    expect(deriveServerConstant("routes/generate/cover-art.ts", "COVER_ART_PREMIUM_CREDITS")).toBe(300);
     const cover = steps.filter((s) => s.href.includes("panel=coverart"));
     expect(cover.length).toBeGreaterThan(0);
-    for (const s of cover) expect(s.note).not.toContain("200–300");
+    for (const s of cover) expect(s.note).not.toContain("100–200");
     const ranged = cover.filter((s) => s.note.includes("–"));
     expect(ranged.map((s) => s.note)).toEqual([
-      "100–200 Visual Bucs", "100–200 Visual Bucs", "100–200 Visual Bucs", "100–200 Visual Bucs",
+      "200–300 Visual Bucs", "200–300 Visual Bucs", "200–300 Visual Bucs", "200–300 Visual Bucs",
     ]);
   });
 
@@ -183,9 +190,15 @@ describe("Hub workflow cards (lib/hub-workflows.ts) — notes match their rails"
 
   it("voiceover steps carry the per-minute unit (rail is 200/min, not flat 200)", () => {
     expect(getCreditCost("/api/voiceover/generate")?.cost).toBe(200);
-    const vo = steps.filter((s) => s.href.includes("tab=voiceover"));
-    expect(vo.length).toBe(6);
+    const vo = steps.filter((s) => s.href.includes("tab=voiceover") && s.label !== "Tag");
+    expect(vo.length).toBe(5);
     for (const s of vo) expect(s.note).toBe("200 Visual Bucs/min");
+    // The sixth step pointing at the voiceover tab is the producer Tag
+    // step — the tag maker lives on that tab but runs its own rail
+    // (/api/producer-tag, 100 flat). The 2026-11-03 census corrected
+    // its note from the voiceover unit it previously borrowed.
+    expect(getCreditCost("/api/producer-tag")?.cost).toBe(100);
+    expect(notesFor("Tag", "tab=voiceover")).toEqual(["100 Visual Bucs"]);
   });
 
   it("Translate carries the per-minute unit (rail is 500/min/language)", () => {
