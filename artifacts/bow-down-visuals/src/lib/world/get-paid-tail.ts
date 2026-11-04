@@ -120,16 +120,54 @@ export function allExportFields(kind: CatalogExportKind): string[] {
   return CATALOG_EXPORT_FIELD_OPTIONS[kind].map((f) => f.key);
 }
 
+/** The user-facing words `exportBuildProblem` composes. The desk
+ *  passes its active language's bundle (worldCatalogLibrary keys);
+ *  every other caller gets these English defaults, byte-identical
+ *  to the pre-i18n copy. */
+export interface ExportProblemStrings {
+  chooseKind: string;
+  pickField: string;
+  /** Template carrying {{kind}} (the kind's display label) and
+   *  {{fields}} (the offending field keys, comma-joined). */
+  noField: string;
+}
+
+export const EXPORT_PROBLEM_STRINGS_EN: ExportProblemStrings = {
+  chooseKind: "Choose a catalog kind — tracks, releases, videos, projects or store products.",
+  pickField: "Pick at least one field to include in the export.",
+  noField: "{{kind}} has no field called {{fields}}.",
+};
+
+/** Build the bundle from a translate function (the desk's `t`). */
+export function exportProblemStrings(translate: (key: string) => string): ExportProblemStrings {
+  return {
+    chooseKind: translate("worldCatalogLibrary.exportProblemChooseKind"),
+    pickField: translate("worldCatalogLibrary.exportProblemPickField"),
+    noField: translate("worldCatalogLibrary.exportProblemNoField"),
+  };
+}
+
+function fillExportTemplate(template: string, values: Record<string, string>): string {
+  let out = template;
+  for (const [token, value] of Object.entries(values)) out = out.split(`{{${token}}}`).join(value);
+  return out;
+}
+
 /** The desk-side refusal, in the member's words, for a build the
  *  server would 400: unknown kind, no fields picked (the rail
  *  requires at least one), or a field off the kind's whitelist. */
-export function exportBuildProblem(kind: string, fields: readonly string[]): string | null {
+export function exportBuildProblem(
+  kind: string,
+  fields: readonly string[],
+  strings: ExportProblemStrings = EXPORT_PROBLEM_STRINGS_EN,
+  kindLabel: string = exportKindLabel(kind as CatalogExportKind),
+): string | null {
   const def = (CATALOG_EXPORT_FIELD_OPTIONS as Record<string, readonly { key: string }[]>)[kind];
-  if (!def) return "Choose a catalog kind — tracks, releases, videos, projects or store products.";
-  if (fields.length === 0) return "Pick at least one field to include in the export.";
+  if (!def) return strings.chooseKind;
+  if (fields.length === 0) return strings.pickField;
   const allowed = new Set(def.map((f) => f.key));
   const bad = fields.filter((f) => !allowed.has(f));
-  if (bad.length > 0) return `${exportKindLabel(kind as CatalogExportKind)} has no field called ${bad.join(", ")}.`;
+  if (bad.length > 0) return fillExportTemplate(strings.noField, { kind: kindLabel, fields: bad.join(", ") });
   return null;
 }
 
@@ -212,13 +250,50 @@ export function parseExportBuildResult(
   return { kind, format, count, truncated: truncatedHeader, exportedAt: null };
 }
 
+/** The user-facing words `exportResultLine` composes. The desk
+ *  passes its active language's bundle (worldCatalogLibrary keys);
+ *  every other caller gets these English defaults, byte-identical
+ *  to the pre-i18n copy. */
+export interface ExportResultStrings {
+  /** Template carrying {{count}} (locale-formatted), {{kind}}
+   *  (the kind's display label, lower-cased by the composer),
+   *  {{format}} (upper-cased) and {{file}}. */
+  built: string;
+  /** Template carrying {{cap}} (locale-formatted) — appended
+   *  when the rail's row cap cut the build. */
+  capSuffix: string;
+}
+
+export const EXPORT_RESULT_STRINGS_EN: ExportResultStrings = {
+  built: "Built: {{count}} {{kind}} · {{format}} — downloading as {{file}}.",
+  capSuffix: " That hit the {{cap}}-row cap, so the file carries your newest rows only.",
+};
+
+/** Build the bundle from a translate function (the desk's `t`). */
+export function exportResultStrings(translate: (key: string) => string): ExportResultStrings {
+  return {
+    built: translate("worldCatalogLibrary.exportResultBuilt"),
+    capSuffix: translate("worldCatalogLibrary.exportResultCapSuffix"),
+  };
+}
+
 /** The desk's honest one-liner after a build: what was built, how
  *  much of it, and — when the cap cut it — that the file holds
  *  the newest 2,000 rows, not the whole kind. */
-export function exportResultLine(result: ExportBuildResult): string {
-  const base = `Built: ${result.count.toLocaleString("en-US")} ${exportKindLabel(result.kind).toLowerCase()} · ${result.format.toUpperCase()} — downloading as ${catalogFileName(result.kind, result.format)}.`;
+export function exportResultLine(
+  result: ExportBuildResult,
+  strings: ExportResultStrings = EXPORT_RESULT_STRINGS_EN,
+  kindLabel: string = exportKindLabel(result.kind),
+  locale = "en-US",
+): string {
+  const base = fillExportTemplate(strings.built, {
+    count: result.count.toLocaleString(locale),
+    kind: kindLabel.toLowerCase(),
+    format: result.format.toUpperCase(),
+    file: catalogFileName(result.kind, result.format),
+  });
   return result.truncated
-    ? `${base} That hit the ${CATALOG_EXPORT_ROW_CAP.toLocaleString("en-US")}-row cap, so the file carries your newest rows only.`
+    ? base + fillExportTemplate(strings.capSuffix, { cap: CATALOG_EXPORT_ROW_CAP.toLocaleString(locale) })
     : base;
 }
 

@@ -1,5 +1,6 @@
 import { plainErrorText } from "../../../lib/api-error";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Download, Loader2 } from "lucide-react";
 import { NativeCard } from "@/components/world/native/NativeCard";
 import { useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
@@ -13,7 +14,9 @@ import {
   exportBuildPath,
   exportBuildPayload,
   exportBuildProblem,
+  exportProblemStrings,
   exportResultLine,
+  exportResultStrings,
   parseExportBuildResult,
   type CatalogExportFormat,
   type CatalogExportKind,
@@ -39,7 +42,59 @@ import {
    is a different tool and is not this desk. The EarningsBoard
    already pitches guests, so no fetch fires for them. */
 
+/** Catalog keys for the seam's option labels — the seam keeps the
+ *  English labels as defaults; the desk renders its own language.
+ *  Field labels key by field key, except `fileUrl`, whose label
+ *  names the medium (file / audio / video link) per kind. */
+const KIND_LABEL_KEYS: Record<CatalogExportKind, string> = {
+  tracks: "worldCatalogLibrary.exportKindTracks",
+  releases: "worldCatalogLibrary.exportKindReleases",
+  videos: "worldCatalogLibrary.exportKindVideos",
+  projects: "worldCatalogLibrary.exportKindProjects",
+  store: "worldCatalogLibrary.exportKindStore",
+};
+const FORMAT_LABEL_KEYS: Record<CatalogExportFormat, string> = {
+  csv: "worldCatalogLibrary.exportFormatCsv",
+  json: "worldCatalogLibrary.exportFormatJson",
+};
+const FIELD_LABEL_KEYS: Record<string, string> = {
+  id: "worldCatalogLibrary.exportFieldId",
+  title: "worldCatalogLibrary.exportFieldTitle",
+  source: "worldCatalogLibrary.exportFieldSource",
+  durationSec: "worldCatalogLibrary.exportFieldDurationSec",
+  createdAt: "worldCatalogLibrary.exportFieldCreated",
+  artistName: "worldCatalogLibrary.exportFieldArtist",
+  status: "worldCatalogLibrary.exportFieldStatus",
+  artworkUrl: "worldCatalogLibrary.exportFieldArtworkLink",
+  thumbnailUrl: "worldCatalogLibrary.exportFieldThumbnailLink",
+  name: "worldCatalogLibrary.exportFieldName",
+  type: "worldCatalogLibrary.exportFieldType",
+  concept: "worldCatalogLibrary.exportFieldConcept",
+  templateKey: "worldCatalogLibrary.exportFieldTemplate",
+  attribution: "worldCatalogLibrary.exportFieldAttribution",
+  artistVaultId: "worldCatalogLibrary.exportFieldVaultCharacter",
+  updatedAt: "worldCatalogLibrary.exportFieldUpdated",
+  kind: "worldCatalogLibrary.exportFieldKind",
+  priceCents: "worldCatalogLibrary.exportFieldPriceCents",
+  isActive: "worldCatalogLibrary.exportFieldActive",
+  mediaUrls: "worldCatalogLibrary.exportFieldMediaLinks",
+};
+const FILE_URL_LABEL_KEYS: Record<CatalogExportKind, string> = {
+  tracks: "worldCatalogLibrary.exportFieldFileLink",
+  releases: "worldCatalogLibrary.exportFieldAudioLink",
+  videos: "worldCatalogLibrary.exportFieldVideoLink",
+  projects: "worldCatalogLibrary.exportFieldFileLink",
+  store: "worldCatalogLibrary.exportFieldFileLink",
+};
+
 export function CatalogExportDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
+  const problemStrings = exportProblemStrings(t);
+  const resultStrings = exportResultStrings(t);
+  const fieldLabel = (kind: CatalogExportKind, fieldKey: string): string =>
+    fieldKey === "fileUrl"
+      ? t(FILE_URL_LABEL_KEYS[kind])
+      : t(FIELD_LABEL_KEYS[fieldKey] ?? fieldKey);
   const authHeaders = useDeskAuthHeaders();
   const [kind, setKind] = useState<CatalogExportKind>("tracks");
   const [fields, setFields] = useState<string[]>(() => allExportFields("tracks"));
@@ -68,7 +123,7 @@ export function CatalogExportDesk({ isLight }: { isLight: boolean }) {
 
   const build = async () => {
     if (busy) return;
-    const problem = exportBuildProblem(kind, fields);
+    const problem = exportBuildProblem(kind, fields, problemStrings, t(KIND_LABEL_KEYS[kind]));
     if (problem) { setError(problem); setResult(null); return; }
     setBusy(true);
     setError(null);
@@ -81,7 +136,7 @@ export function CatalogExportDesk({ isLight }: { isLight: boolean }) {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        throw new Error(apiErrorLine(data, "Could not build that export."));
+        throw new Error(apiErrorLine(data, t("worldCatalogLibrary.exportBuildError")));
       }
       const truncatedHeader = res.headers.get("X-Export-Truncated") === "true";
       const text = await res.text();
@@ -99,44 +154,42 @@ export function CatalogExportDesk({ isLight }: { isLight: boolean }) {
         parsed ?? { kind, format, count: -1, truncated: truncatedHeader, exportedAt: null },
       );
     } catch (e) {
-      setError(plainErrorText(e, "Could not build that export."));
+      setError(plainErrorText(e, t("worldCatalogLibrary.exportBuildError")));
     } finally { setBusy(false); }
   };
 
   return (
-    <NativeCard isLight={isLight} title="Your catalog, downloadable">
+    <NativeCard isLight={isLight} title={t("worldCatalogLibrary.exportTitle")}>
       <div data-testid="world-catalog-export-desk">
         <p className={`text-xs ${muted}`}>
-          Build a file of your own catalog — one kind, the fields you pick, as a spreadsheet (CSV) or JSON.
-          The file downloads here; you stay in the room. For the everything-at-once package, that&rsquo;s the
-          full-catalog export on the website&rsquo;s settings.
+          {t("worldCatalogLibrary.exportIntro")}
         </p>
 
-        <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Catalog kind">
+        <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label={t("worldCatalogLibrary.exportAriaKind")}>
           {CATALOG_EXPORT_KIND_OPTIONS.map((o) => (
             <button key={o.kind} type="button" data-testid={`world-catalog-export-kind-${o.kind}`}
               disabled={busy} onClick={() => pickKind(o.kind)} className={chip(kind === o.kind)}>
-              {o.label}
+              {t(KIND_LABEL_KEYS[o.kind])}
             </button>
           ))}
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Export fields">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label={t("worldCatalogLibrary.exportAriaFields")}>
           {CATALOG_EXPORT_FIELD_OPTIONS[kind].map((f) => (
             <button key={f.key} type="button" data-testid={`world-catalog-export-field-${f.key}`}
               aria-pressed={fields.includes(f.key)} disabled={busy}
               onClick={() => toggleField(f.key)} className={chip(fields.includes(f.key))}>
-              {f.label}
+              {fieldLabel(kind, f.key)}
             </button>
           ))}
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Export format">
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t("worldCatalogLibrary.exportAriaFormat")}>
             {CATALOG_EXPORT_FORMAT_OPTIONS.map((o) => (
               <button key={o.format} type="button" data-testid={`world-catalog-export-format-${o.format}`}
                 disabled={busy} onClick={() => { setFormat(o.format); setResult(null); }} className={chip(format === o.format)}>
-                {o.label}
+                {t(FORMAT_LABEL_KEYS[o.format])}
               </button>
             ))}
           </div>
@@ -144,15 +197,16 @@ export function CatalogExportDesk({ isLight }: { isLight: boolean }) {
             onClick={() => void build()}
             className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-            {busy ? "Building…" : "Build & download"}
+            {busy ? t("worldCatalogLibrary.exportBuilding") : t("worldCatalogLibrary.exportBuild")}
           </button>
         </div>
 
         {result && (
           <p data-testid="world-catalog-export-result" className={`mt-2 text-xs font-semibold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>
             {result.count >= 0
-              ? exportResultLine(result)
-              : `Your ${kind} export is downloading as ${catalogFileName(kind, format)}.${result.truncated ? " It hit the export cap, so the file carries your newest rows only." : ""}`}
+              ? exportResultLine(result, resultStrings, t(KIND_LABEL_KEYS[result.kind]), i18n.language)
+              : t("worldCatalogLibrary.exportFallbackLine", { kind, file: catalogFileName(kind, format) }) +
+                (result.truncated ? t("worldCatalogLibrary.exportFallbackCapSuffix") : "")}
           </p>
         )}
         {error && <p className="mt-2 text-xs font-semibold text-red-400">{error}</p>}
