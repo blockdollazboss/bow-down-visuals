@@ -10,7 +10,7 @@
    This module is the general channel, kept deliberately small:
    a payload is a TEMPLATE/STATE REFERENCE — a slug the receiving
    desk resolves against its own libraries — never money, never a
-   price, never a charge. Three kinds exist because three desks
+   price, never a charge. Four kinds exist because four desks
    can honestly prefill today:
 
      hook-template       → the Hook Desk, hooks mode, filled from
@@ -22,6 +22,11 @@
      thumbnail-template  → the Thumbnail Desk's benches, filled
                            from the thumbnail-template library
                            (data/thumbnail-templates)
+     video-template      → the Video Desk's template bench
+                           (Stack-100 wave 4, item 27 / desk #100),
+                           preselected from the video-template
+                           catalog the editor's Templates tab reads
+                           (templates-desk.ts videoTemplatePrefill)
 
    A desk applies a payload ONLY through parsePanelPayloadFor with
    its OWN station id: a payload addressed to another desk, a kind
@@ -34,7 +39,8 @@
 export type PanelPayload =
   | { kind: "hook-template"; templateSlug: string }
   | { kind: "caption-pack"; templateSlug: string }
-  | { kind: "thumbnail-template"; templateSlug: string };
+  | { kind: "thumbnail-template"; templateSlug: string }
+  | { kind: "video-template"; templateSlug: string };
 
 type PanelPayloadKind = PanelPayload["kind"];
 
@@ -42,6 +48,7 @@ const PAYLOAD_KINDS: ReadonlySet<string> = new Set([
   "hook-template",
   "caption-pack",
   "thumbnail-template",
+  "video-template",
 ]);
 
 /** Which payload kinds each station's desk can honestly apply.
@@ -50,6 +57,7 @@ const PAYLOAD_KINDS: ReadonlySet<string> = new Set([
 const STATION_PAYLOAD_KINDS: Readonly<Record<string, ReadonlySet<PanelPayloadKind>>> = {
   "hook-desk": new Set<PanelPayloadKind>(["hook-template", "caption-pack"]),
   "thumbnail-desk": new Set<PanelPayloadKind>(["thumbnail-template"]),
+  "video-desk": new Set<PanelPayloadKind>(["video-template"]),
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -87,4 +95,12 @@ export function captionPackPayload(templateSlug: string): PanelPayload {
 /** The thumbnail-template payload (a Daily Drop thumbnail "Use"). */
 export function thumbnailTemplatePayload(templateSlug: string): PanelPayload {
   return { kind: "thumbnail-template", templateSlug };
+}
+
+/** The video-template payload (the Templates Desk's video "Use",
+ *  Stack-100 wave 4 item 27): the slug is a video-template key
+ *  from the site's catalog (data/video-templates), resolved by
+ *  the Video Desk's bench against the rail's own catalog. */
+export function videoTemplatePayload(templateSlug: string): PanelPayload {
+  return { kind: "video-template", templateSlug };
 }
