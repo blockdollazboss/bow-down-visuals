@@ -206,6 +206,7 @@ const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m
 const TeamSeatsDesk = lazy(() => import("@/components/world/native/TeamSeatsDesk").then((m) => ({ default: m.TeamSeatsDesk })));
 const MoveHomeDesk = lazy(() => import("@/components/world/native/MoveHomeDesk").then((m) => ({ default: m.MoveHomeDesk })));
 const IdentitySetsDesk = lazy(() => import("@/components/world/native/IdentitySetsDesk").then((m) => ({ default: m.IdentitySetsDesk })));
+const WebsiteBuilderDesk = lazy(() => import("@/components/world/native/WebsiteBuilderDesk").then((m) => ({ default: m.WebsiteBuilderDesk })));
 const AdminDesk = lazy(() => import("@/components/world/native/AdminDesk").then((m) => ({ default: m.AdminDesk })));
 const GiveawayContestsDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.GiveawayContestsDesk })));
 const JackpotDesk = lazy(() => import("@/components/world/native/TailDesks").then((m) => ({ default: m.JackpotDesk })));
@@ -1328,6 +1329,21 @@ export default function StationPanel(props: StationPanelProps) {
                 <DeskDoor isLight={isLight}>
                   <IdentitySetsDesk isLight={isLight} isGuest={isGuest} />
 </DeskDoor>
+                {/* Website Builder (stack100 wave 4, item 23, #97):
+                    describe a site and the AI builds the full package
+                    on the /api/website-builder rails — generate at
+                    the registry's 3,000-Buc Website Build price and
+                    conversational edits at 200 Bucs through the
+                    standing spend confirm, saved projects + version
+                    history + restore on the free projects rails, the
+                    private preview and the zip download in the room.
+                    Nothing is published or hosted on the site — the
+                    member owns the files and hosts them on their own
+                    domain, exactly as the 2D builder states. Members
+                    only, like the board itself. */}
+                <DeskDoor isLight={isLight}>
+                  <WebsiteBuilderDesk isLight={isLight} />
+                </DeskDoor>
                 {/* Admin benches (stack1500 parity wave #5, census
                     item 46): the website's /admin benches native in
                     the palace — reports, DMCA, content removal,
