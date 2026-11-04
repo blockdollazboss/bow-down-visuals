@@ -5771,7 +5771,6 @@
     "confirmLeave": "{{name}}を抜けますか?",
     "confirmRemove": "{{email}}をチームから外しますか?",
     "createTeam": "チームを作成",
-    "createTeamHint": "Shot Callerに含まれます。Visual Bucsをプールし、アーティスト保管庫を共有して、一緒に制作しましょう。",
     "createTeamTitle": "チームを作成",
     "creating": "作成中…",
     "decline": "辞退",
