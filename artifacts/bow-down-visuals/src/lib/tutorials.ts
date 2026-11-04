@@ -159,10 +159,13 @@ export function resumeChapter(
 export function resumeLabel(
   detail: Pick<TutorialDetail, "chapters">,
   progress: TutorialProgress | undefined,
+  format?: (position: number, total: number, title: string) => string,
 ): string | null {
   const chapter = resumeChapter(detail, progress);
   if (!chapter) return null;
-  return `Chapter ${chapter.position} of ${detail.chapters.length}: ${chapter.title}`;
+  return format
+    ? format(chapter.position, detail.chapters.length, chapter.title)
+    : `Chapter ${chapter.position} of ${detail.chapters.length}: ${chapter.title}`;
 }
 
 /** Plain-language search over everything the fan can see: titles,

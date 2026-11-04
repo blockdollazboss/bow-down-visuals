@@ -46,11 +46,20 @@ export class CheckoutTransportError extends Error {
  * status was received, even when the body never arrived readable),
  * say the server hit an error and name the status; only when no
  * response ever arrived is "couldn't reach the server" the truth. */
-export function checkoutFailureCopy(err: unknown): string {
+export function checkoutFailureCopy(
+  err: unknown,
+  strings?: { serverError?: (status: number) => string; unreachable?: string },
+): string {
   if (err instanceof CheckoutTransportError && err.status != null) {
-    return `The checkout server answered with an error (HTTP ${err.status}) — nothing was charged. Give it a moment and try again.`;
+    return (
+      strings?.serverError?.(err.status) ??
+      `The checkout server answered with an error (HTTP ${err.status}) — nothing was charged. Give it a moment and try again.`
+    );
   }
-  return "Couldn't reach the checkout server — nothing was charged. Give it a moment and try again.";
+  return (
+    strings?.unreachable ??
+    "Couldn't reach the checkout server — nothing was charged. Give it a moment and try again."
+  );
 }
 
 interface JsonPostResult {

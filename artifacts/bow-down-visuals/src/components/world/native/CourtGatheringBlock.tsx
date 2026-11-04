@@ -48,11 +48,11 @@ import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
  * worldCourtGathering catalog in all 10 locales (the nine
  * non-English sets are agent-drafted and UNREVIEWED). */
 
-function fmtWhen(iso: string): string {
+function fmtWhen(iso: string, language?: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleString(undefined, {
+    : d.toLocaleString(language, {
         weekday: "short",
         month: "short",
         day: "numeric",
@@ -62,7 +62,7 @@ function fmtWhen(iso: string): string {
 }
 
 export function CourtGatheringBlock({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { getAccessToken } = useAuth();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -179,7 +179,7 @@ export function CourtGatheringBlock({ isLight, isGuest }: { isLight: boolean; is
         setError(resolved.kind === "message" ? resolved.message : t(`worldCourtGathering.errors.${resolved.key}`));
         return;
       }
-      setNotice(t("worldCourtGathering.booked", { when: fmtWhen(built.body.startsAt) }));
+      setNotice(t("worldCourtGathering.booked", { when: fmtWhen(built.body.startsAt, i18n.language) }));
       setOpen(false);
       setTitle("");
       setNote("");
@@ -265,7 +265,7 @@ export function CourtGatheringBlock({ isLight, isGuest }: { isLight: boolean; is
                     {gathering.title}
                   </span>
                   <span className={`truncate text-xs ${muted}`}>
-                    {gathering.status === "live" ? t("worldCourtGathering.liveNow") : fmtWhen(gathering.startsAt)}
+                    {gathering.status === "live" ? t("worldCourtGathering.liveNow") : fmtWhen(gathering.startsAt, i18n.language)}
                     {gathering.note ? ` · ${gathering.note}` : ""}
                   </span>
                   <button
@@ -405,7 +405,7 @@ function SlateSection({
   muted: string;
   onRetry: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   if (failed) {
     return (
       <div className="space-y-2">
@@ -450,7 +450,7 @@ function SlateSection({
               {t("worldCourtGathering.liveNow")}
             </span>
           ) : (
-            <span className={`text-xs ${muted}`}>{fmtWhen(gathering.startsAt)}</span>
+            <span className={`text-xs ${muted}`}>{fmtWhen(gathering.startsAt, i18n.language)}</span>
           )}
           <span className={`w-full truncate text-xs ${muted}`}>
             {t("worldCourtGathering.calledBy", { name: gathering.hostName })}

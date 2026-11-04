@@ -70,7 +70,7 @@ const FONT_LABEL_KEYS: Record<CarouselFont, string> = {
 
 export function CarouselDesk(props: CreateDeskProps) {
   const { isLight } = props;
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const { activeArtist } = useActiveArtist();
@@ -325,8 +325,8 @@ export function CarouselDesk(props: CreateDeskProps) {
               <button type="button" aria-label={t("carouselMaker.goSlide", { n: i + 1 })} onClick={() => setActiveIdx(i)} className="bdv-touch-box px-1">
                 {i + 1}
               </button>
-              <button type="button" aria-label="move left" onClick={() => moveSlide(i, -1)} className="bdv-touch-box px-0.5">‹</button>
-              <button type="button" aria-label="move right" onClick={() => moveSlide(i, 1)} className="bdv-touch-box px-0.5">›</button>
+              <button type="button" aria-label={t("worldRemainder.carMoveLeft")} onClick={() => moveSlide(i, -1)} className="bdv-touch-box px-0.5">‹</button>
+              <button type="button" aria-label={t("worldRemainder.carMoveRight")} onClick={() => moveSlide(i, 1)} className="bdv-touch-box px-0.5">›</button>
             </span>
           ))}
           {slides.length < CAROUSEL_MAX_SLIDES && (
@@ -437,7 +437,7 @@ export function CarouselDesk(props: CreateDeskProps) {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <span data-testid="world-carousel-desk-cost" className={`text-xs font-semibold ${muted}`}>
-            Export costs {cost.toLocaleString("en-US")} Visual Bucs — shown before anything runs.
+            {t("worldRemainder.carExportCostLine", { cost: cost.toLocaleString(i18n.language) })}
           </span>
           <button
             type="button"
@@ -463,7 +463,7 @@ export function CarouselDesk(props: CreateDeskProps) {
         {filledCount === 0 && <p className={`text-xs ${muted}`}>{t("carouselMaker.fillHint")}</p>}
         {outOfCredits && (
           <p className={noteCls}>
-            You&rsquo;re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and the Carousel Desk is ready again.
+            {t("worldRemainder.carOutOfCredits")}
           </p>
         )}
         {note && <p className={noteCls}>{note}</p>}
@@ -475,7 +475,7 @@ export function CarouselDesk(props: CreateDeskProps) {
         {scheduleOpen && filledCount > 0 && (
           <div className="w-full">
             <p className={`mb-2 text-xs ${muted}`}>
-              Your slides download as PNG files on export — add the first slide&rsquo;s image link in the composer and the post carries your carousel.
+              {t("worldRemainder.carScheduleNote")}
             </p>
             <SchedulerComposeStandalone
               isLight={isLight}
@@ -499,6 +499,7 @@ function SlidePreview({ slide, bgStyle, accent, numberStyle, index, total, font,
   font: CarouselFont;
   artistName: string | null;
 }) {
+  const { t } = useTranslation();
   const fontCls = font === "serif" ? "font-serif" : font === "display" ? "font-black" : "font-sans";
   const isPaper = bgStyle === "paper";
   const bgCls: Record<string, string> = {
@@ -533,14 +534,14 @@ function SlidePreview({ slide, bgStyle, accent, numberStyle, index, total, font,
           </span>
         )}
         <p className={`${fontCls} text-2xl font-black leading-tight ${isPaper ? "text-neutral-900" : "text-white"}`}>
-          {slide?.title || <span className="opacity-25">Title</span>}
+          {slide?.title || <span className="opacity-25">{t("worldRemainder.carPreviewTitle")}</span>}
         </p>
         <div className="my-3 h-1 w-16 rounded-full" style={{ background: accent }} />
         <p className={`text-sm leading-relaxed ${isPaper ? "text-neutral-700" : "text-white/70"}`}>
-          {slide?.body || <span className="opacity-25">Body text</span>}
+          {slide?.body || <span className="opacity-25">{t("worldRemainder.carPreviewBody")}</span>}
         </p>
         <p className="absolute bottom-4 text-[9px] font-bold tracking-[0.2em]" style={{ color: isPaper ? "rgba(0,0,0,0.45)" : `${accent}cc` }}>
-          {artistName ? `${artistName.toUpperCase()} · ` : ""}MADE WITH BOW DOWN VISUALS
+          {artistName ? `${artistName.toUpperCase()} · ` : ""}{t("worldRemainder.carMadeWith")}
         </p>
       </div>
     </div>

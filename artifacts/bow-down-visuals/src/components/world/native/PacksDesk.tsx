@@ -8,13 +8,11 @@ import { TemporaryBucsNote } from "@/components/BalanceBreakdown";
 import { NativeCard } from "@/components/world/native/NativeCard";
 import {
   CREDIT_PACKS,
-  PACKS_TEST_MODE_NOTE,
   apiErrorLine,
   packCheckoutPayload,
   packCheckoutUrl,
   type CreditPack,
 } from "@/lib/world/money-desks";
-import { CHECKOUT_TRANSFER_LABEL } from "@/lib/world/shop-stands";
 import { EmbeddedPaymentForm, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { checkoutFailureCopy } from "@/lib/checkout-fetch";
 
@@ -50,7 +48,7 @@ function useAuthHeaders() {
 }
 
 export function PacksDesk({ isLight }: { isLight: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const authHeaders = useAuthHeaders();
   const { profile, refreshProfile } = useAuth();
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -83,14 +81,14 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok || !data.success) {
-        setFailed(apiErrorMessage(data, "Your payment went through — we're still confirming your Visual Bucs. Check your balance in a moment."));
+        setFailed(apiErrorMessage(data, t("worldRemainder.pakConfirming")));
         return;
       }
       setEmbedded(null);
-      setNote(`+${(typeof data.added === "number" ? data.added : 0).toLocaleString("en-US")} Visual Bucs added — paid right here in the palace.`);
+      setNote(t("worldRemainder.pakAdded", { amount: (typeof data.added === "number" ? data.added : 0).toLocaleString(i18n.language) }));
       refreshProfile();
     } catch {
-      setFailed("Your payment went through — we're still confirming your Visual Bucs. Check your balance in a moment.");
+      setFailed(t("worldRemainder.pakConfirming"));
     }
   };
 
@@ -126,18 +124,18 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
             return;
           }
           if (ires.ok) {
-            setFailed("Checkout didn't start — nothing was charged. Try again in a minute.");
+            setFailed(t("worldRemainder.pakCheckoutDidntStart"));
             return;
           }
           setFailed(
             apiErrorMessage(
               idata,
-              `The checkout server answered with an error (HTTP ${ires.status}) — nothing was charged. Give it a moment and try again.`,
+              t("worldRemainder.pakServerError", { status: ires.status }),
             ),
           );
           return;
         } catch (err) {
-          setFailed(checkoutFailureCopy(err));
+          setFailed(checkoutFailureCopy(err, { serverError: (status) => t("worldRemainder.pakServerError", { status }), unreachable: t("worldRemainder.pakUnreachable") }));
           return;
         }
       }
@@ -147,13 +145,11 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(packCheckoutPayload(pack)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Checkout failed. Please try again."));
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldRemainder.pakCheckoutFailed")));
       const url = packCheckoutUrl(data);
-      if (!url) throw new Error("Checkout didn't return a payment page — nothing was charged.");
+      if (!url) throw new Error(t("worldRemainder.pakNoPaymentPage"));
       window.open(url, "_blank", "noopener,noreferrer");
-      setNote(
-        `Checkout for ${pack.creditsLabel} opened in a new tab — finish paying there. Your Visual Bucs land the moment the payment confirms; this desk refreshes your balance when you're back.`,
-      );
+      setNote(t("worldRemainder.pakHostedNote", { label: pack.creditsLabel }));
       /* Coming back from the hosted tab: re-read the profile so a
          landed grant shows on the desk (and everywhere else). */
       const onFocus = () => {
@@ -162,7 +158,7 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
       };
       window.addEventListener("focus", onFocus);
     } catch (e) {
-      setFailed(plainErrorText(e, "Network error. Please try again."));
+      setFailed(plainErrorText(e, t("worldRemainder.pakNetworkError")));
     } finally {
       setBusyKey(null);
     }
@@ -172,21 +168,21 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
 
   return (
     <div className="space-y-3" data-testid="world-treasury-packs">
-      <NativeCard isLight={isLight} title="Visual Buc packs">
+      <NativeCard isLight={isLight} title={t("worldRemainder.pakTitle")}>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <p className={`text-xs ${muted}`}>
-            Top up right here — the same packs, the same prices, the same checkout as the website.
+            {t("worldRemainder.pakIntro")}
           </p>
           {balance !== null && (
             <span className={`ml-auto text-xs font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-              Your balance: {balance.toLocaleString("en-US")} Visual Bucs
+              {t("worldRemainder.pakBalance", { amount: balance.toLocaleString(i18n.language) })}
             </span>
           )}
         </div>
         {composition && composition.temporaryCredits > 0 && (
           <div className="mt-1.5 flex flex-col items-end gap-0.5" data-testid="world-packs-balance-split">
             <span className={`text-xs ${muted}`}>
-              {t("balance.permanent_amount", { amount: composition.permanentCredits.toLocaleString("en-US") })}
+              {t("balance.permanent_amount", { amount: composition.permanentCredits.toLocaleString(i18n.language) })}
             </span>
             <TemporaryBucsNote
               composition={composition}
@@ -196,7 +192,7 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
           </div>
         )}
         <p className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${isLight ? "border-amber-600/30 bg-amber-400/10 text-[#92600a]" : "border-yellow-500/20 bg-yellow-500/[0.06] text-yellow-200/80"}`}>
-          {PACKS_TEST_MODE_NOTE}
+          {t("worldRemainder.pakTestModeNote")}
         </p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {CREDIT_PACKS.map((pack) => (
@@ -218,7 +214,7 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
                 className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
               >
                 {busyKey === pack.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
-                {busyKey === pack.key ? "Processing…" : CHECKOUT_TRANSFER_LABEL}
+                {busyKey === pack.key ? t("worldRemainder.pakProcessing") : t("worldRemainder.pakCheckoutTransfer")}
               </button>
             </div>
           ))}
@@ -226,7 +222,7 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
         {embedded && (
           <div className="mt-4" data-testid="world-packs-embedded">
             <p className={`mb-2 text-center text-xs font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-              Finish your {embedded.label} — right here in the palace:
+              {t("worldRemainder.pakFinishHere", { label: embedded.label })}
             </p>
             <EmbeddedPaymentForm
               clientSecret={embedded.clientSecret}
@@ -239,7 +235,7 @@ export function PacksDesk({ isLight }: { isLight: boolean }) {
               onClick={() => setEmbedded(null)}
               className={`mt-2 w-full text-center text-xs bdv-touch-target ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/40 hover:text-white/70"}`}
             >
-              Cancel — no charge
+              {t("worldRemainder.pakCancelNoCharge")}
             </button>
           </div>
         )}

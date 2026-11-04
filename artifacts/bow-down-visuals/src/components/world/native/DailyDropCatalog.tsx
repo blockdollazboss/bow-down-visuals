@@ -58,6 +58,7 @@ async function apiJson<T>(
   authHeaders: () => Promise<Record<string, string>>,
   path: string,
   init?: { method?: string; body?: unknown },
+  failText?: (status: number) => string,
 ): Promise<T> {
   const res = await fetch(path, {
     method: init?.method ?? "GET",
@@ -67,15 +68,15 @@ async function apiJson<T>(
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & {
     error?: string; message?: string;
   };
-  if (!res.ok) throw new Error(apiErrorMessage(data, `Request failed (${res.status})`));
+  if (!res.ok) throw new Error(apiErrorMessage(data, failText ? failText(res.status) : `Request failed (${res.status})`));
   return data as T;
 }
 
-const KIND_LABEL: Record<DailyDropKind, string> = {
-  thumbnail: "Thumbnail template",
-  caption: "Caption pack",
-  video: "Video template",
-  hook: "Hook pack",
+const KIND_LABEL_KEY: Record<DailyDropKind, string> = {
+  thumbnail: "worldRemainder.ddcKindThumbnail",
+  caption: "worldRemainder.ddcKindCaption",
+  video: "worldRemainder.ddcKindVideo",
+  hook: "worldRemainder.ddcKindHook",
 };
 
 const useBtn =
@@ -108,7 +109,7 @@ export function DailyDropCatalog({
   const load = async () => {
     setState("loading");
     try {
-      const d = await apiJson<unknown>(authHeaders, DAILY_DROP_CATALOG_PATH);
+      const d = await apiJson<unknown>(authHeaders, DAILY_DROP_CATALOG_PATH, undefined, (status) => t("worldRemainder.ddcRequestFailed", { status }));
       const normalized = normalizeDailyDropCatalog(d);
       if (!normalized) throw new Error("bad catalogue shape");
       setCatalog(normalized);
@@ -128,30 +129,32 @@ export function DailyDropCatalog({
     setBusyKey(entry.key);
     setNote(null);
     try {
-      await apiJson(authHeaders, entry.archived ? DAILY_DROP_UNARCHIVE_PATH : DAILY_DROP_ARCHIVE_PATH, {
-        method: "POST",
-        body: { key: entry.key },
-      });
+      await apiJson(
+        authHeaders,
+        entry.archived ? DAILY_DROP_UNARCHIVE_PATH : DAILY_DROP_ARCHIVE_PATH,
+        { method: "POST", body: { key: entry.key } },
+        (status) => t("worldRemainder.ddcRequestFailed", { status }),
+      );
       /* The server confirmed — only now does the row move lists. */
       setCatalog((prev) =>
         prev ? { ...prev, drops: applyDropArchive(prev.drops, entry.key, !entry.archived) } : prev,
       );
     } catch {
-      setNote("That didn't save — your catalogue is unchanged.");
+      setNote(t("worldRemainder.ddcSaveFailed"));
     } finally {
       setBusyKey(null);
     }
   }
 
   if (state === "loading") {
-    return <NativeLoadingState isLight={isLight} message="Opening the drop catalogue…" />;
+    return <NativeLoadingState isLight={isLight} message={t("worldRemainder.ddcLoading")} />;
   }
   if (state === "failed") {
     return (
       <NativeErrorState
         isLight={isLight}
-        title="The drop catalogue wouldn't open"
-        message="Your templates are safe on the real rails — the Treasury just couldn't fetch the slate."
+        title={t("worldRemainder.ddcLoadTitle")}
+        message={t("worldRemainder.ddcLoadMessage")}
         onRetry={() => void load()}
       />
     );
@@ -168,7 +171,7 @@ export function DailyDropCatalog({
       key={entry.key}
       isLight={isLight}
       title={t(`retention.drops.${entry.key}.title`)}
-      detail={`${KIND_LABEL[entry.kind]}${entry.isToday ? " · Today's drop" : ""}`}
+      detail={`${t(KIND_LABEL_KEY[entry.kind])}${entry.isToday ? t("worldRemainder.ddcTodaySuffix") : ""}`}
       highlighted={entry.isToday}
       action={
         <span className="inline-flex items-center gap-1.5">
@@ -181,7 +184,7 @@ export function DailyDropCatalog({
                 data-testid={`world-daily-drop-use-${entry.key}`}
                 className={useBtn}
               >
-                Use <ArrowRight className="h-3.5 w-3.5" />
+                {t("worldRemainder.ddcUse")} <ArrowRight className="h-3.5 w-3.5" />
               </button>
             ) : (
               <a
@@ -191,7 +194,7 @@ export function DailyDropCatalog({
                 data-testid={`world-daily-drop-use-${entry.key}`}
                 className={useBtn}
               >
-                Use <ArrowRight className="h-3.5 w-3.5" />
+                {t("worldRemainder.ddcUse")} <ArrowRight className="h-3.5 w-3.5" />
               </a>
             );
           })()}
@@ -207,9 +210,9 @@ export function DailyDropCatalog({
             className={tidyBtn(isLight)}
           >
             {entry.archived ? (
-              <><ArchiveRestore className="h-3.5 w-3.5" /> Unarchive</>
+              <><ArchiveRestore className="h-3.5 w-3.5" /> {t("worldRemainder.ddcUnarchive")}</>
             ) : (
-              <><Archive className="h-3.5 w-3.5" /> Archive</>
+              <><Archive className="h-3.5 w-3.5" /> {t("worldRemainder.ddcArchive")}</>
             )}
           </button>
         </span>
@@ -221,12 +224,10 @@ export function DailyDropCatalog({
     <div className="space-y-4" data-testid="world-daily-drop-catalog">
       <NativeBoard
         isLight={isLight}
-        title="Drop catalogue — every template"
+        title={t("worldRemainder.ddcTitle")}
         headline={
           <p className={`px-1 text-xs ${muted}`}>
-            One template drops each day; the whole slate lives here. Use any of them whenever
-            you like, and archive the ones you don&rsquo;t want in your list — archiving only
-            tidies your own list, the shared daily rotation stays the same for everyone.
+            {t("worldRemainder.ddcHeadline")}
           </p>
         }
       >
@@ -235,8 +236,8 @@ export function DailyDropCatalog({
             isLight={isLight}
             message={
               catalog.drops.length === 0
-                ? "The catalogue is empty right now."
-                : "Every template is archived — unarchive one below to bring it back."
+                ? t("worldRemainder.ddcEmptyNow")
+                : t("worldRemainder.ddcAllArchived")
             }
           />
         ) : (
@@ -247,7 +248,7 @@ export function DailyDropCatalog({
         <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>
       )}
       {archived.length > 0 && (
-        <NativeBoard isLight={isLight} title="Archived templates">
+        <NativeBoard isLight={isLight} title={t("worldRemainder.ddcArchivedTitle")}>
           {archived.map(row)}
         </NativeBoard>
       )}
