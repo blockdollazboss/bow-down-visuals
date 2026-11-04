@@ -39,6 +39,12 @@ const WIRED_KEYS = [
      pass translated nav.publish into all nine non-en catalogs, so it
      moves into this every-locale list alongside releaseChecklist. */
   "publish", "releaseChecklist",
+  /* Stack100 wave 1 (sidebar-doors lane): the 13 missing doors' keys —
+     nav.carouselMaker pre-existed in all ten catalogs; the other
+     twelve shipped new in all ten with these doors. */
+  "tourPlanner", "setlistBuilder", "interviewPrep", "labelPitch",
+  "carouselMaker", "mediaDetector", "myMusic", "mediaImport",
+  "trending", "movies", "saved", "jewelryShop", "creatorDomains",
   "myStudio", "branding", "promote", "social", "getPaid",
 ] as const;
 
@@ -70,6 +76,21 @@ describe("findability — nav labels are the features' real names", () => {
     expect(nav.contracts).toBe("Contracts");
     expect(nav.llcGuide).toBe("LLC Guide");
     expect(nav.copyright).toBe("Copyright");
+    /* Stack100 wave 1: the 13 new doors' labels are the pages' own
+       names. */
+    expect(nav.tourPlanner).toBe("Tour Planner");
+    expect(nav.setlistBuilder).toBe("Setlist Builder");
+    expect(nav.interviewPrep).toBe("Interview Prep");
+    expect(nav.labelPitch).toBe("Label Pitch");
+    expect(nav.carouselMaker).toBe("Carousel Maker");
+    expect(nav.mediaDetector).toBe("Media Detector");
+    expect(nav.myMusic).toBe("My Music");
+    expect(nav.mediaImport).toBe("Import Media");
+    expect(nav.trending).toBe("Trending");
+    expect(nav.movies).toBe("Movies");
+    expect(nav.saved).toBe("Saved");
+    expect(nav.jewelryShop).toBe("Jewelry Shop");
+    expect(nav.creatorDomains).toBe("Creator Domains");
   });
 
   it("page titles carry the same real names in en", () => {

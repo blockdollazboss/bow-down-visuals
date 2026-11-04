@@ -109,6 +109,11 @@ import {
   Crown,
   Rocket,
   LayoutGrid,
+  GalleryHorizontal,
+  ScanSearch,
+  Upload,
+  Bookmark,
+  Globe,
   type LucideIcon,
 
 } from "lucide-react";
@@ -241,6 +246,10 @@ const SECTIONS: NavSection[] = [
       { href: "/my-projects", labelKey: "nav.myProjects", icon: FolderOpen, searchTerms: "projects my projects work" },
       { href: "/artist-vault", labelKey: "nav.creatorVault", icon: ShieldCheck, tour: "nav-artist-vault", searchTerms: "vault files safe storage" },
       { href: "/library", labelKey: "nav.library", icon: Library, searchTerms: "library saved media uploads" },
+      /* My Music + Media Import — the member's own catalogue doors
+         (Stack100 wave 1): both routes lived on page links only. */
+      { href: "/my-music", labelKey: "nav.myMusic", icon: Disc, searchTerms: "my music songs tracks albums library mine" },
+      { href: "/import", labelKey: "nav.mediaImport", icon: Upload, searchTerms: "import media upload files bring in migrate" },
       { href: "/extension", labelKey: "nav.chromeExtension", icon: Puzzle, badge: "NEW", searchTerms: "chrome extension browser" },
       { href: "/app", labelKey: "nav.getTheApp", icon: Smartphone, searchTerms: "app mobile android download phone" },
     ],
@@ -262,6 +271,11 @@ const SECTIONS: NavSection[] = [
       { href: "/audio-studio", labelKey: "nav.audioStudio", icon: AudioWaveform, searchTerms: "audio studio music sound voice podcast mastering" },
       { href: "/hooks", labelKey: "nav.hookStudio", icon: Lightbulb, searchTerms: "hook hooks studio ideas titles scripts" },
       { href: "/thumbnail-studio", labelKey: "nav.thumbnailStudio", icon: Sparkles, searchTerms: "thumbnail thumbnails studio click image duels" },
+      /* Carousel Maker + Media Detector — the two Create tools with no
+         shell door (Stack100 wave 1). Carousel Maker reuses the
+         existing nav.carouselMaker key, present in all 10 catalogs. */
+      { href: "/carousel-maker", labelKey: "nav.carouselMaker", icon: GalleryHorizontal, searchTerms: "carousel maker posts slides swipe instagram" },
+      { href: "/detector", labelKey: "nav.mediaDetector", icon: ScanSearch, searchTerms: "detector media detector ai check scan authenticity" },
       { href: "/books", labelKey: "nav.thyBooks", icon: BookOpen, searchTerms: "books book ebook read" },
     ],
   },
@@ -273,7 +287,13 @@ const SECTIONS: NavSection[] = [
       { href: "/branding-kit", labelKey: "nav.brandingKit", icon: Crown, searchTerms: "brand branding kit logo identity" },
       { href: "/storefronts", labelKey: "nav.storefronts", icon: Store, searchTerms: "store storefront shop sell" },
       { href: "/my-shop", labelKey: "nav.myShop", icon: ShoppingBag, searchTerms: "shop store my shop sell products" },
+      /* Jewelry Shop — the tracked jewelry line's storefront
+         (Stack100 wave 1); its only doors were module redirects. */
+      { href: "/jewelry-shop", labelKey: "nav.jewelryShop", icon: Gem, searchTerms: "jewelry shop rings chains gold merch pieces" },
       { href: "/nfc-cards", labelKey: "nav.nfcCards", icon: Nfc, searchTerms: "nfc cards business card tap" },
+      /* Creator Domains — the web-identity door beside NFC Cards
+         (Stack100 wave 1); linked only from artist-setup/storefronts. */
+      { href: "/creator/domains", labelKey: "nav.creatorDomains", icon: Globe, searchTerms: "domains custom domain website creator domains url" },
     ],
   },
   {
@@ -284,6 +304,10 @@ const SECTIONS: NavSection[] = [
       { href: "/scheduler", labelKey: "nav.scheduler", icon: Clock, searchTerms: "scheduler schedule calendar posts" },
       { href: "/go-live", labelKey: "nav.goLive", icon: Radio, searchTerms: "live stream streaming broadcast go live green screen background backdrop" },
       { href: "/live-shopping", labelKey: "nav.liveShopping", icon: ShoppingCart, searchTerms: "live shopping shop live sell stream" },
+      /* Tour Planner + Setlist — the show-craft doors (Stack100 wave 1):
+         both routes were reachable only from in-flow page links. */
+      { href: "/tour", labelKey: "nav.tourPlanner", icon: MapPin, searchTerms: "tour planner tour dates shows route gigs travel" },
+      { href: "/setlist", labelKey: "nav.setlistBuilder", icon: ListMusic, searchTerms: "setlist set list builder show songs order live set" },
       /* Publish — the PROMOTE hand-off step itself — gets its door
          (org wave, stack1400): the route lived inside AuthedLayout but
          was reachable only from a CTA in the player finale. Label is
@@ -293,6 +317,10 @@ const SECTIONS: NavSection[] = [
          ("publish") in sidebar search. */
       { href: "/publish", labelKey: "nav.publish", icon: Send, searchTerms: "publish release post share upload platforms" },
       { href: "/press-kit", labelKey: "nav.pressKit", icon: Newspaper, searchTerms: "press kit media kit epk bio" },
+      /* Interview Prep + Label Pitch — the press/pitch family beside
+         Press Kit (Stack100 wave 1); page links were their only doors. */
+      { href: "/interview-prep", labelKey: "nav.interviewPrep", icon: Mic2, searchTerms: "interview prep questions press media talk show" },
+      { href: "/label-pitch", labelKey: "nav.labelPitch", icon: Send, searchTerms: "label pitch record labels demo deal sign" },
       { href: "/email-list", labelKey: "nav.emailList", icon: Mail, searchTerms: "email list subscribers newsletter audience" },
     ],
   },
@@ -305,6 +333,13 @@ const SECTIONS: NavSection[] = [
       { href: "/home", labelKey: "nav.feed", icon: Newspaper, searchTerms: "feed timeline posts social" },
       { href: SHORTS_NAV_ENTRY.href, labelKey: SHORTS_NAV_ENTRY.labelKey, icon: Clapperboard, searchTerms: "shorts short video reels clips" },
       { href: "/explore", labelKey: "nav.explore", icon: Compass, searchTerms: "explore discover search browse" },
+      /* Trending + Movies + Saved — the discovery/watch doors
+         (Stack100 wave 1): Trending is the hashtag-velocity page
+         (distinct from Explore), Saved is the bookmarks home; all
+         three were page-link-only. */
+      { href: "/trending", labelKey: "nav.trending", icon: TrendingUp, searchTerms: "trending trends hashtags viral hot topics" },
+      { href: "/movies", labelKey: "nav.movies", icon: Film, searchTerms: "movies films watch cinema videos" },
+      { href: "/saved", labelKey: "nav.saved", icon: Bookmark, searchTerms: "saved bookmarks favorites collection posts" },
       { href: "/groups", labelKey: "nav.groups", icon: Users, searchTerms: "groups community fans" },
       { href: "/community", labelKey: "nav.community", icon: MessageSquareReply, searchTerms: "community manager comments superfans replies" },
       /* Pitch & Fix (UPGRADES 196): the community's idea + fix board,
