@@ -82,11 +82,77 @@ export function creatorRoomDressingVariantById(id: string | null | undefined): R
   return VARIANT_BY_ID.get(id) ?? null;
 }
 
+/* ── i18n string bundle (stack100 locale unit 48) ──────────────────
+   The composed picker words below take an optional strings
+   bundle whose defaults are the original English, byte-identical;
+   the desk builds the bundle from the worldCreatorRooms catalog
+   keys. The rung names and the variant names stay literal: they
+   are the ladder's own catalog data, pinned against the server's
+   list on both sides (see the header) — the lock template
+   carries them through as {{band}} / {{name}} data tokens. */
+
+function fillToken(template: string, token: string, value: string): string {
+  return template.split(token).join(value);
+}
+
+export interface RoomDressingStrings {
+  /** Template: {{band}} + {{name}} tokens (ladder data). */
+  lockReason: string;
+  paletteHouse: string;
+  paletteInverted: string;
+  paletteGilded: string;
+  trimBar: string;
+  trimDouble: string;
+  trimCrown: string;
+  bannerFlank: string;
+  bannerTrio: string;
+  bannerNone: string;
+}
+
+export const ROOM_DRESSING_STRINGS_EN: RoomDressingStrings = {
+  lockReason: "Unlocks at ★{{band}} {{name}} — dressing from a higher rung.",
+  paletteHouse: "House hues",
+  paletteInverted: "Swapped hues",
+  paletteGilded: "Gilded banners",
+  trimBar: "Single trim",
+  trimDouble: "Double trim",
+  trimCrown: "Crown trim",
+  bannerFlank: "Flank banners",
+  bannerTrio: "Three banners",
+  bannerNone: "Bare walls",
+};
+
+/** Build the bundle from a translate function (the desk's `t`):
+ *  every field reads its worldCreatorRooms catalog key. */
+export function roomDressingStrings(
+  translate: (key: string) => string,
+): RoomDressingStrings {
+  return {
+    lockReason: translate("worldCreatorRooms.dressingLockReason"),
+    paletteHouse: translate("worldCreatorRooms.dressingPaletteHouse"),
+    paletteInverted: translate("worldCreatorRooms.dressingPaletteInverted"),
+    paletteGilded: translate("worldCreatorRooms.dressingPaletteGilded"),
+    trimBar: translate("worldCreatorRooms.dressingTrimBar"),
+    trimDouble: translate("worldCreatorRooms.dressingTrimDouble"),
+    trimCrown: translate("worldCreatorRooms.dressingTrimCrown"),
+    bannerFlank: translate("worldCreatorRooms.dressingBannerFlank"),
+    bannerTrio: translate("worldCreatorRooms.dressingBannerTrio"),
+    bannerNone: translate("worldCreatorRooms.dressingBannerNone"),
+  };
+}
+
 /** The honest reason a variant stands locked — the same sentence
  *  the server's write refusal uses, naming the rung that opens
  *  it. */
-export function roomDressingLockReason(variant: RoomDressingVariant): string {
-  return `Unlocks at ★${variant.band} ${RUNG_NAMES[variant.band - 1]} — dressing from a higher rung.`;
+export function roomDressingLockReason(
+  variant: RoomDressingVariant,
+  strings: RoomDressingStrings = ROOM_DRESSING_STRINGS_EN,
+): string {
+  return fillToken(
+    fillToken(strings.lockReason, "{{band}}", String(variant.band)),
+    "{{name}}",
+    RUNG_NAMES[variant.band - 1]!,
+  );
 }
 
 /** A band's rung name — the ladder's word for the band, for the
@@ -96,27 +162,30 @@ export function roomDressingBandName(band: number): string {
   return RUNG_NAMES[idx]!;
 }
 
-const PALETTE_WORDS: Record<RoomDressingPalette, string> = {
-  house: "House hues",
-  inverted: "Swapped hues",
-  gilded: "Gilded banners",
+const PALETTE_WORDS: Record<RoomDressingPalette, keyof RoomDressingStrings> = {
+  house: "paletteHouse",
+  inverted: "paletteInverted",
+  gilded: "paletteGilded",
 };
-const TRIM_WORDS: Record<RoomDressingTrimStyle, string> = {
-  bar: "Single trim",
-  double: "Double trim",
-  crown: "Crown trim",
+const TRIM_WORDS: Record<RoomDressingTrimStyle, keyof RoomDressingStrings> = {
+  bar: "trimBar",
+  double: "trimDouble",
+  crown: "trimCrown",
 };
-const BANNER_WORDS: Record<RoomDressingBannerStyle, string> = {
-  flank: "Flank banners",
-  trio: "Three banners",
-  none: "Bare walls",
+const BANNER_WORDS: Record<RoomDressingBannerStyle, keyof RoomDressingStrings> = {
+  flank: "bannerFlank",
+  trio: "bannerTrio",
+  none: "bannerNone",
 };
 
 /** What a variant wears, in the picker's plain words — its three
  *  parameters, named for a person choosing a look, not an
  *  engineer reading a tuple. */
-export function roomDressingStyleWords(variant: RoomDressingVariant): string {
-  return `${PALETTE_WORDS[variant.palette]} · ${TRIM_WORDS[variant.trimStyle]} · ${BANNER_WORDS[variant.bannerStyle]}`;
+export function roomDressingStyleWords(
+  variant: RoomDressingVariant,
+  strings: RoomDressingStrings = ROOM_DRESSING_STRINGS_EN,
+): string {
+  return `${strings[PALETTE_WORDS[variant.palette]]} · ${strings[TRIM_WORDS[variant.trimStyle]]} · ${strings[BANNER_WORDS[variant.bannerStyle]]}`;
 }
 
 interface RoomDressingOption {
@@ -133,14 +202,17 @@ interface RoomDressingOption {
  *  gateStarsFor(earned, saved dial) from UserModeContext — so the
  *  grandfather rule applies here exactly as it does to every
  *  control-exposure gate. */
-export function roomDressingOptions(gateStars: number): RoomDressingOption[] {
+export function roomDressingOptions(
+  gateStars: number,
+  strings: RoomDressingStrings = ROOM_DRESSING_STRINGS_EN,
+): RoomDressingOption[] {
   const gate = Math.min(6, Math.max(1, Math.floor(gateStars) || 1));
   return CREATOR_ROOM_DRESSING_VARIANTS.map((variant) => {
     const locked = variant.band > gate;
     return {
       variant,
       locked,
-      lockReason: locked ? roomDressingLockReason(variant) : null,
+      lockReason: locked ? roomDressingLockReason(variant, strings) : null,
     };
   });
 }

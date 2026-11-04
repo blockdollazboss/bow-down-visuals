@@ -29,6 +29,65 @@ export type { CreatorRoomOfficeHours };
 
 export { creatorRoomId };
 
+/* ── i18n string bundle (stack100 locale unit 48) ──────────────────
+   The normalizer fallbacks and the invite/dressing call fallbacks
+   below take an optional strings bundle whose defaults are the
+   original English, byte-identical; the panels build the bundle
+   from the worldCreatorRooms catalog keys so the words render in
+   the walker's language. Templates carry {{token}} slots the
+   seam fills itself. (Names and titles that arrive ON the DTO are
+   data and never pass through here.) */
+
+function fillToken(template: string, token: string, value: string): string {
+  return template.split(token).join(value);
+}
+
+export interface CreatorRoomsStrings {
+  /** Template: one {{name}} token — a room's name from its host. */
+  roomName: string;
+  untitled: string;
+  creatorFallback: string;
+  hostFallback: string;
+  shopFallback: string;
+  dressingFallback: string;
+  loadInvitesFallback: string;
+  loadMembersFallback: string;
+  sendInviteFallback: string;
+  answerInviteFallback: string;
+}
+
+export const CREATOR_ROOMS_STRINGS_EN: CreatorRoomsStrings = {
+  roomName: "{{name}}'s Room",
+  untitled: "Untitled",
+  creatorFallback: "Creator",
+  hostFallback: "A creator",
+  shopFallback: "Their shop",
+  dressingFallback: "Couldn't save your room's dressing. Try again.",
+  loadInvitesFallback: "Couldn't load your invites. Try again.",
+  loadMembersFallback: "Couldn't load the member list. Try again.",
+  sendInviteFallback: "Couldn't send that invite. Try again.",
+  answerInviteFallback: "Couldn't answer that invite. Try again.",
+};
+
+/** Build the bundle from a translate function (the panel's `t`):
+ *  every field reads its worldCreatorRooms catalog key. */
+export function creatorRoomsStrings(
+  translate: (key: string) => string,
+): CreatorRoomsStrings {
+  return {
+    roomName: translate("worldCreatorRooms.roomsRoomName"),
+    untitled: translate("worldCreatorRooms.roomsUntitled"),
+    creatorFallback: translate("worldCreatorRooms.roomsCreatorFallback"),
+    hostFallback: translate("worldCreatorRooms.roomsHostFallback"),
+    shopFallback: translate("worldCreatorRooms.roomsShopFallback"),
+    dressingFallback: translate("worldCreatorRooms.dressingSaveFallback"),
+    loadInvitesFallback: translate("worldCreatorRooms.roomsLoadInvitesFallback"),
+    loadMembersFallback: translate("worldCreatorRooms.roomsLoadMembersFallback"),
+    sendInviteFallback: translate("worldCreatorRooms.inviteSendFallback"),
+    answerInviteFallback: translate("worldCreatorRooms.inviteAnswerFallback"),
+  };
+}
+
 /* ─── Wire shapes (mirrors of the server DTOs) ────────────────────── */
 
 interface CreatorRoomTheme {
@@ -226,7 +285,10 @@ export function parseCreatorRoomDressing(raw: unknown): CreatorRoomDressing | nu
   };
 }
 
-function parseSummary(raw: unknown): CreatorRoomSummary | null {
+function parseSummary(
+  raw: unknown,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
+): CreatorRoomSummary | null {
   if (!isRecord(raw)) return null;
   const slug = str(raw["slug"]);
   const displayName = str(raw["displayName"]);
@@ -234,7 +296,7 @@ function parseSummary(raw: unknown): CreatorRoomSummary | null {
   return {
     slug,
     displayName,
-    roomName: str(raw["roomName"], `${displayName}'s Room`),
+    roomName: str(raw["roomName"], fillToken(strings.roomName, "{{name}}", displayName)),
     avatarUrl: strOrNull(raw["avatarUrl"]),
     bannerUrl: strOrNull(raw["bannerUrl"]),
     theme: parseTheme(raw["theme"]),
@@ -246,19 +308,27 @@ function parseSummary(raw: unknown): CreatorRoomSummary | null {
 
 /** The rooms directory payload → clean summaries. Malformed rows
  *  drop out; a malformed body is an empty directory. */
-export function parseCreatorRoomDirectory(payload: unknown): CreatorRoomSummary[] {
+export function parseCreatorRoomDirectory(
+  payload: unknown,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
+): CreatorRoomSummary[] {
   if (!isRecord(payload) || !Array.isArray(payload["rooms"])) return [];
-  return payload["rooms"].map(parseSummary).filter((r) => r !== null);
+  return payload["rooms"]
+    .map((raw) => parseSummary(raw, strings))
+    .filter((r) => r !== null);
 }
 
-function parseTrack(raw: unknown): CreatorRoomTrack | null {
+function parseTrack(
+  raw: unknown,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
+): CreatorRoomTrack | null {
   if (!isRecord(raw)) return null;
   const id = str(raw["id"]);
   const audioUrl = str(raw["audioUrl"]);
   if (!id || !audioUrl) return null;
   return {
     id,
-    title: str(raw["title"], "Untitled"),
+    title: str(raw["title"], strings.untitled),
     audioUrl,
     artworkUrl: strOrNull(raw["artworkUrl"]),
     durationSec: num(raw["durationSec"]),
@@ -268,14 +338,17 @@ function parseTrack(raw: unknown): CreatorRoomTrack | null {
   };
 }
 
-function parseVideo(raw: unknown): CreatorRoomVideo | null {
+function parseVideo(
+  raw: unknown,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
+): CreatorRoomVideo | null {
   if (!isRecord(raw)) return null;
   const id = str(raw["id"]);
   const videoUrl = str(raw["videoUrl"]);
   if (!id || !videoUrl) return null;
   return {
     id,
-    title: str(raw["title"], "Untitled"),
+    title: str(raw["title"], strings.untitled),
     videoUrl,
     thumbnailUrl: strOrNull(raw["thumbnailUrl"]),
     durationSec: num(raw["durationSec"]),
@@ -283,7 +356,10 @@ function parseVideo(raw: unknown): CreatorRoomVideo | null {
   };
 }
 
-function parseFrontRowMember(raw: unknown): CreatorRoomFrontRowMember | null {
+function parseFrontRowMember(
+  raw: unknown,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
+): CreatorRoomFrontRowMember | null {
   if (!isRecord(raw)) return null;
   const profileId = str(raw["profileId"]);
   const slug = str(raw["slug"]);
@@ -292,7 +368,7 @@ function parseFrontRowMember(raw: unknown): CreatorRoomFrontRowMember | null {
     position: num(raw["position"]),
     profileId,
     slug,
-    displayName: str(raw["displayName"], "Creator"),
+    displayName: str(raw["displayName"], strings.creatorFallback),
     avatarUrl: strOrNull(raw["avatarUrl"]),
   };
 }
@@ -301,7 +377,10 @@ function parseFrontRowMember(raw: unknown): CreatorRoomFrontRowMember | null {
  *  dressing read. Null when the payload carries no usable room
  *  (the caller treats that like the server's 404: the room isn't
  *  open). */
-export function parseCreatorRoomDetail(payload: unknown): CreatorRoomDetail | null {
+export function parseCreatorRoomDetail(
+  payload: unknown,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
+): CreatorRoomDetail | null {
   if (!isRecord(payload) || !isRecord(payload["room"])) return null;
   const raw = payload["room"];
   const slug = str(raw["slug"]);
@@ -312,27 +391,27 @@ export function parseCreatorRoomDetail(payload: unknown): CreatorRoomDetail | nu
     roomId: str(raw["roomId"], creatorRoomId(slug)),
     slug,
     displayName,
-    roomName: str(raw["roomName"], `${displayName}'s Room`),
+    roomName: str(raw["roomName"], fillToken(strings.roomName, "{{name}}", displayName)),
     bio: typeof raw["bio"] === "string" ? raw["bio"] : "",
     avatarUrl: strOrNull(raw["avatarUrl"]),
     bannerUrl: strOrNull(raw["bannerUrl"]),
     theme: parseTheme(raw["theme"]),
     followerCount: num(raw["followerCount"]),
     occupantCount: num(raw["occupantCount"]),
-    featuredVideo: parseVideo(raw["featuredVideo"]),
-    featuredTrack: parseTrack(raw["featuredTrack"]),
+    featuredVideo: parseVideo(raw["featuredVideo"], strings),
+    featuredTrack: parseTrack(raw["featuredTrack"], strings),
     tracks: Array.isArray(raw["tracks"])
-      ? raw["tracks"].map(parseTrack).filter((t) => t !== null)
+      ? raw["tracks"].map((t) => parseTrack(t, strings)).filter((t) => t !== null)
       : [],
     frontRow: Array.isArray(raw["frontRow"])
-      ? raw["frontRow"].map(parseFrontRowMember).filter((m) => m !== null)
+      ? raw["frontRow"].map((m) => parseFrontRowMember(m, strings)).filter((m) => m !== null)
       : [],
     storefront:
       isRecord(storefrontRaw) && str(storefrontRaw["handle"])
         ? {
             id: str(storefrontRaw["id"]),
             handle: str(storefrontRaw["handle"]),
-            name: str(storefrontRaw["name"], "Their shop"),
+            name: str(storefrontRaw["name"], strings.shopFallback),
           }
         : null,
     evolution: parseCreatorRoomEvolution(raw["evolution"]),
@@ -353,10 +432,11 @@ function creatorRoomDetailPath(slug: string): string {
 
 export async function fetchCreatorRoomDirectory(
   signal?: AbortSignal,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
 ): Promise<CreatorRoomSummary[]> {
   const res = await fetch(creatorRoomsDirectoryPath(), { signal });
   if (!res.ok) throw new Error(`creator rooms directory ${res.status}`);
-  return parseCreatorRoomDirectory(await res.json());
+  return parseCreatorRoomDirectory(await res.json(), strings);
 }
 
 /** One room's data, or null when the room isn't open (the server's
@@ -366,11 +446,12 @@ export async function fetchCreatorRoomDirectory(
 export async function fetchCreatorRoomDetail(
   slug: string,
   signal?: AbortSignal,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
 ): Promise<CreatorRoomDetail | null> {
   try {
     const res = await fetch(creatorRoomDetailPath(slug), { signal });
     if (!res.ok) return null;
-    return parseCreatorRoomDetail(await res.json());
+    return parseCreatorRoomDetail(await res.json(), strings);
   } catch {
     return null;
   }
@@ -394,6 +475,7 @@ export async function putCreatorRoomDressing(
   variantId: string,
   gateStars: number,
   token: string | null,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
 ): Promise<CreatorRoomDressing> {
   const res = await fetch(creatorRoomDressingPath(slug), {
     method: "PUT",
@@ -408,11 +490,11 @@ export async function putCreatorRoomDressing(
     const message =
       payload && typeof payload["error"] === "string" && payload["error"]
         ? (payload["error"] as string)
-        : "Couldn't save your room's dressing. Try again.";
+        : strings.dressingFallback;
     throw new Error(message);
   }
   const dressing = parseCreatorRoomDressing(payload?.["dressing"]);
-  if (!dressing) throw new Error("Couldn't save your room's dressing. Try again.");
+  if (!dressing) throw new Error(strings.dressingFallback);
   return dressing;
 }
 
@@ -460,17 +542,20 @@ function parseRoomInviteStatus(v: unknown): RoomInviteStatus {
 /** One invite DTO at the boundary: an id and a room slug or it
  *  isn't an invite; an unknown status reads as still-waiting,
  *  never as an answer nobody gave. */
-export function parseWorldRoomInvite(raw: unknown): WorldRoomInvite | null {
+export function parseWorldRoomInvite(
+  raw: unknown,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
+): WorldRoomInvite | null {
   if (!isRecord(raw)) return null;
   const id = str(raw["id"]);
   const slug = str(raw["slug"]);
   if (!id || !slug) return null;
-  const hostName = str(raw["hostName"], "A creator");
+  const hostName = str(raw["hostName"], strings.hostFallback);
   return {
     id,
     roomId: str(raw["roomId"], creatorRoomId(slug)),
     slug,
-    roomName: str(raw["roomName"], `${hostName}'s Room`),
+    roomName: str(raw["roomName"], fillToken(strings.roomName, "{{name}}", hostName)),
     hostName,
     hostAvatarUrl: strOrNull(raw["hostAvatarUrl"]),
     status: parseRoomInviteStatus(raw["status"]),
@@ -481,19 +566,27 @@ export function parseWorldRoomInvite(raw: unknown): WorldRoomInvite | null {
 
 /** The mine payload → my standing invites, split by their state.
  *  Malformed rows drop out; a malformed body is no invites. */
-export function parseRoomInvitesMine(payload: unknown): {
+export function parseRoomInvitesMine(
+  payload: unknown,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
+): {
   pending: WorldRoomInvite[];
   accepted: WorldRoomInvite[];
 } {
   if (!isRecord(payload)) return { pending: [], accepted: [] };
   const parseList = (v: unknown): WorldRoomInvite[] =>
-    Array.isArray(v) ? v.map(parseWorldRoomInvite).filter((i) => i !== null) : [];
+    Array.isArray(v)
+      ? v.map((raw) => parseWorldRoomInvite(raw, strings)).filter((i) => i !== null)
+      : [];
   return { pending: parseList(payload["pending"]), accepted: parseList(payload["accepted"]) };
 }
 
 /** The candidates payload → the pickable members. A row without a
  *  user id or a slug is not a person the picker may offer. */
-export function parseRoomInviteCandidates(payload: unknown): RoomInviteCandidate[] {
+export function parseRoomInviteCandidates(
+  payload: unknown,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
+): RoomInviteCandidate[] {
   if (!isRecord(payload) || !Array.isArray(payload["members"])) return [];
   return payload["members"]
     .map((raw) => {
@@ -504,7 +597,7 @@ export function parseRoomInviteCandidates(payload: unknown): RoomInviteCandidate
       return {
         userId,
         slug,
-        displayName: str(raw["displayName"], "Creator"),
+        displayName: str(raw["displayName"], strings.creatorFallback),
         avatarUrl: strOrNull(raw["avatarUrl"]),
       };
     })
@@ -568,13 +661,14 @@ async function roomInviteCall(
  *  offers the retry. */
 export async function fetchRoomInvitesMine(
   token: string | null,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
 ): Promise<{ pending: WorldRoomInvite[]; accepted: WorldRoomInvite[] }> {
   const payload = await roomInviteCall(
     roomInvitesMinePath(),
     token,
-    "Couldn't load your invites. Try again.",
+    strings.loadInvitesFallback,
   );
-  return parseRoomInvitesMine(payload);
+  return parseRoomInvitesMine(payload, strings);
 }
 
 /** The member list the picker chooses from (the server's public
@@ -582,13 +676,14 @@ export async function fetchRoomInvitesMine(
 export async function fetchRoomInviteCandidates(
   token: string | null,
   q = "",
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
 ): Promise<RoomInviteCandidate[]> {
   const payload = await roomInviteCall(
     roomInviteCandidatesPath(q),
     token,
-    "Couldn't load the member list. Try again.",
+    strings.loadMembersFallback,
   );
-  return parseRoomInviteCandidates(payload);
+  return parseRoomInviteCandidates(payload, strings);
 }
 
 /** Send an invite from my room to one picked member. Resolves with
@@ -598,15 +693,16 @@ export async function sendRoomInvite(
   slug: string,
   inviteeUserId: string,
   token: string | null,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
 ): Promise<WorldRoomInvite> {
   const payload = await roomInviteCall(
     createRoomInvitePath(slug),
     token,
-    "Couldn't send that invite. Try again.",
+    strings.sendInviteFallback,
     { method: "POST", body: { inviteeUserId } },
   );
-  const invite = parseWorldRoomInvite(payload["invite"]);
-  if (!invite) throw new Error("Couldn't send that invite. Try again.");
+  const invite = parseWorldRoomInvite(payload["invite"], strings);
+  if (!invite) throw new Error(strings.sendInviteFallback);
   return invite;
 }
 
@@ -617,14 +713,15 @@ export async function answerRoomInvite(
   id: string,
   answer: "accept" | "decline",
   token: string | null,
+  strings: CreatorRoomsStrings = CREATOR_ROOMS_STRINGS_EN,
 ): Promise<WorldRoomInvite | null> {
   const payload = await roomInviteCall(
     answer === "accept" ? roomInviteAcceptPath(id) : roomInviteDeclinePath(id),
     token,
-    "Couldn't answer that invite. Try again.",
+    strings.answerInviteFallback,
     { method: "POST", body: {} },
   );
-  return answer === "accept" ? parseWorldRoomInvite(payload["invite"]) : null;
+  return answer === "accept" ? parseWorldRoomInvite(payload["invite"], strings) : null;
 }
 
 /* ─── Deep entry ──────────────────────────────────────────────────── */

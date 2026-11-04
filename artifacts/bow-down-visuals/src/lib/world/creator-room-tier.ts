@@ -55,17 +55,59 @@ export function creatorRoomRankLine(evolution: CreatorRoomEvolution | null): str
   return `${creatorRoomStars(evolution.stars)} ${evolution.tierName}`;
 }
 
+/* ── i18n string bundle (stack100 locale unit 48) ──────────────────
+   The composed line below takes an optional strings bundle whose
+   defaults are the original English, byte-identical, plus the
+   walker's locale for the points figure; the panels build the
+   bundle from the worldCreatorRooms catalog keys. Templates
+   carry {{token}} slots the seam fills itself. */
+
+function fillToken(template: string, token: string, value: string): string {
+  return template.split(token).join(value);
+}
+
+export interface CreatorRoomEvolutionStrings {
+  /** Appended to the stars + rung head at the ladder's top. */
+  topSuffix: string;
+  /** Template: one {{next}} token — the next rung's name (DTO data). */
+  nextLine: string;
+  /** Template: one {{points}} token — the locale-formatted figure. */
+  ptsSuffix: string;
+}
+
+export const CREATOR_ROOM_EVOLUTION_STRINGS_EN: CreatorRoomEvolutionStrings = {
+  topSuffix: " — the top of the ladder",
+  nextLine: " — next: {{next}}",
+  ptsSuffix: " · {{points}} pts to go",
+};
+
+/** Build the bundle from a translate function (the panel's `t`):
+ *  every field reads its worldCreatorRooms catalog key. */
+export function creatorRoomEvolutionStrings(
+  translate: (key: string) => string,
+): CreatorRoomEvolutionStrings {
+  return {
+    topSuffix: translate("worldCreatorRooms.evoTopSuffix"),
+    nextLine: translate("worldCreatorRooms.evoNext"),
+    ptsSuffix: translate("worldCreatorRooms.evoPts"),
+  };
+}
+
 /** The panels' evolution line: where the room stands and what
  *  stands next — the next rung's name and (when the server
  *  measured one) the points still needed. At the top of the
  *  ladder it says so. Null when unmeasured. */
-export function creatorRoomEvolutionLine(evolution: CreatorRoomEvolution | null): string | null {
+export function creatorRoomEvolutionLine(
+  evolution: CreatorRoomEvolution | null,
+  strings: CreatorRoomEvolutionStrings = CREATOR_ROOM_EVOLUTION_STRINGS_EN,
+  locale: string = "en-US",
+): string | null {
   if (!evolution) return null;
   const head = `${creatorRoomStars(evolution.stars)} ${evolution.tierName}`;
-  if (!evolution.nextTierName) return `${head} — the top of the ladder`;
+  if (!evolution.nextTierName) return `${head}${strings.topSuffix}`;
   const pts =
     evolution.pointsNeeded !== null && evolution.pointsNeeded > 0
-      ? ` · ${evolution.pointsNeeded.toLocaleString("en-US")} pts to go`
+      ? fillToken(strings.ptsSuffix, "{{points}}", evolution.pointsNeeded.toLocaleString(locale))
       : "";
-  return `${head} — next: ${evolution.nextTierName}${pts}`;
+  return `${head}${fillToken(strings.nextLine, "{{next}}", evolution.nextTierName)}${pts}`;
 }

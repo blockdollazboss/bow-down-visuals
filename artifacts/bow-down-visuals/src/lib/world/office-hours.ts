@@ -119,6 +119,82 @@ export function currentOrNextSession(
   return open[0] ?? null;
 }
 
+/* ─── i18n string bundle (stack100 locale unit 48) ──────────────────
+   The composed lines below take an optional strings bundle whose
+   defaults are the original English, byte-identical, plus the
+   walker's locale for the clock words; the room panel builds the
+   bundle from the worldCreatorRooms catalog keys. Templates
+   carry {{token}} slots the seam fills itself. (The default
+   session title "Office hours" in the parsers/booking builder
+   stays literal: it is stored data — the event's title on the
+   palace calendar — not display copy composed here.) */
+
+function fillToken(template: string, token: string, value: string): string {
+  return template.split(token).join(value);
+}
+
+export interface OfficeHoursStrings {
+  /** Template: one {{host}} token. */
+  markerHeadline: string;
+  /** Template: one {{note}} token — the session's own note (data). */
+  markerNote: string;
+  /** Template: {{title}} + {{note}} + {{time}} tokens. */
+  markerInSession: string;
+  /** Template: {{title}} + {{note}} + {{when}} tokens. */
+  markerNext: string;
+  today: string;
+  errPickStart: string;
+  errDuration: string;
+  errPast: string;
+  errTooFar: string;
+  errSlotTaken: string;
+  errSignIn: string;
+  errNotYours: string;
+  errBadFit: string;
+  errFallback: string;
+}
+
+export const OFFICE_HOURS_STRINGS_EN: OfficeHoursStrings = {
+  markerHeadline: "Office hours — {{host}}",
+  markerNote: " — {{note}}",
+  markerInSession:
+    "{{title}}{{note}} · in session until {{time}} — the room is open, come in and ask.",
+  markerNext: "{{title}}{{note}} · next session {{when}}.",
+  today: "Today",
+  errPickStart: "Pick a start time for the session.",
+  errDuration: "A session runs between 5 minutes and 4 hours.",
+  errPast: "That start time is already past — pick the next hour.",
+  errTooFar: "Sessions book at most 30 days ahead.",
+  errSlotTaken: "Your room already has something booked in that window — pick another hour.",
+  errSignIn: "Sign in to book your office hours.",
+  errNotYours: "That booking isn't yours to make.",
+  errBadFit: "That session doesn't fit the calendar's rules — check the time and length.",
+  errFallback: "The booking wouldn't land — try again.",
+};
+
+/** Build the bundle from a translate function (the panel's `t`):
+ *  every field reads its worldCreatorRooms catalog key. */
+export function officeHoursStrings(
+  translate: (key: string) => string,
+): OfficeHoursStrings {
+  return {
+    markerHeadline: translate("worldCreatorRooms.officeMarkerHeadline"),
+    markerNote: translate("worldCreatorRooms.officeMarkerNotePrefix"),
+    markerInSession: translate("worldCreatorRooms.officeMarkerInSession"),
+    markerNext: translate("worldCreatorRooms.officeMarkerNext"),
+    today: translate("worldCreatorRooms.officeToday"),
+    errPickStart: translate("worldCreatorRooms.officeErrPickStart"),
+    errDuration: translate("worldCreatorRooms.officeErrDuration"),
+    errPast: translate("worldCreatorRooms.officeErrPast"),
+    errTooFar: translate("worldCreatorRooms.officeErrTooFar"),
+    errSlotTaken: translate("worldCreatorRooms.officeErrSlotTaken"),
+    errSignIn: translate("worldCreatorRooms.officeSignInBook"),
+    errNotYours: translate("worldCreatorRooms.officeErrNotYours"),
+    errBadFit: translate("worldCreatorRooms.officeErrBadFit"),
+    errFallback: translate("worldCreatorRooms.officeBookFailed"),
+  };
+}
+
 /* ─── The marker ──────────────────────────────────────────────────── */
 
 interface OfficeHoursMarker {
@@ -128,13 +204,18 @@ interface OfficeHoursMarker {
   detail: string;
 }
 
-function fmtTime(iso: string): string {
+function fmtTime(iso: string, locale: string = "en-US"): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return d.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
 }
 
-function fmtDayTime(iso: string, nowMs: number): string {
+function fmtDayTime(
+  iso: string,
+  nowMs: number,
+  locale: string = "en-US",
+  todayWord: string = "Today",
+): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   const now = new Date(nowMs);
@@ -143,9 +224,9 @@ function fmtDayTime(iso: string, nowMs: number): string {
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate();
   const day = sameDay
-    ? "Today"
-    : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-  return `${day} · ${fmtTime(iso)}`;
+    ? todayWord
+    : d.toLocaleDateString(locale, { weekday: "short", month: "short", day: "numeric" });
+  return `${day} · ${fmtTime(iso, locale)}`;
 }
 
 /** The room marker's words. The headline is the schedule talking:
@@ -157,6 +238,8 @@ export function officeHoursMarker(
   session: { title: string; note: string | null; startsAt: string; endsAt: string } | null,
   hostName: string,
   nowMs: number,
+  strings: OfficeHoursStrings = OFFICE_HOURS_STRINGS_EN,
+  locale: string = "en-US",
 ): OfficeHoursMarker | null {
   if (!session) return null;
   const start = Date.parse(session.startsAt);
@@ -164,18 +247,31 @@ export function officeHoursMarker(
   if (Number.isNaN(start) || Number.isNaN(end) || end <= nowMs) return null;
   const inSession = start <= nowMs;
   const host = hostName.trim() || "Creator";
-  const notePart = session.note ? ` — ${session.note}` : "";
+  const notePart = session.note ? fillToken(strings.markerNote, "{{note}}", session.note) : "";
+  const headline = fillToken(strings.markerHeadline, "{{host}}", host);
   if (inSession) {
     return {
       inSession: true,
-      headline: `Office hours — ${host}`,
-      detail: `${session.title}${notePart} · in session until ${fmtTime(session.endsAt)} — the room is open, come in and ask.`,
+      headline,
+      detail: fillToken(
+        fillToken(
+          fillToken(strings.markerInSession, "{{title}}", session.title),
+          "{{note}}",
+          notePart,
+        ),
+        "{{time}}",
+        fmtTime(session.endsAt, locale),
+      ),
     };
   }
   return {
     inSession: false,
-    headline: `Office hours — ${host}`,
-    detail: `${session.title}${notePart} · next session ${fmtDayTime(session.startsAt, nowMs)}.`,
+    headline,
+    detail: fillToken(
+      fillToken(fillToken(strings.markerNext, "{{title}}", session.title), "{{note}}", notePart),
+      "{{when}}",
+      fmtDayTime(session.startsAt, nowMs, locale, strings.today),
+    ),
   };
 }
 
@@ -184,8 +280,10 @@ export function officeHoursMarker(
 export function officeHoursSessionWhen(
   session: { startsAt: string; endsAt: string },
   nowMs: number,
+  strings: OfficeHoursStrings = OFFICE_HOURS_STRINGS_EN,
+  locale: string = "en-US",
 ): string {
-  return `${fmtDayTime(session.startsAt, nowMs)} – ${fmtTime(session.endsAt)}`;
+  return `${fmtDayTime(session.startsAt, nowMs, locale, strings.today)} – ${fmtTime(session.endsAt, locale)}`;
 }
 
 /* ─── Booking (the host's form) ───────────────────────────────────── */
@@ -220,25 +318,30 @@ type BookingBuild =
     }
   | { ok: false; error: string };
 
-export function buildOfficeHoursBooking(slug: string, form: OfficeHoursForm, nowMs: number): BookingBuild {
+export function buildOfficeHoursBooking(
+  slug: string,
+  form: OfficeHoursForm,
+  nowMs: number,
+  strings: OfficeHoursStrings = OFFICE_HOURS_STRINGS_EN,
+): BookingBuild {
   const title = form.title.trim().slice(0, 120) || "Office hours";
   const note = form.note.trim().slice(0, 140);
   const start = new Date(form.startLocal);
   if (Number.isNaN(start.getTime())) {
-    return { ok: false, error: "Pick a start time for the session." };
+    return { ok: false, error: strings.errPickStart };
   }
   if (
     !Number.isFinite(form.durationMin) ||
     form.durationMin < OFFICE_HOURS_MIN_DURATION_MIN ||
     form.durationMin > OFFICE_HOURS_MAX_DURATION_MIN
   ) {
-    return { ok: false, error: "A session runs between 5 minutes and 4 hours." };
+    return { ok: false, error: strings.errDuration };
   }
   if (start.getTime() < nowMs - OFFICE_HOURS_MIN_DURATION_MIN * 60_000) {
-    return { ok: false, error: "That start time is already past — pick the next hour." };
+    return { ok: false, error: strings.errPast };
   }
   if (start.getTime() > nowMs + OFFICE_HOURS_MAX_AHEAD_MS) {
-    return { ok: false, error: "Sessions book at most 30 days ahead." };
+    return { ok: false, error: strings.errTooFar };
   }
   const end = new Date(start.getTime() + form.durationMin * 60_000);
   return {
@@ -279,18 +382,22 @@ function toLocalValue(d: Date): string {
 /** Booking refusals in plain words. The server's own message is
  *  already honest copy — it wins whenever it arrives; the map only
  *  covers the codes whose raw form is a code, not a sentence. */
-export function officeHoursErrorCopy(status: number, body: unknown): string {
+export function officeHoursErrorCopy(
+  status: number,
+  body: unknown,
+  strings: OfficeHoursStrings = OFFICE_HOURS_STRINGS_EN,
+): string {
   const rec = isRecord(body) ? body : {};
   const code = typeof rec["error"] === "string" ? rec["error"] : "";
   const message = typeof rec["message"] === "string" ? rec["message"] : "";
   if (code === "SLOT_TAKEN") {
-    return "Your room already has something booked in that window — pick another hour.";
+    return strings.errSlotTaken;
   }
   if (message) return message;
-  if (status === 401) return "Sign in to book your office hours.";
-  if (status === 403) return "That booking isn't yours to make.";
-  if (status === 400) return "That session doesn't fit the calendar's rules — check the time and length.";
-  return "The booking wouldn't land — try again.";
+  if (status === 401) return strings.errSignIn;
+  if (status === 403) return strings.errNotYours;
+  if (status === 400) return strings.errBadFit;
+  return strings.errFallback;
 }
 
 /* ─── Endpoints ───────────────────────────────────────────────────── */

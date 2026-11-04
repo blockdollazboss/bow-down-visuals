@@ -231,7 +231,9 @@ export function crownedAwards(year: CrownYear): CrownAward[] {
   return year.awards.filter((a) => a.winnerUserId !== null);
 }
 
-/** "12 sales" — the deciding number with its published unit. */
-export function crownMetricLabel(award: CrownAward): string {
-  return `${award.metricValue.toLocaleString("en-US")} ${award.metricLabel}`;
+/** "12 sales" — the deciding number with its published unit.
+ *  The unit word rides the server's record (data); only the
+ *  figure formats, in the walker's locale (stack100 unit 48). */
+export function crownMetricLabel(award: CrownAward, locale: string = "en-US"): string {
+  return `${award.metricValue.toLocaleString(locale)} ${award.metricLabel}`;
 }
