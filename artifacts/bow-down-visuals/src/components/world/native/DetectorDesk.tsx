@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Bot, FileSearch, HelpCircle, Link2, Loader2, Upload, UserCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,7 +13,6 @@ import {
   DETECTOR_FRAME_COUNT,
   DETECTOR_MAX_FILE_BYTES,
   DETECTOR_PATH,
-  DETECTOR_VERDICT_LABELS,
   buildDetectAudioForm,
   buildDetectFramesPayload,
   buildDetectImageForm,
@@ -48,10 +48,19 @@ import {
 
 type DetectorMode = "url" | "file";
 
-const MODES: ReadonlyArray<{ key: DetectorMode; label: string; icon: LucideIcon }> = [
-  { key: "url", label: "Image URL", icon: Link2 },
-  { key: "file", label: "Upload a file", icon: Upload },
+/* The mode labels render through the catalogs (unit 49) — the
+   table keeps the mode keys + icons; the component key-maps the
+   label, exactly the seam-label-table pattern. */
+const MODES: ReadonlyArray<{ key: DetectorMode; labelKey: string; icon: LucideIcon }> = [
+  { key: "url", labelKey: "worldIdentityMisc.detModeUrl", icon: Link2 },
+  { key: "file", labelKey: "worldIdentityMisc.detModeFile", icon: Upload },
 ];
+
+const VERDICT_LABEL_KEYS: Record<DetectorVerdict, string> = {
+  likely_ai: "worldIdentityMisc.detVerdictAi",
+  likely_human: "worldIdentityMisc.detVerdictHuman",
+  uncertain: "worldIdentityMisc.detVerdictUncertain",
+};
 
 const VERDICT_ICONS: Record<DetectorVerdict, LucideIcon> = {
   likely_ai: Bot,
@@ -144,6 +153,7 @@ function readAudioDuration(file: File): Promise<{ durationSec?: number }> {
 
 export function DetectorDesk(props: CreateDeskProps) {
   const { isLight } = props;
+  const { t, i18n } = useTranslation();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -190,13 +200,13 @@ export function DetectorDesk(props: CreateDeskProps) {
     if (!kind) {
       setFile(null);
       setFileKind(null);
-      setFileError("That file isn't an image, video, or audio file — the detector reads those three.");
+      setFileError(t("worldIdentityMisc.detFileWrongKind"));
       return;
     }
     if (picked.size > DETECTOR_MAX_FILE_BYTES) {
       setFile(null);
       setFileKind(null);
-      setFileError("That file is over the detector's 25 MB limit — the same limit the website sets.");
+      setFileError(t("worldIdentityMisc.detFileTooBig"));
       return;
     }
     setFile(picked);
@@ -256,19 +266,19 @@ export function DetectorDesk(props: CreateDeskProps) {
       }
       if (!res.ok) {
         const d = data as { message?: string; error?: string };
-        setNote(apiErrorMessage(d, "The check didn't go through — a failed check is refunded. Try again."));
+        setNote(apiErrorMessage(d, t("worldIdentityMisc.detFailedRefund")));
         return;
       }
       const parsed = detectionResultOfResponse(data);
       if (!parsed) {
-        setNote("The verdict came back unreadable — a failed check is refunded. Try again.");
+        setNote(t("worldIdentityMisc.detUnreadable"));
         return;
       }
       setResult(parsed);
       setHistory((h) => pushDetectorHistory(h, { label: parsed.label || label, kind: parsed.mediaKind, result: parsed }));
       refreshProfile();
     } catch {
-      setNote("The check didn't go through — a failed check is refunded. Try again.");
+      setNote(t("worldIdentityMisc.detFailedRefund"));
     } finally {
       setBusy(false);
     }
@@ -285,8 +295,8 @@ export function DetectorDesk(props: CreateDeskProps) {
 
   return (
     <div className="space-y-3" data-testid="world-create-detector-desk">
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Detector Desk tools">
-        {MODES.map(({ key, label, icon: Icon }) => (
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldIdentityMisc.detToolsLabel")}>
+        {MODES.map(({ key, labelKey, icon: Icon }) => (
           <button
             key={key}
             type="button"
@@ -296,7 +306,7 @@ export function DetectorDesk(props: CreateDeskProps) {
             onClick={() => switchMode(key)}
             className={chipCls(mode === key)}
           >
-            <Icon className="h-3.5 w-3.5" /> {label}
+            <Icon className="h-3.5 w-3.5" /> {t(labelKey)}
           </button>
         ))}
       </div>
@@ -305,13 +315,13 @@ export function DetectorDesk(props: CreateDeskProps) {
         <div className="space-y-2">
           <DeskTextField
             isLight={isLight}
-            label="Image URL"
+            label={t("worldIdentityMisc.detModeUrl")}
             value={mediaUrl}
             onChange={setMediaUrl}
-            placeholder="https://…/image.png — a direct link to the image"
+            placeholder={t("worldIdentityMisc.detUrlPlaceholder")}
           />
           <p className={`text-xs ${muted}`}>
-            The URL check reads images — for video or audio, upload the file instead.
+            {t("worldIdentityMisc.detUrlNote")}
           </p>
         </div>
       )}
@@ -319,7 +329,7 @@ export function DetectorDesk(props: CreateDeskProps) {
       {mode === "file" && (
         <div className="space-y-2">
           <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            Image, video, or audio file (25 MB max)
+            {t("worldIdentityMisc.detFileLabel")}
           </span>
           <input
             ref={fileRef}
@@ -335,13 +345,13 @@ export function DetectorDesk(props: CreateDeskProps) {
             onClick={() => fileRef.current?.click()}
             className={chipCls(false)}
           >
-            <Upload className="h-3.5 w-3.5" /> {file ? "Choose a different file" : "Choose a file"}
+            <Upload className="h-3.5 w-3.5" /> {file ? t("worldIdentityMisc.detPickAnother") : t("worldIdentityMisc.detPick")}
           </button>
           {file && (
             <p className={`text-xs ${muted}`}>
-              {file.name} — {fileKind} · {(file.size / 1024 / 1024).toFixed(1)} MB
-              {fileKind === "video" ? " · 3 frames are pulled from the video here in the panel, like the website does" : ""}
-              {fileKind === "audio" ? " · audio is judged on its file fingerprint, not a listen — the verdict says so" : ""}
+              {t("worldIdentityMisc.detFileMeta", { name: file.name, kind: fileKind ?? "", size: (file.size / 1024 / 1024).toFixed(1) })}
+              {fileKind === "video" ? t("worldIdentityMisc.detFileVideoNote") : ""}
+              {fileKind === "audio" ? t("worldIdentityMisc.detFileAudioNote") : ""}
             </p>
           )}
           {fileError && (
@@ -352,7 +362,7 @@ export function DetectorDesk(props: CreateDeskProps) {
 
       <div className="flex flex-wrap items-center gap-3">
         <span data-testid="world-detector-desk-cost" className={`text-xs font-semibold ${muted}`}>
-          Costs {DETECTOR_COST_VISUAL_BUCS.toLocaleString("en-US")} Visual Bucs — shown before anything runs.
+          {t("worldIdentityMisc.detCostLine", { cost: DETECTOR_COST_VISUAL_BUCS.toLocaleString(i18n.language) })}
         </span>
         <button
           type="button"
@@ -362,19 +372,19 @@ export function DetectorDesk(props: CreateDeskProps) {
           className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSearch className="h-4 w-4" />}
-          {busy ? "Checking…" : "Run the check"}
+          {busy ? t("worldIdentityMisc.checking") : t("worldIdentityMisc.detRun")}
         </button>
       </div>
       {!ready && (
         <p className={`text-xs ${muted}`}>
           {mode === "url"
-            ? "Paste a direct image URL first — the check stays shut (and uncharged) until it looks like one."
-            : "Choose a file first — the check stays shut (and uncharged) until one is picked."}
+            ? t("worldIdentityMisc.detNeedUrl")
+            : t("worldIdentityMisc.detNeedFile")}
         </p>
       )}
       {outOfCredits && (
         <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-          You&rsquo;re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and the Detector Desk is ready again.
+          {t("worldIdentityMisc.detOutOfCredits")}
         </p>
       )}
       {note && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
@@ -385,29 +395,29 @@ export function DetectorDesk(props: CreateDeskProps) {
             <div className="flex flex-wrap items-center gap-2">
               <VerdictIcon className="h-5 w-5" />
               <p className={`text-lg font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                {DETECTOR_VERDICT_LABELS[result.verdict]}
+                {t(VERDICT_LABEL_KEYS[result.verdict])}
               </p>
               <span className={`ml-auto text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                {result.confidence}% confidence
+                {t("worldIdentityMisc.detConfidence", { confidence: result.confidence })}
               </span>
             </div>
             <div className={`mt-2 h-2 overflow-hidden rounded-full ${isLight ? "bg-black/10" : "bg-white/10"}`}>
               <div className={`h-full rounded-full ${barCls}`} style={{ width: `${result.confidence}%` }} />
             </div>
             <p className={`mt-2 text-sm ${muted}`}>{result.summary}</p>
-            {result.label && <p className={`mt-1 text-xs ${muted}`}>Checked: {result.label}</p>}
+            {result.label && <p className={`mt-1 text-xs ${muted}`}>{t("worldIdentityMisc.detChecked", { label: result.label })}</p>}
           </div>
           {result.signals.length > 0 && (
             <div className="space-y-2">
               <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                What the check found ({result.signals.length})
+                {t("worldIdentityMisc.detSignalsTitle", { count: result.signals.length })}
               </p>
               {result.signals.map((s, i) => (
                 <div key={`${s.name}-${i}`} className={`rounded-xl border px-3 py-2 text-sm ${cardCls}`}>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-bold">{s.name}</p>
                     <span className={chipCls(false)}>{s.severity}</span>
-                    <span className={`text-xs font-bold ${muted}`}>{s.supportsAi ? "points to AI" : "points to human"}</span>
+                    <span className={`text-xs font-bold ${muted}`}>{s.supportsAi ? t("mediaDetector.pointsToAi") : t("mediaDetector.pointsToHuman")}</span>
                   </div>
                   {s.description && <p className={`mt-1 ${muted}`}>{s.description}</p>}
                 </div>
@@ -416,7 +426,7 @@ export function DetectorDesk(props: CreateDeskProps) {
           )}
           {result.frameNotes.length > 0 && (
             <div className={`rounded-xl border px-3 py-2 text-sm ${cardCls}`}>
-              <p className="font-bold">Frame notes</p>
+              <p className="font-bold">{t("worldIdentityMisc.detFrameNotes")}</p>
               {result.frameNotes.map((n, i) => (
                 <p key={i} className={muted}>
                   {n}
@@ -435,7 +445,7 @@ export function DetectorDesk(props: CreateDeskProps) {
             }}
             className={chipCls(false)}
           >
-            Check another piece
+            {t("worldIdentityMisc.detCheckAnother")}
           </button>
         </div>
       )}
@@ -443,7 +453,7 @@ export function DetectorDesk(props: CreateDeskProps) {
       {history.length > 0 && (
         <div>
           <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            This session
+            {t("worldIdentityMisc.detSessionTitle")}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {history.map((entry, i) => (
@@ -453,7 +463,7 @@ export function DetectorDesk(props: CreateDeskProps) {
                 onClick={() => setResult(entry.result)}
                 className={chipCls(result === entry.result)}
               >
-                {DETECTOR_VERDICT_LABELS[entry.result.verdict]}: {entry.label || "check"}
+                {t(VERDICT_LABEL_KEYS[entry.result.verdict])}: {entry.label || t("worldIdentityMisc.detHistoryFallback")}
               </button>
             ))}
           </div>

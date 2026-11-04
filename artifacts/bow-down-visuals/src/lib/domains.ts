@@ -103,7 +103,30 @@ interface ResolveResult {
 export const CNAME_TARGET: string =
   (import.meta.env["VITE_DOMAINS_CNAME_TARGET"] as string | undefined) ?? "cname.bowdownvisuals.com";
 
-export function dnsInstructionsFor(hostname: string, token: string): DnsInstructions {
+/* ─── DNS instruction strings (stack100 locale unit 49) ──────────
+   The two prose lines the World DomainsDesk renders ride the
+   catalogs under worldIdentityMisc.* (the desk passes its
+   bundle); the EN defaults are the original wording verbatim, so
+   the 2D page (which passes no bundle) reads exactly what it read
+   before. The record notes stay literal here — neither surface
+   renders them. */
+
+export interface DnsInstructionStrings {
+  sslNote: string;
+  placeholderWarning: string;
+}
+
+export const DNS_INSTRUCTION_STRINGS_EN: DnsInstructionStrings = {
+  sslNote: "We handle SSL automatically — your site gets HTTPS the moment the domain goes live. No certificates to buy or install. 🦈",
+  placeholderWarning:
+    "Heads up: the platform CNAME target is still the placeholder — our crew is wiring up the real target. Your TXT record already proves ownership.",
+};
+
+export function dnsInstructionsFor(
+  hostname: string,
+  token: string,
+  strings: DnsInstructionStrings = DNS_INSTRUCTION_STRINGS_EN,
+): DnsInstructions {
   return {
     cname: {
       type: "CNAME",
@@ -117,10 +140,10 @@ export function dnsInstructionsFor(hostname: string, token: string): DnsInstruct
       value: `bdv-verify=${token}`,
       note: "Proves you own the domain. It can stay forever.",
     },
-    ssl_note: "We handle SSL automatically — your site gets HTTPS the moment the domain goes live. No certificates to buy or install. 🦈",
+    ssl_note: strings.sslNote,
     placeholder_warning:
       CNAME_TARGET === "cname.bowdownvisuals.com"
-        ? "Heads up: the platform CNAME target is still the placeholder — our crew is wiring up the real target. Your TXT record already proves ownership."
+        ? strings.placeholderWarning
         : null,
   };
 }

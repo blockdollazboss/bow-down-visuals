@@ -52,7 +52,7 @@ describe("P3-F succession desk contracts", () => {
     expect(successionDesk).toContain("designationPayload(heir, instructions)");
     expect(successionDesk).toContain('method: "DELETE"');
     expect(successionDesk).toContain("parseLegacyDesignationState(await res.json())");
-    expect(successionDesk).toContain("legacyDesignationLine(state)");
+    expect(successionDesk).toContain("legacyDesignationLine(state, successionStrings)");
     expect(successionDesk).toContain('data-testid="world-succession-desk"');
     expect(successionDesk).toContain('data-testid="world-succession-save"');
   });
@@ -69,7 +69,7 @@ describe("P3-F succession desk contracts", () => {
     expect(successionDesk).toContain("fetch(legacyContactPath(), { headers: await authHeaders() })");
     expect(successionDesk).toContain('method: "PUT"');
     expect(successionDesk).toContain("legacyContactPayload(cName, cEmail, cNote)");
-    expect(successionDesk).toContain("legacyContactProblem(cName, cEmail, cNote)");
+    expect(successionDesk).toContain("legacyContactProblem(cName, cEmail, cNote, successionStrings)");
     expect(successionDesk).toContain('data-testid="world-legacy-contact-desk"');
     expect(successionDesk).toContain('data-testid="world-legacy-contact-remove-confirm"');
   });

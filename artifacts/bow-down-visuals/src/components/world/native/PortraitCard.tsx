@@ -1,5 +1,6 @@
 import { apiErrorMessage } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Crown, Play, Plus, Check, Loader2, ShoppingBag, Ticket } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -50,6 +51,7 @@ function SummaryRows({ title, icon, rows, empty, isLight }: {
   empty: string;
   isLight: boolean;
 }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   return (
     <div>
@@ -58,7 +60,7 @@ function SummaryRows({ title, icon, rows, empty, isLight }: {
       </p>
       {rows === null ? (
         <p className={`inline-flex items-center gap-2 text-xs ${muted}`}>
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> Checking…
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldIdentityMisc.checking")}
         </p>
       ) : rows.length === 0 ? (
         <p className={`text-xs ${muted}`}>{empty}</p>
@@ -86,6 +88,7 @@ export function PortraitCard({
   onPlayTrack: (trackId: string) => void;
   onBack: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useAuthHeaders();
   const { user } = useAuth();
   const [card, setCard] = useState<PortraitCardData | null>(null);
@@ -136,7 +139,11 @@ export function PortraitCard({
     }
     if (card.userId) {
       fetch(portraitMembershipsPath(card.userId))
-        .then(async (r) => (r.ok ? membershipSummaryRows(await r.json()) : []))
+        .then(async (r) => (r.ok ? membershipSummaryRows(await r.json(), {
+          membershipFallback: t("worldIdentityMisc.porMembershipFallback"),
+          freeLabel: t("worldIdentityMisc.porFreeLabel"),
+          perMonthSuffix: t("worldIdentityMisc.porPerMonthSuffix"),
+        }) : []))
         .then((rows) => { if (!cancelled) setMemberships(rows); })
         .catch(() => { if (!cancelled) setMemberships([]); });
     } else {
@@ -175,7 +182,7 @@ export function PortraitCard({
           : c,
       );
     } catch {
-      setFollowNote("The follow didn't stick — try again.");
+      setFollowNote(t("worldIdentityMisc.porFollowFailed"));
     } finally {
       setFollowBusy(false);
     }
@@ -195,18 +202,18 @@ export function PortraitCard({
             : "border-white/15 text-white/75 hover:text-white"
         }`}
       >
-        ← Back to the gallery
+        {t("worldIdentityMisc.porBack")}
       </button>
 
       {failed ? (
         <NativeErrorState
           isLight={isLight}
-          title="This portrait wouldn't open"
-          message="The creator is fine — the card just couldn't fetch their details."
+          title={t("worldIdentityMisc.porErrorTitle")}
+          message={t("worldIdentityMisc.porErrorMessage")}
           onRetry={() => setTick((n) => n + 1)}
         />
       ) : card === null ? (
-        <NativeLoadingState isLight={isLight} message="Bringing their card down from the wall…" />
+        <NativeLoadingState isLight={isLight} message={t("worldIdentityMisc.porLoading")} />
       ) : (
         <NativeCard isLight={isLight}>
           <div className="flex flex-wrap items-start gap-3">
@@ -226,16 +233,16 @@ export function PortraitCard({
                 {card.displayName}
               </p>
               <p className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-[#e8c86a]">
-                <Crown className="h-3 w-3" /> Front Row · Seat #{card.seat}
+                <Crown className="h-3 w-3" /> {t("worldIdentityMisc.porSeatLine", { seat: card.seat })}
               </p>
               {card.bioLine && <p className={`mt-0.5 text-xs ${muted}`}>{card.bioLine}</p>}
               <p className={`text-[11px] ${muted}`}>
-                {card.followerCount.toLocaleString("en-US")} followers
+                {t("worldIdentityMisc.porFollowers", { count: card.followerCount.toLocaleString(i18n.language) })}
               </p>
             </div>
             {isGuest ? (
               <span className={`text-[11px] font-semibold ${muted}`}>
-                Sign in on the website to follow from the palace.
+                {t("worldIdentityMisc.porGuestNote")}
               </span>
             ) : following === null ? (
               <span className="inline-block h-7 w-20 animate-pulse rounded-full bg-white/10" />
@@ -260,7 +267,7 @@ export function PortraitCard({
                 ) : (
                   <Plus className="h-3.5 w-3.5" />
                 )}
-                {following ? "Following" : "Follow"}
+                {following ? t("worldIdentityMisc.porFollowing") : t("worldIdentityMisc.porFollow")}
               </button>
             )}
           </div>
@@ -271,56 +278,56 @@ export function PortraitCard({
           {card.topTracks.length > 0 && (
             <div className="mt-3">
               <p className={`mb-1 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                Top tracks
+                {t("worldIdentityMisc.porTopTracks")}
               </p>
               <div className="space-y-1.5">
-                {card.topTracks.map((t) => (
+                {card.topTracks.map((tr) => (
                   <div
-                    key={t.id}
+                    key={tr.id}
                     className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${
                       isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"
                     }`}
                   >
-                    {t.artworkUrl ? (
-                      <img src={t.artworkUrl} alt="" className="h-9 w-9 rounded-lg object-cover" />
+                    {tr.artworkUrl ? (
+                      <img src={tr.artworkUrl} alt="" className="h-9 w-9 rounded-lg object-cover" />
                     ) : null}
                     <span className="min-w-0 flex-1">
-                      <span className={`block truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{t.title}</span>
+                      <span className={`block truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{tr.title}</span>
                       <span className={`block text-[11px] ${muted}`}>
-                        {t.plays.toLocaleString("en-US")} plays{fmtClock(t.durationSec) ? ` · ${fmtClock(t.durationSec)}` : ""}
+                        {t("worldIdentityMisc.porPlays", { plays: tr.plays.toLocaleString(i18n.language) })}{fmtClock(tr.durationSec) ? ` · ${fmtClock(tr.durationSec)}` : ""}
                       </span>
                     </span>
                     <button
                       type="button"
                       data-testid="world-portrait-play"
-                      onClick={() => { onPlayTrack(jukeboxPickId(t.id)); setPlayedId(t.id); }}
+                      onClick={() => { onPlayTrack(jukeboxPickId(tr.id)); setPlayedId(tr.id); }}
                       className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                     >
                       <Play className="h-3.5 w-3.5" />
-                      {playedId === t.id ? "On the jukebox" : "Play"}
+                      {playedId === tr.id ? t("worldIdentityMisc.porOnJukebox") : t("worldIdentityMisc.porPlay")}
                     </button>
                   </div>
                 ))}
               </div>
               <p className={`mt-1 text-[11px] ${muted}`}>
-                Play puts the track on the room&rsquo;s jukebox — the Music Hall hears it together.
+                {t("worldIdentityMisc.porPlayNote")}
               </p>
             </div>
           )}
 
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <SummaryRows
-              title="Memberships"
+              title={t("worldIdentityMisc.porMemberships")}
               icon={<Ticket className="h-3.5 w-3.5" />}
               rows={memberships}
-              empty="No memberships on offer right now."
+              empty={t("worldIdentityMisc.porMembershipsEmpty")}
               isLight={isLight}
             />
             <SummaryRows
-              title="In their shop"
+              title={t("worldIdentityMisc.porShop")}
               icon={<ShoppingBag className="h-3.5 w-3.5" />}
               rows={shop}
-              empty="Nothing on the shelf right now."
+              empty={t("worldIdentityMisc.porShopEmpty")}
               isLight={isLight}
             />
           </div>
@@ -331,8 +338,7 @@ export function PortraitCard({
             <PortraitTip slug={card.slug} isLight={isLight} isGuest={isGuest} />
           )}
           <p className={`mt-2 text-[11px] ${muted}`}>
-            Joining and buying happen at the shop stands and on their full profile — the card&rsquo;s
-            transfer below opens it.
+            {t("worldIdentityMisc.porFooterNote")}
           </p>
         </NativeCard>
       )}
@@ -341,7 +347,7 @@ export function PortraitCard({
           websitePath (null), so the full Grand Stage profile is
           this card's footer, via the shared TransferFooter. */}
       <TransferFooter
-        context={`${member.displayName} — the full Grand Stage profile`}
+        context={t("worldIdentityMisc.porTransferContext", { name: member.displayName })}
         websitePath={websitePath}
         isLight={isLight}
       />

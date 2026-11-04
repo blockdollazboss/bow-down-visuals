@@ -1,5 +1,6 @@
 import { plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Globe, Loader2, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -28,6 +29,11 @@ import {
    with a "creator page" error and the desk names it. */
 
 export function DomainsDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
+  const dnsStrings = {
+    sslNote: t("worldIdentityMisc.domSslNote"),
+    placeholderWarning: t("worldIdentityMisc.domPlaceholderWarning"),
+  };
   const { getAccessToken } = useAuth();
   const [domains, setDomains] = useState<CustomDomain[] | null>(null);
   const [freeSubdomain, setFreeSubdomain] = useState<string | null>(null);
@@ -67,7 +73,7 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
       setHostname("");
       await load();
     } catch (e) {
-      setError(plainErrorText(e, "Couldn't claim it — try again."));
+      setError(plainErrorText(e, t("worldIdentityMisc.domClaimError")));
     } finally { setClaiming(false); }
   };
 
@@ -82,7 +88,7 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
     } catch (e) {
       setVerifyResults((r) => ({
         ...r,
-        [domain.id]: { ok: false, message: plainErrorText(e, "The check didn't run — try again.") },
+        [domain.id]: { ok: false, message: plainErrorText(e, t("worldIdentityMisc.domVerifyError")) },
       }));
     } finally { setVerifyingId(null); }
   };
@@ -106,30 +112,30 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-2 border-t border-dashed pt-3" data-testid="world-domains-desk">
       <p className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-        <Globe className="h-3.5 w-3.5" /> Your own domain
+        <Globe className="h-3.5 w-3.5" /> {t("worldIdentityMisc.domTitle")}
       </p>
       {noProfile ? (
         <p className={`text-xs ${muted}`}>
-          Domains attach to your creator page — build it first (the Creator Rooms directory has the door), then claim your domain right here.
+          {t("worldIdentityMisc.domNoProfile")}
         </p>
       ) : loadFailed ? (
         <p className={`text-xs ${muted}`}>
-          Couldn&rsquo;t load your domains — nothing about them changed.{" "}
-          <button type="button" data-testid="world-domains-retry" onClick={() => void load()} className="font-bold text-[#d4af37]">Try again</button>
+          {t("worldIdentityMisc.domLoadFailed")}{" "}
+          <button type="button" data-testid="world-domains-retry" onClick={() => void load()} className="font-bold text-[#d4af37]">{t("worldIdentityMisc.tryAgain")}</button>
         </p>
       ) : domains === null ? (
         <p className={`inline-flex items-center gap-2 text-xs ${muted}`}>
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> Reading your domains…
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldIdentityMisc.domReading")}
         </p>
       ) : (
         <>
           {freeSubdomain && (
             <p className={`text-xs ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
-              Already yours, free forever: <span className="font-mono font-bold">{freeSubdomain}</span>
+              {t("worldIdentityMisc.domFreeLine")} <span className="font-mono font-bold">{freeSubdomain}</span>
             </p>
           )}
           <div className="flex flex-wrap gap-1.5">
-            <input aria-label="Custom domain" value={hostname}
+            <input aria-label={t("worldIdentityMisc.domHostnameLabel")} value={hostname}
               onChange={(e) => setHostname(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") void claim(); }}
               placeholder="yourname.com" autoComplete="off" spellCheck={false}
@@ -137,15 +143,17 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
             <button type="button" data-testid="world-domains-claim" onClick={() => void claim()} disabled={claiming || !hostname.trim()}
               className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
               {claiming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
-              {claiming ? "Claiming…" : "Claim my domain"}
+              {claiming ? t("worldIdentityMisc.domClaiming") : t("worldIdentityMisc.domClaim")}
             </button>
           </div>
           {error && <p className="text-xs font-semibold text-red-400">{error}</p>}
           {domains.length === 0 && (
-            <p className={`text-[11px] ${muted}`}>No custom domains yet — your free subdomain above is already working, and your own .com is one claim away.</p>
+            <p className={`text-[11px] ${muted}`}>{t("worldIdentityMisc.domNone")}</p>
           )}
           {domains.map((d) => {
-            const dns = d.verification_token ? dnsInstructionsFor(d.hostname, d.verification_token) : null;
+            const dns = d.verification_token
+              ? dnsInstructionsFor(d.hostname, d.verification_token, dnsStrings)
+              : null;
             const result = verifyResults[d.id];
             return (
               <div key={d.id} className={`rounded-xl border px-3 py-2.5 text-xs ${isLight ? "border-[#7A5A12]/25" : "border-white/10"}`}>
@@ -153,11 +161,11 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
                   <span className="font-mono font-bold">{d.hostname}</span>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${
                     d.status === "active" ? "bg-emerald-500/15 text-emerald-300" : "bg-[#d4af37]/15 text-[#e8c86a]"
-                  }`}>{d.status}{d.is_primary ? " · primary" : ""}</span>
+                  }`}>{d.status}{d.is_primary ? t("worldIdentityMisc.domPrimary") : ""}</span>
                 </p>
                 {d.status !== "active" && dns && (
                   <div className={`mt-1.5 space-y-1 text-[11px] ${muted}`}>
-                    <p>At your DNS provider, add:</p>
+                    <p>{t("worldIdentityMisc.domDnsIntro")}</p>
                     <p className="font-mono">{dns.cname.type} · {dns.cname.host} → {dns.cname.target}</p>
                     <p className="font-mono">{dns.txt.type} · {dns.txt.host} → {dns.txt.value}</p>
                     <p>{dns.ssl_note}</p>
@@ -169,7 +177,7 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
                 {result && (
                   <p className={`mt-1.5 text-[11px] font-semibold ${result.ok || result.already_active ? isLight ? "text-emerald-700" : "text-emerald-300" : isLight ? "text-[#92600a]" : "text-amber-300"}`}>
                     {result.message}
-                    {result.checks ? ` (CNAME ${result.checks.cname ? "✓" : "✗"} · TXT ${result.checks.txt ? "✓" : "✗"})` : ""}
+                    {result.checks ? t("worldIdentityMisc.domChecksSuffix", { cname: result.checks.cname ? "✓" : "✗", txt: result.checks.txt ? "✓" : "✗" }) : ""}
                   </p>
                 )}
                 <div className="mt-2 flex flex-wrap gap-1.5">
@@ -177,21 +185,21 @@ export function DomainsDesk({ isLight }: { isLight: boolean }) {
                     <button type="button" data-testid="world-domains-verify" onClick={() => void verify(d)} disabled={verifyingId !== null}
                       className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-[11px] font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
                       {verifyingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                      {verifyingId === d.id ? "Checking…" : "Check now"}
+                      {verifyingId === d.id ? t("worldIdentityMisc.checking") : t("worldIdentityMisc.domCheck")}
                     </button>
                   )}
                   {confirmingDeleteId === d.id ? (
                     <>
                       <button type="button" data-testid="world-domains-delete-confirm" onClick={() => void remove(d)} disabled={deletingId !== null}
                         className="rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-[11px] font-bold text-red-300 disabled:opacity-50 bdv-touch-target">
-                        {deletingId === d.id ? "Removing…" : "Remove it?"}
+                        {deletingId === d.id ? t("worldIdentityMisc.removing") : t("worldIdentityMisc.domRemoveConfirm")}
                       </button>
-                      <button type="button" onClick={() => setConfirmingDeleteId(null)} className={`rounded-full border px-3 py-1.5 text-[11px] font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>Keep</button>
+                      <button type="button" onClick={() => setConfirmingDeleteId(null)} className={`rounded-full border px-3 py-1.5 text-[11px] font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>{t("worldIdentityMisc.domKeep")}</button>
                     </>
                   ) : (
                     <button type="button" data-testid="world-domains-delete" onClick={() => setConfirmingDeleteId(d.id)}
                       className="inline-flex items-center gap-1 rounded-full border border-red-400/40 px-3 py-1.5 text-[11px] font-bold text-red-300 bdv-touch-target">
-                      <Trash2 className="h-3 w-3" /> Remove
+                      <Trash2 className="h-3 w-3" /> {t("worldIdentityMisc.domRemove")}
                     </button>
                   )}
                 </div>

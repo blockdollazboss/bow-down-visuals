@@ -1,5 +1,6 @@
 import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { HandCoins, Heart, Loader2 } from "lucide-react";
 import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import {
@@ -36,6 +37,7 @@ import {
    visible, sending is members' business in the palace. */
 
 export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const [page, setPage] = useState<TipPageData | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "none" | "failed">("loading");
   const [amount, setAmount] = useState<number | null>(null);
@@ -75,7 +77,14 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
 
   const send = async () => {
     if (!page || sending) return;
-    const problem = tipAmountProblem(effective);
+    const problem = tipAmountProblem(effective, {
+      problemPickFirst: t("tipPage.amountRequired"),
+      problemMin: t("worldIdentityMisc.tipProblemMin"),
+      problemMax: t("worldIdentityMisc.tipProblemMax"),
+      feedStatusIntent: t("worldIdentityMisc.jarFeedStatusIntent"),
+      feedStatusReceived: t("worldIdentityMisc.jarFeedStatusReceived"),
+      feedStatusUnavailable: t("worldIdentityMisc.jarFeedStatusUnavailable"),
+    }, i18n.language);
     if (problem) { setError(problem); return; }
     setSending(true);
     setError(null);
@@ -112,7 +121,7 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
         }
       } else if (co.status !== 503) {
         const data = (await co.json().catch(() => ({}))) as Record<string, unknown>;
-        throw new Error(apiErrorLine(data, "That tip couldn't be recorded."));
+        throw new Error(apiErrorLine(data, t("worldIdentityMisc.tipErrorFallback")));
       }
       /* 503: payments aren't configured here — record the intent,
          exactly the pre-checkout behavior, and say so. */
@@ -122,10 +131,10 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
         body: JSON.stringify(tipSendPayload(effective as number, fanName, message)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "That tip couldn't be recorded."));
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldIdentityMisc.tipErrorFallback")));
       setSent("intent");
     } catch (e) {
-      setError(plainErrorText(e, "That tip couldn't be recorded — try again."));
+      setError(plainErrorText(e, t("worldIdentityMisc.tipErrorRetry")));
     } finally {
       setSending(false);
     }
@@ -134,7 +143,7 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
   if (state === "loading") {
     return (
       <p className={`mt-3 inline-flex items-center gap-2 text-xs ${muted}`} data-testid="world-portrait-tip">
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> Opening their tip jar…
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldIdentityMisc.tipLoading")}
       </p>
     );
   }
@@ -142,8 +151,8 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
     return (
       <p className={`mt-3 text-xs ${muted}`} data-testid="world-portrait-tip">
         {state === "failed"
-          ? "Their tip jar didn't answer just now — nothing was sent."
-          : "This creator's tip jar is switched on, but no tip page is set up at their handle yet."}
+          ? t("worldIdentityMisc.tipFailed")
+          : t("worldIdentityMisc.tipNone")}
       </p>
     );
   }
@@ -151,25 +160,29 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
   return (
     <div className="mt-3" data-testid="world-portrait-tip">
       <p className={`mb-1 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-        <HandCoins className="h-3.5 w-3.5" /> Tip {page.displayName}
+        <HandCoins className="h-3.5 w-3.5" /> {t("worldIdentityMisc.tipTitle", { name: page.displayName })}
       </p>
       {page.message && <p className={`text-xs ${muted}`}>{page.message}</p>}
       {page.goalAmount !== null && (
         <p className={`mt-1 text-[11px] ${muted}`}>
-          {page.goalLabel || "Goal"}: ${(page.goalRaisedDollars ?? page.totalDollars).toFixed(2)} of ${page.goalAmount.toFixed(2)}
-          {page.goalProgress !== null ? ` · ${Math.round(page.goalProgress * 100)}%` : ""}
+          {t("worldIdentityMisc.tipGoalLine", {
+            label: page.goalLabel || t("tips.goalDefault"),
+            raised: (page.goalRaisedDollars ?? page.totalDollars).toFixed(2),
+            goal: page.goalAmount.toFixed(2),
+          })}
+          {page.goalProgress !== null ? t("worldIdentityMisc.tipGoalPercent", { pct: Math.round(page.goalProgress * 100) }) : ""}
         </p>
       )}
-      <p className={`text-[11px] ${muted}`}>{page.tipCount} tips · ${page.totalDollars.toFixed(2)} tipped so far</p>
+      <p className={`text-[11px] ${muted}`}>{t("worldIdentityMisc.tipStatsLine", { count: page.tipCount, total: page.totalDollars.toFixed(2) })}</p>
 
       {sent ? (
         <p className={`mt-2 text-xs font-semibold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>
           {sent === "checkout"
-            ? "Checkout opened in a new tab — your tip lands the moment the payment confirms."
-            : "Tip recorded — it's saved as intent, and the creator sees it on their Tip Jar. No charge was made."}
+            ? t("worldIdentityMisc.tipSentCheckout")
+            : t("worldIdentityMisc.tipSentIntent")}
         </p>
       ) : isGuest ? (
-        <p className={`mt-2 text-xs ${muted}`}>Sign in on the website to tip from the palace.</p>
+        <p className={`mt-2 text-xs ${muted}`}>{t("worldIdentityMisc.tipGuestNote")}</p>
       ) : (
         <>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -183,33 +196,33 @@ export function PortraitTip({ slug, isLight, isGuest }: { slug: string; isLight:
                 ${a}
               </button>
             ))}
-            <input aria-label="Custom tip amount" value={custom} onChange={(e) => setCustom(e.target.value.replace(/[^0-9.]/g, ""))}
-              placeholder="Custom $" inputMode="decimal"
+            <input aria-label={t("worldIdentityMisc.tipCustomLabel")} value={custom} onChange={(e) => setCustom(e.target.value.replace(/[^0-9.]/g, ""))}
+              placeholder={t("worldIdentityMisc.tipCustomPlaceholder")} inputMode="decimal"
               className={`w-24 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${isLight ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07]" : "border-white/15 bg-white/5 text-white"}`} />
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <input aria-label="Your name" value={fanName} onChange={(e) => setFanName(e.target.value)} placeholder="Your name (optional)" maxLength={60}
+            <input aria-label={t("worldIdentityMisc.tipNameLabel")} value={fanName} onChange={(e) => setFanName(e.target.value)} placeholder={t("tipPage.fanNamePlaceholder")} maxLength={60}
               className={`min-w-32 flex-1 rounded-xl border px-3 py-1.5 text-xs outline-none bdv-touch-target ${isLight ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07]" : "border-white/15 bg-white/5 text-white"}`} />
-            <input aria-label="Tip message" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Say something kind (optional)" maxLength={280}
+            <input aria-label={t("worldIdentityMisc.tipMessageLabel")} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t("worldIdentityMisc.tipMessagePlaceholder")} maxLength={280}
               className={`min-w-32 flex-1 rounded-xl border px-3 py-1.5 text-xs outline-none bdv-touch-target ${isLight ? "border-[#7A5A12]/30 bg-white/60 text-[#2a1e07]" : "border-white/15 bg-white/5 text-white"}`} />
           </div>
           {error && <p className="mt-2 text-xs font-semibold text-red-400">{error}</p>}
           <button type="button" data-testid="world-portrait-tip-send" onClick={() => void send()} disabled={sending}
             className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
             {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Heart className="h-3.5 w-3.5" />}
-            {sending ? "Sending…" : `Send tip${effective && effective > 0 ? ` — $${effective.toFixed(2)}` : ""}`}
+            {sending ? t("worldIdentityMisc.tipSending") : effective && effective > 0 ? t("worldIdentityMisc.tipSendAmount", { amount: effective.toFixed(2) }) : t("worldIdentityMisc.tipSend")}
           </button>
         </>
       )}
       {embeddedSecret && (
         <div className="mt-2 space-y-2 border-t border-[#d4af37]/25 pt-3" data-testid="world-portrait-tip-embedded-checkout">
           <p className={`text-xs font-semibold ${isLight ? "text-emerald-700" : "text-emerald-300"}`}>
-            Your payment form is right here — the tip lands the moment the payment confirms.
+            {t("worldIdentityMisc.tipEmbeddedNote")}
           </p>
           <EmbeddedSessionCheckout clientSecret={embeddedSecret} />
           <button type="button" onClick={() => setEmbeddedSecret(null)}
             className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
-            Close — nothing is charged until you complete the form
+            {t("worldIdentityMisc.tipEmbeddedClose")}
           </button>
         </div>
       )}

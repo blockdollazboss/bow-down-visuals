@@ -143,7 +143,7 @@ describe("#66 tip contracts", () => {
     expect(tipJar).toContain('fetch("/api/tips/settings"');
     expect(tipJar).toContain('fetch("/api/tips/settings", {');
     expect(tipJar).toContain("buildTipSettingsPayload(form)");
-    expect(tipJar).toContain("tipFeedStatusLabel(tip.status)");
+    expect(tipJar).toContain("tipFeedStatusLabel(tip.status, tipStrings)");
     expect(tipJar).toContain('data-testid="world-tipjar-desk"');
     expect(earningsBoard).toContain("<TipJarDesk");
   });
@@ -178,7 +178,7 @@ describe("#68 custom domain contracts", () => {
     expect(domains).toContain("claimDomain(token, hostname.trim())");
     expect(domains).toContain("verifyDomain(token, domain.id)");
     expect(domains).toContain("deleteDomain(token, domain.id)");
-    expect(domains).toContain("dnsInstructionsFor(d.hostname, d.verification_token)");
+    expect(domains).toContain("dnsInstructionsFor(d.hostname, d.verification_token, dnsStrings)");
     expect(domains).toContain('data-testid="world-domains-desk"');
     expect(stands).toContain("<DomainsDesk");
     expect(stands).not.toContain("Custom domains live on your shop");

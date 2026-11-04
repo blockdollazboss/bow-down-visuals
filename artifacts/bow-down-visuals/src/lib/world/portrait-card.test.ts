@@ -87,7 +87,7 @@ describe("the Play seam", () => {
   it("builds the jukebox catalog pick form, idempotently", () => {
     expect(jukeboxPickId("abc-123")).toBe("track:abc-123");
     expect(jukeboxPickId("track:abc-123")).toBe("track:abc-123");
-    expect(cardSrc).toContain("onPlayTrack(jukeboxPickId(t.id))");
+    expect(cardSrc).toContain("onPlayTrack(jukeboxPickId(tr.id))");
   });
 });
 
