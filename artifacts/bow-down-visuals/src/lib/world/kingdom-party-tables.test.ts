@@ -117,6 +117,11 @@ describe("guest + stale paths stay honest", () => {
 
   it("a closed table meets the summons' closed notices, banner and panel", () => {
     expect(worldPage).toContain("That party table has closed");
-    expect(gamesPanels).toContain("that table has closed");
+    /* Locale unit 51: the panel's closed copy lives in worldPrimitives. */
+    expect(gamesPanels).toContain('t("worldPrimitives.gmSummonsClosed"');
+    const en = JSON.parse(
+      readFileSync(new URL("../../locales/en.json", import.meta.url), "utf8"),
+    ) as any;
+    expect(en.worldPrimitives.gmSummonsClosed).toContain("that table has closed");
   });
 });
