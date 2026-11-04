@@ -21,7 +21,7 @@ import {
 } from "../performance-bookings";
 
 describe("performanceFeeSplit", () => {
-  it("uses the sponsors escrow rate: 15% out of the fee", () => {
+  it("uses the sponsors escrow rate: 15% of the booking price", () => {
     expect(PERFORMANCE_BOOKING_FEE_BPS).toBe(1500);
     expect(performanceFeeSplit(100_00)).toEqual({ feeCents: 15_00, netCents: 85_00 });
     expect(performanceFeeSplit(250_00)).toEqual({ feeCents: 37_50, netCents: 212_50 });
