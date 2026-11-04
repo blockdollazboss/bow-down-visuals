@@ -119,8 +119,11 @@ const catalogs = Object.fromEntries(
 describe("sidebar door census — the extraction is not vacuous", () => {
   it("reads a real sidebar and a real route table", () => {
     expect(routePaths.size).toBeGreaterThan(150);
-    expect(sectionDoors.length).toBeGreaterThanOrEqual(70);
-    expect(footerDoors.length).toBeGreaterThanOrEqual(4);
+    /* Exact census at this lane: 69 section doors (68 literal
+     * entries + the dynamic Shorts entry) and 5 footer doors.
+     * Adding or removing a sidebar door updates this pin. */
+    expect(sectionDoors.length).toBe(69);
+    expect(footerDoors.length).toBe(5);
   });
 });
 
