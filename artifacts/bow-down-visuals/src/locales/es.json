@@ -5815,6 +5815,7 @@
     "fundPool": "Fondear fondo",
     "fundedPool": "✓ {{amount}} Visual Bucs agregados al fondo del equipo.",
     "funding": "Moviendo…",
+    "inviteAnyRankNote": "Unirse es distinto: si alguien te invita a un equipo, puedes aceptar y unirte con cualquier rango — tus invitaciones aparecen aquí mismo.",
     "inviteEmailPlaceholder": "compañero@email.com",
     "invitePendingSuffix": " · invitación pendiente",
     "inviteSent": "✓ Invitación enviada.",

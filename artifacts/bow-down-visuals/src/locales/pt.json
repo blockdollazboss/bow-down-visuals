@@ -5815,6 +5815,7 @@
     "fundPool": "Financiar Caixa",
     "fundedPool": "✓ {{amount}} Visual Bucs adicionados à caixa da equipe.",
     "funding": "Financiando…",
+    "inviteAnyRankNote": "Entrar é diferente: se alguém te convidar para uma equipe, você pode aceitar e entrar em qualquer nível — seus convites aparecem bem aqui.",
     "inviteEmailPlaceholder": "teammate@email.com",
     "invitePendingSuffix": " · convite pendente",
     "inviteSent": "✓ Convite enviado.",

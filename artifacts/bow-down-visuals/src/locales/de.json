@@ -5803,6 +5803,7 @@
     "fundPool": "Pool finanzieren",
     "fundedPool": "✓ {{amount}} Visual Bucs zum Team-Pool hinzugefügt.",
     "funding": "Wird verschoben…",
+    "inviteAnyRankNote": "Beitreten ist anders: Wenn dich jemand in ein Team einlädt, kannst du die Einladung annehmen und mit jedem Rang beitreten — deine Einladungen erscheinen genau hier.",
     "inviteEmailPlaceholder": "teammate@email.com",
     "invitePendingSuffix": " · Einladung ausstehend",
     "inviteSent": "✓ Einladung gesendet.",

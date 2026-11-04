@@ -5815,6 +5815,7 @@
     "fundPool": "Finanzia il pool",
     "fundedPool": "✓ {{amount}} Visual Bucs aggiunti al pool del team.",
     "funding": "Spostamento…",
+    "inviteAnyRankNote": "Entrare è diverso: se qualcuno ti invita in un team, puoi accettare e unirti con qualsiasi grado — i tuoi inviti compaiono proprio qui.",
     "inviteEmailPlaceholder": "compagno@email.com",
     "invitePendingSuffix": " · invito in sospeso",
     "inviteSent": "✓ Invito inviato.",

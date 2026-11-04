@@ -5851,6 +5851,7 @@
     "fundPool": "موّل الصندوق",
     "fundedPool": "✓ تمت إضافة {{amount}} Visual Bucs إلى صندوق الفريق.",
     "funding": "جارٍ النقل…",
+    "inviteAnyRankNote": "الانضمام مختلف: إذا دعاك شخص ما إلى فريق، يمكنك القبول والانضمام بأي رتبة — تظهر دعواتك هنا تمامًا.",
     "inviteEmailPlaceholder": "teammate@email.com",
     "invitePendingSuffix": " · الدعوة معلقة",
     "inviteSent": "✓ تم إرسال الدعوة.",

@@ -5803,6 +5803,7 @@
     "fundPool": "풀 충전",
     "fundedPool": "✓ 팀 풀에 {{amount}} Visual Bucs가 추가되었습니다.",
     "funding": "이동 중…",
+    "inviteAnyRankNote": "참여는 다릅니다: 누군가 팀에 초대하면 어떤 등급에서든 수락하고 참여할 수 있습니다 — 초대는 바로 여기에 표시됩니다.",
     "inviteEmailPlaceholder": "teammate@email.com",
     "invitePendingSuffix": " · 초대 대기 중",
     "inviteSent": "✓ 초대를 발송했습니다.",
