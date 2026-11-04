@@ -9,7 +9,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
-  JEWELRY_PRODUCTS, JEWELRY_FINISHES, jewelryProductByKey, formatMoney,
+  JEWELRY_PRODUCTS, JEWELRY_FINISHES, jewelryProductByKey, formatJewelryPrice,
 } from "@/lib/jewelry";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -233,7 +233,7 @@ export default function JewelryShop() {
                         </div>
                         <div className="flex items-center justify-between">
                           <h3 className="font-semibold">{p.label}</h3>
-                          <span className="text-amber-300 font-bold">{formatMoney(p.priceCents)}</span>
+                          <span className="text-amber-300 font-bold">{formatJewelryPrice(p.priceCents)}</span>
                         </div>
                         <p className="text-sm text-zinc-400 mt-1">{p.blurb}</p>
                       </button>
@@ -300,7 +300,7 @@ export default function JewelryShop() {
                       <span className="w-8 text-center font-bold">{quantity}</span>
                       <button aria-label="Increase quantity" onClick={() => setQuantity(Math.min(20, quantity + 1))} className={`w-9 h-9 rounded-lg text-xl ${isLight ? "bg-[#C9A84C]/20 hover:bg-[#C9A84C]/35" : "bg-zinc-800 hover:bg-zinc-700"}`}>+</button>
                     </div>
-                    <span className="ml-auto text-lg">{t("jewelryShop.total")} <span className="text-amber-300 font-bold">{formatMoney(total)}</span></span>
+                    <span className="ml-auto text-lg">{t("jewelryShop.total")} <span className="text-amber-300 font-bold">{formatJewelryPrice(total)}</span></span>
                   </div>
                 </div>
               )}
@@ -336,7 +336,7 @@ export default function JewelryShop() {
                     <div className="flex justify-between"><span className="text-zinc-400">{t("jewelryShop.reviewShipTo")}</span><span className="font-medium text-right">{fullName}<br />{street}, {city}, {state_} {zip}</span></div>
                     <div className={`flex justify-between pt-2 border-t ${isLight ? "border-[#E3D5B8]" : "border-zinc-800"}`}>
                       <span className="text-zinc-400">{t("jewelryShop.reviewTotal")}</span>
-                      <span className="text-amber-300 font-bold text-lg">{formatMoney(total)}</span>
+                      <span className="text-amber-300 font-bold text-lg">{formatJewelryPrice(total)}</span>
                     </div>
                   </div>
                   <p className="text-sm text-zinc-400 flex items-start gap-2">
@@ -397,7 +397,7 @@ export default function JewelryShop() {
                 {orders.map((o) => (
                   <div key={o.id} className={`flex items-center justify-between rounded-xl border px-4 py-3 text-sm ${isLight ? "border-[#E3D5B8] bg-white/70" : "border-zinc-800 bg-zinc-900/40"}`}>
                     <span>{jewelryProductByKey(o.product_key)?.label ?? o.product_key} · {o.size_option} × {o.quantity}</span>
-                    <span className="text-zinc-400">{formatMoney(o.total_cents)}</span>
+                    <span className="text-zinc-400">{formatJewelryPrice(o.total_cents)}</span>
                     <span className="text-xs px-2 py-1 rounded-full bg-amber-400/10 text-amber-300">
                       {o.status.replace("_", " ")}
                     </span>

@@ -69,6 +69,15 @@ export function formatMoney(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-/* Premium line: prices are TBD from supplier quotes, so a zero priceCents
-   renders as "Pricing soon" instead of a dollar amount anywhere. */
-/* Removed 2026-10-10: formatJewelryPrice was dead (zero imports). */
+/* Premium line: prices are TBD from supplier quotes, so an unset
+   priceCents (0) renders as "Pricing soon" instead of a dollar amount
+   anywhere. The shop is reservation-only — no charge is taken today and
+   the final price is confirmed with the buyer before production — so a
+   literal "$0.00" would be a fake price, never an honest one. Every
+   jewelry price/total render goes through formatJewelryPrice, never
+   formatMoney directly (pinned in lib/jewelry.test.ts). */
+export const JEWELRY_PRICE_TBD_LABEL = "Pricing soon";
+
+export function formatJewelryPrice(cents: number): string {
+  return cents > 0 ? formatMoney(cents) : JEWELRY_PRICE_TBD_LABEL;
+}
