@@ -41,7 +41,7 @@ import {
   isOwnStand, maxDailyViews, parseAiDescription, parseAiImageUrl,
   parseMineShops, parseSellerEarnings, parseShopAnalytics, productFormFromDto, productFormProblem,
   recentShopPending, recentShopSales, removeProduct, savedProductDto, savedShopDto,
-  sellerEarningsRows,
+  sellerEarningsRows, shopDesignColors,
   shopCreateProblem, shopSettingsFormFromShop, shopSettingsProblem,
   type BillingPeriod, type BrandingCartLine, type BrandingDesignResult,
   type BrandingOrderDto, type BrandingShipping, type ClubDirectoryRow, type HubShopDto,
@@ -50,6 +50,12 @@ import {
   type PublicShopDto, type SellerEarnings, type ShopAnalytics, type ShopCreateFormState,
   type ShopSettingsFormState,
 } from "@/lib/world/shop-stands";
+import {
+  SHOP_DESIGN_STARTERS,
+  isStarterApplied,
+  shopStarterPatch,
+  type ShopDesignStarter,
+} from "@/lib/shop-starters";
 import type { CartLine } from "@/lib/shops";
 import {
   MEMBER_STATUS_OPTIONS,
@@ -849,6 +855,9 @@ function StandManager({
   const [settingsNote, setSettingsNote] = useState<string | null>(null);
   const [shopNiche, setShopNiche] = useState("");
   const [aiShopDescBusy, setAiShopDescBusy] = useState(false);
+  /* Org wave #4: the Look starters shelf (the My Shop page's design
+     starters, in the stand) — which starter is mid-apply, if any. */
+  const [applyingStarterId, setApplyingStarterId] = useState<string | null>(null);
   /* Delete-the-shop arms exactly like a product delete: first tap
      asks, second tap fires — and the stand only closes on the
      server's confirmation. */
@@ -1056,6 +1065,39 @@ function StandManager({
       setSettingsError(plainErrorText(e, "Your settings didn't save — your shop is unchanged."));
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  /* Look starters — the My Shop page's design starters (the ONE
+     registry, lib/shop-starters), applied through the SAME settings
+     rail: PATCH /api/shops/:id with shopStarterPatch(starter) ONLY —
+     the two persisted design fields, nothing else, so a look can
+     never clobber the shop's name, tagline or story. Free, like shop
+     setup on the page. The stand adopts the SERVER's returned row;
+     a failure changes nothing and says so — the colors the shelf
+     shows are always the shop's true colors. */
+  const designColors = shopDesignColors(mineShop);
+  const applyStarter = async (starter: ShopDesignStarter) => {
+    if (applyingStarterId) return;
+    setApplyingStarterId(starter.id);
+    setSettingsError(null);
+    setSettingsNote(null);
+    try {
+      const res = await fetch(`/api/shops/${shop.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(shopStarterPatch(starter)),
+      });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) throw new Error(typeof data["error"] === "string" ? data["error"] : "That look didn't save — your shop is unchanged.");
+      const saved = savedShopDto(data);
+      if (!saved) throw new Error("The save came back without your shop — reopen the stand to see its true state.");
+      onShopSaved(saved.pub, { ...saved.mine, product_count: mineShop.product_count });
+      setSettingsNote(`${starter.name} is live on your storefront.`);
+    } catch (e) {
+      setSettingsError(plainErrorText(e, "That look didn't save — your shop is unchanged."));
+    } finally {
+      setApplyingStarterId(null);
     }
   };
 
@@ -1493,6 +1535,61 @@ function StandManager({
           <p className={`text-[11px] ${muted(isLight)}`}>
             The writer&rsquo;s price is confirmed before it runs; a failed run is refunded by the rail itself. Its words land above, unsaved — saving is your tap.
           </p>
+          {/* Org wave #4: the Look starters shelf — the My Shop page's
+              design starters from the ONE registry (lib/shop-starters),
+              with the preview mirroring the storefront's own banner:
+              the gradient runs from the banner color, the eyebrow
+              rides the accent. Applying writes only the two design
+              colors through the settings rail (see applyStarter). */}
+          <div className="space-y-2 pt-1" data-testid="world-shop-starters">
+            <p className={`text-[11px] font-black uppercase tracking-wider ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}>
+              Look starters — one tap re-skins your storefront
+            </p>
+            <div
+              data-testid="world-shop-banner-preview"
+              className="rounded-xl px-3 py-2.5"
+              style={{ background: `linear-gradient(135deg, ${designColors.banner_color}, #000)` }}
+            >
+              <span className="block text-[10px] font-black uppercase tracking-widest" style={{ color: designColors.accent_color }}>
+                Bow Down Visuals Shop
+              </span>
+              <span className="block text-sm font-black text-white">{shop.name}</span>
+            </div>
+            <div className="grid gap-1.5 sm:grid-cols-2">
+              {SHOP_DESIGN_STARTERS.map((starter) => {
+                const applied = isStarterApplied(designColors, starter);
+                return (
+                  <div
+                    key={starter.id}
+                    data-testid={`world-shop-starter-${starter.id}`}
+                    className={`rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="flex overflow-hidden rounded-md border border-white/20">
+                        <span className="block h-4 w-4" style={{ background: starter.settings.banner_color }} />
+                        <span className="block h-4 w-4" style={{ background: starter.settings.accent_color }} />
+                      </span>
+                      <span className={`text-xs font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{starter.name}</span>
+                    </div>
+                    <p className={`mt-1 text-[11px] ${muted(isLight)}`}>{starter.blurb}</p>
+                    <p className={`text-[11px] ${muted(isLight)}`}>{starter.bestFor}</p>
+                    <button
+                      type="button"
+                      data-testid={`world-shop-starter-apply-${starter.id}`}
+                      disabled={applied || applyingStarterId !== null}
+                      onClick={() => void applyStarter(starter)}
+                      className={chipBtn(isLight)}
+                    >
+                      {applied ? "Applied" : applyingStarterId === starter.id ? "Applying…" : "Apply this look"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <p className={`text-[11px] ${muted(isLight)}`}>
+              Free — a look writes only your banner and accent colors, through the same settings save. Your name, story and products never move.
+            </p>
+          </div>
           {/* Stack-100 #68: custom domains — claim, DNS instructions,
               verify and remove on the creator-domains rails,
               right here in the stand's settings. */}

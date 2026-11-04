@@ -30,6 +30,7 @@ import {
   transcribeCostForDurationSec,
 } from "../credit-costs";
 import { makeSongPackageCostForLength } from "../make-song-prices";
+import { songPresetPatch, type SongPreset } from "../song-presets";
 import { getCoverArtTier } from "../cover-art";
 import { buildPublishUrl } from "../publish-protocol";
 import {
@@ -241,6 +242,46 @@ export function buildSongPayloadAdvanced(
     instructions: adv.specialInstructions,
     artistVault: null,
   };
+}
+
+/* ─── Song starters — the page registry's prefill, in-World ────────
+   Org wave #4 (the org wave #3 carried gap: World desks had no
+   starters). The Song Desk's form is the make-song form in one panel
+   — the prompt (its Turbo half) plus the Advanced fields — and its
+   genre/mood/length selects accept exactly the registry's value sets
+   (SONG_PRESET_GENRES / MOODS / LENGTHS), so a starter applies here
+   with the page's own semantics, from the page's own registry
+   (lib/song-presets — imported, never copied, so the two desks can
+   never drift apart):
+     - the prompt takes the preset's Simple-mode description text;
+     - the Advanced fields take songPresetPatch(preset) — ONLY the
+       keys the preset defines; every other field keeps the creator's
+       own value, exactly as the page's applyFormPreset leaves the
+       fields a preset does not name.
+   A starter is ONLY a prefill: applying one submits nothing and
+   charges nothing. Generation still happens only from the desk's own
+   Make the song tap, at the desk's registry price (which already
+   follows the Advanced length pick, so a structure starter that sets
+   a length moves the shown price through the desk's existing cost
+   path — the starter itself never touches a price). */
+
+export interface SongDeskFormState {
+  prompt: string;
+  adv: SongAdvanced;
+}
+
+export function applySongStarter(
+  preset: SongPreset,
+  current: SongDeskFormState,
+): SongDeskFormState {
+  const patch = songPresetPatch(preset);
+  const adv: SongAdvanced = { ...current.adv };
+  if (patch.genre) adv.genre = patch.genre;
+  if (patch.mood) adv.mood = patch.mood;
+  if (patch.songLength) adv.songLength = patch.songLength;
+  if (patch.beatStyle) adv.beatStyle = patch.beatStyle;
+  if (patch.specialInstructions) adv.specialInstructions = patch.specialInstructions;
+  return { prompt: preset.simplePrompt, adv };
 }
 
 export interface SongVideoAdvanced extends SongAdvanced {
