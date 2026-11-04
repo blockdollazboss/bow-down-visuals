@@ -5,7 +5,7 @@
  * fell back to its built-in synth voice behind a "not loaded" notice.
  *
  * This module is the client half of the durable rail
- * (POST/GET/DELETE /api/beat-samples, migration 0320): a signed-in
+ * (POST/GET/DELETE /api/beat-samples, migration 0322): a signed-in
  * creator's uploaded samples are stored server-side (R2, via presigned
  * PUT — the bytes never pass through the API server), listed back, and
  * registered into the sound registry through the manifest seam

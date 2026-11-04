@@ -1,4 +1,4 @@
--- 0320: beat_samples — durable per-user Beat Studio sample library
+-- 0322: beat_samples — durable per-user Beat Studio sample library
 -- (stack1500 beat-persistence lane).
 --
 -- WHY THIS FILE EXISTS: a sound a creator loads onto a Beat Studio
@@ -26,10 +26,11 @@
 --
 -- Fresh CREATE (no legacy table to reconcile): every statement is
 -- IF NOT EXISTS, safe to re-run as a no-op. No BEGIN/COMMIT, no
--- CONCURRENTLY. NOTE FOR THE JOIN: 0320 was the next free number on
--- the stack1400/join base tree (0319 was head); sibling stack1500
--- lanes were expected to claim numbers in the same range — renumber
--- at join time if another 0320 lands first.
+-- CONCURRENTLY. JOIN NOTE (stack1500 join #2): this file was authored
+-- as 0320 on the stack1400/join base tree (0319 was head), but sibling
+-- stack1500 lanes claimed 0320 (shop layout/font, join #1) and 0321
+-- (Too Lost submissions, join #1) first — renumbered to 0322 at join
+-- time, exactly as the lane's own note anticipated.
 
 CREATE TABLE IF NOT EXISTS beat_samples (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
