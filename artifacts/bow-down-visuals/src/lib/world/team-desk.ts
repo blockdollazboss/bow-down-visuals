@@ -51,13 +51,23 @@
    renders that as a locked state in the rail's words, never as a
    load error and never as an empty workspace.
 
-   SHARED VAULTS / PROJECTS: the page's own note (team.sharedVaultsNote)
-   is the whole website story — a vault is marked shared from the
-   Creator Vault surface (the vault row's own team_id), and every
-   active member can then use it; the World's figure pipeline
-   already honours team-shared vault rows (lib/world/characters.ts).
-   The desk carries the note verbatim and does not fake a share
-   toggle the team rails don't carry.
+   SHARED VAULTS (stack100 wave 5, item 28): the share action rides
+   the vault's own rail — POST /api/artist-vaults/:id/share
+   (owner-only; sets/clears the row's team_id) — the same call the
+   2D Creator Vault page makes (pages/artist-vault.tsx shareVault).
+   The desk lists the member's OWN vaults (GET /api/artist-vaults,
+   filtered to rows the caller owns — the rail refuses everyone
+   else) and toggles each one's sharing in place; the answer's
+   teamId is the state the desk renders, never an optimistic guess.
+   Sharing is FREE: the share rail has no credit-costs row and
+   never charges (the registry's artist-vaults rows are the
+   voice-clone and identity-photo rails — different actions). The
+   old "mark it shared from the Creator Vault page" note is
+   RETIRED — the World's figure pipeline already honours
+   team-shared vault rows (lib/world/characters.ts), and now the
+   marking itself happens here too. No new desk number is claimed:
+   the toggle extends this desk (parity wave #4a item 19's desk),
+   it is not a new desk.
 
    TEAM SEATS is a different surface (account seats in Settings —
    /api/team-seats, manager/collaborator/viewer roles) with no
@@ -112,6 +122,14 @@ export function groupPublicPath(slug: string): string {
   return `/api/group-profiles/${slug}`;
 }
 
+/* ─── vault sharing rails (the vault's own routes, not team rails) ── */
+
+export const VAULTS_PATH = "/api/artist-vaults";
+
+export function vaultSharePath(vaultId: string): string {
+  return `/api/artist-vaults/${vaultId}/share`;
+}
+
 /* ─── the rail's own rules, pinned ───────────────────────────────── */
 
 export const TEAM_NAME_MAX = 80;
@@ -126,11 +144,6 @@ export type TeamRole = (typeof TEAM_ROLES)[number];
 
 /** Roles an invite may carry — the rail refuses anything else. */
 export const TEAM_INVITE_ROLES = ["admin", "member"] as const;
-
-/** pages/team.tsx renders this note (en.json team.sharedVaultsNote)
- *  in its danger-zone card; the desk carries it word-for-word. */
-export const TEAM_SHARED_VAULTS_NOTE =
-  "Shared vaults: mark any artist vault as shared from the Creator Vault page and the whole team can use it.";
 
 /** The page's own fallback hints (en.json team.fallbackOnHint /
  *  team.fallbackOffHint), verbatim. */
@@ -192,6 +205,25 @@ export interface TeamSpendRow {
 export interface TeamFundResult {
   team: TeamRow;
   duplicate: boolean;
+}
+
+/** One of the member's OWN artist vaults, shaped for the share
+ *  toggle: the rail row's team_id is the sharing truth (null =
+ *  private). Teammates' vaults shared with the caller never appear
+ *  here — the share rail is owner-only, so the desk only offers
+ *  the toggle where it can work. */
+export interface TeamVaultRow {
+  id: string;
+  name: string;
+  teamId: string | null;
+  shared: boolean;
+}
+
+/** The share rail's answer: { ok: true, teamId } — teamId is the
+ *  vault's NEW sharing state (the active team's id, or null once
+ *  unshared). The desk renders exactly this, never its own guess. */
+export interface VaultShareResult {
+  teamId: string | null;
 }
 
 export interface TeamGroupProduct {
@@ -318,6 +350,13 @@ export function buildGroupProductPayload(input: {
   priceCents: number;
 }): { kind: string; title: string; priceCents: number } {
   return { kind: input.kind, title: input.title.trim(), priceCents: input.priceCents };
+}
+
+/** The 2D page's exact share body (pages/artist-vault.tsx
+ *  shareVault): { share } — the rail reads share === true
+ *  strictly; anything else unshares. */
+export function buildVaultSharePayload(share: boolean): { share: boolean } {
+  return { share };
 }
 
 /* ─── error classification ───────────────────────────────────────── */
@@ -541,4 +580,52 @@ export function parseGroupOwn(data: unknown): GroupProfileOwnDto | null {
      the stamp rides the save rail, not the row shape. The cast is
      confined to this seam. */
   return { group, members, products } as unknown as GroupProfileOwnDto;
+}
+
+/* ─── vault parsers (the vault list's own snake_case rows) ──────── */
+
+/** Shape GET /api/artist-vaults into the member's OWN vault rows
+ *  for the share toggle. The rail's list mixes the caller's own
+ *  vaults with teammates' vaults shared with their team; only rows
+ *  whose user_id IS the caller survive — the share rail is
+ *  owner-only, so a toggle on anyone else's row could only fail.
+ *  With no current user id, no row can be proven own and the list
+ *  is empty (the characters.ts isOwn rule). Rows may arrive
+ *  snake_case (the DB's own names) or camelCase; a broken envelope
+ *  is a failed read (null), never a painted-over empty list. */
+export function parseOwnVaults(
+  data: unknown,
+  currentUserId: string | null | undefined,
+): TeamVaultRow[] | null {
+  if (!isRecord(data) || !Array.isArray(data.vaults)) return null;
+  const me = typeof currentUserId === "string" ? currentUserId : "";
+  const out: TeamVaultRow[] = [];
+  for (const raw of data.vaults) {
+    if (!isRecord(raw)) continue;
+    const id = str(raw.id);
+    if (!id) continue;
+    const ownerRaw = raw["user_id"] ?? raw["userId"];
+    const ownerId = typeof ownerRaw === "string" ? ownerRaw : "";
+    if (!me || ownerId !== me) continue;
+    const nameRaw = raw["artist_name"] ?? raw["artistName"];
+    const name =
+      typeof nameRaw === "string" && nameRaw.trim()
+        ? nameRaw.trim().slice(0, 80)
+        : "Untitled character";
+    const teamRaw = raw["team_id"] ?? raw["teamId"];
+    const teamId = typeof teamRaw === "string" && teamRaw.length > 0 ? teamRaw : null;
+    out.push({ id, name, teamId, shared: teamId !== null });
+  }
+  return out;
+}
+
+/** The share rail's answer, strictly: { ok: true, teamId } with
+ *  teamId the new state (a team id string, or null). Anything else
+ *  is a failed read — the desk keeps the row's prior state and
+ *  surfaces the failure instead of guessing. */
+export function parseVaultShareResult(data: unknown): VaultShareResult | null {
+  if (!isRecord(data)) return null;
+  if (data.ok !== true) return null;
+  if (data.teamId !== null && typeof data.teamId !== "string") return null;
+  return { teamId: data.teamId as string | null };
 }
