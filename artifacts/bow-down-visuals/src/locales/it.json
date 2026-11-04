@@ -12416,13 +12416,17 @@
   "outOfCredits": {
     "addedBtn": "Visual Bucs aggiunti!",
     "adding": "Aggiunta…",
+    "balanceErrorTitle": "We couldn't check your balance",
+    "balanceErrorBody": "Your balance didn't come through, so we can't tell whether you have enough Visual Bucs for this. Try again — nothing was charged.",
     "addTestBtn": "Aggiungi 10 Visual Bucs di prova (dev)",
     "body": "Visual Bucs insufficienti. Acquista altri Visual Bucs per continuare.",
     "buyBtn": "Acquista altri Visual Bucs",
+    "checkingBalance": "Checking your balance…",
     "dismissAria": "Ignora",
     "errAdd": "Impossibile aggiungere Visual Bucs",
     "errFailed": "Non riuscito",
     "historyBtn": "Vedi la cronologia dei Visual Bucs",
+    "retryBtn": "Try again",
     "title": "Visual Bucs insufficienti"
   },
   "showcasePublish": {
