@@ -38,6 +38,7 @@ const h = vi.hoisted(() => ({
   chargedKeys: new Set<string>(),
   refunds: [] as Array<{ userId: string; cost: number; action: string }>,
   voided: [] as string[],
+  zipErrorMode: null as null | "mid-stream" | "pre-byte",
 }));
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -95,7 +96,39 @@ vi.mock("../../lib/credits", async (importOriginal) => {
   };
 });
 
+/* Stack-100 #33 stub: when h.zipErrorMode is set, buildKitZip returns
+   a fake archive that streams a partial chunk (mid-stream mode) or
+   nothing (pre-byte mode) and then emits 'error' from finalize() —
+   the exact failure streamBundle's handler exists for. Otherwise the
+   REAL builder runs, so every other test in this file still proves
+   the genuine zips byte-for-byte. */
+vi.mock("../../lib/theme-kit-build", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  const { PassThrough } = await import("node:stream");
+  return {
+    ...actual,
+    buildKitZip: (...args: unknown[]) => {
+      if (!h.zipErrorMode) return (actual.buildKitZip as (...a: unknown[]) => unknown)(...args);
+      const mode = h.zipErrorMode;
+      const stub = new PassThrough() as InstanceType<typeof PassThrough> & {
+        finalize: () => Promise<void>;
+      };
+      stub.finalize = () =>
+        new Promise<void>((_resolve, reject) => {
+          const err = new Error("zip blew up (test stub)");
+          if (mode === "mid-stream") stub.write(Buffer.from("PK\x03\x04partial-bytes"));
+          setImmediate(() => {
+            stub.emit("error", err);
+            reject(err);
+          });
+        });
+      return stub;
+    },
+  };
+});
+
 import themeKitRouter, { sanitizeMix } from "../theme-kit";
+import { logger } from "../../lib/logger";
 import {
   buildCab, buildCursorFile, readSiteAsset, designedIconSitePath, appIconSitePath,
   deviceWallpaperSitePath, DESIGNED_ICON_NAMES, WALLPAPER_DEVICES,
@@ -235,6 +268,7 @@ beforeEach(async () => {
   h.chargedKeys = new Set();
   h.refunds = [];
   h.voided = [];
+  h.zipErrorMode = null;
   await h.db.execute(sql`DELETE FROM theme_pack_purchases`);
   await h.db.execute(sql`DELETE FROM theme_pack_customizations`);
   await h.db.execute(sql`DELETE FROM creator_theme_packs`);
@@ -487,5 +521,55 @@ describe("GET THIS LOOK resolution", () => {
     expect(ok.json.priceRespected).toBe(false);
     const bad = await call("GET", "/theme-packs/look/%%%");
     expect(bad.status).toBe(400);
+  });
+});
+
+describe("bundle zip failure mid-stream (Stack-100 #33)", () => {
+  it("error after bytes flowed: handler fires and the stream is destroyed, not silently truncated", async () => {
+    const logSpy = vi.spyOn(logger, "error").mockImplementation((() => logger) as never);
+    h.zipErrorMode = "mid-stream";
+    try {
+      // A silently truncated download would RESOLVE with a short body
+      // under a 200; a hung one would never settle. The honest failure
+      // cuts the connection, so the fetch/body read must reject.
+      await expect(
+        (async () => {
+          const res = await fetch(`${base}/theme-packs/kit/golden-marble/download`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ kind: "full", mode: "dark" }),
+          });
+          await res.arrayBuffer();
+        })(),
+      ).rejects.toThrow();
+      // The handler — not some incidental failure — did this: it logs
+      // the mid-stream failure line before cutting the connection.
+      const logged = logSpy.mock.calls.some((c) => c[1] === "theme-kit bundle zip failed mid-stream");
+      expect(logged).toBe(true);
+    } finally {
+      logSpy.mockRestore();
+      h.zipErrorMode = null;
+    }
+  });
+
+  it("error before the first byte: the download answers 500 DOWNLOAD_FAILED instead of hanging", async () => {
+    h.zipErrorMode = "pre-byte";
+    try {
+      const r = await call("POST", "/theme-packs/kit/golden-marble/download", { kind: "full", mode: "dark" });
+      expect(r.status).toBe(500);
+      expect(r.json).toEqual({ error: "DOWNLOAD_FAILED" });
+    } finally {
+      h.zipErrorMode = null;
+    }
+  });
+
+  it("success path unchanged: a real bundle still downloads whole once the stub is off", async () => {
+    const r = await callBytes("POST", "/theme-packs/kit/shark-tank/download", { kind: "full", mode: "light" });
+    expect(r.status).toBe(200);
+    expect(r.buf.subarray(0, 2).toString("ascii")).toBe("PK");
+    // The zip central directory's end record is present — the stream
+    // ran to a real finish, not a truncation.
+    expect(r.buf.includes(Buffer.from("PK\x05\x06"))).toBe(true);
+    expect(r.buf.includes(Buffer.from("ios/GUIDED-SETUP.txt"))).toBe(true);
   });
 });
