@@ -15,7 +15,7 @@ import CommercePixelsSettings, {
   pixelsToForm,
   type CommercePixelsFormValue,
 } from "@/components/CommercePixelsSettings";
-import { centsToDisplay, dollarsToCents, shopHandleError } from "@/lib/shops";
+import { centsToDisplay, dollarsToCents, shopHandleError, STOREFRONT_PLATFORM_FEE_PCT } from "@/lib/shops";
 import {
   SHOP_DESIGN_STARTERS, shopStarterPatch, isStarterApplied,
   SHOP_LOOK_STARTERS, shopLookPatch, isLookStarterApplied,
@@ -1210,7 +1210,7 @@ export default function MyShop() {
                         </label>
                         <p className="mt-1 text-xs text-white/45">
                           Fans get a share link from the Earnings page. When someone buys through it, they earn the commission
-                          you set — paid out of <em>your</em> cut, never added to the buyer&apos;s price. The 5% platform fee doesn&apos;t change.
+                          you set — paid out of <em>your</em> cut, never added to the buyer&apos;s price. The {STOREFRONT_PLATFORM_FEE_PCT}% platform fee doesn&apos;t change.
                         </p>
                         {pAffiliates && (
                           <div className="mt-3 flex items-center gap-2">
@@ -1276,7 +1276,7 @@ export default function MyShop() {
                           </div>
                           <p className="mt-2 text-[11px] leading-relaxed text-white/40">
                             The add-on sells at its own price (or your % off it) in the same checkout — one charge.
-                            The platform fee stays the flat 5%. A discount code never discounts the add-on.
+                            The platform fee stays the flat {STOREFRONT_PLATFORM_FEE_PCT}%. A discount code never discounts the add-on.
                           </p>
                           {bumpMsg && <p className="mt-1.5 text-xs text-amber-200/90">{bumpMsg}</p>}
                         </div>

@@ -8,6 +8,26 @@ export interface CartLine {
   qty: number;
 }
 
+/** Platform fee on shop / storefront / digital-store sales, in basis
+ *  points (MIRROR — must match the server's STOREFRONT_PLATFORM_FEE_BPS
+ *  in artifacts/api-server/src/routes/generate/shops.ts; routes/store.ts
+ *  reuses the same knob). Flat 5% on every tier — owner ruling
+ *  2026-10-18, reaffirmed 2026-10-23. The server env-overrides its knob;
+ *  displays here state the ruled default the rails charge out of the
+ *  box, and surfaces that receive the server's own platformFeePct
+ *  render that value instead. */
+export const STOREFRONT_PLATFORM_FEE_BPS = 500;
+
+/** The same fee as a whole percent (5). */
+export const STOREFRONT_PLATFORM_FEE_PCT = STOREFRONT_PLATFORM_FEE_BPS / 100;
+
+/** Platform fee in cents for a gross amount, the rail's own rounding
+ *  (round half up on the gross). */
+export function storefrontFeeCents(grossCents: number): number {
+  const gross = Math.max(0, Math.round(grossCents));
+  return Math.round((gross * STOREFRONT_PLATFORM_FEE_BPS) / 10_000);
+}
+
 /** Format integer cents as a display price, e.g. 1999 → "$19.99". */
 export function centsToDisplay(cents: number): string {
   const safe = Math.max(0, Math.round(cents));

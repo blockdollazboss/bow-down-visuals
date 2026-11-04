@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import {
   centsToDisplay, cartKey, addToCartLines, setCartLineQty,
+  STOREFRONT_PLATFORM_FEE_PCT,
   type CartLine,
 } from "@/lib/shops";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -117,7 +118,10 @@ export default function ShopStorefront() {
   const productDialogRef = useModalA11y<HTMLDivElement>(!!selected, () => setSelected(null));
   const cartDialogRef = useModalA11y<HTMLElement>(cartOpen, () => setCartOpen(false));
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [feePct, setFeePct] = useState(10);
+  /* Starts at the ruled shop fee (5%) so the checkout note never shows
+     a stale rate while the shop payload loads; the payload's own
+     platformFeePct replaces it on arrival. */
+  const [feePct, setFeePct] = useState(STOREFRONT_PLATFORM_FEE_PCT);
   /* checkout */
   const { getAccessToken } = useAuth();
   const [buyerEmail, setBuyerEmail] = useState("");
@@ -176,7 +180,7 @@ export default function ShopStorefront() {
         if (!cancelled) {
           setShop(data.shop);
           setProducts(data.products ?? []);
-          setFeePct(data.platformFeePct ?? 5);
+          setFeePct(data.platformFeePct ?? STOREFRONT_PLATFORM_FEE_PCT);
           /* Commerce pixels (wave-4 #41): the shop owner's own IDs —
              the view event fires from the payload's sanitized pixels;
              none configured → nothing loads, nothing fires. */
