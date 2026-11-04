@@ -115,8 +115,8 @@ export async function notifyPerformanceEscrowReversed(bookingId: string): Promis
  * promoter funds the fee into escrow (the sponsors escrow pattern —
  * Stripe Checkout, or the sandbox stand-in when no Stripe key is
  * configured), the show happens, the artist marks it complete, and the
- * promoter releases the escrow. Bow Down Visuals keeps 15% of the fee
- * at release (PERFORMANCE_BOOKING_FEE_BPS); the promoter never pays
+ * promoter releases the escrow. Bow Down Visuals keeps 15% of the booking
+ * price at release (PERFORMANCE_BOOKING_FEE_BPS); the promoter never pays
  * more than the agreed fee.
  *
  * Every record carries its plain-words terms summary (#164),
@@ -451,7 +451,7 @@ router.get("/performance-bookings", requireAuth, async (req, res) => {
         paid: bookings.filter((b) => b.status === "paid").length,
         closed: bookings.filter((b) => ["declined", "cancelled"].includes(b.status)).length,
       },
-      note: "Performance fees are real money held in escrow until the show is done and the promoter releases them. Bow Down Visuals keeps 15% of the fee at release.",
+      note: "Performance fees are real money held in escrow until the show is done and the promoter releases them. Bow Down Visuals keeps 15% of the price at release.",
     });
   } catch (err) {
     logger.error({ err }, "[performance-bookings] list failed");

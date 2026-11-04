@@ -193,7 +193,7 @@ export default function BookArtistSection({ profile }: { profile: CreatorProfile
           <span>
             Promoters and venues: name the date, the venue, and the fee. The fee is held in
             escrow and released to {profile.display_name} only after the show — Bow Down
-            Visuals keeps 15% of the fee at release, and you never pay more than you agreed.
+            Visuals keeps 15% of the price at release, and you never pay more than you agreed.
           </span>
         </p>
 
