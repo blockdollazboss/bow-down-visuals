@@ -19,6 +19,7 @@ import { NativeCard } from "./NativeCard";
 import { ReleaseDeskSection } from "./ReleaseDesk";
 import { SchedulerDeskSection } from "./SchedulerDesk";
 import { MoneyActionTrackerSection, NicheAnalyzerSection } from "./CoachPanels";
+import { CoachPlanLadderSection } from "./CoachPlanLadder";
 import { PostAssistBlock } from "./PostAssist";
 import { UgcAdsStation } from "./UgcAdsStation";
 import type { SchedulerPrefill } from "@/lib/world/scheduler-desk";
@@ -2734,6 +2735,13 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
           coach-full-page-depth follow-on graduates on these. */}
       <NicheAnalyzerSection isLight={isLight} />
       <MoneyActionTrackerSection isLight={isLight} />
+
+      {/* The Coach's plan ladder + upgrade door (Stack-100 W5 #31,
+          audit A14): CREATOR_PLANS from the one pricing source,
+          the standing from useCreatorTier, and the embedded
+          upgrade door — the money room shows the real ladder
+          where the money talk happens. */}
+      <CoachPlanLadderSection isLight={isLight} />
 
       <NativeBoard isLight={isLight} title="Folded in — status here, the bench one tap out">
         <div className="space-y-3">
