@@ -33,10 +33,10 @@ describe("the figures in-panel", () => {
   it("values ride the website's own formatter; toggles are aria-pressed switches", () => {
     expect(desk).toContain("formatProofValue(figure.value)");
     expect(desk).toContain("aria-pressed={figure.visible}");
-    expect(desk).toContain("Showing — tap to hide");
-    expect(desk).toContain("Hidden — tap to show");
+    expect(desk).toContain('t("worldSocialDesk.proofShowing")');
+    expect(desk).toContain('t("worldSocialDesk.proofHidden")');
     expect(desk).toContain('data-testid="world-social-proof-desk-refresh"');
-    expect(desk).toContain("account disconnected — this figure is retired");
+    expect(desk).toContain('t("worldSocialDesk.proofDisconnected")');
   });
 
   it("the toggle saves through the seam's computation + payload", () => {
@@ -56,11 +56,11 @@ describe("free — no spend path exists in the desk", () => {
 describe("the honest states stay separate", () => {
   it("503, no-profile, no-figures and failed-with-retry each render as themselves", () => {
     expect(desk).toContain('data-testid="world-social-proof-desk-unavailable"');
-    expect(desk).toContain("isn&rsquo;t switched on for this server yet");
+    expect(desk).toContain('t("worldSocialDesk.proofNotReady")');
     expect(desk).toContain('data-testid="world-social-proof-desk-no-profile"');
-    expect(desk).toContain("No figures yet");
+    expect(desk).toContain('t("worldSocialDesk.proofNoFigures")');
     expect(desk).toContain('data-testid="world-social-proof-desk-failed"');
-    expect(desk).toContain("Try again");
+    expect(desk).toContain('t("social-proof.retry")');
   });
 });
 

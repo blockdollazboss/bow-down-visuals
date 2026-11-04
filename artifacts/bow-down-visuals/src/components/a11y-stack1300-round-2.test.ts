@@ -319,7 +319,12 @@ describe("W3 — every World desk button has an accessible name", () => {
     const desk = read("components/world/native/SocialDesk.tsx");
     const at = desk.indexOf('data-testid="world-dm-attach-link"');
     const btn = desk.slice(Math.max(0, at - 500), at + 300);
-    expect(btn).toContain('aria-label="Attach by link instead"');
+    /* Unit 43: the name rides the catalog (worldSocialDesk) — the
+       guard pins the key wiring AND the en value it resolves to. */
+    expect(btn).toContain('aria-label={t("worldSocialDesk.dmAttachLinkTitle")}');
+    const enNs = (JSON.parse(read("locales/en.json")) as Record<string, any>)
+      .worldSocialDesk as Record<string, string>;
+    expect(enNs.dmAttachLinkTitle).toBe("Attach by link instead");
     expect(btn).toContain("aria-expanded={showLink}");
   });
 });

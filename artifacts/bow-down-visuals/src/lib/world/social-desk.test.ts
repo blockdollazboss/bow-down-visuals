@@ -277,7 +277,7 @@ describe("reply reactions — every node in the thread tree (R2 residual)", () =
   });
 
   it("a failed toggle rolls back AND says so — the reaction never stands", () => {
-    expect(deskSrc).toContain("That reaction didn't land — try again.");
+    expect(deskSrc).toContain('t("worldSocialDesk.hallReactionFailed")');
     expect(deskSrc).toContain('data-testid="world-community-node-react-note"');
     expect(deskSrc).toContain("setCounts(prev.counts)");
   });
@@ -394,7 +394,7 @@ describe("DM thread search lights its matches in place (2.17, STACK-20 R2 #6 wor
        desk loads the server's default window (the latest 50) and
        says so — older messages are not silently un-searched. */
     expect(deskSrc).toContain('data-testid="world-dm-thread-search-scope"');
-    expect(deskSrc).toContain("loaded messages match — search covers the latest 50 messages in this thread.");
+    expect(deskSrc).toContain('t("worldSocialDesk.dmSearchScopeLine"');
   });
 });
 
@@ -512,7 +512,7 @@ describe("post reply drafts (STACK-20 R2 #8, 2.19) — the board composer's word
     expect(deskSrc).toContain("if (!isGuest) void restoreReplyDraft()");
     /* Tone: the bench's chips set the draft's tone. */
     expect(deskSrc).toContain("world-community-reply-tone-");
-    expect(deskSrc).toContain("onClick={() => setReplyTone(t.key)}");
+    expect(deskSrc).toContain("onClick={() => setReplyTone(toneOpt.key)}");
     /* Save: one persist helper on the builder path, carrying the
        tone, consulted by the decision seam. */
     expect(deskSrc).toContain("postReplyDraftPath(post.id)");
@@ -522,12 +522,12 @@ describe("post reply drafts (STACK-20 R2 #8, 2.19) — the board composer's word
     /* Honesty: a failed save is SAID, and the claim of "saved" is a
        state the desk sets only on the server's confirmation. */
     expect(deskSrc).toContain("world-community-reply-draft-state");
-    expect(deskSrc).toContain("Couldn't save your draft — your words are still here");
+    expect(deskSrc).toContain('t("worldSocialDesk.hallDraftSaveFailed")');
     /* Send: the server retired the row; the local markers agree. */
     expect(deskSrc).toContain("savedReplyRef.current = null;");
     /* Guests: the composer (and its rail) is never rendered for
        them — the read-only line is their whole reply surface. */
-    expect(deskSrc).toContain("sign in to add your voice to it");
+    expect(deskSrc).toContain('t("worldSocialDesk.hallGuestThreadNote")');
   });
 });
 
@@ -575,8 +575,8 @@ describe("source pins — the desk and its host dispatch", () => {
   it("attachments are presented as titled work with a player, never a file chip", () => {
     expect(deskSrc).toContain("<audio controls");
     expect(deskSrc).toContain("<video controls");
-    expect(deskSrc).toContain("dmWorkLabel(att.type)");
-    expect(deskSrc).toContain("hand-off");
+    expect(deskSrc).toContain("workLabel(att.type, t)");
+    expect(deskSrc).toContain('t("worldSocialDesk.dmHandOff"');
   });
 
   it("threads are honest + nested (2.18): failed loads fail loudly, nodes open their own children", () => {
@@ -584,7 +584,7 @@ describe("source pins — the desk and its host dispatch", () => {
        fake-empty path (catch → setReplies([])) must never return. */
     expect(deskSrc).toContain('data-testid="world-community-thread-failed"');
     expect(deskSrc).toContain('data-testid="world-community-node-failed"');
-    expect(deskSrc).toContain("Fetching the thread…");
+    expect(deskSrc).toContain('t("worldSocialDesk.dmThreadLoading")');
     expect(deskSrc).not.toContain("setReplies([])");
     /* Nesting: a reply renders as a node that fetches and answers
        its own children off the same rails, keyed by its own id. */

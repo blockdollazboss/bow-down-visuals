@@ -2,15 +2,15 @@
  * Create media benches i18n pins (Stack-100 locale unit 38).
  *
  * The World's Create media benches — StoryboardBench,
- * StoryboardPlanner, ScenesDesk, ThumbnailBenches, HookDesk and
- * PostAssist — rendered hard-coded English inside a 10-locale
- * product: none of the six files contained a t()/useTranslation
+ * StoryboardPlanner, ScenesDesk, ThumbnailBenches and HookDesk —
+ * rendered hard-coded English inside a 10-locale
+ * product: none of the five files contained a t()/useTranslation
  * call. Their own copy now lives in the locale catalogs under
  * worldCreateMedia.*. These pins hold both halves:
  *
- *  - extraction: every one of the six files renders through
+ *  - extraction: every one of the five files renders through
  *    useTranslation, and every catalog key in the namespace is
- *    actually referenced by one of the six (no orphan keys, no
+ *    actually referenced by one of the five (no orphan keys, no
  *    unextracted remainder in the namespace);
  *  - parity: all 10 locales carry the full extracted key set, so
  *    the benches can never silently fall back to one language
@@ -36,6 +36,16 @@
  * TRANSLATION STATUS: en is final. The other nine catalogs'
  * values are AGENT-DRAFTED and UNREVIEWED (standing stack600
  * practice), except the money lines, which are verbatim en.
+ *
+ * JOIN NOTE (stack100 phase-2 join): PostAssist was extracted
+ * twice — here (pa* keys) and by locale unit 43 under
+ * worldSocialDesk (assist* keys). The component is a social /
+ * Promote surface, so the joined tree carries unit 43's wiring;
+ * this unit's 13 pa* keys were retired from every catalog and
+ * PostAssist left this family (five files). The same join added
+ * the HookDesk Titles/Scripts tab keys (hookModeTitles,
+ * hookModeScripts, hookRunTitles, hookRunScripts — the w5 benches
+ * unit 38 never saw; en verbatim, nine drafts UNREVIEWED).
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -51,7 +61,6 @@ const FILES = [
   "ScenesDesk",
   "ThumbnailBenches",
   "HookDesk",
-  "PostAssist",
 ] as const;
 const sources: Record<string, string> = {};
 for (const f of FILES) {
@@ -63,7 +72,6 @@ const enNs = (en.worldCreateMedia ?? {}) as Record<string, string>;
 const enKeys = Object.keys(enNs).sort();
 
 const MONEY_KEYS = [
-  "paWriteButton",
   "hookCostLine",
   "sbAnalyzeButton",
   "sbScenesFromSongPaid",
@@ -81,15 +89,15 @@ const MONEY_KEYS = [
 ];
 
 describe("Create media benches extraction (unit 38)", () => {
-  it("all six files render through useTranslation", () => {
+  it("all five files render through useTranslation", () => {
     for (const f of FILES) {
       expect(sources[f], f).toContain('import { useTranslation } from "react-i18next"');
       expect(sources[f], f).toContain("worldCreateMedia.");
     }
   });
 
-  it("every extracted key is referenced by the six files (no orphans, no remainder)", () => {
-    expect(enKeys.length).toBe(226);
+  it("every extracted key is referenced by the five files (no orphans, no remainder)", () => {
+    expect(enKeys.length).toBe(217);
     const referenced = new Set(
       [...allSrc.matchAll(/worldCreateMedia\.(\w+)/g)].map((m) => m[1]),
     );
@@ -103,12 +111,6 @@ describe("Create media benches extraction (unit 38)", () => {
 
   it("en copy is the benches' original wording, verbatim", () => {
     expect(enNs.scenesTitle).toBe("Local Scenes");
-    expect(enNs.paDrafted).toBe(
-      "Drafted into your composer below — make it yours, then post it.",
-    );
-    expect(enNs.paNeverPosts).toBe(
-      "The draft lands in your composer — it never posts itself.",
-    );
     expect(enNs.hookCostLine).toBe(
       "Costs {{cost}} Visual Bucs — shown before anything runs.",
     );

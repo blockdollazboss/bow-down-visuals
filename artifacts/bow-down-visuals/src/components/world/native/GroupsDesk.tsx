@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Users, Search, Plus, ArrowLeft, Lock, Globe, Pin, Trash2, MessageSquare,
   Hash, Send, Loader2, Crown,
@@ -76,6 +77,7 @@ const inputCls = (isLight: boolean) =>
   }`;
 
 export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useAuthHeaders();
   const { user } = useAuth();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
@@ -131,11 +133,11 @@ export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         body: buildGroupCreateBody(cName, cSlug, cDesc, cPublic),
       });
       setCName(""); setCDesc(""); setShowCreate(false);
-      setNotice("Your group is live — you're its owner.");
-      setTick((t) => t + 1);
+      setNotice(t("worldSocialDesk.groupsCreatedNotice"));
+      setTick((n) => n + 1);
       if (d.group?.slug) setOpenSlug(d.group.slug);
     } catch (e) {
-      setNotice(plainErrorText(e, "Couldn't start the group — try again."));
+      setNotice(plainErrorText(e, t("worldSocialDesk.groupsCreateError")));
     } finally {
       setCreating(false);
     }
@@ -145,14 +147,12 @@ export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
     <div data-testid="world-groups-desk" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2 px-1">
         <h3 className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-          <Users className="h-4 w-4 text-[#d4af37]" /> Groups at the Hall
+          <Users className="h-4 w-4 text-[#d4af37]" /> {t("worldSocialDesk.groupsTitle")}
         </h3>
-        <span className={`text-xs ${muted}`}>
-          Crews with their own feeds and forums — browse, join, and talk without leaving the palace.
-        </span>
+        <span className={`text-xs ${muted}`}>{t("worldSocialDesk.groupsIntro")}</span>
         {!isGuest && (
           <button type="button" data-testid="world-groups-create-toggle" onClick={() => setShowCreate((s) => !s)} aria-expanded={showCreate} className={`${goldBtn} ml-auto`}>
-            <Plus className="h-3.5 w-3.5" /> Start a group
+            <Plus className="h-3.5 w-3.5" /> {t("worldSocialDesk.groupsStartButton")}
           </button>
         )}
       </div>
@@ -167,7 +167,7 @@ export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
           isLight={isLight}
           isGuest={isGuest}
           authHeaders={authHeaders}
-          onBack={() => { setOpenSlug(null); setTick((t) => t + 1); }}
+          onBack={() => { setOpenSlug(null); setTick((n) => n + 1); }}
           onNotice={setNotice}
         />
       ) : (
@@ -179,13 +179,13 @@ export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                 data-testid="world-groups-search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search groups…"
+                placeholder={t("worldSocialDesk.groupsSearchPlaceholder")}
                 className={`w-full bg-transparent text-sm outline-none ${strong} placeholder:text-current placeholder:opacity-40`}
               />
             </label>
             {!isGuest && user?.id && (
               <button type="button" data-testid="world-groups-mine" onClick={() => setMineOnly((m) => !m)} className={chipBtn(isLight)} aria-pressed={mineOnly}>
-                {mineOnly ? "✓ My groups" : "My groups"}
+                {mineOnly ? t("worldSocialDesk.groupsMineActive") : t("worldSocialDesk.groupsMine")}
               </button>
             )}
           </div>
@@ -193,31 +193,31 @@ export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
           {showCreate && !isGuest && (
             <NativeCard isLight={isLight}>
               <div className="flex flex-col gap-2" data-testid="world-groups-create-form">
-                <input data-testid="world-groups-create-name" aria-label="Group name" value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Group name" maxLength={80} className={inputCls(isLight)} />
+                <input data-testid="world-groups-create-name" aria-label={t("worldSocialDesk.groupsNameField")} value={cName} onChange={(e) => setCName(e.target.value)} placeholder={t("worldSocialDesk.groupsNameField")} maxLength={80} className={inputCls(isLight)} />
                 {cName.trim() && (
-                  <p className={`text-xs ${muted}`}>Its palace address: <span className="font-bold">/groups/{cSlug || "…"}</span></p>
+                  <p className={`text-xs ${muted}`}>{t("worldSocialDesk.groupsAddressPrefix")}<span className="font-bold">/groups/{cSlug || "…"}</span></p>
                 )}
-                <textarea value={cDesc} aria-label="What's this crew about?" onChange={(e) => setCDesc(e.target.value)} placeholder="What's this crew about?" rows={2} maxLength={2000} className={inputCls(isLight)} />
+                <textarea value={cDesc} aria-label={t("worldSocialDesk.groupsAboutField")} onChange={(e) => setCDesc(e.target.value)} placeholder={t("worldSocialDesk.groupsAboutField")} rows={2} maxLength={2000} className={inputCls(isLight)} />
                 <label className={`inline-flex items-center gap-2 text-xs font-semibold bdv-touch-target ${muted}`}>
                   <input type="checkbox" checked={cPublic} onChange={(e) => setCPublic(e.target.checked)} />
-                  {cPublic ? "Public — anyone can browse and join" : "Private — only members see inside"}
+                  {cPublic ? t("worldSocialDesk.groupsPublicLabel") : t("worldSocialDesk.groupsPrivateLabel")}
                 </label>
                 <button type="button" data-testid="world-groups-create-submit" disabled={!groupCreateReady(cName, cSlug) || creating} onClick={() => void createGroup()} className={goldBtn}>
-                  {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Create the group
+                  {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} {t("worldSocialDesk.groupsCreateSubmit")}
                 </button>
               </div>
             </NativeCard>
           )}
 
           {listFailed ? (
-            <NativeErrorState isLight={isLight} message="The group directory wouldn't open." onRetry={() => setTick((t) => t + 1)} />
+            <NativeErrorState isLight={isLight} message={t("worldSocialDesk.groupsLoadError")} onRetry={() => setTick((n) => n + 1)} />
           ) : groups === null ? (
-            <NativeLoadingState isLight={isLight} message="Opening the group directory…" />
+            <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.groupsLoading")} />
           ) : groups.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message={mineOnly ? "You're not in any groups yet." : "No groups match — yet."}
-              detail={isGuest ? "Sign in to start the first crew." : "Start the first crew with the button above."}
+              message={mineOnly ? t("worldSocialDesk.groupsEmptyMine") : t("worldSocialDesk.groupsEmptyNone")}
+              detail={isGuest ? t("worldSocialDesk.groupsEmptyDetailGuest") : t("worldSocialDesk.groupsEmptyDetailMember")}
             />
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">
@@ -229,14 +229,14 @@ export function GroupsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                       {g.is_public ? <Globe className="h-3.5 w-3.5 text-[#d4af37]" /> : <Lock className="h-3.5 w-3.5 text-[#d4af37]" />}
                     </span>
                     {g.description && <span className={`line-clamp-2 text-xs ${muted}`}>{g.description}</span>}
-                    <span className={`text-xs font-semibold ${muted}`}>{g.member_count} member{g.member_count === 1 ? "" : "s"}</span>
+                    <span className={`text-xs font-semibold ${muted}`}>{t(g.member_count === 1 ? "worldSocialDesk.groupsMembersOne" : "worldSocialDesk.groupsMembersMany", { count: g.member_count })}</span>
                   </button>
                 </NativeCard>
               ))}
             </div>
           )}
           {isGuest && (
-            <p className={`px-1 text-xs ${muted}`}>You're browsing as a guest — public groups are open to read; joining and posting are for signed-in members.</p>
+            <p className={`px-1 text-xs ${muted}`}>{t("worldSocialDesk.groupsGuestNote")}</p>
           )}
         </>
       )}
@@ -256,6 +256,7 @@ function GroupRoom({
   onBack: () => void;
   onNotice: (n: string | null) => void;
 }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   const [detail, setDetail] = useState<GroupDetail | null>(null);
@@ -269,10 +270,10 @@ function GroupRoom({
     try {
       const d = await apiJson(authHeaders, groupPath(slug));
       const parsed = normalizeGroupDetail(d);
-      if (!parsed) throw new Error("Couldn't load the group — try again.");
+      if (!parsed) throw new Error(t("worldSocialDesk.groupsLoadGroupError"));
       setDetail(parsed);
     } catch (e) {
-      setFailed(plainErrorText(e, "Couldn't load the group — try again."));
+      setFailed(plainErrorText(e, t("worldSocialDesk.groupsLoadGroupError")));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, reloadKey]);
@@ -288,14 +289,14 @@ function GroupRoom({
     try {
       if (membership === "join") {
         await apiJson(authHeaders, groupJoinPath(slug), { method: "POST" });
-        onNotice(`You're in ${detail.group.name}. Make some noise.`);
+        onNotice(t("worldSocialDesk.groupsJoinedNotice", { name: detail.group.name }));
       } else if (membership === "leave") {
         await apiJson(authHeaders, groupLeavePath(slug), { method: "POST" });
-        onNotice(`You left ${detail.group.name}.`);
+        onNotice(t("worldSocialDesk.groupsLeftNotice", { name: detail.group.name }));
       }
       setReloadKey((k) => k + 1);
     } catch (e) {
-      onNotice(plainErrorText(e, "That didn't go through — try again."));
+      onNotice(plainErrorText(e, t("worldSocialDesk.groupsActionError")));
     } finally {
       setBusy(false);
     }
@@ -304,12 +305,12 @@ function GroupRoom({
   return (
     <div data-testid="world-group-room" className="flex flex-col gap-3">
       <button type="button" onClick={onBack} className={`inline-flex items-center gap-1.5 self-start px-1 text-xs font-bold ${muted} hover:opacity-80`}>
-        <ArrowLeft className="h-3.5 w-3.5" /> All groups
+        <ArrowLeft className="h-3.5 w-3.5" /> {t("worldSocialDesk.groupsAllGroups")}
       </button>
       {failed ? (
         <NativeErrorState isLight={isLight} message={failed} onRetry={() => setReloadKey((k) => k + 1)} />
       ) : !detail ? (
-        <NativeLoadingState isLight={isLight} message="Opening the group…" />
+        <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.groupsOpeningGroup")} />
       ) : (
         <>
           <div className="flex flex-wrap items-start gap-3 px-1">
@@ -320,46 +321,46 @@ function GroupRoom({
               </h4>
               {detail.group.description && <p className={`mt-1 text-sm ${muted}`}>{detail.group.description}</p>}
               <p className={`mt-1 text-xs font-semibold ${muted}`}>
-                {detail.group.member_count} member{detail.group.member_count === 1 ? "" : "s"}
-                {detail.owner_profile && <> · led by {detail.owner_profile.displayName}</>}
-                {detail.viewer_role && <> · you're {detail.viewer_role === "owner" ? "the owner" : `a ${detail.viewer_role}`}</>}
+                {t(detail.group.member_count === 1 ? "worldSocialDesk.groupsMembersOne" : "worldSocialDesk.groupsMembersMany", { count: detail.group.member_count })}
+                {detail.owner_profile && <>{t("worldSocialDesk.groupsLedBy", { name: detail.owner_profile.displayName })}</>}
+                {detail.viewer_role && <>{detail.viewer_role === "owner" ? t("worldSocialDesk.groupsYouOwner") : t("worldSocialDesk.groupsYouRole", { role: detail.viewer_role })}</>}
               </p>
               {detail.members.length > 0 && (
                 <p className={`mt-1 text-xs ${muted}`}>
-                  In the crew: {detail.members.slice(0, 8).map((m) => m.profile?.displayName ?? "A creator").join(", ")}
+                  {t("worldSocialDesk.groupsInCrew", { names: detail.members.slice(0, 8).map((m) => m.profile?.displayName ?? t("worldSocialDesk.groupsCreatorFallback")).join(", ") })}
                   {detail.members.length > 8 ? "…" : ""}
                 </p>
               )}
             </div>
             {membership === "join" && (
-              <button type="button" data-testid="world-group-join" disabled={busy} onClick={() => void joinLeave()} className={goldBtn}>Join the group</button>
+              <button type="button" data-testid="world-group-join" disabled={busy} onClick={() => void joinLeave()} className={goldBtn}>{t("worldSocialDesk.groupsJoinButton")}</button>
             )}
             {membership === "leave" && (
-              <button type="button" data-testid="world-group-leave" disabled={busy} onClick={() => void joinLeave()} className={chipBtn(isLight)}>Leave</button>
+              <button type="button" data-testid="world-group-leave" disabled={busy} onClick={() => void joinLeave()} className={chipBtn(isLight)}>{t("worldSocialDesk.groupsLeaveButton")}</button>
             )}
             {membership === "owner" && (
               <span className={`inline-flex items-center gap-1.5 rounded-full border border-[#d4af37]/40 px-3 py-1.5 text-xs font-bold ${strong}`}>
-                <Crown className="h-3.5 w-3.5 text-[#d4af37]" /> Your group
+                <Crown className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldSocialDesk.groupsYourGroup")}
               </span>
             )}
             {membership === "sign-in" && (
-              <span className={`text-xs font-semibold ${muted}`}>Sign in to join this crew.</span>
+              <span className={`text-xs font-semibold ${muted}`}>{t("worldSocialDesk.groupsSignInToJoin")}</span>
             )}
           </div>
 
-          <div className="flex gap-2 px-1" role="tablist" aria-label="Group sections">
-            {(["feed", "forum"] as const).map((t) => (
+          <div className="flex gap-2 px-1" role="tablist" aria-label={t("worldSocialDesk.groupsSectionsAria")}>
+            {(["feed", "forum"] as const).map((tabKey) => (
               <button
-                key={t}
+                key={tabKey}
                 type="button"
                 role="tab"
-                aria-selected={tab === t}
-                data-testid={`world-group-tab-${t}`}
-                onClick={() => setTab(t)}
-                className={tab === t ? goldBtn : chipBtn(isLight)}
+                aria-selected={tab === tabKey}
+                data-testid={`world-group-tab-${tabKey}`}
+                onClick={() => setTab(tabKey)}
+                className={tab === tabKey ? goldBtn : chipBtn(isLight)}
               >
-                {t === "feed" ? <MessageSquare className="h-3.5 w-3.5" /> : <Hash className="h-3.5 w-3.5" />}
-                {t === "feed" ? "Group feed" : "Forum"}
+                {tabKey === "feed" ? <MessageSquare className="h-3.5 w-3.5" /> : <Hash className="h-3.5 w-3.5" />}
+                {tabKey === "feed" ? t("worldSocialDesk.groupsTabFeed") : t("worldSocialDesk.groupsTabForum")}
               </button>
             ))}
           </div>
@@ -387,6 +388,7 @@ function GroupFeed({
   viewerRole: string | null;
   onNotice: (n: string | null) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   const [posts, setPosts] = useState<GroupFeedPost[] | null>(null);
@@ -417,9 +419,9 @@ function GroupFeed({
     try {
       await apiJson(authHeaders, groupPostsPath(slug), { method: "POST", body: { body: draft.trim() } });
       setDraft("");
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (e) {
-      onNotice(plainErrorText(e, "Couldn't post — try again."));
+      onNotice(plainErrorText(e, t("worldSocialDesk.groupsPostError")));
     } finally {
       setBusy(false);
     }
@@ -428,14 +430,14 @@ function GroupFeed({
   const remove = async (id: string) => {
     try {
       await apiJson(authHeaders, groupPostPath(slug, id), { method: "DELETE" });
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (e) {
-      onNotice(plainErrorText(e, "Couldn't delete that post."));
+      onNotice(plainErrorText(e, t("worldSocialDesk.groupsDeletePostError")));
     }
   };
 
-  if (failed) return <NativeErrorState isLight={isLight} message="The group feed wouldn't open." onRetry={() => setTick((t) => t + 1)} />;
-  if (posts === null) return <NativeLoadingState isLight={isLight} message="Loading the group feed…" />;
+  if (failed) return <NativeErrorState isLight={isLight} message={t("worldSocialDesk.groupsFeedError")} onRetry={() => setTick((n) => n + 1)} />;
+  if (posts === null) return <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.groupsFeedLoading")} />;
 
   return (
     <div data-testid="world-group-feed" className="flex flex-col gap-2">
@@ -443,38 +445,38 @@ function GroupFeed({
         <div className="flex items-start gap-2 px-1">
           <textarea
             data-testid="world-group-feed-composer"
-            aria-label="Say it to the crew"
+            aria-label={t("worldSocialDesk.groupsFeedComposerAria")}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Say it to the crew…"
+            placeholder={t("worldSocialDesk.groupsFeedComposerPlaceholder")}
             rows={2}
             maxLength={2000}
             className={inputCls(isLight)}
           />
           <button type="button" data-testid="world-group-feed-post" disabled={!draft.trim() || busy} onClick={() => void post()} className={goldBtn}>
-            <Send className="h-3.5 w-3.5" /> Post
+            <Send className="h-3.5 w-3.5" /> {t("worldSocialDesk.groupsPostButton")}
           </button>
         </div>
       ) : (
         <p className={`px-1 text-xs ${muted}`}>
-          {isGuest ? "Sign in and join the group to post in its feed." : "Join the group to post in its feed — members talk, visitors listen."}
+          {isGuest ? t("worldSocialDesk.groupsFeedGuestNote") : t("worldSocialDesk.groupsFeedMemberNote")}
         </p>
       )}
       {posts.length === 0 ? (
-        <NativeEmptyState isLight={isLight} message="Nothing on this feed yet." detail={canPost ? "Be the first voice in the crew." : undefined} />
+        <NativeEmptyState isLight={isLight} message={t("worldSocialDesk.groupsFeedEmpty")} detail={canPost ? t("worldSocialDesk.groupsFeedEmptyDetail") : undefined} />
       ) : (
         posts.map((p) => (
           <NativeCard key={p.id} isLight={isLight}>
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1">
                 <p className={`text-xs font-bold ${strong}`}>
-                  {p.author?.displayName ?? "A creator"}
-                  <span className={`ml-2 font-semibold ${muted}`}>{p.created_at ? new Date(p.created_at).toLocaleDateString() : ""}</span>
+                  {p.author?.displayName ?? t("worldSocialDesk.groupsCreatorFallback")}
+                  <span className={`ml-2 font-semibold ${muted}`}>{p.created_at ? new Date(p.created_at).toLocaleDateString(i18n.language) : ""}</span>
                 </p>
                 <p className={`mt-1 whitespace-pre-wrap text-sm ${strong}`}>{p.body}</p>
               </div>
               {p.can_delete && !isGuest && (
-                <button type="button" data-testid={`world-group-feed-delete-${p.id}`} onClick={() => void remove(p.id)} className={chipBtn(isLight)} aria-label="Delete post">
+                <button type="button" data-testid={`world-group-feed-delete-${p.id}`} onClick={() => void remove(p.id)} className={chipBtn(isLight)} aria-label={t("worldSocialDesk.groupsDeletePostAria")}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -497,6 +499,7 @@ function GroupForum({
   authHeaders: () => Promise<Record<string, string>>;
   onNotice: (n: string | null) => void;
 }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   const [channels, setChannels] = useState<ForumChannel[] | null>(null);
@@ -546,9 +549,9 @@ function GroupForum({
         },
       });
       setChName(""); setChDesc(""); setChGate("");
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (e) {
-      onNotice(plainErrorText(e, "Couldn't open the channel."));
+      onNotice(plainErrorText(e, t("worldSocialDesk.groupsCreateChannelError")));
     } finally {
       setChBusy(false);
     }
@@ -558,14 +561,14 @@ function GroupForum({
     try {
       await apiJson(authHeaders, forumChannelPath(slug, id), { method: "DELETE" });
       if (channelId === id) { setChannelId(null); setThreadId(null); }
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (e) {
-      onNotice(plainErrorText(e, "Couldn't close the channel."));
+      onNotice(plainErrorText(e, t("worldSocialDesk.groupsDeleteChannelError")));
     }
   };
 
-  if (failed) return <NativeErrorState isLight={isLight} message="The forum wouldn't open." onRetry={() => setTick((t) => t + 1)} />;
-  if (channels === null || caps === null) return <NativeLoadingState isLight={isLight} message="Opening the forum…" />;
+  if (failed) return <NativeErrorState isLight={isLight} message={t("worldSocialDesk.groupsForumError")} onRetry={() => setTick((n) => n + 1)} />;
+  if (channels === null || caps === null) return <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.groupsForumLoading")} />;
 
   if (threadId && channelId) {
     return (
@@ -587,7 +590,7 @@ function GroupForum({
       <ForumChannelView
         slug={slug}
         channelId={channelId}
-        channelName={channel?.name ?? "Channel"}
+        channelName={channel?.name ?? t("worldSocialDesk.groupsChannelFallback")}
         isLight={isLight}
         isGuest={isGuest}
         authHeaders={authHeaders}
@@ -607,7 +610,7 @@ function GroupForum({
     return (
       <div data-testid="world-forum-tier-gate-knock" className="flex flex-col gap-3">
         <button type="button" onClick={() => setKnockChannelId(null)} className={chipBtn(isLight)}>
-          <ArrowLeft className="h-3.5 w-3.5" /> All channels
+          <ArrowLeft className="h-3.5 w-3.5" /> {t("worldSocialDesk.groupsAllChannels")}
         </button>
         <NativeCard isLight={isLight}>
           <div className="flex flex-col items-center gap-2 px-2 py-3 text-center">
@@ -618,10 +621,10 @@ function GroupForum({
             {knock.history_note && <p className={`max-w-md text-xs ${muted}`}>{knock.history_note}</p>}
             {knock.join_url ? (
               <a href={knock.join_url} className={goldBtn} data-testid="world-forum-tier-gate-join">
-                {knock.viewer_status === "paused" ? "Resume your membership" : knock.viewer_status === "lapsed" ? "Rejoin the fan club" : knock.viewer_status === "below_tier" ? "Upgrade your membership" : "Join the fan club"}
+                {knock.viewer_status === "paused" ? t("worldSocialDesk.groupsKnockResume") : knock.viewer_status === "lapsed" ? t("worldSocialDesk.groupsKnockRejoin") : knock.viewer_status === "below_tier" ? t("worldSocialDesk.groupsKnockUpgrade") : t("worldSocialDesk.groupsKnockJoin")}
               </a>
             ) : (
-              <p className={`text-xs ${muted}`}>Ask the group owner how to join their fan club.</p>
+              <p className={`text-xs ${muted}`}>{t("worldSocialDesk.groupsKnockNoJoin")}</p>
             )}
           </div>
         </NativeCard>
@@ -634,8 +637,8 @@ function GroupForum({
       {channels.length === 0 ? (
         <NativeEmptyState
           isLight={isLight}
-          message="No forum channels yet."
-          detail={caps.can_manage_channels ? "Open the first channel below." : "The crew's admins open the channels here."}
+          message={t("worldSocialDesk.groupsChannelsEmpty")}
+          detail={caps.can_manage_channels ? t("worldSocialDesk.groupsChannelsEmptyDetailManage") : t("worldSocialDesk.groupsChannelsEmptyDetailMember")}
         />
       ) : (
         channels.map((c) => (
@@ -644,16 +647,16 @@ function GroupForum({
               <button type="button" data-testid={`world-forum-channel-${c.id}`} onClick={() => (forumChannelKnock(c) ? setKnockChannelId(c.id) : setChannelId(c.id))} className="min-w-0 flex-1 text-left bdv-touch-target">
                 <span className={`flex items-center gap-2 text-sm font-black ${strong}`}><Hash className="h-4 w-4 text-[#d4af37]" /> {c.name}</span>
                 {c.description && <span className={`mt-0.5 block truncate text-xs ${muted}`}>{c.description}</span>}
-                <span className={`text-xs font-semibold ${muted}`}>{c.thread_count} thread{c.thread_count === 1 ? "" : "s"}</span>
+                <span className={`text-xs font-semibold ${muted}`}>{t(c.thread_count === 1 ? "worldSocialDesk.groupsThreadsOne" : "worldSocialDesk.groupsThreadsMany", { count: c.thread_count })}</span>
                 {c.gate && (
                   <span className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-[#d4af37]">
-                    <Lock className="h-3 w-3" /> {c.gate.tier_name ? `${c.gate.tier_name} & up` : "Members only"}
-                    {!c.gate.viewer_has_access && <span className={muted}>· locked for you</span>}
+                    <Lock className="h-3 w-3" /> {c.gate.tier_name ? t("worldSocialDesk.groupsGateTierUp", { tier: c.gate.tier_name }) : t("worldSocialDesk.groupsGateMembersOnly")}
+                    {!c.gate.viewer_has_access && <span className={muted}>{t("worldSocialDesk.groupsGateLockedForYou")}</span>}
                   </span>
                 )}
               </button>
               {caps.can_manage_channels && !isGuest && (
-                <button type="button" data-testid={`world-forum-channel-delete-${c.id}`} onClick={() => void deleteChannel(c.id)} className={chipBtn(isLight)} aria-label={`Close ${c.name}`}>
+                <button type="button" data-testid={`world-forum-channel-delete-${c.id}`} onClick={() => void deleteChannel(c.id)} className={chipBtn(isLight)} aria-label={t("worldSocialDesk.groupsCloseChannelAria", { name: c.name })}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -664,23 +667,23 @@ function GroupForum({
       {caps.can_manage_channels && !isGuest && (
         <div className="flex flex-col gap-2 px-1" data-testid="world-forum-channel-create">
           <div className="flex gap-2">
-            <input value={chName} aria-label="New channel name" onChange={(e) => setChName(e.target.value)} placeholder="New channel name" maxLength={60} className={inputCls(isLight)} />
+            <input value={chName} aria-label={t("worldSocialDesk.groupsChannelNameField")} onChange={(e) => setChName(e.target.value)} placeholder={t("worldSocialDesk.groupsChannelNameField")} maxLength={60} className={inputCls(isLight)} />
             <button type="button" data-testid="world-forum-channel-create-submit" disabled={!chName.trim() || chBusy} onClick={() => void createChannel()} className={goldBtn}>
-              <Plus className="h-3.5 w-3.5" /> Open channel
+              <Plus className="h-3.5 w-3.5" /> {t("worldSocialDesk.groupsOpenChannelButton")}
             </button>
           </div>
-          <input value={chDesc} aria-label="What's this channel for? (optional)" onChange={(e) => setChDesc(e.target.value)} placeholder="What's this channel for? (optional)" maxLength={500} className={inputCls(isLight)} />
-          <select value={chGate} onChange={(e) => setChGate(e.target.value)} className={inputCls(isLight)} aria-label="Who can enter this channel" data-testid="world-forum-channel-gate">
-            <option value="">Open to everyone the group admits</option>
-            {gateOptions.map((t) => (
-              <option key={t.id} value={t.id}>Members only: {t.name} &amp; up</option>
+          <input value={chDesc} aria-label={t("worldSocialDesk.groupsChannelDescField")} onChange={(e) => setChDesc(e.target.value)} placeholder={t("worldSocialDesk.groupsChannelDescField")} maxLength={500} className={inputCls(isLight)} />
+          <select value={chGate} onChange={(e) => setChGate(e.target.value)} className={inputCls(isLight)} aria-label={t("worldSocialDesk.groupsChannelGateAria")} data-testid="world-forum-channel-gate">
+            <option value="">{t("worldSocialDesk.groupsGateOpenOption")}</option>
+            {gateOptions.map((opt) => (
+              <option key={opt.id} value={opt.id}>{t("worldSocialDesk.groupsGateTierOption", { name: opt.name })}</option>
             ))}
           </select>
         </div>
       )}
       {!caps.can_post && (
         <p className={`px-1 text-xs ${muted}`}>
-          {isGuest ? "Sign in and join the group to post in its forum." : "Join the group to post in its forum — the channels stay readable here."}
+          {isGuest ? t("worldSocialDesk.groupsForumGuestNote") : t("worldSocialDesk.groupsForumMemberNote")}
         </p>
       )}
     </div>
@@ -700,6 +703,7 @@ function ForumChannelView({
   onOpenThread: (id: string) => void;
   onNotice: (n: string | null) => void;
 }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   const [threads, setThreads] = useState<ForumThread[] | null>(null);
@@ -743,9 +747,9 @@ function ForumChannelView({
       });
       setTitle(""); setBody(""); setTags("");
       if (d.thread?.id) onOpenThread(d.thread.id);
-      else setTick((t) => t + 1);
+      else setTick((n) => n + 1);
     } catch (e) {
-      onNotice(plainErrorText(e, "Couldn't start the thread."));
+      onNotice(plainErrorText(e, t("worldSocialDesk.groupsStartThreadError")));
     } finally {
       setBusy(false);
     }
@@ -754,29 +758,32 @@ function ForumChannelView({
   return (
     <div data-testid="world-forum-channel" className="flex flex-col gap-2">
       <button type="button" onClick={onBack} className={`inline-flex items-center gap-1.5 self-start px-1 text-xs font-bold bdv-touch-target ${muted}`}>
-        <ArrowLeft className="h-3.5 w-3.5" /> All channels
+        <ArrowLeft className="h-3.5 w-3.5" /> {t("worldSocialDesk.groupsAllChannels")}
       </button>
       <h5 className={`flex items-center gap-2 px-1 text-sm font-black ${strong}`}><Hash className="h-4 w-4 text-[#d4af37]" /> {channelName}</h5>
       {failed ? (
-        <NativeErrorState isLight={isLight} message="The threads wouldn't open." onRetry={() => setTick((t) => t + 1)} />
+        <NativeErrorState isLight={isLight} message={t("worldSocialDesk.groupsThreadsError")} onRetry={() => setTick((n) => n + 1)} />
       ) : threads === null ? (
-        <NativeLoadingState isLight={isLight} message="Loading threads…" />
+        <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.groupsThreadsLoading")} />
       ) : (
         <>
           {threads.length === 0 ? (
-            <NativeEmptyState isLight={isLight} message="No threads in this channel yet." detail={caps?.can_post ? "Start the first one below." : undefined} />
+            <NativeEmptyState isLight={isLight} message={t("worldSocialDesk.groupsThreadsEmpty")} detail={caps?.can_post ? t("worldSocialDesk.groupsThreadsEmptyDetail") : undefined} />
           ) : (
-            threads.map((t) => (
-              <NativeCard key={t.id} isLight={isLight}>
-                <button type="button" data-testid={`world-forum-thread-${t.id}`} onClick={() => onOpenThread(t.id)} className="flex w-full flex-col gap-1 text-left bdv-touch-target">
+            threads.map((th) => (
+              <NativeCard key={th.id} isLight={isLight}>
+                <button type="button" data-testid={`world-forum-thread-${th.id}`} onClick={() => onOpenThread(th.id)} className="flex w-full flex-col gap-1 text-left bdv-touch-target">
                   <span className={`flex items-center gap-2 text-sm font-black ${strong}`}>
-                    {t.is_pinned && <Pin className="h-3.5 w-3.5 text-[#d4af37]" />}
-                    {t.title}
-                    {t.is_locked && <Lock className="h-3.5 w-3.5 text-[#d4af37]" />}
+                    {th.is_pinned && <Pin className="h-3.5 w-3.5 text-[#d4af37]" />}
+                    {th.title}
+                    {th.is_locked && <Lock className="h-3.5 w-3.5 text-[#d4af37]" />}
                   </span>
                   <span className={`text-xs font-semibold ${muted}`}>
-                    by {t.author?.displayName ?? "A creator"} · {t.reply_count} repl{t.reply_count === 1 ? "y" : "ies"}
-                    {t.tags.length > 0 && <> · {t.tags.map((x) => `#${x}`).join(" ")}</>}
+                    {t("worldSocialDesk.groupsThreadMeta", {
+                      by: t("worldSocialDesk.groupsThreadBy", { name: th.author?.displayName ?? t("worldSocialDesk.groupsCreatorFallback") }),
+                      replies: t(th.reply_count === 1 ? "worldSocialDesk.groupsRepliesOne" : "worldSocialDesk.groupsRepliesMany", { count: th.reply_count }),
+                    })}
+                    {th.tags.length > 0 && <>{t("worldSocialDesk.groupsThreadTagsSuffix", { tags: th.tags.map((x) => `#${x}`).join(" ") })}</>}
                   </span>
                 </button>
               </NativeCard>
@@ -784,11 +791,11 @@ function ForumChannelView({
           )}
           {caps?.can_post && !isGuest && (
             <div className="flex flex-col gap-2 px-1" data-testid="world-forum-thread-create">
-              <input value={title} aria-label="Thread title" onChange={(e) => setTitle(e.target.value)} placeholder="Thread title" maxLength={120} className={inputCls(isLight)} />
-              <textarea value={body} aria-label="Open the conversation" onChange={(e) => setBody(e.target.value)} placeholder="Open the conversation…" rows={3} maxLength={5000} className={inputCls(isLight)} />
-              <input value={tags} aria-label="Tags, comma-separated (optional)" onChange={(e) => setTags(e.target.value)} placeholder="Tags, comma-separated (optional)" className={inputCls(isLight)} />
+              <input value={title} aria-label={t("worldSocialDesk.groupsThreadTitleField")} onChange={(e) => setTitle(e.target.value)} placeholder={t("worldSocialDesk.groupsThreadTitleField")} maxLength={120} className={inputCls(isLight)} />
+              <textarea value={body} aria-label={t("worldSocialDesk.groupsThreadBodyAria")} onChange={(e) => setBody(e.target.value)} placeholder={t("worldSocialDesk.groupsThreadBodyPlaceholder")} rows={3} maxLength={5000} className={inputCls(isLight)} />
+              <input value={tags} aria-label={t("worldSocialDesk.groupsTagsField")} onChange={(e) => setTags(e.target.value)} placeholder={t("worldSocialDesk.groupsTagsField")} className={inputCls(isLight)} />
               <button type="button" data-testid="world-forum-thread-create-submit" disabled={!title.trim() || !body.trim() || busy} onClick={() => void startThread()} className={`${goldBtn} self-start`}>
-                <Plus className="h-3.5 w-3.5" /> Start thread
+                <Plus className="h-3.5 w-3.5" /> {t("worldSocialDesk.groupsStartThreadButton")}
               </button>
             </div>
           )}
@@ -809,6 +816,7 @@ function ForumThreadView({
   onBack: () => void;
   onNotice: (n: string | null) => void;
 }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   const [thread, setThread] = useState<ForumThread | null>(null);
@@ -845,9 +853,9 @@ function ForumThreadView({
     try {
       await apiJson(authHeaders, forumThreadRepliesPath(slug, threadId), { method: "POST", body: { body: draft.trim() } });
       setDraft("");
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (e) {
-      onNotice(plainErrorText(e, "Couldn't post your reply."));
+      onNotice(plainErrorText(e, t("worldSocialDesk.groupsReplyError")));
     } finally {
       setBusy(false);
     }
@@ -856,33 +864,33 @@ function ForumThreadView({
   const moderate = async (patch: { is_pinned?: boolean; is_locked?: boolean }) => {
     try {
       await apiJson(authHeaders, forumThreadPath(slug, threadId), { method: "PATCH", body: patch });
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (e) {
-      onNotice(plainErrorText(e, "That moderation didn't go through."));
+      onNotice(plainErrorText(e, t("worldSocialDesk.groupsModerationError")));
     }
   };
 
   const deleteThread = async () => {
     try {
       await apiJson(authHeaders, forumThreadPath(slug, threadId), { method: "DELETE" });
-      onNotice("Thread removed.");
+      onNotice(t("worldSocialDesk.groupsThreadRemovedNotice"));
       onBack();
     } catch (e) {
-      onNotice(plainErrorText(e, "Couldn't delete the thread."));
+      onNotice(plainErrorText(e, t("worldSocialDesk.groupsDeleteThreadError")));
     }
   };
 
   const deleteReply = async (replyId: string) => {
     try {
       await apiJson(authHeaders, forumReplyPath(slug, threadId, replyId), { method: "DELETE" });
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (e) {
-      onNotice(plainErrorText(e, "Couldn't delete that reply."));
+      onNotice(plainErrorText(e, t("worldSocialDesk.groupsDeleteReplyError")));
     }
   };
 
-  if (failed) return <NativeErrorState isLight={isLight} message="The thread wouldn't open." onRetry={() => setTick((t) => t + 1)} />;
-  if (!thread || !caps) return <NativeLoadingState isLight={isLight} message="Opening the thread…" />;
+  if (failed) return <NativeErrorState isLight={isLight} message={t("worldSocialDesk.groupsThreadError")} onRetry={() => setTick((n) => n + 1)} />;
+  if (!thread || !caps) return <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.groupsThreadLoading")} />;
 
   const canReply = forumReplyAllowed(thread, caps, isGuest);
   const showMod = forumModerationVisible(thread, isGuest);
@@ -890,7 +898,7 @@ function ForumThreadView({
   return (
     <div data-testid="world-forum-thread" className="flex flex-col gap-2">
       <button type="button" onClick={onBack} className={`inline-flex items-center gap-1.5 self-start px-1 text-xs font-bold bdv-touch-target ${muted}`}>
-        <ArrowLeft className="h-3.5 w-3.5" /> Back to threads
+        <ArrowLeft className="h-3.5 w-3.5" /> {t("worldSocialDesk.groupsBackToThreads")}
       </button>
       <NativeCard isLight={isLight}>
         <div className="flex flex-col gap-1">
@@ -899,23 +907,23 @@ function ForumThreadView({
             {thread.title}
             {thread.is_locked && <Lock className="h-4 w-4 text-[#d4af37]" />}
           </p>
-          <p className={`text-xs font-semibold ${muted}`}>by {thread.author?.displayName ?? "A creator"}</p>
+          <p className={`text-xs font-semibold ${muted}`}>{t("worldSocialDesk.groupsThreadBy", { name: thread.author?.displayName ?? t("worldSocialDesk.groupsCreatorFallback") })}</p>
           <p className={`whitespace-pre-wrap text-sm ${strong}`}>{thread.body}</p>
           {(showMod || thread.can_delete) && (
             <div className="mt-1 flex flex-wrap gap-2">
               {showMod && (
                 <>
                   <button type="button" data-testid="world-forum-thread-pin" onClick={() => void moderate({ is_pinned: !thread.is_pinned })} className={chipBtn(isLight)}>
-                    <Pin className="h-3.5 w-3.5" /> {thread.is_pinned ? "Unpin" : "Pin"}
+                    <Pin className="h-3.5 w-3.5" /> {thread.is_pinned ? t("worldSocialDesk.groupsUnpin") : t("worldSocialDesk.groupsPin")}
                   </button>
                   <button type="button" data-testid="world-forum-thread-lock" onClick={() => void moderate({ is_locked: !thread.is_locked })} className={chipBtn(isLight)}>
-                    <Lock className="h-3.5 w-3.5" /> {thread.is_locked ? "Unlock" : "Lock"}
+                    <Lock className="h-3.5 w-3.5" /> {thread.is_locked ? t("worldSocialDesk.groupsUnlock") : t("worldSocialDesk.groupsLock")}
                   </button>
                 </>
               )}
               {thread.can_delete && (
                 <button type="button" data-testid="world-forum-thread-delete" onClick={() => void deleteThread()} className={chipBtn(isLight)}>
-                  <Trash2 className="h-3.5 w-3.5" /> Delete thread
+                  <Trash2 className="h-3.5 w-3.5" /> {t("worldSocialDesk.groupsDeleteThread")}
                 </button>
               )}
             </div>
@@ -927,11 +935,11 @@ function ForumThreadView({
         <NativeCard key={r.id} isLight={isLight}>
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
-              <p className={`text-xs font-bold ${strong}`}>{r.author?.displayName ?? "A creator"}</p>
+              <p className={`text-xs font-bold ${strong}`}>{r.author?.displayName ?? t("worldSocialDesk.groupsCreatorFallback")}</p>
               <p className={`mt-0.5 whitespace-pre-wrap text-sm ${strong}`}>{r.body}</p>
             </div>
             {r.can_delete && !isGuest && (
-              <button type="button" data-testid={`world-forum-reply-delete-${r.id}`} onClick={() => void deleteReply(r.id)} className={chipBtn(isLight)} aria-label="Delete reply">
+              <button type="button" data-testid={`world-forum-reply-delete-${r.id}`} onClick={() => void deleteReply(r.id)} className={chipBtn(isLight)} aria-label={t("worldSocialDesk.groupsDeleteReplyAria")}>
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             )}
@@ -943,25 +951,25 @@ function ForumThreadView({
         <div className="flex items-start gap-2 px-1">
           <textarea
             data-testid="world-forum-reply-composer"
-            aria-label="Reply to the thread"
+            aria-label={t("worldSocialDesk.groupsReplyComposerAria")}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Reply to the thread…"
+            placeholder={t("worldSocialDesk.groupsReplyComposerPlaceholder")}
             rows={2}
             maxLength={5000}
             className={inputCls(isLight)}
           />
           <button type="button" data-testid="world-forum-reply-post" disabled={!draft.trim() || busy} onClick={() => void reply()} className={goldBtn}>
-            <Send className="h-3.5 w-3.5" /> Reply
+            <Send className="h-3.5 w-3.5" /> {t("worldSocialDesk.groupsReplyButton")}
           </button>
         </div>
       ) : (
         <p className={`px-1 text-xs ${muted}`}>
           {thread.is_locked && caps.can_post
-            ? "This thread is locked by the crew's moderators."
+            ? t("worldSocialDesk.groupsLockedNote")
             : isGuest
-              ? "Sign in and join the group to reply here."
-              : "Join the group to reply in its forum."}
+              ? t("worldSocialDesk.groupsReplyGuestNote")
+              : t("worldSocialDesk.groupsReplyMemberNote")}
         </p>
       )}
     </div>

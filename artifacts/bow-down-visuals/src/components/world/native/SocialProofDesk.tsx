@@ -16,6 +16,7 @@
  * with a retry — none of them dressed as another.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { formatProofValue } from "@/lib/social-proof-display";
 import {
   SOCIAL_PROOF_ME_PATH,
@@ -37,6 +38,7 @@ type LoadState =
   | { kind: "ready"; state: SocialProofState };
 
 export function SocialProofDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const deskHeaders = useDeskAuthHeaders();
   const [load, setLoad] = useState<LoadState>({ kind: "loading" });
   const [refreshing, setRefreshing] = useState(false);
@@ -92,7 +94,7 @@ export function SocialProofDesk({ isLight }: { isLight: boolean }) {
       if (!state) throw new Error("refresh failed");
       setLoad({ kind: "ready", state });
     } catch {
-      setActionError("The refresh didn't land. Your saved figures are unchanged — try again in a moment.");
+      setActionError(t("worldSocialDesk.proofRefreshError"));
     } finally {
       setRefreshing(false);
     }
@@ -126,7 +128,7 @@ export function SocialProofDesk({ isLight }: { isLight: boolean }) {
       if (!saved) throw new Error("save failed");
       setLoad({ kind: "ready", state: saved });
     } catch {
-      setActionError("That switch didn't save — nothing changed on your profile. Try again in a moment.");
+      setActionError(t("worldSocialDesk.proofSaveError"));
       setLoad({ kind: "ready", state });
     } finally {
       setSavingKey(null);
@@ -137,11 +139,8 @@ export function SocialProofDesk({ isLight }: { isLight: boolean }) {
     <div className="space-y-3" data-testid="world-social-proof-desk">
       <div className="flex flex-wrap items-center gap-3">
         <div>
-          <p className={`text-base font-black ${strong}`}>Social Proof</p>
-          <p className={`text-xs ${muted}`}>
-            The audience numbers your connected accounts vouch for on your public profile — free
-            to refresh, yours to switch off.
-          </p>
+          <p className={`text-base font-black ${strong}`}>{t("worldSocialDesk.proofTitle")}</p>
+          <p className={`text-xs ${muted}`}>{t("worldSocialDesk.proofIntro")}</p>
         </div>
         {load.kind === "ready" && load.state.hasProfile ? (
           <button
@@ -151,37 +150,35 @@ export function SocialProofDesk({ isLight }: { isLight: boolean }) {
             disabled={refreshing}
             onClick={() => void refresh()}
           >
-            {refreshing ? "Refreshing…" : "Refresh the numbers"}
+            {refreshing ? t("social-proof.refreshing") : t("worldSocialDesk.proofRefreshButton")}
           </button>
         ) : null}
       </div>
 
       {load.kind === "loading" ? (
         <p className={`text-sm ${muted}`} data-testid="world-social-proof-desk-loading">
-          Reading your figures…
+          {t("worldSocialDesk.proofLoading")}
         </p>
       ) : null}
 
       {load.kind === "unavailable" ? (
         <p className={`text-sm ${muted}`} data-testid="world-social-proof-desk-unavailable">
-          Social proof isn&rsquo;t switched on for this server yet — nothing to set here until it
-          is.
+          {t("worldSocialDesk.proofNotReady")}
         </p>
       ) : null}
 
       {load.kind === "failed" ? (
         <div data-testid="world-social-proof-desk-failed">
-          <p className={errCls}>Your social proof wouldn&rsquo;t load. Give it another shot.</p>
+          <p className={errCls}>{t("worldSocialDesk.proofLoadError")}</p>
           <button type="button" className={`mt-2 ${chipCls(false)}`} onClick={() => void loadState()}>
-            Try again
+            {t("social-proof.retry")}
           </button>
         </div>
       ) : null}
 
       {load.kind === "ready" && !load.state.hasProfile ? (
         <p className={`text-sm ${muted}`} data-testid="world-social-proof-desk-no-profile">
-          Social proof lives on your creator profile — build yours at the My Profile desk right
-          here in My Studio, then connect your accounts and the figures land here.
+          {t("worldSocialDesk.proofNoProfile")}
         </p>
       ) : null}
 
@@ -189,17 +186,20 @@ export function SocialProofDesk({ isLight }: { isLight: boolean }) {
         <div className="space-y-2" data-testid="world-social-proof-desk-figures">
           {load.state.connectedPlatforms.length > 0 ? (
             <p className={`text-xs ${muted}`}>
-              Connected: {load.state.connectedPlatforms.map(platformLabel).join(" · ")}
+              {t("worldSocialDesk.proofConnected", {
+                platforms: load.state.connectedPlatforms.map(platformLabel).join(" · "),
+              })}
               {load.state.refreshedAt
-                ? ` — last synced ${new Date(load.state.refreshedAt).toLocaleDateString()}`
+                ? t("worldSocialDesk.proofLastSynced", {
+                    date: new Date(load.state.refreshedAt).toLocaleDateString(i18n.language),
+                  })
                 : ""}
-              {load.state.stale ? " (due a refresh)" : ""}
+              {load.state.stale ? t("worldSocialDesk.proofStale") : ""}
             </p>
           ) : null}
           {load.state.figures.length === 0 ? (
             <p className={`text-sm ${muted}`}>
-              No figures yet — connect an account and refresh, and your numbers will show here
-              before they ever show in public.
+              {t("worldSocialDesk.proofNoFigures")}
             </p>
           ) : (
             load.state.figures.map((figure) => (
@@ -217,7 +217,7 @@ export function SocialProofDesk({ isLight }: { isLight: boolean }) {
                   </p>
                   <p className={`text-xs ${muted}`}>
                     {figure.accountLabel || platformLabel(figure.platform)}
-                    {!figure.connected ? " · account disconnected — this figure is retired" : ""}
+                    {!figure.connected ? t("worldSocialDesk.proofDisconnected") : ""}
                   </p>
                 </div>
                 <button
@@ -228,7 +228,7 @@ export function SocialProofDesk({ isLight }: { isLight: boolean }) {
                   disabled={savingKey !== null}
                   onClick={() => void toggle(figure, !figure.visible)}
                 >
-                  {figure.visible ? "Showing — tap to hide" : "Hidden — tap to show"}
+                  {figure.visible ? t("worldSocialDesk.proofShowing") : t("worldSocialDesk.proofHidden")}
                 </button>
               </div>
             ))

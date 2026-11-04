@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { CalendarPlus, Check, ExternalLink, Loader2, Ticket, Users } from "lucide-react";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
@@ -15,7 +16,6 @@ import {
   EVENT_KIND_OPTIONS,
   buildEventCreateBody,
   eventCreateReady,
-  eventKindLabel,
   eventRsvpPath,
   eventUnrsvpPath,
   eventWhenLabel,
@@ -60,8 +60,21 @@ const EMPTY_FORM: EventCreateForm = {
   ticketUrl: "",
 };
 
+/* The kind vocabulary is the seam's (events-desk EVENT_KIND_OPTIONS);
+   the words render from the catalog, keyed by the kind token, with
+   the seam's own fallback ("Event") for kinds the desk doesn't know. */
+const EVENT_KIND_KEYS: Record<string, string> = {
+  stream: "worldSocialDesk.eventsKindStream",
+  drop: "worldSocialDesk.eventsKindDrop",
+  premiere: "worldSocialDesk.eventsKindPremiere",
+  other: "worldSocialDesk.eventsKindOther",
+};
+
 export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
+  const kindLabel = (kind: string) =>
+    t(EVENT_KIND_KEYS[kind] ?? "worldSocialDesk.eventsKindFallback");
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
 
@@ -113,15 +126,15 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
           setEvents((list) =>
             list?.map((e) => (e.id === ev.id ? { ...e, rsvpCount: e.rsvpCount + 1 } : e)) ?? list,
           );
-          setNotice(`You're on the list for “${ev.title}” — the reminder lives in your bell.`);
+          setNotice(t("worldSocialDesk.eventsRsvpNotice", { title: ev.title }));
         } else {
-          setNotice(`You're already on the list for “${ev.title}”.`);
+          setNotice(t("worldSocialDesk.eventsRsvpAlreadyNotice", { title: ev.title }));
         }
       } else {
-        throw new Error(apiErrorMessage(data, `Couldn't RSVP (${res.status})`));
+        throw new Error(apiErrorMessage(data, t("worldSocialDesk.eventsRsvpFailedStatus", { status: res.status })));
       }
     } catch (err) {
-      setRowError(plainErrorText(err, "Couldn't RSVP — try again."));
+      setRowError(plainErrorText(err, t("worldSocialDesk.eventsRsvpError")));
     } finally {
       setBusyId(null);
     }
@@ -136,16 +149,16 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't cancel (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldSocialDesk.eventsCancelFailedStatus", { status: res.status })));
       setOnList((m) => ({ ...m, [ev.id]: false }));
       setEvents((list) =>
         list?.map((e) =>
           e.id === ev.id ? { ...e, rsvpCount: Math.max(0, e.rsvpCount - 1) } : e,
         ) ?? list,
       );
-      setNotice(`RSVP cancelled for “${ev.title}”.`);
+      setNotice(t("worldSocialDesk.eventsUnrsvpNotice", { title: ev.title }));
     } catch (err) {
-      setRowError(plainErrorText(err, "Couldn't cancel the RSVP — try again."));
+      setRowError(plainErrorText(err, t("worldSocialDesk.eventsUnrsvpError")));
     } finally {
       setBusyId(null);
     }
@@ -162,39 +175,37 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         body: JSON.stringify(buildEventCreateBody(form)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't create the event (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldSocialDesk.eventsCreateFailedStatus", { status: res.status })));
       setForm(EMPTY_FORM);
       setShowCreate(false);
-      setNotice("Your event is on the board — the kingdom can RSVP now.");
-      setTick((t) => t + 1);
+      setNotice(t("worldSocialDesk.eventsCreatedNotice"));
+      setTick((n) => n + 1);
     } catch (err) {
-      setCreateError(plainErrorText(err, "Couldn't create the event."));
+      setCreateError(plainErrorText(err, t("worldSocialDesk.eventsCreateError")));
     } finally {
       setCreating(false);
     }
   }
 
   return (
-    <NativeCard isLight={isLight} title="Events">
+    <NativeCard isLight={isLight} title={t("nav.events")}>
       <div data-testid="world-events-desk" className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className={`text-sm ${muted}`}>
-            Streams, drops, premieres. RSVP free — show up loud.
-          </p>
+          <p className={`text-sm ${muted}`}>{t("worldSocialDesk.eventsIntro")}</p>
           {!isGuest ? (
             <button type="button" className={goldBtn} onClick={() => setShowCreate((s) => !s)} aria-expanded={showCreate}>
-              <CalendarPlus className="h-3.5 w-3.5" /> Host an event
+              <CalendarPlus className="h-3.5 w-3.5" /> {t("worldSocialDesk.eventsHostButton")}
             </button>
           ) : null}
         </div>
 
         {isGuest ? (
           <p className={`text-xs ${muted}`}>
-            You&rsquo;re reading the public board.{" "}
+            {t("worldSocialDesk.eventsGuestLead")}
             <Link href={GUEST_SIGN_IN_HREF} className="font-bold text-[#d4af37] underline">
-              Sign in
-            </Link>{" "}
-            to RSVP or host your own.
+              {t("worldSocialDesk.eventsSignIn")}
+            </Link>
+            {t("worldSocialDesk.eventsGuestTail")}
           </p>
         ) : null}
 
@@ -207,22 +218,22 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
           >
             <input
               className={deskInputCls(isLight)}
-              placeholder="Event title"
+              placeholder={t("worldSocialDesk.eventsTitleField")}
               maxLength={120}
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              aria-label="Event title"
+              aria-label={t("worldSocialDesk.eventsTitleField")}
             />
             <div className="flex flex-wrap gap-2">
               <select
                 className={deskInputCls(isLight)}
                 value={form.kind}
                 onChange={(e) => setForm({ ...form, kind: e.target.value })}
-                aria-label="Event kind"
+                aria-label={t("worldSocialDesk.eventsKindAria")}
               >
                 {EVENT_KIND_OPTIONS.map((k) => (
                   <option key={k.key} value={k.key}>
-                    {k.label}
+                    {kindLabel(k.key)}
                   </option>
                 ))}
               </select>
@@ -231,31 +242,31 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                 className={deskInputCls(isLight)}
                 value={form.startsAtLocal}
                 onChange={(e) => setForm({ ...form, startsAtLocal: e.target.value })}
-                aria-label="Starts at"
+                aria-label={t("worldSocialDesk.eventsStartsAria")}
               />
             </div>
             <textarea
               className={deskInputCls(isLight)}
-              placeholder="What is it? (optional)"
+              placeholder={t("worldSocialDesk.eventsDescPlaceholder")}
               rows={2}
               maxLength={5000}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              aria-label="Description"
+              aria-label={t("worldSocialDesk.eventsDescAria")}
             />
             <input
               className={deskInputCls(isLight)}
-              placeholder="Where it happens — stream or room link (optional)"
+              placeholder={t("worldSocialDesk.eventsDestPlaceholder")}
               value={form.destinationUrl}
               onChange={(e) => setForm({ ...form, destinationUrl: e.target.value })}
-              aria-label="Destination link"
+              aria-label={t("worldSocialDesk.eventsDestAria")}
             />
             <input
               className={deskInputCls(isLight)}
-              placeholder="Ticket link (optional)"
+              placeholder={t("worldSocialDesk.eventsTicketPlaceholder")}
               value={form.ticketUrl}
               onChange={(e) => setForm({ ...form, ticketUrl: e.target.value })}
-              aria-label="Ticket link"
+              aria-label={t("worldSocialDesk.eventsTicketAria")}
             />
             {createError ? (
               <p className={`text-xs ${isLight ? "text-[#8a2f1b]" : "text-red-300"}`}>{createError}</p>
@@ -267,7 +278,7 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
               onClick={() => void create()}
             >
               {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Put it on the board
+              {t("worldSocialDesk.eventsCreateButton")}
             </button>
           </div>
         ) : null}
@@ -280,17 +291,17 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         {loadFailed ? (
           <NativeErrorState
             isLight={isLight}
-            title="The events board wouldn't open"
-            message="The kingdom's events are safe — the board just didn't answer. Try again."
-            onRetry={() => setTick((t) => t + 1)}
+            title={t("worldSocialDesk.eventsLoadErrorTitle")}
+            message={t("worldSocialDesk.eventsLoadErrorMessage")}
+            onRetry={() => setTick((n) => n + 1)}
           />
         ) : events === null ? (
-          <NativeLoadingState isLight={isLight} message="Reading the events board…" />
+          <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.eventsLoading")} />
         ) : events.length === 0 ? (
           <NativeEmptyState
             isLight={isLight}
-            message="Nothing on the board yet."
-            detail="When a creator hosts a stream, drop or premiere, it lands here."
+            message={t("worldSocialDesk.eventsEmptyMessage")}
+            detail={t("worldSocialDesk.eventsEmptyDetail")}
           />
         ) : (
           <div className="space-y-2">
@@ -310,16 +321,16 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                         isLight ? "bg-[#d4af37]/20 text-[#7A5A12]" : "bg-[#d4af37]/15 text-[#e8c86a]"
                       }`}
                     >
-                      {eventKindLabel(ev.kind)}
+                      {kindLabel(ev.kind)}
                     </span>
-                    <span className={`text-xs font-semibold ${muted}`}>{eventWhenLabel(ev.startsAt)}</span>
+                    <span className={`text-xs font-semibold ${muted}`}>{eventWhenLabel(ev.startsAt, i18n.language)}</span>
                     <span className={`inline-flex items-center gap-1 text-xs ${muted}`}>
-                      <Users className="h-3.5 w-3.5" /> {ev.rsvpCount} going
+                      <Users className="h-3.5 w-3.5" /> {t("worldSocialDesk.eventsGoing", { count: ev.rsvpCount })}
                     </span>
                   </div>
                   <p className={`mt-1 text-sm font-bold ${strong}`}>{ev.title}</p>
                   {ev.hostName ? (
-                    <p className={`text-xs ${muted}`}>Hosted by {ev.hostName}</p>
+                    <p className={`text-xs ${muted}`}>{t("worldSocialDesk.eventsHostedBy", { name: ev.hostName })}</p>
                   ) : null}
                   {ev.description ? (
                     <p className={`mt-1 line-clamp-2 text-xs ${muted}`}>{ev.description}</p>
@@ -329,7 +340,7 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                       mine ? (
                         <>
                           <span className={`inline-flex items-center gap-1 text-xs font-bold ${strong}`}>
-                            <Check className="h-3.5 w-3.5 text-[#d4af37]" /> You&rsquo;re on the list
+                            <Check className="h-3.5 w-3.5 text-[#d4af37]" /> {t("worldSocialDesk.eventsOnList")}
                           </span>
                           <button
                             type="button"
@@ -337,7 +348,7 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                             disabled={busyId === ev.id}
                             onClick={() => void unrsvp(ev)}
                           >
-                            Cancel RSVP
+                            {t("worldSocialDesk.eventsCancelRsvp")}
                           </button>
                         </>
                       ) : (
@@ -348,7 +359,7 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                           onClick={() => void rsvp(ev)}
                         >
                           {busyId === ev.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                          RSVP — free
+                          {t("worldSocialDesk.eventsRsvpFree")}
                         </button>
                       )
                     ) : null}
@@ -359,7 +370,7 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                         rel="noreferrer"
                         className={chipBtn(isLight)}
                       >
-                        <Ticket className="h-3.5 w-3.5" /> Tickets
+                        <Ticket className="h-3.5 w-3.5" /> {t("worldSocialDesk.eventsTickets")}
                       </a>
                     ) : null}
                     {ev.destinationUrl ? (
@@ -369,7 +380,7 @@ export function EventsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                         rel="noreferrer"
                         className={chipBtn(isLight)}
                       >
-                        <ExternalLink className="h-3.5 w-3.5" /> Where it happens
+                        <ExternalLink className="h-3.5 w-3.5" /> {t("worldSocialDesk.eventsWhere")}
                       </a>
                     ) : null}
                   </div>

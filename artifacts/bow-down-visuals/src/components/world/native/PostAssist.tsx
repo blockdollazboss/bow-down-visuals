@@ -31,15 +31,6 @@ const inputCls = (isLight: boolean) =>
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
   }`;
 
-/* Tone chips render through the catalog (worldCreateMedia), keyed by
-   the seam's tone enum — the seam's own labels stay its en record. */
-const TONE_LABEL_KEYS: Record<PostAssistTone, string> = {
-  hype: "worldCreateMedia.paToneHype",
-  chill: "worldCreateMedia.paToneChill",
-  professional: "worldCreateMedia.paToneProfessional",
-  funny: "worldCreateMedia.paToneFunny",
-};
-
 const goldBtn =
   "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target";
 
@@ -51,6 +42,15 @@ const chipBtn = (isLight: boolean, active: boolean) =>
         ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
         : "border-white/15 text-white/75 hover:text-white"
   }`;
+
+/* The assist's tone vocabulary renders from the catalog, keyed by
+   the tone token, with the seam's label as the fallback. */
+const ASSIST_TONE_KEYS: Record<string, string> = {
+  hype: "worldSocialDesk.assistToneHype",
+  chill: "worldSocialDesk.assistToneChill",
+  professional: "worldSocialDesk.assistToneProfessional",
+  funny: "worldSocialDesk.assistToneFunny",
+};
 
 export function PostAssistBlock({
   isLight,
@@ -85,22 +85,22 @@ export function PostAssistBlock({
         const d = data as { message?: string };
         setNote(
           res.status === 402
-            ? t("worldCreateMedia.paOutOfBucs")
-            : apiErrorMessage(d, t("worldCreateMedia.paFailedRefund")),
+            ? t("worldSocialDesk.assistOutOfCredits")
+            : apiErrorMessage(d, t("worldSocialDesk.assistFailedFallback")),
         );
         return;
       }
       const draft = parsePostAssistDraft(data);
       if (!draft) {
-        setNote(t("worldCreateMedia.paEmptyRefund"));
+        setNote(t("worldSocialDesk.assistNoWords"));
         return;
       }
       onDraft(draft);
       setPrompt("");
-      setNote(t("worldCreateMedia.paDrafted"));
+      setNote(t("worldSocialDesk.assistDraftedNote"));
       refreshProfile();
     } catch {
-      setNote(t("worldCreateMedia.paNoAnswer"));
+      setNote(t("worldSocialDesk.assistDidntAnswer"));
     } finally {
       setBusy(false);
     }
@@ -110,10 +110,10 @@ export function PostAssistBlock({
     <div data-testid="world-post-assist">
       <div className="flex gap-2">
         <input
-          aria-label={t("worldCreateMedia.paPromptLabel")}
+          aria-label={t("worldSocialDesk.assistPromptAria")}
           data-testid="world-post-assist-prompt"
           className={inputCls(isLight)}
-          placeholder={t("worldCreateMedia.paPromptPlaceholder")}
+          placeholder={t("worldSocialDesk.assistPromptPlaceholder")}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && void ask()}
@@ -127,25 +127,23 @@ export function PostAssistBlock({
           className={goldBtn}
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-          {t("worldCreateMedia.paWriteButton", { cost: POST_ASSIST_COST_VISUAL_BUCS })}
+          {t("worldSocialDesk.assistButton", { cost: POST_ASSIST_COST_VISUAL_BUCS })}
         </button>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="world-post-assist-tones">
-        {POST_ASSIST_TONES.map((toneOption) => (
+        {POST_ASSIST_TONES.map((toneOpt) => (
           <button
-            key={toneOption.key}
+            key={toneOpt.key}
             type="button"
-            data-testid={`world-post-assist-tone-${toneOption.key}`}
-            aria-pressed={tone === toneOption.key}
-            onClick={() => setTone(toneOption.key)}
-            className={chipBtn(isLight, tone === toneOption.key)}
+            data-testid={`world-post-assist-tone-${toneOpt.key}`}
+            aria-pressed={tone === toneOpt.key}
+            onClick={() => setTone(toneOpt.key)}
+            className={chipBtn(isLight, tone === toneOpt.key)}
           >
-            {t(TONE_LABEL_KEYS[toneOption.key])}
+            {ASSIST_TONE_KEYS[toneOpt.key] ? t(ASSIST_TONE_KEYS[toneOpt.key]!) : toneOpt.label}
           </button>
         ))}
-        <span className={`text-[11px] ${muted}`}>
-          {t("worldCreateMedia.paNeverPosts")}
-        </span>
+        <span className={`text-[11px] ${muted}`}>{t("worldSocialDesk.assistNoteLine")}</span>
       </div>
       {note ? (
         <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-post-assist-note">
