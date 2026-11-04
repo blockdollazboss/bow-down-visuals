@@ -67,6 +67,18 @@ describe("mic promo band wiring", () => {
     expect(hangingMic).toContain("useIsLightTheme");
   });
 
+  it("the toggle is a full 44px finger target left of the mount (owner ruling, 2026-11-04)", () => {
+    // The Oct 30 phone-truth audit's one deliberate exception (28x28,
+    // ~7px clipped at the right edge) is closed: 44px, mirrored to the
+    // mount's left — the right side has only 37.5px to the phone edge.
+    const toggleStart = hangingMic.indexOf('data-mic="promo-toggle"');
+    const toggle = hangingMic.slice(toggleStart, hangingMic.indexOf("</button>", toggleStart));
+    expect(toggle).toContain("h-11 w-11");
+    expect(toggle).toContain("-translate-x-[60px]");
+    expect(toggle).not.toContain("h-7 w-7");
+    expect(toggle).not.toContain("translate-x-[16px]");
+  });
+
   it("the band has no motion of its own — rotation is content-only", () => {
     expect(band).not.toContain("requestAnimationFrame");
     expect(band).not.toContain("transform: rotate");

@@ -100,7 +100,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
    GET /api/mic-band/promos (launch / current jackpot / the two
    takeover offers, all from their live sources — no promo
    copy lives in this tree). It ships with a user-facing on/off:
-   the small megaphone toggle beside the mount (NOT inside the
+   the megaphone toggle beside the mount (NOT inside the
    pendulum, so the control itself stays steady and clickable),
    persisted in localStorage (bdv:mic-band-visible). The band
    exists in both hero treatments: black/gold in dark, ivory/bronze
@@ -225,8 +225,25 @@ export function HangingMic({ className = "" }: { className?: string }) {
         {/* Promo-band on/off — the user-facing switch for the flag
             on the mic head. It sits beside the mount, OUTSIDE the
             pendulum, so the control never swings; it is the one
-            pointer-events-auto element in this layer. Offset right
-            of the anchor line so it never sits on the cable. */}
+            pointer-events-auto element in this layer. Offset from
+            the anchor line so it never sits on the cable.
+            Placement (owner ruling, 2026-11-04 — "change the hero
+            composition to fit a bigger toggle"): the switch is a
+            full 44px finger-size target now, and it moved to the
+            LEFT of the mount. The right side could not hold it:
+            below lg the anchor sits right-[10%] — only 37.5px from
+            the phone's screen edge, so the old 28px switch already
+            clipped ~7px and a 44px one cannot fit right of the
+            anchor at all; at ≥lg the same growth would have run
+            into the copy column. The left placement mirrors the
+            original geometry exactly (44px ending 16px left of the
+            cable, the same 16px cable gap and 3px collar air the
+            right side had) at a height — just under the banner,
+            above the copy grid — where the corridor is open at
+            every width: probe-measured clear of the King canvas,
+            the badges and the headline at 375/390/1440/2048 in
+            both themes (see the stack1600 hero-mic-toggle lane
+            report). */}
         <button
           type="button"
           data-mic="promo-toggle"
@@ -234,14 +251,14 @@ export function HangingMic({ className = "" }: { className?: string }) {
           aria-pressed={bandVisible}
           aria-label={bandVisible ? "Hide the microphone promo band" : "Show the microphone promo band"}
           title={bandVisible ? "Mic promo band: on" : "Mic promo band: off"}
-          className={`pointer-events-auto absolute flex h-7 w-7 translate-x-[16px] items-center justify-center rounded-full border backdrop-blur-sm transition-colors ${
+          className={`pointer-events-auto absolute flex h-11 w-11 -translate-x-[60px] items-center justify-center rounded-full border backdrop-blur-sm transition-colors ${
             isLight
               ? "border-[#C9A84C]/70 bg-[#FBF6E9]/85 text-[#7A5A12] hover:bg-[#FBF6E9]"
               : "border-[#C9A84C]/50 bg-black/55 text-[#E8C86A] hover:bg-black/75"
           }`}
           style={{ top: PIVOT_Y + 4, left: 0 }}
         >
-          {bandVisible ? <Megaphone className="h-3.5 w-3.5" /> : <MegaphoneOff className="h-3.5 w-3.5" />}
+          {bandVisible ? <Megaphone className="h-5 w-5" /> : <MegaphoneOff className="h-5 w-5" />}
         </button>
 
         {/* Pendulum: rotates about the anchor point at the banner's
