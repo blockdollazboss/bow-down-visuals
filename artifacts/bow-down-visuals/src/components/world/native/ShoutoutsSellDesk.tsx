@@ -503,6 +503,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
                       {(r.status === "accepted" || r.status === "in_progress") && (
                         <button
                           type="button"
+                          aria-expanded={aiOpen === r.id}
                           onClick={() => {
                             setAiOpen(aiOpen === r.id ? "" : r.id);
                             setAiNotes((n) => ({ ...n, [r.id]: n[r.id] ?? r.message }));

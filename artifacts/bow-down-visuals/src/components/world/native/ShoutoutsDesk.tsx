@@ -314,6 +314,7 @@ export function ShoutoutsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                 type="button"
                 className={`${goldBtn} mt-2.5`}
                 data-testid={`world-shoutouts-request-btn-${c.id}`}
+                aria-expanded={selectedId === c.id}
                 onClick={() => { setSelectedId(selectedId === c.id ? null : c.id); setNote(null); }}
               >
                 <Send className="h-3.5 w-3.5" /> {selectedId === c.id ? "Close the form" : "Request a shoutout"}

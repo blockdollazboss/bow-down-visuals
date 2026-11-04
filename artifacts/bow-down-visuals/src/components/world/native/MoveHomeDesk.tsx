@@ -528,7 +528,7 @@ export function MoveHomeDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
                   <div className="mt-2 flex flex-wrap gap-2">
                     {step.status === "drafted" && draft ? (
                       <>
-                        <button type="button" className={chipBtn(isLight)} disabled={busy !== null} onClick={() => setEditing(editing === step.key ? null : step.key)} data-testid={`world-move-home-edit-${step.key}`}>
+                        <button type="button" className={chipBtn(isLight)} disabled={busy !== null} aria-expanded={editing === step.key} onClick={() => setEditing(editing === step.key ? null : step.key)} data-testid={`world-move-home-edit-${step.key}`}>
                           <Pencil className="h-3.5 w-3.5" /> {editing === step.key ? "Close the editor" : "Edit the draft"}
                         </button>
                         <button type="button" className={goldBtn} disabled={busy !== null} onClick={() => stepVerb(step, "approve")} data-testid={`world-move-home-approve-${step.key}`}>
