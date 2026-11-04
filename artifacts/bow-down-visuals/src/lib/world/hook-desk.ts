@@ -18,6 +18,23 @@
                              50 Visual Bucs (the route's
                              CTA_GENERATOR_CREDITS + the registry's
                              "/api/generate-cta" entry).
+     POST /api/title-studio  { topic, platform, tone, keywords }
+                             → { titles[{title, score, why}],
+                               description, tags[15], note }
+                             100 Visual Bucs (the route's
+                             TITLE_STUDIO_CREDITS + the registry's
+                             "/api/title-studio" entry) — the 2D
+                             /hooks page's Titles tab, the same post.
+     POST /api/script-writer { platform, length, topic, tone,
+                               audience, ctaGoal }
+                             → { title, hook, beats[{timestamp,
+                               spoken, visualCue, broll}],
+                               retentionBeats[{at, tactic, line}],
+                               cta, teleprompter }
+                             200 Visual Bucs (the route's
+                             SCRIPT_WRITER_CREDIT_COST + the
+                             registry's "/api/script-writer" entry)
+                             — the 2D /script-writer page's post.
 
    Confirmation law: every run rides useConfirmedApi's
    confirmedFetch — the registry-priced spend confirmation shows
@@ -39,10 +56,13 @@
 import { getCreditCost } from "../credit-costs";
 import { getHookTemplate } from "../../data/hook-templates";
 import { getCaptionPack } from "../../data/caption-templates";
+import type { RankedTitle } from "../title-studio";
 
 export const HOOK_DESK_STATION_ID = "hook-desk";
 export const HOOK_STUDIO_PATH = "/api/hook-studio";
 export const CTA_PATH = "/api/generate-cta";
+export const TITLE_STUDIO_PATH = "/api/title-studio";
+export const SCRIPT_WRITER_PATH = "/api/script-writer";
 
 /* ─── Prices — the registry's, never invented ────────────────────── */
 
@@ -64,15 +84,29 @@ export function ctaCost(): number {
   return registryCost(CTA_PATH);
 }
 
+/** POST /api/title-studio — registry 100, the route's
+ *  TITLE_STUDIO_CREDITS default agrees. */
+export function titleStudioCost(): number {
+  return registryCost(TITLE_STUDIO_PATH);
+}
+
+/** POST /api/script-writer — registry 200, the route's
+ *  SCRIPT_WRITER_CREDIT_COST default agrees. */
+export function scriptWriterCost(): number {
+  return registryCost(SCRIPT_WRITER_PATH);
+}
+
 /* ─── The routes' own enums (verbatim) ───────────────────────────── */
 
-export type HookDeskMode = "hooks" | "captions" | "preflight" | "cta";
+export type HookDeskMode = "hooks" | "captions" | "preflight" | "cta" | "titles" | "scripts";
 
 export const HOOK_DESK_MODES: readonly HookDeskMode[] = [
   "hooks",
   "captions",
   "preflight",
   "cta",
+  "titles",
+  "scripts",
 ];
 
 /** hook-studio.ts VIDEO_TYPES — keep in sync with the 2D page. */
@@ -99,9 +133,38 @@ export type CtaPlatform = (typeof CTA_PLATFORMS)[number];
 export const CTA_PLACEMENTS = ["opener", "mid-roll", "closer", "pinned-comment"] as const;
 type CtaPlacement = (typeof CTA_PLACEMENTS)[number];
 
+/** title-studio.ts PLATFORMS — keep in sync with the 2D Titles tab. */
+export const TITLE_PLATFORMS = ["youtube", "tiktok", "instagram"] as const;
+export type TitlePlatform = (typeof TITLE_PLATFORMS)[number];
+
+/** title-studio.ts TONES. */
+export const TITLE_TONES = ["hype", "professional", "funny"] as const;
+export type TitleTone = (typeof TITLE_TONES)[number];
+
+/** script-writer.ts SCRIPT_WRITER_PLATFORMS. */
+export const SCRIPT_PLATFORMS = ["youtube", "tiktok", "reels"] as const;
+export type ScriptPlatform = (typeof SCRIPT_PLATFORMS)[number];
+
+/** script-writer.ts SCRIPT_WRITER_LENGTHS. */
+export const SCRIPT_LENGTHS = ["short", "medium", "long", "deep"] as const;
+export type ScriptLength = (typeof SCRIPT_LENGTHS)[number];
+
+/** script-writer.ts SCRIPT_WRITER_TONES. */
+export const SCRIPT_TONES = ["educational", "entertaining", "inspirational", "controversial"] as const;
+export type ScriptTone = (typeof SCRIPT_TONES)[number];
+
 /** The price a mode's run shows (and the confirmation charges). */
 export function hookDeskModeCost(mode: HookDeskMode): number {
-  return mode === "cta" ? ctaCost() : hookStudioCost();
+  switch (mode) {
+    case "cta":
+      return ctaCost();
+    case "titles":
+      return titleStudioCost();
+    case "scripts":
+      return scriptWriterCost();
+    default:
+      return hookStudioCost();
+  }
 }
 
 /* ─── Payload shaping — mirrors the /hooks page's posts exactly ──── */
@@ -159,15 +222,64 @@ export function buildCtaPayload(input: {
   };
 }
 
+/** hooks.tsx TitlesTab's body for /api/title-studio:
+ *  { topic, platform, tone, keywords } — topic required. */
+export function buildTitlePayload(input: {
+  topic: string;
+  platform: TitlePlatform;
+  tone: TitleTone;
+  keywords: string;
+}): Record<string, unknown> {
+  return {
+    topic: input.topic.trim(),
+    platform: input.platform,
+    tone: input.tone,
+    keywords: input.keywords.trim(),
+  };
+}
+
+/** script-writer.tsx generate()'s body for /api/script-writer:
+ *  { platform, length, topic, tone, audience, ctaGoal } — the
+ *  optionals ride as (possibly empty) strings, exactly as the page
+ *  posts them; the route defaults them the same way. */
+export function buildScriptPayload(input: {
+  platform: ScriptPlatform;
+  length: ScriptLength;
+  topic: string;
+  tone: ScriptTone;
+  audience: string;
+  ctaGoal: string;
+}): Record<string, unknown> {
+  return {
+    platform: input.platform,
+    length: input.length,
+    topic: input.topic.trim(),
+    tone: input.tone,
+    audience: input.audience.trim(),
+    ctaGoal: input.ctaGoal.trim(),
+  };
+}
+
 /** The endpoint a mode posts to. */
 export function hookDeskModePath(mode: HookDeskMode): string {
-  return mode === "cta" ? CTA_PATH : HOOK_STUDIO_PATH;
+  switch (mode) {
+    case "cta":
+      return CTA_PATH;
+    case "titles":
+      return TITLE_STUDIO_PATH;
+    case "scripts":
+      return SCRIPT_WRITER_PATH;
+    default:
+      return HOOK_STUDIO_PATH;
+  }
 }
 
 /** Whether a mode's required input is present — the run stays shut
  *  (and uncharged) until it is, mirroring the routes' zod minimums:
  *  hooks needs no topic (the route defaults it empty), captions
- *  needs a topic, preflight needs a title, CTA needs a video topic. */
+ *  needs a topic, preflight needs a title, CTA needs a video topic,
+ *  titles and scripts each need their topic. The caller passes the
+ *  ACTIVE bench's topic as `topic` — each bench keeps its own. */
 export function hookDeskInputReady(
   mode: HookDeskMode,
   input: { topic: string; title: string },
@@ -177,6 +289,8 @@ export function hookDeskInputReady(
       return true;
     case "captions":
     case "cta":
+    case "titles":
+    case "scripts":
       return input.topic.trim().length > 0;
     case "preflight":
       return input.title.trim().length > 0;
@@ -304,6 +418,122 @@ export function ctasOfResponse(raw: unknown): CtaResult[] | null {
   return out.length > 0 ? out : null;
 }
 
+export interface TitlesResult {
+  titles: RankedTitle[];
+  description: string;
+  tags: string[];
+  note: string;
+}
+
+/** The title pack out of a /api/title-studio answer — mirrors the
+ *  route's parseTitleStudioResponse + the 2D tab's usability bar:
+ *  unusable rows drop (as the route drops them), scores clamp
+ *  0–100, tags shed leading #'s, caps hold at 10 titles / 15 tags;
+ *  and a pack with no titles or no description is a failed make
+ *  (null) — the route refuses the same shape server-side. */
+export function titlesOfResponse(raw: unknown): TitlesResult | null {
+  if (!isRecord(raw)) return null;
+  if (!Array.isArray(raw["titles"])) return null;
+  const titles: RankedTitle[] = [];
+  for (const t of raw["titles"]) {
+    if (!isRecord(t)) continue;
+    if (typeof t["title"] !== "string" || t["title"].trim().length === 0) continue;
+    titles.push({
+      title: t["title"].trim(),
+      score:
+        typeof t["score"] === "number"
+          ? Math.max(0, Math.min(100, Math.round(t["score"])))
+          : 0,
+      why: typeof t["why"] === "string" ? t["why"].trim() : "",
+    });
+  }
+  const description =
+    typeof raw["description"] === "string" ? raw["description"].trim() : "";
+  if (titles.length === 0 || !description) return null;
+  const tags = stringList(raw["tags"])
+    .map((t) => t.replace(/^#+/, ""))
+    .filter((t) => t.length > 0)
+    .slice(0, 15);
+  return {
+    titles: titles.slice(0, 10),
+    description,
+    tags,
+    note: typeof raw["note"] === "string" ? raw["note"].trim() : "",
+  };
+}
+
+export interface ScriptBeat {
+  timestamp: string;
+  spoken: string;
+  visualCue: string;
+  broll: string;
+}
+
+export interface RetentionBeat {
+  at: string;
+  tactic: string;
+  line: string;
+}
+
+export interface ScriptResult {
+  title: string;
+  hook: string;
+  beats: ScriptBeat[];
+  retentionBeats: RetentionBeat[];
+  cta: string;
+  teleprompter: string;
+}
+
+/** The script out of a /api/script-writer answer — mirrors the
+ *  route's own parse: beats keep only rows with a timestamp and
+ *  spoken words (caps 40 beats / 20 retention beats, as the route
+ *  slices), and the route's usability bar is the desk's too — no
+ *  hook or no usable beats is a failed make (null), refunded
+ *  server-side, never an empty script dressed as a result. */
+export function scriptOfResponse(raw: unknown): ScriptResult | null {
+  if (!isRecord(raw)) return null;
+  const hook = typeof raw["hook"] === "string" ? raw["hook"].trim() : "";
+  const beats: ScriptBeat[] = [];
+  if (Array.isArray(raw["beats"])) {
+    for (const b of raw["beats"]) {
+      if (!isRecord(b)) continue;
+      if (typeof b["timestamp"] !== "string" || typeof b["spoken"] !== "string") continue;
+      const spoken = b["spoken"].trim();
+      if (spoken.length === 0) continue;
+      beats.push({
+        timestamp: b["timestamp"].trim(),
+        spoken,
+        visualCue: typeof b["visualCue"] === "string" ? b["visualCue"].trim() : "",
+        broll: typeof b["broll"] === "string" ? b["broll"].trim() : "",
+      });
+    }
+  }
+  if (!hook || beats.length === 0) return null;
+  const retentionBeats: RetentionBeat[] = [];
+  if (Array.isArray(raw["retentionBeats"])) {
+    for (const r of raw["retentionBeats"]) {
+      if (!isRecord(r)) continue;
+      if (typeof r["at"] !== "string" || typeof r["line"] !== "string") continue;
+      const line = r["line"].trim();
+      if (line.length === 0) continue;
+      retentionBeats.push({
+        at: r["at"].trim(),
+        tactic: typeof r["tactic"] === "string" ? r["tactic"].trim() : "",
+        line,
+      });
+    }
+  }
+  return {
+    title: typeof raw["title"] === "string" ? raw["title"].trim() : "",
+    hook,
+    beats: beats.slice(0, 40),
+    retentionBeats: retentionBeats.slice(0, 20),
+    cta: typeof raw["cta"] === "string" ? raw["cta"].trim() : "",
+    teleprompter:
+      typeof raw["teleprompter"] === "string" ? raw["teleprompter"].trim() : "",
+  };
+}
+
 /* ─── Templates — the site's own libraries prefill the desk ──────── */
 
 interface HookTemplatePrefill {
@@ -348,6 +578,8 @@ export interface HookHistoryEntry {
   ctas?: CtaResult[];
   preflight?: PreflightResult;
   captionResult?: CaptionResult;
+  titlesResult?: TitlesResult;
+  scriptResult?: ScriptResult;
 }
 
 export const HOOK_HISTORY_LIMIT = 8;

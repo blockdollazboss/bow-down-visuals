@@ -1,6 +1,6 @@
 import { apiErrorMessage } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, Gauge, Loader2, Megaphone, MousePointerClick, Sparkles, Zap } from "lucide-react";
+import { Check, Copy, Gauge, Loader2, Megaphone, MousePointerClick, ScrollText, Sparkles, Type, Zap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -15,11 +15,18 @@ import {
   CTA_PLATFORMS,
   HOOK_DESK_STATION_ID,
   HOOK_VIDEO_TYPES,
+  SCRIPT_LENGTHS,
+  SCRIPT_PLATFORMS,
+  SCRIPT_TONES,
+  TITLE_PLATFORMS,
+  TITLE_TONES,
   captionPackPrefill,
   buildCaptionPayload,
   buildCtaPayload,
   buildHookPayload,
   buildPreflightPayload,
+  buildScriptPayload,
+  buildTitlePayload,
   captionsOfResponse,
   ctasOfResponse,
   hookDeskInputReady,
@@ -29,6 +36,8 @@ import {
   hooksOfResponse,
   preflightOfResponse,
   pushHookHistory,
+  scriptOfResponse,
+  titlesOfResponse,
   type CaptionPlatform,
   type CaptionResult,
   type CtaGoal,
@@ -38,15 +47,26 @@ import {
   type HookHistoryEntry,
   type HookVideoType,
   type PreflightResult,
+  type ScriptLength,
+  type ScriptPlatform,
+  type ScriptResult,
+  type ScriptTone,
+  type TitlePlatform,
+  type TitleTone,
+  type TitlesResult,
 } from "@/lib/world/hook-desk";
 
 /* ─── The Hook Desk (Stack-100 item 97, closing part) ───────────────
    Hook Studio, native in the Create Wing: the 2D /hooks page's own
-   four money modes on its own two rails —
+   money modes on its own rails —
      Hooks      POST /api/hook-studio {mode:"hooks"}     100 VB
      Captions   POST /api/hook-studio {mode:"captions"}  100 VB
      Pre-flight POST /api/hook-studio {mode:"preflight"} 100 VB
      CTAs       POST /api/generate-cta                    50 VB
+     Titles     POST /api/title-studio                  100 VB
+     Scripts    POST /api/script-writer                 200 VB
+   (Titles + Scripts: Stack-100 item 30 [B6] — the /hooks Titles
+   tab and the /script-writer page, same posts, same prices.)
    Every run rides confirmedFetch (the registry-priced spend
    confirmation stands before anything runs; a decline runs
    nothing) and the price is printed on the desk before the run.
@@ -63,6 +83,8 @@ const MODES: ReadonlyArray<{ key: HookDeskMode; label: string; icon: LucideIcon 
   { key: "captions", label: "Captions", icon: Megaphone },
   { key: "preflight", label: "Pre-flight", icon: Gauge },
   { key: "cta", label: "CTAs", icon: MousePointerClick },
+  { key: "titles", label: "Titles", icon: Type },
+  { key: "scripts", label: "Scripts", icon: ScrollText },
 ];
 
 const RUN_LABEL: Record<HookDeskMode, string> = {
@@ -70,6 +92,8 @@ const RUN_LABEL: Record<HookDeskMode, string> = {
   captions: "Write the captions",
   preflight: "Score my post",
   cta: "Write the CTAs",
+  titles: "Write the titles",
+  scripts: "Write the script",
 };
 
 function CopyLine({ text, isLight }: { text: string; isLight: boolean }) {
@@ -121,16 +145,32 @@ export function HookDesk(props: CreateDeskProps) {
   const [ctaGoal, setCtaGoal] = useState<CtaGoal>("subscribe");
   const [ctaPlatform, setCtaPlatform] = useState<CtaPlatform>("tiktok");
   const [ctaTone, setCtaTone] = useState("");
+  /* titles — the bench keeps its own topic, like the 2D tab keeps
+     its own apart from the hooks tabs. */
+  const [tsTopic, setTsTopic] = useState("");
+  const [tsPlatform, setTsPlatform] = useState<TitlePlatform>("youtube");
+  const [tsTone, setTsTone] = useState<TitleTone>("hype");
+  const [tsKeywords, setTsKeywords] = useState("");
+  /* scripts — the /script-writer page's own form, its own topic. */
+  const [swTopic, setSwTopic] = useState("");
+  const [swPlatform, setSwPlatform] = useState<ScriptPlatform>("youtube");
+  const [swLength, setSwLength] = useState<ScriptLength>("medium");
+  const [swTone, setSwTone] = useState<ScriptTone>("educational");
+  const [swAudience, setSwAudience] = useState("");
+  const [swCtaGoal, setSwCtaGoal] = useState("");
 
   const [hooks, setHooks] = useState<string[] | null>(null);
   const [captionResult, setCaptionResult] = useState<CaptionResult | null>(null);
   const [preflight, setPreflight] = useState<PreflightResult | null>(null);
   const [ctas, setCtas] = useState<CtaResult[] | null>(null);
+  const [titlesResult, setTitlesResult] = useState<TitlesResult | null>(null);
+  const [scriptResult, setScriptResult] = useState<ScriptResult | null>(null);
   const [history, setHistory] = useState<HookHistoryEntry[]>([]);
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const cost = hookDeskModeCost(mode);
-  const ready = hookDeskInputReady(mode, { topic, title: pfTitle });
+  const activeTopic = mode === "titles" ? tsTopic : mode === "scripts" ? swTopic : topic;
+  const ready = hookDeskInputReady(mode, { topic: activeTopic, title: pfTitle });
 
   const switchMode = (next: HookDeskMode) => {
     setMode(next);
@@ -192,7 +232,11 @@ export function HookDesk(props: CreateDeskProps) {
             ? buildCaptionPayload({ topic, platform: capPlatform, tone: capTone })
             : mode === "preflight"
               ? buildPreflightPayload({ title: pfTitle, caption: pfCaption, hashtags: pfHashtags, description: pfDescription })
-              : buildCtaPayload({ videoTopic: topic, ctaGoal, platform: ctaPlatform, tone: ctaTone });
+              : mode === "titles"
+                ? buildTitlePayload({ topic: tsTopic, platform: tsPlatform, tone: tsTone, keywords: tsKeywords })
+                : mode === "scripts"
+                  ? buildScriptPayload({ platform: swPlatform, length: swLength, topic: swTopic, tone: swTone, audience: swAudience, ctaGoal: swCtaGoal })
+                  : buildCtaPayload({ videoTopic: topic, ctaGoal, platform: ctaPlatform, tone: ctaTone });
       const res = await confirmedFetch(path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -227,6 +271,16 @@ export function HookDesk(props: CreateDeskProps) {
         if (!parsed) { setNote("The scorecard came back empty — a failed make is refunded. Try again."); return; }
         setPreflight(parsed);
         setHistory((h) => pushHookHistory(h, { mode, label: pfTitle.trim(), lines: [`${parsed.score}/100 — ${parsed.verdict}`], preflight: parsed }));
+      } else if (mode === "titles") {
+        const parsed = titlesOfResponse(data);
+        if (!parsed) { setNote("The titles came back empty — a failed make is refunded. Try again."); return; }
+        setTitlesResult(parsed);
+        setHistory((h) => pushHookHistory(h, { mode, label: tsTopic.trim(), lines: parsed.titles.map((t) => t.title), titlesResult: parsed }));
+      } else if (mode === "scripts") {
+        const parsed = scriptOfResponse(data);
+        if (!parsed) { setNote("The script came back empty — a failed make is refunded. Try again."); return; }
+        setScriptResult(parsed);
+        setHistory((h) => pushHookHistory(h, { mode, label: swTopic.trim(), lines: parsed.beats.map((b) => b.spoken), scriptResult: parsed }));
       } else {
         const parsed = ctasOfResponse(data);
         if (!parsed) { setNote("The CTAs came back empty — a failed make is refunded. Try again."); return; }
@@ -247,6 +301,8 @@ export function HookDesk(props: CreateDeskProps) {
     if (entry.mode === "captions") setCaptionResult(entry.captionResult ?? { captions: entry.lines, hashtags: { niche: [], broad: [], trending: [] }, cta: "" });
     if (entry.mode === "cta" && entry.ctas) setCtas(entry.ctas);
     if (entry.mode === "preflight" && entry.preflight) setPreflight(entry.preflight);
+    if (entry.mode === "titles" && entry.titlesResult) setTitlesResult(entry.titlesResult);
+    if (entry.mode === "scripts" && entry.scriptResult) setScriptResult(entry.scriptResult);
   };
 
   const chipCls = (active: boolean) =>
@@ -363,6 +419,66 @@ export function HookDesk(props: CreateDeskProps) {
         </div>
       )}
 
+      {mode === "titles" && (
+        <div className="space-y-3">
+          <DeskTextField isLight={isLight} label="What is the video about?" value={tsTopic} onChange={setTsTopic} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DeskSelectField
+              isLight={isLight}
+              label="Platform"
+              value={tsPlatform}
+              onChange={(v) => setTsPlatform(v as TitlePlatform)}
+              options={TITLE_PLATFORMS.map((p) => ({ value: p, label: p }))}
+            />
+            <DeskSelectField
+              isLight={isLight}
+              label="Tone"
+              value={tsTone}
+              onChange={(v) => setTsTone(v as TitleTone)}
+              options={TITLE_TONES.map((t) => ({ value: t, label: t }))}
+            />
+          </div>
+          <DeskTextField isLight={isLight} label="Keywords (optional)" value={tsKeywords} onChange={setTsKeywords} />
+          <p className={`text-xs ${muted}`}>
+            Ten click-ranked titles, a full description, and platform tags. Scores are
+            packaging-readiness estimates — never a virality guarantee.
+          </p>
+        </div>
+      )}
+
+      {mode === "scripts" && (
+        <div className="space-y-3">
+          <DeskTextField isLight={isLight} label="What is the video about?" value={swTopic} onChange={setSwTopic} />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <DeskSelectField
+              isLight={isLight}
+              label="Platform"
+              value={swPlatform}
+              onChange={(v) => setSwPlatform(v as ScriptPlatform)}
+              options={SCRIPT_PLATFORMS.map((p) => ({ value: p, label: p }))}
+            />
+            <DeskSelectField
+              isLight={isLight}
+              label="Length"
+              value={swLength}
+              onChange={(v) => setSwLength(v as ScriptLength)}
+              options={SCRIPT_LENGTHS.map((l) => ({ value: l, label: l }))}
+            />
+            <DeskSelectField
+              isLight={isLight}
+              label="Tone"
+              value={swTone}
+              onChange={(v) => setSwTone(v as ScriptTone)}
+              options={SCRIPT_TONES.map((t) => ({ value: t, label: t }))}
+            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DeskTextField isLight={isLight} label="Audience (optional)" value={swAudience} onChange={setSwAudience} />
+            <DeskTextField isLight={isLight} label="CTA goal (optional)" value={swCtaGoal} onChange={setSwCtaGoal} />
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
         <span data-testid="world-hook-desk-cost" className={`text-xs font-semibold ${muted}`}>
           Costs {cost.toLocaleString("en-US")} Visual Bucs — shown before anything runs.
@@ -448,6 +564,77 @@ export function HookDesk(props: CreateDeskProps) {
               </span>
             </p>
           ))}
+        </div>
+      )}
+
+      {mode === "titles" && titlesResult && (
+        <div data-testid="world-hook-desk-result" className="space-y-2">
+          {titlesResult.titles.map((t, i) => (
+            <div key={i} className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
+              <CopyLine text={t.title} isLight={isLight} />
+              <span className={`mt-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>
+                {i + 1} · readiness {t.score}/100
+              </span>
+              {t.why && <p className={muted}>{t.why}</p>}
+            </div>
+          ))}
+          <div className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
+            <p className={`mb-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Description</p>
+            <p className="whitespace-pre-line">{titlesResult.description}</p>
+          </div>
+          {titlesResult.tags.length > 0 && (
+            <p className={`text-xs ${muted}`}>
+              <span className="font-black uppercase tracking-[0.12em]">tags: </span>
+              {titlesResult.tags.map((tag) => `#${tag}`).join(" ")}
+            </p>
+          )}
+          {titlesResult.note && <p className={`text-xs italic ${muted}`}>{titlesResult.note}</p>}
+        </div>
+      )}
+
+      {mode === "scripts" && scriptResult && (
+        <div data-testid="world-hook-desk-result" className="space-y-2">
+          {scriptResult.title && (
+            <p className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{scriptResult.title}</p>
+          )}
+          <div className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
+            <p className={`mb-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>The hook — first 3 seconds</p>
+            <CopyLine text={scriptResult.hook} isLight={isLight} />
+          </div>
+          {scriptResult.beats.map((b, i) => (
+            <div key={i} className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
+              <p>
+                <span className="mr-2 font-bold">{b.timestamp}</span>
+                <CopyLine text={b.spoken} isLight={isLight} />
+              </p>
+              {b.visualCue && <p className={muted}>On screen: {b.visualCue}</p>}
+              {b.broll && <p className={muted}>B-roll: {b.broll}</p>}
+            </div>
+          ))}
+          {scriptResult.retentionBeats.length > 0 && (
+            <div className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
+              <p className={`mb-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Retention beats</p>
+              {scriptResult.retentionBeats.map((r, i) => (
+                <p key={i}>
+                  <span className="font-bold">{r.at}</span>
+                  {r.tactic ? <span className={muted}> · {r.tactic}</span> : null} — {r.line}
+                </p>
+              ))}
+            </div>
+          )}
+          {scriptResult.cta && (
+            <p className={`text-sm font-semibold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+              CTA: {scriptResult.cta}
+            </p>
+          )}
+          {scriptResult.teleprompter && (
+            <div className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
+              <p className={`mb-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Teleprompter</p>
+              <p className="whitespace-pre-line">
+                <CopyLine text={scriptResult.teleprompter} isLight={isLight} />
+              </p>
+            </div>
+          )}
         </div>
       )}
 

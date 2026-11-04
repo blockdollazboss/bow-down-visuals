@@ -41,6 +41,7 @@ import {
   hooksOfResponse,
   preflightOfResponse,
   pushHookHistory,
+  type HookDeskMode,
   type HookHistoryEntry,
 } from "./hook-desk";
 import { getCreditCost } from "../credit-costs";
@@ -54,16 +55,29 @@ const deskSrc = read("../../components/world/native/HookDesk.tsx");
 const panelSrc = read("../../components/world/native/CreateDeskPanel.tsx");
 
 describe("prices — the registry's, matching the routes' defaults", () => {
-  it("hook studio is 100 VB for every mode; CTA is 50 VB", () => {
+  it("hook studio is 100 VB for its modes; CTA is 50 VB; titles 100, scripts 200 (item 30)", () => {
     expect(HOOK_STUDIO_PATH).toBe("/api/hook-studio");
     expect(CTA_PATH).toBe("/api/generate-cta");
     expect(hookStudioCost()).toBe(100);
     expect(ctaCost()).toBe(50);
     expect(hookStudioCost()).toBe(getCreditCost("/api/hook-studio")!.cost);
     expect(ctaCost()).toBe(getCreditCost("/api/generate-cta")!.cost);
+    /* Per-mode truth — the titles/scripts benches ride their OWN
+       rails at their OWN registry prices (item 30); the original
+       loop's "everything else is hook-studio" no longer holds. */
+    const MODE_TRUTH: Record<HookDeskMode, { cost: number; path: string }> = {
+      hooks: { cost: 100, path: HOOK_STUDIO_PATH },
+      captions: { cost: 100, path: HOOK_STUDIO_PATH },
+      preflight: { cost: 100, path: HOOK_STUDIO_PATH },
+      cta: { cost: 50, path: CTA_PATH },
+      titles: { cost: 100, path: "/api/title-studio" },
+      scripts: { cost: 200, path: "/api/script-writer" },
+    };
+    expect([...HOOK_DESK_MODES].sort()).toEqual(Object.keys(MODE_TRUTH).sort());
     for (const mode of HOOK_DESK_MODES) {
-      expect(hookDeskModeCost(mode), mode).toBe(mode === "cta" ? 50 : 100);
-      expect(hookDeskModePath(mode), mode).toBe(mode === "cta" ? CTA_PATH : HOOK_STUDIO_PATH);
+      expect(hookDeskModeCost(mode), mode).toBe(MODE_TRUTH[mode].cost);
+      expect(hookDeskModePath(mode), mode).toBe(MODE_TRUTH[mode].path);
+      expect(hookDeskModeCost(mode), mode).toBe(getCreditCost(MODE_TRUTH[mode].path)!.cost);
     }
   });
 });
