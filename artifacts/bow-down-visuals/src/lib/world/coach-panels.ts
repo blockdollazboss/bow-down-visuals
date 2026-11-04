@@ -113,14 +113,28 @@ export function defaultNicheInputs(): NicheInputs {
   return { niche: "", platform: "all", experience: "beginner", useMyData: false };
 }
 
+/** The niche form's refusal lines — the English pair below is the
+ *  source text; the catalogs carry the same lines under
+ *  worldCoachMoney.cpNiche*, and the panel hands the walker's
+ *  language's pair in (the questChipLine precedent). */
+export interface NicheInputStrings {
+  enterNiche: string;
+  tooShort: string;
+}
+
+export const NICHE_INPUT_STRINGS_EN: NicheInputStrings = {
+  enterNiche: "Enter a niche first — e.g. fitness, indie music production, skincare.",
+  tooShort: "That niche is too short — type at least 2 characters, or clear it and let your catalog speak.",
+};
+
 /** The page's refusals, in its words, or null when the ask can run. */
-export function validateNicheInputs(inputs: NicheInputs): string | null {
+export function validateNicheInputs(inputs: NicheInputs, strings: NicheInputStrings = NICHE_INPUT_STRINGS_EN): string | null {
   const finalNiche = inputs.niche.trim().slice(0, 120);
   if (!inputs.useMyData && finalNiche.length < 2) {
-    return "Enter a niche first — e.g. fitness, indie music production, skincare.";
+    return strings.enterNiche;
   }
   if (inputs.useMyData && finalNiche.length === 1) {
-    return "That niche is too short — type at least 2 characters, or clear it and let your catalog speak.";
+    return strings.tooShort;
   }
   return null;
 }
@@ -269,8 +283,11 @@ export function buildRoadmapSavePayload(analysis: NicheAnalysis): Record<string,
 }
 
 /** The idea validator's refusal, in the page's words, or null. */
-export function validateIdeaInput(idea: string): string | null {
-  if (idea.trim().slice(0, 500).length < 5) return "Describe the idea in at least 5 characters.";
+export function validateIdeaInput(
+  idea: string,
+  tooShort = "Describe the idea in at least 5 characters.",
+): string | null {
+  if (idea.trim().slice(0, 500).length < 5) return tooShort;
   return null;
 }
 
@@ -465,11 +482,25 @@ export interface LedgerEntryDraft {
   releaseId: string;
 }
 
+/** The ledger form's refusal lines (worldCoachMoney.cpLedger*). */
+export interface LedgerEntryStrings {
+  amount: string;
+  date: string;
+}
+
+export const LEDGER_ENTRY_STRINGS_EN: LedgerEntryStrings = {
+  amount: "Enter an amount above $0.",
+  date: "Use a real date (YYYY-MM-DD).",
+};
+
 /** The form's refusals, in words, or null when the entry can save. */
-export function validateLedgerEntryDraft(draft: LedgerEntryDraft): string | null {
+export function validateLedgerEntryDraft(
+  draft: LedgerEntryDraft,
+  strings: LedgerEntryStrings = LEDGER_ENTRY_STRINGS_EN,
+): string | null {
   const dollars = parseFloat(draft.amount);
-  if (!Number.isFinite(dollars) || dollars <= 0) return "Enter an amount above $0.";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.date)) return "Use a real date (YYYY-MM-DD).";
+  if (!Number.isFinite(dollars) || dollars <= 0) return strings.amount;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.date)) return strings.date;
   return null;
 }
 
@@ -916,19 +947,40 @@ export function wave8DraftTotalPct(rows: Wave8DraftRow[]): number {
   return rows.reduce((s, r) => s + (parseFloat(r.pct) || 0), 0);
 }
 
+/** The sheet form's refusal lines (worldCoachMoney.subSheet*). */
+export interface Wave8DraftStrings {
+  title: string;
+  collaborator: string;
+  name: string;
+  shareRange: string;
+  total: string;
+}
+
+export const WAVE8_DRAFT_STRINGS_EN: Wave8DraftStrings = {
+  title: "Give the sheet a song title.",
+  collaborator: "Add at least one collaborator.",
+  name: "Every collaborator needs a name.",
+  shareRange: "Each share must be between 0% and 100%.",
+  total: "Splits must add up to exactly 100% to save.",
+};
+
 /** The sheet form's refusals, in words, or null when the sheet can
  *  save — the page's rule: a title, at least one named collaborator,
  *  every share a real 0–100, and the shares total exactly 100. */
-export function validateWave8Draft(title: string, rows: Wave8DraftRow[]): string | null {
-  if (!title.trim()) return "Give the sheet a song title.";
-  if (rows.length === 0) return "Add at least one collaborator.";
+export function validateWave8Draft(
+  title: string,
+  rows: Wave8DraftRow[],
+  strings: Wave8DraftStrings = WAVE8_DRAFT_STRINGS_EN,
+): string | null {
+  if (!title.trim()) return strings.title;
+  if (rows.length === 0) return strings.collaborator;
   for (const r of rows) {
-    if (!r.name.trim()) return "Every collaborator needs a name.";
+    if (!r.name.trim()) return strings.name;
     const p = parseFloat(r.pct);
-    if (!Number.isFinite(p) || p < 0 || p > 100) return "Each share must be between 0% and 100%.";
+    if (!Number.isFinite(p) || p < 0 || p > 100) return strings.shareRange;
   }
   if (Math.abs(wave8DraftTotalPct(rows) - 100) >= 0.001) {
-    return "Splits must add up to exactly 100% to save.";
+    return strings.total;
   }
   return null;
 }
@@ -1002,10 +1054,10 @@ export function parseRoyaltyInsights(data: unknown): RoyaltyInsight[] | null {
  *  string parsed once and formatted — USD in the house $ shape, any
  *  other currency keeping its code (the page's own fallback for an
  *  unparseable amount is 0.00, never an invented figure). */
-export function royaltyMoneyLabel(amount: string, currency = "USD"): string {
+export function royaltyMoneyLabel(amount: string, currency = "USD", locale = "en-US"): string {
   const n = parseFloat(amount);
   const value = Number.isNaN(n) ? 0 : n;
-  const formatted = value.toLocaleString("en-US", {
+  const formatted = value.toLocaleString(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -1039,9 +1091,12 @@ export interface RoyaltyPayoutDraft {
 
 /** The payout form's refusal, in the page's words, or null: the
  *  distributor, both period dates and an expected amount are owed. */
-export function validateRoyaltyPayoutDraft(draft: RoyaltyPayoutDraft): string | null {
+export function validateRoyaltyPayoutDraft(
+  draft: RoyaltyPayoutDraft,
+  required = "Distributor, period dates, and expected amount are required.",
+): string | null {
   if (!draft.distributor.trim() || !draft.periodStart || !draft.periodEnd || !draft.expected.trim()) {
-    return "Distributor, period dates, and expected amount are required.";
+    return required;
   }
   return null;
 }
