@@ -16,6 +16,7 @@
  * settling stay on the website's admin benches — not here.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
@@ -36,7 +37,25 @@ import {
 } from "@/lib/world/grants-desk";
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
 
+/* Phase / result chip labels (stack100 locale unit 47): the
+   seam's GRANT_PHASE_LABELS / GRANT_RESULT_LABELS stay the pinned
+   English mirrors; the desk renders the names from the catalog. */
+const PHASE_KEYS: Record<string, string> = {
+  submissions: "worldSponsorPress.grPhaseSubmissions",
+  voting: "worldSponsorPress.grPhaseVoting",
+  decided: "worldSponsorPress.grPhaseDecided",
+  reported: "worldSponsorPress.grPhaseReported",
+};
+const RESULT_KEYS: Record<string, string> = {
+  pending: "worldSponsorPress.grResultPending",
+  winner: "worldSponsorPress.grResultWinner",
+  tie: "worldSponsorPress.grResultTie",
+  no_candidates: "worldSponsorPress.grResultNoCandidates",
+  no_votes: "worldSponsorPress.grResultNoVotes",
+};
+
 export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
   const deskHeaders = useDeskAuthHeaders();
   const { user } = useAuth();
   const [surface, setSurface] = useState<GrantsSurface | null>(null);
@@ -96,7 +115,7 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       await load();
       if (okNotice) setNotice(okNotice);
     } catch (e) {
-      setError(plainErrorText(e, "That didn't land. Try again in a moment."));
+      setError(plainErrorText(e, t("worldSponsorPress.grErrorFallback")));
     } finally {
       setBusy(null);
     }
@@ -110,7 +129,7 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(apiErrorMessage(data, "That didn't land. Try again in a moment."));
+    if (!res.ok) throw new Error(apiErrorMessage(data, t("worldSponsorPress.grErrorFallback")));
   }
 
   const current = surface?.current ?? null;
@@ -119,7 +138,7 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
     if (!current) return;
     const payload = buildGrantProjectPayload(title, description);
     if (!payload) {
-      setError("Your project needs a title (up to 120 characters) and a description in your own words (up to 2,000).");
+      setError(t("worldSponsorPress.grSubmitError"));
       return;
     }
     void run(
@@ -129,7 +148,7 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         setTitle("");
         setDescription("");
       },
-      "Project in — the community can read it below.",
+      t("worldSponsorPress.grSubmitNotice"),
     );
   };
 
@@ -139,12 +158,12 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
     );
 
   const withdraw = (round: GrantRound) =>
-    void run("withdraw", () => send("DELETE", grantsVotePath(round.round.id)), "Vote withdrawn.");
+    void run("withdraw", () => send("DELETE", grantsVotePath(round.round.id)), t("worldSponsorPress.grWithdrawNotice"));
 
   const postReportBack = (round: GrantRound) => {
     const payload = buildGrantReportBackPayload(reportBack);
     if (!payload) {
-      setError("Write your report-back in your own words first (up to 4,000 characters).");
+      setError(t("worldSponsorPress.grReportError"));
       return;
     }
     void run(
@@ -153,7 +172,7 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
         await send("POST", grantsReportBackPath(round.round.id), payload);
         setReportBack("");
       },
-      "Report-back posted — thank you.",
+      t("worldSponsorPress.grReportNotice"),
     );
   };
 
@@ -164,15 +183,19 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       <section className={`rounded-xl border p-3 ${cardCls}`}>
         <div className="flex flex-wrap items-center gap-2">
           <p className={`text-sm font-black ${strong}`}>{monthLabel(s.round.monthKey)}</p>
-          <span className={chipCls(isCurrent)}>{GRANT_PHASE_LABELS[s.phase]}</span>
-          {resultLabel ? <span className={chipCls(s.round.resultStatus === "winner")}>{resultLabel}</span> : null}
+          <span className={chipCls(isCurrent)}>{PHASE_KEYS[s.phase] ? t(PHASE_KEYS[s.phase]) : GRANT_PHASE_LABELS[s.phase]}</span>
+          {resultLabel ? (
+            <span className={chipCls(s.round.resultStatus === "winner")}>
+              {RESULT_KEYS[s.round.resultStatus] ? t(RESULT_KEYS[s.round.resultStatus]) : resultLabel}
+            </span>
+          ) : null}
           <span className={`ml-auto text-xs ${muted}`}>
-            Pool {formatVb(s.round.poolVb)} · {s.totalVotes} votes
-            {s.round.grantStatus === "paid" ? " · grant paid" : ""}
+            {t("worldSponsorPress.grPoolLine", { pool: formatVb(s.round.poolVb), votes: s.totalVotes })}
+            {s.round.grantStatus === "paid" ? t("worldSponsorPress.grGrantPaidSuffix") : ""}
           </span>
         </div>
         {s.candidates.length === 0 ? (
-          <p className={`mt-2 text-sm ${muted}`}>No projects yet this round.</p>
+          <p className={`mt-2 text-sm ${muted}`}>{t("worldSponsorPress.grNoProjects")}</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {s.candidates.map((c) => (
@@ -183,12 +206,13 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                     {c.isWinner ? " 🏆" : ""}
                   </span>
                   <span className={`text-xs ${muted}`}>
-                    by {c.creatorName}
-                    {user && c.creatorUserId === user.id ? " (you)" : ""} · {c.votes} votes
+                    {t("worldSponsorPress.grByCreator", { name: c.creatorName })}
+                    {user && c.creatorUserId === user.id ? t("worldSponsorPress.grYouSuffix") : ""}
+                    {t("worldSponsorPress.grVotesSuffix", { votes: c.votes })}
                   </span>
                   {isCurrent && s.phase === "voting" && !isGuest ? (
                     s.myVoteCandidateId === c.id ? (
-                      <span className={`ml-auto ${chipCls(true)}`}>Your vote ✓</span>
+                      <span className={`ml-auto ${chipCls(true)}`}>{t("worldSponsorPress.grYourVote")}</span>
                     ) : (
                       <button
                         type="button"
@@ -197,7 +221,7 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                         disabled={busy !== null}
                         onClick={() => vote(s, c.id)}
                       >
-                        Vote
+                        {t("communityGrants.vote")}
                       </button>
                     )
                   ) : null}
@@ -205,10 +229,10 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                 <p className={`mt-1 whitespace-pre-wrap text-sm ${muted}`}>{c.description}</p>
                 {c.reportBack ? (
                   <p className={`mt-2 text-sm ${muted}`} data-testid={`world-grants-desk-reportback-${c.id}`}>
-                    <span className={`font-bold ${strong}`}>Report-back:</span> {c.reportBack}
+                    <span className={`font-bold ${strong}`}>{t("worldSponsorPress.grReportBackLabel")}</span> {c.reportBack}
                   </p>
                 ) : c.reportBackOwed ? (
-                  <p className={`mt-2 text-xs ${muted}`}>Report-back still owed to the community.</p>
+                  <p className={`mt-2 text-xs ${muted}`}>{t("worldSponsorPress.grReportOwed")}</p>
                 ) : null}
               </li>
             ))}
@@ -222,18 +246,17 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
             disabled={busy !== null}
             onClick={() => withdraw(s)}
           >
-            Withdraw my vote
+            {t("communityGrants.withdrawVote")}
           </button>
         ) : null}
         {owed && !isGuest ? (
           <div className="mt-3" data-testid="world-grants-desk-reportback-form">
-            <p className={`text-sm font-bold ${strong}`}>Your report-back is owed</p>
+            <p className={`text-sm font-bold ${strong}`}>{t("worldSponsorPress.grOwedTitle")}</p>
             <p className={`text-xs ${muted}`}>
-              The community funded “{owed.title}” — tell them what the grant built, in your own
-              words.
+              {t("worldSponsorPress.grOwedBody", { title: owed.title })}
             </p>
             <textarea
-              aria-label="Your grant report-back"
+              aria-label={t("worldSponsorPress.grReportBackAria")}
               className={`${inputCls} mt-2`}
               rows={4}
               maxLength={4000}
@@ -247,7 +270,7 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
               disabled={busy !== null}
               onClick={() => postReportBack(s)}
             >
-              {busy === "report-back" ? "Posting…" : "Post the report-back"}
+              {busy === "report-back" ? t("worldSponsorPress.grPosting") : t("worldSponsorPress.grPostReportBack")}
             </button>
           </div>
         ) : null}
@@ -258,12 +281,12 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
   if (loadFailed) {
     return (
       <div className="space-y-3" data-testid="world-grants-desk">
-        <p className={`text-base font-black ${strong}`}>Community Grants</p>
+        <p className={`text-base font-black ${strong}`}>{t("communityGrants.title")}</p>
         <p className={errCls} data-testid="world-grants-desk-failed">
-          The grants board wouldn&rsquo;t load. Give it another shot.
+          {t("worldSponsorPress.grLoadError")}
         </p>
         <button type="button" className={chipCls(false)} onClick={() => void load()}>
-          Try again
+          {t("worldSponsorPress.grTryAgain")}
         </button>
       </div>
     );
@@ -272,10 +295,9 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
   return (
     <div className="space-y-4" data-testid="world-grants-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Community Grants</p>
+        <p className={`text-base font-black ${strong}`}>{t("communityGrants.title")}</p>
         <p className={`text-xs ${muted}`}>
-          One project a month, funded by the community pool — in Visual Bucs, always. Creators
-          pitch, the community votes, the funded creator reports back.
+          {t("worldSponsorPress.grIntro")}
         </p>
       </div>
       {notice ? (
@@ -284,31 +306,31 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       {error ? <p className={errCls}>{error}</p> : null}
 
       {surface === null ? (
-        <p className={`text-sm ${muted}`}>Reading the grants board…</p>
+        <p className={`text-sm ${muted}`}>{t("worldSponsorPress.grReading")}</p>
       ) : (
         <>
           {current ? (
             <RoundBlock surface={current} isCurrent />
           ) : (
             <p className={`text-sm ${muted}`} data-testid="world-grants-desk-noround">
-              No round is open right now — when the next one opens, its projects land here.
+              {t("worldSponsorPress.grNoRound")}
             </p>
           )}
 
           {current && current.phase === "submissions" ? (
             isGuest ? (
               <p className={`text-sm ${muted}`}>
-                Submissions are open —{" "}
+                {t("worldSponsorPress.grSubmissionsOpen")}{" "}
                 <Link href="/login" data-testid="world-grants-desk-signin" className="font-bold underline">
-                  sign in
+                  {t("worldSponsorPress.grSignInLink")}
                 </Link>{" "}
-                to put your project in.
+                {t("worldSponsorPress.grSubmissionsGuestSuffix")}
               </p>
             ) : (
               <section className={`rounded-xl border p-3 ${cardCls}`} data-testid="world-grants-desk-submit">
-                <p className={`text-sm font-bold ${strong}`}>Put your project in</p>
+                <p className={`text-sm font-bold ${strong}`}>{t("worldSponsorPress.grSubmitTitle")}</p>
                 <label className={`mt-2 block text-xs ${muted}`}>
-                  Project title
+                  {t("communityGrants.projectTitleLabel")}
                   <input
                     className={`${inputCls} mt-1`}
                     data-testid="world-grants-desk-title"
@@ -318,7 +340,7 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                   />
                 </label>
                 <label className={`mt-2 block text-xs ${muted}`}>
-                  What the grant would build, in your own words
+                  {t("worldSponsorPress.grDescriptionLabel")}
                   <textarea
                     className={`${inputCls} mt-1`}
                     data-testid="world-grants-desk-description"
@@ -335,7 +357,7 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                   disabled={busy !== null}
                   onClick={submit}
                 >
-                  {busy === "submit" ? "Submitting…" : "Submit my project"}
+                  {busy === "submit" ? t("worldSponsorPress.grSubmitting") : t("communityGrants.submitButton")}
                 </button>
               </section>
             )
@@ -343,7 +365,7 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
 
           {surface.past.length > 0 ? (
             <div className="space-y-3">
-              <p className={`text-sm font-bold ${strong}`}>Past rounds</p>
+              <p className={`text-sm font-bold ${strong}`}>{t("communityGrants.pastTitle")}</p>
               {surface.past.map((s) => (
                 <RoundBlock key={s.round.id} surface={s} isCurrent={false} />
               ))}
