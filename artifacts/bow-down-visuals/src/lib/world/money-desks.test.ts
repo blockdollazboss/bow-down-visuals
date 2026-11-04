@@ -136,7 +136,7 @@ describe("61 · credit packs", () => {
       desk.indexOf('fetch("/api/create-checkout-session"'),
     );
     expect(branch).toContain("setFailed(");
-    expect(branch).toContain("checkoutFailureCopy(err)");
+    expect(branch).toContain("checkoutFailureCopy(err, {");
     expect(branch.match(/return;/g)?.length).toBeGreaterThanOrEqual(4);
   });
 
