@@ -107,7 +107,10 @@ function maes(alpha: Float32Array, truth: Float32Array): { all: number; band: nu
 }
 
 describe("BENCH matte upsampling at production scale", () => {
-  it("guided beats bilinear on the edge band at both the old and new top feeds", () => {
+  // 120s: two 1080p scenes of typed-array math — seconds on a
+  // quiet machine, far slower on a shared CI VM; the numbers,
+  // not the wall clock, are the bench.
+  it("guided beats bilinear on the edge band at both the old and new top feeds", { timeout: 120_000 }, () => {
     const { rgb, truth } = buildScene();
     const rows: string[] = [];
     let band640Guided = 0;
