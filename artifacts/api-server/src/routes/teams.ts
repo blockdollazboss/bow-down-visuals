@@ -43,7 +43,9 @@ router.post("/teams", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Team name is required (max 80 characters)." });
       return;
     }
-    // ENTITLEMENT: Teams require Shot Caller tier (4) or higher.
+    // ENTITLEMENT: CREATING a team requires Shot Caller tier (★4) or
+    // higher — the earned privilege (owner ruling Nov 4, 2026).
+    // Joining by invite and reading your own teams are NOT gated.
     // Fail-closed: unknown tier = no access.
     const { isShotCallerOrHigher } = await import("../lib/teams");
     if (!(await isShotCallerOrHigher(userId))) {
@@ -78,12 +80,17 @@ router.post("/teams", requireAuth, async (req, res) => {
 router.get("/teams", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
-    // ENTITLEMENT: Teams require Shot Caller tier or higher.
+    // PARTICIPATION (owner ruling Nov 4, 2026): Shot Caller (★4) gates
+    // CREATING a team only — anyone invited can see their invite and
+    // join at any rank, and any member can see their own membership.
+    // This read is therefore NOT rank-gated: it only ever returns the
+    // caller's OWN memberships and invites addressed to the caller's
+    // OWN email — never a listing of other teams. `canCreate` carries
+    // the create entitlement so surfaces can gate the create action
+    // itself; the rank read stays fail-closed for that flag (a failed
+    // read = canCreate false), and POST /teams re-checks it for real.
     const { isShotCallerOrHigher } = await import("../lib/teams");
-    if (!(await isShotCallerOrHigher(userId))) {
-      res.status(403).json({ error: "Team Workspace requires Shot Caller tier or higher." });
-      return;
-    }
+    const canCreate = await isShotCallerOrHigher(userId);
     const email = await getUserEmail(userId);
 
     const memberships = await db
@@ -114,6 +121,7 @@ router.get("/teams", requireAuth, async (req, res) => {
     const inviteTeamById = new Map(inviteTeams.map((t) => [t.id, t]));
 
     res.json({
+      canCreate,
       teams: teams.map((t) => ({
         ...t,
         myRole: memberships.find((m) => m.teamId === t.id)?.role ?? null,

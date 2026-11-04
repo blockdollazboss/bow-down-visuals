@@ -6,8 +6,9 @@ import { getCreatorRank } from "./creator-rank";
 /**
  * Creator Rank ladder: ★1 Street Punk, ★2 Hustler, ★3 Gangster,
  * ★4 Shot Caller, ★5 Crime Boss, ★6 Kingpin — names and thresholds live
- * in lib/creator-rank.ts, the single source of truth. Teams require
- * Shot Caller (★4) or higher.
+ * in lib/creator-rank.ts, the single source of truth. CREATING a team
+ * requires Shot Caller (★4) or higher; joining by invite and reading
+ * your own teams do not (owner ruling Nov 4, 2026).
  */
 const SHOT_CALLER_TIER = 4;
 
