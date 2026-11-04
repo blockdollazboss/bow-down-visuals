@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { CalendarDays, DoorOpen, LogIn, Swords } from "lucide-react";
 import { NativeBoard, NativeBoardRow } from "./NativeBoard";
@@ -41,14 +42,16 @@ import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
    A row never wears a button that goes nowhere: a kind this
    client can't place reads look-only, named for what it is. */
 
-const KIND_LABELS: Record<string, string> = {
-  stage_show: "Stage show",
-  listening_party: "Listening party",
-  drop: "Drop",
-  contest: "Contest",
-  office_hours: "Office hours",
-  royal_court: "Court gathering",
-  quest_reset: "Quest week",
+/* Kind words key-mapped to the family catalog; unknown kinds read
+   the family's fallback key. */
+const KIND_KEYS: Record<string, string> = {
+  stage_show: "worldScheduleRelease.calKindStageShow",
+  listening_party: "worldScheduleRelease.calKindListeningParty",
+  drop: "worldScheduleRelease.calKindDrop",
+  contest: "worldScheduleRelease.calKindContest",
+  office_hours: "worldScheduleRelease.calKindOfficeHours",
+  royal_court: "worldScheduleRelease.calKindRoyalCourt",
+  quest_reset: "worldScheduleRelease.calKindQuestReset",
 };
 
 export function PalaceCalendarBlock({
@@ -74,6 +77,7 @@ export function PalaceCalendarBlock({
    *  the Winners' Circle desk. Optional, same rule as above. */
   onOpenStation?: (stationId: string) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [read, setRead] = useState<{
     upcoming: CalendarEvent[];
     recent: CalendarEvent[];
@@ -107,33 +111,39 @@ export function PalaceCalendarBlock({
         ? groupPalaceCalendar(
             /* The slate plus the quest reset — the week's own turn,
                shaped from the quest pool's Monday week at read time. */
-            [...read.upcoming, questResetCalendarEvent(Date.now())],
+            [...read.upcoming, questResetCalendarEvent(Date.now(), t("worldScheduleRelease.calQuestResetTitle"))],
             read.recent,
             Date.now(),
+            {
+              today: t("worldScheduleRelease.calToday"),
+              tomorrow: t("worldScheduleRelease.calTomorrow"),
+              locale: i18n.language,
+            },
           )
         : null,
-    [read],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [read, t, i18n.language],
   );
 
   const roomNameFor = (roomId: string, hostName?: string): string =>
     /* A creator room ("creator:<slug>") is named for its host —
      * it stands in no palace directory, by design. */
     creatorSlugFromRoomId(roomId)
-      ? `${hostName?.trim() || "Creator"}'s Room`
+      ? t("worldScheduleRelease.calCreatorRoom", { name: hostName?.trim() || t("worldScheduleRelease.calCreatorFallback") })
       : (directory.find((r) => r.id === roomId)?.name ??
         PALACE_LAYOUT[roomId]?.name ??
-        "the palace");
+        t("worldScheduleRelease.calPalaceFallback"));
 
   const detailFor = (e: CalendarEvent): string => {
     /* The reset has no room and no host — its line says what turns. */
     if (e.kind === QUEST_RESET_KIND) {
-      return "Quest week · the weekly slate and the shared quest pool turn over at the day-turn — the new slate waits at the Quest Board";
+      return t("worldScheduleRelease.calResetDetail");
     }
     const parts = [
-      KIND_LABELS[e.kind] ?? "Palace event",
+      KIND_KEYS[e.kind] ? t(KIND_KEYS[e.kind]) : t("worldScheduleRelease.calKindFallback"),
       roomNameFor(e.roomId, e.hostName),
     ];
-    if (e.hostName) parts.push(`hosted by ${e.hostName}`);
+    if (e.hostName) parts.push(t("worldScheduleRelease.calHostedBy", { name: e.hostName }));
     if (e.theme) parts.push(`“${e.theme}”`);
     if (e.note) parts.push(e.note);
     return parts.join(" · ");
@@ -149,7 +159,7 @@ export function PalaceCalendarBlock({
       if (currentRoomId && action.roomId === currentRoomId) {
         return (
           <span className="text-[11px] font-black uppercase tracking-wide text-[#e8c86a]">
-            You&rsquo;re here
+            {t("worldScheduleRelease.calYoureHere")}
           </span>
         );
       }
@@ -161,7 +171,7 @@ export function PalaceCalendarBlock({
           onClick={() => onEnterRoom(action.roomId)}
           className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
-          <DoorOpen className="h-3.5 w-3.5" /> Go to the room
+          <DoorOpen className="h-3.5 w-3.5" /> {t("worldScheduleRelease.calGoToRoom")}
         </button>
       );
     }
@@ -175,7 +185,7 @@ export function PalaceCalendarBlock({
           className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
           <Swords className="h-3.5 w-3.5" />{" "}
-          {e.kind === QUEST_RESET_KIND ? "See the quests" : "See the contest"}
+          {e.kind === QUEST_RESET_KIND ? t("worldScheduleRelease.calSeeQuests") : t("worldScheduleRelease.calSeeContest")}
         </button>
       );
     }
@@ -188,12 +198,12 @@ export function PalaceCalendarBlock({
     <>
       {/* ── The week ahead ── */}
       <div data-testid="world-kingdom-calendar">
-        <NativeBoard isLight={isLight} title="Palace calendar — the week ahead">
+        <NativeBoard isLight={isLight} title={t("worldScheduleRelease.calBoardTitle")}>
           {failed ? (
             <NativeErrorState
               isLight={isLight}
-              title="The calendar wouldn't open"
-              message="The palace's happenings are still booked on the real rails — this read just missed them. Try again."
+              title={t("worldScheduleRelease.calLoadFailedTitle")}
+              message={t("worldScheduleRelease.calLoadFailedMessage")}
               onRetry={() => {
                 setFailed(false);
                 setRead(null);
@@ -201,12 +211,12 @@ export function PalaceCalendarBlock({
               }}
             />
           ) : !calendar ? (
-            <NativeLoadingState isLight={isLight} message="Reading the palace calendar…" />
+            <NativeLoadingState isLight={isLight} message={t("worldScheduleRelease.calLoading")} />
           ) : calendar.days.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="Nothing is booked at the palace this week."
-              detail="Booked shows, listening parties, contests, office hours, court gatherings and drops will read here, day by day, on their days."
+              message={t("worldScheduleRelease.calEmptyTitle")}
+              detail={t("worldScheduleRelease.calEmptyDetail")}
             />
           ) : (
             <>
@@ -225,7 +235,7 @@ export function PalaceCalendarBlock({
                       isLight={isLight}
                       title={e.title}
                       detail={detailFor(e)}
-                      meta={e.status === "live" ? "LIVE now" : formatEventTime(e.startsAt)}
+                      meta={e.status === "live" ? t("worldScheduleRelease.calLiveNow") : formatEventTime(e.startsAt)}
                       highlighted={e.status === "live"}
                       action={actionFor(e)}
                     />
@@ -234,20 +244,17 @@ export function PalaceCalendarBlock({
               ))}
               {calendar.laterCount > 0 && (
                 <p className={`px-1 pt-1 text-[11px] ${muted}`}>
-                  + {calendar.laterCount} more{" "}
-                  {calendar.laterCount === 1 ? "happening is" : "happenings are"} booked past
-                  this week — {calendar.laterCount === 1 ? "it joins" : "they join"} the board
-                  as the week turns.
+                  {t(calendar.laterCount === 1 ? "worldScheduleRelease.calLaterOne" : "worldScheduleRelease.calLaterMany", { count: calendar.laterCount })}
                 </p>
               )}
               {isGuest && (
                 <p className={`inline-flex flex-wrap items-center gap-2 px-1 pt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-                  Members can walk straight to a happening from here.
+                  {t("worldScheduleRelease.calGuestLine")}
                   <Link
                     href={GUEST_SIGN_IN_HREF}
                     className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105"
                   >
-                    <LogIn className="h-3 w-3" /> Sign in to join in
+                    <LogIn className="h-3 w-3" /> {t("worldScheduleRelease.calSignInToJoin")}
                   </Link>
                 </p>
               )}
@@ -261,7 +268,7 @@ export function PalaceCalendarBlock({
         <div data-testid="world-kingdom-calendar-recent">
           <NativeBoard
             isLight={isLight}
-            title={`Earlier at the palace — the last ${CALENDAR_RECENT_WINDOW_DAYS} days`}
+            title={t("worldScheduleRelease.calRecentTitle", { days: CALENDAR_RECENT_WINDOW_DAYS })}
           >
             {calendar.recent.map((e) => (
               <NativeBoardRow
@@ -269,7 +276,11 @@ export function PalaceCalendarBlock({
                 isLight={isLight}
                 title={e.title}
                 detail={detailFor(e)}
-                meta={`${calendarDayLabel(palaceDayKey(Date.parse(e.startsAt)), Date.now())} · ${formatEventTime(e.startsAt)}`}
+                meta={`${calendarDayLabel(palaceDayKey(Date.parse(e.startsAt)), Date.now(), {
+                  today: t("worldScheduleRelease.calToday"),
+                  tomorrow: t("worldScheduleRelease.calTomorrow"),
+                  locale: i18n.language,
+                })} · ${formatEventTime(e.startsAt)}`}
               />
             ))}
           </NativeBoard>

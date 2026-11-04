@@ -38,7 +38,7 @@ describe("the whole builder in-panel", () => {
       'data-testid="world-setlist-desk-runtime"',
       'data-testid="world-setlist-desk-show-notes"',
       'data-testid="world-setlist-desk-empty"',
-      "Stage note (yours — not sent to the flow)",
+      "worldScheduleRelease.setStageNotePlaceholder",
     ]) {
       expect(desk, needle).toContain(needle);
     }
@@ -63,15 +63,15 @@ describe("spend discipline in source", () => {
   it("the flow rides confirmedFetch with the registry constant quoted; 402 names the Treasury", () => {
     expect(desk).toContain("overrideCost: SETLIST_FLOW_COST");
     expect(desk).toContain("overrideFeature: SETLIST_FEATURE");
-    expect(desk).toContain("Visual Buc Packs desk in the Treasury");
+    expect(desk).toContain("worldScheduleRelease.setOutOfCredits");
     expect(desk).toContain("disabled={flowBusy || !flowReady(songs)}");
   });
 
   it("the flow result renders with apply/keep and the slot labels", () => {
     expect(desk).toContain('data-testid="world-setlist-desk-flow-result"');
     expect(desk).toContain('data-testid="world-setlist-desk-apply"');
-    expect(desk).toContain("Apply this flow");
-    expect(desk).toContain("Keep my order");
+    expect(desk).toContain("worldScheduleRelease.setApplyFlow");
+    expect(desk).toContain("worldScheduleRelease.setKeepOrder");
   });
 });
 

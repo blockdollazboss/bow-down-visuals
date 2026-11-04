@@ -112,22 +112,43 @@ function dayKeyPlus(dayKey: string, days: number): string {
   return palaceDayKey(ms + days * 24 * 3600_000);
 }
 
-const DAY_LABEL_FMT = new Intl.DateTimeFormat("en-US", {
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-});
+/** The day label's copy — the board passes its catalog strings
+ *  in; unbundled calls render the English lines verbatim
+ *  (worldScheduleRelease i18n, unit 45). */
+export interface CalendarDayLabelStrings {
+  today: string;
+  tomorrow: string;
+  /** BCP-47 locale for the day-itself format; defaults to en-US. */
+  locale?: string;
+}
+
+export const CALENDAR_DAY_LABEL_EN: CalendarDayLabelStrings = {
+  today: "Today",
+  tomorrow: "Tomorrow",
+};
+
+const dayLabelFmt = (locale?: string) =>
+  new Intl.DateTimeFormat(locale ?? "en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 
 /** A day group's name: Today / Tomorrow in the palace's own count,
  *  else the day itself ("Tue, Oct 21" — read off the UTC day, so
  *  the label always names the group it heads). */
-export function calendarDayLabel(dayKey: string, nowMs: number): string {
+export function calendarDayLabel(
+  dayKey: string,
+  nowMs: number,
+  strings?: CalendarDayLabelStrings,
+): string {
+  const s = strings ?? CALENDAR_DAY_LABEL_EN;
   const today = palaceDayKey(nowMs);
-  if (dayKey === today) return "Today";
-  if (dayKey === dayKeyPlus(today, 1)) return "Tomorrow";
+  if (dayKey === today) return s.today;
+  if (dayKey === dayKeyPlus(today, 1)) return s.tomorrow;
   const ms = Date.parse(`${dayKey}T00:00:00.000Z`);
-  return Number.isNaN(ms) ? dayKey : DAY_LABEL_FMT.format(new Date(ms));
+  return Number.isNaN(ms) ? dayKey : dayLabelFmt(s.locale).format(new Date(ms));
 }
 
 /* ── The quest week (the reset row) ───────────────────────────────
@@ -171,12 +192,12 @@ export function nextQuestResetMs(nowMs: number): number {
  *  the reset after), so the grouping places it like any other
  *  happening. Room and host are empty — it happens at the Treasury,
  *  everywhere, at the day-turn; the walk below names the desk. */
-export function questResetCalendarEvent(nowMs: number): CalendarEvent {
+export function questResetCalendarEvent(nowMs: number, title = "Weekly quests reset"): CalendarEvent {
   const start = nextQuestResetMs(nowMs);
   return {
     id: QUEST_RESET_EVENT_ID,
     kind: QUEST_RESET_KIND,
-    title: "Weekly quests reset",
+    title,
     roomId: "",
     hostName: "",
     startsAt: new Date(start).toISOString(),
@@ -210,6 +231,7 @@ export function groupPalaceCalendar(
   events: CalendarEvent[],
   recentEvents: CalendarEvent[],
   nowMs: number,
+  dayLabelStrings?: CalendarDayLabelStrings,
 ): PalaceCalendar {
   const todayKey = palaceDayKey(nowMs);
   const lastKey = dayKeyPlus(todayKey, CALENDAR_DAY_WINDOW - 1);
@@ -247,7 +269,7 @@ export function groupPalaceCalendar(
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
     .map(([dayKey, dayEvents]) => ({
       dayKey,
-      label: calendarDayLabel(dayKey, nowMs),
+      label: calendarDayLabel(dayKey, nowMs, dayLabelStrings),
       events: dayEvents.sort((a, b) => {
         if ((a.status === "live") !== (b.status === "live")) return a.status === "live" ? -1 : 1;
         return Date.parse(a.startsAt) - Date.parse(b.startsAt);

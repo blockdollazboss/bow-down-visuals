@@ -211,11 +211,26 @@ export function parseSubscribers(payload: unknown): { subscribers: SubscriberRow
   return { subscribers, stats };
 }
 
+/** The open-rate copy — the desk passes its catalog strings in;
+ *  unbundled calls render the English lines verbatim
+ *  (worldScheduleRelease i18n, unit 45). */
+export interface OpenRateStrings {
+  notTrackedYet: string;
+  /** Carries a {{pct}} token the seam fills with the rounded %. */
+  openRate: string;
+}
+
+export const OPEN_RATE_EN: OpenRateStrings = {
+  notTrackedYet: "Not tracked yet",
+  openRate: "{{pct}}% open rate",
+};
+
 /** The 2D page's honesty rule, in words: no tracked sends yet is
  *  "not tracked", never 0%. */
-export function openRateLabel(stats: ListStats | null): string {
-  if (!stats || !stats.opensTracked || stats.openRate === null) return "Not tracked yet";
-  return `${Math.round(stats.openRate * 100)}% open rate`;
+export function openRateLabel(stats: ListStats | null, strings?: OpenRateStrings): string {
+  const s = strings ?? OPEN_RATE_EN;
+  if (!stats || !stats.opensTracked || stats.openRate === null) return s.notTrackedYet;
+  return s.openRate.split("{{pct}}").join(String(Math.round(stats.openRate * 100)));
 }
 
 /* ─── Segments + campaigns ───────────────────────────────────────── */
@@ -417,19 +432,55 @@ export function parseFanGraph(payload: unknown): { fans: FanRecordRow[]; summary
   return { fans, summary, total: num(root?.["total"], fans.length) };
 }
 
-export function fanBadges(f: FanRecordRow): string[] {
+/** The fan-badge copy — the desk passes its catalog strings in;
+ *  unbundled calls render the English lines verbatim
+ *  (worldScheduleRelease i18n, unit 45). */
+export interface FanBadgeStrings {
+  follows: string;
+  subscribed: string;
+  unsubscribed: string;
+  member: string;
+  /** Carries a {{tier}} token the seam fills with the tier name. */
+  memberTier: string;
+  /** Carries a {{count}} token. */
+  purchaseOne: string;
+  /** Carries a {{count}} token. */
+  purchases: string;
+}
+
+export const FAN_BADGE_EN: FanBadgeStrings = {
+  follows: "Follows",
+  subscribed: "Subscribed",
+  unsubscribed: "Unsubscribed",
+  member: "Member",
+  memberTier: "Member · {{tier}}",
+  purchaseOne: "{{count}} purchase",
+  purchases: "{{count}} purchases",
+};
+
+export function fanBadges(f: FanRecordRow, strings?: FanBadgeStrings): string[] {
+  const s = strings ?? FAN_BADGE_EN;
   const out: string[] = [];
-  if (f.follows) out.push("Follows");
-  if (f.subscribed) out.push("Subscribed");
-  if (f.unsubscribed) out.push("Unsubscribed");
-  if (f.memberStatus) out.push(f.memberTier ? `Member · ${f.memberTier}` : "Member");
-  if (f.purchaseCount > 0) out.push(`${f.purchaseCount} purchase${f.purchaseCount === 1 ? "" : "s"}`);
+  if (f.follows) out.push(s.follows);
+  if (f.subscribed) out.push(s.subscribed);
+  if (f.unsubscribed) out.push(s.unsubscribed);
+  if (f.memberStatus) out.push(f.memberTier ? s.memberTier.split("{{tier}}").join(f.memberTier) : s.member);
+  if (f.purchaseCount > 0) {
+    out.push(
+      (f.purchaseCount === 1 ? s.purchaseOne : s.purchases)
+        .split("{{count}}")
+        .join(String(f.purchaseCount)),
+    );
+  }
   return out;
 }
 
-export function fanSpentLabel(f: Pick<FanRecordRow, "spentUsdCents" | "spentVb">): string {
+export function fanSpentLabel(
+  f: Pick<FanRecordRow, "spentUsdCents" | "spentVb">,
+  locale?: string,
+): string {
   const parts: string[] = [];
   if (f.spentUsdCents > 0) parts.push(`$${(f.spentUsdCents / 100).toFixed(2)}`);
-  if (f.spentVb > 0) parts.push(`${f.spentVb.toLocaleString()} VB`);
+  if (f.spentVb > 0) parts.push(`${f.spentVb.toLocaleString(locale)} VB`);
   return parts.join(" · ");
 }

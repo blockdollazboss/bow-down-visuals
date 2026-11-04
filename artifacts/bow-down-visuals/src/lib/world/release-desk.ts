@@ -469,19 +469,44 @@ export function buildReleasePayload(draft: ReleaseDraft, opts?: { forCreate?: bo
   return body;
 }
 
+/** The validation copy — the desk passes its catalog strings in;
+ *  unbundled calls render the English lines verbatim
+ *  (worldScheduleRelease i18n, unit 45). */
+export interface ReleaseValidationStrings {
+  titleArtist: string;
+  explicit: string;
+  platforms: string;
+  audio: string;
+  tracks: string;
+  releaseDate: string;
+}
+
+export const RELEASE_VALIDATION_EN: ReleaseValidationStrings = {
+  titleArtist: "Title and artist name set — both are needed first.",
+  explicit: "Confirm the explicit-content declaration — platforms reject undeclared releases.",
+  platforms: "Pick at least one platform to deliver to.",
+  audio: "Add the master audio link (or a song-library link) — a release needs its audio.",
+  tracks: "Every track needs a title.",
+  releaseDate: "Set the release date — platforms need at least 7 days lead time.",
+};
+
 /** The wizard's own review gate — the 2D wizard's validation list,
  *  word for word in spirit: title+artist, the explicit declaration
  *  actively confirmed, ≥1 platform, an audio source, every track
  *  titled, a release date. Returns the first failing line or null. */
-export function validateReleaseDraft(draft: ReleaseDraft): string | null {
-  if (!draft.title.trim() || !draft.artistName.trim()) return "Title and artist name set — both are needed first.";
+export function validateReleaseDraft(
+  draft: ReleaseDraft,
+  strings?: ReleaseValidationStrings,
+): string | null {
+  const s = strings ?? RELEASE_VALIDATION_EN;
+  if (!draft.title.trim() || !draft.artistName.trim()) return s.titleArtist;
   if (draft.explicit === null || !draft.explicitConfirmed) {
-    return "Confirm the explicit-content declaration — platforms reject undeclared releases.";
+    return s.explicit;
   }
-  if (draft.platforms.length === 0) return "Pick at least one platform to deliver to.";
-  if (!draft.audioUrl.trim()) return "Add the master audio link (or a song-library link) — a release needs its audio.";
-  if (draft.tracks.length === 0 || draft.tracks.some((t) => !t.title.trim())) return "Every track needs a title.";
-  if (!draft.releaseDate.trim()) return "Set the release date — platforms need at least 7 days lead time.";
+  if (draft.platforms.length === 0) return s.platforms;
+  if (!draft.audioUrl.trim()) return s.audio;
+  if (draft.tracks.length === 0 || draft.tracks.some((t) => !t.title.trim())) return s.tracks;
+  if (!draft.releaseDate.trim()) return s.releaseDate;
   return null;
 }
 
@@ -753,18 +778,36 @@ function parseSmartlinkSettings(raw: unknown): SmartlinkSettings {
   };
 }
 
+/** The smartlink validation copy — same bundle pattern as the
+ *  release validation above. */
+export interface SmartlinkValidationStrings {
+  metaPixel: string;
+  tiktokPixel: string;
+  googleTag: string;
+}
+
+export const SMARTLINK_VALIDATION_EN: SmartlinkValidationStrings = {
+  metaPixel: "That Meta Pixel ID doesn't look right — it's digits only.",
+  tiktokPixel: "That TikTok Pixel ID doesn't look right — check it and try again.",
+  googleTag: "That Google tag ID doesn't look right — it starts with G-, AW-, GT- or UA-.",
+};
+
 /** The settings form's refusal, in words, or null — pixel shapes are
  *  checked with the site's own patterns before the round-trip (the
  *  rail refuses a bad ID too; the desk just says it sooner). */
-export function validateSmartlinkSettings(settings: SmartlinkSettings): string | null {
+export function validateSmartlinkSettings(
+  settings: SmartlinkSettings,
+  strings?: SmartlinkValidationStrings,
+): string | null {
+  const s = strings ?? SMARTLINK_VALIDATION_EN;
   if (!isValidPixelId("meta", settings.pixels.metaPixelId ?? "")) {
-    return "That Meta Pixel ID doesn't look right — it's digits only.";
+    return s.metaPixel;
   }
   if (!isValidPixelId("tiktok", settings.pixels.tiktokPixelId ?? "")) {
-    return "That TikTok Pixel ID doesn't look right — check it and try again.";
+    return s.tiktokPixel;
   }
   if (!isValidPixelId("google", settings.pixels.googleTagId ?? "")) {
-    return "That Google tag ID doesn't look right — it starts with G-, AW-, GT- or UA-.";
+    return s.googleTag;
   }
   return null;
 }

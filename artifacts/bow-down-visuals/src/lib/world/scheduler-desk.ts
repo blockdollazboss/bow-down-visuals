@@ -232,6 +232,24 @@ export function isSchedulableWhen(whenLocal: string, nowMs: number): boolean {
   return iso !== null && new Date(iso).getTime() > nowMs + 60_000;
 }
 
+/** The composer's refusal copy — the desk passes its catalog
+ *  strings in; unbundled calls render the English lines verbatim
+ *  (worldScheduleRelease i18n, unit 45). `needAccount` carries a
+ *  {{label}} token the seam fills with the platform's name. */
+export interface SchedulerComposeStrings {
+  needMedia: string;
+  needPlatform: string;
+  needAccount: string;
+  needFutureTime: string;
+}
+
+export const SCHEDULER_COMPOSE_EN: SchedulerComposeStrings = {
+  needMedia: "Add the video or image this post carries first.",
+  needPlatform: "Pick at least one platform to post to.",
+  needAccount: "Connect a {{label}} account first — a scheduled post needs an account to post through.",
+  needFutureTime: "Pick a time at least a minute from now — or save it as a free draft.",
+};
+
 /** The composer's refusal, in words, or null when the draft can go.
  *  Mirrors the rail's own gates (media required, ≥1 platform, an
  *  account per platform, a future time when scheduling) so the
@@ -239,18 +257,19 @@ export function isSchedulableWhen(whenLocal: string, nowMs: number): boolean {
 export function validateSchedulerCompose(
   draft: SchedulerComposeDraft,
   accounts: SchedulerAccount[],
-  opts: { forSchedule: boolean; nowMs: number },
+  opts: { forSchedule: boolean; nowMs: number; strings?: SchedulerComposeStrings },
 ): string | null {
-  if (!draft.mediaUrl.trim()) return "Add the video or image this post carries first.";
-  if (draft.platforms.length === 0) return "Pick at least one platform to post to.";
+  const s = opts.strings ?? SCHEDULER_COMPOSE_EN;
+  if (!draft.mediaUrl.trim()) return s.needMedia;
+  if (draft.platforms.length === 0) return s.needPlatform;
   for (const platform of draft.platforms) {
     if (!resolveAccountId(accounts, platform, draft.accountIds[platform])) {
       const label = SCHEDULER_PLATFORMS.find((p) => p.key === platform)?.label ?? platform;
-      return `Connect a ${label} account first — a scheduled post needs an account to post through.`;
+      return s.needAccount.split("{{label}}").join(label);
     }
   }
   if (opts.forSchedule && !isSchedulableWhen(draft.whenLocal, opts.nowMs)) {
-    return "Pick a time at least a minute from now — or save it as a free draft.";
+    return s.needFutureTime;
   }
   return null;
 }
@@ -324,39 +343,65 @@ export function parseSchedulerPostResponse(data: unknown): SchedulerDeskPost | n
    claiming a when/channel it doesn't know. A draft's receipt is
    honest that nothing is scheduled yet. */
 
-function receiptTitle(caption: string): string {
+/** The receipt's copy — the desk passes its catalog strings in;
+ *  unbundled calls render the English lines verbatim
+ *  (worldScheduleRelease i18n, unit 45). */
+export interface SchedulerReceiptStrings {
+  yourPost: string;
+  draftReceipt: string;
+  scheduledPrefix: string;
+  whenPart: string;
+  channelsPart: string;
+  channelsAnd: string;
+  receiptTail: string;
+}
+
+export const SCHEDULER_RECEIPT_EN: SchedulerReceiptStrings = {
+  yourPost: "Your post",
+  draftReceipt: "Saved as a draft — “{{title}}” is free and waiting. Give it a time whenever you're ready and it joins the calendar.",
+  scheduledPrefix: "Scheduled — “{{title}}”",
+  whenPart: "for {{when}}",
+  channelsPart: "on {{channels}}",
+  channelsAnd: " and ",
+  receiptTail: ". It's on your calendar below, and you can edit or cancel it right here.",
+};
+
+function receiptTitle(caption: string, fallback: string): string {
   const t = caption.trim().replace(/\s+/g, " ");
-  if (!t) return "Your post";
+  if (!t) return fallback;
   return t.length > 60 ? `${t.slice(0, 57)}…` : t;
 }
 
-function receiptChannels(platforms: SchedulerPlatformKey[]): string {
+function receiptChannels(platforms: SchedulerPlatformKey[], and: string): string {
   const labels = platforms.map(
     (p) => SCHEDULER_PLATFORMS.find((s) => s.key === p)?.label ?? p,
   );
   if (labels.length === 0) return "";
   if (labels.length === 1) return labels[0]!;
-  return `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+  return `${labels.slice(0, -1).join(", ")}${and}${labels[labels.length - 1]}`;
 }
 
 export function schedulerSavedReceipt(
   post: SchedulerDeskPost | null,
   draft: SchedulerComposeDraft,
   willSchedule: boolean,
+  strings?: SchedulerReceiptStrings,
 ): string {
-  const title = receiptTitle(post?.caption || draft.caption);
+  const s = strings ?? SCHEDULER_RECEIPT_EN;
+  const title = receiptTitle(post?.caption || draft.caption, s.yourPost);
   if (!willSchedule) {
-    return `Saved as a draft — “${title}” is free and waiting. Give it a time whenever you're ready and it joins the calendar.`;
+    return s.draftReceipt.split("{{title}}").join(title);
   }
   const whenIso = post?.scheduledAt ?? fromDatetimeLocalValue(draft.whenLocal);
   const when = whenIso ? prettyDateTime(whenIso) : null;
   const channels = receiptChannels(
     post && post.platforms.length > 0 ? post.platforms : draft.platforms,
+    s.channelsAnd,
   );
-  const parts = [`Scheduled — “${title}”`];
-  if (when) parts.push(`for ${when}`);
-  if (channels) parts.push(`on ${channels}`);
-  return `${parts.join(" ")}. It's on your calendar below, and you can edit or cancel it right here.`;
+  const parts = [s.scheduledPrefix.split("{{title}}").join(title)];
+  if (when) parts.push(s.whenPart.split("{{when}}").join(when));
+  if (channels) parts.push(s.channelsPart.split("{{channels}}").join(channels));
+  return `${parts.join(" ")}${s.receiptTail}`;
 }
 
 /** The DELETE answer: a scheduled post cancels (+ refund), anything
@@ -544,8 +589,8 @@ export function calendarMonthCells(year: number, month: number): Array<{ date: s
   return monthGridDays(year, month);
 }
 
-export function calendarMonthLabel(year: number, month: number): string {
-  return new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+export function calendarMonthLabel(year: number, month: number, locale?: string): string {
+  return new Date(year, month, 1).toLocaleDateString(locale ?? "en-US", { month: "long", year: "numeric" });
 }
 
 /** Today as a local YYYY-MM-DD (the grid's own frame). */
