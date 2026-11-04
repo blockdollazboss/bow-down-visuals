@@ -278,6 +278,16 @@ export function rankFormatTrends(rows: FormatWindowRow[]): FormatTrend[] {
 const CURRENT = sql`(e.played_at >= NOW() - INTERVAL '24 hours')`;
 const BASELINE = sql`(e.played_at >= NOW() - INTERVAL '8 days' AND e.played_at < NOW() - INTERVAL '24 hours')`;
 
+/* The same two windows for the collectors that aggregate a derived
+   table aliased `plays`: out there the inner alias `e` no longer
+   resolves — Postgres answers 42P01 ("missing FROM-clause entry for
+   table e") and the whole feed 500s. Only `plays.played_at` is in
+   scope in the outer query. (QC-200 fix: the topic/format collectors
+   previously reused the `e.`-scoped fragments above in their outer
+   FILTER/HAVING, so the radar could never load.) */
+const CURRENT_PLAYS = sql`(plays.played_at >= NOW() - INTERVAL '24 hours')`;
+const BASELINE_PLAYS = sql`(plays.played_at >= NOW() - INTERVAL '8 days' AND plays.played_at < NOW() - INTERVAL '24 hours')`;
+
 async function collectSoundWindows(genre?: string): Promise<SoundWindowRow[]> {
   const gf = genre ? sql`AND t.genre ILIKE ${genre}` : sql``;
   const rows = await db.execute(sql`
@@ -305,8 +315,8 @@ async function collectSoundWindows(genre?: string): Promise<SoundWindowRow[]> {
 async function collectTopicWindows(): Promise<TopicWindowRow[]> {
   const rows = await db.execute(sql`
     SELECT genre,
-           COUNT(*) FILTER (WHERE ${CURRENT})::int AS current_plays,
-           COUNT(*) FILTER (WHERE ${BASELINE})::int AS baseline_plays
+           COUNT(*) FILTER (WHERE ${CURRENT_PLAYS})::int AS current_plays,
+           COUNT(*) FILTER (WHERE ${BASELINE_PLAYS})::int AS baseline_plays
     FROM (
       SELECT t.genre AS genre, e.played_at AS played_at
       FROM play_events e
@@ -323,7 +333,7 @@ async function collectTopicWindows(): Promise<TopicWindowRow[]> {
         AND e.played_at >= NOW() - INTERVAL '8 days'
     ) plays
     GROUP BY genre
-    HAVING COUNT(*) FILTER (WHERE ${CURRENT}) >= ${TREND_RADAR.minCurrentPlays}`);
+    HAVING COUNT(*) FILTER (WHERE ${CURRENT_PLAYS}) >= ${TREND_RADAR.minCurrentPlays}`);
   return (rows.rows as Array<Record<string, unknown>>).map((r) => ({
     genre: String(r["genre"]),
     currentPlays: Number(r["current_plays"]),
@@ -334,8 +344,8 @@ async function collectTopicWindows(): Promise<TopicWindowRow[]> {
 async function collectFormatWindows(): Promise<FormatWindowRow[]> {
   const rows = await db.execute(sql`
     SELECT format,
-           COUNT(*) FILTER (WHERE ${CURRENT})::int AS current_plays,
-           COUNT(*) FILTER (WHERE ${BASELINE})::int AS baseline_plays
+           COUNT(*) FILTER (WHERE ${CURRENT_PLAYS})::int AS current_plays,
+           COUNT(*) FILTER (WHERE ${BASELINE_PLAYS})::int AS baseline_plays
     FROM (
       SELECT CASE
                WHEN v.duet_with IS NOT NULL THEN 'duet'
