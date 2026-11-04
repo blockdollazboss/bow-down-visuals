@@ -46,17 +46,45 @@ const IMPORTERS: Array<[string, string]> = [
   ["pages/go-live.tsx", 'import("@/components/go-live/ShowFinder")'],
 ];
 
-/** The old module specifiers — no source file may use any of them. */
+/** The old module specifiers — no source file may use any of them.
+    The @/pages forms carry their closing quote: "@/pages/jewelry"
+    must not false-positive on the real page "@/pages/jewelry-shop". */
 const OLD_SPECIFIERS = [
-  "@/pages/sounds",
-  "@/pages/ai-audio",
-  "@/pages/branding-shop",
-  "@/pages/jewelry",
-  "@/pages/guides",
-  "@/pages/shows",
+  '@/pages/sounds"',
+  '@/pages/ai-audio"',
+  '@/pages/branding-shop"',
+  '@/pages/jewelry"',
+  '@/pages/guides"',
+  '@/pages/shows"',
   '"./hub"',
   '"./ai-audio"',
 ];
+
+/** The tree scan runs ONCE at module load, not inside the timed test
+    body — a whole-src walk under CI contention outlives the default
+    5s test timeout (the dialog-dismiss guard hit the same wall). */
+const TREE_OFFENDERS: string[] = (() => {
+  const offenders: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "node_modules") continue;
+        walk(full);
+      } else if (/\.tsx?$/.test(entry.name) && entry.name !== "page-module-placement.test.ts") {
+        const text = readFileSync(full, "utf8");
+        for (const spec of OLD_SPECIFIERS) {
+          if (text.includes(spec)) offenders.push(`${path.relative(SRC, full)} → ${spec}`);
+        }
+        for (const [oldPath] of MOVED) {
+          if (text.includes(oldPath)) offenders.push(`${path.relative(SRC, full)} → ${oldPath}`);
+        }
+      }
+    }
+  };
+  walk(SRC);
+  return offenders;
+})();
 
 describe("A5 — the seven module-only files live in components/, not pages/", () => {
   it("none of the seven remains in pages/; each exists at its module home", () => {
@@ -88,26 +116,7 @@ describe("A5 — the seven module-only files live in components/, not pages/", (
   });
 
   it("no source file still references an old module specifier (tree guard)", () => {
-    const offenders: string[] = [];
-    const walk = (dir: string) => {
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          if (entry.name === "node_modules") continue;
-          walk(full);
-        } else if (/\.tsx?$/.test(entry.name) && entry.name !== "page-module-placement.test.ts") {
-          const text = readFileSync(full, "utf8");
-          for (const spec of OLD_SPECIFIERS) {
-            if (text.includes(spec)) offenders.push(`${path.relative(SRC, full)} → ${spec}`);
-          }
-          for (const [oldPath] of MOVED) {
-            if (text.includes(oldPath)) offenders.push(`${path.relative(SRC, full)} → ${oldPath}`);
-          }
-        }
-      }
-    };
-    walk(SRC);
-    expect(offenders).toEqual([]);
+    expect(TREE_OFFENDERS).toEqual([]);
   });
 
   it("the seven routes are still the exact same redirects in App.tsx", () => {
