@@ -138,12 +138,35 @@ export function parseGeneratedRelease(payload: unknown): GeneratedRelease | null
   };
 }
 
+/* ─── Display strings (i18n seam, stack100 locale unit 47) ────────
+   formatReleaseText's two fixed lines take an optional strings
+   bundle whose default is the original English, byte-identical;
+   the desk builds it from the worldSponsorPress catalog keys. */
+
+export interface ReleaseTextStrings {
+  immediateRelease: string;
+  aboutLabel: string;
+}
+
+export const RELEASE_TEXT_STRINGS_EN: ReleaseTextStrings = {
+  immediateRelease: "FOR IMMEDIATE RELEASE",
+  aboutLabel: "About",
+};
+
+/** Build the bundle from a translate function (the desk's `t`). */
+export function releaseTextStrings(translate: (key: string) => string): ReleaseTextStrings {
+  return {
+    immediateRelease: translate("worldSponsorPress.prReleaseImmediate"),
+    aboutLabel: translate("worldSponsorPress.prReleaseAbout"),
+  };
+}
+
 /** The panel's formatReleaseText, line for line: FOR IMMEDIATE
  *  RELEASE, headline, dateline — lede, body paragraphs, the quote
  *  attribution, the About boilerplate, the ### end mark, contacts. */
-export function formatReleaseText(r: GeneratedRelease, artistName: string): string {
+export function formatReleaseText(r: GeneratedRelease, artistName: string, strings: ReleaseTextStrings = RELEASE_TEXT_STRINGS_EN): string {
   const lines = [
-    "FOR IMMEDIATE RELEASE",
+    strings.immediateRelease,
     "",
     r.headline,
     "",
@@ -151,7 +174,7 @@ export function formatReleaseText(r: GeneratedRelease, artistName: string): stri
     "",
     ...r.body.flatMap((p) => [p, ""]),
     ...(r.quote ? [`"${r.quote}" — ${artistName}`, ""] : []),
-    ...(r.boilerplate ? [`About ${artistName}`, r.boilerplate, ""] : []),
+    ...(r.boilerplate ? [`${strings.aboutLabel} ${artistName}`, r.boilerplate, ""] : []),
     "###",
     ...r.contactBlock,
   ];
