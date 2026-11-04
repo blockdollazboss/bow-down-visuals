@@ -106,9 +106,27 @@ function str(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
+/* ─── display strings (i18n seam, stack100 locale unit 46) ────────
+   llcPlanOf takes an optional strings bundle whose default is the
+   original English, byte-identical; the desk builds the bundle
+   from the worldTeamLegal catalog keys. */
+
+export interface LlcPlanStrings {
+  fallbackTitle: string;
+}
+
+export const LLC_PLAN_STRINGS_EN: LlcPlanStrings = {
+  fallbackTitle: "Your LLC filing plan",
+};
+
+/** Build the bundle from a translate function (the desk's `t`). */
+export function llcPlanStrings(translate: (key: string) => string): LlcPlanStrings {
+  return { fallbackTitle: translate("worldTeamLegal.llcPlanFallbackTitle") };
+}
+
 /** The route's parsePlanJson bar, mirrored: steps need a title
  *  AND a detail; zero usable steps = no plan. */
-export function llcPlanOf(data: unknown): LlcPlan | null {
+export function llcPlanOf(data: unknown, strings: LlcPlanStrings = LLC_PLAN_STRINGS_EN): LlcPlan | null {
   if (!data || typeof data !== "object") return null;
   const plan = (data as Record<string, unknown>)["plan"];
   if (!plan || typeof plan !== "object") return null;
@@ -125,7 +143,7 @@ export function llcPlanOf(data: unknown): LlcPlan | null {
   }
   if (steps.length === 0) return null;
   return {
-    title: str(o["title"]) || "Your LLC filing plan",
+    title: str(o["title"]) || strings.fallbackTitle,
     steps,
     totalEstimate: str(o["totalEstimate"]),
     notes: (Array.isArray(o["notes"]) ? o["notes"] : [])

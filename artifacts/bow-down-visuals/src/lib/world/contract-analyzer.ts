@@ -146,34 +146,96 @@ export function parseContractAnalysis(payload: unknown): ContractAnalysisResult 
   };
 }
 
-export function riskLevelLabel(level: string): string {
+/* ─── display strings (i18n seam, stack100 locale unit 46) ────────
+   The composed labels below take optional strings bundles whose
+   defaults are the original English, byte-identical; the desk
+   builds the bundles from the worldTeamLegal catalog keys so the
+   words render in the walker's language. */
+
+export interface ContractRiskStrings {
+  low: string;
+  moderate: string;
+  high: string;
+  severe: string;
+  fallback: string;
+}
+
+export const CONTRACT_RISK_STRINGS_EN: ContractRiskStrings = {
+  low: "Low risk",
+  moderate: "Moderate risk",
+  high: "High risk",
+  severe: "Severe risk",
+  fallback: "Risk reading",
+};
+
+/** Build the bundle from a translate function (the desk's `t`):
+ *  every field reads its worldTeamLegal catalog key. */
+export function contractRiskStrings(translate: (key: string) => string): ContractRiskStrings {
+  return {
+    low: translate("worldTeamLegal.contractRiskLow"),
+    moderate: translate("worldTeamLegal.contractRiskModerate"),
+    high: translate("worldTeamLegal.contractRiskHigh"),
+    severe: translate("worldTeamLegal.contractRiskSevere"),
+    fallback: translate("worldTeamLegal.contractRiskDefault"),
+  };
+}
+
+export function riskLevelLabel(level: string, strings: ContractRiskStrings = CONTRACT_RISK_STRINGS_EN): string {
   switch (level) {
     case "low":
-      return "Low risk";
+      return strings.low;
     case "moderate":
-      return "Moderate risk";
+      return strings.moderate;
     case "high":
-      return "High risk";
+      return strings.high;
     case "severe":
-      return "Severe risk";
+      return strings.severe;
     default:
-      return "Risk reading";
+      return strings.fallback;
   }
+}
+
+export interface ContractSeverityStrings {
+  critical: string;
+  high: string;
+  medium: string;
+  low: string;
+  fallback: string;
+}
+
+export const CONTRACT_SEVERITY_STRINGS_EN: ContractSeverityStrings = {
+  critical: "Critical",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+  fallback: "Flag",
+};
+
+/** Build the bundle from a translate function (the desk's `t`):
+ *  every field reads its worldTeamLegal catalog key. */
+export function contractSeverityStrings(translate: (key: string) => string): ContractSeverityStrings {
+  return {
+    critical: translate("worldTeamLegal.contractSeverityCritical"),
+    high: translate("worldTeamLegal.contractSeverityHigh"),
+    medium: translate("worldTeamLegal.contractSeverityMedium"),
+    low: translate("worldTeamLegal.contractSeverityLow"),
+    fallback: translate("worldTeamLegal.contractSeverityDefault"),
+  };
 }
 
 /** Severity words for the flag chips, title-cased from the rail's
  *  enum (low / medium / high / critical). */
-export function severityLabel(severity: string): string {
+export function severityLabel(severity: string, strings: ContractSeverityStrings = CONTRACT_SEVERITY_STRINGS_EN): string {
   switch (severity) {
     case "critical":
-      return "Critical";
+      return strings.critical;
     case "high":
-      return "High";
+      return strings.high;
     case "medium":
-      return "Medium";
+      return strings.medium;
     case "low":
-      return "Low";
+      return strings.low;
     default:
-      return "Flag";
+      return strings.fallback;
   }
 }
