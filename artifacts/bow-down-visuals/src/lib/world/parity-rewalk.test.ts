@@ -180,8 +180,15 @@ describe("item 80 (D-H4) — Post Assist names its place: STALE, pinned", () => 
   it("the block's copy names the in-world composer it drafts into — never the 2D page", () => {
     expect(postAssistSrc).not.toContain("Post Assist page");
     expect(postAssistSrc).not.toContain("on the website");
-    expect(postAssistSrc).toContain("Drafted into your composer below");
-    expect(postAssistSrc).toContain("The draft lands in your composer");
+    /* Unit 43: the block's copy rides the catalog (worldSocialDesk) —
+       the guard now pins the keys in the component AND the
+       composer-naming en values they resolve to. */
+    expect(postAssistSrc).toContain('t("worldSocialDesk.assistDraftedNote")');
+    expect(postAssistSrc).toContain('t("worldSocialDesk.assistNoteLine")');
+    const enNs = (JSON.parse(read("../../locales/en.json")) as Record<string, any>)
+      .worldSocialDesk as Record<string, string>;
+    expect(enNs.assistDraftedNote).toContain("Drafted into your composer below");
+    expect(enNs.assistNoteLine).toContain("The draft lands in your composer");
     /* In the Promote Room the draft hands to the in-world Scheduler
        in the SAME desk stack — the flow finishes where it stands. */
     expect(businessSrc).toContain('title="Post Assist — Write It For Me"');
