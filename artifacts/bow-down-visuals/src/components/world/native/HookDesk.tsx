@@ -1,5 +1,6 @@
 import { apiErrorMessage } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Copy, Gauge, Loader2, Megaphone, MousePointerClick, Sparkles, Zap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,28 +59,29 @@ import {
    nothing here ejects to the website. This is the desk Daily
    Drop hook/caption "Use" opens (item 97 closed in full). */
 
-const MODES: ReadonlyArray<{ key: HookDeskMode; label: string; icon: LucideIcon }> = [
-  { key: "hooks", label: "Hooks", icon: Zap },
-  { key: "captions", label: "Captions", icon: Megaphone },
-  { key: "preflight", label: "Pre-flight", icon: Gauge },
-  { key: "cta", label: "CTAs", icon: MousePointerClick },
+const MODES: ReadonlyArray<{ key: HookDeskMode; labelKey: string; icon: LucideIcon }> = [
+  { key: "hooks", labelKey: "worldCreateMedia.hookModeHooks", icon: Zap },
+  { key: "captions", labelKey: "worldCreateMedia.hookModeCaptions", icon: Megaphone },
+  { key: "preflight", labelKey: "worldCreateMedia.hookModePreflight", icon: Gauge },
+  { key: "cta", labelKey: "worldCreateMedia.hookModeCtas", icon: MousePointerClick },
 ];
 
-const RUN_LABEL: Record<HookDeskMode, string> = {
-  hooks: "Write the hooks",
-  captions: "Write the captions",
-  preflight: "Score my post",
-  cta: "Write the CTAs",
+const RUN_LABEL_KEY: Record<HookDeskMode, string> = {
+  hooks: "worldCreateMedia.hookRunHooks",
+  captions: "worldCreateMedia.hookRunCaptions",
+  preflight: "worldCreateMedia.hookRunPreflight",
+  cta: "worldCreateMedia.hookRunCtas",
 };
 
 function CopyLine({ text, isLight }: { text: string; isLight: boolean }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <span className="inline-flex items-start gap-2">
       <span className="min-w-0 flex-1">{text}</span>
       <button
         type="button"
-        aria-label="Copy"
+        aria-label={t("worldCreateMedia.hookCopyLabel")}
         onClick={() => {
           void navigator.clipboard?.writeText(text).then(() => {
             setCopied(true);
@@ -98,6 +100,7 @@ function CopyLine({ text, isLight }: { text: string; isLight: boolean }) {
 
 export function HookDesk(props: CreateDeskProps) {
   const { isLight } = props;
+  const { t, i18n } = useTranslation();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [mode, setMode] = useState<HookDeskMode>("hooks");
@@ -207,35 +210,35 @@ export function HookDesk(props: CreateDeskProps) {
       }
       if (!res.ok) {
         const d = data as { message?: string; error?: string };
-        setNote(apiErrorMessage(d, "The studio hiccupped — a failed make is refunded. Try again."));
+        setNote(apiErrorMessage(d, t("worldCreateMedia.hookHiccup")));
         return;
       }
       /* Shape-guard the answer: a body that drifts is a failed
          make (refunded server-side), never rows dressed as a win. */
       if (mode === "hooks") {
         const parsed = hooksOfResponse(data);
-        if (!parsed) { setNote("The hooks came back empty — a failed make is refunded. Try again."); return; }
+        if (!parsed) { setNote(t("worldCreateMedia.hookEmptyHooks")); return; }
         setHooks(parsed);
-        setHistory((h) => pushHookHistory(h, { mode, label: topic.trim() || "Hooks", lines: parsed }));
+        setHistory((h) => pushHookHistory(h, { mode, label: topic.trim() || t("worldCreateMedia.hookModeHooks"), lines: parsed }));
       } else if (mode === "captions") {
         const parsed = captionsOfResponse(data);
-        if (!parsed) { setNote("The captions came back empty — a failed make is refunded. Try again."); return; }
+        if (!parsed) { setNote(t("worldCreateMedia.hookEmptyCaptions")); return; }
         setCaptionResult(parsed);
         setHistory((h) => pushHookHistory(h, { mode, label: topic.trim(), lines: parsed.captions, captionResult: parsed }));
       } else if (mode === "preflight") {
         const parsed = preflightOfResponse(data);
-        if (!parsed) { setNote("The scorecard came back empty — a failed make is refunded. Try again."); return; }
+        if (!parsed) { setNote(t("worldCreateMedia.hookEmptyScorecard")); return; }
         setPreflight(parsed);
         setHistory((h) => pushHookHistory(h, { mode, label: pfTitle.trim(), lines: [`${parsed.score}/100 — ${parsed.verdict}`], preflight: parsed }));
       } else {
         const parsed = ctasOfResponse(data);
-        if (!parsed) { setNote("The CTAs came back empty — a failed make is refunded. Try again."); return; }
+        if (!parsed) { setNote(t("worldCreateMedia.hookEmptyCtas")); return; }
         setCtas(parsed);
         setHistory((h) => pushHookHistory(h, { mode, label: topic.trim(), lines: parsed.map((c) => c.text), ctas: parsed }));
       }
       refreshProfile();
     } catch {
-      setNote("The studio hiccupped — a failed make is refunded. Try again.");
+      setNote(t("worldCreateMedia.hookHiccup"));
     } finally {
       setBusy(false);
     }
@@ -260,8 +263,8 @@ export function HookDesk(props: CreateDeskProps) {
 
   return (
     <div className="space-y-3" data-testid="world-create-hook-desk">
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Hook Desk tools">
-        {MODES.map(({ key, label, icon: Icon }) => (
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldCreateMedia.hookToolsLabel")}>
+        {MODES.map(({ key, labelKey, icon: Icon }) => (
           <button
             key={key}
             type="button"
@@ -271,7 +274,7 @@ export function HookDesk(props: CreateDeskProps) {
             onClick={() => switchMode(key)}
             className={chipCls(mode === key)}
           >
-            <Icon className="h-3.5 w-3.5" /> {label}
+            <Icon className="h-3.5 w-3.5" /> {t(labelKey)}
           </button>
         ))}
       </div>
@@ -280,22 +283,22 @@ export function HookDesk(props: CreateDeskProps) {
         <div className="space-y-3">
           <DeskSelectField
             isLight={isLight}
-            label="Template (free — fills the desk)"
+            label={t("worldCreateMedia.hookTemplateLabel")}
             value=""
             onChange={applyHookTemplate}
             options={[
-              { value: "", label: "Pick a hook template…" },
+              { value: "", label: t("worldCreateMedia.hookPickTemplate") },
               ...HOOK_TEMPLATES.map((tpl) => ({ value: tpl.slug, label: tpl.title })),
             ]}
           />
           <DeskSelectField
             isLight={isLight}
-            label="Video type"
+            label={t("worldCreateMedia.hookVideoType")}
             value={videoType}
             onChange={(v) => setVideoType(v as HookVideoType)}
             options={HOOK_VIDEO_TYPES.map((v) => ({ value: v, label: v }))}
           />
-          <DeskTextField isLight={isLight} label="Topic (optional)" value={topic} onChange={setTopic} placeholder="What is the video about?" />
+          <DeskTextField isLight={isLight} label={t("worldCreateMedia.hookTopicOptional")} value={topic} onChange={setTopic} placeholder={t("worldCreateMedia.hookTopicPlaceholder")} />
         </div>
       )}
 
@@ -303,69 +306,68 @@ export function HookDesk(props: CreateDeskProps) {
         <div className="space-y-3">
           <DeskSelectField
             isLight={isLight}
-            label="Caption pack (free — fills the desk)"
+            label={t("worldCreateMedia.hookCaptionPackLabel")}
             value=""
             onChange={applyCaptionPack}
             options={[
-              { value: "", label: "Pick a caption pack…" },
+              { value: "", label: t("worldCreateMedia.hookPickPack") },
               ...CAPTION_PACKS.map((p) => ({ value: p.slug, label: p.title })),
             ]}
           />
-          <DeskTextField isLight={isLight} label="What is the post about?" value={topic} onChange={setTopic} />
+          <DeskTextField isLight={isLight} label={t("worldCreateMedia.hookPostAbout")} value={topic} onChange={setTopic} />
           <div className="grid gap-3 sm:grid-cols-2">
             <DeskSelectField
               isLight={isLight}
-              label="Platform"
+              label={t("worldCreateMedia.hookPlatform")}
               value={capPlatform}
               onChange={(v) => setCapPlatform(v as CaptionPlatform)}
               options={CAPTION_PLATFORMS.map((p) => ({ value: p, label: p }))}
             />
-            <DeskTextField isLight={isLight} label="Tone (optional)" value={capTone} onChange={setCapTone} />
+            <DeskTextField isLight={isLight} label={t("worldCreateMedia.hookToneOptional")} value={capTone} onChange={setCapTone} />
           </div>
         </div>
       )}
 
       {mode === "preflight" && (
         <div className="space-y-3">
-          <DeskTextField isLight={isLight} label="Video title" value={pfTitle} onChange={setPfTitle} />
-          <DeskTextField isLight={isLight} label="Caption (optional)" value={pfCaption} onChange={setPfCaption} />
+          <DeskTextField isLight={isLight} label={t("worldCreateMedia.hookVideoTitle")} value={pfTitle} onChange={setPfTitle} />
+          <DeskTextField isLight={isLight} label={t("worldCreateMedia.hookCaptionOptional")} value={pfCaption} onChange={setPfCaption} />
           <div className="grid gap-3 sm:grid-cols-2">
-            <DeskTextField isLight={isLight} label="Hashtags (optional)" value={pfHashtags} onChange={setPfHashtags} />
-            <DeskTextField isLight={isLight} label="Description (optional)" value={pfDescription} onChange={setPfDescription} />
+            <DeskTextField isLight={isLight} label={t("worldCreateMedia.hookHashtagsOptional")} value={pfHashtags} onChange={setPfHashtags} />
+            <DeskTextField isLight={isLight} label={t("worldCreateMedia.hookDescriptionOptional")} value={pfDescription} onChange={setPfDescription} />
           </div>
           <p className={`text-xs ${muted}`}>
-            A viral-READINESS score — how well the post is engineered to earn attention. Never a
-            virality guarantee: no one can predict what blows up.
+            {t("worldCreateMedia.hookReadinessNote")}
           </p>
         </div>
       )}
 
       {mode === "cta" && (
         <div className="space-y-3">
-          <DeskTextField isLight={isLight} label="What is the video about?" value={topic} onChange={setTopic} />
+          <DeskTextField isLight={isLight} label={t("worldCreateMedia.hookVideoAbout")} value={topic} onChange={setTopic} />
           <div className="grid gap-3 sm:grid-cols-3">
             <DeskSelectField
               isLight={isLight}
-              label="Goal"
+              label={t("worldCreateMedia.hookGoal")}
               value={ctaGoal}
               onChange={(v) => setCtaGoal(v as CtaGoal)}
               options={CTA_GOALS.map((g) => ({ value: g, label: g }))}
             />
             <DeskSelectField
               isLight={isLight}
-              label="Platform"
+              label={t("worldCreateMedia.hookPlatform")}
               value={ctaPlatform}
               onChange={(v) => setCtaPlatform(v as CtaPlatform)}
               options={CTA_PLATFORMS.map((p) => ({ value: p, label: p }))}
             />
-            <DeskTextField isLight={isLight} label="Tone (optional)" value={ctaTone} onChange={setCtaTone} />
+            <DeskTextField isLight={isLight} label={t("worldCreateMedia.hookToneOptional")} value={ctaTone} onChange={setCtaTone} />
           </div>
         </div>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
         <span data-testid="world-hook-desk-cost" className={`text-xs font-semibold ${muted}`}>
-          Costs {cost.toLocaleString("en-US")} Visual Bucs — shown before anything runs.
+          {t("worldCreateMedia.hookCostLine", { cost: cost.toLocaleString(i18n.language) })}
         </span>
         <button
           type="button"
@@ -375,17 +377,17 @@ export function HookDesk(props: CreateDeskProps) {
           className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {busy ? "Writing…" : RUN_LABEL[mode]}
+          {busy ? t("worldCreateMedia.hookWriting") : t(RUN_LABEL_KEY[mode])}
         </button>
       </div>
       {!ready && mode !== "hooks" && (
         <p className={`text-xs ${muted}`}>
-          {mode === "preflight" ? "Add the video's title first — the scorecard needs it." : "Add what it's about first — the writer needs it."}
+          {mode === "preflight" ? t("worldCreateMedia.hookNeedTitle") : t("worldCreateMedia.hookNeedTopic")}
         </p>
       )}
       {outOfCredits && (
         <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-          You&rsquo;re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and the Hook Desk is ready again.
+          {t("worldCreateMedia.hookOutOfBucs")}
         </p>
       )}
       {note && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
@@ -417,7 +419,7 @@ export function HookDesk(props: CreateDeskProps) {
           )}
           {captionResult.cta && (
             <p className={`text-sm font-semibold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              CTA: {captionResult.cta}
+              {t("worldCreateMedia.hookCtaLine", { cta: captionResult.cta })}
             </p>
           )}
         </div>
@@ -426,7 +428,7 @@ export function HookDesk(props: CreateDeskProps) {
       {mode === "preflight" && preflight && (
         <div data-testid="world-hook-desk-result" className="space-y-2">
           <p className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-            Readiness {preflight.score}/100{preflight.verdict ? ` — ${preflight.verdict}` : ""}
+            {t("worldCreateMedia.hookReadinessLine", { score: preflight.score })}{preflight.verdict ? ` — ${preflight.verdict}` : ""}
           </p>
           {preflight.checks.map((c) => (
             <div key={c.label} className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
@@ -444,7 +446,7 @@ export function HookDesk(props: CreateDeskProps) {
             <p key={i} className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
               <CopyLine text={c.text} isLight={isLight} />
               <span className={`mt-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>
-                {c.placement}{c.strength > 0 ? ` · strength ${c.strength}` : ""}
+                {c.placement}{c.strength > 0 ? t("worldCreateMedia.hookStrengthSuffix", { strength: c.strength }) : ""}
               </span>
             </p>
           ))}
@@ -454,7 +456,7 @@ export function HookDesk(props: CreateDeskProps) {
       {history.length > 0 && (
         <div>
           <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            This session
+            {t("worldCreateMedia.hookThisSession")}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {history.map((entry, i) => (
@@ -464,7 +466,7 @@ export function HookDesk(props: CreateDeskProps) {
                 onClick={() => restoreHistory(entry)}
                 className={chipCls(mode === entry.mode)}
               >
-                {entry.mode}: {entry.label || "make"}
+                {entry.mode}: {entry.label || t("worldCreateMedia.hookMakeFallback")}
               </button>
             ))}
           </div>
