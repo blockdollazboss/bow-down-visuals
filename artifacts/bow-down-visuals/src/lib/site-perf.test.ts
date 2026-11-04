@@ -120,8 +120,8 @@ describe("C — /audio-studio's tab modules ride lazy doors", () => {
   const doors = [
     'import("@/components/audio-studio/AiAudio")',
     'import("@/components/HumToSong")',
-    'import("@/pages/voiceover")',
-    'import("@/pages/podcast")',
+    'import("@/components/audio-studio/VoiceoverStudio")',
+    'import("@/components/audio-studio/PodcastStudio")',
     'import("@/components/audio-studio/ViralSoundFinder")',
     'import("@/components/audio-studio/ArrangementStudio")',
     'import("@/components/audio-studio/FinishMySong")',
@@ -140,8 +140,8 @@ describe("C — /audio-studio's tab modules ride lazy doors", () => {
   it("no tab module rides a static import anymore", () => {
     expect(audioStudio).not.toContain('import AiAudio from "@/components/audio-studio/AiAudio"');
     expect(audioStudio).not.toContain('import { HumToSong } from "@/components/HumToSong"');
-    expect(audioStudio).not.toContain('import VoiceoverStudio from "@/pages/voiceover"');
-    expect(audioStudio).not.toContain('import PodcastStudio from "@/pages/podcast"');
+    expect(audioStudio).not.toContain('import VoiceoverStudio from "@/components/audio-studio/VoiceoverStudio"');
+    expect(audioStudio).not.toContain('import PodcastStudio from "@/components/audio-studio/PodcastStudio"');
     expect(audioStudio).not.toContain('import ViralSoundFinder from "@/components/audio-studio/ViralSoundFinder"');
   });
 

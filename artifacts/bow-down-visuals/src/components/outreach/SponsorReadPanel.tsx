@@ -44,8 +44,8 @@ interface SponsorReadResponse {
   message?: string;
 }
 
-/* LocalStorage handoff the /voiceover page reads on mount to prefill the
-   script box (see voiceover.tsx). */
+/* LocalStorage handoff the Voiceover tab module reads on mount to prefill
+   the script box (see components/audio-studio/VoiceoverStudio.tsx). */
 const SPONSOR_READ_HANDOFF_KEY = "bdv_sponsor_read_handoff";
 
 interface SponsorReadHandoff {

@@ -474,7 +474,7 @@ export function buildSingingVoicePayload(input: {
   };
 }
 
-/** podcast.tsx's solo generate body (mode script/topic — the
+/** PodcastStudio's solo generate body (mode script/topic — the
  *  dialogue mode's multi-speaker casting stays on the page). */
 export function buildPodcastPayload(input: {
   mode: string;
@@ -499,7 +499,7 @@ export function buildPodcastPayload(input: {
   };
 }
 
-/** voiceover.tsx's generate body. */
+/** VoiceoverStudio's generate body. */
 export function buildVoiceoverPayload(input: {
   script: string;
   voiceId: string;

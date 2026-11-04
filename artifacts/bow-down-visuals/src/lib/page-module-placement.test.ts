@@ -1,18 +1,18 @@
 /**
- * page-module-placement (stack100 wave 1, item A5) — seven files sat in
- * src/pages/ that were never pages: every route that names them is a
+ * page-module-placement (stack100 wave 1, items A5 + 55) — nine files sat
+ * in src/pages/ that were never pages: every route that names them is a
  * redirect in App.tsx, and no route imports any of them as a page. They
  * survive only as modules — tab surfaces lazy-loaded (or statically
- * imported, for Guides) by real host pages — and sitting in pages/ they
- * inflated every route census, perf audit, and KB page-file sweep.
+ * imported, for Guides/Hub) by real host pages — and sitting in pages/
+ * they inflated every route census, perf audit, and KB page-file sweep.
  *
- * They now live in the components/ area folders the codebase already
- * uses for embedded tool surfaces (audio-studio, hub, branding,
- * courses, go-live), with the same exports and the same consumers.
- * This pin holds the placement: the old addresses stay gone, the new
- * homes keep their exports, every importer resolves to the new home,
- * and the App.tsx redirects that are the modules' only routes stay
- * byte-identical — the move changed addresses, never behaviour.
+ * The first seven moved on the item-A5 lane; voiceover + podcast — the
+ * same species, verified identically — moved on the item-55 lane. This
+ * pin is the converged end state for all nine: the old addresses stay
+ * gone, the new homes keep their exports, every importer resolves to
+ * the new home, and the App.tsx redirects that are the modules' only
+ * routes stay byte-identical — the moves changed addresses, never
+ * behaviour.
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -33,12 +33,16 @@ const MOVED: Array<[string, string, string[]]> = [
   ["pages/jewelry.tsx", "components/branding/JewelryStudio.tsx", ["export default function JewelryStudio"]],
   ["pages/guides.tsx", "components/courses/Guides.tsx", ["export default function Guides"]],
   ["pages/shows.tsx", "components/go-live/ShowFinder.tsx", ["export default function ShowFinder"]],
+  ["pages/voiceover.tsx", "components/audio-studio/VoiceoverStudio.tsx", ["export default function VoiceoverStudio"]],
+  ["pages/podcast.tsx", "components/audio-studio/PodcastStudio.tsx", ["export default function PodcastStudio"]],
 ];
 
 /** [importer (src-relative), specifier it must now use] */
 const IMPORTERS: Array<[string, string]> = [
   ["pages/audio-studio.tsx", 'import("@/components/audio-studio/AiAudio")'],
   ["pages/audio-studio.tsx", 'import("@/components/audio-studio/ViralSoundFinder")'],
+  ["pages/audio-studio.tsx", 'import("@/components/audio-studio/VoiceoverStudio")'],
+  ["pages/audio-studio.tsx", 'import("@/components/audio-studio/PodcastStudio")'],
   ["pages/create.tsx", 'import("@/components/hub/HubModule")'],
   ["pages/branding-kit.tsx", 'import("@/components/branding/BrandingShop")'],
   ["pages/branding-kit.tsx", 'import("@/components/branding/JewelryStudio")'],
@@ -56,6 +60,8 @@ const OLD_SPECIFIERS = [
   '@/pages/jewelry"',
   '@/pages/guides"',
   '@/pages/shows"',
+  '@/pages/voiceover"',
+  '@/pages/podcast"',
   '"./hub"',
   '"./ai-audio"',
 ];
@@ -86,8 +92,8 @@ const TREE_OFFENDERS: string[] = (() => {
   return offenders;
 })();
 
-describe("A5 — the seven module-only files live in components/, not pages/", () => {
-  it("none of the seven remains in pages/; each exists at its module home", () => {
+describe("A5+55 — the nine module-only files live in components/, not pages/", () => {
+  it("none of the nine remains in pages/; each exists at its module home", () => {
     for (const [oldPath, newPath] of MOVED) {
       expect(existsSync(path.join(SRC, oldPath)), `${oldPath} must be gone from pages/`).toBe(false);
       expect(existsSync(path.join(SRC, newPath)), `${newPath} must exist`).toBe(true);
@@ -119,7 +125,7 @@ describe("A5 — the seven module-only files live in components/, not pages/", (
     expect(TREE_OFFENDERS).toEqual([]);
   });
 
-  it("the seven routes are still the exact same redirects in App.tsx", () => {
+  it("the nine routes are still the exact same redirects in App.tsx", () => {
     const app = read("App.tsx");
     for (const line of [
       '<Route path="/sounds"><Redirect to="/audio-studio?tab=sounds" /></Route>',
@@ -129,6 +135,8 @@ describe("A5 — the seven module-only files live in components/, not pages/", (
       '<Route path="/jewelry"><Redirect to="/branding-kit?tab=jewelry" /></Route>',
       '<Route path="/ai-audio"><QueryPreservingRedirect to="/audio-studio?tab=aiaudio" /></Route>',
       '<Route path="/hub"><CreateRedirect to="/create?panel=hub" /></Route>',
+      '<Route path="/voiceover"><Redirect to="/audio-studio?tab=voiceover" /></Route>',
+      '<Route path="/podcast"><QueryPreservingRedirect to="/audio-studio?tab=podcast" /></Route>',
     ]) {
       expect(app, `App.tsx must keep ${line}`).toContain(line);
     }
