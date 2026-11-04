@@ -17,6 +17,7 @@
  * vanished, never dressed up.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
@@ -26,7 +27,6 @@ import {
   CATALOG_PLATFORM_LABELS,
   CATALOG_PRESIGN_PATH,
   CATALOG_SCAN_PATH,
-  CATALOG_STATUS_LABELS,
   CATALOG_UPLOADS_PATH,
   approvedItems,
   batchApprovedCount,
@@ -46,9 +46,25 @@ import {
   type CatalogApproveEdits,
   type CatalogItem,
   type CatalogState,
+  type CatalogStatus,
   type CatalogUploadFile,
 } from "@/lib/world/catalog-desk";
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
+
+/** Catalog keys for the seam's status labels — the website's own
+ *  status words, shared with the 2D import page's catalog
+ *  (catalogImport.status*); the seam keeps the English labels as
+ *  defaults for its other callers. */
+const STATUS_LABEL_KEYS: Record<CatalogStatus, string> = {
+  listed: "catalogImport.statusListed",
+  fetching: "catalogImport.statusFetching",
+  here: "catalogImport.statusHere",
+  ready: "catalogImport.statusReady",
+  approved: "catalogImport.statusApproved",
+  blocked: "catalogImport.statusBlocked",
+  failed: "catalogImport.statusFailed",
+  dismissed: "catalogImport.statusDismissed",
+};
 
 interface UploadRow {
   name: string;
@@ -56,6 +72,7 @@ interface UploadRow {
 }
 
 export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const deskHeaders = useDeskAuthHeaders();
   const { user } = useAuth();
   const [state, setState] = useState<CatalogState | null>(null);
@@ -118,7 +135,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
       await load();
       if (okNotice) setNotice(okNotice);
     } catch (e) {
-      setError(plainErrorText(e, "That didn't land. Try again in a moment."));
+      setError(plainErrorText(e, t("worldCatalogLibrary.importActionError")));
     } finally {
       setBusy(null);
     }
@@ -132,7 +149,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
       body: JSON.stringify(body ?? {}),
     });
     const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(apiErrorMessage(data, "That didn't land. Try again in a moment."));
+    if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCatalogLibrary.importActionError")));
     return data;
   }
 
@@ -151,7 +168,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
         await post(CATALOG_FETCH_PATH, buildFetchPayload(ids));
         setPicked(new Set());
       },
-      `Bringing in ${ids.length} piece${ids.length === 1 ? "" : "s"} — watch them land below.`,
+      t(ids.length === 1 ? "worldCatalogLibrary.importFetchNoticeOne" : "worldCatalogLibrary.importFetchNoticeMany", { count: ids.length }),
     );
   };
 
@@ -163,8 +180,8 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
       `approve-${item.id}`,
       () => post(catalogItemPath(item.id, "approve"), buildApprovePayload(edits[item.id] ?? null)),
       item.kind === "audio"
-        ? "Home — find it in your songs."
-        : "Home — find it on your profile's videos.",
+        ? t("worldCatalogLibrary.importApproveAudioNotice")
+        : t("worldCatalogLibrary.importApproveVideoNotice"),
     );
 
   const dismiss = (item: CatalogItem) =>
@@ -180,7 +197,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
         const data = await post(CATALOG_APPROVE_BATCH_PATH, buildFetchPayload(ready.map((i) => i.id)));
         const ok = batchApprovedCount(data);
         if (ok !== null) {
-          setNotice(`Approved ${ok} of ${ready.length} — the rest keep their drafts for your word.`);
+          setNotice(t("worldCatalogLibrary.importApproveAllNotice", { ok, total: ready.length }));
         }
       },
       undefined,
@@ -224,9 +241,9 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
         await post(CATALOG_UPLOADS_PATH, buildUploadsPayload(done));
         setUploads(rows.map((r) => (r.state === "registering" ? { ...r, state: "home" as const } : r)));
         await load();
-        setNotice(`${done.length} upload${done.length === 1 ? "" : "s"} home — find them in the waiting list.`);
+        setNotice(t(done.length === 1 ? "worldCatalogLibrary.importUploadsHomeOne" : "worldCatalogLibrary.importUploadsHomeMany", { count: done.length }));
       } catch (e) {
-        setError(plainErrorText(e, "The uploads landed but registering them failed. Try again in a moment."));
+        setError(plainErrorText(e, t("worldCatalogLibrary.importRegisterError")));
       }
     }
     setBusy(null);
@@ -236,12 +253,12 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
   if (loadFailed) {
     return (
       <div className="space-y-3" data-testid="world-catalog-desk">
-        <p className={`text-base font-black ${strong}`}>Catalog Import</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldCatalogLibrary.importTitle")}</p>
         <p className={errCls} data-testid="world-catalog-desk-failed">
-          Your import list wouldn&rsquo;t load. Give it another shot.
+          {t("worldCatalogLibrary.importLoadError")}
         </p>
         <button type="button" className={chipCls(false)} onClick={() => void load()}>
-          Try again
+          {t("worldCatalogLibrary.sharedTryAgain")}
         </button>
       </div>
     );
@@ -250,8 +267,8 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
   if (!state) {
     return (
       <div className="space-y-3" data-testid="world-catalog-desk">
-        <p className={`text-base font-black ${strong}`}>Catalog Import</p>
-        <p className={`text-sm ${muted}`}>Reading your import list…</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldCatalogLibrary.importTitle")}</p>
+        <p className={`text-sm ${muted}`}>{t("worldCatalogLibrary.importLoading")}</p>
       </div>
     );
   }
@@ -264,7 +281,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-4" data-testid="world-catalog-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Catalog Import</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldCatalogLibrary.importTitle")}</p>
         {state.honesty.movesLine ? (
           <p className={`text-xs ${muted}`} data-testid="world-catalog-desk-honesty">
             {state.honesty.movesLine}
@@ -278,11 +295,10 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
 
       {/* ── Accounts ──────────────────────────────────────────── */}
       <section>
-        <p className={`text-sm font-bold ${strong}`}>Your connected accounts</p>
+        <p className={`text-sm font-bold ${strong}`}>{t("catalogImport.accountsTitle")}</p>
         {state.accounts.length === 0 ? (
           <p className={`mt-1 text-sm ${muted}`}>
-            No accounts connected yet — connect one in your account settings and it can be scanned
-            here.
+            {t("worldCatalogLibrary.importNoAccounts")}
           </p>
         ) : (
           <ul className="mt-2 space-y-1.5">
@@ -295,7 +311,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                   {CATALOG_PLATFORM_LABELS[account.platform] ?? account.platform}
                   {account.username ? ` · @${account.username}` : ""}
                 </span>
-                <span className={`text-xs ${muted}`}>{account.itemCount} listed</span>
+                <span className={`text-xs ${muted}`}>{t("worldCatalogLibrary.importListedCount", { count: account.itemCount })}</span>
                 {account.note ? <span className={`w-full text-xs ${muted}`}>{account.note}</span> : null}
                 {account.state === "ready" && account.accountId ? (
                   <button
@@ -305,7 +321,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                     disabled={busy !== null}
                     onClick={() => scan(account)}
                   >
-                    {busy === `scan-${account.accountId}` ? "Scanning…" : "Scan for my posts"}
+                    {busy === `scan-${account.accountId}` ? t("worldCatalogLibrary.importScanning") : t("worldCatalogLibrary.importScan")}
                   </button>
                 ) : null}
               </li>
@@ -317,7 +333,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
       {/* ── On the platform ─────────────────────────────────────── */}
       <section>
         <div className="flex flex-wrap items-center gap-2">
-          <p className={`text-sm font-bold ${strong}`}>On the platform</p>
+          <p className={`text-sm font-bold ${strong}`}>{t("worldCatalogLibrary.importPlatformTitle")}</p>
           {picked.size > 0 ? (
             <button
               type="button"
@@ -326,13 +342,13 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
               disabled={busy !== null}
               onClick={fetchPicked}
             >
-              {busy === "fetch-selected" ? "Bringing in…" : `Bring home the picked (${picked.size})`}
+              {busy === "fetch-selected" ? t("worldCatalogLibrary.importBringingIn") : t("worldCatalogLibrary.importFetchPicked", { count: picked.size })}
             </button>
           ) : null}
         </div>
         {platform.length === 0 ? (
           <p className={`mt-1 text-sm ${muted}`}>
-            Nothing waiting on a platform — scan an account above, or upload files below.
+            {t("worldCatalogLibrary.importPlatformEmpty")}
           </p>
         ) : (
           <ul className="mt-2 space-y-1.5">
@@ -344,7 +360,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                     {canFetch ? (
                       <input
                         type="checkbox"
-                        aria-label={`Pick ${item.title} to bring home`}
+                        aria-label={t("worldCatalogLibrary.importPickAria", { title: item.title })}
                         data-testid={`world-catalog-desk-pick-${item.id}`}
                         checked={picked.has(item.id)}
                         onChange={(e) =>
@@ -359,13 +375,13 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                     ) : null}
                     <span className={`text-sm font-bold ${strong}`}>{item.title}</span>
                     <span className={chipCls(item.status === "blocked" || item.status === "failed")}>
-                      {CATALOG_STATUS_LABELS[item.status]}
+                      {t(STATUS_LABEL_KEYS[item.status])}
                     </span>
                     <span className={`text-xs ${muted}`}>
                       {item.platform
                         ? (CATALOG_PLATFORM_LABELS[item.platform] ?? item.platform)
-                        : "Your upload"}
-                      {item.kind === "audio" ? " · audio" : " · video"}
+                        : t("catalogImport.yourUpload")}
+                      {item.kind === "audio" ? t("worldCatalogLibrary.importKindAudio") : t("worldCatalogLibrary.importKindVideo")}
                     </span>
                     <span className="ml-auto flex gap-1.5">
                       {canFetch ? (
@@ -376,7 +392,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                           disabled={busy !== null}
                           onClick={() => fetchOne(item)}
                         >
-                          {busy === `fetch-${item.id}` ? "Bringing in…" : item.status === "failed" ? "Retry" : "Bring in"}
+                          {busy === `fetch-${item.id}` ? t("worldCatalogLibrary.importBringingIn") : item.status === "failed" ? t("catalogImport.retry") : t("catalogImport.bringIn")}
                         </button>
                       ) : null}
                       {item.status !== "fetching" ? (
@@ -386,7 +402,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                           disabled={busy !== null}
                           onClick={() => dismiss(item)}
                         >
-                          Dismiss
+                          {t("catalogImport.dismiss")}
                         </button>
                       ) : null}
                     </span>
@@ -397,15 +413,14 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
             })}
           </ul>
         )}
-        <p className={`mt-1 text-xs ${muted}`}>Tip: tick several, then bring them home together.</p>
+        <p className={`mt-1 text-xs ${muted}`}>{t("worldCatalogLibrary.importTip")}</p>
       </section>
 
       {/* ── Upload ──────────────────────────────────────────────── */}
       <section className={`rounded-xl border p-3 ${cardCls}`}>
-        <p className={`text-sm font-bold ${strong}`}>Upload files</p>
+        <p className={`text-sm font-bold ${strong}`}>{t("worldCatalogLibrary.importUploadTitle")}</p>
         <p className={`mt-0.5 text-xs ${muted}`}>
-          Videos and audio from your device join the same pipeline — home first, details rebuilt,
-          your word before anything goes public.
+          {t("worldCatalogLibrary.importUploadIntro")}
         </p>
         <input
           ref={fileRef}
@@ -423,7 +438,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
           disabled={busy !== null}
           onClick={() => fileRef.current?.click()}
         >
-          {busy === "upload" ? "Uploading…" : "Choose files"}
+          {busy === "upload" ? t("worldCatalogLibrary.importUploading") : t("worldCatalogLibrary.importChooseFiles")}
         </button>
         {uploads.length > 0 ? (
           <ul className="mt-2 space-y-1">
@@ -431,12 +446,12 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
               <li key={i} className={`text-xs ${muted}`}>
                 {row.name} —{" "}
                 {row.state === "home"
-                  ? "home ✓"
+                  ? t("worldCatalogLibrary.importUploadHome")
                   : row.state === "failed"
-                    ? "didn't land — try it again"
+                    ? t("worldCatalogLibrary.importUploadFailed")
                     : row.state === "registering"
-                      ? "almost there…"
-                      : "uploading…"}
+                      ? t("worldCatalogLibrary.importUploadRegistering")
+                      : t("worldCatalogLibrary.importUploadUploading")}
               </li>
             ))}
           </ul>
@@ -446,7 +461,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
       {/* ── Waiting for your word ───────────────────────────────── */}
       <section>
         <div className="flex flex-wrap items-center gap-2">
-          <p className={`text-sm font-bold ${strong}`}>Waiting for your word</p>
+          <p className={`text-sm font-bold ${strong}`}>{t("worldCatalogLibrary.importWaitingTitle")}</p>
           {readyCount > 0 ? (
             <button
               type="button"
@@ -455,13 +470,13 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
               disabled={busy !== null}
               onClick={approveAll}
             >
-              {busy === "approve-all" ? "Approving…" : `Approve all ready (${readyCount})`}
+              {busy === "approve-all" ? t("worldCatalogLibrary.importApproving") : t("catalogImport.approveAllReady", { count: readyCount })}
             </button>
           ) : null}
         </div>
         {waiting.length === 0 ? (
           <p className={`mt-1 text-sm ${muted}`}>
-            Nothing waiting — bring pieces home and their rebuilt details land here for your word.
+            {t("worldCatalogLibrary.importWaitingEmpty")}
           </p>
         ) : (
           <ul className="mt-2 space-y-2">
@@ -472,7 +487,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                 <li key={item.id} className={`rounded-xl border p-3 ${cardCls}`}>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`text-sm font-bold ${strong}`}>{item.title}</span>
-                    <span className={chipCls(false)}>{CATALOG_STATUS_LABELS[item.status]}</span>
+                    <span className={chipCls(false)}>{t(STATUS_LABEL_KEYS[item.status])}</span>
                     <span className="ml-auto flex gap-1.5">
                       <button
                         type="button"
@@ -482,10 +497,10 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                         onClick={() => rebuild(item)}
                       >
                         {busy === `rebuild-${item.id}`
-                          ? "Rebuilding…"
+                          ? t("worldCatalogLibrary.importRebuilding")
                           : draft
-                            ? "Rebuild the details again"
-                            : "Rebuild the details"}
+                            ? t("worldCatalogLibrary.importRebuildAgain")
+                            : t("catalogImport.rebuildDetails")}
                       </button>
                       <button
                         type="button"
@@ -494,7 +509,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                         disabled={busy !== null}
                         onClick={() => approve(item)}
                       >
-                        {busy === `approve-${item.id}` ? "Approving…" : "Approve — put it home"}
+                        {busy === `approve-${item.id}` ? t("worldCatalogLibrary.importApproving") : t("catalogImport.approvePutHome")}
                       </button>
                       <button
                         type="button"
@@ -502,7 +517,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                         disabled={busy !== null}
                         onClick={() => dismiss(item)}
                       >
-                        Dismiss
+                        {t("catalogImport.dismiss")}
                       </button>
                     </span>
                   </div>
@@ -510,11 +525,11 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                     <div className="mt-2 space-y-2" data-testid={`world-catalog-desk-draft-${item.id}`}>
                       <p className={`text-xs ${muted}`}>
                         {draft.source === "ai"
-                          ? "Draft written by the rebuild — check it before you approve."
-                          : "Draft assembled from what came home — check it before you approve."}
+                          ? t("worldCatalogLibrary.importDraftAi")
+                          : t("worldCatalogLibrary.importDraftAssembled")}
                       </p>
                       <label className={`block text-xs ${muted}`}>
-                        Title
+                        {t("catalogImport.titleLabel")}
                         <input
                           className={`${inputCls} mt-1`}
                           value={itemEdits.title}
@@ -525,7 +540,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                         />
                       </label>
                       <label className={`block text-xs ${muted}`}>
-                        Description
+                        {t("catalogImport.descriptionLabel")}
                         <textarea
                           className={`${inputCls} mt-1`}
                           rows={2}
@@ -537,7 +552,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                         />
                       </label>
                       <label className={`block text-xs ${muted}`}>
-                        Tags (comma-separated, up to 8)
+                        {t("worldCatalogLibrary.importTagsLabel")}
                         <input
                           className={`${inputCls} mt-1`}
                           value={itemEdits.tagsInput}
@@ -548,27 +563,29 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
                       </label>
                       {draft.series ? (
                         <p className={`text-xs ${muted}`}>
-                          Series: <span className={`font-bold ${strong}`}>{draft.series.name}</span> —
-                          season {draft.series.season}, episode {draft.series.episode}
+                          {t("worldCatalogLibrary.importSeriesPrefix")}{" "}
+                          <span className={`font-bold ${strong}`}>{draft.series.name}</span>
+                          {t("worldCatalogLibrary.importSeriesRest", { season: draft.series.season, episode: draft.series.episode })}
                         </p>
                       ) : null}
                       {draft.chapters.length > 0 ? (
                         <p className={`text-xs ${muted}`}>
-                          Chapters:{" "}
-                          {draft.chapters
-                            .map((c) => `${Math.floor(c.atSec / 60)}:${String(c.atSec % 60).padStart(2, "0")} ${c.label}`)
-                            .join(" · ")}
+                          {t("catalogImport.chaptersLine", {
+                            chapters: draft.chapters
+                              .map((c) => `${Math.floor(c.atSec / 60)}:${String(c.atSec % 60).padStart(2, "0")} ${c.label}`)
+                              .join(" · "),
+                          })}
                         </p>
                       ) : null}
                       {draft.captions ? (
                         <p className={`text-xs italic ${muted}`}>
-                          Captions: “{draft.captions.slice(0, 300)}”
+                          {t("catalogImport.captionsPreview", { text: draft.captions.slice(0, 300) })}
                         </p>
                       ) : null}
                     </div>
                   ) : (
                     <p className={`mt-1 text-xs ${muted}`}>
-                      No draft yet — rebuild the details and they&rsquo;ll be here for your word.
+                      {t("worldCatalogLibrary.importNoDraft")}
                     </p>
                   )}
                 </li>
@@ -581,14 +598,13 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
       {/* ── Home ────────────────────────────────────────────────── */}
       {approved.length > 0 ? (
         <section data-testid="world-catalog-desk-approved">
-          <p className={`text-sm font-bold ${strong}`}>Home</p>
+          <p className={`text-sm font-bold ${strong}`}>{t("catalogImport.homeTitle")}</p>
           <ul className="mt-1 space-y-1">
             {approved.map((item) => (
               <li key={item.id} className={`text-sm ${muted}`}>
                 ✓ {item.title}
                 <span className="text-xs">
-                  {" "}
-                  — {item.targetKind === "song" ? "in your songs" : "on your profile's videos"}
+                  {item.targetKind === "song" ? t("worldCatalogLibrary.importHomeSongSuffix") : t("worldCatalogLibrary.importHomeVideoSuffix")}
                 </span>
               </li>
             ))}
