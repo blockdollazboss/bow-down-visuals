@@ -17,7 +17,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   COPYRIGHT_ASK_COST,
   COPYRIGHT_ASK_PATH,
@@ -142,7 +142,7 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       setDraft(parsed);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setDraftError(e instanceof Error ? e.message : "Couldn't draft that — try again.");
+      setDraftError(plainErrorText(e, "Couldn't draft that — try again."));
     } finally {
       setDrafting(false);
     }
@@ -181,7 +181,7 @@ export function CopyrightDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       setMessages([...next, { role: "assistant", content: answer }]);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setAskError(e instanceof Error ? e.message : "Couldn't get an answer — try again.");
+      setAskError(plainErrorText(e, "Couldn't get an answer — try again."));
       setMessages(messages);
     } finally {
       setAsking(false);

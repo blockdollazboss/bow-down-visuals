@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { formatVb, monthLabel } from "@/lib/community-grants";
 import {
   GRANTS_PATH,
@@ -96,7 +96,7 @@ export function GrantsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       await load();
       if (okNotice) setNotice(okNotice);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "That didn't land. Try again in a moment.");
+      setError(plainErrorText(e, "That didn't land. Try again in a moment."));
     } finally {
       setBusy(null);
     }

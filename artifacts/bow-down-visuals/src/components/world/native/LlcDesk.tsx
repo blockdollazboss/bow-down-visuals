@@ -17,7 +17,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   LLC_ASK_COST,
   LLC_ASK_PATH,
@@ -138,7 +138,7 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
       setMessages([...next, { role: "assistant", content: answer }]);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setChatError(e instanceof Error ? e.message : "Couldn't get an answer — try again.");
+      setChatError(plainErrorText(e, "Couldn't get an answer — try again."));
       setMessages(messages);
     } finally {
       setAsking(false);
@@ -174,7 +174,7 @@ export function LlcDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boole
       setPlan(parsed);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setPlanError(e instanceof Error ? e.message : "Couldn't build the plan — try again.");
+      setPlanError(plainErrorText(e, "Couldn't build the plan — try again."));
     } finally {
       setPlanning(false);
     }

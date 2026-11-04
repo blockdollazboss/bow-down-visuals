@@ -22,7 +22,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   INTERVIEW_ANSWER_MIN,
   INTERVIEW_FEATURE,
@@ -145,7 +145,7 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       setFeedback(null);
       refreshProfile();
     } catch (e) {
-      setBuildError(e instanceof Error ? e.message : "The prep session could not be built. Try again in a moment.");
+      setBuildError(plainErrorText(e, "The prep session could not be built. Try again in a moment."));
     } finally {
       setBuilding(false);
     }
@@ -181,7 +181,7 @@ export function InterviewDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       setFeedback(scored);
       refreshProfile();
     } catch (e) {
-      setFeedbackError(e instanceof Error ? e.message : "The feedback could not be scored. Try again in a moment.");
+      setFeedbackError(plainErrorText(e, "The feedback could not be scored. Try again in a moment."));
     } finally {
       setFeedbackBusy(false);
     }

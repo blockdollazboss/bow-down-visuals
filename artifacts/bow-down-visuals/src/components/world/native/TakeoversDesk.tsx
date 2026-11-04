@@ -16,7 +16,7 @@
  * carries the name + email, so guests inquire in full.
  */
 import { useCallback, useEffect, useState } from "react";
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   LOADING_INQUIRE_PATH,
   LOADING_OFFER_PATH,
@@ -90,7 +90,7 @@ function OfferBlock({
       }
       setSent(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save your request. Please try again later.");
+      setError(plainErrorText(e, "Could not save your request. Please try again later."));
     } finally {
       setSending(false);
     }

@@ -19,6 +19,7 @@
  * kit logo, sent whole — never cropped, never baked into the art.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { plainErrorText } from "../../../lib/api-error";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import type { CreateDeskProps } from "./CreateDesks";
@@ -346,7 +347,7 @@ export function WallpapersDesk(props: CreateDeskProps) {
       a.click();
       URL.revokeObjectURL(href);
     } catch (e) {
-      setZipError(e instanceof Error ? e.message : "The download could not be made. Try again in a moment.");
+      setZipError(plainErrorText(e, "The download could not be made. Try again in a moment."));
     } finally {
       setZipBusy(false);
     }

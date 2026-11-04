@@ -21,7 +21,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   BRAND_CALC_CONTENT_TYPES,
   BRAND_CALC_COST,
@@ -129,7 +129,7 @@ export function BrandCalculatorDesk({ isLight, isGuest }: { isLight: boolean; is
       setResult(parsed);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The calculator hiccupped — try again.");
+      setError(plainErrorText(e, "The calculator hiccupped — try again."));
     } finally {
       setRunning(false);
     }

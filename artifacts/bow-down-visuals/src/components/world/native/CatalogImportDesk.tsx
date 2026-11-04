@@ -18,7 +18,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   CATALOG_APPROVE_BATCH_PATH,
   CATALOG_FETCH_PATH,
@@ -118,7 +118,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
       await load();
       if (okNotice) setNotice(okNotice);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "That didn't land. Try again in a moment.");
+      setError(plainErrorText(e, "That didn't land. Try again in a moment."));
     } finally {
       setBusy(null);
     }
@@ -226,7 +226,7 @@ export function CatalogImportDesk({ isLight }: { isLight: boolean }) {
         await load();
         setNotice(`${done.length} upload${done.length === 1 ? "" : "s"} home — find them in the waiting list.`);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "The uploads landed but registering them failed. Try again in a moment.");
+        setError(plainErrorText(e, "The uploads landed but registering them failed. Try again in a moment."));
       }
     }
     setBusy(null);

@@ -18,7 +18,7 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   ENERGY_LABELS,
   SLOT_LABELS,
@@ -148,7 +148,7 @@ export function SetlistDesk({ isLight }: { isLight: boolean }) {
       setFlow(built);
       refreshProfile();
     } catch (e) {
-      setFlowError(e instanceof Error ? e.message : "The flow couldn't be built. Try again in a moment.");
+      setFlowError(plainErrorText(e, "The flow couldn't be built. Try again in a moment."));
     } finally {
       setFlowBusy(false);
     }

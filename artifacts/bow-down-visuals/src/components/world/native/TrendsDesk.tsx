@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   TREND_AUDIENCES,
   TREND_FEATURE_FORECAST,
@@ -166,7 +166,7 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       setForecast(parsed);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The forecast didn't land — try again.");
+      setError(plainErrorText(e, "The forecast didn't land — try again."));
     } finally {
       setRunning(false);
     }
@@ -203,7 +203,7 @@ export function TrendsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: bo
       setIdeas(parsed);
       void refreshProfile().catch(() => {});
     } catch (e) {
-      setIdeasError(e instanceof Error ? e.message : "The ideas didn't land — try again.");
+      setIdeasError(plainErrorText(e, "The ideas didn't land — try again."));
     } finally {
       setIdeasBusy(false);
     }

@@ -15,7 +15,7 @@
  * desk inside the shop stand, members only.
  */
 import { useCallback, useEffect, useState } from "react";
-import { apiErrorMessage } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   DISCOUNTS_PATH,
   DISCOUNT_STATE_LABELS,
@@ -111,7 +111,7 @@ export function DiscountCodesDesk({ isLight, isGuest }: { isLight: boolean; isGu
       await load();
       if (okNotice) setNotice(okNotice);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "That didn't land. Try again in a moment.");
+      setError(plainErrorText(e, "That didn't land. Try again in a moment."));
     } finally {
       setBusy(null);
     }
