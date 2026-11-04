@@ -124,9 +124,15 @@ describe("surface wiring", () => {
     expect(dialog).toContain("TemporaryBucsNote");
     expect(dialog).toContain('mode="includes"');
     expect(dialog).toContain("composition.temporaryCredits > 0");
-    /* The single total and After math are untouched. */
-    expect(dialog).toContain("const balance = profile?.credits ?? 0;");
-    expect(dialog).toContain("(balance - request.cost).toLocaleString");
+    /* The single total and After math are untouched in substance: the
+       total is still the one folded profile.credits and After is still
+       total − cost. QC fix #2 changed the READ, not the math — the old
+       `profile?.credits ?? 0` line treated an unloaded/failed balance
+       as a proven 0 (the false-insufficiency defect), so the total now
+       flows through the proven-balance gate (provenBalance) and the
+       After math renders only on a proven total. */
+    expect(dialog).toContain("balanceReadFromAuth");
+    expect(dialog).toContain("(provenBalance - request.cost).toLocaleString");
   });
 
   it("the sidebar keeps its total and names the temporary part under it", () => {
