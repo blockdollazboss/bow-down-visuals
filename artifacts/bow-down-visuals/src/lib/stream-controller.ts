@@ -448,9 +448,8 @@ export class ControllerRemoteClient {
     const current = this.state;
     const sceneId = typeof args?.sceneId === "string" ? args.sceneId : undefined;
     const presetId = typeof args?.presetId === "string" ? args.presetId : undefined;
-    const id = `${command}:${sceneId ?? presetId ?? ""}:${++this._seq}`;
     const sourceId = typeof args?.sourceId === "string" ? args.sourceId : undefined;
-    const id = `${command}:${sceneId ?? sourceId ?? ""}:${++this._seq}`;
+    const id = `${command}:${sceneId ?? presetId ?? sourceId ?? ""}:${++this._seq}`;
     const expect = expectFor(command, args, current);
     this._pending.set(id, { id, command, sceneId, presetId, sourceId, sentAt: (this.deps.now ?? Date.now)(), expect });
     this.notice = null;
@@ -504,6 +503,7 @@ export function expectFor(
         !beforeIds.has(s.previewSceneId) &&
         s.scenes.find((sc) => sc.id === s.previewSceneId)?.name === preset.name &&
         s.activeSceneId === beforeProgram;
+    }
     case "scene.chroma.update": {
       /* The application's signature in fresh state: the named
          camera source of the named scene carrying exactly the

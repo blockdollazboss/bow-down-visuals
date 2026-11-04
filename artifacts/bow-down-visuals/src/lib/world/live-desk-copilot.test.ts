@@ -389,8 +389,11 @@ describe("placement — its own desk in the members-only panel; waves I–III un
   });
 
   it("the board records the wave-IV promotion", () => {
-    expect(LIVE_WAVE4_PROMOTIONS).toHaveLength(1);
-    expect(LIVE_WAVE4_PROMOTIONS[0]).toContain("Copilot");
-    expect(LIVE_WAVE4_PROMOTIONS[0]).toContain("/api/live-prefs");
+    /* Join widening (stack100 phase-2): the wave-IV board carries
+       every wave-IV lane's entry — this lane's entry is found by
+       containment, not by sole occupancy of the board. */
+    const mine = LIVE_WAVE4_PROMOTIONS.filter((entry) => entry.includes("Copilot"));
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toContain("/api/live-prefs");
   });
 });

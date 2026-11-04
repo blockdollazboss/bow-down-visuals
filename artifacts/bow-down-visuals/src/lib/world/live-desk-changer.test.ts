@@ -25,8 +25,8 @@
  *   browser exposed the device lists — on enumeration failure the
  *   card shows the reason and NO selects, never a dead picker;
  * - law: nothing charges, and the follow-on board no longer names
- *   the changer rack (the chroma key stays named — another lane's
- *   item, riding the stage compositor).
+ *   the changer rack (the chroma key left the board in the same
+ *   wave — #95, riding the controller relay).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
@@ -244,18 +244,24 @@ describe("#93 honest states + the board", () => {
   });
 
   it("records the wave-IV promotion", () => {
-    expect(LIVE_WAVE4_PROMOTIONS).toHaveLength(1);
-    expect(LIVE_WAVE4_PROMOTIONS[0]).toContain("#93");
-    expect(LIVE_WAVE4_PROMOTIONS[0]).toContain("Camera & voice");
-    expect(LIVE_WAVE4_PROMOTIONS[0]).toContain("BackgroundChanger");
+    /* Join widening (stack100 phase-2): the wave-IV board carries
+       every wave-IV lane's entry — this lane's entry is found by
+       containment, not by sole occupancy of the board. */
+    const mine = LIVE_WAVE4_PROMOTIONS.filter((entry) => entry.includes("#93"));
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toContain("Camera & voice");
+    expect(mine[0]).toContain("BackgroundChanger");
   });
 
-  it("the follow-on board no longer names the changer rack — chroma stays", () => {
+  it("the follow-on board no longer names the changer rack or the chroma key", () => {
     const joined = LIVE_NATIVE_FOLLOW_ONS.join(" ");
     expect(joined).not.toContain("Camera effects");
     expect(joined).not.toContain("noise cancellation / voice effects");
     expect(joined).not.toContain("not yet carried");
-    expect(joined).toContain("chroma key");
-    expect(joined).toContain("stage compositor");
+    /* Join widening (stack100 phase-2): the per-source chroma key
+       left the follow-on board in the same wave (#95, pinned by the
+       live-desk-chroma suite) — neither follow-on is named here. */
+    expect(joined).not.toContain("chroma key");
+    expect(joined).not.toContain("stage compositor");
   });
 });
