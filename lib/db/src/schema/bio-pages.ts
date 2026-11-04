@@ -56,11 +56,20 @@ export const bioLinkClicksTable = pgTable("bio_link_clicks", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-/* Gold/black luxury theme variants for bio pages. Backend-validated on save. */
+/* Luxury theme variants for bio pages — dark and light designs.
+   Backend-validated on save. Keys + English label/blurb mirror the FE
+   design registry (components/promote/bio-themes.tsx) and the World
+   desk's BIO_PAGE_THEMES; bio-themes-shelf.test.ts pins all three. */
 export const BIO_THEMES = [
   { key: "gold-royal", label: "Gold Royal", blurb: "Black + radiant gold — the signature Bow Down look" },
   { key: "midnight-gold", label: "Midnight Gold", blurb: "Deep blue-black with warm gold accents" },
   { key: "onyx-minimal", label: "Onyx Minimal", blurb: "Pure black, hairline gold rules — ultra clean" },
+  { key: "velvet-noir", label: "Velvet Noir", blurb: "Black-cherry velvet with champagne gold trim" },
+  { key: "emerald-court", label: "Emerald Court", blurb: "Deep emerald and gold — the royal court look" },
+  { key: "smoke-platinum", label: "Smoke Platinum", blurb: "Graphite smoke with cool platinum shine" },
+  { key: "golden-marble", label: "Golden Marble", blurb: "Warm golden marble with antique gold — the house light look" },
+  { key: "ivory-pearl", label: "Ivory Pearl", blurb: "Soft ivory pearl with champagne gold lines" },
+  { key: "rose-champagne", label: "Rose Champagne", blurb: "Blush marble with rose-gold shine" },
 ] as const;
 export const BIO_THEME_KEYS = new Set(BIO_THEMES.map((t) => t.key));
 

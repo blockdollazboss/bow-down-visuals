@@ -12413,7 +12413,19 @@
       "midnightGold": "Midnight Gold",
       "midnightGoldBlurb": "Deep blue-black with warm gold accents",
       "onyxMinimal": "Onyx Minimal",
-      "onyxMinimalBlurb": "Pure black, hairline gold rules — ultra clean"
+      "onyxMinimalBlurb": "Pure black, hairline gold rules — ultra clean",
+      "velvetNoir": "Velvet Noir",
+      "velvetNoirBlurb": "Black-cherry velvet with champagne gold trim",
+      "emeraldCourt": "Emerald Court",
+      "emeraldCourtBlurb": "Deep emerald and gold — the royal court look",
+      "smokePlatinum": "Smoke Platinum",
+      "smokePlatinumBlurb": "Graphite smoke with cool platinum shine",
+      "goldenMarble": "Golden Marble",
+      "goldenMarbleBlurb": "Warm golden marble with antique gold — the house light look",
+      "ivoryPearl": "Ivory Pearl",
+      "ivoryPearlBlurb": "Soft ivory pearl with champagne gold lines",
+      "roseChampagne": "Rose Champagne",
+      "roseChampagneBlurb": "Blush marble with rose-gold shine"
     },
     "links": {
       "title": "Links",

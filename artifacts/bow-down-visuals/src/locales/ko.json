@@ -15355,7 +15355,19 @@
       "midnightGold": "미드나잇 골드",
       "midnightGoldBlurb": "딥 블루블랙에 따뜻한 골드 포인트",
       "onyxMinimal": "Onyx Minimal",
-      "onyxMinimalBlurb": "순수한 블랙, 얇은 골드 라인 — 매우 깔끔"
+      "onyxMinimalBlurb": "순수한 블랙, 얇은 골드 라인 — 매우 깔끔",
+      "velvetNoir": "벨벳 누아르",
+      "velvetNoirBlurb": "블랙 체리 벨벳에 샴페인 골드 트림",
+      "emeraldCourt": "에메랄드 코트",
+      "emeraldCourtBlurb": "깊은 에메랄드와 골드 — 왕실 코트 룩",
+      "smokePlatinum": "스모크 플래티넘",
+      "smokePlatinumBlurb": "그래파이트 스모크에 차가운 플래티넘 광택",
+      "goldenMarble": "골든 마블",
+      "goldenMarbleBlurb": "따뜻한 황금 대리석과 앤티크 골드 — 하우스 라이트 룩",
+      "ivoryPearl": "아이보리 펄",
+      "ivoryPearlBlurb": "부드러운 아이보리 펄에 샴페인 골드 라인",
+      "roseChampagne": "로제 샴페인",
+      "roseChampagneBlurb": "블러시 대리석에 로즈 골드 광택"
     },
     "links": {
       "title": "링크",
