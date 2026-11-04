@@ -38,7 +38,39 @@ export const CAROUSEL_TEMPLATES: CarouselTemplate[] = [
   { id: "story",          nameKey: "carouselMaker.tplStoryName", descKey: "carouselMaker.tplStoryDesc", bgStyle: "midnight", accent: "#e8c468", numberStyle: "corner" },
   { id: "stats",          nameKey: "carouselMaker.tplStatsName", descKey: "carouselMaker.tplStatsDesc", bgStyle: "bold-band", accent: "#0a0a0a", numberStyle: "pill" },
   { id: "minimal-luxe",   nameKey: "carouselMaker.tplLuxeName", descKey: "carouselMaker.tplLuxeDesc", bgStyle: "paper", accent: "#9c7c1e", numberStyle: "none" },
+  /* ── Library completion (Stack 100 wave 2, item 11): one real template
+     per remaining Library carousel seed, so every seed slug resolves
+     EXACTLY (see resolveCarouselTemplate). Each is a deliberate
+     composition — background painter, accent and number treatment —
+     matched to the content shape its Library card promises. ── */
+  { id: "myth-buster",      nameKey: "carouselMaker.tplMythName", descKey: "carouselMaker.tplMythDesc", bgStyle: "split", accent: "#e8c468", numberStyle: "corner" },
+  { id: "vs-battle",        nameKey: "carouselMaker.tplVsName", descKey: "carouselMaker.tplVsDesc", bgStyle: "gold-glow", accent: "#f6d47c", numberStyle: "corner" },
+  { id: "mistakes",         nameKey: "carouselMaker.tplMistakesName", descKey: "carouselMaker.tplMistakesDesc", bgStyle: "bold-band", accent: "#d4af37", numberStyle: "pill" },
+  { id: "tools-roundup",    nameKey: "carouselMaker.tplToolsName", descKey: "carouselMaker.tplToolsDesc", bgStyle: "midnight", accent: "#d4af37", numberStyle: "pill" },
+  { id: "day-in-life",      nameKey: "carouselMaker.tplDayName", descKey: "carouselMaker.tplDayDesc", bgStyle: "paper", accent: "#7a5c14", numberStyle: "corner" },
+  { id: "faq-answers",      nameKey: "carouselMaker.tplFaqName", descKey: "carouselMaker.tplFaqDesc", bgStyle: "gradient-wash", accent: "#f6d47c", numberStyle: "corner" },
+  { id: "testimonial-wall", nameKey: "carouselMaker.tplTestimonialName", descKey: "carouselMaker.tplTestimonialDesc", bgStyle: "framed", accent: "#d4af37", numberStyle: "pill" },
+  { id: "beginner-guide",   nameKey: "carouselMaker.tplBeginnerName", descKey: "carouselMaker.tplBeginnerDesc", bgStyle: "neon-edge", accent: "#d4af37", numberStyle: "pill" },
+  { id: "hot-take-thread",  nameKey: "carouselMaker.tplHotTakeName", descKey: "carouselMaker.tplHotTakeDesc", bgStyle: "gold-glow", accent: "#e8c468", numberStyle: "none" },
+  { id: "checklist",        nameKey: "carouselMaker.tplChecklistName", descKey: "carouselMaker.tplChecklistDesc", bgStyle: "paper", accent: "#9c7c1e", numberStyle: "pill" },
+  { id: "behind-scenes",    nameKey: "carouselMaker.tplBehindName", descKey: "carouselMaker.tplBehindDesc", bgStyle: "gradient-wash", accent: "#e8c468", numberStyle: "none" },
+  { id: "price-breakdown",  nameKey: "carouselMaker.tplPriceName", descKey: "carouselMaker.tplPriceDesc", bgStyle: "bold-band", accent: "#f6d47c", numberStyle: "corner" },
+  { id: "mini-course",      nameKey: "carouselMaker.tplCourseName", descKey: "carouselMaker.tplCourseDesc", bgStyle: "framed", accent: "#e8c468", numberStyle: "corner" },
 ];
+
+/** Resolve a template reference (a Library deep-link slug like
+    "carousel-myth-buster", or a bare template id) to a real template.
+    EXACT match only, after stripping the Library's "carousel-" prefix:
+    the old fuzzy prefix matcher silently landed 13 of the Library's 20
+    carousel picks on the default template (Stack 100 wave 2, item 11).
+    An unknown reference returns null so the caller can SAY so — never
+    substitute a different template in silence. */
+export function resolveCarouselTemplate(slug: string | null | undefined): CarouselTemplate | null {
+  if (!slug) return null;
+  const needle = slug.trim().toLowerCase().replace(/^carousel-/, "");
+  if (!needle) return null;
+  return CAROUSEL_TEMPLATES.find((x) => x.id === needle) ?? null;
+}
 
 interface CarouselRenderOpts {
   slide: CarouselSlide;
