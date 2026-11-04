@@ -288,7 +288,7 @@ describe("the station + dispatch (source pins)", () => {
     /* Honest states: 402 reads as out-of-credits; results in-panel. */
     expect(deskSrc).toContain('data-testid="world-create-movies-desk"');
     expect(deskSrc).toContain('data-testid="world-movies-desk-result"');
-    expect(deskSrc).toContain("out of Visual Bucs");
+    expect(deskSrc).toContain("worldCatalogLibrary.moviesOutOfBucs");
     /* The hub landing rides the page's own hook. */
     expect(deskSrc).toContain("useHubProject");
     expect(deskSrc).toContain("addAsset(buildConceptHubAsset(parsed))");
