@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Music, Target, Trophy } from "lucide-react";
 import {
   CLIP_MODEL_OPTIONS,
@@ -40,11 +41,23 @@ import { useDeskAuthHeaders } from "./CreateDeskLeaf";
    them. Purely controlled — the desk owns the settings and prices
    the run from lib/world/create-desks' clipPlanCost. */
 
+/* The clip model shelf's display copy lives in the catalogs under
+   worldCreateDesk.clipModel* — keyed by the model's stable id, so
+   the lib registry's own label/blurb stay the payload-side data
+   (mirrored from SceneStudio) while the picker renders the
+   walker's language. */
+const CLIP_MODEL_COPY_KEYS: Record<string, { label: string; blurb: string }> = {
+  "gen4.5": { label: "worldCreateDesk.clipModelStandardLabel", blurb: "worldCreateDesk.clipModelStandardBlurb" },
+  seedance2_5: { label: "worldCreateDesk.clipModelPremiumLabel", blurb: "worldCreateDesk.clipModelPremiumBlurb" },
+  veo3_1: { label: "worldCreateDesk.clipModelCinematicLabel", blurb: "worldCreateDesk.clipModelCinematicBlurb" },
+};
+
 export function ClipModelPicker(props: {
   isLight: boolean;
   settings: ClipSettings;
   onChange: (settings: ClipSettings) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const { isLight, settings, onChange } = props;
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const chip = (active: boolean) =>
@@ -58,7 +71,7 @@ export function ClipModelPicker(props: {
   const picked = CLIP_MODEL_OPTIONS.find((m) => m.id === settings.model);
   return (
     <div className="space-y-2" data-testid="world-clip-model-picker">
-      <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Clip model">
+      <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label={t("worldCreateDesk.clipModelAria")}>
         {CLIP_MODEL_OPTIONS.map((m) => (
           <button
             key={m.id}
@@ -69,15 +82,19 @@ export function ClipModelPicker(props: {
             onClick={() => onChange({ ...settings, model: m.id })}
             className={chip(settings.model === m.id)}
           >
-            {m.label}
+            {CLIP_MODEL_COPY_KEYS[m.id] ? t(CLIP_MODEL_COPY_KEYS[m.id]!.label) : m.label}
           </button>
         ))}
       </div>
-      {picked ? <p className={`text-[11px] ${muted}`}>{picked.blurb}</p> : null}
+      {picked ? (
+        <p className={`text-[11px] ${muted}`}>
+          {CLIP_MODEL_COPY_KEYS[picked.id] ? t(CLIP_MODEL_COPY_KEYS[picked.id]!.blurb) : picked.blurb}
+        </p>
+      ) : null}
       {settings.model === "seedance2_5" ? (
         <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Clip length">
-            <span className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Length</span>
+          <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label={t("worldCreateDesk.clipLengthAria")}>
+            <span className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldCreateDesk.clipLengthLabel")}</span>
             {SEEDANCE_DURATION_OPTIONS.map((d) => (
               <button
                 key={d}
@@ -88,12 +105,12 @@ export function ClipModelPicker(props: {
                 onClick={() => onChange({ ...settings, durationSec: d })}
                 className={chip(settings.durationSec === d)}
               >
-                {d}s
+                {t("worldCreateDesk.clipSeconds", { count: d })}
               </button>
             ))}
-            <span className={`ml-2 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Finish</span>
+            <span className={`ml-2 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldCreateDesk.clipFinishLabel")}</span>
             {settings.draft ? (
-              <span className={chip(true)}>480p draft</span>
+              <span className={chip(true)}>{t("worldCreateDesk.clipDraftChip")}</span>
             ) : (
               (["720p", "1080p"] as const).map((r) => (
                 <button
@@ -117,13 +134,13 @@ export function ClipModelPicker(props: {
               checked={settings.draft}
               onChange={(e) => onChange({ ...settings, draft: e.target.checked })}
             />
-            Draft mode — cheap 480p preview first
+            {t("worldCreateDesk.clipDraftMode")}
           </label>
         </div>
       ) : null}
       {settings.model === "veo3_1" ? (
         <p className={`text-[11px] ${muted}`}>
-          One fixed 8-second clip · {VEO_CLIP_COST_VB.toLocaleString("en-US")} Visual Bucs.
+          {t("worldCreateDesk.clipVeoNote", { cost: VEO_CLIP_COST_VB.toLocaleString(i18n.language) })}
         </p>
       ) : null}
     </div>
@@ -185,6 +202,7 @@ export function SongAudioRail(props: {
    *  its own rail, only when the audio is made. */
   includedInTotal?: number;
 }) {
+  const { t, i18n } = useTranslation();
   const { isLight } = props;
   if (props.state === "done" && props.audioUrl) {
     return (
@@ -204,14 +222,18 @@ export function SongAudioRail(props: {
       >
         <Music className="h-4 w-4" />
         {props.state === "running"
-          ? "Making the audio…"
+          ? t("worldCreateDesk.audioMaking")
           : props.state === "failed"
             ? props.includedInTotal !== undefined
-              ? "Make the audio again"
-              : `Make the audio again · ${props.costVisualBucs.toLocaleString("en-US")} Visual Bucs`
+              ? t("worldCreateDesk.audioMakeAgain")
+              : t("worldCreateDesk.audioMakeAgainCost", {
+                  cost: props.costVisualBucs.toLocaleString(i18n.language),
+                })
             : props.includedInTotal !== undefined
-              ? "Make the audio"
-              : `Make the audio · ${props.costVisualBucs.toLocaleString("en-US")} Visual Bucs`}
+              ? t("worldCreateDesk.audioMake")
+              : t("worldCreateDesk.audioMakeCost", {
+                  cost: props.costVisualBucs.toLocaleString(i18n.language),
+                })}
       </button>
       {props.state === "failed" && props.error ? (
         <p data-testid="world-create-audio-error" className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
@@ -219,12 +241,13 @@ export function SongAudioRail(props: {
         </p>
       ) : props.includedInTotal !== undefined ? (
         <p className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-          Covered by the {props.includedInTotal.toLocaleString("en-US")} Visual Bucs you confirmed for this song —
-          this leg charges its share only when the audio lands, never twice. The song saves to your library, ready to publish.
+          {t("worldCreateDesk.audioCoveredNote", {
+            total: props.includedInTotal.toLocaleString(i18n.language),
+          })}
         </p>
       ) : (
         <p className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-          The package becomes a real, playable song — saved to your library, ready to publish.
+          {t("worldCreateDesk.audioPackageNote")}
         </p>
       )}
     </div>
@@ -241,6 +264,7 @@ export function PublishedReward(props: {
   title: string;
   jukeboxSent: boolean;
 }) {
+  const { t } = useTranslation();
   const { isLight } = props;
   return (
     <div
@@ -253,12 +277,12 @@ export function PublishedReward(props: {
     >
       <p className="flex items-center gap-2 text-sm font-black">
         <Trophy className="h-4 w-4 shrink-0 text-[#d4af37]" />
-        Unlocked — &ldquo;{props.title}&rdquo; is live on your profile
+        {t("worldCreateDesk.rewardUnlocked", { title: props.title })}
       </p>
       <p className={`mt-1 text-[11px] leading-relaxed ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
         {props.jukeboxSent
-          ? "Sent to the jukebox — walk into the Music Hall and the whole room hears your song."
-          : "The win screen is the room hearing it: tap \u201CPut it on the jukebox\u201D above and your song rides the Music Hall jukebox."}
+          ? t("worldCreateDesk.rewardJukeboxSent")
+          : t("worldCreateDesk.rewardJukeboxPrompt")}
       </p>
     </div>
   );
@@ -288,6 +312,7 @@ export function TextResult({ isLight, text, title }: { isLight: boolean; text: s
    → no chip. A failed snapshot → no chip (never a guess). */
 
 export function useQuestProgressChip() {
+  const { t } = useTranslation();
   const beforeRef = useRef<QuestProgress[] | null>(null);
   const [lines, setLines] = useState<string[]>([]);
   const authHeaders = useDeskAuthHeaders();
@@ -309,7 +334,18 @@ export function useQuestProgressChip() {
       if (!res.ok) return;
       const after = questsOfResponse(await res.json().catch(() => null));
       const advances = questAdvancesBetween(beforeRef.current, after);
-      if (advances.length > 0) setLines(advances.map(questChipLine));
+      if (advances.length > 0) {
+        /* The line templates ride the catalogs (worldCreateDesk.
+           questDone / questProgress); questChipLine stays the one
+           composer — it substitutes the quest's own title/progress
+           into whichever language's template it is handed. A bare
+           t() with no values leaves the {{...}} slots intact. */
+        const strings = {
+          completed: t("worldCreateDesk.questDone"),
+          progress: t("worldCreateDesk.questProgress"),
+        };
+        setLines(advances.map((a) => questChipLine(a, strings)));
+      }
     } catch {
       /* the chip is a celebration, never a blocker — silence on failure */
     }
@@ -371,10 +407,11 @@ async function computePeaks(source: File | string, bars = 48): Promise<number[] 
 }
 
 function WaveformBars({ peaks, active }: { peaks: number[] | null; active: boolean }) {
+  const { t } = useTranslation();
   if (!peaks) {
     return (
       <div className="flex h-14 items-center justify-center text-[11px] opacity-60">
-        Waveform unavailable — the audio still plays.
+        {t("worldCreateDesk.waveformUnavailable")}
       </div>
     );
   }
@@ -398,6 +435,7 @@ export function ABAudioPlayer(props: {
   beforeSource: File | string | null;
   afterUrl: string;
 }) {
+  const { t } = useTranslation();
   const { isLight } = props;
   const [side, setSide] = useState<ABSide>("after");
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
@@ -462,17 +500,17 @@ export function ABAudioPlayer(props: {
 
   return (
     <div data-testid="world-audio-ab-player" className="space-y-2">
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Before and after">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldCreateDesk.abAria")}>
         <button type="button" role="tab" aria-selected={shownSide === "before"} data-testid="world-audio-ab-before" onClick={() => flip("before")} disabled={!beforeUrl} className={tabCls(shownSide === "before")}>
-          Before — {props.beforeLabel}
+          {t("worldCreateDesk.abBefore", { label: props.beforeLabel })}
         </button>
         <button type="button" role="tab" aria-selected={shownSide === "after"} data-testid="world-audio-ab-after" onClick={() => flip("after")} className={tabCls(shownSide === "after")}>
-          After — {props.afterLabel}
+          {t("worldCreateDesk.abAfter", { label: props.afterLabel })}
         </button>
       </div>
       {!availability.before && (
         <p data-testid="world-audio-ab-before-gone" className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-          The original isn&rsquo;t at this desk anymore — only the {props.afterLabel} version can play, so there&rsquo;s nothing to compare against.
+          {t("worldCreateDesk.abBeforeGone", { label: props.afterLabel })}
         </p>
       )}
       <WaveformBars peaks={shownSide === "before" ? beforePeaks : afterPeaks} active />

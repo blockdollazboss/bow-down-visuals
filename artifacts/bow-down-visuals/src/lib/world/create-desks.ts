@@ -1960,12 +1960,31 @@ export function questAdvancesBetween(
   return out;
 }
 
-/** The chip's line for one advance — the completed form is the
- *  THE-GAME wording: the quest is named and the claim lives at the
- *  Treasury. */
-export function questChipLine(advance: QuestAdvance): string {
-  if (advance.completedNow) {
-    return `That finished your quest — “${advance.title}” is complete. Claim it at the Treasury.`;
-  }
-  return `Quest progress — “${advance.title}” is now ${advance.progress} of ${advance.target}.`;
+/** The chip's line templates — the completed form is the THE-GAME
+ *  wording: the quest is named and the claim lives at the Treasury.
+ *  The English pair below is the source text; the catalogs carry
+ *  the same templates under worldCreateDesk.questDone /
+ *  worldCreateDesk.questProgress, and the desk hook hands the
+ *  walker's language's pair in — this composer stays the single
+ *  place the quest's own title/progress/target are substituted. */
+export interface QuestChipLineStrings {
+  completed: string;
+  progress: string;
+}
+
+export const QUEST_CHIP_LINE_EN: QuestChipLineStrings = {
+  completed: "That finished your quest — “{{title}}” is complete. Claim it at the Treasury.",
+  progress: "Quest progress — “{{title}}” is now {{progress}} of {{target}}.",
+};
+
+/** The chip's line for one advance. */
+export function questChipLine(
+  advance: QuestAdvance,
+  strings: QuestChipLineStrings = QUEST_CHIP_LINE_EN,
+): string {
+  const template = advance.completedNow ? strings.completed : strings.progress;
+  return template
+    .replaceAll("{{title}}", advance.title)
+    .replaceAll("{{progress}}", String(advance.progress))
+    .replaceAll("{{target}}", String(advance.target));
 }
