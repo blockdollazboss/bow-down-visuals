@@ -42,7 +42,7 @@ import { useDeskAuthHeaders } from "./CreateDeskLeaf";
    the run from lib/world/create-desks' clipPlanCost. */
 
 /* The clip model shelf's display copy lives in the catalogs under
-   worldCreateDesk.clipModel* — keyed by the model's stable id, so
+   the clipModel* keys of the desk namespace — keyed by the model's stable id, so
    the lib registry's own label/blurb stay the payload-side data
    (mirrored from SceneStudio) while the picker renders the
    walker's language. */

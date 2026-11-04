@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
 import {
@@ -206,6 +207,7 @@ function useSongPublishRail(args: {
   genre: string;
   onJukeboxAdd: (trackId: string) => void;
 }) {
+  const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const [audioState, setAudioState] = useState<SongAudioState>("idle");
@@ -239,7 +241,7 @@ function useSongPublishRail(args: {
       songTitle: args.title,
     });
     if (!payload) {
-      setAudioError("This package has no music prompt to make audio from — make the song again.");
+      setAudioError(t("worldCreateDesk.audioNoPrompt"));
       setAudioState("failed");
       return;
     }
@@ -247,16 +249,16 @@ function useSongPublishRail(args: {
     setAudioError(null);
     try {
       const token = await getAccessToken();
-      if (!token) throw new Error("Sign in to make the audio.");
+      if (!token) throw new Error(t("worldCreateDesk.audioSignIn"));
       const resp = await generateMusicAudio(token, payload as unknown as GenerateMusicAudioRequest);
       if (!resp) return; // a confirmation was declined — nothing ran
       setAudioUrl(resp.url);
       setAudioState("done");
       refreshProfile();
     } catch (err) {
-      const msg = plainErrorText(err, "Audio generation failed.");
+      const msg = plainErrorText(err, t("worldCreateDesk.audioFailed"));
       setAudioError(
-        msg === "out_of_credits" ? "You're out of Visual Bucs — top up, then make the audio." : msg,
+        msg === "out_of_credits" ? t("worldCreateDesk.audioOutOfBucs") : msg,
       );
       setAudioState("failed");
     }
@@ -269,7 +271,7 @@ function useSongPublishRail(args: {
     try {
       const headers = await authHeaders();
       const profRes = await fetch("/api/creator-profiles", { headers });
-      if (!profRes.ok) throw new Error("Couldn't check your creator profile — try publishing again.");
+      if (!profRes.ok) throw new Error(t("worldCreateDesk.publishProfileCheckFailed"));
       const profileId = profileIdOfProfilesResponse(await profRes.json().catch(() => null));
       if (!profileId) {
         /* #48: the creation card opens right here (rendered by the
@@ -291,14 +293,14 @@ function useSongPublishRail(args: {
         ),
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(json, "Publishing didn't land — try again."));
+      if (!res.ok) throw new Error(apiErrorMessage(json, t("worldCreateDesk.publishFailed")));
       const trackId = publishedTrackIdOfResponse(json);
       if (!trackId) {
-        throw new Error("Publishing came back without your track — check your profile before trying again.");
+        throw new Error(t("worldCreateDesk.publishNoTrack"));
       }
       setPublishedTrackId(trackId);
     } catch (err) {
-      setPublishError(plainErrorText(err, "Publishing didn't land — try again."));
+      setPublishError(plainErrorText(err, t("worldCreateDesk.publishFailed")));
     } finally {
       setPublishBusy(false);
     }
@@ -335,6 +337,7 @@ const LENGTH_OPTIONS = ["", "30 seconds", "60 seconds", "2 minutes", "Full song"
 /* ─── Song Desk ────────────────────────────────────────────────────── */
 
 export function SongDesk(props: CreateDeskProps) {
+  const { t, i18n } = useTranslation();
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmSpend } = useCreditConfirm();
@@ -434,15 +437,15 @@ export function SongDesk(props: CreateDeskProps) {
       form.append(TRANSCRIBE_FORM_FIELD, file);
       const res = await fetch("/api/transcribe", { method: "POST", headers: await authHeaders(), body: form });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Transcription failed."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreateDesk.transcriptionFailed")));
       const transcript = transcriptOfResponse(data);
-      if (!transcript) throw new Error("The transcription came back empty — paste the words instead.");
+      if (!transcript) throw new Error(t("worldCreateDesk.transcriptionEmpty"));
       setActiveStarterId(null);
       setPrompt(transcript.slice(0, 2000));
-      setIntakeNote("Transcribed — the words are in the prompt below, ready to make the song.");
+      setIntakeNote(t("worldCreateDesk.transcribedNote"));
       refreshProfile();
     } catch (err) {
-      setIntakeNote(plainErrorText(err, "Transcription failed."));
+      setIntakeNote(plainErrorText(err, t("worldCreateDesk.transcriptionFailed")));
     } finally {
       setIntakeBusy(false);
     }
@@ -466,7 +469,7 @@ export function SongDesk(props: CreateDeskProps) {
          leg ever charged. */
       const confirmed = await confirmSpend({
         cost: deskTotalCost,
-        feature: "Make the song — package + real audio",
+        feature: t("worldCreateDesk.confirmSongFeature"),
       });
       if (!confirmed) {
         setState("idle");
@@ -476,20 +479,20 @@ export function SongDesk(props: CreateDeskProps) {
       const base = useAdvanced ? buildSongPayloadAdvanced(prompt, adv) : buildSongPayloadTurbo(prompt);
       const payload = vaultRaw ? withArtistVault(base, vaultRaw) : base;
       const result = await callGenerateApi("/api/generate-song", payload, token);
-      if (!result) throw new Error("The song make didn't start.");
+      if (!result) throw new Error(t("worldCreateDesk.songStartFailed"));
       setRawResult(result.rawResult);
       setGenHistoryId(result.genHistoryId ?? null);
       if (result.creditsRemaining !== undefined) refreshProfile();
       setState("done");
       void quest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "Song generation failed."));
+      setError(plainErrorText(err, t("worldCreateDesk.songFailed")));
       setState("failed");
     }
   };
 
   const pkg = rawResult ? extractSongPackage(rawResult) : null;
-  const title = adv.songTitle || pkg?.bestTitle || "Your song";
+  const title = adv.songTitle || pkg?.bestTitle || t("worldCreateDesk.yourSong");
   const rail = useSongPublishRail({
     rawResult,
     artistName: adv.artistName,
@@ -510,11 +513,11 @@ export function SongDesk(props: CreateDeskProps) {
   if (tab !== "create") {
     return (
       <div className="space-y-3" data-testid="world-create-song-desk">
-        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Song Desk tabs">
-          <button type="button" role="tab" aria-selected={false} onClick={() => setTab("create")} className={songTabBtn(false)}>Create</button>
-          <button type="button" role="tab" aria-selected={tab === "inspo"} onClick={() => setTab("inspo")} className={songTabBtn(tab === "inspo")}>Inspo</button>
-          <button type="button" role="tab" aria-selected={tab === "mashup"} onClick={() => setTab("mashup")} className={songTabBtn(tab === "mashup")}>Mashup</button>
-          <button type="button" role="tab" aria-selected={tab === "hum"} onClick={() => setTab("hum")} className={songTabBtn(tab === "hum")}>Hum to Song</button>
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldCreateDesk.tabsAria")}>
+          <button type="button" role="tab" aria-selected={false} onClick={() => setTab("create")} className={songTabBtn(false)}>{t("worldCreateDesk.tabCreate")}</button>
+          <button type="button" role="tab" aria-selected={tab === "inspo"} onClick={() => setTab("inspo")} className={songTabBtn(tab === "inspo")}>{t("worldCreateDesk.tabInspo")}</button>
+          <button type="button" role="tab" aria-selected={tab === "mashup"} onClick={() => setTab("mashup")} className={songTabBtn(tab === "mashup")}>{t("worldCreateDesk.tabMashup")}</button>
+          <button type="button" role="tab" aria-selected={tab === "hum"} onClick={() => setTab("hum")} className={songTabBtn(tab === "hum")}>{t("worldCreateDesk.tabHum")}</button>
         </div>
         {tab === "inspo" ? <SongInspoBench isLight={isLight} /> : tab === "mashup" ? <SongMashupBench isLight={isLight} /> : <SongHumBench isLight={isLight} />}
       </div>
@@ -523,24 +526,24 @@ export function SongDesk(props: CreateDeskProps) {
 
   return (
     <div className="space-y-3" data-testid="world-create-song-desk">
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Song Desk tabs">
-        <button type="button" role="tab" aria-selected={true} onClick={() => setTab("create")} className={songTabBtn(true)}>Create</button>
-        <button type="button" role="tab" aria-selected={false} onClick={() => setTab("inspo")} className={songTabBtn(false)}>Inspo</button>
-        <button type="button" role="tab" aria-selected={false} onClick={() => setTab("mashup")} className={songTabBtn(false)}>Mashup</button>
-        <button type="button" role="tab" aria-selected={false} onClick={() => setTab("hum")} className={songTabBtn(false)}>Hum to Song</button>
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldCreateDesk.tabsAria")}>
+        <button type="button" role="tab" aria-selected={true} onClick={() => setTab("create")} className={songTabBtn(true)}>{t("worldCreateDesk.tabCreate")}</button>
+        <button type="button" role="tab" aria-selected={false} onClick={() => setTab("inspo")} className={songTabBtn(false)}>{t("worldCreateDesk.tabInspo")}</button>
+        <button type="button" role="tab" aria-selected={false} onClick={() => setTab("mashup")} className={songTabBtn(false)}>{t("worldCreateDesk.tabMashup")}</button>
+        <button type="button" role="tab" aria-selected={false} onClick={() => setTab("hum")} className={songTabBtn(false)}>{t("worldCreateDesk.tabHum")}</button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {vaults.length > 0 ? (
           <DeskSelectField
             isLight={isLight}
-            label="Artist Vault preset"
+            label={t("worldCreateDesk.vaultPresetLabel")}
             value={typeof vaultRaw?.["id"] === "string" ? (vaultRaw["id"] as string) : ""}
             onChange={(v) => void loadVault(v)}
-            options={[{ value: "", label: "No preset" }, ...vaults.map((v) => ({ value: v.id, label: v.artistName }))]}
+            options={[{ value: "", label: t("worldCreateDesk.noPreset") }, ...vaults.map((v) => ({ value: v.id, label: v.artistName }))]}
           />
         ) : null}
         <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
-          {intakeBusy ? "Transcribing…" : `Upload a song + transcribe · ${transcribeCostLabel()}`}
+          {intakeBusy ? t("worldCreateDesk.transcribing") : `Upload a song + transcribe · ${transcribeCostLabel()}`}
           <input type="file" accept="audio/*" className="hidden" data-testid="world-song-intake-upload" onChange={(e) => { const f = e.target.files?.[0]; if (f) void intakeFile(f); }} />
         </label>
         {intakeNote ? <span className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>{intakeNote}</span> : null}
@@ -551,7 +554,7 @@ export function SongDesk(props: CreateDeskProps) {
           else; the desk's price line below still prices the run. */}
       <div className="space-y-2" data-testid="world-song-starters">
         <p className={`text-[11px] font-black uppercase tracking-wider ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}>
-          Starters — one tap fills the desk in
+          {t("worldCreateDesk.startersHeading")}
         </p>
         {SONG_PRESET_GROUPS.map((group) => (
           <div key={group.id} className="space-y-1.5">
@@ -573,37 +576,35 @@ export function SongDesk(props: CreateDeskProps) {
           </div>
         ))}
         <p className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/45"}`}>
-          A starter only fills the desk in — nothing runs and nothing is charged until you tap Make the song.
+          {t("worldCreateDesk.startersNote")}
         </p>
       </div>
       <AdvancedExpander isLight={isLight}>
         <div className="grid gap-3 sm:grid-cols-2">
-          <DeskTextField isLight={isLight} label="Artist name" value={adv.artistName} onChange={set("artistName")} />
-          <DeskTextField isLight={isLight} label="Song title" value={adv.songTitle} onChange={set("songTitle")} />
-          <DeskSelectField isLight={isLight} label="Genre" value={adv.genre} onChange={set("genre")} options={GENRE_OPTIONS.map((g) => ({ value: g, label: g || "Turbo picks" }))} />
-          <DeskSelectField isLight={isLight} label="Mood" value={adv.mood} onChange={set("mood")} options={MOOD_OPTIONS.map((m) => ({ value: m, label: m || "Turbo picks" }))} />
-          <DeskSelectField isLight={isLight} label="Clean or explicit" value={adv.cleanOrExplicit} onChange={set("cleanOrExplicit")} options={[{ value: "", label: "Turbo picks" }, { value: "Clean", label: "Clean" }, { value: "Explicit", label: "Explicit" }]} />
-          <DeskSelectField isLight={isLight} label="Song length" value={adv.songLength} onChange={set("songLength")} options={LENGTH_OPTIONS.map((l) => ({ value: l, label: l || "Turbo picks" }))} />
-          <DeskTextField isLight={isLight} label="Voice style" value={adv.voiceStyle} onChange={set("voiceStyle")} />
-          <DeskTextField isLight={isLight} label="Beat style" value={adv.beatStyle} onChange={set("beatStyle")} />
+          <DeskTextField isLight={isLight} label={t("worldCreateDesk.artistNameLabel")} value={adv.artistName} onChange={set("artistName")} />
+          <DeskTextField isLight={isLight} label={t("worldCreateDesk.songTitleLabel")} value={adv.songTitle} onChange={set("songTitle")} />
+          <DeskSelectField isLight={isLight} label={t("worldCreateDesk.genreLabel")} value={adv.genre} onChange={set("genre")} options={GENRE_OPTIONS.map((g) => ({ value: g, label: g || t("worldCreateDesk.turboPicks") }))} />
+          <DeskSelectField isLight={isLight} label={t("worldCreateDesk.moodLabel")} value={adv.mood} onChange={set("mood")} options={MOOD_OPTIONS.map((m) => ({ value: m, label: m || t("worldCreateDesk.turboPicks") }))} />
+          <DeskSelectField isLight={isLight} label={t("worldCreateDesk.cleanExplicitLabel")} value={adv.cleanOrExplicit} onChange={set("cleanOrExplicit")} options={[{ value: "", label: t("worldCreateDesk.turboPicks") }, { value: "Clean", label: t("worldCreateDesk.cleanLabel") }, { value: "Explicit", label: t("worldCreateDesk.explicitLabel") }]} />
+          <DeskSelectField isLight={isLight} label={t("worldCreateDesk.songLengthLabel")} value={adv.songLength} onChange={set("songLength")} options={LENGTH_OPTIONS.map((l) => ({ value: l, label: l || t("worldCreateDesk.turboPicks") }))} />
+          <DeskTextField isLight={isLight} label={t("worldCreateDesk.voiceStyleLabel")} value={adv.voiceStyle} onChange={set("voiceStyle")} />
+          <DeskTextField isLight={isLight} label={t("worldCreateDesk.beatStyleLabel")} value={adv.beatStyle} onChange={set("beatStyle")} />
         </div>
-        <DeskTextField isLight={isLight} label="Special instructions" value={adv.specialInstructions} onChange={set("specialInstructions")} />
+        <DeskTextField isLight={isLight} label={t("worldCreateDesk.specialInstructionsLabel")} value={adv.specialInstructions} onChange={set("specialInstructions")} />
       </AdvancedExpander>
       <p className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-        One price for the whole song — the package plus the real audio,{" "}
-        {deskTotalCost.toLocaleString("en-US")} Visual Bucs, confirmed once before anything runs.
-        Each part charges only when it lands.
+        {t("worldCreateDesk.songOnePrice", { total: deskTotalCost.toLocaleString(i18n.language) })}
       </p>
       <CreateDeskRunner
         isLight={isLight}
-        promptLabel="Describe the song"
+        promptLabel={t("worldCreateDesk.describeSong")}
         prompt={prompt}
         onPromptChange={editPrompt}
         costVisualBucs={deskTotalCost}
         state={state}
         errorMessage={error}
         onRun={run}
-        runLabel="Make the song"
+        runLabel={t("worldCreateDesk.makeSong")}
         result={
           rawResult ? (
             <div>
@@ -635,7 +636,7 @@ export function SongDesk(props: CreateDeskProps) {
                       isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
                     }`}
                   >
-                    Make a cover · {songCoverCost().toLocaleString("en-US")} Visual Bucs
+                    {t("worldCreateDesk.makeCoverCost", { cost: songCoverCost().toLocaleString(i18n.language) })}
                   </button>
                   {lrcSourceForSong({ audioUrl: rail.audioUrl, title, artistName: adv.artistName, rawResult }) ? (
                     <button
@@ -646,7 +647,7 @@ export function SongDesk(props: CreateDeskProps) {
                         isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
                       }`}
                     >
-                      Synced lyrics (.lrc) · free to tap-sync, {LRC_AI_ALIGN_CREDITS} Visual Bucs to auto-align
+                      {t("worldCreateDesk.lrcButton", { cost: LRC_AI_ALIGN_CREDITS })}
                     </button>
                   ) : null}
                   <CoverSongModal
@@ -714,7 +715,7 @@ export function SongDesk(props: CreateDeskProps) {
                 <div className="mt-3" data-testid="world-create-profile-gate">
                   <CreatorProfileCreateCard isLight={isLight} compact onCreated={() => rail.profileCreated()} />
                   <p className={`mt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                    Once your profile exists, tap Publish again — the song lands on it without leaving this desk.
+                    {t("worldCreateDesk.profileGateNote")}
                   </p>
                 </div>
               ) : null}
@@ -722,8 +723,7 @@ export function SongDesk(props: CreateDeskProps) {
                 <PublishedReward isLight={isLight} title={title} jukeboxSent={rail.jukeboxSent} />
               ) : (
                 <p className={`mt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                  The full package — lyrics, hook, video idea and cover prompt — rides the draft and the editor seed.
-                  Make the audio, publish it to your profile right here, and the jukebox chip lights up.
+                  {t("worldCreateDesk.fullPackageNote")}
                 </p>
               )}
               <QuestProgressChip isLight={isLight} lines={quest.lines} />
@@ -738,6 +738,7 @@ export function SongDesk(props: CreateDeskProps) {
 /* ─── Song + Video Desk ────────────────────────────────────────────── */
 
 export function SongVideoDesk(props: CreateDeskProps) {
+  const { t } = useTranslation();
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
   const [prompt, setPrompt] = useState("");
@@ -763,20 +764,20 @@ export function SongVideoDesk(props: CreateDeskProps) {
       const token = await getAccessToken();
       const payload = useAdvanced ? buildSongVideoPayloadAdvanced(prompt, adv) : buildSongVideoPayloadTurbo(prompt);
       const result = await callGenerateApi("/api/generate-song-video", payload, token);
-      if (!result) throw new Error("The song + video make didn't start.");
+      if (!result) throw new Error(t("worldCreateDesk.songVideoStartFailed"));
       setRawResult(result.rawResult);
       setGenHistoryId(result.genHistoryId ?? null);
       if (result.creditsRemaining !== undefined) refreshProfile();
       setState("done");
       void quest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "Song + video generation failed."));
+      setError(plainErrorText(err, t("worldCreateDesk.songVideoFailed")));
       setState("failed");
     }
   };
 
   const pkg = rawResult ? extractSongPackage(rawResult) : null;
-  const title = adv.songTitle || pkg?.bestTitle || "Your song + video";
+  const title = adv.songTitle || pkg?.bestTitle || t("worldCreateDesk.yourSongVideo");
   /* The song+video package carries the same AI MUSIC PROMPT + lyrics
      as a Song Desk package, so the publish rail applies identically:
      make the audio, publish the song to the profile, light the
@@ -794,27 +795,27 @@ export function SongVideoDesk(props: CreateDeskProps) {
     <div className="space-y-3" data-testid="world-create-song-video-desk">
       <AdvancedExpander isLight={isLight}>
         <div className="grid gap-3 sm:grid-cols-2">
-          <DeskTextField isLight={isLight} label="Artist name" value={adv.artistName} onChange={set("artistName")} />
-          <DeskTextField isLight={isLight} label="Song title" value={adv.songTitle} onChange={set("songTitle")} />
-          <DeskSelectField isLight={isLight} label="Genre" value={adv.genre} onChange={set("genre")} options={GENRE_OPTIONS.map((g) => ({ value: g, label: g || "Turbo picks" }))} />
-          <DeskSelectField isLight={isLight} label="Mood" value={adv.mood} onChange={set("mood")} options={MOOD_OPTIONS.map((m) => ({ value: m, label: m || "Turbo picks" }))} />
-          <DeskTextField isLight={isLight} label="Video style" value={adv.videoStyle} onChange={set("videoStyle")} />
-          <DeskTextField isLight={isLight} label="Platform" value={adv.platform} onChange={set("platform")} placeholder="TikTok / Reels / Shorts - 9:16" />
-          <DeskTextField isLight={isLight} label="Voice style" value={adv.voiceStyle} onChange={set("voiceStyle")} />
-          <DeskTextField isLight={isLight} label="Beat style" value={adv.beatStyle} onChange={set("beatStyle")} />
+          <DeskTextField isLight={isLight} label={t("worldCreateDesk.artistNameLabel")} value={adv.artistName} onChange={set("artistName")} />
+          <DeskTextField isLight={isLight} label={t("worldCreateDesk.songTitleLabel")} value={adv.songTitle} onChange={set("songTitle")} />
+          <DeskSelectField isLight={isLight} label={t("worldCreateDesk.genreLabel")} value={adv.genre} onChange={set("genre")} options={GENRE_OPTIONS.map((g) => ({ value: g, label: g || t("worldCreateDesk.turboPicks") }))} />
+          <DeskSelectField isLight={isLight} label={t("worldCreateDesk.moodLabel")} value={adv.mood} onChange={set("mood")} options={MOOD_OPTIONS.map((m) => ({ value: m, label: m || t("worldCreateDesk.turboPicks") }))} />
+          <DeskTextField isLight={isLight} label={t("worldCreateDesk.videoStyleLabel")} value={adv.videoStyle} onChange={set("videoStyle")} />
+          <DeskTextField isLight={isLight} label={t("worldCreateDesk.platformLabel")} value={adv.platform} onChange={set("platform")} placeholder="TikTok / Reels / Shorts - 9:16" />
+          <DeskTextField isLight={isLight} label={t("worldCreateDesk.voiceStyleLabel")} value={adv.voiceStyle} onChange={set("voiceStyle")} />
+          <DeskTextField isLight={isLight} label={t("worldCreateDesk.beatStyleLabel")} value={adv.beatStyle} onChange={set("beatStyle")} />
         </div>
-        <DeskTextField isLight={isLight} label="Special instructions" value={adv.specialInstructions} onChange={set("specialInstructions")} />
+        <DeskTextField isLight={isLight} label={t("worldCreateDesk.specialInstructionsLabel")} value={adv.specialInstructions} onChange={set("specialInstructions")} />
       </AdvancedExpander>
       <CreateDeskRunner
         isLight={isLight}
-        promptLabel="Describe the song and its video"
+        promptLabel={t("worldCreateDesk.describeSongVideo")}
         prompt={prompt}
         onPromptChange={setPrompt}
         costVisualBucs={songVideoDeskCost()}
         state={state}
         errorMessage={error}
         onRun={run}
-        runLabel="Make song + video"
+        runLabel={t("worldCreateDesk.makeSongVideo")}
         result={
           rawResult ? (
             <div>
@@ -870,7 +871,7 @@ export function SongVideoDesk(props: CreateDeskProps) {
                 <div className="mt-3" data-testid="world-create-profile-gate">
                   <CreatorProfileCreateCard isLight={isLight} compact onCreated={() => rail.profileCreated()} />
                   <p className={`mt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                    Once your profile exists, tap Publish again — the song lands on it without leaving this desk.
+                    {t("worldCreateDesk.profileGateNote")}
                   </p>
                 </div>
               ) : null}
@@ -923,6 +924,7 @@ function SongVideoWizard(props: {
   onSendToEditor?: (payload: Record<string, unknown>) => void;
   editorBusy?: boolean;
 }) {
+  const { t, i18n } = useTranslation();
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
@@ -962,13 +964,13 @@ function SongVideoWizard(props: {
       form.append(TRANSCRIBE_FORM_FIELD, file);
       const res = await fetch("/api/transcribe", { method: "POST", headers: await authHeaders(), body: form });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Transcription failed."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreateDesk.transcriptionFailed")));
       const text = transcriptOfResponse(data);
-      if (!text) throw new Error("We couldn't auto-transcribe this audio — paste the lyrics below to continue.");
+      if (!text) throw new Error(t("worldCreateDesk.wizardTranscribeEmpty"));
       setTranscript(text);
       refreshProfile();
     } catch (err) {
-      setError(plainErrorText(err, "Transcription failed."));
+      setError(plainErrorText(err, t("worldCreateDesk.transcriptionFailed")));
     } finally {
       setTranscribing(false);
     }
@@ -993,13 +995,13 @@ function SongVideoWizard(props: {
         setScenes(flow.scenes);
       } else if (props.packageResult) {
         const parsed = parseScenes(extractBreakdownContent(props.packageResult));
-        if (parsed.length === 0) throw new Error("The package came back without scenes — add more detail and make it again.");
+        if (parsed.length === 0) throw new Error(t("worldCreateDesk.scenesNone"));
         setScenes(parsed);
       } else {
-        throw new Error("Upload a song or make the package above first — scenes come from one of those.");
+        throw new Error(t("worldCreateDesk.scenesNeedSource"));
       }
     } catch (err) {
-      setError(plainErrorText(err, "Scene building failed."));
+      setError(plainErrorText(err, t("worldCreateDesk.sceneBuildingFailed")));
     } finally {
       setBusy(null);
     }
@@ -1033,7 +1035,7 @@ function SongVideoWizard(props: {
         ),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "The edit plan didn't land."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreateDesk.editPlanFailed")));
       const plan = aiEditPlanOfResponse(data);
       if (plan) {
         settings = {
@@ -1047,7 +1049,7 @@ function SongVideoWizard(props: {
       refreshProfile();
       void token;
     } catch (err) {
-      setError(plainErrorText(err, "The edit plan didn't land — the package still saves without it."));
+      setError(plainErrorText(err, t("worldCreateDesk.editPlanFailedSave")));
     } finally {
       setBusy(null);
     }
@@ -1069,7 +1071,7 @@ function SongVideoWizard(props: {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(buildRunwayClipPayload(scenePrompt, scene.negativePrompt ?? "", clipSettings)),
           overrideCost: clipPlanCost(clipSettings),
-          overrideFeature: "Generate Video Clip",
+          overrideFeature: t("worldCreateDesk.confirmClipFeature"),
         });
         if (!res) {
           /* The member declined the price — nothing ran. */
@@ -1077,7 +1079,7 @@ function SongVideoWizard(props: {
           return;
         }
         const data = (await res.json().catch(() => ({}))) as { taskId?: string; error?: string; message?: string };
-        if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, "The clip make didn't start."));
+        if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, t("worldCreateDesk.clipMakeStartFailed")));
         const taskId = data.taskId;
         clipPollRef.current = setInterval(async () => {
           try {
@@ -1088,7 +1090,7 @@ function SongVideoWizard(props: {
               if (clipPollRef.current) clearInterval(clipPollRef.current);
               setClipBusy(null);
               if (read.failed || !read.url) {
-                setError(apiErrorMessage(read, "Clip generation failed."));
+                setError(apiErrorMessage(read, t("worldCreateDesk.clipFailed")));
               } else {
                 setScenes((prev) => withSceneClip(prev, scene.id, read.url!));
                 refreshProfile();
@@ -1107,12 +1109,12 @@ function SongVideoWizard(props: {
           } catch {
             if (clipPollRef.current) clearInterval(clipPollRef.current);
             setClipBusy(null);
-            setError("Network error while the clip was making.");
+            setError(t("worldCreateDesk.clipNetworkError"));
           }
         }, 5000);
       } catch (err) {
         setClipBusy(null);
-        setError(plainErrorText(err, "Clip generation failed."));
+        setError(plainErrorText(err, t("worldCreateDesk.clipFailed")));
       }
     })();
   };
@@ -1145,11 +1147,11 @@ function SongVideoWizard(props: {
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify(packagePayload()),
       });
-      if (!res.ok) throw new Error("Saving the package didn't land — try again.");
+      if (!res.ok) throw new Error(t("worldCreateDesk.savePackageFailed"));
       setSaved(true);
       void quest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "Saving the package failed."));
+      setError(plainErrorText(err, t("worldCreateDesk.savePackageFailedFallback")));
     } finally {
       setBusy(null);
     }
@@ -1158,21 +1160,21 @@ function SongVideoWizard(props: {
   return (
     <div data-testid="world-song-video-wizard" className={`space-y-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
       <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-        Finish the package — upload, scenes, auto-edit
+        {t("worldCreateDesk.wizardHeading")}
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <label className={chipCls}>
-          {audioFile ? `Song file: ${audioFile.name}` : `Upload the song — auto-transcribes · ${transcribeCostLabel()}`}
+          {audioFile ? t("worldCreateDesk.wizardSongFile", { name: audioFile.name }) : `Upload the song — auto-transcribes · ${transcribeCostLabel()}`}
           <input type="file" accept="audio/*" className="hidden" data-testid="world-song-video-intake" onChange={(e) => { const f = e.target.files?.[0]; if (f) void intake(f); }} />
         </label>
-        {transcribing ? <span className={`text-xs font-semibold ${muted}`}>Transcribing…</span> : null}
+        {transcribing ? <span className={`text-xs font-semibold ${muted}`}>{t("worldCreateDesk.transcribing")}</span> : null}
       </div>
       <label className="block">
-        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Lyrics (from the transcription, or paste your own)</span>
+        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldCreateDesk.lyricsLabel")}</span>
         <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} rows={3} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
       </label>
       <button type="button" data-testid="world-song-video-build-scenes" onClick={() => void buildScenes()} disabled={busy !== null || (!audioUrl && !props.packageResult)} className={chipCls}>
-        {busy === "scenes" ? "Building scenes…" : audioUrl ? `Build scenes from my song · includes analysis ${analyzeSectionsCost().toLocaleString("en-US")} Visual Bucs` : "Review the package's scenes · Free"}
+        {busy === "scenes" ? t("worldCreateDesk.buildScenesBusy") : audioUrl ? t("worldCreateDesk.buildScenesCost", { cost: analyzeSectionsCost().toLocaleString(i18n.language) }) : t("worldCreateDesk.buildScenesFree")}
       </button>
       {scenes.length > 0 ? (
         <div className="space-y-2" data-testid="world-song-video-scene-review">
@@ -1180,22 +1182,22 @@ function SongVideoWizard(props: {
           {scenes.map((scene) => (
             <div key={scene.id} className={`rounded-xl border p-2.5 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-black">Scene {scene.sceneNumber}</span>
+                <span className="text-xs font-black">{t("worldCreateDesk.sceneLabel", { number: scene.sceneNumber })}</span>
                 <span className={`text-[11px] ${muted}`}>{scene.section} · {scene.lyricLine || scene.action}</span>
                 <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold bdv-touch-target">
                   <input type="checkbox" checked={scene.approved} onChange={(e) => setScenes((prev) => withSceneApproval(prev, scene.id, e.target.checked))} />
-                  Keep
+                  {t("worldCreateDesk.keepLabel")}
                 </label>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {scene.demoClipUrl ? (
-                  <span className="text-xs font-bold text-emerald-500">Clip made — saved to My Clips</span>
+                  <span className="text-xs font-bold text-emerald-500">{t("worldCreateDesk.clipMade")}</span>
                 ) : scene.approved ? (
                   <button type="button" data-testid="world-song-video-make-clip" onClick={() => makeSceneClip(scene)} disabled={clipBusy !== null} className={chipCls}>
-                    {clipBusy === scene.id ? "Making the clip…" : `Make this clip · ${clipPlanCost(clipSettings).toLocaleString("en-US")} Visual Bucs`}
+                    {clipBusy === scene.id ? t("worldCreateDesk.makingClip") : t("worldCreateDesk.makeClipCost", { cost: clipPlanCost(clipSettings).toLocaleString(i18n.language) })}
                   </button>
                 ) : (
-                  <span className={`text-[11px] ${muted}`}>Keep it to film it.</span>
+                  <span className={`text-[11px] ${muted}`}>{t("worldCreateDesk.keepToFilm")}</span>
                 )}
               </div>
               {scene.demoClipUrl ? <video src={scene.demoClipUrl} controls playsInline className="mt-2 max-h-[200px] w-full rounded-lg" /> : null}
@@ -1203,18 +1205,18 @@ function SongVideoWizard(props: {
           ))}
           <div className="flex flex-wrap gap-2">
             <button type="button" data-testid="world-song-video-apply-plan" onClick={() => void applyPlan()} disabled={busy !== null} className={chipCls}>
-              {busy === "plan" ? "Applying…" : planApplied ? "Auto-edit plan applied ✓" : `Apply the auto-edit plan · ${aiEditPlanCost().toLocaleString("en-US")} Visual Bucs`}
+              {busy === "plan" ? t("worldCreateDesk.applyingPlan") : planApplied ? t("worldCreateDesk.planApplied") : t("worldCreateDesk.applyPlanCost", { cost: aiEditPlanCost().toLocaleString(i18n.language) })}
             </button>
             <button type="button" data-testid="world-song-video-save" onClick={() => void savePackage()} disabled={busy !== null} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
-              {busy === "save" ? "Saving…" : "Save the finished package"}
+              {busy === "save" ? t("worldCreateDesk.saving") : t("worldCreateDesk.savePackage")}
             </button>
             {props.onSendToEditor ? (
               <button type="button" data-testid="world-song-video-editor" onClick={() => props.onSendToEditor?.(packagePayload())} disabled={busy !== null || props.editorBusy} className={chipCls}>
-                Open in the editor
+                {t("worldCreateDesk.openInEditor")}
               </button>
             ) : null}
           </div>
-          {saved ? <p className={`text-xs font-semibold ${muted}`}>Saved — the finished package is a project now{planApplied ? ", auto-edit plan riding inside it" : ""}. Its clips are already in My Clips.</p> : null}
+          {saved ? <p className={`text-xs font-semibold ${muted}`}>{planApplied ? t("worldCreateDesk.savedNoteWithPlan") : t("worldCreateDesk.savedNote")}</p> : null}
         </div>
       ) : null}
       {error ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p> : null}
@@ -1226,6 +1228,7 @@ function SongVideoWizard(props: {
 /* ─── Video Desk ───────────────────────────────────────────────────── */
 
 export function VideoDesk(props: CreateDeskProps) {
+  const { t, i18n } = useTranslation();
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
@@ -1263,7 +1266,7 @@ export function VideoDesk(props: CreateDeskProps) {
         if (read.done) {
           stopPolling();
           if (read.failed || !read.url) {
-            setError(apiErrorMessage(read, "Clip generation failed."));
+            setError(apiErrorMessage(read, t("worldCreateDesk.clipFailed")));
             setState("failed");
           } else {
             setClipUrl(read.url);
@@ -1286,7 +1289,7 @@ export function VideoDesk(props: CreateDeskProps) {
         }
       } catch {
         stopPolling();
-        setError("Network error while the clip was making — check the desk again in a moment.");
+        setError(t("worldCreateDesk.clipNetworkErrorLong"));
         setState("failed");
       }
     }, 5000);
@@ -1308,7 +1311,7 @@ export function VideoDesk(props: CreateDeskProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildRunwayClipPayload(prompt, negativePrompt, clipSettings)),
         overrideCost: clipPlanCost(clipSettings),
-        overrideFeature: "Generate Video Clip",
+        overrideFeature: t("worldCreateDesk.confirmClipFeature"),
       });
       if (!res) {
         /* The member declined the price — nothing ran. */
@@ -1316,10 +1319,10 @@ export function VideoDesk(props: CreateDeskProps) {
         return;
       }
       const data = (await res.json().catch(() => ({}))) as { taskId?: string; error?: string; message?: string };
-      if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, "The clip make didn't start."));
+      if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, t("worldCreateDesk.clipMakeStartFailed")));
       startPolling(data.taskId);
     } catch (err) {
-      setError(plainErrorText(err, "Clip generation failed."));
+      setError(plainErrorText(err, t("worldCreateDesk.clipFailed")));
       setState("failed");
     }
   };
@@ -1331,12 +1334,12 @@ export function VideoDesk(props: CreateDeskProps) {
     try {
       const token = await getAccessToken();
       const result = await callGenerateApi("/api/generate-video-plan", buildVideoPlanPayload(prompt), token);
-      if (!result) throw new Error("The plan didn't start.");
+      if (!result) throw new Error(t("worldCreateDesk.planStartFailed"));
       setPlanText(result.rawResult);
       if (result.creditsRemaining !== undefined) refreshProfile();
       setPlanState("done");
     } catch (err) {
-      setPlanError(plainErrorText(err, "Video plan failed."));
+      setPlanError(plainErrorText(err, t("worldCreateDesk.videoPlanFailed")));
       setPlanState("failed");
     }
   };
@@ -1344,7 +1347,7 @@ export function VideoDesk(props: CreateDeskProps) {
   return (
     <div className="space-y-3" data-testid="world-create-video-desk">
       <AdvancedExpander isLight={isLight}>
-        <DeskTextField isLight={isLight} label="Keep out of the clip (negative prompt)" value={negativePrompt} onChange={setNegativePrompt} />
+        <DeskTextField isLight={isLight} label={t("worldCreateDesk.negativePromptLabel")} value={negativePrompt} onChange={setNegativePrompt} />
         <div className="space-y-2">
           <button
             type="button"
@@ -1355,37 +1358,37 @@ export function VideoDesk(props: CreateDeskProps) {
               isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"
             }`}
           >
-            {planState === "running" ? "Planning…" : `Draft a video plan first · ${videoPlanCost().toLocaleString("en-US")} Visual Bucs`}
+            {planState === "running" ? t("worldCreateDesk.planning") : t("worldCreateDesk.draftPlanCost", { cost: videoPlanCost().toLocaleString(i18n.language) })}
           </button>
           {planState === "failed" && planError ? (
             <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{planError}</p>
           ) : null}
-          {planText ? <TextResult isLight={isLight} title="Your video plan" text={resultExcerpt(planText)} /> : null}
+          {planText ? <TextResult isLight={isLight} title={t("worldCreateDesk.yourVideoPlan")} text={resultExcerpt(planText)} /> : null}
         </div>
       </AdvancedExpander>
       <ClipModelPicker isLight={isLight} settings={clipSettings} onChange={setClipSettings} />
       <CreateDeskRunner
         isLight={isLight}
-        promptLabel="Describe the clip"
+        promptLabel={t("worldCreateDesk.describeClip")}
         prompt={prompt}
         onPromptChange={setPrompt}
         costVisualBucs={clipPlanCost(clipSettings)}
         state={state}
         errorMessage={error}
         onRun={run}
-        runLabel="Make the clip"
+        runLabel={t("worldCreateDesk.makeClip")}
         result={
           clipUrl ? (
             <div>
-              <VideoResult url={clipUrl} title="Your clip" />
+              <VideoResult url={clipUrl} title={t("worldCreateDesk.yourClip")} />
               {librarySaved !== null ? (
                 <p
                   data-testid="world-create-clip-library-note"
                   className={`mt-2 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}
                 >
                   {librarySaved
-                    ? "Saved to My Clips — it lives in your library now, not just this panel."
-                    : "The library save didn't land — Send it to the editor below to keep this clip."}
+                    ? t("worldCreateDesk.clipLibrarySaved")
+                    : t("worldCreateDesk.clipLibraryFailed")}
                 </p>
               ) : null}
               <ResultChips
@@ -1404,7 +1407,7 @@ export function VideoDesk(props: CreateDeskProps) {
                     : undefined
                 }
                 editorBusy={editor.busy}
-                schedulePrefill={schedulePrefillForMedia(clipUrl, "video", "My new clip — made with Bow Down Visuals")}
+                schedulePrefill={schedulePrefillForMedia(clipUrl, "video", t("worldCreateDesk.scheduleClipCaption"))}
                 onMakeAnother={() => {
                   setState("idle");
                   setClipUrl(null);
@@ -1417,7 +1420,9 @@ export function VideoDesk(props: CreateDeskProps) {
       />
       {state === "running" && (
         <p className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-          Making your clip{progress !== null ? ` — ${Math.round(progress)}%` : ""}…
+          {progress !== null
+            ? t("worldCreateDesk.clipMakingPct", { pct: Math.round(progress) })
+            : t("worldCreateDesk.clipMaking")}
         </p>
       )}
       <StoryboardBench
@@ -1450,6 +1455,7 @@ export function VideoDesk(props: CreateDeskProps) {
 /* ─── Cover Art Desk ───────────────────────────────────────────────── */
 
 export function CoverArtDesk(props: CreateDeskProps) {
+  const { t, i18n } = useTranslation();
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
@@ -1486,7 +1492,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
   const run = async () => {
     if (state === "running" || !prompt.trim()) return;
     if (!songTitle.trim() || !artistName.trim()) {
-      setError("The cover maker needs the song title and artist name — both are just above the prompt.");
+      setError(t("worldCreateDesk.coverNeedsTitleArtist"));
       setState("failed");
       return;
     }
@@ -1505,14 +1511,14 @@ export function CoverArtDesk(props: CreateDeskProps) {
         body: JSON.stringify(buildCoverArtPayload(prompt, { songTitle, artistName, style, aspectRatio, tier, attribution })),
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, "Cover art generation failed."));
+      if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, t("worldCreateDesk.coverFailed")));
       setCoverUrl(data.url);
       setCoverHistory((h) => pushCoverHistory(h, data.url!));
       refreshProfile();
       setState("done");
       void coverQuest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "Cover art generation failed."));
+      setError(plainErrorText(err, t("worldCreateDesk.coverFailed")));
       setState("failed");
     }
   };
@@ -1546,12 +1552,12 @@ export function CoverArtDesk(props: CreateDeskProps) {
         body: JSON.stringify(buildCoverInMotionPayload(coverUrl)),
       });
       const data = (await res.json().catch(() => ({}))) as { videoUrl?: string; error?: string; message?: string };
-      if (!res.ok || !data.videoUrl) throw new Error(apiErrorMessage(data, "Animation failed."));
+      if (!res.ok || !data.videoUrl) throw new Error(apiErrorMessage(data, t("worldCreateDesk.animationFailed")));
       setMotionUrl(data.videoUrl);
       refreshProfile();
       setMotionState("done");
     } catch (err) {
-      setMotionError(plainErrorText(err, "Animation failed."));
+      setMotionError(plainErrorText(err, t("worldCreateDesk.animationFailed")));
       setMotionState("failed");
     }
   };
@@ -1568,7 +1574,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
         body: JSON.stringify(buildArtistImagePayload(imagePrompt, imageModel)),
       });
       const data = (await res.json().catch(() => ({}))) as { taskId?: string; status?: string; url?: string | null; error?: string; message?: string };
-      if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, "The image make didn't start."));
+      if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, t("worldCreateDesk.imageStartFailed")));
       if (data.status === "succeeded" && data.url) {
         setArtistImageUrl(data.url);
         refreshProfile();
@@ -1583,7 +1589,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
           if (read.done) {
             if (imagePollRef.current) clearInterval(imagePollRef.current);
             if (read.failed || !read.url) {
-              setImageError(apiErrorMessage(read, "Image generation failed."));
+              setImageError(apiErrorMessage(read, t("worldCreateDesk.imageFailed")));
               setImageState("failed");
             } else {
               setArtistImageUrl(read.url);
@@ -1593,12 +1599,12 @@ export function CoverArtDesk(props: CreateDeskProps) {
           }
         } catch {
           if (imagePollRef.current) clearInterval(imagePollRef.current);
-          setImageError("Network error while the image was making.");
+          setImageError(t("worldCreateDesk.imageNetworkError"));
           setImageState("failed");
         }
       }, 5000);
     } catch (err) {
-      setImageError(plainErrorText(err, "Image generation failed."));
+      setImageError(plainErrorText(err, t("worldCreateDesk.imageFailed")));
       setImageState("failed");
     }
   };
@@ -1624,12 +1630,12 @@ export function CoverArtDesk(props: CreateDeskProps) {
         ),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Publishing to the showcase didn't land."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreateDesk.showcasePublishFailed")));
       const slug = showcaseSlugOfResponse(data);
-      if (!slug) throw new Error("The showcase came back without your page — check the showcase before trying again.");
+      if (!slug) throw new Error(t("worldCreateDesk.showcaseNoPage"));
       setShowcaseSlug(slug);
     } catch (err) {
-      setShareNote(plainErrorText(err, "Showcase publishing failed."));
+      setShareNote(plainErrorText(err, t("worldCreateDesk.showcaseFailed")));
     } finally {
       setShowcaseBusy(false);
     }
@@ -1637,14 +1643,14 @@ export function CoverArtDesk(props: CreateDeskProps) {
 
   const shareCover = async () => {
     if (!coverUrl) return;
-    const text = `Cover art for "${songTitle || "my song"}" — made with Bow Down Visuals`;
+    const text = t("worldCreateDesk.shareCoverText", { title: songTitle || t("worldCreateDesk.mySongLower") });
     try {
       const nav = typeof navigator !== "undefined" ? navigator : null;
       if (nav && typeof nav.share === "function") {
-        await nav.share({ title: "Bow Down Visuals — Cover Art", text, url: coverUrl });
+        await nav.share({ title: t("worldCreateDesk.shareCoverTitle"), text, url: coverUrl });
       } else if (nav && nav.clipboard) {
         await nav.clipboard.writeText(`${text}\n${coverUrl}`);
-        setShareNote("Share link copied.");
+        setShareNote(t("worldCreateDesk.shareLinkCopied"));
       }
       await fetch("/api/shares", {
         method: "POST",
@@ -1659,7 +1665,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
   return (
     <div className="space-y-3" data-testid="world-create-cover-desk">
       <div>
-        <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>One-tap vibes</p>
+        <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldCreateDesk.oneTapVibes")}</p>
         <div className="flex flex-wrap gap-1.5" data-testid="world-cover-preset-grid">
           {COVER_ART_PRESETS.map((preset) => (
             <button
@@ -1683,39 +1689,39 @@ export function CoverArtDesk(props: CreateDeskProps) {
         </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <DeskTextField isLight={isLight} label="Song title" value={songTitle} onChange={setSongTitle} />
-        <DeskTextField isLight={isLight} label="Artist name" value={artistName} onChange={setArtistName} />
+        <DeskTextField isLight={isLight} label={t("worldCreateDesk.songTitleLabel")} value={songTitle} onChange={setSongTitle} />
+        <DeskTextField isLight={isLight} label={t("worldCreateDesk.artistNameLabel")} value={artistName} onChange={setArtistName} />
       </div>
       <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
         <input type="checkbox" data-testid="world-cover-attribution-toggle" checked={attribution} onChange={(e) => setAttribution(e.target.checked)} />
-        Made-with credit on the cover (attribution)
+        {t("worldCreateDesk.attributionLabel")}
       </label>
       <AdvancedExpander isLight={isLight}>
         <div className="grid gap-3 sm:grid-cols-2">
-          <DeskSelectField isLight={isLight} label="Style" value={style} onChange={setStyle} options={COVER_ART_STYLES.map((s) => ({ value: s.key, label: s.label }))} />
-          <DeskSelectField isLight={isLight} label="Format" value={aspectRatio} onChange={setAspectRatio} options={COVER_ART_RATIOS.map((r) => ({ value: r.key, label: r.label }))} />
+          <DeskSelectField isLight={isLight} label={t("worldCreateDesk.styleLabel")} value={style} onChange={setStyle} options={COVER_ART_STYLES.map((s) => ({ value: s.key, label: s.label }))} />
+          <DeskSelectField isLight={isLight} label={t("worldCreateDesk.formatLabel")} value={aspectRatio} onChange={setAspectRatio} options={COVER_ART_RATIOS.map((r) => ({ value: r.key, label: r.label }))} />
           <DeskSelectField
             isLight={isLight}
-            label="Detail level"
+            label={t("worldCreateDesk.detailLevelLabel")}
             value={tier}
             onChange={(v) => setTier(v as "standard" | "premium")}
             options={[
-              { value: "standard", label: `Standard · ${coverArtCost("standard")} Visual Bucs` },
-              { value: "premium", label: `Premium Detail · ${coverArtCost("premium")} Visual Bucs` },
+              { value: "standard", label: t("worldCreateDesk.tierStandard", { cost: coverArtCost("standard") }) },
+              { value: "premium", label: t("worldCreateDesk.tierPremium", { cost: coverArtCost("premium") }) },
             ]}
           />
         </div>
         <div className="space-y-2 border-t border-dashed border-[#d4af37]/30 pt-3">
           <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            Artist image bench
+            {t("worldCreateDesk.artistImageBench")}
           </p>
-          <DeskTextField isLight={isLight} label="Describe the artist image" value={imagePrompt} onChange={setImagePrompt} />
+          <DeskTextField isLight={isLight} label={t("worldCreateDesk.describeArtistImage")} value={imagePrompt} onChange={setImagePrompt} />
           <DeskSelectField
             isLight={isLight}
-            label="Render"
+            label={t("worldCreateDesk.renderLabel")}
             value={imageModel}
             onChange={(v) => setImageModel(v as ArtistImageModel)}
-            options={ARTIST_IMAGE_MODELS.map((m) => ({ value: m.id, label: `${m.label} · ${m.credits} Visual Bucs` }))}
+            options={ARTIST_IMAGE_MODELS.map((m) => ({ value: m.id, label: t("worldCreateDesk.renderOption", { label: m.label, credits: m.credits }) }))}
           />
           <button
             type="button"
@@ -1724,28 +1730,28 @@ export function CoverArtDesk(props: CreateDeskProps) {
             disabled={imageState === "running" || !imagePrompt.trim()}
             className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
           >
-            {imageState === "running" ? "Making it…" : `Make the image · ${artistImageCost(imageModel).toLocaleString("en-US")} Visual Bucs`}
+            {imageState === "running" ? t("worldCreateDesk.runnerMaking") : t("worldCreateDesk.makeImageCost", { cost: artistImageCost(imageModel).toLocaleString(i18n.language) })}
           </button>
           {imageState === "failed" && imageError ? (
             <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{imageError}</p>
           ) : null}
-          {artistImageUrl ? <ImageResult url={artistImageUrl} title="Your artist image" /> : null}
+          {artistImageUrl ? <ImageResult url={artistImageUrl} title={t("worldCreateDesk.yourArtistImage")} /> : null}
         </div>
       </AdvancedExpander>
       <CreateDeskRunner
         isLight={isLight}
-        promptLabel="Describe the cover — mood and art direction"
+        promptLabel={t("worldCreateDesk.describeCover")}
         prompt={prompt}
         onPromptChange={setPrompt}
         costVisualBucs={coverArtCost(tier)}
         state={state}
         errorMessage={error}
         onRun={run}
-        runLabel="Make the cover"
+        runLabel={t("worldCreateDesk.makeCover")}
         result={
           coverUrl ? (
             <div>
-              <ImageResult url={coverUrl} title={`Cover for ${songTitle || "your song"}`} />
+              <ImageResult url={coverUrl} title={t("worldCreateDesk.coverFor", { title: songTitle || t("worldCreateDesk.yourSongLower") })} />
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <button
                   type="button"
@@ -1757,8 +1763,8 @@ export function CoverArtDesk(props: CreateDeskProps) {
                   }`}
                 >
                   {motionState === "running"
-                    ? "Animating…"
-                    : `Animate this cover · ${coverInMotionCost().toLocaleString("en-US")} Visual Bucs`}
+                    ? t("worldCreateDesk.animating")
+                    : t("worldCreateDesk.animateCoverCost", { cost: coverInMotionCost().toLocaleString(i18n.language) })}
                 </button>
               </div>
               {motionState === "failed" && motionError ? (
@@ -1766,7 +1772,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
               ) : null}
               {motionUrl ? (
                 <div className="mt-3">
-                  <VideoResult url={motionUrl} title="Your cover, in motion" />
+                  <VideoResult url={motionUrl} title={t("worldCreateDesk.yourCoverInMotion")} />
                 </div>
               ) : null}
               <ResultChips
@@ -1788,7 +1794,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
                 }
                 editorBusy={editor.busy}
                 releasePrefill={{ coverUrl, title: songTitle }}
-                schedulePrefill={motionUrl ? schedulePrefillForMedia(motionUrl, "video", "My cover visualizer — made with Bow Down Visuals") : undefined}
+                schedulePrefill={motionUrl ? schedulePrefillForMedia(motionUrl, "video", t("worldCreateDesk.scheduleCoverCaption")) : undefined}
                 onMakeAnother={() => {
                   setState("idle");
                   setCoverUrl(null);
@@ -1799,15 +1805,15 @@ export function CoverArtDesk(props: CreateDeskProps) {
               />
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <button type="button" data-testid="world-cover-share" onClick={() => void shareCover()} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]" : "border-white/15 text-white/75 hover:text-white"}`}>
-                  Share this cover
+                  {t("worldCreateDesk.shareCover")}
                 </button>
                 {showcaseSlug ? (
                   <a data-testid="world-cover-showcase-link" href={`/showcase/${showcaseSlug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 px-3 py-1.5 text-xs font-bold text-emerald-500">
-                    Live on the showcase — view it
+                    {t("worldCreateDesk.showcaseLive")}
                   </a>
                 ) : (
                   <button type="button" data-testid="world-cover-showcase" onClick={() => void publishToShowcase()} disabled={showcaseBusy} className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
-                    {showcaseBusy ? "Publishing…" : "Publish to the showcase · Free"}
+                    {showcaseBusy ? t("worldCreateDesk.chipPublishing") : t("worldCreateDesk.showcasePublish")}
                   </button>
                 )}
               </div>
@@ -1819,11 +1825,11 @@ export function CoverArtDesk(props: CreateDeskProps) {
       />
       {coverHistory.length > 1 ? (
         <div data-testid="world-cover-history">
-          <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>This session</p>
+          <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldCreateDesk.thisSession")}</p>
           <div className="flex flex-wrap gap-2">
             {coverHistory.map((url) => (
               <button key={url} type="button" onClick={() => restoreCover(url)} className={`overflow-hidden rounded-lg border ${coverUrl === url ? "border-[#d4af37]" : isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
-                <img src={url} alt="Cover from this session" className="h-12 w-12 object-cover" />
+                <img src={url} alt={t("worldCreateDesk.coverFromSessionAlt")} className="h-12 w-12 object-cover" />
               </button>
             ))}
           </div>
@@ -1836,6 +1842,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
 /* ─── Thumbnail Desk ───────────────────────────────────────────────── */
 
 export function ThumbnailDesk(props: CreateDeskProps) {
+  const { t, i18n } = useTranslation();
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
   const [prompt, setPrompt] = useState("");
@@ -1874,7 +1881,7 @@ export function ThumbnailDesk(props: CreateDeskProps) {
   const run = async () => {
     if (state === "running" || !prompt.trim()) return;
     if (!artistName.trim()) {
-      setError("The thumbnail maker needs your artist name — it's just above the prompt.");
+      setError(t("worldCreateDesk.thumbnailNeedsArtist"));
       setState("failed");
       return;
     }
@@ -1891,14 +1898,14 @@ export function ThumbnailDesk(props: CreateDeskProps) {
         buildThumbnailPayload(prompt, { artistName, songTitle, platform, artStyle, colorTheme, mood, featuredText }),
         token,
       );
-      if (!result) throw new Error("The thumbnail make didn't start.");
+      if (!result) throw new Error(t("worldCreateDesk.thumbnailStartFailed"));
       setImageUrl(result.thumbnailImageUrl ?? null);
       if (result.imageError) setImageNote(result.imageError);
       if (result.creditsRemaining !== undefined) refreshProfile();
       setState("done");
       void thumbQuest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "Thumbnail generation failed."));
+      setError(plainErrorText(err, t("worldCreateDesk.thumbnailFailed")));
       setState("failed");
     }
   };
@@ -1906,49 +1913,50 @@ export function ThumbnailDesk(props: CreateDeskProps) {
   return (
     <div className="space-y-3" data-testid="world-create-thumbnail-desk">
       <div className="grid gap-3 sm:grid-cols-2">
-        <DeskTextField isLight={isLight} label="Artist name" value={artistName} onChange={setArtistName} />
-        <DeskTextField isLight={isLight} label="Song / video title" value={songTitle} onChange={setSongTitle} />
+        <DeskTextField isLight={isLight} label={t("worldCreateDesk.artistNameLabel")} value={artistName} onChange={setArtistName} />
+        <DeskTextField isLight={isLight} label={t("worldCreateDesk.songVideoTitleLabel")} value={songTitle} onChange={setSongTitle} />
       </div>
       <AdvancedExpander isLight={isLight}>
         <div className="grid gap-3 sm:grid-cols-2">
           <DeskSelectField
             isLight={isLight}
-            label="Platform"
+            label={t("worldCreateDesk.platformLabel")}
             value={platform}
             onChange={setPlatform}
             options={["YouTube", "Spotify", "Apple Music", "SoundCloud", "All Platforms"].map((p) => ({ value: p, label: p }))}
           />
           <DeskSelectField
             isLight={isLight}
-            label="Art style"
+            label={t("worldCreateDesk.artStyleLabel")}
             value={artStyle}
             onChange={setArtStyle}
-            options={["", "Photo-Realistic", "Illustrated", "Minimalist", "Bold Graphic", "Vintage", "Futuristic", "Cinematic Dark", "Street Art", "Anime", "3D Render"].map((s) => ({ value: s, label: s || "Turbo picks" }))}
+            options={["", "Photo-Realistic", "Illustrated", "Minimalist", "Bold Graphic", "Vintage", "Futuristic", "Cinematic Dark", "Street Art", "Anime", "3D Render"].map((s) => ({ value: s, label: s || t("worldCreateDesk.turboPicks") }))}
           />
-          <DeskTextField isLight={isLight} label="Color theme" value={colorTheme} onChange={setColorTheme} />
-          <DeskSelectField isLight={isLight} label="Mood" value={mood} onChange={setMood} options={MOOD_OPTIONS.map((m) => ({ value: m, label: m || "Turbo picks" }))} />
+          <DeskTextField isLight={isLight} label={t("worldCreateDesk.colorThemeLabel")} value={colorTheme} onChange={setColorTheme} />
+          <DeskSelectField isLight={isLight} label={t("worldCreateDesk.moodLabel")} value={mood} onChange={setMood} options={MOOD_OPTIONS.map((m) => ({ value: m, label: m || t("worldCreateDesk.turboPicks") }))} />
         </div>
-        <DeskTextField isLight={isLight} label="Featured text" value={featuredText} onChange={setFeaturedText} />
+        <DeskTextField isLight={isLight} label={t("worldCreateDesk.featuredTextLabel")} value={featuredText} onChange={setFeaturedText} />
       </AdvancedExpander>
       <CreateDeskRunner
         isLight={isLight}
-        promptLabel="What should the thumbnail shout?"
+        promptLabel={t("worldCreateDesk.describeThumbnail")}
         prompt={prompt}
         onPromptChange={setPrompt}
         costVisualBucs={thumbnailDeskCost()}
         state={state}
         errorMessage={error}
         onRun={run}
-        runLabel="Make the thumbnail"
+        runLabel={t("worldCreateDesk.makeThumbnail")}
         result={
           state === "done" ? (
             <div>
               {imageUrl ? (
-                <ImageResult url={imageUrl} title="Your thumbnail" />
+                <ImageResult url={imageUrl} title={t("worldCreateDesk.yourThumbnail")} />
               ) : (
                 <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-                  The thumbnail package is made{imageNote ? ` — the image itself didn't land: ${imageNote}` : ""}. Its art
-                  direction rides the draft and the editor seed below.
+                  {imageNote
+                    ? t("worldCreateDesk.thumbnailPackageMadeNote", { note: imageNote })
+                    : t("worldCreateDesk.thumbnailPackageMade")}
                 </p>
               )}
               <ResultChips
@@ -1969,7 +1977,7 @@ export function ThumbnailDesk(props: CreateDeskProps) {
                     : undefined
                 }
                 editorBusy={editor.busy}
-                schedulePrefill={imageUrl ? schedulePrefillForMedia(imageUrl, "image", "My new thumbnail — made with Bow Down Visuals") : undefined}
+                schedulePrefill={imageUrl ? schedulePrefillForMedia(imageUrl, "image", t("worldCreateDesk.scheduleThumbCaption")) : undefined}
                 onSaveDraft={() =>
                   void draft.save(
                     buildDraftPayload(THUMBNAIL_DRAFT_WORKFLOW, songTitle || "Thumbnail draft", {
@@ -1987,8 +1995,7 @@ export function ThumbnailDesk(props: CreateDeskProps) {
                 }}
               />
               <p className={`mt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                Price is up to {thumbnailDeskCost().toLocaleString("en-US")} Visual Bucs — the text package plus the
-                image when it lands, exactly as the Thumbnail Studio quotes it.
+                {t("worldCreateDesk.thumbnailPriceNote", { cost: thumbnailDeskCost().toLocaleString(i18n.language) })}
               </p>
             </div>
           ) : undefined
@@ -1999,7 +2006,7 @@ export function ThumbnailDesk(props: CreateDeskProps) {
       {recent.length > 0 && (
         <div>
           <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            From your library
+            {t("worldCreateDesk.fromLibrary")}
           </p>
           <div className="flex flex-wrap gap-2">
             {recent.map((a) => (
