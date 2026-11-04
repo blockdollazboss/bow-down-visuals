@@ -67,7 +67,10 @@ export interface MatteUpsampleOptions {
    *  and the guide's edges less. Default 0.002. */
   eps?: number;
   /** Time budget per call in ms; two consecutive overruns latch
-   *  the upsampler off until reset(). Default 48. */
+   *  the upsampler off until reset(). Default 64 — sized for a
+   *  1080p guided filter on a modest desktop CPU; a device that
+   *  cannot hold it keeps the plain raster (today's picture),
+   *  never a janked studio. */
   budgetMs?: number;
   /** Clock injection for tests. */
   now?: () => number;
@@ -127,7 +130,7 @@ export class MatteUpsampler {
 
   constructor(opts: MatteUpsampleOptions = {}) {
     this._eps = opts.eps ?? 0.002;
-    this._budgetMs = opts.budgetMs ?? 48;
+    this._budgetMs = opts.budgetMs ?? 64;
     this._now = opts.now ?? (() => performance.now());
   }
 

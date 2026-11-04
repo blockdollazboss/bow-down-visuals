@@ -574,7 +574,7 @@ describe("premium quality + motion build (Oct 23, 2026)", () => {
     // A landed matte is stored (post-processed once), and the
     // loop composites it on every tick.
     expect(src).toContain("this._storeLandedMatte(matte, epoch)");
-    expect(src).toContain("this._liveMatte = { epoch, width: mw, height: mh }");
+    expect(src).toContain("this._liveMatte = { epoch, width: aw, height: ah }");
   });
 
   it("the studio matte pipeline runs the motion-adaptive blend (the still-photo path keeps its own)", () => {
@@ -1057,12 +1057,16 @@ describe("Pro engine (Oct 25, 2026) — selection, steps, park — no degrade, n
       expect(changer.getProStep()).toBe(2);
       for (let i = 0; i < 120 && changer.getProStep() === 2; i++) await stepFrame();
       expect(changer.getProStep()).toBe(3);
+      for (let i = 0; i < 120 && changer.getProStep() === 3; i++) await stepFrame();
+      expect(changer.getProStep()).toBe(4);
+      for (let i = 0; i < 120 && changer.getProStep() === 4; i++) await stepFrame();
+      expect(changer.getProStep()).toBe(5);
       /* At the Pro floor, sustained slowness used to hand the
          session to the per-frame engine (the motion-erasure
          defect). Now the floor simply HOLDS: still Pro, no other
          engine constructed, no status change. */
       for (let i = 0; i < 200; i++) await stepFrame();
-      expect(changer.getProStep()).toBe(3);
+      expect(changer.getProStep()).toBe(5);
       expect(changer.getEngineKind()).toBe("pro");
       expect(changer.segmentationAvailable).toBe(true);
       expect(fakeTasks().instances).toHaveLength(0);
@@ -1089,11 +1093,11 @@ describe("Pro engine (Oct 25, 2026) — selection, steps, park — no degrade, n
         await flush();
         await flush();
       };
-      for (let i = 0; i < 400 && changer.getProStep() < 3; i++) await stepFrame();
-      expect(changer.getProStep()).toBe(3);
+      for (let i = 0; i < 400 && changer.getProStep() < 5; i++) await stepFrame();
+      expect(changer.getProStep()).toBe(5);
       /* Far past the floor: still Pro, still no other engine. */
       for (let i = 0; i < 120; i++) await stepFrame();
-      expect(changer.getProStep()).toBe(3);
+      expect(changer.getProStep()).toBe(5);
       expect(changer.getEngineKind()).toBe("pro");
       expect(fakeTasks().instances).toHaveLength(0);
       expect(statuses).toEqual(["pro"]);
@@ -1251,8 +1255,8 @@ describe("honest engine status (Stack-100 #3 Lane C — the exit is VISIBLE)", (
         await flush();
         await flush();
       };
-      for (let i = 0; i < 800 && changer.getProStep() < 3; i++) await stepFrame();
-      expect(changer.getProStep()).toBe(3);
+      for (let i = 0; i < 800 && changer.getProStep() < 5; i++) await stepFrame();
+      expect(changer.getProStep()).toBe(5);
       for (let i = 0; i < 120; i++) await stepFrame();
       expect(changer.getEngineKind()).toBe("pro");
       expect(changer.getEngineStatusDetail()).toEqual({ kind: "pro", fellBack: false, reason: null });
