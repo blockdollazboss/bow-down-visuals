@@ -18,6 +18,7 @@ import {
   LivePremiereDesk,
 } from "./LiveDesk";
 import { LiveShoppingDesk } from "./LiveShoppingDesk";
+import { LiveCopilotDesk } from "./LiveCopilotDesk";
 
 export interface LiveDesksPanelProps {
   isLight: boolean;
@@ -50,6 +51,13 @@ export default function LiveDesksPanel({ isLight, screen, onStreamChange }: Live
           buying is embedded-first with the by-design new-tab
           fallback (see LiveShoppingDesk). Same members-only panel. */}
       <LiveShoppingDesk isLight={isLight} />
+      {/* Live Wave IV (stack100 B10): Stream Copilot + Live Stage
+          automation — Copilot prep / clip-plan on their own rails
+          (100 VB each, registry-priced, confirmed-spend door) and
+          the Stage Manager / Auto-Highlights / Classes desk on
+          /api/live-prefs + the per-stream stage rails. Same
+          members-only panel. */}
+      <LiveCopilotDesk isLight={isLight} />
     </div>
   );
 }
