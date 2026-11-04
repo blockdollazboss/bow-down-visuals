@@ -15,6 +15,7 @@
  * exactly like the website.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   SCENE_WINDOWS,
   cityRowOf,
@@ -26,7 +27,16 @@ import {
   type SceneWindow,
 } from "@/lib/world/scenes-desk";
 
+/* Window chips render through the catalog (worldCreateMedia), keyed
+   by the seam's window enum — the seam's own labels stay its en record. */
+const WINDOW_LABEL_KEYS: Record<SceneWindow, string> = {
+  today: "worldCreateMedia.scenesWindowToday",
+  week: "worldCreateMedia.scenesWindowWeek",
+  all: "worldCreateMedia.scenesWindowAll",
+};
+
 export function ScenesDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const [cities, setCities] = useState<SceneCityRow[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -82,12 +92,12 @@ export function ScenesDesk({ isLight }: { isLight: boolean }) {
   if (loadFailed) {
     return (
       <div className="space-y-3" data-testid="world-scenes-desk">
-        <p className={`text-base font-black ${strong}`}>Local Scenes</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldCreateMedia.scenesTitle")}</p>
         <p className={errCls} data-testid="world-scenes-desk-failed">
-          The scene map wouldn&rsquo;t load. Give it another shot.
+          {t("worldCreateMedia.scenesLoadFailed")}
         </p>
         <button type="button" className={chipCls(false)} onClick={() => void loadDirectory()}>
-          Try again
+          {t("worldCreateMedia.tryAgain")}
         </button>
       </div>
     );
@@ -96,17 +106,17 @@ export function ScenesDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-4" data-testid="world-scenes-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Local Scenes</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldCreateMedia.scenesTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          Real cities, claimed by real creators — their people, their shows, their chart.
+          {t("worldCreateMedia.scenesSubtitle")}
         </p>
       </div>
 
       {cities === null ? (
-        <p className={`text-sm ${muted}`}>Reading the scene map…</p>
+        <p className={`text-sm ${muted}`}>{t("worldCreateMedia.scenesReading")}</p>
       ) : cities.length === 0 ? (
         <p className={`text-sm ${muted}`} data-testid="world-scenes-desk-empty">
-          No scenes yet — a city appears here the moment a creator declares it on their profile.
+          {t("worldCreateMedia.scenesEmpty")}
         </p>
       ) : (
         <div className="flex flex-wrap gap-1.5" data-testid="world-scenes-desk-directory">
@@ -118,8 +128,16 @@ export function ScenesDesk({ isLight }: { isLight: boolean }) {
               className={chipCls(selected === city.slug)}
               onClick={() => setSelected(city.slug)}
             >
-              {city.name} · {city.creatorCount} creator{city.creatorCount === 1 ? "" : "s"}
-              {city.showCount > 0 ? ` · ${city.showCount} shows` : ""}
+              {city.name} ·{" "}
+              {t(
+                city.creatorCount === 1
+                  ? "worldCreateMedia.scenesCreatorOne"
+                  : "worldCreateMedia.scenesCreatorsMany",
+                { count: city.creatorCount },
+              )}
+              {city.showCount > 0
+                ? ` · ${t("worldCreateMedia.scenesShows", { count: city.showCount })}`
+                : ""}
             </button>
           ))}
         </div>
@@ -136,32 +154,36 @@ export function ScenesDesk({ isLight }: { isLight: boolean }) {
                 className={chipCls(windowKey === w.key)}
                 onClick={() => setWindowKey(w.key)}
               >
-                {w.label}
+                {t(WINDOW_LABEL_KEYS[w.key])}
               </button>
             ))}
             <button type="button" className={`ml-auto ${chipCls(false)}`} onClick={() => setSelected(null)}>
-              All scenes
+              {t("worldCreateMedia.scenesAllScenes")}
             </button>
           </div>
 
           {detailState === "loading" ? (
-            <p className={`mt-2 text-sm ${muted}`}>Opening the scene…</p>
+            <p className={`mt-2 text-sm ${muted}`}>{t("worldCreateMedia.scenesOpening")}</p>
           ) : detailState === "noscene" ? (
             <p className={`mt-2 text-sm ${muted}`} data-testid="world-scenes-desk-noscene">
-              No scene here yet — no creator has declared this city, so there&rsquo;s no scene page
-              for it. A city gets a page the moment a real creator claims it.
+              {t("worldCreateMedia.scenesNoScene")}
             </p>
           ) : detail ? (
             <div className="mt-3 space-y-4" data-testid="world-scenes-desk-detail">
               <p className={`text-sm font-bold ${strong}`}>
-                {detail.name} — {detail.counts.creators} creators · {detail.counts.shows} shows ·{" "}
-                {detail.counts.tracks} tracks · {detail.counts.videos} videos
+                {t("worldCreateMedia.scenesCountsLine", {
+                  name: detail.name,
+                  creators: detail.counts.creators,
+                  shows: detail.counts.shows,
+                  tracks: detail.counts.tracks,
+                  videos: detail.counts.videos,
+                })}
               </p>
 
               <div>
-                <p className={`text-sm font-bold ${strong}`}>The scene&rsquo;s creators</p>
+                <p className={`text-sm font-bold ${strong}`}>{t("worldCreateMedia.scenesCreatorsHeading")}</p>
                 {detail.creators.length === 0 ? (
-                  <p className={`mt-1 text-sm ${muted}`}>No creators listed for this scene yet.</p>
+                  <p className={`mt-1 text-sm ${muted}`}>{t("worldCreateMedia.scenesNoCreators")}</p>
                 ) : (
                   <ul className="mt-2 space-y-1.5">
                     {detail.creators.map((c) => (
@@ -169,7 +191,10 @@ export function ScenesDesk({ isLight }: { isLight: boolean }) {
                         <span className={`text-sm font-bold ${strong}`}>{c.displayName}</span>
                         <span className={`ml-2 text-xs ${muted}`}>
                           {c.vertical ? `${c.vertical} · ` : ""}
-                          {c.followerCount.toLocaleString()} followers · {c.totalPlays.toLocaleString()} plays
+                          {t("worldCreateMedia.scenesFollowersPlays", {
+                            followers: c.followerCount.toLocaleString(i18n.language),
+                            plays: c.totalPlays.toLocaleString(i18n.language),
+                          })}
                         </span>
                       </li>
                     ))}
@@ -178,9 +203,9 @@ export function ScenesDesk({ isLight }: { isLight: boolean }) {
               </div>
 
               <div>
-                <p className={`text-sm font-bold ${strong}`}>Coming up</p>
+                <p className={`text-sm font-bold ${strong}`}>{t("worldCreateMedia.scenesComingUp")}</p>
                 {detail.shows.length === 0 ? (
-                  <p className={`mt-1 text-sm ${muted}`}>No shows on the books for this scene yet.</p>
+                  <p className={`mt-1 text-sm ${muted}`}>{t("worldCreateMedia.scenesNoShows")}</p>
                 ) : (
                   <ul className="mt-2 space-y-1.5">
                     {detail.shows.map((s) => (
@@ -199,32 +224,38 @@ export function ScenesDesk({ isLight }: { isLight: boolean }) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <p className={`text-sm font-bold ${strong}`}>Scene chart — tracks</p>
+                  <p className={`text-sm font-bold ${strong}`}>{t("worldCreateMedia.scenesChartTracks")}</p>
                   {detail.tracks.length === 0 ? (
-                    <p className={`mt-1 text-sm ${muted}`}>No tracks charting in this window yet.</p>
+                    <p className={`mt-1 text-sm ${muted}`}>{t("worldCreateMedia.scenesNoTracks")}</p>
                   ) : (
                     <ol className="mt-2 space-y-1">
-                      {detail.tracks.map((t, i) => (
-                        <li key={t.id} className={`text-sm ${muted}`}>
-                          <span className={`font-bold ${strong}`}>{i + 1}.</span> {t.title}
-                          {t.genre ? ` · ${t.genre}` : ""} — {t.plays.toLocaleString()} plays ·{" "}
-                          {t.likes.toLocaleString()} likes
+                      {detail.tracks.map((track, i) => (
+                        <li key={track.id} className={`text-sm ${muted}`}>
+                          <span className={`font-bold ${strong}`}>{i + 1}.</span> {track.title}
+                          {track.genre ? ` · ${track.genre}` : ""} —{" "}
+                          {t("worldCreateMedia.scenesPlaysLikes", {
+                            plays: track.plays.toLocaleString(i18n.language),
+                            likes: track.likes.toLocaleString(i18n.language),
+                          })}
                         </li>
                       ))}
                     </ol>
                   )}
                 </div>
                 <div>
-                  <p className={`text-sm font-bold ${strong}`}>Scene chart — videos</p>
+                  <p className={`text-sm font-bold ${strong}`}>{t("worldCreateMedia.scenesChartVideos")}</p>
                   {detail.videos.length === 0 ? (
-                    <p className={`mt-1 text-sm ${muted}`}>No videos charting in this window yet.</p>
+                    <p className={`mt-1 text-sm ${muted}`}>{t("worldCreateMedia.scenesNoVideos")}</p>
                   ) : (
                     <ol className="mt-2 space-y-1">
                       {detail.videos.map((v, i) => (
                         <li key={v.id} className={`text-sm ${muted}`}>
                           <span className={`font-bold ${strong}`}>{i + 1}.</span> {v.title}
-                          {v.genre ? ` · ${v.genre}` : ""} — {v.plays.toLocaleString()} views ·{" "}
-                          {v.likes.toLocaleString()} likes
+                          {v.genre ? ` · ${v.genre}` : ""} —{" "}
+                          {t("worldCreateMedia.scenesViewsLikes", {
+                            views: v.plays.toLocaleString(i18n.language),
+                            likes: v.likes.toLocaleString(i18n.language),
+                          })}
                         </li>
                       ))}
                     </ol>
