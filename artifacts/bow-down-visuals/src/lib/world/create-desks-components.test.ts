@@ -91,7 +91,10 @@ describe("2.4 song+video wizard contracts", () => {
        itself; the editor is a separate, optional button. */
     expect(desks).toContain('data-testid="world-song-video-save"');
     expect(desks).toContain('data-testid="world-song-video-editor"');
-    expect(desks).toContain("Save the finished package");
+    /* Since stack1600 #37 the label resolves through the
+       worldCreateDesk catalog (en carries this wording verbatim —
+       pinned in create-desk-i18n.test.ts). */
+    expect(desks).toContain('t("worldCreateDesk.savePackage")');
     expect(desks).not.toContain("Save + open in the editor");
   });
 });
@@ -106,7 +109,20 @@ describe("2.5 song desk tab contracts", () => {
     expect(desks).toContain('fetch("/api/artist-vaults"');
     expect(desks).toContain("withArtistVault");
     expect(desks).toContain('fetch("/api/transcribe"');
-    for (const label of ["Inspo", "Mashup", "Hum to Song"]) expect(desks).toContain(label);
+    /* Since stack1600 #37 the bench tab labels resolve through the
+       worldCreateDesk catalog — the keys ride in the desk source and
+       the en catalog carries the original wording verbatim. */
+    const en = JSON.parse(read("../../locales/en.json")) as {
+      worldCreateDesk: Record<string, string>;
+    };
+    for (const [key, label] of [
+      ["tabInspo", "Inspo"],
+      ["tabMashup", "Mashup"],
+      ["tabHum", "Hum to Song"],
+    ] as const) {
+      expect(desks).toContain(`worldCreateDesk.${key}`);
+      expect(en.worldCreateDesk[key]).toBe(label);
+    }
   });
 });
 
@@ -231,9 +247,11 @@ describe("2.1 + 2.2 publish rail + jukebox chip contracts (stack-20 round 2, #3/
     /* Failure shows its reason on the card, never a silent dark. */
     expect(desks).toContain('data-testid="world-create-publish-error"');
     expect(shared).toContain('data-testid="world-create-chip-published"');
-    expect(shared).toContain("Published — live on your profile");
+    expect(shared).toContain('t("worldCreateDesk.chipPublished")');
     expect(shared).toContain('data-testid="world-create-chip-publish"');
-    expect(shared).toContain('props.publishBusy ? "Publishing…" : "Publish to my profile"');
+    expect(shared).toContain(
+      'props.publishBusy ? t("worldCreateDesk.chipPublishing") : t("worldCreateDesk.chipPublish")',
+    );
   });
 
   it("the jukebox chip is live only behind the gate; unpublished it sits dark as a span with its reason", () => {
@@ -246,7 +264,7 @@ describe("2.1 + 2.2 publish rail + jukebox chip contracts (stack-20 round 2, #3/
     const darkAt = shared.indexOf('data-testid="world-create-chip-jukebox-dark"');
     expect(darkAt).toBeGreaterThan(-1);
     expect(shared.slice(shared.lastIndexOf("<span", darkAt), darkAt)).toContain("<span");
-    expect(shared).toContain("Put it on the jukebox · publish first");
+    expect(shared).toContain('t("worldCreateDesk.chipJukeboxDark")');
     expect(shared).toContain('aria-disabled="true"');
   });
 });

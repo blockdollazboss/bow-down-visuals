@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -112,6 +113,7 @@ export function AdvancedExpander({
   children: ReactNode;
   defaultOpen?: boolean;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className={`rounded-xl border ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
@@ -124,7 +126,7 @@ export function AdvancedExpander({
           isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
         }`}
       >
-          Advanced
+          {t("worldCreateDesk.advanced")}
         <ChevronDown className={`ml-auto h-4 w-4 transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open ? <div className="space-y-3 px-3 pb-3">{children}</div> : null}

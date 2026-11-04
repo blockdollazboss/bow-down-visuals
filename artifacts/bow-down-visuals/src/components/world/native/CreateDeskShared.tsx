@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BadgeCheck, Disc3, ListMusic, PenLine, Rocket, Scissors, Sparkles } from "lucide-react";
 import {
   jukeboxChipStateOf,
@@ -23,7 +24,7 @@ import { SchedulerComposeStandalone } from "./SchedulerDesk";
 
 /* ─── Result chips ───────────────────────────────────────────────────
    The in-world next steps under a finished make. Every chip is a
-   real rail: Send to the editor saves the result as a project and
+   real rail: the editor chip saves the result as a project and
    steps through to the editor seeded with it; Put it on the
    jukebox rides the room socket's jukebox.add intent and lights
    ONLY for a published-track id (the queue's own rule) — before
@@ -68,6 +69,7 @@ export interface ResultChipsProps {
 }
 
 export function ResultChips(props: ResultChipsProps) {
+  const { t } = useTranslation();
   const { isLight } = props;
   const [schedulerOpen, setSchedulerOpen] = useState(false);
   const [releaseOpen, setReleaseOpen] = useState(false);
@@ -93,7 +95,7 @@ export function ResultChips(props: ResultChipsProps) {
           disabled={props.editorBusy}
           className={goldChipCls}
         >
-          <Scissors className="h-3.5 w-3.5" /> Send to the editor
+          <Scissors className="h-3.5 w-3.5" /> {t("worldCreateDesk.chipEditor")}
         </button>
       ) : null}
       {props.published ? (
@@ -103,7 +105,7 @@ export function ResultChips(props: ResultChipsProps) {
             isLight ? "border-emerald-700/40 text-emerald-800" : "border-emerald-400/40 text-emerald-300"
           }`}
         >
-          <BadgeCheck className="h-3.5 w-3.5" /> Published — live on your profile
+          <BadgeCheck className="h-3.5 w-3.5" /> {t("worldCreateDesk.chipPublished")}
         </span>
       ) : props.onPublish ? (
         <button
@@ -113,7 +115,7 @@ export function ResultChips(props: ResultChipsProps) {
           disabled={props.publishBusy}
           className={goldChipCls}
         >
-          <Rocket className="h-3.5 w-3.5" /> {props.publishBusy ? "Publishing…" : "Publish to my profile"}
+          <Rocket className="h-3.5 w-3.5" /> {props.publishBusy ? t("worldCreateDesk.chipPublishing") : t("worldCreateDesk.chipPublish")}
         </button>
       ) : null}
       {jukeboxChip === "live" && trackId ? (
@@ -123,7 +125,7 @@ export function ResultChips(props: ResultChipsProps) {
           onClick={() => props.onJukeboxAdd?.(trackId)}
           className={chipCls}
         >
-          <ListMusic className="h-3.5 w-3.5" /> Put it on the jukebox
+          <ListMusic className="h-3.5 w-3.5" /> {t("worldCreateDesk.chipJukebox")}
         </button>
       ) : jukeboxChip === "dark" ? (
         /* The dark chip (stack-20 round 2, #4): the desk offers the
@@ -135,12 +137,12 @@ export function ResultChips(props: ResultChipsProps) {
         <span
           data-testid="world-create-chip-jukebox-dark"
           aria-disabled="true"
-          title="The jukebox only plays published tracks — publish this song first"
+          title={t("worldCreateDesk.chipJukeboxDarkTitle")}
           className={`inline-flex cursor-not-allowed select-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold opacity-50 ${
             isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"
           }`}
         >
-          <ListMusic className="h-3.5 w-3.5" /> Put it on the jukebox · publish first
+          <ListMusic className="h-3.5 w-3.5" /> {t("worldCreateDesk.chipJukeboxDark")}
         </span>
       ) : null}
       {props.schedulePrefill ? (
@@ -151,7 +153,7 @@ export function ResultChips(props: ResultChipsProps) {
           onClick={() => setSchedulerOpen((v) => !v)}
           className={chipCls}
         >
-          <Rocket className="h-3.5 w-3.5" /> Schedule it
+          <Rocket className="h-3.5 w-3.5" /> {t("worldCreateDesk.chipSchedule")}
         </button>
       ) : null}
       {props.releasePrefill ? (
@@ -162,7 +164,7 @@ export function ResultChips(props: ResultChipsProps) {
           onClick={() => setReleaseOpen((v) => !v)}
           className={chipCls}
         >
-          <Disc3 className="h-3.5 w-3.5" /> Release it
+          <Disc3 className="h-3.5 w-3.5" /> {t("worldCreateDesk.chipRelease")}
         </button>
       ) : null}
       {props.onSaveDraft ? (
@@ -173,7 +175,7 @@ export function ResultChips(props: ResultChipsProps) {
           disabled={props.draftSaved}
           className={chipCls}
         >
-          <PenLine className="h-3.5 w-3.5" /> {props.draftSaved ? "Draft saved" : "Save as draft"}
+          <PenLine className="h-3.5 w-3.5" /> {props.draftSaved ? t("worldCreateDesk.chipDraftSaved") : t("worldCreateDesk.chipDraftSave")}
         </button>
       ) : null}
       <button
@@ -182,7 +184,7 @@ export function ResultChips(props: ResultChipsProps) {
         onClick={props.onMakeAnother}
         className={chipCls}
       >
-        <Sparkles className="h-3.5 w-3.5" /> Make another
+        <Sparkles className="h-3.5 w-3.5" /> {t("worldCreateDesk.chipAnother")}
       </button>
       {schedulerOpen && props.schedulePrefill ? (
         <div className="w-full">

@@ -176,7 +176,14 @@ describe("source pins — the player and the desks stay honest", () => {
   it("a missing original is said out loud, in the player's own note", () => {
     const player = resultLeaf.slice(resultLeaf.indexOf("export function ABAudioPlayer"));
     expect(player).toContain('data-testid="world-audio-ab-before-gone"');
-    expect(player).toContain("isn&rsquo;t at this desk anymore");
+    /* Since stack1600 #37 the note resolves through the worldCreateDesk
+       catalog — the key rides in the player and the en catalog carries
+       the player's original wording (the JSX entity's ’ included). */
+    expect(player).toContain('t("worldCreateDesk.abBeforeGone"');
+    const en = JSON.parse(read("../../locales/en.json")) as {
+      worldCreateDesk: Record<string, string>;
+    };
+    expect(en.worldCreateDesk.abBeforeGone).toContain("isn’t at this desk anymore");
     expect(player).toContain("!availability.before");
   });
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2, Sparkles } from "lucide-react";
 import { NativeErrorState } from "./NativeStates";
 
@@ -16,7 +17,7 @@ export type CreateDeskJobState = "idle" | "running" | "done" | "failed";
 export interface CreateDeskRunnerProps {
   isLight: boolean;
   /** The desk's own words for what is being made (the prompt
-   *  field's label, e.g. "Describe the song"). */
+   *  field's label, e.g. the Song Desk's describe label). */
   promptLabel: string;
   prompt: string;
   onPromptChange: (value: string) => void;
@@ -42,8 +43,9 @@ export function CreateDeskRunner({
   result,
   errorMessage,
   onRun,
-  runLabel = "Make it",
+  runLabel,
 }: CreateDeskRunnerProps) {
+  const { t, i18n } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const running = state === "running";
   const canRun = !running && prompt.trim().length > 0 && costVisualBucs !== null;
@@ -73,8 +75,10 @@ export function CreateDeskRunner({
       <div className="flex flex-wrap items-center gap-3">
         <span data-testid="world-native-create-cost" className={`text-xs font-semibold ${muted}`}>
           {costVisualBucs === null
-            ? "Price shown before anything runs."
-            : `Costs ${costVisualBucs.toLocaleString("en-US")} Visual Bucs — shown before anything runs.`}
+            ? t("worldCreateDesk.runnerPricePending")
+            : t("worldCreateDesk.runnerCost", {
+                cost: costVisualBucs.toLocaleString(i18n.language),
+              })}
         </span>
         <button
           type="button"
@@ -88,15 +92,15 @@ export function CreateDeskRunner({
           ) : (
             <Sparkles className="h-4 w-4" />
           )}
-          {running ? "Making it…" : runLabel}
+          {running ? t("worldCreateDesk.runnerMaking") : (runLabel ?? t("worldCreateDesk.runnerMakeIt"))}
         </button>
       </div>
 
       {state === "failed" && (
         <NativeErrorState
           isLight={isLight}
-          title="The make didn't land"
-          message={errorMessage ?? "Nothing was charged for a make that didn't finish. Try again."}
+          title={t("worldCreateDesk.runnerFailedTitle")}
+          message={errorMessage ?? t("worldCreateDesk.runnerFailedFallback")}
           onRetry={onRun}
         />
       )}
