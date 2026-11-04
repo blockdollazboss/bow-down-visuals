@@ -184,7 +184,7 @@ describe("item 80 (D-H4) — Post Assist names its place: STALE, pinned", () => 
     expect(postAssistSrc).toContain("The draft lands in your composer");
     /* In the Promote Room the draft hands to the in-world Scheduler
        in the SAME desk stack — the flow finishes where it stands. */
-    expect(businessSrc).toContain('title="Post Assist — Write It For Me"');
+    expect(businessSrc).toContain('title={t("worldCoachMoney.bizPostAssistTitle")}');
     expect(businessSrc).toContain("<SchedulerDeskSection");
     expect(businessSrc).toContain('data-testid="world-promote-assist-schedule"');
   });
