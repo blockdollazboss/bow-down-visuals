@@ -15351,7 +15351,19 @@
       "midnightGold": "Midnight Gold",
       "midnightGoldBlurb": "Blu-nero profondo con accenti dorati caldi",
       "onyxMinimal": "Onyx Minimal",
-      "onyxMinimalBlurb": "Nero puro, sottili linee dorate — ultra pulito"
+      "onyxMinimalBlurb": "Nero puro, sottili linee dorate — ultra pulito",
+      "velvetNoir": "Velvet Noir",
+      "velvetNoirBlurb": "Velluto nero ciliegia con finiture oro champagne",
+      "emeraldCourt": "Emerald Court",
+      "emeraldCourtBlurb": "Smeraldo profondo e oro — il look della corte reale",
+      "smokePlatinum": "Smoke Platinum",
+      "smokePlatinumBlurb": "Fumo di grafite con lucentezza platino fredda",
+      "goldenMarble": "Golden Marble",
+      "goldenMarbleBlurb": "Marmo dorato caldo con oro antico — il look chiaro della casa",
+      "ivoryPearl": "Ivory Pearl",
+      "ivoryPearlBlurb": "Perla avorio morbida con linee oro champagne",
+      "roseChampagne": "Rose Champagne",
+      "roseChampagneBlurb": "Marmo rosato con lucentezza oro rosa"
     },
     "links": {
       "title": "Link",
