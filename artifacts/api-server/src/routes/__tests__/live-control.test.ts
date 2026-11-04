@@ -9,8 +9,9 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import http from "node:http";
+import { readFileSync } from "node:fs";
 import { WebSocket } from "ws";
-import { ControlRelay, controlRoomId } from "../../lib/control-relay";
+import { ControlRelay, controlRoomId, CONTROLLER_COMMANDS } from "../../lib/control-relay";
 import { LiveWsGateway, RoomHub, type WsClientSocket } from "../../lib/live-ws";
 import { registerLiveControlWs } from "../live-control";
 
@@ -107,6 +108,40 @@ describe("ControlRelay", () => {
     const ok = relay.handleFrame(room, asSock(remote), JSON.stringify({ type: "command", id: "c9", command: "scene.chroma.update", args }));
     expect(ok).toBe(true);
     expect(stage.frames()).toEqual([{ type: "command", id: "c9", command: "scene.chroma.update", args }]);
+  });
+
+  it("routes the scene preset command (scene.preset.apply) with its args intact", () => {
+    const relay = new ControlRelay(new RoomHub());
+    const room = controlRoomId("u1");
+    const remote = new FakeSocket();
+    const stage = new FakeSocket();
+    relay.join(room, asSock(remote), "remote");
+    relay.join(room, asSock(stage), "stage");
+    remote.clear();
+    stage.clear();
+
+    const args = { presetId: "just-you" };
+    const ok = relay.handleFrame(room, asSock(remote), JSON.stringify({ type: "command", id: "c10", command: "scene.preset.apply", args }));
+    expect(ok).toBe(true);
+    expect(stage.frames()).toEqual([{ type: "command", id: "c10", command: "scene.preset.apply", args }]);
+  });
+
+  it("the relay allowlist equals the frontend controller's command list", () => {
+    /* Both-lists pin (stack100 phase-2 join repair): the FE sender
+       (lib/stream-controller.ts) and this relay must name the SAME
+       commands — a command the deck can send but the relay drops is
+       a silent dead button (scene.preset.apply rode exactly that
+       gap until this pin). */
+    const feSrc = readFileSync(
+      new URL("../../../../bow-down-visuals/src/lib/stream-controller.ts", import.meta.url),
+      "utf8",
+    );
+    const feList = feSrc
+      .match(/export const CONTROLLER_COMMANDS = \[([\s\S]*?)\] as const/)![1]
+      .split(",")
+      .map((s) => s.trim().replace(/^"|"$/g, ""))
+      .filter(Boolean);
+    expect([...CONTROLLER_COMMANDS]).toEqual(feList);
   });
 
   it("OWNERSHIP: a remote in another account's room reaches NOTHING", () => {

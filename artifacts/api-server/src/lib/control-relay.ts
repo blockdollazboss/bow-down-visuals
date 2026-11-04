@@ -18,6 +18,7 @@ import type { RoomHub, WsClientSocket } from "./live-ws";
 
 export const CONTROLLER_COMMANDS = [
   "scene.select",
+  "scene.preset.apply",
   "scene.chroma.update",
   "transition.cut",
   "transition.fade",
