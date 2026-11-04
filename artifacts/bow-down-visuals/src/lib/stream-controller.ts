@@ -18,10 +18,19 @@
  * state.sync confirms it (its executor broadcasts fresh state right
  * after running a command) — or the pending beat times out at ~3s
  * and the deck says so, honestly.
+ *
+ * "scene.preset.apply" { presetId } is the scene-preset relay: the
+ * stage executes it through applyScenePreset — the SAME application
+ * path the studio's own ScenesPanel uses — so a preset picked on a
+ * deck builds the identical scene in the studio and frames it in
+ * Preview, never straight to Program. Presets are the stream-kit
+ * registry's (lib/stream-kit/scene-presets), never a deck-side copy.
  */
+import { scenePresetById } from "./stream-kit/scene-presets";
 
 export const CONTROLLER_COMMANDS = [
   "scene.select",
+  "scene.preset.apply",
   "transition.cut",
   "transition.fade",
   "mic.toggle",
@@ -126,6 +135,7 @@ interface PendingCommand {
   id: string;
   command: ControllerCommand;
   sceneId?: string;
+  presetId?: string;
   sentAt: number;
   /** Confirm predicate against a fresh confirmed state. */
   expect: (s: ControllerState) => boolean;
@@ -320,10 +330,14 @@ export class ControllerRemoteClient {
     this.onChange();
   }
 
-  isPending(command: ControllerCommand, sceneId?: string): boolean {
+  /** `targetId` names the press's target where the command has one:
+   *  the scene id for scene.select, the preset id for
+   *  scene.preset.apply; other commands pend as a whole. */
+  isPending(command: ControllerCommand, targetId?: string): boolean {
     for (const p of this._pending.values()) {
       if (p.command !== command) continue;
-      if (command === "scene.select") return p.sceneId === sceneId;
+      if (command === "scene.select") return p.sceneId === targetId;
+      if (command === "scene.preset.apply") return p.presetId === targetId;
       return true;
     }
     return false;
@@ -335,9 +349,10 @@ export class ControllerRemoteClient {
     if (!this._socket || this._socket.readyState !== 1 || !this.presence.stageConnected) return null;
     const current = this.state;
     const sceneId = typeof args?.sceneId === "string" ? args.sceneId : undefined;
-    const id = `${command}:${sceneId ?? ""}:${++this._seq}`;
+    const presetId = typeof args?.presetId === "string" ? args.presetId : undefined;
+    const id = `${command}:${sceneId ?? presetId ?? ""}:${++this._seq}`;
     const expect = expectFor(command, args, current);
-    this._pending.set(id, { id, command, sceneId, sentAt: (this.deps.now ?? Date.now)(), expect });
+    this._pending.set(id, { id, command, sceneId, presetId, sentAt: (this.deps.now ?? Date.now)(), expect });
     this.notice = null;
     try {
       this._socket.send(
@@ -364,6 +379,31 @@ export function expectFor(
     case "scene.select": {
       const sceneId = typeof args?.sceneId === "string" ? args.sceneId : null;
       return (s) => s.activeSceneId === sceneId;
+    }
+    case "scene.preset.apply": {
+      /* The application's signature, from the registry itself: a
+         NEW scene — one the press-time state didn't hold — named
+         exactly the preset, framed in Preview, with Program
+         untouched. Anything less is not the apply the panel does. */
+      const presetId = typeof args?.presetId === "string" ? args.presetId : null;
+      const preset = presetId ? scenePresetById(presetId) : null;
+      if (!preset) return () => false;
+      if (!current) {
+        return (s) =>
+          s.previewSceneId !== null &&
+          s.scenes.find((sc) => sc.id === s.previewSceneId)?.name === preset.name;
+      }
+      const beforeIds = new Set(current.scenes.map((s) => s.id));
+      const beforeCount = current.scenes.length;
+      const beforePreview = current.previewSceneId;
+      const beforeProgram = current.activeSceneId;
+      return (s) =>
+        s.scenes.length > beforeCount &&
+        s.previewSceneId !== null &&
+        s.previewSceneId !== beforePreview &&
+        !beforeIds.has(s.previewSceneId) &&
+        s.scenes.find((sc) => sc.id === s.previewSceneId)?.name === preset.name &&
+        s.activeSceneId === beforeProgram;
     }
     case "mic.toggle":
       return (s) => (current ? s.micMuted !== current.micMuted : true);

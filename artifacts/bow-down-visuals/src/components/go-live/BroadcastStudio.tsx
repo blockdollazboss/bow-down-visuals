@@ -75,7 +75,7 @@ import {
 import { StreamRecorder } from "@/lib/stream-kit/stream-recorder";
 import { lastStreamSetup, type MineStreamRow } from "@/lib/stream-kit/studio-setup";
 import { Stage, PreviewStage } from "@/lib/stream-kit/stage";
-import { scenePresetHasSourceType } from "@/lib/stream-kit/scene-presets";
+import { applyScenePreset, scenePresetHasSourceType } from "@/lib/stream-kit/scene-presets";
 import { refreshStageVaultAvatars } from "@/lib/stream-kit/avatar-vault";
 import { fetchVaultCharacters } from "@/lib/world/characters";
 import { AudioMixer } from "@/lib/stream-kit/audio-mixer";
@@ -1529,6 +1529,16 @@ export default function BroadcastStudio() {
           st.cutTo(sceneId);
           st.setPreview(sceneId);
         }
+        break;
+      }
+      case "scene.preset.apply": {
+        /* A deck's preset pick runs the ScenesPanel's own apply:
+           applyScenePreset writes through this stage's add/update
+           path and frames the built scene in Preview — Program is
+           never touched, exactly like the panel's tap. An unknown
+           preset id applies nothing (applyScenePreset's null). */
+        const presetId = typeof args.presetId === "string" ? args.presetId : null;
+        if (st && presetId) applyScenePreset(st, presetId);
         break;
       }
       case "transition.cut":
