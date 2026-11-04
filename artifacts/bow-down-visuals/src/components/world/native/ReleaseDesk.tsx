@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Barcode, Check, Disc3, Link2, Mail, Pencil, Plus, Share2, Sparkles, Trash2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -128,6 +129,7 @@ function ReleaseFormFields({
    *  wizard's music step: it links the song and prefills from it. */
   songs?: ReleaseSong[];
 }) {
+  const { t } = useTranslation();
   const togglePlatform = (key: string) =>
     set({
       platforms: draft.platforms.includes(key)
@@ -138,9 +140,9 @@ function ReleaseFormFields({
     <div className="space-y-2" data-testid="world-release-form">
       {songs ? (
         <label className="block">
-          <span className={fieldLabel(isLight)}>Start from your song library</span>
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relSongPickerLabel")}</span>
           <select
-            aria-label="Pick a song from your library"
+            aria-label={t("worldScheduleRelease.relSongPickerAria")}
             data-testid="world-release-song-picker"
             className={inputCls(isLight)}
             style={{ colorScheme: isLight ? "light" : "dark" }}
@@ -151,7 +153,7 @@ function ReleaseFormFields({
               setDraft(draftWithSong(draft, song));
             }}
           >
-            <option value="">No library song — I'll paste the audio link</option>
+            <option value="">{t("worldScheduleRelease.relNoSongOption")}</option>
             {songs.map((s) => (
               <option key={s.id} value={s.id}>{s.title}</option>
             ))}
@@ -160,43 +162,43 @@ function ReleaseFormFields({
       ) : null}
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="block">
-          <span className={fieldLabel(isLight)}>Release title</span>
-          <input aria-label="Release title" className={inputCls(isLight)} value={draft.title} disabled={locked} onChange={(e) => set({ title: e.target.value })} placeholder="Release title" />
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relTitleLabel")}</span>
+          <input aria-label={t("worldScheduleRelease.relTitleLabel")} className={inputCls(isLight)} value={draft.title} disabled={locked} onChange={(e) => set({ title: e.target.value })} placeholder={t("worldScheduleRelease.relTitleLabel")} />
         </label>
         <label className="block">
-          <span className={fieldLabel(isLight)}>Artist name</span>
-          <input aria-label="Artist name" className={inputCls(isLight)} value={draft.artistName} disabled={locked} onChange={(e) => set({ artistName: e.target.value })} placeholder="Artist name" />
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relArtistLabel")}</span>
+          <input aria-label={t("worldScheduleRelease.relArtistLabel")} className={inputCls(isLight)} value={draft.artistName} disabled={locked} onChange={(e) => set({ artistName: e.target.value })} placeholder={t("worldScheduleRelease.relArtistLabel")} />
         </label>
       </div>
       <div className="grid gap-2 sm:grid-cols-3">
         <label className="block">
-          <span className={fieldLabel(isLight)}>Release type</span>
-          <select aria-label="Release type" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={draft.releaseType} disabled={locked} onChange={(e) => set({ releaseType: e.target.value })}>
-            <option value="single">Single — 1 track</option>
-            <option value="ep">EP — 2–6 tracks</option>
-            <option value="album">Album — 7–30 tracks</option>
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relTypeLabel")}</span>
+          <select aria-label={t("worldScheduleRelease.relTypeLabel")} className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={draft.releaseType} disabled={locked} onChange={(e) => set({ releaseType: e.target.value })}>
+            <option value="single">{t("worldScheduleRelease.relTypeSingle")}</option>
+            <option value="ep">{t("worldScheduleRelease.relTypeEp")}</option>
+            <option value="album">{t("worldScheduleRelease.relTypeAlbum")}</option>
           </select>
         </label>
         <label className="block">
-          <span className={fieldLabel(isLight)}>Release date</span>
-          <input aria-label="Release date" type="date" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={draft.releaseDate} disabled={locked} onChange={(e) => set({ releaseDate: e.target.value })} />
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relDateLabel")}</span>
+          <input aria-label={t("worldScheduleRelease.relDateLabel")} type="date" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={draft.releaseDate} disabled={locked} onChange={(e) => set({ releaseDate: e.target.value })} />
         </label>
         <label className="block">
-          <span className={fieldLabel(isLight)}>Genre</span>
-          <input aria-label="Genre" className={inputCls(isLight)} value={draft.genre} disabled={locked} onChange={(e) => set({ genre: e.target.value })} placeholder="Primary genre" />
+          <span className={fieldLabel(isLight)}>{t("distribute.genre")}</span>
+          <input aria-label={t("distribute.genre")} className={inputCls(isLight)} value={draft.genre} disabled={locked} onChange={(e) => set({ genre: e.target.value })} placeholder={t("worldScheduleRelease.relGenrePlaceholder")} />
         </label>
       </div>
       <label className="block">
-        <span className={fieldLabel(isLight)}>Master audio link</span>
-        <input aria-label="Master audio link" className={inputCls(isLight)} value={draft.audioUrl} disabled={locked} onChange={(e) => set({ audioUrl: e.target.value })} placeholder="https://… your final master (WAV/MP3)" />
+        <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relAudioLabel")}</span>
+        <input aria-label={t("worldScheduleRelease.relAudioLabel")} className={inputCls(isLight)} value={draft.audioUrl} disabled={locked} onChange={(e) => set({ audioUrl: e.target.value })} placeholder={t("worldScheduleRelease.relAudioPlaceholder")} />
       </label>
       <label className="block">
-        <span className={fieldLabel(isLight)}>Cover art link</span>
-        <input aria-label="Cover art link" className={inputCls(isLight)} value={draft.artworkUrl} disabled={locked} onChange={(e) => set({ artworkUrl: e.target.value })} placeholder="https://… 3000×3000 cover art" />
+        <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relArtworkLabel")}</span>
+        <input aria-label={t("worldScheduleRelease.relArtworkLabel")} className={inputCls(isLight)} value={draft.artworkUrl} disabled={locked} onChange={(e) => set({ artworkUrl: e.target.value })} placeholder={t("worldScheduleRelease.relArtworkPlaceholder")} />
       </label>
 
       <div>
-        <span className={fieldLabel(isLight)}>Platforms</span>
+        <span className={fieldLabel(isLight)}>{t("distribute.platforms")}</span>
         <div className="flex flex-wrap gap-1.5" data-testid="world-release-platforms">
           {DISTRIBUTION_PLATFORMS.map((p) => (
             <button key={p.key} type="button" disabled={locked} aria-pressed={draft.platforms.includes(p.key)} onClick={() => togglePlatform(p.key)} className={chipBtn(isLight, draft.platforms.includes(p.key))}>
@@ -207,14 +209,14 @@ function ReleaseFormFields({
       </div>
 
       <div>
-        <span className={fieldLabel(isLight)}>Tracks</span>
+        <span className={fieldLabel(isLight)}>{t("distribute.tracks_2")}</span>
         <div className="space-y-1.5">
-          {draft.tracks.map((t, i) => (
+          {draft.tracks.map((track, i) => (
             <div key={i} className="flex gap-2">
-              <input aria-label={`Track ${i + 1} title`} className={inputCls(isLight)} value={t.title} disabled={locked} placeholder={`Track ${i + 1} title`} onChange={(e) => set({ tracks: draft.tracks.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)) })} />
-              <input aria-label={`Track ${i + 1} ISRC`} className={inputCls(isLight)} style={{ maxWidth: 170 }} value={t.isrc} disabled={locked} placeholder="ISRC (optional)" onChange={(e) => set({ tracks: draft.tracks.map((x, j) => (j === i ? { ...x, isrc: e.target.value } : x)) })} />
+              <input aria-label={t("distribute.trackTitle", { n: i + 1 })} className={inputCls(isLight)} value={track.title} disabled={locked} placeholder={t("distribute.trackTitle", { n: i + 1 })} onChange={(e) => set({ tracks: draft.tracks.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)) })} />
+              <input aria-label={t("worldScheduleRelease.relTrackIsrcAria", { n: i + 1 })} className={inputCls(isLight)} style={{ maxWidth: 170 }} value={track.isrc} disabled={locked} placeholder={t("worldScheduleRelease.relTrackIsrcPlaceholder")} onChange={(e) => set({ tracks: draft.tracks.map((x, j) => (j === i ? { ...x, isrc: e.target.value } : x)) })} />
               {draft.tracks.length > 1 && !locked ? (
-                <button type="button" aria-label={`Remove track ${i + 1}`} onClick={() => set({ tracks: draft.tracks.filter((_, j) => j !== i) })} className={chipBtn(isLight, false)}>
+                <button type="button" aria-label={t("worldScheduleRelease.relRemoveTrackAria", { n: i + 1 })} onClick={() => set({ tracks: draft.tracks.filter((_, j) => j !== i) })} className={chipBtn(isLight, false)}>
                   <X className="h-3.5 w-3.5" />
                 </button>
               ) : null}
@@ -223,85 +225,85 @@ function ReleaseFormFields({
         </div>
         {!locked ? (
           <button type="button" data-testid="world-release-track-add" onClick={() => set({ tracks: [...draft.tracks, { title: "", isrc: "" }] })} className={`${chipBtn(isLight, false)} mt-1.5`}>
-            <Plus className="h-3.5 w-3.5" /> Add a track
+            <Plus className="h-3.5 w-3.5" /> {t("worldScheduleRelease.relAddTrack")}
           </button>
         ) : null}
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="block">
-          <span className={fieldLabel(isLight)}>Release ISRC (optional)</span>
-          <input aria-label="Release ISRC" className={inputCls(isLight)} value={draft.isrc} disabled={locked} onChange={(e) => set({ isrc: e.target.value })} placeholder="USABC2412345" />
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relIsrcLabel")}</span>
+          <input aria-label={t("worldScheduleRelease.relIsrcAria")} className={inputCls(isLight)} value={draft.isrc} disabled={locked} onChange={(e) => set({ isrc: e.target.value })} placeholder="USABC2412345" />
         </label>
         <label className="block">
-          <span className={fieldLabel(isLight)}>Subgenre</span>
-          <input aria-label="Subgenre" className={inputCls(isLight)} value={draft.subgenre} disabled={locked} onChange={(e) => set({ subgenre: e.target.value })} placeholder="Subgenre" />
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relSubgenreLabel")}</span>
+          <input aria-label={t("worldScheduleRelease.relSubgenreLabel")} className={inputCls(isLight)} value={draft.subgenre} disabled={locked} onChange={(e) => set({ subgenre: e.target.value })} placeholder={t("worldScheduleRelease.relSubgenrePlaceholder")} />
         </label>
         <label className="block">
-          <span className={fieldLabel(isLight)}>Label</span>
-          <input aria-label="Label" className={inputCls(isLight)} value={draft.label} disabled={locked} onChange={(e) => set({ label: e.target.value })} placeholder="Label name" />
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relLabelLabel")}</span>
+          <input aria-label={t("worldScheduleRelease.relLabelLabel")} className={inputCls(isLight)} value={draft.label} disabled={locked} onChange={(e) => set({ label: e.target.value })} placeholder={t("worldScheduleRelease.relLabelPlaceholder")} />
         </label>
         <label className="block">
-          <span className={fieldLabel(isLight)}>Label imprint</span>
-          <input aria-label="Label imprint" className={inputCls(isLight)} value={draft.labelImprint} disabled={locked} onChange={(e) => set({ labelImprint: e.target.value })} placeholder="Imprint (optional)" />
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relImprintLabel")}</span>
+          <input aria-label={t("worldScheduleRelease.relImprintLabel")} className={inputCls(isLight)} value={draft.labelImprint} disabled={locked} onChange={(e) => set({ labelImprint: e.target.value })} placeholder={t("worldScheduleRelease.relImprintPlaceholder")} />
         </label>
         <label className="block">
-          <span className={fieldLabel(isLight)}>© line</span>
-          <input aria-label="Copyright C line" className={inputCls(isLight)} value={draft.copyrightCLine} disabled={locked} onChange={(e) => set({ copyrightCLine: e.target.value })} placeholder="© 2026 Your label" />
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relCLineLabel")}</span>
+          <input aria-label={t("worldScheduleRelease.relCLineAria")} className={inputCls(isLight)} value={draft.copyrightCLine} disabled={locked} onChange={(e) => set({ copyrightCLine: e.target.value })} placeholder={t("worldScheduleRelease.relCLinePlaceholder")} />
         </label>
         <label className="block">
-          <span className={fieldLabel(isLight)}>℗ line</span>
-          <input aria-label="Copyright P line" className={inputCls(isLight)} value={draft.copyrightPLine} disabled={locked} onChange={(e) => set({ copyrightPLine: e.target.value })} placeholder="℗ 2026 Your label" />
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relPLineLabel")}</span>
+          <input aria-label={t("worldScheduleRelease.relPLineAria")} className={inputCls(isLight)} value={draft.copyrightPLine} disabled={locked} onChange={(e) => set({ copyrightPLine: e.target.value })} placeholder={t("worldScheduleRelease.relPLinePlaceholder")} />
         </label>
       </div>
 
       <div>
-        <span className={fieldLabel(isLight)}>UPC / barcode</span>
+        <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relUpcLabel")}</span>
         <div className="flex gap-2">
-          <input aria-label="UPC" className={inputCls(isLight)} value={draft.upc} disabled={locked} onChange={(e) => set({ upc: e.target.value })} placeholder="12-digit UPC-A or 13-digit EAN" />
-          <select aria-label="UPC kind" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark", width: "auto" }} value={draft.upcKind} disabled={locked} onChange={(e) => set({ upcKind: e.target.value })}>
-            <option value="internal">Internal</option>
-            <option value="official">Official (via a partner)</option>
+          <input aria-label={t("worldScheduleRelease.relUpcAria")} className={inputCls(isLight)} value={draft.upc} disabled={locked} onChange={(e) => set({ upc: e.target.value })} placeholder={t("worldScheduleRelease.relUpcPlaceholder")} />
+          <select aria-label={t("worldScheduleRelease.relUpcKindAria")} className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark", width: "auto" }} value={draft.upcKind} disabled={locked} onChange={(e) => set({ upcKind: e.target.value })}>
+            <option value="internal">{t("worldScheduleRelease.relUpcInternal")}</option>
+            <option value="official">{t("worldScheduleRelease.relUpcOfficial")}</option>
           </select>
         </div>
         <p className={`mt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-          An internal barcode is a catalog placeholder, not a store-recognized UPC — your official UPC is assigned when the release is distributed via a partner. Use the barcode button below the form to mint one.
+          {t("worldScheduleRelease.relUpcNote")}
         </p>
       </div>
 
       <div>
-        <span className={fieldLabel(isLight)}>Explicit content — declare it (required)</span>
+        <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relExplicitLabel")}</span>
         <div className="flex flex-wrap items-center gap-1.5">
-          <button type="button" disabled={locked} aria-pressed={draft.explicit === false} onClick={() => set({ explicit: false })} className={chipBtn(isLight, draft.explicit === false)}>Clean</button>
-          <button type="button" disabled={locked} aria-pressed={draft.explicit === true} onClick={() => set({ explicit: true })} className={chipBtn(isLight, draft.explicit === true)}>Explicit</button>
+          <button type="button" disabled={locked} aria-pressed={draft.explicit === false} onClick={() => set({ explicit: false })} className={chipBtn(isLight, draft.explicit === false)}>{t("worldScheduleRelease.relClean")}</button>
+          <button type="button" disabled={locked} aria-pressed={draft.explicit === true} onClick={() => set({ explicit: true })} className={chipBtn(isLight, draft.explicit === true)}>{t("distribute.explicit")}</button>
           <label className={`ml-2 inline-flex items-center gap-2 text-xs font-semibold bdv-touch-target ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
             <input type="checkbox" checked={draft.explicitConfirmed} disabled={locked} onChange={(e) => set({ explicitConfirmed: e.target.checked })} />
-            I confirm this declaration
+            {t("worldScheduleRelease.relConfirmDeclaration")}
           </label>
         </div>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-3">
         <label className="block">
-          <span className={fieldLabel(isLight)}>Territories</span>
-          <select aria-label="Territories mode" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={draft.territoriesMode} disabled={locked} onChange={(e) => set({ territoriesMode: e.target.value })}>
-            <option value="worldwide">Worldwide</option>
-            <option value="include">Only these</option>
-            <option value="exclude">Everywhere except these</option>
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relTerritoriesLabel")}</span>
+          <select aria-label={t("worldScheduleRelease.relTerritoriesAria")} className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={draft.territoriesMode} disabled={locked} onChange={(e) => set({ territoriesMode: e.target.value })}>
+            <option value="worldwide">{t("worldScheduleRelease.relTerrWorldwide")}</option>
+            <option value="include">{t("worldScheduleRelease.relTerrInclude")}</option>
+            <option value="exclude">{t("worldScheduleRelease.relTerrExclude")}</option>
           </select>
         </label>
         <label className="block">
-          <span className={fieldLabel(isLight)}>Territory codes</span>
-          <input aria-label="Territory codes" className={inputCls(isLight)} value={draft.territoriesText} disabled={locked || draft.territoriesMode === "worldwide"} onChange={(e) => set({ territoriesText: e.target.value })} placeholder="US, CA, GB…" />
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relTerrCodesLabel")}</span>
+          <input aria-label={t("worldScheduleRelease.relTerrCodesLabel")} className={inputCls(isLight)} value={draft.territoriesText} disabled={locked || draft.territoriesMode === "worldwide"} onChange={(e) => set({ territoriesText: e.target.value })} placeholder={t("worldScheduleRelease.relTerrCodesPlaceholder")} />
         </label>
         <label className="block">
-          <span className={fieldLabel(isLight)}>Preorder date</span>
-          <input aria-label="Preorder date" type="date" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={draft.preorderDate} disabled={locked} onChange={(e) => set({ preorderDate: e.target.value })} />
+          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relPreorderLabel")}</span>
+          <input aria-label={t("worldScheduleRelease.relPreorderLabel")} type="date" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={draft.preorderDate} disabled={locked} onChange={(e) => set({ preorderDate: e.target.value })} />
         </label>
       </div>
       <label className="block">
-        <span className={fieldLabel(isLight)}>Lyrics (optional)</span>
-        <textarea aria-label="Lyrics" className={inputCls(isLight)} rows={3} value={draft.lyrics} disabled={locked} onChange={(e) => set({ lyrics: e.target.value })} placeholder="The song's lyrics — saved with the release" />
+        <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relLyricsLabel")}</span>
+        <textarea aria-label={t("worldScheduleRelease.relLyricsAria")} className={inputCls(isLight)} rows={3} value={draft.lyrics} disabled={locked} onChange={(e) => set({ lyrics: e.target.value })} placeholder={t("worldScheduleRelease.relLyricsPlaceholder")} />
       </label>
     </div>
   );
@@ -310,6 +312,7 @@ function ReleaseFormFields({
 /* ─── The desk body (list + wizard + editor + smartlink) ──────────── */
 
 function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean; prefill?: ReleasePrefill | null; prefillNonce?: number }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useReleaseAuthHeaders();
   const { refreshProfile } = useAuth();
 
@@ -447,7 +450,14 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
   /* Create (free draft) / Save edit (free PATCH). */
   const saveDraft = async () => {
     if (busy) return;
-    const problem = validateReleaseDraft(draft);
+    const problem = validateReleaseDraft(draft, {
+      titleArtist: t("worldScheduleRelease.relValTitleArtist"),
+      explicit: t("worldScheduleRelease.relValExplicit"),
+      platforms: t("worldScheduleRelease.relValPlatforms"),
+      audio: t("worldScheduleRelease.relValAudio"),
+      tracks: t("worldScheduleRelease.relValTracks"),
+      releaseDate: t("worldScheduleRelease.relValDate"),
+    });
     if (problem) {
       setError(problem);
       return;
@@ -464,19 +474,19 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(serverMessage(data, "The release couldn't be saved — try again."));
+        setError(serverMessage(data, t("worldScheduleRelease.relSaveFailedFallback")));
         return;
       }
       const saved = parseReleaseDetail(data);
       if (!saved) {
-        setError("The release desk answered without the release. Try again.");
+        setError(t("worldScheduleRelease.relSaveNoRelease"));
         return;
       }
-      setNote(creating ? "Draft created — free. Finish the checklist, set your splits, then submit when you're ready." : "Saved — your changes are on the release.");
+      setNote(creating ? t("worldScheduleRelease.relCreatedNote") : t("worldScheduleRelease.relSavedNote"));
       await adoptRelease(saved);
       setTick((n) => n + 1);
     } catch {
-      setError("The release desk didn't answer. Try again.");
+      setError(t("worldScheduleRelease.relNoAnswer"));
     } finally {
       setBusy(null);
     }
@@ -487,8 +497,11 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
     if (busy || !selected || selected.status !== "draft" || !pricing) return;
     const price = submitPriceFor(pricing, selected.releaseType);
     if (typeof window !== "undefined" && !window.confirm(
-      `Submit "${selected.title}" for distribution for ${price} Visual Bucs?\n\n` +
-      `This pays the aggregator delivery fee and queues delivery to ${selected.platforms.map(platformLabel).join(", ") || "your platforms"}.`,
+      t("worldScheduleRelease.relSubmitConfirm", {
+        title: selected.title,
+        price,
+        platforms: selected.platforms.map(platformLabel).join(", ") || t("worldScheduleRelease.relYourPlatforms"),
+      }),
     )) return;
     setBusy("submit");
     setError(null);
@@ -501,22 +514,22 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        setError("Out of Visual Bucs — top up and the release desk is ready again. Your draft is saved.");
+        setError(t("worldScheduleRelease.relSubmitOutOfBucs"));
         return;
       }
       if (!res.ok) {
         const checklist = parseSubmitChecklist(data);
         if (checklist.length > 0) setSubmitChecklist(checklist);
-        setError(serverMessage(data, "Couldn't submit the release."));
+        setError(serverMessage(data, t("worldScheduleRelease.relSubmitFailedFallback")));
         return;
       }
       const result = parseSubmitResult(data);
       if (result.release) await adoptRelease(result.release);
-      setNote(result.notice ?? "Release submitted — delivery queued. Track every platform below.");
+      setNote(result.notice ?? t("worldScheduleRelease.relSubmittedFallback"));
       refreshProfile();
       setTick((n) => n + 1);
     } catch {
-      setError("The release desk didn't answer. Try again.");
+      setError(t("worldScheduleRelease.relNoAnswer"));
     } finally {
       setBusy(null);
     }
@@ -524,21 +537,21 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
 
   const deleteDraft = async () => {
     if (busy || !selected || selected.status !== "draft") return;
-    if (typeof window !== "undefined" && !window.confirm("Delete this release draft? This can't be undone.")) return;
+    if (typeof window !== "undefined" && !window.confirm(t("worldScheduleRelease.relDeleteConfirm"))) return;
     setBusy("delete");
     try {
       const res = await fetch(`/api/distribution/releases/${selected.id}`, { method: "DELETE", headers: await authHeaders() });
       if (!res.ok) {
-        setError("Couldn't delete the release.");
+        setError(t("worldScheduleRelease.relDeleteFailed"));
         return;
       }
       setSelected(null);
       setCreating(true);
       setDraft(emptyReleaseDraft());
-      setNote("Release draft deleted.");
+      setNote(t("worldScheduleRelease.relDeletedNote"));
       setTick((n) => n + 1);
     } catch {
-      setError("Couldn't delete the release.");
+      setError(t("worldScheduleRelease.relDeleteFailed"));
     } finally {
       setBusy(null);
     }
@@ -555,16 +568,16 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(serverMessage(data, "Couldn't generate the barcode — try again."));
+        setError(serverMessage(data, t("worldScheduleRelease.relBarcodeFailedFallback")));
         return;
       }
       const { barcode, notice } = parseBarcodeResult(data);
       const updated = parseReleaseDetail(data);
       if (updated) await adoptRelease(updated);
       if (barcode) set({ upc: barcode, upcKind: "internal" });
-      setNote(notice ?? "Internal barcode minted.");
+      setNote(notice ?? t("worldScheduleRelease.relBarcodeMintedFallback"));
     } catch {
-      setError("The barcode desk didn't answer. Try again.");
+      setError(t("worldScheduleRelease.relBarcodeNoAnswer"));
     } finally {
       setBusy(null);
     }
@@ -582,18 +595,18 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setSplitsNote(serverMessage(data, "Couldn't save the splits."));
+        setSplitsNote(serverMessage(data, t("worldScheduleRelease.relSplitsSaveFailedFallback")));
         return;
       }
       const { splits: saved, agreementVersion } = parseSplitsSave(data);
       if (saved.length > 0) setSplits(saved);
       setSplitsNote(
         agreementVersion && agreementVersion > 1
-          ? `Royalty splits saved — agreement v${agreementVersion} applies to future earnings only. Free.`
-          : "Royalty splits saved. Free.",
+          ? t("worldScheduleRelease.relSplitsSavedVersioned", { version: agreementVersion })
+          : t("worldScheduleRelease.relSplitsSaved"),
       );
     } catch {
-      setSplitsNote("Couldn't save the splits — try again.");
+      setSplitsNote(t("worldScheduleRelease.relSplitsSaveFailed"));
     } finally {
       setBusy(null);
     }
@@ -618,7 +631,7 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setSplitsNote(serverMessage(data, "Couldn't record the invite."));
+        setSplitsNote(serverMessage(data, t("worldScheduleRelease.relInviteFailedFallback")));
         return;
       }
       const result = parseSplitInviteResult(data);
@@ -626,14 +639,14 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
         setSplits((prev) => prev.map((x) => (x.id === split.id ? { ...x, inviteStatus: "invited" } : x)));
         setSplitsNote(
           result.emailSent
-            ? `Invite sent to ${split.email} — it's recorded on their split. Free.`
-            : result.note ?? "Invite recorded — share the agreement link below so they can review it.",
+            ? t("worldScheduleRelease.relInviteSent", { email: split.email })
+            : result.note ?? t("worldScheduleRelease.relInviteRecordedFallback"),
         );
       } else {
-        setSplitsNote("The invite wasn't recorded — try again.");
+        setSplitsNote(t("worldScheduleRelease.relInviteNotRecorded"));
       }
     } catch {
-      setSplitsNote("Couldn't record the invite — try again.");
+      setSplitsNote(t("worldScheduleRelease.relInviteFailed"));
     } finally {
       setBusy(null);
     }
@@ -652,18 +665,18 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setSplitsNote(serverMessage(data, "Couldn't mint the share link."));
+        setSplitsNote(serverMessage(data, t("worldScheduleRelease.relShareFailedFallback")));
         return;
       }
       const link = parseSplitShareLink(data);
       if (link) {
         setSplitLink(link.url);
-        setSplitsNote("Agreement link ready — share it with your collaborators. Free.");
+        setSplitsNote(t("worldScheduleRelease.relShareReady"));
       } else {
-        setSplitsNote("The share link didn't come back — try again.");
+        setSplitsNote(t("worldScheduleRelease.relShareNoLink"));
       }
     } catch {
-      setSplitsNote("Couldn't mint the share link — try again.");
+      setSplitsNote(t("worldScheduleRelease.relShareFailed"));
     } finally {
       setBusy(null);
     }
@@ -672,7 +685,7 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
   const generateMetadata = async () => {
     if (busy || !selected) return;
     if (!vibe.trim()) {
-      setAiNote("Describe the song's vibe first — that's what the AI writes from.");
+      setAiNote(t("worldScheduleRelease.relAiNeedVibe"));
       return;
     }
     setBusy("metadata");
@@ -685,18 +698,18 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        setAiNote("Out of Visual Bucs — top up and the AI bench is ready again.");
+        setAiNote(t("worldScheduleRelease.relAiOutOfBucs"));
         return;
       }
       const parsed = parseMetadataResult(data);
       if (!res.ok || !parsed) {
-        setAiNote(serverMessage(data, "Metadata generation failed — try again."));
+        setAiNote(serverMessage(data, t("worldScheduleRelease.relAiMetaFailed")));
         return;
       }
       setMetaResult(parsed);
       refreshProfile();
     } catch {
-      setAiNote("Metadata generation failed — try again.");
+      setAiNote(t("worldScheduleRelease.relAiMetaFailed"));
     } finally {
       setBusy(null);
     }
@@ -717,18 +730,18 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        setAiNote("Out of Visual Bucs — top up and the AI bench is ready again.");
+        setAiNote(t("worldScheduleRelease.relAiOutOfBucs"));
         return;
       }
       const parsed = parseStrategyResult(data);
       if (!res.ok || !parsed) {
-        setAiNote(serverMessage(data, "Strategy generation failed — try again."));
+        setAiNote(serverMessage(data, t("worldScheduleRelease.relAiStrategyFailed")));
         return;
       }
       setStrategyResult(parsed);
       refreshProfile();
     } catch {
-      setAiNote("Strategy generation failed — try again.");
+      setAiNote(t("worldScheduleRelease.relAiStrategyFailed"));
     } finally {
       setBusy(null);
     }
@@ -744,12 +757,12 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
         body: JSON.stringify(buildAiSavePayload({ metadata: metaResult, strategy: strategyResult })),
       });
       if (!res.ok) {
-        setAiNote("Couldn't save the AI package.");
+        setAiNote(t("worldScheduleRelease.relAiSaveFailed"));
         return;
       }
-      setAiNote("AI package saved to the release.");
+      setAiNote(t("worldScheduleRelease.relAiSaved"));
     } catch {
-      setAiNote("Couldn't save the AI package.");
+      setAiNote(t("worldScheduleRelease.relAiSaveFailed"));
     } finally {
       setBusy(null);
     }
@@ -766,21 +779,21 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setSlNote(serverMessage(data, "Couldn't mint the pre-save link — try again."));
+        setSlNote(serverMessage(data, t("worldScheduleRelease.relMintFailed")));
         return;
       }
       const { slug, url } = parsePresaveMint(data);
       if (!slug) {
-        setSlNote("The link desk answered without a link. Try again.");
+        setSlNote(t("worldScheduleRelease.relMintNoLink"));
         return;
       }
       setMintedUrl(url);
       const updated = { ...selected, presaveSlug: slug };
       setSelected(updated);
-      setSlNote("Your smartlink is live — it stays your release link after release day too.");
+      setSlNote(t("worldScheduleRelease.relMintedNote"));
       void loadSmartlink(updated);
     } catch {
-      setSlNote("Couldn't mint the pre-save link — try again.");
+      setSlNote(t("worldScheduleRelease.relMintFailed"));
     } finally {
       setBusy(null);
     }
@@ -788,7 +801,11 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
 
   const saveSmartlinkSettings = async () => {
     if (busy || !selected || !slSettings) return;
-    const problem = validateSmartlinkSettings(slSettings);
+    const problem = validateSmartlinkSettings(slSettings, {
+      metaPixel: t("worldScheduleRelease.relValMetaPixel"),
+      tiktokPixel: t("worldScheduleRelease.relValTiktokPixel"),
+      googleTag: t("worldScheduleRelease.relValGoogleTag"),
+    });
     if (problem) {
       setSlNote(problem);
       return;
@@ -803,13 +820,13 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setSlNote(serverMessage(data, "Couldn't save pre-save settings — try again."));
+        setSlNote(serverMessage(data, t("worldScheduleRelease.relSlSaveFailed")));
         return;
       }
-      setSlNote("Smartlink settings saved.");
+      setSlNote(t("worldScheduleRelease.relSlSaved"));
       void loadSmartlink(selected);
     } catch {
-      setSlNote("Couldn't save pre-save settings — try again.");
+      setSlNote(t("worldScheduleRelease.relSlSaveFailed"));
     } finally {
       setBusy(null);
     }
@@ -844,20 +861,23 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
   const splitTotal = splitsTotal(splits);
 
   if (loadFailed) {
-    return <NativeErrorState isLight={isLight} message="Your releases wouldn't open — nothing about them changed." onRetry={() => setTick((n) => n + 1)} />;
+    return <NativeErrorState isLight={isLight} message={t("worldScheduleRelease.relLoadFailed")} onRetry={() => setTick((n) => n + 1)} />;
   }
   if (releases === null) {
-    return <NativeLoadingState isLight={isLight} message="Opening the Release Desk…" />;
+    return <NativeLoadingState isLight={isLight} message={t("worldScheduleRelease.relLoading")} />;
   }
 
   return (
     <div className="space-y-3" data-testid="world-release-desk">
       <p className={`text-sm ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
         {releases.length === 0
-          ? "No releases yet — start your first one below, right here."
-          : `${releases.length} release${releases.length === 1 ? "" : "s"}${vaulted > 0 ? ` · ${vaulted} in the catalog vault` : ""}`}
+          ? t("worldScheduleRelease.relNoneYet")
+          : t(releases.length === 1 ? "worldScheduleRelease.relCountOne" : "worldScheduleRelease.relCountMany", { count: releases.length })}
+        {releases.length > 0 && vaulted > 0
+          ? t("worldScheduleRelease.relVaultSuffix", { count: vaulted })
+          : ""}
         {effectivePricing && !effectivePricing.aggregatorLive && effectivePricing.aggregator
-          ? " · Delivery runs in sandbox simulation until the distributor is connected — statuses say so."
+          ? t("worldScheduleRelease.relSandboxNote")
           : ""}
       </p>
 
@@ -897,12 +917,12 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
           }}
           className={chipBtn(isLight, creating)}
         >
-          <Plus className="h-3.5 w-3.5" /> New release
+          <Plus className="h-3.5 w-3.5" /> {t("worldScheduleRelease.relNewRelease")}
         </button>
         {selected && !creating ? (
           <span className={`text-xs font-bold ${muted}`}>
-            <Pencil className="mr-1 inline h-3.5 w-3.5" /> Editing “{selected.title}” — {selected.status}
-            {locked ? " · packaged releases are locked; start a new release to change anything" : ""}
+            <Pencil className="mr-1 inline h-3.5 w-3.5" /> {t("worldScheduleRelease.relEditingLine", { title: selected.title, status: selected.status })}
+            {locked ? t("worldScheduleRelease.relLockedSuffix") : ""}
           </span>
         ) : null}
       </div>
@@ -915,16 +935,16 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
       <div className="flex flex-wrap items-center gap-2">
         {!locked ? (
           <button type="button" data-testid="world-release-save" onClick={() => void saveDraft()} disabled={busy !== null} className={goldBtn}>
-            <Check className="h-4 w-4" /> {busy === "save" ? "Saving…" : creating ? "Create the draft — free" : "Save changes — free"}
+            <Check className="h-4 w-4" /> {busy === "save" ? t("worldScheduleRelease.relSaving") : creating ? t("worldScheduleRelease.relCreateDraft") : t("worldScheduleRelease.relSaveChangesFree")}
           </button>
         ) : null}
         {selected && !creating && selected.status === "draft" ? (
           <>
             <button type="button" data-testid="world-release-barcode" onClick={() => void generateBarcode()} disabled={busy !== null} className={chipBtn(isLight, false)}>
-              <Barcode className="h-3.5 w-3.5" /> {busy === "barcode" ? "Minting…" : "Generate internal barcode"}
+              <Barcode className="h-3.5 w-3.5" /> {busy === "barcode" ? t("worldScheduleRelease.relBusyMinting") : t("worldScheduleRelease.relGenerateBarcode")}
             </button>
             <button type="button" data-testid="world-release-delete" onClick={() => void deleteDraft()} disabled={busy !== null} className={chipBtn(isLight, false)}>
-              <Trash2 className="h-3.5 w-3.5" /> Delete draft
+              <Trash2 className="h-3.5 w-3.5" /> {t("worldScheduleRelease.relDeleteDraft")}
             </button>
           </>
         ) : null}
@@ -934,7 +954,7 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
         <>
           {/* Checklist + submit */}
           <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-release-checklist">
-            <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Release checklist</p>
+            <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("distribute.release_checklist")}</p>
             <ul className="mt-2 space-y-1">
               {checklist.map((c) => (
                 <li key={c.key} className={`flex items-start gap-2 text-xs ${muted}`}>
@@ -946,17 +966,19 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
             {selected.status === "draft" ? (
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button type="button" data-testid="world-release-submit" onClick={() => void submitRelease()} disabled={busy !== null || !checklistPasses(checklist)} className={goldBtn}>
-                  <Disc3 className="h-4 w-4" /> {busy === "submit" ? "Submitting…" : submitPrice !== null ? `Submit for distribution — ${submitPrice.toLocaleString("en-US")} Visual Bucs` : "Submit for distribution"}
+                  <Disc3 className="h-4 w-4" /> {busy === "submit" ? t("worldScheduleRelease.relSubmitBusy") : submitPrice !== null ? t("worldScheduleRelease.relSubmitButton", { price: submitPrice.toLocaleString(i18n.language) }) : t("worldScheduleRelease.relSubmitPlain")}
                 </button>
                 <span className={`text-xs ${muted}`}>
                   {checklistPasses(checklist)
-                    ? "The price is confirmed before anything charges — the same ask the website makes."
-                    : "Finish every checklist line and the submit button lights up."}
+                    ? t("worldScheduleRelease.relSubmitReadyNote")
+                    : t("worldScheduleRelease.relSubmitBlockedNote")}
                 </span>
               </div>
             ) : (
               <p className={`mt-2 text-xs font-semibold ${isLight ? "text-emerald-800" : "text-emerald-300"}`}>
-                Submitted{selected.creditsCharged > 0 ? ` — ${selected.creditsCharged.toLocaleString("en-US")} Visual Bucs paid` : ""}. Delivery status is below.
+                {selected.creditsCharged > 0
+                  ? t("worldScheduleRelease.relSubmittedPaid", { amount: selected.creditsCharged.toLocaleString(i18n.language) })
+                  : t("worldScheduleRelease.relSubmittedPlain")}
               </p>
             )}
           </div>
@@ -965,13 +987,13 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
           {selected.status !== "draft" || selected.platformStatuses.length > 0 ? (
             <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-release-delivery">
               <div className="flex flex-wrap items-center gap-2">
-                <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Delivery</p>
+                <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldScheduleRelease.relDeliveryTitle")}</p>
                 <button type="button" data-testid="world-release-delivery-refresh" onClick={() => void refreshPlatforms()} disabled={busy !== null} className={`${chipBtn(isLight, false)} ml-auto`}>
-                  {busy === "platforms" ? "Checking…" : "Refresh status"}
+                  {busy === "platforms" ? t("worldScheduleRelease.relDeliveryRefreshBusy") : t("worldScheduleRelease.relDeliveryRefresh")}
                 </button>
               </div>
               {selected.platformStatuses.length === 0 ? (
-                <p className={`mt-2 text-xs ${muted}`}>No per-platform status yet — it lands here as the distributor reports it.</p>
+                <p className={`mt-2 text-xs ${muted}`}>{t("worldScheduleRelease.relDeliveryEmpty")}</p>
               ) : (
                 <ul className="mt-2 space-y-1">
                   {selected.platformStatuses.map((p) => (
@@ -987,20 +1009,20 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
 
           {/* Splits */}
           <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-release-splits">
-            <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Royalty splits</p>
+            <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("distribute.royalty_splits")}</p>
             <div className="mt-2 space-y-1.5">
               {splits.map((s, i) => (
                 <div key={i} className="flex flex-wrap gap-2">
-                  <input aria-label={`Payee ${i + 1} name`} className={inputCls(isLight)} style={{ flex: "1 1 140px", width: "auto" }} value={s.name} placeholder="Payee name" onChange={(e) => setSplits(splits.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
-                  <select aria-label={`Payee ${i + 1} role`} className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark", width: "auto" }} value={s.role ?? ""} onChange={(e) => setSplits(splits.map((x, j) => (j === i ? { ...x, role: e.target.value || undefined } : x)))}>
+                  <input aria-label={t("worldScheduleRelease.relPayeeNameAria", { n: i + 1 })} className={inputCls(isLight)} style={{ flex: "1 1 140px", width: "auto" }} value={s.name} placeholder={t("worldScheduleRelease.relPayeeNamePlaceholder")} onChange={(e) => setSplits(splits.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
+                  <select aria-label={t("worldScheduleRelease.relPayeeRoleAria", { n: i + 1 })} className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark", width: "auto" }} value={s.role ?? ""} onChange={(e) => setSplits(splits.map((x, j) => (j === i ? { ...x, role: e.target.value || undefined } : x)))}>
                     <option value="">{roleLabel("")}</option>
                     {SPLIT_ROLES.map((r) => (
                       <option key={r} value={r}>{roleLabel(r)}</option>
                     ))}
                   </select>
-                  <input aria-label={`Payee ${i + 1} email`} className={inputCls(isLight)} style={{ flex: "1 1 160px", width: "auto" }} value={s.email ?? ""} placeholder="Email (optional)" onChange={(e) => setSplits(splits.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} />
-                  <input aria-label={`Payee ${i + 1} share`} type="number" min={0} max={100} className={inputCls(isLight)} style={{ width: 90 }} value={Number.isFinite(s.share) ? s.share : ""} placeholder="%" onChange={(e) => setSplits(splits.map((x, j) => (j === i ? { ...x, share: Number(e.target.value) } : x)))} />
-                  <button type="button" aria-label={`Remove payee ${i + 1}`} onClick={() => setSplits(splits.filter((_, j) => j !== i))} className={chipBtn(isLight, false)}>
+                  <input aria-label={t("worldScheduleRelease.relPayeeEmailAria", { n: i + 1 })} className={inputCls(isLight)} style={{ flex: "1 1 160px", width: "auto" }} value={s.email ?? ""} placeholder={t("worldScheduleRelease.relPayeeEmailPlaceholder")} onChange={(e) => setSplits(splits.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} />
+                  <input aria-label={t("worldScheduleRelease.relPayeeShareAria", { n: i + 1 })} type="number" min={0} max={100} className={inputCls(isLight)} style={{ width: 90 }} value={Number.isFinite(s.share) ? s.share : ""} placeholder="%" onChange={(e) => setSplits(splits.map((x, j) => (j === i ? { ...x, share: Number(e.target.value) } : x)))} />
+                  <button type="button" aria-label={t("worldScheduleRelease.relRemovePayeeAria", { n: i + 1 })} onClick={() => setSplits(splits.filter((_, j) => j !== i))} className={chipBtn(isLight, false)}>
                     <X className="h-3.5 w-3.5" />
                   </button>
                   {s.id ? (
@@ -1009,10 +1031,10 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
                       data-testid={`world-release-split-invite-${i}`}
                       onClick={() => void invitePayee(s)}
                       disabled={busy !== null || !splitInviteReady(s)}
-                      title={splitInviteReady(s) ? "Email this collaborator their split invite" : "Add this payee's email to invite them"}
+                      title={splitInviteReady(s) ? t("worldScheduleRelease.relInviteTitleReady") : t("worldScheduleRelease.relInviteTitleNoEmail")}
                       className={chipBtn(isLight, false)}
                     >
-                      <Mail className="h-3.5 w-3.5" /> {s.inviteStatus === "invited" ? "Invited — send again" : "Invite by email"}
+                      <Mail className="h-3.5 w-3.5" /> {s.inviteStatus === "invited" ? t("worldScheduleRelease.relInviteAgain") : t("worldScheduleRelease.relInviteByEmail")}
                     </button>
                   ) : null}
                 </div>
@@ -1020,54 +1042,54 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button type="button" data-testid="world-release-split-add" onClick={() => setSplits([...splits, { name: "", role: "artist", share: 0 }])} className={chipBtn(isLight, false)}>
-                <Plus className="h-3.5 w-3.5" /> Add a payee
+                <Plus className="h-3.5 w-3.5" /> {t("worldScheduleRelease.relAddPayee")}
               </button>
-              <span className={`text-xs ${muted}`}>Total: {splitTotal}% — shares must total exactly 100%.</span>
+              <span className={`text-xs ${muted}`}>{t("worldScheduleRelease.relSplitTotal", { total: splitTotal })}</span>
               <button type="button" data-testid="world-release-splits-save" onClick={() => void saveSplits()} disabled={busy !== null || !splitsOk} className={`${goldBtn} ml-auto`}>
-                {busy === "splits" ? "Saving…" : "Save splits — free"}
+                {busy === "splits" ? t("worldScheduleRelease.relSaving") : t("worldScheduleRelease.relSaveSplits")}
               </button>
               <button type="button" data-testid="world-release-split-share" onClick={() => void shareSplitLink()} disabled={busy !== null} className={chipBtn(isLight, false)}>
-                <Share2 className="h-3.5 w-3.5" /> {busy === "split-share" ? "Minting…" : "Share agreement link"}
+                <Share2 className="h-3.5 w-3.5" /> {busy === "split-share" ? t("worldScheduleRelease.relBusyMinting") : t("worldScheduleRelease.relShareLink")}
               </button>
             </div>
             {splitLink ? (
               <p className={`mt-1 text-[11px] ${muted}`} data-testid="world-release-split-link">
-                Agreement: <span className={strong}>{splitLink}</span> — anyone with the link sees the split names and shares (never emails).
+                {t("worldScheduleRelease.relSplitLinkPrefix")} <span className={strong}>{splitLink}</span>{t("worldScheduleRelease.relSplitLinkSuffix")}
               </p>
             ) : null}
-            <p className={`mt-1 text-[11px] ${muted}`}>Invite appears once a payee is saved — collaborators are invited by the email on their row, or by the agreement link.</p>
-            <p className={`mt-1 text-[11px] ${muted}`}>Splits are accounting records for future earnings — saving a new version never rewrites past earnings.</p>
+            <p className={`mt-1 text-[11px] ${muted}`}>{t("worldScheduleRelease.relInviteHint")}</p>
+            <p className={`mt-1 text-[11px] ${muted}`}>{t("worldScheduleRelease.relSplitsAccountingNote")}</p>
             {splitsNote ? <p className={`mt-1 ${noteCls}`}>{splitsNote}</p> : null}
           </div>
 
           {/* AI benches */}
           <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-release-ai">
-            <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Release AI</p>
+            <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldScheduleRelease.relAiTitle")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <input aria-label="The song's vibe" className={inputCls(isLight)} style={{ flex: "1 1 200px", width: "auto" }} value={vibe} onChange={(e) => setVibe(e.target.value)} placeholder="Describe the song's vibe…" />
+              <input aria-label={t("worldScheduleRelease.relVibeAria")} className={inputCls(isLight)} style={{ flex: "1 1 200px", width: "auto" }} value={vibe} onChange={(e) => setVibe(e.target.value)} placeholder={t("worldScheduleRelease.relVibePlaceholder")} />
               <button type="button" data-testid="world-release-ai-metadata" onClick={() => void generateMetadata()} disabled={busy !== null} className={chipBtn(isLight, false)}>
-                <Sparkles className="h-3.5 w-3.5" /> {busy === "metadata" ? "Writing…" : `Generate metadata${effectivePricing ? ` · ${effectivePricing.aiMetadataCost.toLocaleString("en-US")} Visual Bucs` : ""}`}
+                <Sparkles className="h-3.5 w-3.5" /> {busy === "metadata" ? t("worldScheduleRelease.relAiBusyMeta") : `${t("worldScheduleRelease.relAiMetaButton")}${effectivePricing ? t("worldScheduleRelease.relAiCostSuffix", { cost: effectivePricing.aiMetadataCost.toLocaleString(i18n.language) }) : ""}`}
               </button>
               <button type="button" data-testid="world-release-ai-strategy" onClick={() => void generateStrategy()} disabled={busy !== null} className={chipBtn(isLight, false)}>
-                <Sparkles className="h-3.5 w-3.5" /> {busy === "strategy" ? "Planning…" : `Generate strategy${effectivePricing ? ` · ${effectivePricing.aiStrategyCost.toLocaleString("en-US")} Visual Bucs` : ""}`}
+                <Sparkles className="h-3.5 w-3.5" /> {busy === "strategy" ? t("worldScheduleRelease.relAiBusyStrategy") : `${t("worldScheduleRelease.relAiStrategyButton")}${effectivePricing ? t("worldScheduleRelease.relAiCostSuffix", { cost: effectivePricing.aiStrategyCost.toLocaleString(i18n.language) }) : ""}`}
               </button>
             </div>
             {metaResult ? (
               <div className={`mt-2 text-xs ${muted}`}>
-                <p><strong className={strong}>Title ideas:</strong> {metaResult.titleOptions.join(" · ")}</p>
+                <p><strong className={strong}>{t("worldScheduleRelease.relAiTitleIdeas")}</strong> {metaResult.titleOptions.join(" · ")}</p>
                 {metaResult.description ? <p className="mt-1">{metaResult.description}</p> : null}
-                {metaResult.genreTags.length > 0 ? <p className="mt-1">Tags: {metaResult.genreTags.join(", ")}</p> : null}
+                {metaResult.genreTags.length > 0 ? <p className="mt-1">{t("worldScheduleRelease.relAiTagsLine", { tags: metaResult.genreTags.join(", ") })}</p> : null}
               </div>
             ) : null}
             {strategyResult ? (
               <div className={`mt-2 text-xs ${muted}`}>
-                <p><strong className={strong}>Timing:</strong> {strategyResult.timing}</p>
+                <p><strong className={strong}>{t("distribute.timing")}:</strong> {strategyResult.timing}</p>
                 {strategyResult.promoPlan.length > 0 ? <p className="mt-1">{strategyResult.promoPlan.join(" · ")}</p> : null}
               </div>
             ) : null}
             {metaResult || strategyResult ? (
               <button type="button" data-testid="world-release-ai-save" onClick={() => void saveAiPackage()} disabled={busy !== null} className={`${chipBtn(isLight, false)} mt-2`}>
-                {busy === "aisave" ? "Saving…" : "Save the AI package to this release — free"}
+                {busy === "aisave" ? t("worldScheduleRelease.relSaving") : t("worldScheduleRelease.relAiSaveButton")}
               </button>
             ) : null}
             {aiNote ? <p className={`mt-1 ${noteCls}`}>{aiNote}</p> : null}
@@ -1075,27 +1097,27 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
 
           {/* Smartlink / pre-save (#54) */}
           <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-release-smartlink">
-            <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Smartlink / pre-save</p>
+            <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldScheduleRelease.relSmartlinkTitle")}</p>
             {!smartlinkHref ? (
               <div className="mt-2 space-y-2">
-                <p className={`text-xs ${muted}`}>One link for every platform — fans pre-save before release day, and the same page becomes your release smartlink after.</p>
+                <p className={`text-xs ${muted}`}>{t("worldScheduleRelease.relSmartlinkIntro")}</p>
                 <button type="button" data-testid="world-release-smartlink-mint" onClick={() => void mintSmartlink()} disabled={busy !== null} className={goldBtn}>
-                  <Link2 className="h-4 w-4" /> {busy === "mint" ? "Minting…" : "Create my smartlink — free"}
+                  <Link2 className="h-4 w-4" /> {busy === "mint" ? t("worldScheduleRelease.relBusyMinting") : t("worldScheduleRelease.relSmartlinkMint")}
                 </button>
               </div>
             ) : (
               <div className="mt-2 space-y-2">
                 <div className="flex flex-wrap gap-2">
-                  <input aria-label="Smartlink URL" readOnly className={inputCls(isLight)} style={{ flex: "1 1 240px", width: "auto" }} value={smartlinkHref} />
+                  <input aria-label={t("worldScheduleRelease.relSmartlinkUrlAria")} readOnly className={inputCls(isLight)} style={{ flex: "1 1 240px", width: "auto" }} value={smartlinkHref} />
                   <button
                     type="button"
                     data-testid="world-release-smartlink-copy"
                     onClick={() => {
-                      void navigator.clipboard?.writeText(smartlinkHref).then(() => setSlNote("Smartlink copied.")).catch(() => setSlNote("Couldn't copy — select the link manually."));
+                      void navigator.clipboard?.writeText(smartlinkHref).then(() => setSlNote(t("worldScheduleRelease.relSmartlinkCopied"))).catch(() => setSlNote(t("worldScheduleRelease.relCopyFailed")));
                     }}
                     className={chipBtn(isLight, false)}
                   >
-                    Copy link
+                    {t("worldScheduleRelease.relCopyLink")}
                   </button>
                 </div>
                 {stats ? (
@@ -1103,66 +1125,66 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
                     {stats.linkAnalytics ? (
                       <>
                         {[
-                          `${stats.linkAnalytics.views.toLocaleString("en-US")} views`,
-                          `${stats.linkAnalytics.clicks.toLocaleString("en-US")} clicks`,
-                          `${stats.linkAnalytics.clicksLast7d.toLocaleString("en-US")} clicks in 7 days`,
-                          `${stats.followers.toLocaleString("en-US")} pre-saves`,
-                          `${stats.shares.toLocaleString("en-US")} shares`,
+                          t("worldScheduleRelease.relStatViews", { count: stats.linkAnalytics.views.toLocaleString(i18n.language) }),
+                          t("worldScheduleRelease.relStatClicks", { count: stats.linkAnalytics.clicks.toLocaleString(i18n.language) }),
+                          t("worldScheduleRelease.relStatClicks7d", { count: stats.linkAnalytics.clicksLast7d.toLocaleString(i18n.language) }),
+                          t("worldScheduleRelease.relStatPresaves", { count: stats.followers.toLocaleString(i18n.language) }),
+                          t("worldScheduleRelease.relStatShares", { count: stats.shares.toLocaleString(i18n.language) }),
                         ].map((s) => (
                           <span key={s} className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${isLight ? "border-[#C9A84C]/40 text-[#6B5B36]" : "border-white/10 text-white/60"}`}>{s}</span>
                         ))}
                       </>
                     ) : (
-                      <span className={`text-xs ${muted}`}>View/click counting isn't collecting on this install yet — pre-saves: {stats.followers.toLocaleString("en-US")} · shares: {stats.shares.toLocaleString("en-US")}.</span>
+                      <span className={`text-xs ${muted}`}>{t("worldScheduleRelease.relAnalyticsNotCollecting", { followers: stats.followers.toLocaleString(i18n.language), shares: stats.shares.toLocaleString(i18n.language) })}</span>
                     )}
                   </div>
                 ) : null}
                 {stats?.linkAnalytics && stats.linkAnalytics.perLink.length > 0 ? (
                   <ul className="space-y-0.5">
                     {stats.linkAnalytics.perLink.map((l) => (
-                      <li key={l.linkKey} className={`text-xs ${muted}`}>{l.linkTitle} — {l.clicks.toLocaleString("en-US")} clicks</li>
+                      <li key={l.linkKey} className={`text-xs ${muted}`}>{t("worldScheduleRelease.relPerLinkClicks", { title: l.linkTitle, count: l.clicks.toLocaleString(i18n.language) })}</li>
                     ))}
                   </ul>
                 ) : null}
                 {slSettings ? (
                   <div className="space-y-2" data-testid="world-release-smartlink-settings">
                     <label className="block">
-                      <span className={fieldLabel(isLight)}>Page headline</span>
-                      <input aria-label="Smartlink headline" className={inputCls(isLight)} value={slSettings.headline} onChange={(e) => setSlSettings({ ...slSettings, headline: e.target.value })} placeholder="e.g. The new single — out Friday" />
+                      <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relHeadlineLabel")}</span>
+                      <input aria-label={t("worldScheduleRelease.relHeadlineAria")} className={inputCls(isLight)} value={slSettings.headline} onChange={(e) => setSlSettings({ ...slSettings, headline: e.target.value })} placeholder={t("worldScheduleRelease.relHeadlinePlaceholder")} />
                     </label>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {SMARTLINK_LINK_PLATFORMS.map((p) => (
                         <label key={p.key} className="block">
-                          <span className={fieldLabel(isLight)}>{p.label} link</span>
-                          <input aria-label={`${p.label} smartlink`} className={inputCls(isLight)} value={slSettings.platformLinks[p.key] ?? ""} onChange={(e) => setSlSettings({ ...slSettings, platformLinks: { ...slSettings.platformLinks, [p.key]: e.target.value } })} placeholder={`https://… ${p.label}`} />
+                          <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relPlatformLinkLabel", { label: p.label })}</span>
+                          <input aria-label={t("worldScheduleRelease.relPlatformLinkAria", { label: p.label })} className={inputCls(isLight)} value={slSettings.platformLinks[p.key] ?? ""} onChange={(e) => setSlSettings({ ...slSettings, platformLinks: { ...slSettings.platformLinks, [p.key]: e.target.value } })} placeholder={t("worldScheduleRelease.relPlatformLinkPlaceholder", { label: p.label })} />
                         </label>
                       ))}
                     </div>
                     <label className="block">
-                      <span className={fieldLabel(isLight)}>Bonus link (share to unlock)</span>
-                      <input aria-label="Smartlink bonus link" className={inputCls(isLight)} value={slSettings.bonusUrl} onChange={(e) => setSlSettings({ ...slSettings, bonusUrl: e.target.value })} placeholder="https://…" />
+                      <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relBonusLabel")}</span>
+                      <input aria-label={t("worldScheduleRelease.relBonusAria")} className={inputCls(isLight)} value={slSettings.bonusUrl} onChange={(e) => setSlSettings({ ...slSettings, bonusUrl: e.target.value })} placeholder="https://…" />
                     </label>
                     <div className="grid gap-2 sm:grid-cols-3">
                       <label className="block">
-                        <span className={fieldLabel(isLight)}>Meta Pixel ID</span>
-                        <input aria-label="Meta Pixel ID" className={inputCls(isLight)} value={slSettings.pixels.metaPixelId ?? ""} onChange={(e) => setSlSettings({ ...slSettings, pixels: { ...slSettings.pixels, metaPixelId: e.target.value } })} placeholder="Digits only" />
+                        <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relMetaPixelLabel")}</span>
+                        <input aria-label={t("worldScheduleRelease.relMetaPixelLabel")} className={inputCls(isLight)} value={slSettings.pixels.metaPixelId ?? ""} onChange={(e) => setSlSettings({ ...slSettings, pixels: { ...slSettings.pixels, metaPixelId: e.target.value } })} placeholder={t("worldScheduleRelease.relMetaPixelPlaceholder")} />
                       </label>
                       <label className="block">
-                        <span className={fieldLabel(isLight)}>TikTok Pixel ID</span>
-                        <input aria-label="TikTok Pixel ID" className={inputCls(isLight)} value={slSettings.pixels.tiktokPixelId ?? ""} onChange={(e) => setSlSettings({ ...slSettings, pixels: { ...slSettings.pixels, tiktokPixelId: e.target.value } })} placeholder="Your TikTok pixel" />
+                        <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relTiktokPixelLabel")}</span>
+                        <input aria-label={t("worldScheduleRelease.relTiktokPixelLabel")} className={inputCls(isLight)} value={slSettings.pixels.tiktokPixelId ?? ""} onChange={(e) => setSlSettings({ ...slSettings, pixels: { ...slSettings.pixels, tiktokPixelId: e.target.value } })} placeholder={t("worldScheduleRelease.relTiktokPixelPlaceholder")} />
                       </label>
                       <label className="block">
-                        <span className={fieldLabel(isLight)}>Google tag ID</span>
-                        <input aria-label="Google tag ID" className={inputCls(isLight)} value={slSettings.pixels.googleTagId ?? ""} onChange={(e) => setSlSettings({ ...slSettings, pixels: { ...slSettings.pixels, googleTagId: e.target.value } })} placeholder="G-…" />
+                        <span className={fieldLabel(isLight)}>{t("worldScheduleRelease.relGoogleTagLabel")}</span>
+                        <input aria-label={t("worldScheduleRelease.relGoogleTagLabel")} className={inputCls(isLight)} value={slSettings.pixels.googleTagId ?? ""} onChange={(e) => setSlSettings({ ...slSettings, pixels: { ...slSettings.pixels, googleTagId: e.target.value } })} placeholder="G-…" />
                       </label>
                     </div>
-                    <p className={`text-[11px] ${muted}`}>Pixels are YOUR ad accounts' IDs — the smartlink page fires only the ones you set, so fan visits build your retargeting audience. Blank clears one.</p>
+                    <p className={`text-[11px] ${muted}`}>{t("worldScheduleRelease.relPixelsNote")}</p>
                     <button type="button" data-testid="world-release-smartlink-save" onClick={() => void saveSmartlinkSettings()} disabled={busy !== null} className={goldBtn}>
-                      {busy === "slsave" ? "Saving…" : "Save smartlink settings — free"}
+                      {busy === "slsave" ? t("worldScheduleRelease.relSaving") : t("worldScheduleRelease.relSmartlinkSave")}
                     </button>
                   </div>
                 ) : (
-                  <p className={`text-xs ${muted}`}>Loading your smartlink settings…</p>
+                  <p className={`text-xs ${muted}`}>{t("worldScheduleRelease.relSmartlinkLoading")}</p>
                 )}
               </div>
             )}
@@ -1185,8 +1207,9 @@ export function ReleaseDeskSection({
   prefill?: ReleasePrefill | null;
   prefillNonce?: number;
 }) {
+  const { t } = useTranslation();
   return (
-    <NativeCard isLight={isLight} title="Release Desk — distribution & smartlinks">
+    <NativeCard isLight={isLight} title={t("worldScheduleRelease.relCardTitle")}>
       <ReleaseDeskBody isLight={isLight} prefill={prefill} prefillNonce={prefillNonce} />
     </NativeCard>
   );
@@ -1205,13 +1228,14 @@ export function ReleaseDeskStandalone({
   isLight: boolean;
   prefill: ReleasePrefill;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className={`mt-3 rounded-2xl border p-3 ${isLight ? "border-[#C9A84C]/50 bg-white/40" : "border-[#d4af37]/30 bg-white/5"}`}
       data-testid="world-release-chip-desk"
     >
       <p className={`mb-2 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-        Release this cover
+        {t("worldScheduleRelease.relStandaloneTitle")}
       </p>
       <ReleaseDeskBody isLight={isLight} prefill={prefill} prefillNonce={1} />
     </div>
