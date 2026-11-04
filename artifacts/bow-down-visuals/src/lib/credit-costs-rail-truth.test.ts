@@ -218,3 +218,56 @@ describe("CREDIT_COSTS parity-wave rows equal the rails' charges (Stack1400)", (
     });
   }
 });
+
+describe("CREDIT_COSTS price-coherence backfill rows equal the rails' charges (2026-11-03 census)", () => {
+  // The 2026-11-03 four-way census found these rails charging with no
+  // registry row at all — pages and World desks quoted the server
+  // constants directly, so the operator KB could not quote the prices.
+  // Rows were added to the registry mirroring the constants; these pins
+  // re-derive every figure from the server source so the three cannot
+  // drift apart silently. No rail amount changed anywhere in this lane.
+  const BACKFILL_ROWS = [
+    { endpoint: "/api/songs/:id/remix", file: "routes/songs.ts", constant: "REMIX_CREDIT_COST", cost: 300 },
+    { endpoint: "/api/llc-guide/ask", file: "routes/generate/llc-guide.ts", constant: "LLC_GUIDE_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/llc-guide/plan", file: "routes/generate/llc-guide.ts", constant: "LLC_GUIDE_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/detect/media", file: "routes/generate/media-detector.ts", constant: "DETECTION_CREDITS", cost: 200 },
+    { endpoint: "/api/remove-video-background", file: "routes/generate/video-background-removal.ts", constant: "VIDEO_BG_REMOVAL_COST", cost: 500 },
+    { endpoint: "/api/brand-calculator/calculate", file: "routes/generate/brand-calculator.ts", constant: "BRAND_CALC_CREDIT_COST", cost: 200 },
+    { endpoint: "/api/interview-prep/session", file: "routes/generate/interview-prep.ts", constant: "INTERVIEW_PREP_CREDIT_COST", cost: 200 },
+    { endpoint: "/api/interview-prep/feedback", file: "routes/generate/interview-prep.ts", constant: "INTERVIEW_FEEDBACK_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/ai-interview/questions", file: "routes/generate/ai-interview.ts", constant: "QUESTIONS_CREDITS", cost: 100 },
+    { endpoint: "/api/ai-interview/package", file: "routes/generate/ai-interview.ts", constant: "PACKAGE_CREDITS", cost: 200 },
+    { endpoint: "/api/promo-generator", file: "routes/generate/promo-generator.ts", constant: "PROMO_GENERATOR_CREDITS", cost: 100 },
+    { endpoint: "/api/brand-kit", file: "routes/generate/brand-kit.ts", constant: "BRAND_KIT_COST", cost: 200 },
+    { endpoint: "/api/contracts/analyze", file: "routes/generate/contract-analyzer.ts", constant: "CONTRACT_ANALYSIS_CREDITS", cost: 300 },
+    { endpoint: "/api/cover-in-motion/animate", file: "routes/generate/cover-in-motion.ts", constant: "MOTION_CREDIT_COST", cost: 400 },
+    { endpoint: "/api/finish-my-song/complete", file: "routes/generate/finish-my-song.ts", constant: "FINISH_CREDIT_COST", cost: 400 },
+    { endpoint: "/api/rate-my-mix/analyze", file: "routes/generate/rate-my-mix.ts", constant: "MIX_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/scheduler/posts", file: "routes/scheduler.ts", constant: "SCHEDULER_POST_CREDITS", cost: 100 },
+    { endpoint: "/api/scheduler/best-time", file: "routes/scheduler.ts", constant: "SCHEDULER_BEST_TIME_CREDITS", cost: 100 },
+    { endpoint: "/api/ugc-ads/persona", file: "routes/ugc-ads.ts", constant: "UGC_PERSONA_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/memberships/ai-perks", file: "routes/generate/memberships.ts", constant: "MEMBERSHIPS_AI_CREDITS", cost: 100 },
+    { endpoint: "/api/royalties/insights", file: "routes/generate/royalties.ts", constant: "ROYALTY_INSIGHTS_CREDITS", cost: 100 },
+    { endpoint: "/api/beats/:id/ai-tags", file: "routes/generate/beats-pricing.ts", constant: "BEAT_AI_TAGS_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/contests/:id/announce", file: "routes/generate/contests.ts", constant: "CONTEST_ANNOUNCE_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/distribution/metadata", file: "routes/generate/distribution.ts", constant: "AI_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/distribution/strategy", file: "routes/generate/distribution.ts", constant: "AI_CREDIT_COST", cost: 100 },
+    { endpoint: "/api/distribution/releases/:id/submit", file: "routes/generate/distribution.ts", constant: "DISTRIBUTION_RELEASE_CREDITS", cost: 1000 },
+  ] as const;
+
+  for (const spec of BACKFILL_ROWS) {
+    it(`${spec.endpoint}: registry == ${spec.constant} (${spec.cost})`, () => {
+      const rail = deriveServerConstant(spec.file, spec.constant);
+      expect(rail).toBe(spec.cost);
+      expect(CREDIT_COSTS[spec.endpoint]?.cost).toBe(rail);
+    });
+  }
+
+  it("/api/ugc-ads/:id/generate: registry == GEN45_CREDIT_COST (400) via the UGC_VIDEO_CREDIT_COST alias", () => {
+    // routes/ugc-ads.ts sets UGC_VIDEO_CREDIT_COST = GEN45_CREDIT_COST;
+    // the numeric source of truth is clip-pricing.ts.
+    const rail = deriveServerConstant("routes/generate/clip-pricing.ts", "GEN45_CREDIT_COST");
+    expect(rail).toBe(400);
+    expect(CREDIT_COSTS["/api/ugc-ads/:id/generate"]?.cost).toBe(rail);
+  });
+});

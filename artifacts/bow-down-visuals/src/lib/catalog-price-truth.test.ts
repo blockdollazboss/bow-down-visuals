@@ -9,9 +9,12 @@
  *    home.studio[2].tools[2].cost where en (and de) say 400 VB / 200 VB.
  *  - The hand-typed catalog carried the Veo per-second rate on the
  *    generic AI Video Generator, a per-second figure for Intros &
- *    Outros (whose rail resolves a 750 flat), a 200 VB Brand Deals
- *    search figure (the deal matcher charges 100) and an unnumbered
- *    "Per scene" for AI Lip Sync. The audit also listed the catalog's
+ *    Outros (whose rail resolves a 750 flat), a Brand Deals search
+ *    figure and an unnumbered "Per scene" for AI Lip Sync. (The Brand
+ *    Deals figure was first pinned to the 100 matcher rail here; the
+ *    2026-11-03 price-coherence census re-adjudicated it to the 200
+ *    finder-search rail the card's "/search" unit names — see the
+ *    Brand Deals test below.) The audit also listed the catalog's
  *    "From X" floors as underived; each is re-derived below — five
  *    stand as written, including Audio Studio's 75 (Guest Questions,
  *    embedded as the podcast tab, is its cheapest reachable rail).
@@ -92,10 +95,19 @@ describe("features catalog — charged == displayed (audit #10)", () => {
     expect(getFeature("intros-outros")?.creditCost).toBe("750 Visual Bucs");
   });
 
-  it("Brand Deals shows the deal matcher price it names: 100/search", () => {
-    const rail = deriveServerConstant("routes/generate/sponsors.ts", "SPONSOR_AI_CREDIT_COST");
-    expect(rail).toBe(100);
+  it("Brand Deals shows the finder-search price its unit names: 200/search", () => {
+    // Re-adjudicated by the 2026-11-03 price-coherence census: the
+    // card's unit is "/search" and the /brand-deals page's search (the
+    // hunt button) charges BRAND_DEAL_CREDIT_COST 200 per search. The
+    // AI deal matcher (SPONSOR_AI_CREDIT_COST 100, POST
+    // /api/sponsors/match) is a separate action on the same page with
+    // its own on-page price; audit #10's pin derived the card from the
+    // matcher rail, which priced the card's named action 100 under
+    // what the page charges for it.
+    const rail = deriveServerConstant("routes/generate/brand-deals.ts", "BRAND_DEAL_CREDIT_COST");
+    expect(rail).toBe(200);
     expect(getFeature("brand-deals")?.creditCost).toBe(`${rail} Visual Bucs/search`);
+    expect(deriveServerConstant("routes/generate/sponsors.ts", "SPONSOR_AI_CREDIT_COST")).toBe(100);
   });
 
   it("AI Lip Sync names the real tier: 300 per clip to 50s, 600 for 50–60s", () => {
@@ -144,7 +156,7 @@ describe("features catalog — charged == displayed (audit #10)", () => {
       expect(f.creditCost, f.key).not.toContain("150 Visual Bucs/sec");
       expect(f.creditCost, f.key).not.toBe("Per scene");
     }
-    expect(getFeature("brand-deals")?.creditCost).not.toContain("200");
+    expect(getFeature("brand-deals")?.creditCost).not.toBe("100 Visual Bucs/search");
   });
 });
 

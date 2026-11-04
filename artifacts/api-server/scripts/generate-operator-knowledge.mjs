@@ -1180,6 +1180,25 @@ const TIERED_PRICE_LINKS = [
     ProRes / DNxHR / FCPXML — ride), and the free size estimate
     attached to NO feature until this link landed. */
 const FEATURE_PRICE_LINKS = [
+  /* Price-coherence backfill (2026-11-03 census): three rails whose
+     registry rows were added by the census lane charge from surfaces
+     the one-hop page scan does not attribute to their features — the
+     memberships AI-perks panel, the Royalties tab's insights card, and
+     the scheduler's best-time rail (a distinct endpoint from the
+     Trends tab's /api/best-time). Without these links the new registry
+     prices would be invisible to the operator. */
+  {
+    endpoint: "/api/memberships/ai-perks",
+    attachToFeatureIds: ["memberships"],
+  },
+  {
+    endpoint: "/api/royalties/insights",
+    attachToFeatureIds: ["tab-royalties"],
+  },
+  {
+    endpoint: "/api/scheduler/best-time",
+    attachToFeatureIds: ["scheduler"],
+  },
   {
     endpoint: "/api/export-final-video",
     attachToFeatureIds: ["video-editor", "desk-lyric-video", "desk-promo-clips", "desk-repurpose", "desk-translate", "desk-upscale"],
@@ -1835,11 +1854,10 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "social",
     reason: "Cover Fridays ritual read — behind the challenges surfaces; no page of its own.",
   },
-  /* Money rails behind the dashboards. */
-  "artifacts/api-server/src/routes/generate/royalties.ts": {
-    surface: "money",
-    reason: "Royalties ledger rails (entries / import / insights / payouts / summary) — behind the Earnings surfaces, reached past the scan's one hop; no page of its own.",
-  },
+  /* Money rails behind the dashboards. (The royalties family used to
+     sit here; its insights rail became feature-visible through the
+     2026-11-03 FEATURE_PRICE_LINKS entry, so the census now publishes
+     the family's unseen remainder by name instead.) */
   "artifacts/api-server/src/routes/courses.ts": {
     surface: "money",
     reason: "Creator Courses rails (catalog / curriculum / learn / progress / mine) — courses are sold products run from creator storefronts and the learn surface; no standalone page feature carries the family.",
