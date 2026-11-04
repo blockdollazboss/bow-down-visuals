@@ -74,8 +74,18 @@ export const KIT_COMPONENT_IDS = [
   "widget-art", "accent-color", "site-reskin",
 ] as const;
 const KIT_DEVICE_IDS = ["all", "phone", "tablet", "desktop"] as const;
+/* Mirror of the FE APPROVED_ART_SOURCES ids (lib/theme-kit.ts): the
+   relative "pack-ground", one named ground source per pack × mode
+   (QC fix #13 — derived from THEME_PACKS on the FE side; the parity
+   tests pin this set to the FE list), and the King's Set scenes. */
 const APPROVED_ART_IDS = new Set([
-  "pack-ground", "kings-set-throne-phone", "kings-set-plaza-phone",
+  "pack-ground",
+  "pack-ground-golden-marble-dark", "pack-ground-golden-marble-light",
+  "pack-ground-shark-tank-dark", "pack-ground-shark-tank-light",
+  "pack-ground-golden-hour-dark", "pack-ground-golden-hour-light",
+  "pack-ground-kings-set-dark", "pack-ground-kings-set-light",
+  "pack-ground-arcade-gold-dark", "pack-ground-arcade-gold-light",
+  "kings-set-throne-phone", "kings-set-plaza-phone",
   "kings-set-stage-desktop", "kings-set-throne-loop", "kings-set-plaza-loop",
   "kings-set-stage-loop",
 ]);

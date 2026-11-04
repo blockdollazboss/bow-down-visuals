@@ -300,6 +300,24 @@ describe("saved mix → house pack bundle", () => {
       .toEqual(Buffer.from("device-golden-marble-dark-phone"));
   });
 
+  it("a cross-pack ground source (QC fix #13) saves and ships that pack's ground", async () => {
+    // Before the fix the rail rejected pack-ground-* ids outright and
+    // the builder had no path for them: only King's Set scenes could
+    // ever be chosen. Shark Tank's ground must now ride a Golden
+    // Marble kit exactly like a scene choice does.
+    await saveMix("golden-marble", { "home-wallpapers": { all: { artSourceId: "pack-ground-shark-tank-dark" } } });
+    const r = await callBytes("POST", "/theme-packs/kit/golden-marble/download", { kind: "mac", mode: "dark" });
+    expect(r.status).toBe(200);
+    const entries = unzipEntries(r.buf);
+    const ground = Buffer.from("art-shark-tank-dark");
+    for (const mode of ["dark", "light"]) {
+      expect(entries.get(`golden-marble-dark/mac/wallpaper-${mode}-original.webp`)).toEqual(ground);
+      for (const device of ["phone", "tablet", "desktop"]) {
+        expect(entries.get(`golden-marble-dark/mac/wallpaper-${mode}-${device}.webp`)).toEqual(ground);
+      }
+    }
+  });
+
   it("the zip's kit.json names the mix accent", async () => {
     await saveMix("golden-marble", { "accent-color": { all: { accentHex: "#123456" } } });
     const r = await callBytes("POST", "/theme-packs/kit/golden-marble/download", { kind: "mac", mode: "dark" });

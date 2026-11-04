@@ -48,6 +48,7 @@ import {
   deviceWallpaperPath,
   encodeLook,
   kitManifest,
+  packGroundArtSourceId,
   renderWidgetSvg,
   sanitizeCustomization,
   soundLibraryPath,
@@ -116,9 +117,55 @@ describe("kit manifest — 12 components × every pack × light+dark", () => {
   });
 
   it("approved art sources are the existing library pieces only", () => {
+    // Every path is an EXISTING approved library file: either one of
+    // the King's Set scene pieces or exactly one pack's registered
+    // ground art (deviceArt) — never an invented path.
+    const groundPaths = new Set(
+      THEME_PACKS.flatMap((p) => [p.deviceArt.dark, p.deviceArt.light]),
+    );
     for (const a of APPROVED_ART_SOURCES) {
-      if ("path" in a && a.path) expect(a.path).toMatch(/^\/wallpapers\/kings-set-/);
+      if ("path" in a && a.path) {
+        expect(
+          /^\/wallpapers\/kings-set-/.test(a.path) || groundPaths.has(a.path),
+          `${a.id} path ${a.path} is not an approved library piece`,
+        ).toBe(true);
+      }
     }
+  });
+
+  it("every pack's ground art is a named cross-pack source, both modes (QC fix #13)", () => {
+    // The defect: the source list carried only the King's Set scenes,
+    // so Shark Tank / Golden Hour grounds could never be picked as a
+    // mix source from another pack's panel. Now each pack × mode
+    // ground is a first-class source derived from the registry.
+    for (const pack of THEME_PACKS) {
+      for (const mode of ["dark", "light"] as const) {
+        const src = APPROVED_ART_SOURCES.find(
+          (a) => a.id === packGroundArtSourceId(pack.id, mode),
+        );
+        expect(src, `${pack.id} ${mode} ground source`).toBeTruthy();
+        expect(src!.path).toBe(pack.deviceArt[mode]);
+        expect(src!.kind).toBe("still");
+        expect(src!.label).toContain(pack.name);
+      }
+    }
+    // Ids stay unique across the whole list (the sanitizer + server
+    // mirrors key on them).
+    const ids = APPROVED_ART_SOURCES.map((a) => a.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    // The relative default stays first — the panel's untouched state.
+    expect(APPROVED_ART_SOURCES[0]!.id).toBe("pack-ground");
+  });
+
+  it("the sanitizer accepts a cross-pack ground source and still rejects invented ones", () => {
+    const ok = sanitizeCustomization({
+      "home-wallpapers": { all: { artSourceId: "pack-ground-shark-tank-dark" } },
+    });
+    expect(ok.ok).toBe(true);
+    const bad = sanitizeCustomization({
+      "home-wallpapers": { all: { artSourceId: "pack-ground-shark-tank-purple" } },
+    });
+    expect(bad.ok).toBe(false);
   });
 });
 
@@ -396,6 +443,11 @@ describe("server mirror parity", () => {
     for (const a of APPROVED_ART_SOURCES) {
       const path = "path" in a ? a.path : undefined;
       if (path) expect(serverBuild).toContain(`"${a.id}": "${path}"`);
+    }
+    // The rail's validator names every FE source id too — a source
+    // the desk offers but the rail rejects could never be saved.
+    for (const a of APPROVED_ART_SOURCES) {
+      expect(serverRail).toContain(`"${a.id}"`);
     }
     expect(serverBuild).toContain("resolveKitAccent");
     expect(serverRail).toContain("loadStoredMix");
