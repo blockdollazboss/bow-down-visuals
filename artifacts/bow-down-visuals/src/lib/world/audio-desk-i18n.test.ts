@@ -205,10 +205,31 @@ describe("Audio family extraction (unit 39)", () => {
 });
 
 describe("Audio family catalog parity (unit 39)", () => {
-  it("all 10 locales carry exactly the extracted key set", () => {
+  /* JOIN AMENDMENT (Stack-100 phase-2 join): the family's 6 count
+     families (partySongsCount, playlistFoldSkipped, playlistFoldSongs,
+     playlistItemCount, proposalUnanalyzed, stemFilesReady) fall under
+     the catalog-wide plural law (i18n-plural-categories): ar carries
+     all six CLDR forms and es/fr/pt/it carry _many, so those locales
+     legitimately carry MORE than the en set. Parity is therefore:
+     every locale carries at least the en set; the only extras are
+     the plural-law forms of the 6 families. */
+  const PLURAL_FAMILIES = [
+    "partySongsCount", "playlistFoldSkipped", "playlistFoldSongs",
+    "playlistItemCount", "proposalUnanalyzed", "stemFilesReady",
+  ];
+  const PLURAL_EXTRAS: Record<string, string[]> = {
+    ar: PLURAL_FAMILIES.flatMap((f) => [`${f}_zero`, `${f}_two`, `${f}_few`, `${f}_many`]),
+    es: PLURAL_FAMILIES.map((f) => `${f}_many`),
+    fr: PLURAL_FAMILIES.map((f) => `${f}_many`),
+    pt: PLURAL_FAMILIES.map((f) => `${f}_many`),
+    it: PLURAL_FAMILIES.map((f) => `${f}_many`),
+  };
+
+  it("all 10 locales carry the extracted key set (plus the plural-law forms where CLDR requires them)", () => {
     for (const loc of LOCALES) {
       const cat = readJson(`../../locales/${loc}.json`);
-      expect(Object.keys(cat.worldAudioDesk ?? {}).sort(), loc).toEqual(enKeys);
+      const expected = [...enKeys, ...(PLURAL_EXTRAS[loc] ?? [])].sort();
+      expect(Object.keys(cat.worldAudioDesk ?? {}).sort(), loc).toEqual(expected);
     }
   });
 

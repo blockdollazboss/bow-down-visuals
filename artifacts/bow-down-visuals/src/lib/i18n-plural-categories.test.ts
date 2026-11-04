@@ -92,8 +92,10 @@ beforeAll(async () => {
    render came from the asserted catalog entry — no fallback anywhere.
    (Integration note: the Stack-23 plural split brought 12 more families
    whose strings also interpolate platform / skipped / max — the bag
-   carries dummies for those too, so both paths substitute identically.) */
-const BAG = { name: "سارة", cost: 7, tone: "ودود", price: 9, max: 10, platform: "YouTube", skipped: "" } as const;
+   carries dummies for those too, so both paths substitute identically.
+   The Stack-100 audio unit's 6 families interpolate title — the bag
+   carries a dummy for it as well, added at the phase-2 join.) */
+const BAG = { name: "سارة", cost: 7, tone: "ودود", price: 9, max: 10, platform: "YouTube", skipped: "", title: "قائمتي" } as const;
 const interpolate = (tpl: string, count: number): string =>
   tpl.replace(/\{\{(\w+)\}\}/g, (_m, name: string) =>
     name === "count" ? String(count) : String(BAG[name as keyof typeof BAG] ?? ""),
@@ -102,8 +104,8 @@ const render = (lng: Locale, key: string, count: number): string =>
   i18n.t(key, { count, lng, ...BAG }) as string;
 
 describe("plural family enumeration", () => {
-  it("finds the catalog's plural families in en (35 on the joined tree: 23 at this lane's base + the Stack-23 plural split's 12)", () => {
-    expect(FAMILIES.length).toBe(35);
+  it("finds the catalog's plural families in en (41 on the joined tree: 23 at this lane's base + the Stack-23 plural split's 12 + the audio locale unit's 6 worldAudioDesk count families, Stack-100 unit 39 — their ar six-form and es/fr/pt/it _many fills landed at the Stack-100 phase-2 join, which is where this catalog-wide suite first ran over them)", () => {
+    expect(FAMILIES.length).toBe(41);
     expect(FAMILIES).toContain("beats.beatCount");
     expect(FAMILIES).not.toContain("retentionDoctor.type");
   });
@@ -147,9 +149,9 @@ describe("arabic renders — catalog-wide, no English fallback", () => {
     [100, "other"],
   ];
 
-  it("ar carries all 35 families present on the joined tree (20 at this lane's base + the 12 plural-split families + pressRelease.generateRelease filled by the press-kit lane + thumbnailTest.filesSkipped completed by the ar-W3 wave, coordinator-landed at Stack-28 integration + mediaDetector.filesSkipped completed by the ar-W5 appendix wave), each in all six forms", () => {
+  it("ar carries all 41 families present on the joined tree (20 at this lane's base + the 12 plural-split families + pressRelease.generateRelease filled by the press-kit lane + thumbnailTest.filesSkipped completed by the ar-W3 wave, coordinator-landed at Stack-28 integration + mediaDetector.filesSkipped completed by the ar-W5 appendix wave + the 6 worldAudioDesk count families from Stack-100 unit 39, six-form filled at the phase-2 join), each in all six forms", () => {
     const arFams = FAMILIES.filter((f) => presentIn("ar", f));
-    expect(arFams.length).toBe(35);
+    expect(arFams.length).toBe(41);
     for (const fam of arFams) {
       for (const sfx of CLDR) {
         expect(typeof CATS.ar[`${fam}_${sfx}`], `ar missing ${fam}_${sfx}`).toBe("string");
