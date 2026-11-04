@@ -201,6 +201,7 @@ const SocialProofDesk = lazy(() => import("@/components/world/native/SocialProof
 const DjDesk = lazy(() => import("@/components/world/native/DjDesk").then((m) => ({ default: m.DjDesk })));
 const SavedDesk = lazy(() => import("@/components/world/native/SavedDesk").then((m) => ({ default: m.SavedDesk })));
 const SetlistDesk = lazy(() => import("@/components/world/native/SetlistDesk").then((m) => ({ default: m.SetlistDesk })));
+const TourDesk = lazy(() => import("@/components/world/native/TourDesk").then((m) => ({ default: m.TourDesk })));
 const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
 const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m) => ({ default: m.TeamDesk })));
 const TeamSeatsDesk = lazy(() => import("@/components/world/native/TeamSeatsDesk").then((m) => ({ default: m.TeamSeatsDesk })));
@@ -1272,6 +1273,18 @@ export default function StationPanel(props: StationPanelProps) {
                     Studio board beside DJ Set Prep. */}
                 <DeskDoor isLight={isLight}>
                   <SetlistDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Tour Planner (stack1600 parity wave #4, desk
+                    #97): the run's dates — city, venue, show date,
+                    status, notes — on the /api/tour/dates rails
+                    (free CRUD), plus the AI routing + budget
+                    optimizer on /api/tour/optimize at the
+                    registry's 300 Bucs, confirmed in-desk; the
+                    desk and the /tour page are two faces of one
+                    list and one cached plan, stacked at the My
+                    Studio board beside the Setlist Builder. */}
+                <DeskDoor isLight={isLight}>
+                  <TourDesk isLight={isLight} />
                 </DeskDoor>
                 {/* Catalog Import (stack1500 parity wave #3):
                     bring your catalog home — scan, fetch,
