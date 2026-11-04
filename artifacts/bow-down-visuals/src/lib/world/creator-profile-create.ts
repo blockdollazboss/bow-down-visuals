@@ -40,6 +40,69 @@ export const CREATOR_PROFILE_VERTICALS: ReadonlyArray<{ key: string; label: stri
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 
+/* ── i18n string bundle (stack100 locale unit 48) ──────────────────
+   The composed lines below take an optional strings bundle whose
+   defaults are the original English, byte-identical; the card
+   builds the bundle from the worldCreatorRooms catalog keys so
+   the words render in the walker's language. Templates carry
+   {{token}} slots the seam fills itself. */
+
+function fillToken(template: string, token: string, value: string): string {
+  return template.split(token).join(value);
+}
+
+export interface CreatorProfileStrings {
+  slugTooShort: string;
+  slugTooLong: string;
+  slugShape: string;
+  slugRulesFallback: string;
+  checkDidntAnswer: string;
+  checking: string;
+  /** Template: one {{slug}} token. */
+  slugAvailable: string;
+  /** Template: one {{slug}} token. */
+  slugTaken: string;
+  nameRequired: string;
+  nameTooLong: string;
+  checkPending: string;
+}
+
+export const CREATOR_PROFILE_STRINGS_EN: CreatorProfileStrings = {
+  slugTooShort: "Your handle needs at least 3 characters.",
+  slugTooLong: "Your handle can be at most 40 characters.",
+  slugShape:
+    "Handles are lowercase letters, numbers and hyphens — no leading or trailing hyphen.",
+  slugRulesFallback: "That handle doesn't pass the rules.",
+  checkDidntAnswer: "The handle check didn't answer — try again.",
+  checking: "Checking that handle…",
+  slugAvailable: "@{{slug}} is yours to claim.",
+  slugTaken: "@{{slug}} is already claimed — pick a fresh one.",
+  nameRequired: "Give your profile a display name.",
+  nameTooLong: "Display names can be at most 80 characters.",
+  checkPending:
+    "Let the handle check finish — your profile needs a handle that's confirmed yours to claim.",
+};
+
+/** Build the bundle from a translate function (the card's `t`):
+ *  every field reads its worldCreatorRooms catalog key. */
+export function creatorProfileStrings(
+  translate: (key: string) => string,
+): CreatorProfileStrings {
+  return {
+    slugTooShort: translate("worldCreatorRooms.profileSlugTooShort"),
+    slugTooLong: translate("worldCreatorRooms.profileSlugTooLong"),
+    slugShape: translate("worldCreatorRooms.profileSlugShape"),
+    slugRulesFallback: translate("worldCreatorRooms.profileSlugRulesFallback"),
+    checkDidntAnswer: translate("worldCreatorRooms.profileCheckDidntAnswer"),
+    checking: translate("worldCreatorRooms.profileChecking"),
+    slugAvailable: translate("worldCreatorRooms.profileSlugAvailable"),
+    slugTaken: translate("worldCreatorRooms.profileSlugTaken"),
+    nameRequired: translate("worldCreatorRooms.profileNameRequired"),
+    nameTooLong: translate("worldCreatorRooms.profileNameTooLong"),
+    checkPending: translate("worldCreatorRooms.profileCheckPending"),
+  };
+}
+
 function asRecord(v: unknown): Record<string, unknown> {
   return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : {};
 }
@@ -61,12 +124,15 @@ export function slugifyCreatorSlug(name: string): string {
 /** The slug's local problem, in words, or null when it passes the
  *  rail's slugSchema shape. Availability is a separate, server-side
  *  question (check-slug). */
-export function creatorSlugProblem(slug: string): string | null {
+export function creatorSlugProblem(
+  slug: string,
+  strings: CreatorProfileStrings = CREATOR_PROFILE_STRINGS_EN,
+): string | null {
   const s = slug.trim().toLowerCase();
-  if (s.length < 3) return "Your handle needs at least 3 characters.";
-  if (s.length > 40) return "Your handle can be at most 40 characters.";
+  if (s.length < 3) return strings.slugTooShort;
+  if (s.length > 40) return strings.slugTooLong;
   if (!SLUG_RE.test(s)) {
-    return "Handles are lowercase letters, numbers and hyphens — no leading or trailing hyphen.";
+    return strings.slugShape;
   }
   return null;
 }
@@ -84,26 +150,33 @@ export type SlugCheckState =
   | { kind: "taken"; slug: string }
   | { kind: "invalid"; slug: string; message: string };
 
-export function parseSlugCheck(data: unknown, slug: string): SlugCheckState {
+export function parseSlugCheck(
+  data: unknown,
+  slug: string,
+  strings: CreatorProfileStrings = CREATOR_PROFILE_STRINGS_EN,
+): SlugCheckState {
   const d = asRecord(data);
   if (d["valid"] === false) {
-    return { kind: "invalid", slug, message: str(d["error"]) ?? "That handle doesn't pass the rules." };
+    return { kind: "invalid", slug, message: str(d["error"]) ?? strings.slugRulesFallback };
   }
   if (d["available"] === true) return { kind: "available", slug };
   if (d["available"] === false) return { kind: "taken", slug };
-  return { kind: "invalid", slug, message: "The handle check didn't answer — try again." };
+  return { kind: "invalid", slug, message: strings.checkDidntAnswer };
 }
 
-export function slugCheckLine(state: SlugCheckState): string | null {
+export function slugCheckLine(
+  state: SlugCheckState,
+  strings: CreatorProfileStrings = CREATOR_PROFILE_STRINGS_EN,
+): string | null {
   switch (state.kind) {
     case "idle":
       return null;
     case "checking":
-      return "Checking that handle…";
+      return strings.checking;
     case "available":
-      return `@${state.slug} is yours to claim.`;
+      return fillToken(strings.slugAvailable, "{{slug}}", state.slug);
     case "taken":
-      return `@${state.slug} is already claimed — pick a fresh one.`;
+      return fillToken(strings.slugTaken, "{{slug}}", state.slug);
     case "invalid":
       return state.message;
   }
@@ -140,24 +213,27 @@ export function parseMyCreatorProfile(data: unknown): MyCreatorProfile | null {
 /** Create-readiness, in words — the desk's own gates before the
  *  rail is asked: a name, a locally valid handle whose live check
  *  came back available for THIS slug. */
-export function creatorProfileFormProblem(input: {
-  displayName: string;
-  slug: string;
-  slugCheck: SlugCheckState;
-}): string | null {
-  if (input.displayName.trim().length < 1) return "Give your profile a display name.";
-  if (input.displayName.trim().length > 80) return "Display names can be at most 80 characters.";
-  const slugProblem = creatorSlugProblem(input.slug);
+export function creatorProfileFormProblem(
+  input: {
+    displayName: string;
+    slug: string;
+    slugCheck: SlugCheckState;
+  },
+  strings: CreatorProfileStrings = CREATOR_PROFILE_STRINGS_EN,
+): string | null {
+  if (input.displayName.trim().length < 1) return strings.nameRequired;
+  if (input.displayName.trim().length > 80) return strings.nameTooLong;
+  const slugProblem = creatorSlugProblem(input.slug, strings);
   if (slugProblem) return slugProblem;
   const slug = normalizeCreatorSlug(input.slug);
   if (input.slugCheck.kind === "taken" && input.slugCheck.slug === slug) {
-    return `@${slug} is already claimed — pick a fresh one.`;
+    return fillToken(strings.slugTaken, "{{slug}}", slug);
   }
   if (input.slugCheck.kind === "invalid" && input.slugCheck.slug === slug) {
     return input.slugCheck.message;
   }
   if (input.slugCheck.kind !== "available" || input.slugCheck.slug !== slug) {
-    return "Let the handle check finish — your profile needs a handle that's confirmed yours to claim.";
+    return strings.checkPending;
   }
   return null;
 }

@@ -226,7 +226,9 @@ describe("the wiring (source pins)", () => {
     const rooms = read("../../components/world/native/CreatorRooms.tsx");
     expect(rooms).toContain('data-testid="world-creator-room-dressing-desk"');
     expect(rooms).toContain("isOwnRoom ? (");
-    expect(rooms).toContain("putCreatorRoomDressing(slug, variantId, gateStars, token)");
+    /* stack100 unit 48: the pick also threads the catalog string
+       bundle (the seam's save-failure words ride it). */
+    expect(rooms).toContain("putCreatorRoomDressing(slug, variantId, gateStars, token, roomsStrings)");
     const panel = read("../../components/world/StationPanel.tsx");
     expect(panel).toContain("isOwnRoom={(props.mySlug ?? null) === slug}");
     expect(panel).toContain("onDressingChanged={props.onRoomDressingChanged}");

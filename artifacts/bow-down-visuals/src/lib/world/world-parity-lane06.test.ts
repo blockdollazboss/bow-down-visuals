@@ -29,6 +29,12 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import en from "../../locales/en.json";
+
+/* stack100 unit 48: the room store renders through the
+   worldCreatorRooms catalog — the footer pin below asserts the
+   KEY in the desk and the English copy in the catalog. */
+const roomsCatalog = (en as { worldCreatorRooms: Record<string, string> }).worldCreatorRooms;
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const rooms = read("../../components/world/native/CreatorRooms.tsx");
@@ -76,7 +82,9 @@ describe("lane 6 — CreatorRooms: the room store pays in the room", () => {
     expect(rooms).not.toContain("window.location.href = ");
     /* the panel's own footer no longer promises a new tab */
     expect(rooms).not.toContain("Buying finishes at the hosted checkout, in a new tab");
-    expect(rooms).toContain("Buying finishes right here in the room");
+    expect(roomsCatalog.storeFooter).not.toContain("Buying finishes at the hosted checkout, in a new tab");
+    expect(rooms).toContain('t("worldCreatorRooms.storeFooter")');
+    expect(roomsCatalog.storeFooter).toContain("Buying finishes right here in the room");
   });
 });
 
