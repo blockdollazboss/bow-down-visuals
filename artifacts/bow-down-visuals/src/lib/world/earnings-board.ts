@@ -59,7 +59,7 @@ export type { EarningsStatement };
 /* ─── Localizable seam strings ────────────────────────────────────────
    Every user-visible literal this seam produces rides an OPTIONAL
    string bundle: callers (the EarningsBoard) key-map the fields
-   through t("worldBoards.eb…"), and the defaults below hold the
+   through the eb-prefixed worldBoards keys, and the defaults below hold the
    current English literals verbatim, so un-wired callers and the
    existing tests see byte-identical output. Template fields carry
    {{token}} placeholders the seam fills with DATA (counts, money) —
