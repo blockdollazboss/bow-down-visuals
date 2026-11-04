@@ -90,7 +90,7 @@ export interface LiveStatusView {
   } | null;
 }
 
-export function normalizeLiveStatus(raw: unknown): LiveStatusView {
+export function normalizeLiveStatus(raw: unknown, fallbackTitle = "Live stream"): LiveStatusView {
   const d = (raw ?? {}) as Record<string, unknown>;
   const live = (d["live_stream"] ?? null) as Record<string, unknown> | null;
   return {
@@ -99,7 +99,7 @@ export function normalizeLiveStatus(raw: unknown): LiveStatusView {
     liveStream: live && typeof live["id"] === "string"
       ? {
           id: live["id"],
-          title: typeof live["title"] === "string" ? live["title"] : "Live stream",
+          title: typeof live["title"] === "string" ? live["title"] : fallbackTitle,
           viewerCount: typeof live["viewer_count"] === "number" ? live["viewer_count"] : 0,
           startedAt: typeof live["started_at"] === "string" ? live["started_at"] : null,
         }
@@ -320,19 +320,71 @@ interface ControllerDeskView {
   label: string | null;
 }
 
+/* ── i18n string bundles (stack100 locale unit 44) ─────────────────
+   The composed lines below take an optional strings bundle whose
+   defaults are the original English, byte-identical; the desks
+   build the bundle from the worldLivePromo catalog keys so the
+   words render in the walker's language. Templates carry
+   {{token}} slots the seam fills itself. */
+
+function fillToken(template: string, token: string, value: string): string {
+  return template.split(token).join(value);
+}
+
+export interface LiveControllerStrings {
+  connecting: string;
+  reconnecting: string;
+  studioNotOpen: string;
+  /** Template carrying one {{label}} token — the studio's label. */
+  liveControlling: string;
+  /** Template carrying one {{label}} token — the studio's label. */
+  connectedControlling: string;
+  yourStudio: string;
+  unavailableOpen: string;
+  unavailableDropped: string;
+}
+
+export const LIVE_CONTROLLER_STRINGS_EN: LiveControllerStrings = {
+  connecting: "Connecting…",
+  reconnecting: "Reconnecting…",
+  studioNotOpen: "Studio not open",
+  liveControlling: "Live — controlling {{label}}",
+  connectedControlling: "Connected — controlling {{label}}",
+  yourStudio: "your studio",
+  unavailableOpen: "Open the studio — this remote connects to it automatically.",
+  unavailableDropped: "Connection dropped — reconnecting. Controls pause until it's back.",
+};
+
+/** Build the bundle from a translate function (the desk's `t`):
+ *  every field reads its worldLivePromo catalog key. */
+export function liveControllerStrings(translate: (key: string) => string): LiveControllerStrings {
+  return {
+    connecting: translate("worldLivePromo.ctrlConnecting"),
+    reconnecting: translate("worldLivePromo.ctrlReconnecting"),
+    studioNotOpen: translate("worldLivePromo.ctrlStudioNotOpen"),
+    liveControlling: translate("worldLivePromo.ctrlLiveControlling"),
+    connectedControlling: translate("worldLivePromo.ctrlConnectedControlling"),
+    yourStudio: translate("worldLivePromo.ctrlYourStudio"),
+    unavailableOpen: translate("worldLivePromo.ctrlUnavailableOpen"),
+    unavailableDropped: translate("worldLivePromo.ctrlUnavailableDropped"),
+  };
+}
+
 /** stream-controller.tsx's status line, verbatim wording. */
-export function controllerStatusLine(v: ControllerDeskView): string {
-  if (!v.started) return "Connecting…";
-  if (!v.socketUp) return "Reconnecting…";
-  if (!v.stageConnected) return "Studio not open";
-  return v.live ? `Live — controlling ${v.label}` : `Connected — controlling ${v.label ?? "your studio"}`;
+export function controllerStatusLine(v: ControllerDeskView, strings: LiveControllerStrings = LIVE_CONTROLLER_STRINGS_EN): string {
+  if (!v.started) return strings.connecting;
+  if (!v.socketUp) return strings.reconnecting;
+  if (!v.stageConnected) return strings.studioNotOpen;
+  return v.live
+    ? fillToken(strings.liveControlling, "{{label}}", String(v.label))
+    : fillToken(strings.connectedControlling, "{{label}}", v.label ?? strings.yourStudio);
 }
 
 /** stream-controller.tsx's unavailable note, verbatim wording and
  *  precedence (no stage beats a dropped socket). */
-export function controllerUnavailableNote(v: Pick<ControllerDeskView, "socketUp" | "stageConnected">): string | null {
-  if (!v.stageConnected) return "Open the studio — this remote connects to it automatically.";
-  if (!v.socketUp) return "Connection dropped — reconnecting. Controls pause until it's back.";
+export function controllerUnavailableNote(v: Pick<ControllerDeskView, "socketUp" | "stageConnected">, strings: LiveControllerStrings = LIVE_CONTROLLER_STRINGS_EN): string | null {
+  if (!v.stageConnected) return strings.unavailableOpen;
+  if (!v.socketUp) return strings.unavailableDropped;
   return null;
 }
 
@@ -360,14 +412,14 @@ export interface WatchStreamView {
   creator: { id: string; slug: string; displayName: string; avatarUrl: string | null } | null;
 }
 
-export function normalizeWatchStream(raw: unknown): WatchStreamView | null {
+export function normalizeWatchStream(raw: unknown, streamFallback = "Live stream", creatorFallback = "Creator"): WatchStreamView | null {
   const d = (raw ?? {}) as Record<string, unknown>;
   const s = (d["stream"] ?? null) as Record<string, unknown> | null;
   if (!s || typeof s["id"] !== "string") return null;
   const c = (s["creator"] ?? null) as Record<string, unknown> | null;
   return {
     id: s["id"],
-    title: typeof s["title"] === "string" ? s["title"] : "Live stream",
+    title: typeof s["title"] === "string" ? s["title"] : streamFallback,
     status: typeof s["status"] === "string" ? s["status"] : "",
     viewerCount: typeof s["viewer_count"] === "number" ? s["viewer_count"] : 0,
     peakViewers: typeof s["peak_viewers"] === "number" ? s["peak_viewers"] : 0,
@@ -375,7 +427,7 @@ export function normalizeWatchStream(raw: unknown): WatchStreamView | null {
       ? {
           id: c["id"],
           slug: c["slug"],
-          displayName: typeof c["display_name"] === "string" ? c["display_name"] : "Creator",
+          displayName: typeof c["display_name"] === "string" ? c["display_name"] : creatorFallback,
           avatarUrl: typeof c["avatar_url"] === "string" ? c["avatar_url"] : null,
         }
       : null,
@@ -420,7 +472,7 @@ export interface FinishedClipOption {
 }
 
 /** SchedulePremiereForm's picker rule: finished videos only. */
-export function normalizeFinishedClips(raw: unknown): FinishedClipOption[] {
+export function normalizeFinishedClips(raw: unknown, fallbackTitle = "Untitled video"): FinishedClipOption[] {
   const d = (raw ?? {}) as Record<string, unknown>;
   const rows = Array.isArray(d["clips"]) ? d["clips"] : Array.isArray(raw) ? raw : [];
   const out: FinishedClipOption[] = [];
@@ -428,7 +480,7 @@ export function normalizeFinishedClips(raw: unknown): FinishedClipOption[] {
     if (!r || typeof r !== "object") continue;
     const c = r as Record<string, unknown>;
     if (typeof c["id"] !== "string" || c["status"] !== "completed") continue;
-    out.push({ id: c["id"], title: typeof c["title"] === "string" && c["title"] ? c["title"] : "Untitled video" });
+    out.push({ id: c["id"], title: typeof c["title"] === "string" && c["title"] ? c["title"] : fallbackTitle });
   }
   return out;
 }
@@ -500,23 +552,57 @@ export const BACKGROUND_QUALITY_OPTIONS = [
   { quality: "tasks", label: "MediaPipe" },
 ] as const satisfies ReadonlyArray<{ quality: BackgroundQuality; label: string }>;
 
+export interface LiveEngineStrings {
+  pro: string;
+  tasks: string;
+  off: string;
+  fallbackProStopped: string;
+  fallbackTasksStopped: string;
+  fallbackTasksInitFailed: string;
+  fallbackProInitFailed: string;
+}
+
+export const LIVE_ENGINE_STRINGS_EN: LiveEngineStrings = {
+  pro: "Pro",
+  tasks: "MediaPipe Tasks",
+  off: "Off",
+  fallbackProStopped: "Pro engine stopped on this device — camera is running plain. Try MediaPipe, or reopen the studio.",
+  fallbackTasksStopped: "MediaPipe engine stopped on this device — camera is running plain. Try Pro, or reopen the studio.",
+  fallbackTasksInitFailed: "MediaPipe engine couldn't start on this device — camera is running plain.",
+  fallbackProInitFailed: "Pro engine couldn't start on this device — camera is running plain.",
+};
+
+/** Build the bundle from a translate function (the desk's `t`):
+ *  every field reads its worldLivePromo catalog key. */
+export function liveEngineStrings(translate: (key: string) => string): LiveEngineStrings {
+  return {
+    pro: translate("worldLivePromo.engineKindPro"),
+    tasks: translate("worldLivePromo.engineKindTasks"),
+    off: translate("worldLivePromo.engineKindOff"),
+    fallbackProStopped: translate("worldLivePromo.engineFallbackProStopped"),
+    fallbackTasksStopped: translate("worldLivePromo.engineFallbackTasksStopped"),
+    fallbackTasksInitFailed: translate("worldLivePromo.engineFallbackTasksInitFailed"),
+    fallbackProInitFailed: translate("worldLivePromo.engineFallbackProInitFailed"),
+  };
+}
+
 /** BroadcastStudio's engine status line, verbatim wording: the
  *  engine ACTUALLY live, never the wanted one dressed up. */
-export function engineKindLabel(kind: BackgroundEngineKind): string {
-  return kind === "pro" ? "Pro" : kind === "tasks" ? "MediaPipe Tasks" : "Off";
+export function engineKindLabel(kind: BackgroundEngineKind, strings: LiveEngineStrings = LIVE_ENGINE_STRINGS_EN): string {
+  return kind === "pro" ? strings.pro : kind === "tasks" ? strings.tasks : strings.off;
 }
 
 /** BroadcastStudio's fallback note, verbatim: a fallen-back engine
  *  reads as a fallback with its real reason, or nothing at all. */
-export function engineFallbackNote(detail: EngineStatusDetail | null): string | null {
+export function engineFallbackNote(detail: EngineStatusDetail | null, strings: LiveEngineStrings = LIVE_ENGINE_STRINGS_EN): string | null {
   if (!detail?.fellBack) return null;
   return detail.reason === "pro-stopped"
-    ? "Pro engine stopped on this device — camera is running plain. Try MediaPipe, or reopen the studio."
+    ? strings.fallbackProStopped
     : detail.reason === "tasks-stopped"
-      ? "MediaPipe engine stopped on this device — camera is running plain. Try Pro, or reopen the studio."
+      ? strings.fallbackTasksStopped
       : detail.reason === "tasks-init-failed"
-        ? "MediaPipe engine couldn't start on this device — camera is running plain."
-        : "Pro engine couldn't start on this device — camera is running plain.";
+        ? strings.fallbackTasksInitFailed
+        : strings.fallbackProInitFailed;
 }
 
 /** BroadcastStudio's engine-down rule, verbatim: 'off' is only a
