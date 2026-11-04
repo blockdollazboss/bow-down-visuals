@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { apiErrorMessage } from "../../../lib/api-error";
 import { NativeEmptyState } from "@/components/world/native/NativeStates";
 import { deskInputCls } from "@/components/world/native/CreateDeskLeaf";
@@ -106,6 +107,7 @@ import {
 /* ═── Payment reversals ══════════════════════════════════════════ */
 
 export function ReversalsBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const { phase, data: rows, failMessage, reload } = useBench(
@@ -130,7 +132,7 @@ export function ReversalsBench({ isLight }: { isLight: boolean }) {
       );
       if (status === 409) {
         reload();
-        throw new Error("Someone settled this row first — the recorded decision is on it now.");
+        throw new Error(t("worldAdminDesk.reversalsConflict"));
       }
       if (status < 200 || status >= 300) {
         throw new Error(apiErrorMessage(data, `Request failed (${status})`));
@@ -138,16 +140,16 @@ export function ReversalsBench({ isLight }: { isLight: boolean }) {
       setConfirmFor(null);
       reload();
       return d === "complete"
-        ? "Resolved — the reversal completed and the decision is recorded."
-        : "Dismissed — no money moved, and the decision is recorded.";
+        ? t("worldAdminDesk.reversalsResolvedComplete")
+        : t("worldAdminDesk.reversalsResolvedDismiss");
     });
   }
 
   return (
     <BenchSection
       isLight={isLight}
-      title="Payment Reversals"
-      blurb="Refunds and disputes the engine parked for a human — complete or dismiss each, on the record."
+      title={t("worldAdminDesk.reversalsTitle")}
+      blurb={t("worldAdminDesk.reversalsBlurb")}
     >
       {act.denied ? (
         <BenchDenied isLight={isLight} />
@@ -156,10 +158,10 @@ export function ReversalsBench({ isLight }: { isLight: boolean }) {
           {rows && rows.length > 0 ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className={`text-xs ${cls.subCls}`}>
-                {countNeedsManualReview(rows)} need a decision · {rows.length} rows
+                {t("worldAdminDesk.reversalsNeedLine", { count: countNeedsManualReview(rows), total: rows.length })}
               </span>
               <select
-                aria-label="Filter reversals"
+                aria-label={t("worldAdminDesk.reversalsFilterAria")}
                 className={cls.selectCls}
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as ReversalFilter)}
@@ -175,11 +177,11 @@ export function ReversalsBench({ isLight }: { isLight: boolean }) {
           {rows && rows.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="No reversals on record."
-              detail="When a refund or dispute reverses a payment, its row lands here."
+              message={t("worldAdminDesk.reversalsEmpty")}
+              detail={t("worldAdminDesk.reversalsEmptyDetail")}
             />
           ) : shown.length === 0 ? (
-            <NativeEmptyState isLight={isLight} message="Nothing under this filter." />
+            <NativeEmptyState isLight={isLight} message={t("worldAdminDesk.reversalsEmptyFilter")} />
           ) : (
             <div className="flex flex-col gap-2">
               {shown.map((row) => {
@@ -194,31 +196,40 @@ export function ReversalsBench({ isLight }: { isLight: boolean }) {
                       </span>
                     </div>
                     <p className={`mt-1 text-sm font-semibold ${cls.titleCls}`}>
-                      {formatUsdCents(row.chargeAmountCents)} charge · {row.grantedCredits} VB
-                      granted · {row.creditsClawed} clawed back
-                      {row.shortfallCredits > 0 ? ` · ${row.shortfallCredits} VB shortfall` : ""}
+                      {t("worldAdminDesk.reversalsRowLine", {
+                        charge: formatUsdCents(row.chargeAmountCents),
+                        credits: row.grantedCredits,
+                        clawed: row.creditsClawed,
+                      })}
+                      {row.shortfallCredits > 0
+                        ? t("worldAdminDesk.reversalsShortfall", { amount: row.shortfallCredits })
+                        : ""}
                     </p>
                     <p className={`mt-1 text-xs ${cls.subCls}`}>
-                      {new Date(row.createdAt).toLocaleString()}
-                      {row.disputeLost ? " · dispute lost" : ""}
-                      {row.entitlementRevoked ? " · entitlement revoked" : ""}
-                      {row.sellerReversed ? " · seller reversed" : ""}
+                      {new Date(row.createdAt).toLocaleString(i18n.language)}
+                      {row.disputeLost ? t("worldAdminDesk.reversalsDisputeLost") : ""}
+                      {row.entitlementRevoked ? t("worldAdminDesk.reversalsEntitlementRevoked") : ""}
+                      {row.sellerReversed ? t("worldAdminDesk.reversalsSellerReversed") : ""}
                     </p>
                     {row.manualReason ? (
-                      <p className={`mt-1 text-xs ${cls.subCls}`}>Parked: {row.manualReason}</p>
+                      <p className={`mt-1 text-xs ${cls.subCls}`}>{t("worldAdminDesk.reversalsParked", { reason: row.manualReason })}</p>
                     ) : null}
                     {row.resolution ? (
                       <p className={`mt-1 text-xs ${cls.subCls}`}>
-                        Resolved: {row.resolution.decision}
-                        {row.resolution.adminEmail ? ` by ${row.resolution.adminEmail}` : ""}
-                        {row.resolution.note ? ` — ${row.resolution.note}` : ""}
+                        {t("worldAdminDesk.reversalsResolved", { decision: row.resolution.decision })}
+                        {row.resolution.adminEmail
+                          ? t("worldAdminDesk.reversalsResolvedBy", { email: row.resolution.adminEmail })
+                          : ""}
+                        {row.resolution.note
+                          ? t("worldAdminDesk.reversalsResolvedNote", { note: row.resolution.note })
+                          : ""}
                       </p>
                     ) : null}
                     {reversalResolvable(row) ? (
                       <div className="mt-2 flex flex-col gap-2">
                         <div className="flex flex-wrap gap-2">
                           <select
-                            aria-label="Resolution"
+                            aria-label={t("worldAdminDesk.reversalsDecisionAria")}
                             className={cls.selectCls}
                             value={d}
                             onChange={(e) =>
@@ -228,23 +239,26 @@ export function ReversalsBench({ isLight }: { isLight: boolean }) {
                               }))
                             }
                           >
-                            <option value="complete">complete the reversal</option>
-                            <option value="dismiss">dismiss (no money moves)</option>
+                            <option value="complete">{t("worldAdminDesk.reversalsOptComplete")}</option>
+                            <option value="dismiss">{t("worldAdminDesk.reversalsOptDismiss")}</option>
                           </select>
                           <input
-                            aria-label="Resolution note"
+                            aria-label={t("worldAdminDesk.reversalsNoteAria")}
                             className={`${deskInputCls(isLight)} min-w-40 flex-1`}
                             value={n}
                             onChange={(e) => setNote((m) => ({ ...m, [row.id]: e.target.value }))}
-                            placeholder={d === "dismiss" ? "Note (required to dismiss)" : "Note (optional)"}
+                            placeholder={d === "dismiss" ? t("worldAdminDesk.reversalsNoteRequired") : t("worldAdminDesk.noteOptionalPlaceholder")}
                           />
                         </div>
                         {confirmFor === row.id ? (
                           <div className="flex flex-wrap items-center gap-2">
                             <span className={`text-xs font-semibold ${cls.titleCls}`}>
                               {d === "complete"
-                                ? `Complete the reversal on a ${formatUsdCents(row.chargeAmountCents)} charge (${row.grantedCredits} VB granted)?`
-                                : `Dismiss this row? No money moves.`}
+                                ? t("worldAdminDesk.reversalsConfirmComplete", {
+                                    charge: formatUsdCents(row.chargeAmountCents),
+                                    credits: row.grantedCredits,
+                                  })
+                                : t("worldAdminDesk.reversalsConfirmDismiss")}
                             </span>
                             <button
                               type="button"
@@ -252,14 +266,14 @@ export function ReversalsBench({ isLight }: { isLight: boolean }) {
                               disabled={act.busy !== null || !reversalResolveReady(d, n)}
                               onClick={() => void resolve(row)}
                             >
-                              <BusyLabel busy={act.busy === `rev:${row.id}`}>Confirm</BusyLabel>
+                              <BusyLabel busy={act.busy === `rev:${row.id}`}>{t("worldAdminDesk.reversalsConfirmButton")}</BusyLabel>
                             </button>
                             <button
                               type="button"
                               className={cls.ghostBtn}
                               onClick={() => setConfirmFor(null)}
                             >
-                              Not yet
+                              {t("worldAdminDesk.notYet")}
                             </button>
                           </div>
                         ) : (
@@ -270,7 +284,7 @@ export function ReversalsBench({ isLight }: { isLight: boolean }) {
                               disabled={act.busy !== null || !reversalResolveReady(d, n)}
                               onClick={() => setConfirmFor(row.id)}
                             >
-                              Resolve…
+                              {t("worldAdminDesk.reversalsResolve")}
                             </button>
                           </div>
                         )}
@@ -291,6 +305,7 @@ export function ReversalsBench({ isLight }: { isLight: boolean }) {
 /* ═── Operator actions (read-only) ═══════════════════════════════ */
 
 export function OperatorBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const cls = adminCls(isLight);
   const { phase, data, failMessage, reload } = useBench(
     async (a) => parseOperatorActions(await a.get(ADMIN_OPERATOR_ACTIONS_PATH)),
@@ -301,18 +316,21 @@ export function OperatorBench({ isLight }: { isLight: boolean }) {
   return (
     <BenchSection
       isLight={isLight}
-      title="Operator Actions"
-      blurb="Thy Cheat Code's action trail — what the operator ran or refused. Read-only, like the website bench."
+      title={t("worldAdminDesk.operatorTitle")}
+      blurb={t("worldAdminDesk.operatorBlurb")}
     >
       <BenchStates isLight={isLight} phase={phase} failMessage={failMessage} onRetry={reload}>
         {data ? (
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className={`text-xs ${cls.subCls}`}>
-              Hands {data.handsEnabled ? "on" : "off"} · charged cap {data.dailyChargedCap} VB/day
-              · {data.actions.length} actions
+              {t("worldAdminDesk.operatorLine", {
+                hands: t(data.handsEnabled ? "worldAdminDesk.onWord" : "worldAdminDesk.offWord"),
+                cap: data.dailyChargedCap,
+                count: data.actions.length,
+              })}
             </span>
             <select
-              aria-label="Filter operator actions"
+              aria-label={t("worldAdminDesk.operatorFilterAria")}
               className={cls.selectCls}
               value={filter}
               onChange={(e) => setFilter(e.target.value as OperatorResultFilter)}
@@ -328,8 +346,8 @@ export function OperatorBench({ isLight }: { isLight: boolean }) {
         {data && shown.length === 0 ? (
           <NativeEmptyState
             isLight={isLight}
-            message="No operator actions to show."
-            detail="Charged or refused operator actions collect here."
+            message={t("worldAdminDesk.operatorEmpty")}
+            detail={t("worldAdminDesk.operatorEmptyDetail")}
           />
         ) : (
           <div className="flex flex-col gap-2">
@@ -344,13 +362,13 @@ export function OperatorBench({ isLight }: { isLight: boolean }) {
                 </div>
                 <p className={`mt-1 text-xs ${cls.subCls}`}>{row.summary}</p>
                 <p className={`mt-1 text-xs ${cls.subCls}`}>
-                  {new Date(row.createdAt).toLocaleString()}
-                  {row.adminEmail ? ` · for ${row.adminEmail}` : ""}
-                  {row.target ? ` · target ${row.target}` : ""}
+                  {new Date(row.createdAt).toLocaleString(i18n.language)}
+                  {row.adminEmail ? t("worldAdminDesk.operatorFor", { email: row.adminEmail }) : ""}
+                  {row.target ? t("worldAdminDesk.operatorTarget", { target: row.target }) : ""}
                   {row.priceCharged != null
-                    ? ` · charged ${row.priceCharged} VB`
+                    ? t("worldAdminDesk.operatorCharged", { amount: row.priceCharged })
                     : row.priceQuoted != null
-                      ? ` · quoted ${row.priceQuoted} VB`
+                      ? t("worldAdminDesk.operatorQuoted", { amount: row.priceQuoted })
                       : ""}
                 </p>
                 {row.resultReason ? (
@@ -368,6 +386,7 @@ export function OperatorBench({ isLight }: { isLight: boolean }) {
 /* ═── Studio gear queue ══════════════════════════════════════════ */
 
 export function GearBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const { phase, data, failMessage, reload } = useBench(
@@ -385,7 +404,7 @@ export function GearBench({ isLight }: { isLight: boolean }) {
       await api.send(adminGearProofPath(order.id), "POST", buildGearProof({ proofUrl: form.url, proofNote: form.note }));
       setProof((m) => ({ ...m, [order.id]: { url: "", note: "" } }));
       reload();
-      return "Proof sent to the buyer.";
+      return t("worldAdminDesk.gearProofSent");
     });
   }
 
@@ -393,15 +412,15 @@ export function GearBench({ isLight }: { isLight: boolean }) {
     await act.run(`gear:status:${order.id}:${status}`, async () => {
       await api.send(adminGearStatusPath(order.id), "POST", buildGearStatus(status));
       reload();
-      return `Order marked ${status}.`;
+      return t("worldAdminDesk.gearOrderMarked", { status });
     });
   }
 
   return (
     <BenchSection
       isLight={isLight}
-      title="Studio Gear Queue"
-      blurb="Custom gear orders — relay the design proof, then walk fulfillment. Shipping keeps the rail's gate: paid, proof settled."
+      title={t("worldAdminDesk.gearTitle")}
+      blurb={t("worldAdminDesk.gearBlurb")}
     >
       {act.denied ? (
         <BenchDenied isLight={isLight} />
@@ -410,10 +429,11 @@ export function GearBench({ isLight }: { isLight: boolean }) {
           {data && data.orders.length > 0 ? (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className={`text-xs ${cls.subCls}`}>
-                {data.orders.length} orders{data.testMode ? " · test mode" : ""}
+                {t("worldAdminDesk.gearOrders", { count: data.orders.length })}
+                {data.testMode ? t("worldAdminDesk.gearTestMode") : ""}
               </span>
               <select
-                aria-label="Filter gear orders"
+                aria-label={t("worldAdminDesk.gearFilterAria")}
                 className={cls.selectCls}
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as GearFilter)}
@@ -429,8 +449,8 @@ export function GearBench({ isLight }: { isLight: boolean }) {
           {data && shown.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="No gear orders under this filter."
-              detail="Custom gear orders land here as buyers place them."
+              message={t("worldAdminDesk.gearEmptyFilter")}
+              detail={t("worldAdminDesk.gearEmptyDetail")}
             />
           ) : (
             <div className="flex flex-col gap-2">
@@ -441,13 +461,13 @@ export function GearBench({ isLight }: { isLight: boolean }) {
                   <div key={order.id} className={cls.rowCls}>
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusPill status={order.status} isLight={isLight} />
-                      <StatusPill status={`proof: ${order.proofStatus}`} isLight={isLight} />
+                      <StatusPill status={t("worldAdminDesk.gearProofPill", { status: order.proofStatus })} isLight={isLight} />
                       <span className={`text-sm font-semibold ${cls.titleCls}`}>
                         {formatUsdCents(order.totalCents)}
                       </span>
                       <span className={`text-xs ${cls.subCls}`}>
-                        {order.paid ? "paid" : "unpaid"}
-                        {order.testMode ? " · test" : ""}
+                        {order.paid ? t("worldAdminDesk.gearPaid") : t("worldAdminDesk.gearUnpaid")}
+                        {order.testMode ? t("worldAdminDesk.gearTestSuffix") : ""}
                       </span>
                     </div>
                     {order.items.map((item, i) => (
@@ -461,28 +481,28 @@ export function GearBench({ isLight }: { isLight: boolean }) {
                     <p className={`mt-1 text-xs ${cls.subCls}`}>
                       {order.buyer.name} · {order.buyer.email} · {order.buyer.city},{" "}
                       {order.buyer.state} {order.buyer.zip} ·{" "}
-                      {new Date(order.createdAt).toLocaleString()}
+                      {new Date(order.createdAt).toLocaleString(i18n.language)}
                     </p>
                     {gearProofSendAvailable(order) ? (
                       <div className="mt-2 flex flex-col gap-2">
                         <div className="flex flex-wrap gap-2">
                           <input
-                            aria-label="Proof link"
+                            aria-label={t("worldAdminDesk.gearProofLinkAria")}
                             className={`${deskInputCls(isLight)} min-w-52 flex-1`}
                             value={form.url}
                             onChange={(e) =>
                               setProof((m) => ({ ...m, [order.id]: { ...form, url: e.target.value } }))
                             }
-                            placeholder="Proof link (the design preview URL)"
+                            placeholder={t("worldAdminDesk.gearProofLinkPlaceholder")}
                           />
                           <input
-                            aria-label="Proof note"
+                            aria-label={t("worldAdminDesk.gearProofNoteAria")}
                             className={`${deskInputCls(isLight)} min-w-32 flex-1`}
                             value={form.note}
                             onChange={(e) =>
                               setProof((m) => ({ ...m, [order.id]: { ...form, note: e.target.value } }))
                             }
-                            placeholder="Note (optional)"
+                            placeholder={t("worldAdminDesk.noteOptionalPlaceholder")}
                           />
                         </div>
                         <div>
@@ -493,7 +513,7 @@ export function GearBench({ isLight }: { isLight: boolean }) {
                             onClick={() => void sendProof(order)}
                           >
                             <BusyLabel busy={act.busy === `gear:proof:${order.id}`}>
-                              Send proof
+                              {t("worldAdminDesk.gearSendProof")}
                             </BusyLabel>
                           </button>
                         </div>
@@ -511,16 +531,16 @@ export function GearBench({ isLight }: { isLight: boolean }) {
                           onClick={() => void moveStatus(order, status)}
                         >
                           <BusyLabel busy={act.busy === `gear:status:${order.id}:${status}`}>
-                            Mark {status}
+                            {t("worldAdminDesk.markStatus", { status })}
                           </BusyLabel>
                         </button>
                       ))}
                       {gearFulfillmentActions(order).includes("shipped") && shipBlock === "unpaid" ? (
-                        <span className={`text-xs ${cls.subCls}`}>Shipping waits: unpaid.</span>
+                        <span className={`text-xs ${cls.subCls}`}>{t("worldAdminDesk.gearShipUnpaid")}</span>
                       ) : null}
                       {gearFulfillmentActions(order).includes("shipped") && shipBlock === "proof_open" ? (
                         <span className={`text-xs ${cls.subCls}`}>
-                          Shipping waits: the proof isn&apos;t settled.
+                          {t("worldAdminDesk.gearShipProof")}
                         </span>
                       ) : null}
                     </div>
@@ -539,6 +559,7 @@ export function GearBench({ isLight }: { isLight: boolean }) {
 /* ═── Bow Challenge (the jackpot race) ═══════════════════════════ */
 
 export function BowBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const { phase, data, failMessage, reload } = useBench(
@@ -567,15 +588,15 @@ export function BowBench({ isLight }: { isLight: boolean }) {
         targetOverride: target.trim() === "" ? null : Number(target),
       }));
       reload();
-      return "Race settings saved.";
+      return t("worldAdminDesk.bowSaved");
     });
   }
 
   return (
     <BenchSection
       isLight={isLight}
-      title="Bow Challenge"
-      blurb="The monthly jackpot race — its reward, its target, and whether it's running. Secret everywhere else."
+      title={t("worldAdminDesk.bowTitle")}
+      blurb={t("worldAdminDesk.bowBlurb")}
     >
       {act.denied ? (
         <BenchDenied isLight={isLight} />
@@ -586,26 +607,29 @@ export function BowBench({ isLight }: { isLight: boolean }) {
               {data.race ? (
                 <div className={cls.rowCls}>
                   <p className={`text-sm font-semibold ${cls.titleCls}`}>
-                    {data.race.period} — {data.race.totalBows.toLocaleString()} bows toward{" "}
-                    {data.race.target.toLocaleString()}
+                    {t("worldAdminDesk.bowRaceLine", {
+                      period: data.race.period,
+                      bows: data.race.totalBows.toLocaleString(i18n.language),
+                      target: data.race.target.toLocaleString(i18n.language),
+                    })}
                   </p>
                   <p className={`mt-1 text-xs ${cls.subCls}`}>
                     {data.race.raceOver
-                      ? `Won by ${data.race.winnerEmail ?? "—"}${data.race.wonAt ? ` · ${new Date(data.race.wonAt).toLocaleString()}` : ""}`
-                      : "No winner yet — the race is live."}
+                      ? `${t("worldAdminDesk.bowWonBy", { email: data.race.winnerEmail ?? "—" })}${data.race.wonAt ? t("worldAdminDesk.dateSuffix", { date: new Date(data.race.wonAt).toLocaleString(i18n.language) }) : ""}`
+                      : t("worldAdminDesk.bowNoWinner")}
                   </p>
                 </div>
               ) : (
                 <NativeEmptyState
                   isLight={isLight}
-                  message="No race has started for this period yet."
-                  detail="The first bow of the month opens it."
+                  message={t("worldAdminDesk.bowEmpty")}
+                  detail={t("worldAdminDesk.bowEmptyDetail")}
                 />
               )}
               <div className="flex flex-wrap items-end gap-3">
                 <div>
                   <label className={cls.labelCls} htmlFor="bow-reward">
-                    Reward (Visual Bucs)
+                    {t("worldAdminDesk.bowRewardLabel")}
                   </label>
                   <input
                     id="bow-reward"
@@ -617,7 +641,7 @@ export function BowBench({ isLight }: { isLight: boolean }) {
                 </div>
                 <div>
                   <label className={cls.labelCls} htmlFor="bow-target">
-                    Target override (blank = drawn)
+                    {t("worldAdminDesk.bowTargetLabel")}
                   </label>
                   <input
                     id="bow-target"
@@ -625,7 +649,7 @@ export function BowBench({ isLight }: { isLight: boolean }) {
                     value={target}
                     onChange={(e) => setTarget(e.target.value)}
                     inputMode="numeric"
-                    placeholder="1,000–5,000"
+                    placeholder={t("worldAdminDesk.bowTargetPlaceholder")}
                   />
                 </div>
                 <label className={`flex items-center gap-2 text-sm ${cls.titleCls}`}>
@@ -634,7 +658,7 @@ export function BowBench({ isLight }: { isLight: boolean }) {
                     checked={enabled}
                     onChange={(e) => setEnabled(e.target.checked)}
                   />
-                  Race enabled
+                  {t("worldAdminDesk.bowEnabled")}
                 </label>
                 <button
                   type="button"
@@ -642,18 +666,22 @@ export function BowBench({ isLight }: { isLight: boolean }) {
                   disabled={act.busy !== null || !bowConfigReady(reward, target)}
                   onClick={() => void save()}
                 >
-                  <BusyLabel busy={act.busy === "bow:save"}>Save race settings</BusyLabel>
+                  <BusyLabel busy={act.busy === "bow:save"}>{t("worldAdminDesk.bowSave")}</BusyLabel>
                 </button>
               </div>
               {data.history.length > 0 ? (
                 <div className="flex flex-col gap-1">
                   <p className={`text-xs font-bold uppercase tracking-wider ${cls.subCls}`}>
-                    Win history
+                    {t("worldAdminDesk.bowHistory")}
                   </p>
                   {data.history.map((h) => (
                     <p key={h.period} className={`text-xs ${cls.subCls}`}>
-                      {h.period} — target {h.target.toLocaleString()} · {h.totalBows.toLocaleString()}{" "}
-                      bows · won by {h.winnerEmail ?? "—"}
+                      {t("worldAdminDesk.bowHistoryLine", {
+                        period: h.period,
+                        target: h.target.toLocaleString(i18n.language),
+                        bows: h.totalBows.toLocaleString(i18n.language),
+                        email: h.winnerEmail ?? "—",
+                      })}
                     </p>
                   ))}
                 </div>
@@ -670,6 +698,7 @@ export function BowBench({ isLight }: { isLight: boolean }) {
 /* ═── Spotlight inbox ════════════════════════════════════════════ */
 
 export function SpotlightBench({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const { phase, data: rows, failMessage, reload } = useBench(
@@ -680,8 +709,8 @@ export function SpotlightBench({ isLight }: { isLight: boolean }) {
   return (
     <BenchSection
       isLight={isLight}
-      title="Spotlight Inquiries"
-      blurb="Creators asking for the spotlight — walk each inquiry to a decision."
+      title={t("worldAdminDesk.spotlightTitle")}
+      blurb={t("worldAdminDesk.spotlightBlurb")}
     >
       {act.denied ? (
         <BenchDenied isLight={isLight} />
@@ -690,8 +719,8 @@ export function SpotlightBench({ isLight }: { isLight: boolean }) {
           {rows && rows.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="No spotlight inquiries."
-              detail="When a creator asks for the spotlight, the inquiry lands here."
+              message={t("worldAdminDesk.spotlightEmpty")}
+              detail={t("worldAdminDesk.spotlightEmptyDetail")}
             />
           ) : (
             <div className="flex flex-col gap-2">
@@ -703,10 +732,10 @@ export function SpotlightBench({ isLight }: { isLight: boolean }) {
                     <span className={`text-xs ${cls.subCls}`}>{row.email}</span>
                   </div>
                   {row.videoUrl ? (
-                    <p className={`mt-1 break-all text-xs ${cls.subCls}`}>Video: {row.videoUrl}</p>
+                    <p className={`mt-1 break-all text-xs ${cls.subCls}`}>{t("worldAdminDesk.spotlightVideo", { url: row.videoUrl })}</p>
                   ) : null}
                   {row.targetUrl ? (
-                    <p className={`mt-1 break-all text-xs ${cls.subCls}`}>Target: {row.targetUrl}</p>
+                    <p className={`mt-1 break-all text-xs ${cls.subCls}`}>{t("worldAdminDesk.spotlightTarget", { url: row.targetUrl })}</p>
                   ) : null}
                   <div className="mt-2 flex flex-wrap gap-2">
                     {SPOTLIGHT_STATUSES.filter((s) => s !== row.status).map((status) => (
@@ -719,12 +748,12 @@ export function SpotlightBench({ isLight }: { isLight: boolean }) {
                           void act.run(`spot:${row.id}:${status}`, async () => {
                             await api.send(adminSpotlightPath(row.id), "PATCH", buildStatusPatch(status));
                             reload();
-                            return `Inquiry marked ${status}.`;
+                            return t("worldAdminDesk.spotlightMarked", { status });
                           })
                         }
                       >
                         <BusyLabel busy={act.busy === `spot:${row.id}:${status}`}>
-                          Mark {status}
+                          {t("worldAdminDesk.markStatus", { status })}
                         </BusyLabel>
                       </button>
                     ))}
@@ -743,6 +772,7 @@ export function SpotlightBench({ isLight }: { isLight: boolean }) {
 /* ═── Contact inbox ══════════════════════════════════════════════ */
 
 export function ContactBench({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const { phase, data: rows, failMessage, reload } = useBench(
@@ -753,21 +783,21 @@ export function ContactBench({ isLight }: { isLight: boolean }) {
   return (
     <BenchSection
       isLight={isLight}
-      title="Contact Inbox"
-      blurb="Messages from the contact form — read them here, mark them done."
+      title={t("worldAdminDesk.contactTitle")}
+      blurb={t("worldAdminDesk.contactBlurb")}
     >
       {act.denied ? (
         <BenchDenied isLight={isLight} />
       ) : (
         <BenchStates isLight={isLight} phase={phase} failMessage={failMessage} onRetry={reload}>
           {rows && rows.length > 0 ? (
-            <p className={`mb-2 text-xs ${cls.subCls}`}>{unreadMessages(rows)} unread</p>
+            <p className={`mb-2 text-xs ${cls.subCls}`}>{t("worldAdminDesk.contactUnread", { count: unreadMessages(rows) })}</p>
           ) : null}
           {rows && rows.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="The inbox is empty."
-              detail="Contact-form messages land here."
+              message={t("worldAdminDesk.contactEmpty")}
+              detail={t("worldAdminDesk.contactEmptyDetail")}
             />
           ) : (
             <div className="flex flex-col gap-2">
@@ -788,12 +818,14 @@ export function ContactBench({ isLight }: { isLight: boolean }) {
                         void act.run(`contact:${row.id}`, async () => {
                           await api.send(adminContactPath(row.id), "PATCH", buildReadPatch(!row.read));
                           reload();
-                          return row.read ? "Marked unread." : "Marked read.";
+                          return row.read
+                            ? t("worldAdminDesk.contactMarkedUnread")
+                            : t("worldAdminDesk.contactMarkedRead");
                         })
                       }
                     >
                       <BusyLabel busy={act.busy === `contact:${row.id}`}>
-                        {row.read ? "Mark unread" : "Mark read"}
+                        {row.read ? t("worldAdminDesk.contactMarkUnread") : t("worldAdminDesk.contactMarkRead")}
                       </BusyLabel>
                     </button>
                   </div>
@@ -811,6 +843,7 @@ export function ContactBench({ isLight }: { isLight: boolean }) {
 /* ═── Users, grants, plan ════════════════════════════════════════ */
 
 export function UsersBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const act = useBenchAction();
@@ -838,7 +871,7 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
       await api.send(user.banned ? adminUserUnbanPath(user.id) : adminUserBanPath(user.id), "POST", {});
       setConfirmBan(false);
       await lookup(user.email);
-      return user.banned ? "Account unbanned." : "Account banned.";
+      return user.banned ? t("worldAdminDesk.usersUnbanned") : t("worldAdminDesk.usersBanned");
     });
   }
 
@@ -846,14 +879,14 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
     await act.run("user:grant", async () => {
       await api.send(ADMIN_CREDITS_GRANT_PATH, "POST", buildGrantBody({ amount: Number(amount), userId: user.id }));
       await lookup(user.email);
-      return `${amount} Visual Bucs granted to ${user.email}.`;
+      return t("worldAdminDesk.usersGrantedTo", { amount, email: user.email });
     });
   }
 
   async function grantSelf() {
     await act.run("user:grant-self", async () => {
       await api.send(ADMIN_CREDITS_GRANT_PATH, "POST", buildGrantBody({ amount: Number(selfAmount) }));
-      return `${selfAmount} Visual Bucs granted to your account.`;
+      return t("worldAdminDesk.usersGrantedSelf", { amount: selfAmount });
     });
   }
 
@@ -865,15 +898,15 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
         buildPlanBody(user ? { tier, userId: user.id } : { tier, email: email.trim() }),
       );
       if (user) await lookup(user.email);
-      return `Plan tier set to ${tier}. A plan record, not a rank — Creator Level stars never move.`;
+      return t("worldAdminDesk.usersPlanSet", { tier });
     });
   }
 
   return (
     <BenchSection
       isLight={isLight}
-      title="Users, Grants & Plans"
-      blurb="Look a member up, grant Visual Bucs, set a plan tier, or ban an account. Grants are the admin mint — the rail's own bounds (1–100,000)."
+      title={t("worldAdminDesk.usersTitle")}
+      blurb={t("worldAdminDesk.usersBlurb")}
     >
       {act.denied ? (
         <BenchDenied isLight={isLight} />
@@ -881,11 +914,11 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
         <div>
           <div className="flex flex-wrap gap-2">
             <input
-              aria-label="Member email"
+              aria-label={t("worldAdminDesk.usersEmailAria")}
               className={`${deskInputCls(isLight)} min-w-52 flex-1`}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Member's email"
+              placeholder={t("worldAdminDesk.usersEmailPlaceholder")}
             />
             <button
               type="button"
@@ -893,11 +926,11 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
               disabled={act.busy !== null || !emailReady(email)}
               onClick={() => void lookup(email)}
             >
-              <BusyLabel busy={act.busy === "user:lookup"}>Look up</BusyLabel>
+              <BusyLabel busy={act.busy === "user:lookup"}>{t("worldAdminDesk.usersLookup")}</BusyLabel>
             </button>
           </div>
           {missed ? (
-            <p className={`mt-2 text-xs ${cls.subCls}`}>No account carries that email.</p>
+            <p className={`mt-2 text-xs ${cls.subCls}`}>{t("worldAdminDesk.usersNoAccount")}</p>
           ) : null}
 
           {found ? (
@@ -908,14 +941,17 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
                 </span>
                 {found.banned ? <StatusPill status="banned" isLight={isLight} /> : null}
                 <span className={`text-xs ${cls.subCls}`}>
-                  {found.credits.toLocaleString()} VB · plan {found.plan ?? "—"} · id{" "}
-                  {shortId(found.id)}
+                  {t("worldAdminDesk.usersMeta", {
+                    credits: found.credits.toLocaleString(i18n.language),
+                    plan: found.plan ?? "—",
+                    id: shortId(found.id),
+                  })}
                 </span>
               </div>
               <div className="mt-3 flex flex-wrap items-end gap-2">
                 <div>
                   <label className={cls.labelCls} htmlFor="user-grant-amount">
-                    Grant (VB)
+                    {t("worldAdminDesk.usersGrantLabel")}
                   </label>
                   <input
                     id="user-grant-amount"
@@ -923,7 +959,7 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     inputMode="numeric"
-                    placeholder="1–100,000"
+                    placeholder={t("worldAdminDesk.usersAmountPlaceholder")}
                   />
                 </div>
                 <button
@@ -932,13 +968,13 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
                   disabled={act.busy !== null || !grantAmountReady(amount)}
                   onClick={() => void grantTo(found)}
                 >
-                  <BusyLabel busy={act.busy === "user:grant"}>Grant to this member</BusyLabel>
+                  <BusyLabel busy={act.busy === "user:grant"}>{t("worldAdminDesk.usersGrantTo")}</BusyLabel>
                 </button>
               </div>
               <div className="mt-2 flex flex-wrap items-end gap-2">
                 <div>
                   <label className={cls.labelCls} htmlFor="user-plan-tier">
-                    Plan tier
+                    {t("worldAdminDesk.usersPlanLabel")}
                   </label>
                   <select
                     id="user-plan-tier"
@@ -946,10 +982,9 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
                     value={tier}
                     onChange={(e) => setTier(Number(e.target.value))}
                   >
-                    {PLAN_TIERS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                        {t <= 3 ? " — free" : t <= 5 ? " — pro" : " — elite"}
+                    {PLAN_TIERS.map((n) => (
+                      <option key={n} value={n}>
+                        {n} — {t(n <= 3 ? "worldAdminDesk.usersTierFree" : n <= 5 ? "worldAdminDesk.usersTierPro" : "worldAdminDesk.usersTierElite")}
                       </option>
                     ))}
                   </select>
@@ -960,7 +995,7 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
                   disabled={act.busy !== null}
                   onClick={() => void setPlan(found)}
                 >
-                  <BusyLabel busy={act.busy === "user:plan"}>Set tier</BusyLabel>
+                  <BusyLabel busy={act.busy === "user:plan"}>{t("worldAdminDesk.usersSetTier")}</BusyLabel>
                 </button>
               </div>
               <div className="mt-3">
@@ -971,12 +1006,12 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
                     disabled={act.busy !== null}
                     onClick={() => void banToggle(found)}
                   >
-                    <BusyLabel busy={act.busy === "user:unban"}>Unban this account</BusyLabel>
+                    <BusyLabel busy={act.busy === "user:unban"}>{t("worldAdminDesk.usersUnbanButton")}</BusyLabel>
                   </button>
                 ) : confirmBan ? (
                   <span className="flex flex-wrap items-center gap-2">
                     <span className={`text-xs font-semibold ${cls.titleCls}`}>
-                      Ban {found.email}? They lose access until unbanned.
+                      {t("worldAdminDesk.usersBanConfirm", { email: found.email })}
                     </span>
                     <button
                       type="button"
@@ -984,14 +1019,14 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
                       disabled={act.busy !== null}
                       onClick={() => void banToggle(found)}
                     >
-                      <BusyLabel busy={act.busy === "user:ban"}>Confirm ban</BusyLabel>
+                      <BusyLabel busy={act.busy === "user:ban"}>{t("worldAdminDesk.usersConfirmBan")}</BusyLabel>
                     </button>
                     <button
                       type="button"
                       className={cls.ghostBtn}
                       onClick={() => setConfirmBan(false)}
                     >
-                      Keep the account
+                      {t("worldAdminDesk.usersKeepAccount")}
                     </button>
                   </span>
                 ) : (
@@ -1000,28 +1035,27 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
                     className={cls.smallBtn}
                     onClick={() => setConfirmBan(true)}
                   >
-                    Ban this account…
+                    {t("worldAdminDesk.usersBanButton")}
                   </button>
                 )}
               </div>
             </div>
           ) : (
             <div className={`mt-3 ${cls.rowCls}`}>
-              <p className={`text-sm font-semibold ${cls.titleCls}`}>Set a plan by email</p>
+              <p className={`text-sm font-semibold ${cls.titleCls}`}>{t("worldAdminDesk.usersByEmailTitle")}</p>
               <p className={`mt-1 text-xs ${cls.subCls}`}>
-                With no member looked up, the tier rides the email in the box above.
+                {t("worldAdminDesk.usersByEmailNote")}
               </p>
               <div className="mt-2 flex flex-wrap items-end gap-2">
                 <select
-                  aria-label="Plan tier"
+                  aria-label={t("worldAdminDesk.usersPlanLabel")}
                   className={cls.selectCls}
                   value={tier}
                   onChange={(e) => setTier(Number(e.target.value))}
                 >
-                  {PLAN_TIERS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                      {t <= 3 ? " — free" : t <= 5 ? " — pro" : " — elite"}
+                  {PLAN_TIERS.map((n) => (
+                    <option key={n} value={n}>
+                      {n} — {t(n <= 3 ? "worldAdminDesk.usersTierFree" : n <= 5 ? "worldAdminDesk.usersTierPro" : "worldAdminDesk.usersTierElite")}
                     </option>
                   ))}
                 </select>
@@ -1031,22 +1065,22 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
                   disabled={act.busy !== null || !emailReady(email)}
                   onClick={() => void setPlan(null)}
                 >
-                  <BusyLabel busy={act.busy === "user:plan"}>Set tier</BusyLabel>
+                  <BusyLabel busy={act.busy === "user:plan"}>{t("worldAdminDesk.usersSetTier")}</BusyLabel>
                 </button>
               </div>
             </div>
           )}
 
           <div className={`mt-3 ${cls.rowCls}`}>
-            <p className={`text-sm font-semibold ${cls.titleCls}`}>Grant to your own account</p>
+            <p className={`text-sm font-semibold ${cls.titleCls}`}>{t("worldAdminDesk.usersGrantSelfTitle")}</p>
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <input
-                aria-label="Grant amount for your account"
+                aria-label={t("worldAdminDesk.usersGrantSelfAria")}
                 className={deskInputCls(isLight)}
                 value={selfAmount}
                 onChange={(e) => setSelfAmount(e.target.value)}
                 inputMode="numeric"
-                placeholder="1–100,000"
+                placeholder={t("worldAdminDesk.usersAmountPlaceholder")}
               />
               <button
                 type="button"
@@ -1054,7 +1088,7 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
                 disabled={act.busy !== null || !grantAmountReady(selfAmount)}
                 onClick={() => void grantSelf()}
               >
-                <BusyLabel busy={act.busy === "user:grant-self"}>Grant to me</BusyLabel>
+                <BusyLabel busy={act.busy === "user:grant-self"}>{t("worldAdminDesk.usersGrantSelfButton")}</BusyLabel>
               </button>
             </div>
           </div>
@@ -1068,20 +1102,23 @@ export function UsersBench({ isLight }: { isLight: boolean }) {
 /* ═── Card + jewelry orders (read-only) ══════════════════════════ */
 
 export function OrdersBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const cls = adminCls(isLight);
   const nfc = useBench(async (a) => parseNfcOrders(await a.get(ADMIN_NFC_ORDERS_PATH)));
-  const jewelry = useBench(async (a) => parseJewelryOrders(await a.get(ADMIN_JEWELRY_ORDERS_PATH)));
+  const jewelry = useBench(async (a) =>
+    parseJewelryOrders(await a.get(ADMIN_JEWELRY_ORDERS_PATH), t("worldAdminDesk.ordersEngraving")),
+  );
 
   return (
     <BenchSection
       isLight={isLight}
-      title="Card & Jewelry Orders"
-      blurb="Smart-card and jewelry orders, read-only. The makers' CSV export stays on the website bench — a file download leaves the palace."
+      title={t("worldAdminDesk.ordersTitle")}
+      blurb={t("worldAdminDesk.ordersBlurb")}
     >
-      <p className={`mb-1 text-xs font-bold uppercase tracking-wider ${cls.subCls}`}>Smart cards</p>
+      <p className={`mb-1 text-xs font-bold uppercase tracking-wider ${cls.subCls}`}>{t("worldAdminDesk.ordersCards")}</p>
       <BenchStates isLight={isLight} phase={nfc.phase} failMessage={nfc.failMessage} onRetry={nfc.reload}>
         {nfc.data && nfc.data.length === 0 ? (
-          <NativeEmptyState isLight={isLight} message="No card orders yet." />
+          <NativeEmptyState isLight={isLight} message={t("worldAdminDesk.ordersNoCards")} />
         ) : (
           <div className="flex flex-col gap-2">
             {nfc.data?.map((row) => (
@@ -1096,17 +1133,17 @@ export function OrdersBench({ isLight }: { isLight: boolean }) {
                 <p className={`mt-1 text-xs ${cls.subCls}`}>
                   {row.fullName} · {row.email}
                   {row.detail ? ` · ${row.detail}` : ""} ·{" "}
-                  {new Date(row.createdAt).toLocaleString()}
+                  {new Date(row.createdAt).toLocaleString(i18n.language)}
                 </p>
               </div>
             ))}
           </div>
         )}
       </BenchStates>
-      <p className={`mb-1 mt-4 text-xs font-bold uppercase tracking-wider ${cls.subCls}`}>Jewelry</p>
+      <p className={`mb-1 mt-4 text-xs font-bold uppercase tracking-wider ${cls.subCls}`}>{t("worldAdminDesk.ordersJewelry")}</p>
       <BenchStates isLight={isLight} phase={jewelry.phase} failMessage={jewelry.failMessage} onRetry={jewelry.reload}>
         {jewelry.data && jewelry.data.length === 0 ? (
-          <NativeEmptyState isLight={isLight} message="No jewelry orders yet." />
+          <NativeEmptyState isLight={isLight} message={t("worldAdminDesk.ordersNoJewelry")} />
         ) : (
           <div className="flex flex-col gap-2">
             {jewelry.data?.map((row) => (
@@ -1121,7 +1158,7 @@ export function OrdersBench({ isLight }: { isLight: boolean }) {
                 <p className={`mt-1 text-xs ${cls.subCls}`}>
                   {row.fullName} · {row.email}
                   {row.detail ? ` · ${row.detail}` : ""} ·{" "}
-                  {new Date(row.createdAt).toLocaleString()}
+                  {new Date(row.createdAt).toLocaleString(i18n.language)}
                 </p>
               </div>
             ))}

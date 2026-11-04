@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Shield } from "lucide-react";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { NativeCard } from "@/components/world/native/NativeCard";
@@ -102,6 +103,7 @@ import {
 type GatePhase = "loading" | "denied" | "failed" | "ready";
 
 export function AdminDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const api = useAdminApi();
   const [phase, setPhase] = useState<GatePhase>("loading");
   const [failMessage, setFailMessage] = useState("");
@@ -117,7 +119,7 @@ export function AdminDesk({ isLight }: { isLight: boolean }) {
       if (isAdmin === null) throw new Error("status shape");
       setPhase(isAdmin ? "ready" : "denied");
     } catch (e) {
-      setFailMessage(plainErrorText(e, "Couldn't check this account."));
+      setFailMessage(plainErrorText(e, t("worldAdminDesk.deskCheckFailed")));
       setPhase("failed");
     }
   }, [api]);
@@ -128,9 +130,9 @@ export function AdminDesk({ isLight }: { isLight: boolean }) {
 
   if (phase === "loading") {
     return (
-      <NativeCard isLight={isLight} title="Admin Benches">
+      <NativeCard isLight={isLight} title={t("worldAdminDesk.deskTitle")}>
         <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-          Checking this account with the site…
+          {t("worldAdminDesk.deskChecking")}
         </p>
       </NativeCard>
     );
@@ -138,7 +140,7 @@ export function AdminDesk({ isLight }: { isLight: boolean }) {
 
   if (phase === "denied") {
     return (
-      <NativeCard isLight={isLight} title="Admin Benches">
+      <NativeCard isLight={isLight} title={t("worldAdminDesk.deskTitle")}>
         <BenchDenied isLight={isLight} />
       </NativeCard>
     );
@@ -146,10 +148,10 @@ export function AdminDesk({ isLight }: { isLight: boolean }) {
 
   if (phase === "failed") {
     return (
-      <NativeCard isLight={isLight} title="Admin Benches">
+      <NativeCard isLight={isLight} title={t("worldAdminDesk.deskTitle")}>
         <NativeErrorState
           isLight={isLight}
-          title="The admin benches wouldn't open in the palace"
+          title={t("worldAdminDesk.deskFailedTitle")}
           message={failMessage}
           onRetry={() => void probe()}
         />
@@ -159,12 +161,10 @@ export function AdminDesk({ isLight }: { isLight: boolean }) {
 
   return (
     <div className="flex flex-col gap-4" data-testid="world-admin-desk">
-      <NativeCard isLight={isLight} title="Admin Benches">
+      <NativeCard isLight={isLight} title={t("worldAdminDesk.deskTitle")}>
         <p className={`inline-flex items-start gap-2 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
           <Shield className="mt-0.5 h-4 w-4 shrink-0 text-[#d4af37]" />
-          The house benches, native in the palace — the same queues and verbs as the
-          website&apos;s admin page, on the same rails. Open a bench to load it; every
-          action is the server&apos;s, checked against this account on every call.
+          {t("worldAdminDesk.deskIntro")}
         </p>
       </NativeCard>
       <ReportsBench isLight={isLight} />
@@ -191,6 +191,7 @@ export function AdminDesk({ isLight }: { isLight: boolean }) {
 /* ═── Content reports ════════════════════════════════════════════ */
 
 function ReportsBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const { phase, data: rows, failMessage, reload } = useBench(
@@ -201,8 +202,8 @@ function ReportsBench({ isLight }: { isLight: boolean }) {
   return (
     <BenchSection
       isLight={isLight}
-      title="Content Reports"
-      blurb="Members' reports on posts and comments — work the queue, set each report's state."
+      title={t("worldAdminDesk.reportsTitle")}
+      blurb={t("worldAdminDesk.reportsBlurb")}
       defaultOpen
     >
       {act.denied ? (
@@ -211,14 +212,14 @@ function ReportsBench({ isLight }: { isLight: boolean }) {
         <BenchStates isLight={isLight} phase={phase} failMessage={failMessage} onRetry={reload}>
           {rows && rows.length > 0 ? (
             <p className={`mb-2 text-xs ${cls.subCls}`}>
-              {openReports(rows)} still open · {rows.length} on the bench
+              {t("worldAdminDesk.reportsOpenLine", { open: openReports(rows), total: rows.length })}
             </p>
           ) : null}
           {rows && rows.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="No reports on the bench."
-              detail="When a member reports a post or comment, it lands here."
+              message={t("worldAdminDesk.reportsEmpty")}
+              detail={t("worldAdminDesk.reportsEmptyDetail")}
             />
           ) : (
             <div className="flex flex-col gap-2">
@@ -229,15 +230,19 @@ function ReportsBench({ isLight }: { isLight: boolean }) {
                     <span className={`text-xs font-bold uppercase tracking-wide ${cls.subCls}`}>
                       {row.targetType}
                     </span>
-                    <span className={`text-xs ${cls.subCls}`}>reason: {row.reason}</span>
+                    <span className={`text-xs ${cls.subCls}`}>{t("worldAdminDesk.reportsReason", { reason: row.reason })}</span>
                   </div>
                   <p className={`mt-1 text-sm font-semibold ${cls.titleCls}`}>
                     {row.targetSummary || row.targetId}
                   </p>
                   {row.note ? <p className={`mt-1 text-xs ${cls.subCls}`}>{row.note}</p> : null}
                   <p className={`mt-1 text-xs ${cls.subCls}`}>
-                    Reported by {shortId(row.reporterUserId) ?? "—"}
-                    {row.createdAt ? ` · ${new Date(row.createdAt).toLocaleString()}` : ""}
+                    {t("worldAdminDesk.reportsBy", { id: shortId(row.reporterUserId) ?? "—" })}
+                    {row.createdAt
+                      ? t("worldAdminDesk.dateSuffix", {
+                          date: new Date(row.createdAt).toLocaleString(i18n.language),
+                        })
+                      : ""}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {REPORT_STATUSES.filter((s) => s !== row.status).map((status) => (
@@ -250,12 +255,12 @@ function ReportsBench({ isLight }: { isLight: boolean }) {
                           void act.run(`report:${row.id}:${status}`, async () => {
                             await api.send(adminReportPath(row.id), "PATCH", buildStatusPatch(status));
                             reload();
-                            return `Report marked ${status}.`;
+                            return t("worldAdminDesk.reportsMarked", { status });
                           })
                         }
                       >
                         <BusyLabel busy={act.busy === `report:${row.id}:${status}`}>
-                          Mark {status}
+                          {t("worldAdminDesk.markStatus", { status })}
                         </BusyLabel>
                       </button>
                     ))}
@@ -274,6 +279,7 @@ function ReportsBench({ isLight }: { isLight: boolean }) {
 /* ═── DMCA reports ═══════════════════════════════════════════════ */
 
 function DmcaBench({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const { phase, data: rows, failMessage, reload } = useBench(
@@ -284,8 +290,8 @@ function DmcaBench({ isLight }: { isLight: boolean }) {
   return (
     <BenchSection
       isLight={isLight}
-      title="Takedown Requests"
-      blurb="Copyright (DMCA) reports — review the claimed links and set each report's state."
+      title={t("worldAdminDesk.dmcaTitle")}
+      blurb={t("worldAdminDesk.dmcaBlurb")}
     >
       {act.denied ? (
         <BenchDenied isLight={isLight} />
@@ -293,14 +299,14 @@ function DmcaBench({ isLight }: { isLight: boolean }) {
         <BenchStates isLight={isLight} phase={phase} failMessage={failMessage} onRetry={reload}>
           {rows && rows.length > 0 ? (
             <p className={`mb-2 text-xs ${cls.subCls}`}>
-              {openReports(rows)} still open · {rows.length} on the bench
+              {t("worldAdminDesk.reportsOpenLine", { open: openReports(rows), total: rows.length })}
             </p>
           ) : null}
           {rows && rows.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="No takedown requests on the bench."
-              detail="Copyright reports land here when a rights holder files one."
+              message={t("worldAdminDesk.dmcaEmpty")}
+              detail={t("worldAdminDesk.dmcaEmptyDetail")}
             />
           ) : (
             <div className="flex flex-col gap-2">
@@ -319,12 +325,12 @@ function DmcaBench({ isLight }: { isLight: boolean }) {
                   ) : null}
                   {row.infringingUrls.length > 0 ? (
                     <p className={`mt-1 break-all text-xs ${cls.subCls}`}>
-                      Claimed: {row.infringingUrls.join(" · ")}
+                      {t("worldAdminDesk.dmcaClaimed", { urls: row.infringingUrls.join(" · ") })}
                     </p>
                   ) : null}
                   {row.originalUrls.length > 0 ? (
                     <p className={`mt-1 break-all text-xs ${cls.subCls}`}>
-                      Original: {row.originalUrls.join(" · ")}
+                      {t("worldAdminDesk.dmcaOriginal", { urls: row.originalUrls.join(" · ") })}
                     </p>
                   ) : null}
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -338,12 +344,12 @@ function DmcaBench({ isLight }: { isLight: boolean }) {
                           void act.run(`dmca:${row.id}:${status}`, async () => {
                             await api.send(adminDmcaPath(row.id), "PATCH", buildStatusPatch(status));
                             reload();
-                            return `Takedown request marked ${status}.`;
+                            return t("worldAdminDesk.dmcaMarked", { status });
                           })
                         }
                       >
                         <BusyLabel busy={act.busy === `dmca:${row.id}:${status}`}>
-                          Mark {status}
+                          {t("worldAdminDesk.markStatus", { status })}
                         </BusyLabel>
                       </button>
                     ))}
@@ -362,6 +368,7 @@ function DmcaBench({ isLight }: { isLight: boolean }) {
 /* ═── Content removal ════════════════════════════════════════════ */
 
 function ContentRemovalBench({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const { phase, data: rows, failMessage, reload } = useBench(
@@ -377,7 +384,7 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
   async function doLookup() {
     const id = parseContentId(lookup);
     if (!id) {
-      act.setError("Paste a post or comment ID, or a link to the post.");
+      act.setError(t("worldAdminDesk.removalLookupError"));
       return;
     }
     await act.run("lookup", async () => {
@@ -396,7 +403,7 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
       );
       if (parsed && found?.id === state.id) setFound(parsed);
       reload();
-      return "Content restored — it is visible again.";
+      return t("worldAdminDesk.removalRestored");
     });
   }
 
@@ -412,15 +419,15 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
       if (parsed) setFound(parsed);
       setConfirmRemove(false);
       reload();
-      return "Content removed. The removal and its reason are on the record.";
+      return t("worldAdminDesk.removalRemovedOutcome");
     });
   }
 
   return (
     <BenchSection
       isLight={isLight}
-      title="Content Removal"
-      blurb="Take a post or comment down (reversibly, reason on record) or restore one."
+      title={t("worldAdminDesk.removalTitle")}
+      blurb={t("worldAdminDesk.removalBlurb")}
     >
       {act.denied ? (
         <BenchDenied isLight={isLight} />
@@ -428,7 +435,7 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
         <BenchStates isLight={isLight} phase={phase} failMessage={failMessage} onRetry={reload}>
           <div className="flex flex-col gap-2">
             <label className={cls.labelCls} htmlFor="admin-content-lookup">
-              Look up a post or comment
+              {t("worldAdminDesk.removalLookupLabel")}
             </label>
             <div className="flex flex-wrap gap-2">
               <input
@@ -436,7 +443,7 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
                 className={`${deskInputCls(isLight)} min-w-52 flex-1`}
                 value={lookup}
                 onChange={(e) => setLookup(e.target.value)}
-                placeholder="Post ID, comment ID, or a /post/… link"
+                placeholder={t("worldAdminDesk.removalLookupPlaceholder")}
               />
               <button
                 type="button"
@@ -444,7 +451,7 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
                 disabled={act.busy !== null}
                 onClick={() => void doLookup()}
               >
-                <BusyLabel busy={act.busy === "lookup"}>Look up</BusyLabel>
+                <BusyLabel busy={act.busy === "lookup"}>{t("worldAdminDesk.lookupButton")}</BusyLabel>
               </button>
             </div>
           </div>
@@ -458,16 +465,16 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
                   {found.postKind ? ` · ${found.postKind}` : ""}
                 </span>
                 {found.author ? (
-                  <span className={`text-xs ${cls.subCls}`}>by {found.author.displayName}</span>
+                  <span className={`text-xs ${cls.subCls}`}>{t("worldAdminDesk.byName", { name: found.author.displayName })}</span>
                 ) : null}
               </div>
               <p className={`mt-1 whitespace-pre-wrap text-sm ${cls.titleCls}`}>{found.body}</p>
               {found.removed ? (
                 <p className={`mt-1 text-xs ${cls.subCls}`}>
-                  Removed
-                  {found.removalReason ? ` for ${found.removalReason}` : ""}
-                  {found.removedByEmail ? ` by ${found.removedByEmail}` : ""}
-                  {found.removalNote ? ` — ${found.removalNote}` : ""}
+                  {t("worldAdminDesk.removalRemovedPrefix")}
+                  {found.removalReason ? t("worldAdminDesk.removalForReason", { reason: found.removalReason }) : ""}
+                  {found.removedByEmail ? t("worldAdminDesk.removalByEmail", { email: found.removedByEmail }) : ""}
+                  {found.removalNote ? t("worldAdminDesk.removalNoteSuffix", { note: found.removalNote }) : ""}
                 </p>
               ) : null}
               {found.removed ? (
@@ -478,14 +485,14 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
                     disabled={act.busy !== null}
                     onClick={() => void restore(found)}
                   >
-                    <BusyLabel busy={act.busy === `restore:${found.id}`}>Restore</BusyLabel>
+                    <BusyLabel busy={act.busy === `restore:${found.id}`}>{t("worldAdminDesk.removalRestore")}</BusyLabel>
                   </button>
                 </div>
               ) : (
                 <div className="mt-3 flex flex-col gap-2">
                   <div className="flex flex-wrap gap-2">
                     <select
-                      aria-label="Removal reason"
+                      aria-label={t("worldAdminDesk.removalReasonAria")}
                       className={cls.selectCls}
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
@@ -497,11 +504,11 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
                       ))}
                     </select>
                     <input
-                      aria-label="Removal note (optional)"
+                      aria-label={t("worldAdminDesk.removalNoteAria")}
                       className={`${deskInputCls(isLight)} min-w-40 flex-1`}
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      placeholder="Note (optional)"
+                      placeholder={t("worldAdminDesk.noteOptionalPlaceholder")}
                     />
                   </div>
                   {confirmRemove ? (
@@ -513,7 +520,7 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
                         onClick={() => void remove(found)}
                       >
                         <BusyLabel busy={act.busy === `remove:${found.id}`}>
-                          Confirm removal
+                          {t("worldAdminDesk.removalConfirm")}
                         </BusyLabel>
                       </button>
                       <button
@@ -521,7 +528,7 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
                         className={cls.ghostBtn}
                         onClick={() => setConfirmRemove(false)}
                       >
-                        Keep it up
+                        {t("worldAdminDesk.removalKeepUp")}
                       </button>
                     </div>
                   ) : (
@@ -531,7 +538,7 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
                         className={cls.smallBtn}
                         onClick={() => setConfirmRemove(true)}
                       >
-                        Remove this content
+                        {t("worldAdminDesk.removalRemoveButton")}
                       </button>
                     </div>
                   )}
@@ -541,13 +548,13 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
           ) : null}
 
           <p className={`mb-2 mt-4 text-xs font-bold uppercase tracking-wider ${cls.subCls}`}>
-            Currently removed
+            {t("worldAdminDesk.removalCurrently")}
           </p>
           {rows && rows.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="Nothing is removed right now."
-              detail="Removed posts and comments collect here, ready to restore."
+              message={t("worldAdminDesk.removalEmpty")}
+              detail={t("worldAdminDesk.removalEmptyDetail")}
             />
           ) : (
             <div className="flex flex-col gap-2">
@@ -561,7 +568,7 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
                       <StatusPill status={row.removalReason} isLight={isLight} />
                     ) : null}
                     {row.author ? (
-                      <span className={`text-xs ${cls.subCls}`}>by {row.author.displayName}</span>
+                      <span className={`text-xs ${cls.subCls}`}>{t("worldAdminDesk.byName", { name: row.author.displayName })}</span>
                     ) : null}
                   </div>
                   <p className={`mt-1 line-clamp-2 text-sm ${cls.titleCls}`}>{row.body}</p>
@@ -572,7 +579,7 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
                       disabled={act.busy !== null}
                       onClick={() => void restore(row)}
                     >
-                      <BusyLabel busy={act.busy === `restore:${row.id}`}>Restore</BusyLabel>
+                      <BusyLabel busy={act.busy === `restore:${row.id}`}>{t("worldAdminDesk.removalRestore")}</BusyLabel>
                     </button>
                   </div>
                 </div>
@@ -589,6 +596,7 @@ function ContentRemovalBench({ isLight }: { isLight: boolean }) {
 /* ═── Pitch & Fix inbox ══════════════════════════════════════════ */
 
 function PitchFixBench({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const cls = adminCls(isLight);
   const api = useAdminApi();
   const { phase, data: queue, failMessage, reload } = useBench(
@@ -603,8 +611,8 @@ function PitchFixBench({ isLight }: { isLight: boolean }) {
   return (
     <BenchSection
       isLight={isLight}
-      title="Pitch & Fix Inbox"
-      blurb="Pitches, fix reports and feedback — moderate, walk the status ladder, pay the reward queue."
+      title={t("worldAdminDesk.pitchFixTitle")}
+      blurb={t("worldAdminDesk.pitchFixBlurb")}
     >
       {act.denied ? (
         <BenchDenied isLight={isLight} />
@@ -613,14 +621,15 @@ function PitchFixBench({ isLight }: { isLight: boolean }) {
           {pool ? (
             <div className={`mb-3 ${cls.rowCls}`}>
               <p className={`text-sm font-semibold ${cls.titleCls}`}>
-                Reward pool — {pool.spentVb.toLocaleString()} of {pool.capVb.toLocaleString()} VB
-                spent this week · {pool.remainingVb.toLocaleString()} left ·{" "}
-                {pool.queuedIds.length} queued
+                {t("worldAdminDesk.pitchFixPoolLine", {
+                  spent: pool.spentVb.toLocaleString(i18n.language),
+                  cap: pool.capVb.toLocaleString(i18n.language),
+                  remaining: pool.remainingVb.toLocaleString(i18n.language),
+                  queued: pool.queuedIds.length,
+                })}
               </p>
               <p className={`mt-1 text-xs ${cls.subCls}`}>
-                Opening this bench already runs the queue once; the button runs it again on
-                demand. Rewards pay only from a status move to shipped / fixed, exactly like
-                the website bench.
+                {t("worldAdminDesk.pitchFixPoolNote")}
               </p>
               <div className="mt-2">
                 <button
@@ -631,11 +640,11 @@ function PitchFixBench({ isLight }: { isLight: boolean }) {
                     void act.run("pf:process", async () => {
                       await api.send(ADMIN_PITCH_FIX_PROCESS_PATH, "POST", {});
                       reload();
-                      return "Reward queue processed — the pool line above is current.";
+                      return t("worldAdminDesk.pitchFixProcessed");
                     })
                   }
                 >
-                  <BusyLabel busy={act.busy === "pf:process"}>Process rewards</BusyLabel>
+                  <BusyLabel busy={act.busy === "pf:process"}>{t("worldAdminDesk.pitchFixProcess")}</BusyLabel>
                 </button>
               </div>
             </div>
@@ -643,15 +652,17 @@ function PitchFixBench({ isLight }: { isLight: boolean }) {
 
           {queue && queue.submissions.length > 0 ? (
             <p className={`mb-2 text-xs ${cls.subCls}`}>
-              {pitchFixPending(queue.submissions)} awaiting moderation ·{" "}
-              {queue.submissions.length} in the inbox
+              {t("worldAdminDesk.pitchFixAwaiting", {
+                pending: pitchFixPending(queue.submissions),
+                total: queue.submissions.length,
+              })}
             </p>
           ) : null}
           {queue && queue.submissions.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="The inbox is empty."
-              detail="Pitches, fix reports and feedback land here as members send them."
+              message={t("worldAdminDesk.pitchFixEmpty")}
+              detail={t("worldAdminDesk.pitchFixEmptyDetail")}
             />
           ) : (
             <div className="flex flex-col gap-2">
@@ -663,11 +674,15 @@ function PitchFixBench({ isLight }: { isLight: boolean }) {
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusPill status={row.kind} isLight={isLight} />
                       <StatusPill status={row.status} isLight={isLight} />
-                      <StatusPill status={`moderation: ${row.moderationStatus}`} isLight={isLight} />
+                      <StatusPill status={t("worldAdminDesk.pitchFixModeration", { status: row.moderationStatus })} isLight={isLight} />
                       {row.rewardStatus !== "none" ? (
                         <span className={`text-xs font-semibold ${cls.subCls}`}>
-                          Reward: {row.rewardAmount != null ? `${row.rewardAmount} VB · ` : ""}
-                          {row.rewardStatus}
+                          {row.rewardAmount != null
+                            ? t("worldAdminDesk.pitchFixRewardAmt", {
+                                amount: row.rewardAmount,
+                                status: row.rewardStatus,
+                              })
+                            : t("worldAdminDesk.pitchFixReward", { status: row.rewardStatus })}
                         </span>
                       ) : null}
                     </div>
@@ -676,17 +691,20 @@ function PitchFixBench({ isLight }: { isLight: boolean }) {
                     </p>
                     <p className={`mt-1 whitespace-pre-wrap text-xs ${cls.subCls}`}>{row.body}</p>
                     <p className={`mt-1 text-xs ${cls.subCls}`}>
-                      {row.submitterName} · {new Date(row.createdAt).toLocaleString()}
-                      {row.page ? ` · page: ${row.page}` : ""}
-                      {row.category ? ` · ${row.category}` : ""}
-                      {row.severity ? ` · severity: ${row.severity}` : ""}
-                      {row.rating != null ? ` · rated ${row.rating}/5` : ""}
-                      {row.upvoteCount > 0 ? ` · ${row.upvoteCount} upvotes` : ""}
+                      {t("worldAdminDesk.pitchFixMeta", {
+                        name: row.submitterName,
+                        date: new Date(row.createdAt).toLocaleString(i18n.language),
+                      })}
+                      {row.page ? t("worldAdminDesk.pitchFixPage", { page: row.page }) : ""}
+                      {row.category ? t("worldAdminDesk.pitchFixCategory", { category: row.category }) : ""}
+                      {row.severity ? t("worldAdminDesk.pitchFixSeverity", { severity: row.severity }) : ""}
+                      {row.rating != null ? t("worldAdminDesk.pitchFixRated", { rating: row.rating }) : ""}
+                      {row.upvoteCount > 0 ? t("worldAdminDesk.pitchFixUpvotes", { count: row.upvoteCount }) : ""}
                     </p>
-                    {row.why ? <p className={`mt-1 text-xs ${cls.subCls}`}>Why: {row.why}</p> : null}
+                    {row.why ? <p className={`mt-1 text-xs ${cls.subCls}`}>{t("worldAdminDesk.pitchFixWhy", { why: row.why })}</p> : null}
                     {row.duplicateOfId ? (
                       <p className={`mt-1 text-xs ${cls.subCls}`}>
-                        Marked duplicate of {shortId(row.duplicateOfId)}
+                        {t("worldAdminDesk.pitchFixDupOf", { id: shortId(row.duplicateOfId) })}
                       </p>
                     ) : null}
 
@@ -705,12 +723,12 @@ function PitchFixBench({ isLight }: { isLight: boolean }) {
                                   buildPitchFixModeration("approved"),
                                 );
                                 reload();
-                                return "Approved — it can now walk the ladder.";
+                                return t("worldAdminDesk.pitchFixApproved");
                               })
                             }
                           >
                             <BusyLabel busy={act.busy === `pf:mod:${row.id}:approved`}>
-                              Approve
+                              {t("worldAdminDesk.pitchFixApprove")}
                             </BusyLabel>
                           </button>
                           <button
@@ -725,12 +743,12 @@ function PitchFixBench({ isLight }: { isLight: boolean }) {
                                   buildPitchFixModeration("rejected"),
                                 );
                                 reload();
-                                return "Rejected.";
+                                return t("worldAdminDesk.pitchFixRejected");
                               })
                             }
                           >
                             <BusyLabel busy={act.busy === `pf:mod:${row.id}:rejected`}>
-                              Reject
+                              {t("worldAdminDesk.pitchFixReject")}
                             </BusyLabel>
                           </button>
                         </>
@@ -738,7 +756,7 @@ function PitchFixBench({ isLight }: { isLight: boolean }) {
                       {ladder.length > 0 ? (
                         <>
                           <select
-                            aria-label={`Status for ${row.title || row.id}`}
+                            aria-label={t("worldAdminDesk.pitchFixStatusAria", { title: row.title || row.id })}
                             className={cls.selectCls}
                             value={picked}
                             onChange={(e) =>
@@ -763,12 +781,12 @@ function PitchFixBench({ isLight }: { isLight: boolean }) {
                                   buildPitchFixStatus(picked),
                                 );
                                 reload();
-                                return `Status set to ${picked} — any reward it earned is queued and processed.`;
+                                return t("worldAdminDesk.pitchFixStatusSet", { status: picked });
                               })
                             }
                           >
                             <BusyLabel busy={act.busy === `pf:status:${row.id}`}>
-                              Set status
+                              {t("worldAdminDesk.pitchFixSetStatus")}
                             </BusyLabel>
                           </button>
                         </>
@@ -777,11 +795,11 @@ function PitchFixBench({ isLight }: { isLight: boolean }) {
                     {!row.duplicateOfId ? (
                       <div className="mt-2 flex flex-wrap gap-2">
                         <input
-                          aria-label="Original submission ID"
+                          aria-label={t("worldAdminDesk.pitchFixDupAria")}
                           className={`${deskInputCls(isLight)} min-w-40 flex-1`}
                           value={dupPick[row.id] ?? ""}
                           onChange={(e) => setDupPick((m) => ({ ...m, [row.id]: e.target.value }))}
-                          placeholder="Original submission's ID (for duplicates)"
+                          placeholder={t("worldAdminDesk.pitchFixDupPlaceholder")}
                         />
                         <button
                           type="button"
@@ -795,12 +813,12 @@ function PitchFixBench({ isLight }: { isLight: boolean }) {
                                 buildPitchFixDuplicate((dupPick[row.id] ?? "").trim()),
                               );
                               reload();
-                              return "Marked as a duplicate.";
+                              return t("worldAdminDesk.pitchFixMarkedDup");
                             })
                           }
                         >
                           <BusyLabel busy={act.busy === `pf:dup:${row.id}`}>
-                            Mark duplicate
+                            {t("worldAdminDesk.pitchFixMarkDup")}
                           </BusyLabel>
                         </button>
                       </div>

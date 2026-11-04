@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronDown, Loader2, ShieldAlert } from "lucide-react";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useDeskAuthHeaders } from "@/components/world/native/CreateDeskLeaf";
@@ -101,6 +102,7 @@ export function useBench<T>(loader: (api: AdminApi) => Promise<T | null>): {
   failMessage: string;
   reload: () => void;
 } {
+  const { t } = useTranslation();
   const api = useAdminApi();
   const [phase, setPhase] = useState<BenchPhase>("loading");
   const [data, setData] = useState<T | null>(null);
@@ -117,7 +119,7 @@ export function useBench<T>(loader: (api: AdminApi) => Promise<T | null>): {
       if (adminDenied(e)) {
         setPhase("denied");
       } else {
-        setFailMessage(plainErrorText(e, "This bench wouldn't open."));
+        setFailMessage(plainErrorText(e, t("worldAdminDesk.bitsLoadFailed")));
         setPhase("failed");
       }
     }
@@ -135,6 +137,7 @@ export function useBench<T>(loader: (api: AdminApi) => Promise<T | null>): {
  *  plainly — an admin whose session lost the allowlist sees this,
  *  never a half-painted bench. */
 export function BenchDenied({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   return (
     <div data-testid="world-admin-denied" className="flex flex-col items-start gap-2 px-1 py-3">
       <p
@@ -145,8 +148,7 @@ export function BenchDenied({ isLight }: { isLight: boolean }) {
         <ShieldAlert className="h-4 w-4 text-[#d4af37]" /> {ADMIN_NOT_AUTHORIZED_MESSAGE}
       </p>
       <p className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-        This bench answers only for a signed-in admin account. Nothing here loads until the
-        site itself says this account is an admin.
+        {t("worldAdminDesk.bitsDeniedBody")}
       </p>
     </div>
   );
@@ -169,15 +171,16 @@ export function BenchStates({
   loadingMessage?: string;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   if (phase === "loading") {
-    return <NativeLoadingState isLight={isLight} message={loadingMessage ?? "Opening the bench…"} />;
+    return <NativeLoadingState isLight={isLight} message={loadingMessage ?? t("worldAdminDesk.bitsLoading")} />;
   }
   if (phase === "denied") return <BenchDenied isLight={isLight} />;
   if (phase === "failed") {
     return (
       <NativeErrorState
         isLight={isLight}
-        title="This bench wouldn't open in the palace"
+        title={t("worldAdminDesk.bitsFailedTitle")}
         message={failMessage}
         onRetry={onRetry}
       />
@@ -202,6 +205,7 @@ export function useBenchAction(): {
   setError: (error: string | null) => void;
   run: (key: string, work: () => Promise<string | void>) => Promise<void>;
 } {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -215,7 +219,7 @@ export function useBenchAction(): {
       if (typeof msg === "string") setNote(msg);
     } catch (e) {
       if (adminDenied(e)) setDenied(true);
-      else setError(plainErrorText(e, "That didn't go through — try again."));
+      else setError(plainErrorText(e, t("worldAdminDesk.bitsActionFailed")));
     } finally {
       setBusy(null);
     }
