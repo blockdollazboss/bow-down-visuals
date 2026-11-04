@@ -30,6 +30,10 @@ import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import CommandCenter from "@/components/CommandCenter";
 import { AwayDigestModal } from "@/components/AwayDigestModal";
 import { balanceComposition } from "@/lib/balance";
+import {
+  isSharkDropDismissed,
+  recordSharkDropDismissal,
+} from "@/lib/shark-drop-dismissal";
 import { TemporaryBucsNote } from "@/components/BalanceBreakdown";
 import { useTranslation } from "react-i18next";
 import {
@@ -200,6 +204,17 @@ export default function Dashboard() {
   const [levelUp, setLevelUp] = useState<number | null>(null);
   const sharkFiredFor = useRef<string | null>(null);
   const levelFiredFor = useRef<Set<string>>(new Set());
+
+  /* "Maybe later" snoozes THIS drop for good (QC-200 fix queue #4):
+     the dismissal is stored against the drop's own id, so the server
+     returning the same pending drop on the next visit no longer
+     re-opens the modal. A genuinely new drop has a new id and still
+     shows. Claiming is untouched — a claimed drop stops coming back
+     because the server marks it claimed, not because of anything here. */
+  const dismissSharkDrop = () => {
+    if (sharkDrop) recordSharkDropDismissal(sharkDrop.id);
+    setSharkDrop(null);
+  };
 
   const name = firstName(profile?.display_name, user?.email);
   const balance = profile?.credits ?? 0;
@@ -379,7 +394,7 @@ export default function Dashboard() {
         const res = await fetch("/api/retention/shark-drop", { headers });
         if (res.ok) {
           const d = (await res.json().catch(() => ({}))) as { drop?: SharkDrop | null };
-          if (d.drop) setSharkDrop(d.drop);
+          if (d.drop && !isSharkDropDismissed(d.drop.id)) setSharkDrop(d.drop);
         }
       } catch {
         /* Non-fatal: the drop simply doesn't appear on failure. */
@@ -809,7 +824,7 @@ export default function Dashboard() {
       <SharkDropModal
         drop={sharkDrop}
         onClaimed={() => setSharkDrop(null)}
-        onDismiss={() => setSharkDrop(null)}
+        onDismiss={dismissSharkDrop}
       />
     )}
     {levelUp !== null && (
