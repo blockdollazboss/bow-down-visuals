@@ -20,7 +20,9 @@ describe("beat melodic roll wiring (W1-L2)", () => {
     expect(beatProject).toContain("melody: cloneBeatMelody(p.melody)");
     expect(beatProject).toContain("melody: normalizeBeatMelody(r.melody)");
     // the trap preset's seeded melody reaches pattern A + preset loads
-    expect(aiAudio).toContain("melody: cloneBeatMelody(PRESETS.trap.melody ?? emptyBeatMelody())");
+    // (Stack 100 A11: the presets live in lib/beat-presets.ts now; the page
+    // consumes the registry's BEAT_PRESETS — same data, same call shape.)
+    expect(aiAudio).toContain("melody: cloneBeatMelody(BEAT_PRESETS.trap.melody ?? emptyBeatMelody())");
     expect(aiAudio).toContain("melody: cloneBeatMelody(p.melody ?? emptyBeatMelody())");
   });
 
