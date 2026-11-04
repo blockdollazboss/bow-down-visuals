@@ -638,6 +638,15 @@ export interface MineShopDto {
    *  /api/shops/mine row always carries them. */
   banner_color?: string;
   accent_color?: string;
+  /** The shop's custom domain + its DNS-verification truth, kept
+   *  when the row carries them (the /api/shops/mine SELECT always
+   *  selects both columns — Stack-100 #29's storefront-domain
+   *  section reads them). Absent on hand-built rows, like the
+   *  design colors; the section then reads "no domain on record",
+   *  never a verified one. The verification TOKEN never rides a
+   *  mine row — it exists only in the attach rail's answer. */
+  custom_domain?: string | null;
+  domain_verified?: boolean;
 }
 
 /** The design-color columns' schema defaults (lib/db
@@ -653,6 +662,20 @@ function designColorPair(row: Record<string, unknown>): { banner_color: string; 
   const accent = row["accent_color"];
   if (typeof banner === "string" && SHOP_HEX_COLOR_RE.test(banner) && typeof accent === "string" && SHOP_HEX_COLOR_RE.test(accent)) {
     return { banner_color: banner, accent_color: accent };
+  }
+  return null;
+}
+
+/** A row's custom-domain pair when BOTH columns ride it with their
+ *  real types (domain a string or null, verified a boolean) — the
+ *  parsers keep the pair only as proven, never a half-pair, exactly
+ *  like the design colors above. See the storefront-domain section
+ *  (Stack-100 #29) for the rails these feed. */
+function shopDomainPair(row: Record<string, unknown>): { custom_domain: string | null; domain_verified: boolean } | null {
+  const domain = row["custom_domain"];
+  const verified = row["domain_verified"];
+  if ((typeof domain === "string" || domain === null) && typeof verified === "boolean") {
+    return { custom_domain: domain, domain_verified: verified };
   }
   return null;
 }
@@ -680,6 +703,7 @@ export function parseMineShops(payload: unknown): MineShopDto[] {
     if (!r || typeof r !== "object") continue;
     if (typeof r["id"] !== "string" || typeof r["name"] !== "string" || typeof r["handle"] !== "string") continue;
     const colors = designColorPair(r);
+    const domain = shopDomainPair(r);
     out.push({
       id: r["id"],
       name: r["name"],
@@ -688,6 +712,7 @@ export function parseMineShops(payload: unknown): MineShopDto[] {
       description: typeof r["description"] === "string" ? r["description"] : null,
       product_count: typeof r["product_count"] === "number" && Number.isFinite(r["product_count"]) ? r["product_count"] : 0,
       ...(colors ? { banner_color: colors.banner_color, accent_color: colors.accent_color } : {}),
+      ...(domain ?? {}),
     });
   }
   return out;
@@ -860,9 +885,11 @@ export function removeProduct(list: PublicProductDto[], id: string): PublicProdu
    and GET /api/storefronts/:id/analytics for sales. No parallel
    API, no new numbers: the analytics rail is owner-scoped on the
    server (a non-owner's read is a 404), so the stand's numbers are
-   the page's numbers by construction. Custom domains stay on the
-   website — the stand points at the panel's standard transfer
-   footer for those, and never pretends otherwise. Everything here
+   the page's numbers by construction. Custom domains dock in the
+   settings section too: the creator-domains desk (Stack-100 #68)
+   and, since Stack-100 #29, the SHOP's own storefront domain —
+   connect + DNS verify on the storefront-builder's domain rails
+   (see the storefront-domain section below). Everything here
    renders ONLY behind the isOwnStand gate: guests and non-owners
    keep the buyer's stand, byte for byte. */
 
@@ -937,6 +964,7 @@ export function savedShopDto(payload: unknown): { mine: MineShopDto; pub: Public
   const tagline = typeof row["tagline"] === "string" ? row["tagline"] : null;
   const description = typeof row["description"] === "string" ? row["description"] : null;
   const colors = designColorPair(row);
+  const domain = shopDomainPair(row);
   return {
     mine: {
       id: row["id"],
@@ -946,8 +974,125 @@ export function savedShopDto(payload: unknown): { mine: MineShopDto; pub: Public
       description,
       product_count: typeof row["product_count"] === "number" && Number.isFinite(row["product_count"]) ? row["product_count"] : 0,
       ...(colors ? { banner_color: colors.banner_color, accent_color: colors.accent_color } : {}),
+      ...(domain ?? {}),
     },
     pub: { id: row["id"], name: row["name"], handle: row["handle"], tagline, description },
+  };
+}
+
+/* ── The shop's storefront domain — connect + verify at the stand ──
+   Stack-100 #29: the storefront-builder / My Shop domain flow,
+   ridden from the stand's settings on the SAME rails —
+   POST /api/storefronts/:id/domain (attach; the Pro tier gate
+   lives on the server), POST /api/storefronts/domain/verify (the
+   DNS TXT check) and DELETE /api/storefronts/:id/domain (detach).
+   NOT the creator-domains rails the DomainsDesk rides
+   (/api/domains): that desk points a domain at the creator PAGE;
+   this one points a domain at the SHOP. Free end to end — no
+   credit-cost registry row exists for any of the three rails, so
+   there is no price to show and no spend to confirm; the only
+   gate is the server's Pro tier on attach, whose refusal surfaces
+   as-is. Verification is never faked: the stand calls a domain
+   verified only when the shop's own record says so (the mine
+   row's domain_verified, which the server sets only after the
+   TXT check actually passes). The verification token exists ONLY
+   in the attach answer — no read hands it back — so a returning
+   session shows the masked token and the page's own remedy
+   (reconnect for a fresh one), exactly like My Shop. */
+
+/** The TXT host prefix the rail issues verification under
+ *  (routes/generate/shops.ts VERIFY_HOST_PREFIX, verbatim). */
+export const SHOP_DOMAIN_VERIFY_HOST_PREFIX = "bdv-verify";
+
+/** The CNAME target the rail's DNS instructions point the domain
+ *  at (the attach answer's dns.cnameTarget, verbatim). */
+export const SHOP_DOMAIN_CNAME_TARGET = "cname.bowdownvisuals.com";
+
+/** The shop's domain truth, in the My Shop page's three states:
+ *  no domain on record, a domain waiting on its DNS proof, or a
+ *  domain the server has verified. Anything but the record's own
+ *  verified flag reads pending — never verified by optimism. */
+export type ShopDomainStatus = "none" | "pending" | "verified";
+
+export function shopDomainStatus(shop: { custom_domain?: string | null; domain_verified?: boolean }): ShopDomainStatus {
+  if (!shop.custom_domain) return "none";
+  return shop.domain_verified === true ? "verified" : "pending";
+}
+
+/** The host the TXT record lives at for a domain — the rail's own
+ *  construction (`${VERIFY_HOST_PREFIX}.${domain}`). */
+export function shopDomainVerifyHost(domain: string): string {
+  return `${SHOP_DOMAIN_VERIFY_HOST_PREFIX}.${domain}`;
+}
+
+/** The attach body — POST /api/storefronts/:id/domain takes the
+ *  page's exact shape (the typed domain, trimmed). Null when the
+ *  input is blank: the page's own gate (its Connect button stays
+ *  disabled), so a blank attach never rides. Format judgment
+ *  stays the server's — its refusal surfaces verbatim. */
+export function buildShopDomainAttachBody(input: string): { domain: string } | null {
+  const domain = input.trim();
+  if (!domain) return null;
+  return { domain };
+}
+
+/** What the attach rail answers, narrowed to what the stand
+ *  renders: the domain, the TXT host + token to publish, and the
+ *  rail's own DNS instruction lines (rendered verbatim — the
+ *  stand never rewrites the rail's words). Null when the answer
+ *  doesn't honestly carry them: the caller then reports failure
+ *  and keeps the state it had. */
+export interface ShopDomainAttachResult {
+  domain: string;
+  verification: { type: string; host: string; value: string };
+  dns: { step1: string; step2: string; step3: string; cnameTarget: string };
+}
+
+export function parseShopDomainAttachResult(payload: unknown): ShopDomainAttachResult | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  if (typeof p["domain"] !== "string" || !p["domain"]) return null;
+  const v = p["verification"];
+  if (!v || typeof v !== "object") return null;
+  const vr = v as Record<string, unknown>;
+  if (typeof vr["host"] !== "string" || !vr["host"] || typeof vr["value"] !== "string" || !vr["value"]) return null;
+  const dnsRaw = p["dns"] && typeof p["dns"] === "object" ? (p["dns"] as Record<string, unknown>) : {};
+  const step = (k: string): string => (typeof dnsRaw[k] === "string" ? (dnsRaw[k] as string) : "");
+  return {
+    domain: p["domain"],
+    verification: {
+      type: typeof vr["type"] === "string" ? (vr["type"] as string) : "TXT",
+      host: vr["host"] as string,
+      value: vr["value"] as string,
+    },
+    dns: {
+      step1: step("step1"),
+      step2: step("step2"),
+      step3: step("step3"),
+      cnameTarget: typeof dnsRaw["cnameTarget"] === "string" ? (dnsRaw["cnameTarget"] as string) : SHOP_DOMAIN_CNAME_TARGET,
+    },
+  };
+}
+
+/** What the verify rail answers: the domain, the honest boolean,
+ *  and the rail's reason when it isn't verified yet (rendered
+ *  verbatim — "no TXT record yet" is the rail's news, not the
+ *  stand's guess). Null when the answer carries no boolean: a
+ *  malformed answer is a failed check, never a quiet "verified". */
+export interface ShopDomainVerifyResult {
+  domain: string | null;
+  verified: boolean;
+  reason: string | null;
+}
+
+export function parseShopDomainVerifyResult(payload: unknown): ShopDomainVerifyResult | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  if (typeof p["verified"] !== "boolean") return null;
+  return {
+    domain: typeof p["domain"] === "string" ? (p["domain"] as string) : null,
+    verified: p["verified"] as boolean,
+    reason: typeof p["reason"] === "string" ? (p["reason"] as string) : null,
   };
 }
 
