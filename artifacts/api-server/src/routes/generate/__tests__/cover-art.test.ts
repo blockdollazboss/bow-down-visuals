@@ -14,9 +14,11 @@ import {
   COVER_ART_PREMIUM_CREDITS,
   COVER_ART_STYLES,
   COVER_ART_RATIOS,
+  COVER_ART_LAYOUTS,
   resolveCoverArtSize,
   resolveCoverArtStyle,
   resolveCoverArtCredits,
+  resolveCoverArtLayout,
   coverArtSchema,
   buildArtDirectionRequest,
   parseArtDirection,
@@ -144,6 +146,79 @@ describe("coverArtSchema", () => {
   });
 });
 
+describe("layout templates", () => {
+  it("exposes exactly the seven documented layouts", () => {
+    expect(COVER_ART_LAYOUTS.map((l) => l.key)).toEqual([
+      "center-stage",
+      "headline-top",
+      "bottom-band",
+      "split-frame",
+      "corner-mark",
+      "corner-seal",
+      "pure-art",
+    ]);
+  });
+
+  it("every layout has a label, blurb, direction, and image zone", () => {
+    for (const l of COVER_ART_LAYOUTS) {
+      expect(l.label.length).toBeGreaterThan(0);
+      expect(l.blurb.length).toBeGreaterThan(0);
+      expect(l.direction.length).toBeGreaterThan(0);
+      expect(l.imageZone.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("resolves known layouts and treats absent/unknown as freeform", () => {
+    expect(resolveCoverArtLayout("bottom-band")?.key).toBe("bottom-band");
+    expect(resolveCoverArtLayout(undefined)).toBeUndefined();
+    expect(resolveCoverArtLayout("")).toBeUndefined();
+    expect(resolveCoverArtLayout("nope")).toBeUndefined();
+  });
+
+  it("schema accepts every layout key", () => {
+    for (const l of COVER_ART_LAYOUTS) {
+      const parsed = coverArtSchema.safeParse({
+        songTitle: "Midnight Crown",
+        artistName: "Thy Cheat Code",
+        layout: l.key,
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) expect(parsed.data.layout).toBe(l.key);
+    }
+  });
+
+  it("schema leaves layout undefined when the client sends none", () => {
+    const parsed = coverArtSchema.safeParse({
+      songTitle: "Neon Tide",
+      artistName: "Shark King",
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.layout).toBeUndefined();
+  });
+
+  it("schema rejects unknown layout templates", () => {
+    const parsed = coverArtSchema.safeParse({
+      songTitle: "Midnight Crown",
+      artistName: "Thy Cheat Code",
+      layout: "spiral",
+    });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("a layout never changes the price", () => {
+    for (const l of COVER_ART_LAYOUTS) {
+      const parsed = coverArtSchema.safeParse({
+        songTitle: "Midnight Crown",
+        artistName: "Thy Cheat Code",
+        layout: l.key,
+        tier: "standard",
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) expect(resolveCoverArtCredits(parsed.data.tier)).toBe(200);
+    }
+  });
+});
+
 describe("buildArtDirectionRequest", () => {
   const input = {
     songTitle: "Midnight Crown",
@@ -245,5 +320,60 @@ describe("buildCoverImagePrompt", () => {
   it("works with an empty art direction", () => {
     const prompt = buildCoverImagePrompt(input, { concept: "", typography: "", palette: [] });
     expect(prompt.length).toBeGreaterThan(50);
+  });
+});
+
+describe("layout prompt folding", () => {
+  const base = {
+    songTitle: "Midnight Crown",
+    artistName: "Thy Cheat Code",
+    mood: "",
+    style: "luxury-gold",
+    aspectRatio: "1:1" as const,
+    tier: "standard" as const,
+  };
+  const art = { concept: "Gold crown on black silk.", typography: "", palette: ["#000000"] };
+
+  it("image prompt without a layout is byte-identical to the pre-layout wording", () => {
+    const style = resolveCoverArtStyle(base.style);
+    const expected =
+      `Album cover artwork, no text, no words, no letters, no logos. ` +
+      `${style.direction}. Concept: Gold crown on black silk. Color palette: #000000. ` +
+      `Leave a clean uncluttered area in the composition where a song title can be placed. ` +
+      `Professional music-industry quality, high detail, striking focal point.`;
+    expect(buildCoverImagePrompt(base, art)).toBe(expected);
+    /* …and with an empty art direction too (no concept/palette lines). */
+    const bare = buildCoverImagePrompt(base, { concept: "", typography: "", palette: [] });
+    const bareExpected =
+      `Album cover artwork, no text, no words, no letters, no logos. ` +
+      `${style.direction}. ` +
+      `Leave a clean uncluttered area in the composition where a song title can be placed. ` +
+      `Professional music-industry quality, high detail, striking focal point.`;
+    expect(bare).toBe(bareExpected);
+  });
+
+  it("image prompt moves the clean zone to the layout's placement", () => {
+    const prompt = buildCoverImagePrompt({ ...base, layout: "bottom-band" }, art);
+    expect(prompt).toContain("clean uncluttered band across the bottom");
+    expect(prompt).not.toContain("clean uncluttered area in the composition");
+  });
+
+  it("pure-art asks for a full frame with no text zone", () => {
+    const prompt = buildCoverImagePrompt({ ...base, layout: "pure-art" }, art);
+    expect(prompt).toContain("no text zone needed");
+    expect(prompt.toLowerCase()).toContain("no text");
+  });
+
+  it("art direction names the layout when one is chosen", () => {
+    const req = buildArtDirectionRequest({ ...base, layout: "split-frame" });
+    const text = req.messages.map((m) => m.content).join(" ");
+    expect(text).toContain("Layout:");
+    expect(text).toContain("split composition");
+  });
+
+  it("art direction without a layout carries no layout line", () => {
+    const req = buildArtDirectionRequest(base);
+    const text = req.messages.map((m) => m.content).join(" ");
+    expect(text).not.toContain("Layout:");
   });
 });
