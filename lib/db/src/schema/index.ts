@@ -108,6 +108,7 @@ export * from "./money-entries";
 export * from "./content-id";
 export * from "./content-warnings";
 export * from "./team-seats";
+export * from "./beat-samples";
 export * from "./milestones";
 export * from "./presave";
 export * from "./product-drops";
