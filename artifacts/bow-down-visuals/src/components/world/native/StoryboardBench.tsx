@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Clapperboard, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { callGenerateApi } from "@/lib/generate-api";
@@ -51,6 +52,17 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
    clip is saved to My Clips (POST /api/generated-clips) the
    moment it lands, exactly as SceneStudio saves it. */
 
+/* The storyboard machine's step tokens render through the catalog
+   (worldCreateMedia) — en values are the tokens verbatim. */
+const STEP_LABEL_KEYS: Record<string, string> = {
+  intake: "worldCreateMedia.sbStepIntake",
+  analysis: "worldCreateMedia.sbStepAnalysis",
+  scenes: "worldCreateMedia.sbStepScenes",
+  review: "worldCreateMedia.sbStepReview",
+  clips: "worldCreateMedia.sbStepClips",
+  done: "worldCreateMedia.sbStepDone",
+};
+
 export function StoryboardBench(props: {
   isLight: boolean;
   /** Save-as-project + step through to the seeded editor. */
@@ -66,6 +78,7 @@ export function StoryboardBench(props: {
   clipSettings?: ClipSettings;
 }) {
   const { isLight } = props;
+  const { t, i18n } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
@@ -142,11 +155,11 @@ export function StoryboardBench(props: {
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify(buildAnalyzeSectionsPayload(lyrics)),
       });
-      if (!res.ok) throw new Error("Section analysis didn't land — nothing was charged for a failed analysis.");
+      if (!res.ok) throw new Error(t("worldCreateMedia.sbErrAnalysisCharge"));
       setStructure((await res.json()) as SongStructure);
       refreshProfile();
     } catch (err) {
-      setError(plainErrorText(err, "Section analysis failed."));
+      setError(plainErrorText(err, t("worldCreateMedia.sbErrAnalysis")));
     } finally {
       setBusy(null);
     }
@@ -169,7 +182,7 @@ export function StoryboardBench(props: {
       setScenes(flow.scenes);
       props.onScenesReady?.(flow.scenes);
     } catch (err) {
-      setError(plainErrorText(err, "Scenes from your song didn't land."));
+      setError(plainErrorText(err, t("worldCreateMedia.sbErrSongScenes")));
     } finally {
       setBusy(null);
     }
@@ -183,14 +196,14 @@ export function StoryboardBench(props: {
       const token = await getAccessToken();
       const source = props.packageResult ?? lyrics;
       const result = await callGenerateApi("/api/generate-video-plan", buildVideoPlanPayload(source), token);
-      if (!result) throw new Error("The video plan didn't start.");
+      if (!result) throw new Error(t("worldCreateMedia.sbErrPlanStart"));
       const parsed = parseScenes(extractBreakdownContent(result.rawResult));
-      if (parsed.length === 0) throw new Error("The plan came back without scenes — try again with more detail.");
+      if (parsed.length === 0) throw new Error(t("worldCreateMedia.sbErrPlanNoScenes"));
       setScenes(parsed);
       props.onScenesReady?.(parsed);
       if (result.creditsRemaining !== undefined) refreshProfile();
     } catch (err) {
-      setError(plainErrorText(err, "Scene building failed."));
+      setError(plainErrorText(err, t("worldCreateMedia.sbErrSceneBuilding")));
     } finally {
       setBusy(null);
     }
@@ -219,7 +232,7 @@ export function StoryboardBench(props: {
           return;
         }
         const data = (await res.json().catch(() => ({}))) as { taskId?: string; error?: string; message?: string };
-        if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, "The clip make didn't start."));
+        if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, t("worldCreateMedia.sbErrClipStart")));
         const taskId = data.taskId;
         pollRef.current = setInterval(async () => {
           try {
@@ -230,7 +243,7 @@ export function StoryboardBench(props: {
               if (pollRef.current) clearInterval(pollRef.current);
               setClipBusy(null);
               if (read.failed || !read.url) {
-                setError(apiErrorMessage(read, "Clip generation failed."));
+                setError(apiErrorMessage(read, t("worldCreateMedia.sbErrClip")));
               } else {
                 setScenes((prev) => withSceneClip(prev, scene.id, read.url!));
                 refreshProfile();
@@ -251,12 +264,12 @@ export function StoryboardBench(props: {
           } catch {
             if (pollRef.current) clearInterval(pollRef.current);
             setClipBusy(null);
-            setError("Network error while the clip was making.");
+            setError(t("worldCreateMedia.sbErrClipNetwork"));
           }
         }, 5000);
       } catch (err) {
         setClipBusy(null);
-        setError(plainErrorText(err, "Clip generation failed."));
+        setError(plainErrorText(err, t("worldCreateMedia.sbErrClip")));
       }
     })();
   };
@@ -281,12 +294,12 @@ export function StoryboardBench(props: {
           headers: { "Content-Type": "application/json", ...(await authHeaders()) },
           body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error("Saving the project didn't land — your storyboard is still autosaved as a draft.");
+        if (!res.ok) throw new Error(t("worldCreateMedia.sbErrSaveDraft"));
       }
       setSavedProject(true);
       void quest.checkAfter();
     } catch (err) {
-      setError(plainErrorText(err, "Saving the project failed."));
+      setError(plainErrorText(err, t("worldCreateMedia.saveProjectFailed")));
     } finally {
       setBusy(null);
     }
@@ -300,15 +313,15 @@ export function StoryboardBench(props: {
   return (
     <div data-testid="world-storyboard-bench" className={`space-y-3 rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
       <p className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-        <Clapperboard className="h-3.5 w-3.5" /> Storyboard — build the whole video
+        <Clapperboard className="h-3.5 w-3.5" /> {t("worldCreateMedia.sbHeading")}
       </p>
       <label className="block">
-        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>Lyrics / song words</span>
+        <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldCreateMedia.sbLyricsLabel")}</span>
         <textarea value={lyrics} onChange={(e) => setLyrics(e.target.value)} rows={3} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <label className={`cursor-pointer ${chipCls}`}>
-          {audioFile ? `Song file: ${audioFile.name}` : "Upload the song (for scenes from audio)"}
+          {audioFile ? t("worldCreateMedia.sbSongFile", { name: audioFile.name }) : t("worldCreateMedia.sbUploadSong")}
           <input
             type="file"
             accept="audio/*"
@@ -324,34 +337,36 @@ export function StoryboardBench(props: {
         </label>
         <button type="button" data-testid="world-storyboard-analyze" onClick={() => void analyze()} disabled={busy !== null || lyrics.trim().length < 10} className={chipCls}>
           {busy === "analyze" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-          Analyze the sections · {analyzeSectionsCost().toLocaleString("en-US")} Visual Bucs
+          {t("worldCreateMedia.sbAnalyzeButton", { cost: analyzeSectionsCost().toLocaleString(i18n.language) })}
         </button>
         {structure ? (
           <span className={`text-xs font-semibold ${muted}`}>
-            {structure.sections.length} sections found — hook: {structure.promo15?.section ?? "—"}
+            {t("worldCreateMedia.sbSectionsFound", { count: structure.sections.length, hook: structure.promo15?.section ?? "—" })}
           </span>
         ) : null}
       </div>
       <div className="flex flex-wrap gap-2">
         <button type="button" data-testid="world-storyboard-scenes-audio" onClick={() => void scenesFromAudio()} disabled={busy !== null || !audioUrl || lyrics.trim().length < 10} className={chipCls}>
           {busy === "audio-scenes" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-          Build scenes from my song{structure ? " · free, analysis done" : ` · includes analysis ${analyzeSectionsCost().toLocaleString("en-US")} Visual Bucs`}
+          {structure
+            ? t("worldCreateMedia.sbScenesFromSongFree")
+            : t("worldCreateMedia.sbScenesFromSongPaid", { cost: analyzeSectionsCost().toLocaleString(i18n.language) })}
         </button>
         <button type="button" data-testid="world-storyboard-scenes-plan" onClick={() => void scenesFromPlan()} disabled={busy !== null || (!props.packageResult && lyrics.trim().length < 3)} className={chipCls}>
           {busy === "plan-scenes" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-          Build scenes from a video plan · {videoPlanCost().toLocaleString("en-US")} Visual Bucs
+          {t("worldCreateMedia.sbScenesFromPlan", { cost: videoPlanCost().toLocaleString(i18n.language) })}
         </button>
       </div>
       {error ? <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{error}</p> : null}
       {scenes.length > 0 ? (
         <div className="space-y-2" data-testid="world-storyboard-scenes">
           <p className={`text-xs font-semibold ${muted}`}>
-            Review each scene — approve the ones to film. Step: {step}. Autosaved as you go, and every finished clip saves to My Clips.
+            {t("worldCreateMedia.sbReviewLine", { step: t(STEP_LABEL_KEYS[step] ?? "worldCreateMedia.sbStepIntake") })}
           </p>
           {scenes.map((scene) => (
             <div key={scene.id} className={`rounded-xl border p-2.5 ${isLight ? "border-[#C9A84C]/30 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-black">Scene {scene.sceneNumber}</span>
+                <span className="text-xs font-black">{t("worldCreateMedia.sbSceneLabel", { number: scene.sceneNumber })}</span>
                 <span className={`text-[11px] ${muted}`}>{scene.section} · {scene.timestamp}</span>
                 <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold bdv-touch-target">
                   <input
@@ -360,33 +375,33 @@ export function StoryboardBench(props: {
                     checked={scene.approved}
                     onChange={(e) => setScenes((prev) => withSceneApproval(prev, scene.id, e.target.checked))}
                   />
-                  Approve
+                  {t("worldCreateMedia.sbApprove")}
                 </label>
               </div>
               <p className={`mt-1 text-xs ${muted}`}>{scene.lyricLine || scene.action}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {scene.demoClipUrl ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500"><Check className="h-3.5 w-3.5" /> Clip made</span>
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500"><Check className="h-3.5 w-3.5" /> {t("worldCreateMedia.sbClipMade")}</span>
                 ) : scene.approved ? (
                   <button type="button" data-testid="world-storyboard-make-clip" onClick={() => makeClip(scene)} disabled={clipBusy !== null} className={chipCls}>
                     {clipBusy === scene.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                    Make this clip · {clipPlanCost(clipSettings).toLocaleString("en-US")} Visual Bucs
+                    {t("worldCreateMedia.sbMakeClip", { cost: clipPlanCost(clipSettings).toLocaleString(i18n.language) })}
                   </button>
                 ) : (
-                  <span className={`text-[11px] ${muted}`}>Approve it to film it.</span>
+                  <span className={`text-[11px] ${muted}`}>{t("worldCreateMedia.sbApproveToFilm")}</span>
                 )}
               </div>
               {scene.demoClipUrl ? <video src={scene.demoClipUrl} controls playsInline className="mt-2 max-h-[200px] w-full rounded-lg" /> : null}
             </div>
           ))}
           <button type="button" data-testid="world-storyboard-save" onClick={() => void saveProject()} disabled={busy !== null || props.editorBusy} className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
-            {props.onSendToEditor ? "Save + open in the editor" : "Save as a project"}
+            {props.onSendToEditor ? t("worldCreateMedia.sbSaveOpenEditor") : t("worldCreateMedia.sbSaveProject")}
           </button>
-          {savedProject ? <p className={`text-xs font-semibold ${muted}`}>Saved — the editor step-through opens on this storyboard.</p> : null}
+          {savedProject ? <p className={`text-xs font-semibold ${muted}`}>{t("worldCreateMedia.sbSavedNote")}</p> : null}
         </div>
       ) : null}
       <QuestProgressChip isLight={isLight} lines={quest.lines} />
-      <p className={`text-[11px] ${muted}`}>Transcription for uploaded songs rides the Song + Video wizard ({transcribeCostLabel()}) — paste or transcribe lyrics, then build scenes here.</p>
+      <p className={`text-[11px] ${muted}`}>{t("worldCreateMedia.sbTranscribeNote", { label: transcribeCostLabel() })}</p>
     </div>
   );
 }
