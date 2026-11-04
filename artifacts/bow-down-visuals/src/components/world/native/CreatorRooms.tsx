@@ -2164,7 +2164,9 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                               email: giftIssued.card.recipientEmail || t("worldCreatorRooms.giftRecipientFallback"),
                             })
                           : t("worldCreatorRooms.giftIssuedPlain", {
-                              email: giftIssued.card?.recipientEmail || t("worldCreatorRooms.giftRecipientFallback"),
+                              /* No card read back — the original line's
+                                 recipient was always the fallback here. */
+                              email: t("worldCreatorRooms.giftRecipientFallback"),
                             })}
                     </span>
                   </p>
