@@ -46,12 +46,26 @@
  * own device store (greenscreen-finetune.ts), so the cutout tuned
  * on the 2D studio is the cutout the hall studio runs. Going live
  * and its effects are free on the 2D site; they are free here.
+ *
+ * Wave IV (#94) extends the seam once more: the Go Live scene
+ * presets ride the #89 controller relay into the hall. The picker
+ * in the section below is the stream-kit preset registry itself,
+ * and a pick sends the controller protocol's scene.preset.apply
+ * command to the member's running studio, whose stage executes it
+ * through applyScenePreset — the ScenesPanel's own application
+ * path, landing in Preview, never straight to Program. There is
+ * no in-world Stage and none is faked: the deck drives the real
+ * studio exactly like the phone remote does. A preset never starts
+ * a camera or a share and charges nothing, here as on the page.
  */
 
 import type {
   BackgroundMode, BackgroundQuality, BackgroundEngineKind, EngineStatusDetail,
 } from "../stream-kit/background-changer";
 import type { GreenScreenFineTune } from "../stream-kit/greenscreen-finetune";
+import {
+  SCENE_PRESETS, scenePresetById, type ScenePreset,
+} from "../stream-kit/scene-presets";
 import {
   isSelectionActive, type BackdropSelection,
 } from "../stream-kit/backdrop-selection";
@@ -635,4 +649,51 @@ export function fineTuneSlidersForMode(mode: BackgroundMode): typeof GREENSCREEN
 
 export const LIVE_WAVE3_PROMOTIONS = [
   "#92 Behind me in the hall Screen panel: the 2D studio's green-screen depth on the SAME BackgroundChanger kit BroadcastStudio runs — background modes (Green Screen / Blur / Backdrop / Original), quality (Auto / Pro / MediaPipe), the backdrop picker (built-in scenes, your own photo upload, a pasted image link — backdrop-selection's ONE selection), and the fine-tune sliders over greenscreen-finetune's shared device settings (the same bdv-greenscreen-finetune store the 2D studio reads, so a tuned cutout follows the creator between surfaces), with the engine's live status and any fallback spoken plainly. Free, exactly as on the page",
+] as const;
+
+/* ── #94 Scene presets on the controller deck ───────────────────────
+   The 2D studio's Scene presets list (ScenesPanel over
+   lib/stream-kit/scene-presets) had exactly one consumer and no
+   in-world surface: there is no Stage in the World, and none is
+   built here. The honest route is the one the seam already named
+   for scenes — the #89 controller deck driving a running studio.
+   The protocol now carries scene.preset.apply { presetId }; the
+   studio's stage half executes it through applyScenePreset, the
+   panel's own application path, so the scene that lands in the
+   studio's Preview is built by the same code from the same
+   registry, and Program is never touched. The picker below is the
+   registry itself — the grid IS the menu, exactly like the
+   background tables above. */
+
+export type { ScenePreset };
+
+/** The preset menu: the stream-kit registry itself (scene-presets.ts)
+ *  — the same array ScenesPanel renders its list from. */
+export const SCENE_PRESET_OPTIONS = SCENE_PRESETS;
+
+/** The command a preset pick sends over the controller relay. The
+ *  stage validates the id against the same registry (an unknown id
+ *  applies nothing); the desk only ever renders registry ids. */
+export const SCENE_PRESET_APPLY_COMMAND = "scene.preset.apply" as const;
+
+/** The relay args for one pick — the preset id and nothing else:
+ *  what a preset MEANS never travels the wire, only which one. */
+export function scenePresetApplyArgs(presetId: string): { presetId: string } {
+  return { presetId };
+}
+
+/** True only for ids the registry carries — the desk's render gate
+ *  and the pin's parity check share this one read. */
+export function isScenePresetId(presetId: string): boolean {
+  return scenePresetById(presetId) !== null;
+}
+
+/** The picker's closing note — ScenesPanel's own words for what a
+ *  preset does, carried verbatim: the applied scene waits in
+ *  Preview for the creator's Take, exactly as on the page. */
+export const SCENE_PRESET_PICKER_NOTE =
+  "A preset adds a new scene to your studio and frames it in Preview — take it to Program when you're ready. Screen scenes still need you to start the share from the Screen source in the studio.";
+
+export const LIVE_WAVE4_PROMOTIONS = [
+  "#94 Scene presets on the hall's Stream Controller deck: the Go Live preset registry (lib/stream-kit/scene-presets — Just You, Camera + Live Overlay, Screen + You in the Corner, Screen Only, Starting Soon, Be Right Back, Live as Your Avatar) as a picker under the #89 deck; a pick sends the controller relay's scene.preset.apply command and the running studio's stage executes it through applyScenePreset — the ScenesPanel's own application path (addScene → addSource → updateSource → setPreview), so the built scene lands in Preview with Program untouched, confirmed back to the deck by the studio's next state publish and nothing optimistic. Free, exactly as on the page",
 ] as const;
