@@ -16224,6 +16224,7 @@
     "usersGrantedSelf": "{{amount}} Visual Bucs granted to your account.",
     "usersGrantedTo": "{{amount}} Visual Bucs granted to {{email}}.",
     "usersKeepAccount": "Keep the account",
+    "usersLookup": "Look up",
     "usersMeta": "{{credits}} VB · plan {{plan}} · id {{id}}",
     "usersNoAccount": "No account carries that email.",
     "usersPlanLabel": "Plan tier",
