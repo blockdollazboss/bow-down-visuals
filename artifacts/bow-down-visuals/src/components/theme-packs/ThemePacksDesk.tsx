@@ -20,11 +20,14 @@ import {
   THEME_PACK_EVENT,
   THEME_PACK_PRICE_VB,
   applyThemePack,
+  cacheOwnedPackIds,
   getActiveThemePack,
   getThemeMode,
   hslCss,
   isThemePackUnlocked,
+  mergeOwnedPackIds,
   packModes,
+  readCachedOwnedPackIds,
   resolvePackMode,
   type ThemePack,
   type ThemePackMode,
@@ -356,6 +359,7 @@ function PackCard({
   ownedIds,
   elite,
   signedIn,
+  entitlementsPending,
   buying,
   buyError,
   onBuy,
@@ -368,6 +372,10 @@ function PackCard({
   ownedIds: readonly string[];
   elite: boolean;
   signedIn: boolean;
+  /** The entitlement feed hasn't resolved yet: ownership is UNKNOWN,
+      not "not owned" — a premium card must not offer the pack for
+      sale until the feed lands (QC fix #12). */
+  entitlementsPending: boolean;
   buying: boolean;
   buyError: string | null;
   onBuy: (pack: ThemePack) => void;
@@ -510,6 +518,17 @@ function PackCard({
                   : t("settings.themePacksDark", { defaultValue: "Dark" }),
             })}
           </button>
+        ) : entitlementsPending ? (
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="inline-flex w-full cursor-wait items-center justify-center gap-2 rounded-xl border border-border bg-secondary/50 px-4 py-2.5 text-sm font-semibold text-muted-foreground"
+            data-testid={`theme-pack-checking-${pack.id}`}
+          >
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {t("settings.themePacksChecking", { defaultValue: "Checking your packs…" })}
+          </button>
         ) : signedIn ? (
           <div className="space-y-2">
             <button
@@ -564,26 +583,73 @@ export function ThemePacksDesk() {
      visitors get no feed — premium packs show the sign-in price line. */
   const [ownedIds, setOwnedIds] = useState<readonly string[]>([]);
   const [elite, setElite] = useState(false);
+  /* Whether the entitlement feed has RESOLVED. Until it has, the
+     owned list is unknown — not empty — and premium cards render a
+     "checking" state instead of the buy button (QC fix #12: after
+     buying The King's Set, a reload showed "Own it forever" for ~10s
+     on the already-bought pack, because the feed only starts once
+     auth yields a user + token and the desk painted the still-empty
+     list as "not owned"). */
+  const [entitlementsReady, setEntitlementsReady] = useState(false);
+  const ownedIdsRef = useRef<readonly string[]>([]);
   const [buyingId, setBuyingId] = useState<string | null>(null);
   const [buyErrors, setBuyErrors] = useState<Record<string, string>>({});
 
-  const refreshEntitlements = async () => {
+  /* Union-apply one owned-ids reading (cache or live feed): owned is
+     forever, so readings only ever ADD ids — a stale read can never
+     un-own a pack — and the merged list is cached per user so the
+     next visit paints OWNED instantly while the feed revalidates. */
+  const applyOwnedIds = (incoming: readonly string[]) => {
+    const merged = mergeOwnedPackIds(ownedIdsRef.current, incoming);
+    ownedIdsRef.current = merged;
+    setOwnedIds(merged);
+    cacheOwnedPackIds(user?.id, merged);
+  };
+
+  const refreshEntitlements = async (attempt = 0): Promise<void> => {
     try {
       const token = await getAccessToken();
       if (!token) return;
       const res = await fetch("/api/theme-packs/state", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(`state failed (${res.status})`);
       const json = (await res.json()) as { owned?: string[]; elite?: boolean };
-      setOwnedIds(json.owned ?? []);
+      applyOwnedIds(json.owned ?? []);
       setElite(json.elite === true);
+      setEntitlementsReady(true);
     } catch {
-      /* the desk still renders; premium packs stay locked without a feed */
+      /* A failed read proves nothing about ownership: stay in the
+         "checking" state and retry briefly rather than offering a
+         possibly-owned pack for sale. After the retries, fall back
+         to ready-with-what-we-have (cache included) — never worse
+         than the old behaviour, and the purchase rail itself refuses
+         a second charge for an owned pack (alreadyOwned), so the
+         fallback can never double-charge. */
+      if (attempt < 2) {
+        window.setTimeout(
+          () => void refreshEntitlements(attempt + 1),
+          attempt === 0 ? 1500 : 4000,
+        );
+      } else {
+        setEntitlementsReady(true);
+      }
     }
   };
 
   useEffect(() => {
+    if (!user?.id) {
+      /* Guests have no feed — nothing is pending for them. */
+      setEntitlementsReady(true);
+      return;
+    }
+    /* New account in this seat: drop the previous account's readings
+       before hydrating this one's. */
+    ownedIdsRef.current = [];
+    setOwnedIds([]);
+    setElite(false);
+    setEntitlementsReady(false);
+    applyOwnedIds(readCachedOwnedPackIds(user.id));
     void refreshEntitlements();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
@@ -620,7 +686,10 @@ export function ThemePacksDesk() {
       if (!res.ok) throw new Error(`purchase failed (${res.status})`);
       if (json?.eliteIncluded) setElite(true);
       if (json?.owned) {
-        setOwnedIds((prev) => (prev.includes(pack.id) ? prev : [...prev, pack.id]));
+        /* Optimistic + cached immediately: even a reload seconds
+           later paints OWNED from the cache (QC fix #12). The
+           revalidation below now merges, so it cannot undo this. */
+        applyOwnedIds([pack.id]);
       }
       void refreshEntitlements();
     } catch {
@@ -729,6 +798,7 @@ export function ThemePacksDesk() {
             ownedIds={ownedIds}
             elite={elite}
             signedIn={Boolean(user)}
+            entitlementsPending={Boolean(user) && !entitlementsReady}
             buying={buyingId === pack.id}
             buyError={buyErrors[pack.id] ?? null}
             onBuy={(p) => void buyPack(p)}

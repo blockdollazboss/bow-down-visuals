@@ -268,23 +268,61 @@ export function soundManifestAssetForRole(role: SoundRole): string {
 
 /* ─── Approved background library (existing art — never invented) ───── */
 
+export interface ApprovedArtSource {
+  id: string;
+  label: string;
+  kind: "still" | "loop";
+  /** Site path of the library file. "pack-ground" has none — it IS
+      the ground of whichever pack the mix belongs to, resolved at
+      build time. */
+  path?: string;
+}
+
+/** The cross-pack source id for one pack's approved ground art in one
+    mode: `pack-ground-<packId>-<mode>`. */
+export function packGroundArtSourceId(packId: string, mode: ThemePackMode): string {
+  return `pack-ground-${packId}-${mode}`;
+}
+
+/* One named source per pack × mode, DERIVED from the registry: every
+   pack's approved ground art is offerable by name, so a mix on any
+   pack can wear any pack's ground. (QC fix #13: the source list used
+   to be a hand-kept constant whose only scene entries were the
+   King's Set stills/loops — every other pack's art was reachable
+   only through the relative "pack-ground" entry on its own card, so
+   Shark Tank / Golden Hour grounds never appeared as cross-pack
+   sources even though the packs apply fine. Deriving from
+   THEME_PACKS means a future pack's grounds join the list by
+   construction; the server mirrors are pinned to this list by the
+   parity tests.) */
+const PACK_GROUND_ART_SOURCES: ApprovedArtSource[] = THEME_PACKS.flatMap((pack) =>
+  (["dark", "light"] as ThemePackMode[]).map((mode) => ({
+    id: packGroundArtSourceId(pack.id, mode),
+    label: `${pack.name} — Ground art (${mode})`,
+    kind: "still" as const,
+    path: pack.deviceArt[mode],
+  })),
+);
+
 /** Owner-approved stills + living loops already live in the wallpaper
     desk. Customization swaps choose from THIS list only. */
-export const APPROVED_ART_SOURCES = [
+export const APPROVED_ART_SOURCES: ApprovedArtSource[] = [
   { id: "pack-ground", label: "This pack's ground art", kind: "still" },
+  ...PACK_GROUND_ART_SOURCES,
   { id: "kings-set-throne-phone", label: "King's Set — Throne (phone)", kind: "still", path: "/wallpapers/kings-set-throne-phone.webp" },
   { id: "kings-set-plaza-phone", label: "King's Set — Plaza (phone)", kind: "still", path: "/wallpapers/kings-set-plaza-phone.webp" },
   { id: "kings-set-stage-desktop", label: "King's Set — Stage (desktop)", kind: "still", path: "/wallpapers/kings-set-stage-desktop.webp" },
   { id: "kings-set-throne-loop", label: "King's Set — Throne living loop", kind: "loop", path: "/wallpapers/kings-set-throne-loop.mp4" },
   { id: "kings-set-plaza-loop", label: "King's Set — Plaza living loop", kind: "loop", path: "/wallpapers/kings-set-plaza-loop.mp4" },
   { id: "kings-set-stage-loop", label: "King's Set — Stage screensaver loop", kind: "loop", path: "/wallpapers/kings-set-stage-loop.mp4" },
-] as const;
+];
 export const APPROVED_ART_IDS: readonly string[] = APPROVED_ART_SOURCES.map((a) => a.id);
 
 /** Screensaver + living-wallpaper sources per pack: the approved
     living loops (King's Set) — the same loops for every pack because
-    they are the approved library; the pack's own ground still is its
-    static screensaver frame. */
+    they are the approved library; each pack's own ground still is its
+    static screensaver frame, and every pack's grounds are offerable
+    by name as mix sources (PACK_GROUND_ART_SOURCES above). */
 
 /* ─── Designed icon set (the approved art — never code-drawn) ────────
    QC-200 G3: the kit ships the owner-approved DESIGNED emblem set

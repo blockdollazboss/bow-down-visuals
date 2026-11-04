@@ -236,6 +236,18 @@ export function resolveKitAccent(
     APPROVED_ART_SOURCES paths ("pack-ground" has no path — it IS the
     pack ground, the default). The parity tests pin both lists. */
 export const KIT_ART_SITE_PATHS: Record<string, string> = {
+  /* Per-pack ground sources (QC fix #13): each pack's approved ground
+     art, by name — the paths are the SERVER_PACKS deviceArt values. */
+  "pack-ground-golden-marble-dark": "/wallpapers/theme-packs/golden-marble-dark.webp",
+  "pack-ground-golden-marble-light": "/wallpapers/theme-packs/golden-marble-light.webp",
+  "pack-ground-shark-tank-dark": "/wallpapers/theme-packs/shark-tank-dark.webp",
+  "pack-ground-shark-tank-light": "/wallpapers/theme-packs/shark-tank-light.webp",
+  "pack-ground-golden-hour-dark": "/wallpapers/theme-packs/golden-hour-dark.webp",
+  "pack-ground-golden-hour-light": "/wallpapers/theme-packs/golden-hour-light.webp",
+  "pack-ground-kings-set-dark": "/wallpapers/theme-packs/kings-set-dark.webp",
+  "pack-ground-kings-set-light": "/wallpapers/theme-packs/kings-set-light.webp",
+  "pack-ground-arcade-gold-dark": "/wallpapers/theme-packs/arcade-gold-dark.webp",
+  "pack-ground-arcade-gold-light": "/wallpapers/theme-packs/arcade-gold-light.webp",
   "kings-set-throne-phone": "/wallpapers/kings-set-throne-phone.webp",
   "kings-set-plaza-phone": "/wallpapers/kings-set-plaza-phone.webp",
   "kings-set-stage-desktop": "/wallpapers/kings-set-stage-desktop.webp",

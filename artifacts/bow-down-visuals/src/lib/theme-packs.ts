@@ -946,6 +946,66 @@ export function isThemePackUnlocked(
   return pack.tier === "included" || ownedPackIds.includes(pack.id) || elite;
 }
 
+/* ─── Entitlement feed helpers (QC fix #12) ───────────────────────────
+   A purchase row is forever — "owned forever" is the product rule and
+   theme_pack_purchases rows are never deleted — so an owned id, once
+   known, can never become false. The desk's entitlement feed exploits
+   that in two ways:
+
+   - Readings merge as UNIONS (mergeOwnedPackIds): a slow or stale
+     /theme-packs/state read can ADD owned ids but can never take one
+     away, so it cannot un-own a pack bought while the read was in
+     flight. (The desk used to REPLACE its owned list with whatever
+     the GET returned.)
+   - The last known owned ids are cached per user and hydrate the
+     desk on the next visit (readCachedOwnedPackIds /
+     cacheOwnedPackIds), so a reload paints OWNED from the cache
+     while the live feed revalidates — no window where a bought pack
+     offers itself for sale again. (Sitting B measured ~10s of "Own
+     it forever" on an already-bought pack after a reload: the feed
+     can't start until auth resolves a user + token, and the desk
+     rendered the still-empty list as "not owned".) Every cached id
+     is validated against the registry on read, and the cache can
+     only ever ADD ids versus the empty initial state. Elite is NOT
+     cached: it lapses, so it stays live-feed-only. */
+
+export function mergeOwnedPackIds(
+  prev: readonly string[],
+  incoming: readonly string[],
+): string[] {
+  const out = [...prev];
+  for (const id of incoming) if (!out.includes(id)) out.push(id);
+  return out;
+}
+
+const OWNED_PACKS_CACHE_PREFIX = "bdv-theme-pack-owned:";
+
+export function readCachedOwnedPackIds(userId: string | null | undefined): string[] {
+  if (!userId) return [];
+  try {
+    const raw = storageGet(`${OWNED_PACKS_CACHE_PREFIX}${userId}`);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (id): id is string => typeof id === "string" && !!themePackById(id),
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function cacheOwnedPackIds(
+  userId: string | null | undefined,
+  ids: readonly string[],
+): void {
+  if (!userId) return;
+  storageSet(
+    `${OWNED_PACKS_CACHE_PREFIX}${userId}`,
+    JSON.stringify(ids.filter((id) => themePackById(id))),
+  );
+}
+
 /* ─── Color math (pure; the contrast pins run on these) ───────────────── */
 
 const HSL_RE = /^([\d.]+) ([\d.]+)% ([\d.]+)%$/;
