@@ -1,5 +1,6 @@
 import { apiErrorMessage } from "../../../lib/api-error";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -30,6 +31,15 @@ const inputCls = (isLight: boolean) =>
       : "border-white/10 bg-white/5 text-white placeholder:text-white/35"
   }`;
 
+/* Tone chips render through the catalog (worldCreateMedia), keyed by
+   the seam's tone enum — the seam's own labels stay its en record. */
+const TONE_LABEL_KEYS: Record<PostAssistTone, string> = {
+  hype: "worldCreateMedia.paToneHype",
+  chill: "worldCreateMedia.paToneChill",
+  professional: "worldCreateMedia.paToneProfessional",
+  funny: "worldCreateMedia.paToneFunny",
+};
+
 const goldBtn =
   "inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target";
 
@@ -50,6 +60,7 @@ export function PostAssistBlock({
   /** The drafted words, handed to the host composer — never posted here. */
   onDraft: (draft: string) => void;
 }) {
+  const { t } = useTranslation();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [prompt, setPrompt] = useState("");
@@ -74,22 +85,22 @@ export function PostAssistBlock({
         const d = data as { message?: string };
         setNote(
           res.status === 402
-            ? "Out of Visual Bucs — top up and Write It For Me is ready again."
-            : apiErrorMessage(d, "The pen ran dry — a failed assist is refunded. Try again."),
+            ? t("worldCreateMedia.paOutOfBucs")
+            : apiErrorMessage(d, t("worldCreateMedia.paFailedRefund")),
         );
         return;
       }
       const draft = parsePostAssistDraft(data);
       if (!draft) {
-        setNote("The assist came back without words — a failed assist is refunded. Try again.");
+        setNote(t("worldCreateMedia.paEmptyRefund"));
         return;
       }
       onDraft(draft);
       setPrompt("");
-      setNote("Drafted into your composer below — make it yours, then post it.");
+      setNote(t("worldCreateMedia.paDrafted"));
       refreshProfile();
     } catch {
-      setNote("The assist didn't answer — a failed assist is refunded. Try again.");
+      setNote(t("worldCreateMedia.paNoAnswer"));
     } finally {
       setBusy(false);
     }
@@ -99,10 +110,10 @@ export function PostAssistBlock({
     <div data-testid="world-post-assist">
       <div className="flex gap-2">
         <input
-          aria-label="What should the post be about?"
+          aria-label={t("worldCreateMedia.paPromptLabel")}
           data-testid="world-post-assist-prompt"
           className={inputCls(isLight)}
-          placeholder="What's the post about? (a drop, a show, a thank-you)"
+          placeholder={t("worldCreateMedia.paPromptPlaceholder")}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && void ask()}
@@ -116,24 +127,24 @@ export function PostAssistBlock({
           className={goldBtn}
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-          Write it for me · {POST_ASSIST_COST_VISUAL_BUCS} VB
+          {t("worldCreateMedia.paWriteButton", { cost: POST_ASSIST_COST_VISUAL_BUCS })}
         </button>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="world-post-assist-tones">
-        {POST_ASSIST_TONES.map((t) => (
+        {POST_ASSIST_TONES.map((toneOption) => (
           <button
-            key={t.key}
+            key={toneOption.key}
             type="button"
-            data-testid={`world-post-assist-tone-${t.key}`}
-            aria-pressed={tone === t.key}
-            onClick={() => setTone(t.key)}
-            className={chipBtn(isLight, tone === t.key)}
+            data-testid={`world-post-assist-tone-${toneOption.key}`}
+            aria-pressed={tone === toneOption.key}
+            onClick={() => setTone(toneOption.key)}
+            className={chipBtn(isLight, tone === toneOption.key)}
           >
-            {t.label}
+            {t(TONE_LABEL_KEYS[toneOption.key])}
           </button>
         ))}
         <span className={`text-[11px] ${muted}`}>
-          The draft lands in your composer — it never posts itself.
+          {t("worldCreateMedia.paNeverPosts")}
         </span>
       </div>
       {note ? (

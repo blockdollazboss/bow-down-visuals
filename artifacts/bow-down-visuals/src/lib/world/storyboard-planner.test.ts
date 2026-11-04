@@ -181,11 +181,11 @@ describe("storyboard-planner component — source pins", () => {
     expect(planner).toContain("interpretTaskPoll");
     /* The frame price is on the button BEFORE the make runs. */
     expect(planner).toContain("artistImageCost(DEFAULT_ARTIST_IMAGE_MODEL)");
-    expect(planner).toContain("Generate a frame");
+    expect(planner).toContain("worldCreateMedia.plGenerateFrame");
   });
 
   it("a notes-only panel is rendered as one — and no placeholder image exists in the file", () => {
-    expect(planner).toContain("No frame yet — a notes-only panel");
+    expect(planner).toContain("worldCreateMedia.plNoFrame");
     expect(planner).not.toContain("placehold.co");
     expect(planner).not.toContain("via.placeholder");
     expect(planner).not.toContain("picsum");
@@ -195,9 +195,9 @@ describe("storyboard-planner component — source pins", () => {
   });
 
   it("failure honesty: failed save keeps the words, failed frame leaves the panel unchanged", () => {
-    expect(planner).toContain("Couldn't save — your words are still here");
+    expect(planner).toContain("worldCreateMedia.plSaveError");
     expect(planner).toContain('data-testid="world-storyboard-panel-frame-error"');
-    expect(planner).toContain("Retry the frame");
+    expect(planner).toContain("worldCreateMedia.plRetryFrame");
     expect(planner).toContain('data-testid="world-storyboard-planner-retry"');
   });
 
@@ -206,7 +206,7 @@ describe("storyboard-planner component — source pins", () => {
     expect(planner).toContain("buildStoryboardPlannerProjectPayload");
     expect(planner).toContain('fetch("/api/projects"');
     expect(planner).toContain('href="/my-projects"');
-    expect(planner).toContain("Open your projects on the website ↗");
+    expect(planner).toContain("worldCreateMedia.plOpenProjects");
   });
 
   it("panel operations are all on the strip", () => {

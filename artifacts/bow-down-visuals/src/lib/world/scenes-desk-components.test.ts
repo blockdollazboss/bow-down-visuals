@@ -38,10 +38,10 @@ describe("the scene in-panel", () => {
       'data-testid="world-scenes-desk-directory"',
       "SCENE_WINDOWS.map",
       'data-testid="world-scenes-desk-detail"',
-      "The scene&rsquo;s creators",
-      "Coming up",
-      "Scene chart — tracks",
-      "Scene chart — videos",
+      "worldCreateMedia.scenesCreatorsHeading",
+      "worldCreateMedia.scenesComingUp",
+      "worldCreateMedia.scenesChartTracks",
+      "worldCreateMedia.scenesChartVideos",
       "fetchSceneDirectory()",
       "fetchScene(slug, win)",
     ]) {
@@ -51,9 +51,9 @@ describe("the scene in-panel", () => {
 
   it("the no-scene state is plain; the failure state retries", () => {
     expect(desk).toContain('data-testid="world-scenes-desk-noscene"');
-    expect(desk).toContain("No scene here yet");
+    expect(desk).toContain("worldCreateMedia.scenesNoScene");
     expect(desk).toContain('data-testid="world-scenes-desk-failed"');
-    expect(desk).toContain("Try again");
+    expect(desk).toContain("worldCreateMedia.tryAgain");
   });
 
   it("public rails: no auth headers, no spend path", () => {
