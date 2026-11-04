@@ -71,6 +71,7 @@ function CardRow({
   isLight: boolean;
   action?: ReactNode;
 }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   return (
     <div
@@ -81,12 +82,12 @@ function CardRow({
     >
       <Gift className="h-4 w-4 shrink-0 text-[#d4af37]" />
       <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-        {card.storeName ?? "A creator's store"}
+        {card.storeName ?? t("worldRemainder.gcdCreatorStore")}
         {card.codeLast4 && <span className={`ml-2 text-xs font-semibold ${muted}`}>•••• {card.codeLast4}</span>}
       </span>
       <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(card.availableCents)}</span>
       <span className={`text-[11px] ${muted}`}>
-        of {centsToDisplay(card.initialCents)} · {card.status}
+        {t("worldRemainder.gcdOfInitial", { amount: centsToDisplay(card.initialCents) })} · {card.status}
       </span>
       {action}
     </div>
@@ -94,6 +95,7 @@ function CardRow({
 }
 
 function SoldCardRow({ card, isLight }: { card: GiftCardView; isLight: boolean }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   return (
     <div
@@ -104,12 +106,12 @@ function SoldCardRow({ card, isLight }: { card: GiftCardView; isLight: boolean }
     >
       <Gift className="h-4 w-4 shrink-0 text-[#d4af37]" />
       <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-        {card.recipientEmail || card.storeName || "A fan"}
+        {card.recipientEmail || card.storeName || t("worldRemainder.gcdAFan")}
         {card.codeLast4 && <span className={`ml-2 text-xs font-semibold ${muted}`}>•••• {card.codeLast4}</span>}
       </span>
       <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(card.availableCents)}</span>
       <span className={`text-[11px] ${muted}`}>
-        of {centsToDisplay(card.initialCents)} · {card.status}
+        {t("worldRemainder.gcdOfInitial", { amount: centsToDisplay(card.initialCents) })} · {card.status}
       </span>
     </div>
   );
@@ -143,12 +145,12 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       const res = await fetch("/api/gift-cards/mine", { headers: await authHeaders() });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (res.status === 503) {
-        setUnavailable(apiErrorMessage(data, "Gift cards aren't live yet — they'll open with the store's next update."));
+        setUnavailable(apiErrorMessage(data, t("worldRemainder.gcdNotLive")));
         return;
       }
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't load your gift cards."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldRemainder.gcdLoadMineFailed")));
       const parsed = parseGiftCardsMine(data);
-      if (!parsed) throw new Error("Couldn't load your gift cards.");
+      if (!parsed) throw new Error(t("worldRemainder.gcdLoadMineFailed"));
       setMine(parsed);
       setMineFailed(false);
     } catch {
@@ -163,18 +165,18 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       const res = await fetch("/api/gift-cards/sold", { headers: await authHeaders() });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (res.status === 503) {
-        setSoldUnavailable(apiErrorMessage(data, "Gift cards aren't live yet — they'll open with the store's next update."));
+        setSoldUnavailable(apiErrorMessage(data, t("worldRemainder.gcdNotLive")));
         return;
       }
       if (res.status === 404) {
         /* No creator profile: the rail's own words name the state —
            it is a fact about the walker, not a load failure. */
-        setSoldNoProfile(apiErrorMessage(data, "You need a creator profile before you can sell."));
+        setSoldNoProfile(apiErrorMessage(data, t("worldRemainder.gcdNoProfile")));
         return;
       }
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't load your sold cards."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldRemainder.gcdLoadSoldFailed")));
       const parsed = parseGiftCardsSold(data);
-      if (!parsed) throw new Error("Couldn't load your sold cards.");
+      if (!parsed) throw new Error(t("worldRemainder.gcdLoadSoldFailed"));
       setSold(parsed);
       setSoldFailed(false);
     } catch {
@@ -200,12 +202,12 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
     try {
       const res = await fetch(`/api/gift-cards/balance?code=${encodeURIComponent(trimmed)}`);
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Could not check that card."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldRemainder.gcdCheckFailed")));
       const parsed = parseGiftCardBalance(data);
-      if (!parsed) throw new Error("Could not check that card.");
+      if (!parsed) throw new Error(t("worldRemainder.gcdCheckFailed"));
       setBalance(parsed);
     } catch (e) {
-      setCheckError(plainErrorText(e, "Could not check that card."));
+      setCheckError(plainErrorText(e, t("worldRemainder.gcdCheckFailed")));
     } finally {
       setChecking(false);
     }
@@ -291,11 +293,10 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
   }`;
 
   return (
-    <NativeCard isLight={isLight} title="Gift cards">
+    <NativeCard isLight={isLight} title={t("worldRemainder.gcdTitle")}>
       <div data-testid="world-gift-cards-desk" className="space-y-3">
         <p className={`text-xs ${muted}`}>
-          Stored value for one creator&rsquo;s store — real money on the card, not Visual Bucs.
-          Check a code here; buy one at the creator&rsquo;s own stand, and spend it right at their checkout.
+          {t("worldRemainder.gcdIntro")}
         </p>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -306,8 +307,8 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             onKeyDown={(e) => {
               if (e.key === "Enter") void check();
             }}
-            placeholder="Gift card code — BDV-XXXX-XXXX-XXXX-XXXX"
-            aria-label="Gift card code"
+            placeholder={t("worldRemainder.gcdCodePlaceholder")}
+            aria-label={t("worldRemainder.gcdCodeAria")}
             className={`${inputCls} min-w-0 flex-1`}
           />
           <button
@@ -318,7 +319,7 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
           >
             {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
-            Check balance
+            {t("worldRemainder.gcdCheckBalance")}
           </button>
         </div>
         {checkError && <p className="text-xs font-semibold text-red-400">{checkError}</p>}
@@ -330,14 +331,14 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             <p className={`flex flex-wrap items-baseline gap-x-2 text-sm ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
               <span className="text-lg font-black text-[#d4af37]">{balance.balance || centsToDisplay(balance.balanceCents)}</span>
               <span className="font-bold">
-                on the card{balance.codeLast4 ? ` •••• ${balance.codeLast4}` : ""}
+                {t("worldRemainder.gcdOnTheCard")}{balance.codeLast4 ? ` •••• ${balance.codeLast4}` : ""}
               </span>
               <span className={`text-xs ${muted}`}>({balance.status})</span>
             </p>
             <p className={`mt-0.5 text-xs ${muted}`}>
               {balance.storeName
-                ? <>Spendable in {balance.storeName}&rsquo;s store — at their stand here, or on their shop page. Whatever you don&rsquo;t spend stays on the card.</>
-                : <>Whatever you don&rsquo;t spend stays on the card.</>}
+                ? <>{t("worldRemainder.gcdSpendableIn", { store: balance.storeName })}</>
+                : <>{t("worldRemainder.gcdSpendStays")}</>}
             </p>
           </div>
         )}
@@ -355,14 +356,13 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
 
         {isGuest ? (
           <p className={`text-xs ${muted}`}>
-            The cards in your name ride your account — sign in on the website (the footer below) and
-            come back; cards bought for your account email will be listed here.
+            {t("worldRemainder.gcdGuestLine")}
           </p>
         ) : unavailable ? (
           <p className={`text-xs ${muted}`}>{unavailable}</p>
         ) : mineFailed ? (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-red-400">Couldn&rsquo;t load your gift cards — your cards are unchanged.</p>
+            <p className="text-xs font-semibold text-red-400">{t("worldRemainder.gcdMineFailedLine")}</p>
             <button
               type="button"
               onClick={() => {
@@ -371,23 +371,22 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
               }}
               className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
             >
-              <RotateCcw className="h-3.5 w-3.5" /> Try again
+              <RotateCcw className="h-3.5 w-3.5" /> {t("worldGiftCardsDesk.tryAgain")}
             </button>
           </div>
         ) : mine === null ? (
           <p className={`inline-flex items-center gap-2 text-xs ${muted}`}>
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> Loading your gift cards…
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldRemainder.gcdMineLoading")}
           </p>
         ) : mine.bought.length === 0 && mine.received.length === 0 ? (
           <p className={`text-xs ${muted}`}>
-            No gift cards in your name yet — buy one at a creator&rsquo;s stand and it shows here;
-            one sent to your account email shows here too.
+            {t("worldRemainder.gcdMineEmpty")}
           </p>
         ) : (
           <div className="space-y-2">
             {mine.received.length > 0 && (
               <>
-                <p className={`text-[11px] font-black uppercase tracking-widest ${muted}`}>Sent to you</p>
+                <p className={`text-[11px] font-black uppercase tracking-widest ${muted}`}>{t("worldRemainder.gcdSentToYou")}</p>
                 {mine.received.map((c) => (
                   <CardRow key={c.id} card={c} isLight={isLight} />
                 ))}
@@ -395,7 +394,7 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             )}
             {mine.bought.length > 0 && (
               <>
-                <p className={`text-[11px] font-black uppercase tracking-widest ${muted}`}>You bought</p>
+                <p className={`text-[11px] font-black uppercase tracking-widest ${muted}`}>{t("worldRemainder.gcdYouBought")}</p>
                 {mine.bought.map((c) => (
                   <CardRow key={c.id} card={c} isLight={isLight} action={refundAction(c)} />
                 ))}

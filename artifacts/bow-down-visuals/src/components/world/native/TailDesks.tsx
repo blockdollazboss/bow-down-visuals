@@ -62,6 +62,7 @@ async function apiJson<T>(
   authHeaders: () => Promise<Record<string, string>>,
   path: string,
   init?: { method?: string; body?: unknown },
+  failText?: (status: number) => string,
 ): Promise<T> {
   const res = await fetch(path, {
     method: init?.method ?? "GET",
@@ -71,7 +72,7 @@ async function apiJson<T>(
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & {
     error?: string; message?: string;
   };
-  if (!res.ok) throw new Error(apiErrorMessage(data, `Request failed (${res.status})`));
+  if (!res.ok) throw new Error(apiErrorMessage(data, failText ? failText(res.status) : `Request failed (${res.status})`));
   return data as T;
 }
 
@@ -91,6 +92,78 @@ const inputCls = (isLight: boolean) =>
   }`;
 const noteCls = (isLight: boolean) =>
   `text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`;
+
+/* Locale unit 52: the seam-owned label tables (pref defs, cursor
+   names, entry methods, jackpot phases + directions) ride the
+   worldRemainder catalog through these key maps — the libs keep
+   the English of record; the desks render the catalog's words. */
+const RETENTION_LABEL_KEY: Record<string, string> = {
+  daily_drop_enabled: "worldRemainder.taiPrefDailyDrop",
+  away_digest_enabled: "worldRemainder.taiPrefAwayDigest",
+  creation_streaks_enabled: "worldRemainder.taiPrefCreationStreaks",
+  quests_enabled: "worldRemainder.taiPrefQuests",
+  login_streaks_enabled: "worldRemainder.taiPrefLoginStreaks",
+  share_to_earn_enabled: "worldRemainder.taiPrefShareToEarn",
+  contests_enabled: "worldRemainder.taiPrefContests",
+  fomo_feed_enabled: "worldRemainder.taiPrefFomoFeed",
+};
+const RETENTION_BLURB_KEY: Record<string, string> = {
+  daily_drop_enabled: "worldRemainder.taiPrefDailyDropNote",
+  away_digest_enabled: "worldRemainder.taiPrefAwayDigestNote",
+  creation_streaks_enabled: "worldRemainder.taiPrefCreationStreaksNote",
+  quests_enabled: "worldRemainder.taiPrefQuestsNote",
+  login_streaks_enabled: "worldRemainder.taiPrefLoginStreaksNote",
+  share_to_earn_enabled: "worldRemainder.taiPrefShareToEarnNote",
+  contests_enabled: "worldRemainder.taiPrefContestsNote",
+  fomo_feed_enabled: "worldRemainder.taiPrefFomoFeedNote",
+};
+const DELIGHT_LABEL_KEY: Record<string, string> = {
+  sharkDropsEnabled: "worldRemainder.taiDelightSharkDrops",
+  levelCelebrationsEnabled: "worldRemainder.taiDelightLevelUps",
+  leaderboardVisible: "worldRemainder.taiDelightLeaderboard",
+};
+const DELIGHT_BLURB_KEY: Record<string, string> = {
+  sharkDropsEnabled: "worldRemainder.taiDelightSharkDropsNote",
+  levelCelebrationsEnabled: "worldRemainder.taiDelightLevelUpsNote",
+  leaderboardVisible: "worldRemainder.taiDelightLeaderboardNote",
+};
+const CURSOR_NAME_KEY: Record<string, string> = {
+  "shark-fin": "worldRemainder.taiCursorSharkFin",
+  crown: "worldRemainder.taiCursorCrown",
+  "bucs-coin": "worldRemainder.taiCursorBucsCoin",
+  "gold-trail": "worldRemainder.taiCursorGoldTrail",
+  lightning: "worldRemainder.taiCursorLightning",
+  "pixel-shark": "worldRemainder.taiCursorPixelShark",
+  flame: "worldRemainder.taiCursorFlame",
+  diamond: "worldRemainder.taiCursorDiamond",
+  star: "worldRemainder.taiCursorStar",
+  "money-bag": "worldRemainder.taiCursorMoneyBag",
+  "gold-key": "worldRemainder.taiCursorGoldKey",
+  trophy: "worldRemainder.taiCursorTrophy",
+  rocket: "worldRemainder.taiCursorRocket",
+  crosshair: "worldRemainder.taiCursorCrosshair",
+  "music-note": "worldRemainder.taiCursorMusicNote",
+  gamepad: "worldRemainder.taiCursorGamepad",
+  camera: "worldRemainder.taiCursorCamera",
+};
+const METHOD_LABEL_KEY: Record<string, string> = {
+  follow: "worldRemainder.taiMethodFollow",
+  comment: "worldRemainder.taiMethodComment",
+  share: "worldRemainder.taiMethodShare",
+  purchase: "worldRemainder.taiMethodPurchase",
+};
+const PHASE_KEY: Record<string, string> = {
+  claimed: "worldRemainder.taiPhaseClaimed",
+  live: "worldRemainder.taiPhaseLive",
+  ended: "worldRemainder.taiPhaseEnded",
+  upcoming: "worldRemainder.taiPhaseUpcoming",
+};
+const DIR_LABEL_KEY: Record<string, string> = {
+  up: "worldRemainder.taiDirUp",
+  down: "worldRemainder.taiDirDown",
+  left: "worldRemainder.taiDirLeft",
+  right: "worldRemainder.taiDirRight",
+};
 
 /* ═══ #94 Account settings ═══════════════════════════════════════════ */
 
@@ -143,7 +216,8 @@ function PrefSwitches({
 }
 
 export function AccountDesk({ isLight }: { isLight: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const failText = (status: number) => t("worldRemainder.taiRequestFailed", { status });
   const authHeaders = useAuthHeaders();
   const { user, profile } = useAuth();
   const [cursor, setCursor] = useState<CursorId>(() => getCursorChoice());
@@ -165,13 +239,13 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
     setDelightFailed(false);
     (async () => {
       try {
-        const d = await apiJson<unknown>(authHeaders, RETENTION_PREFS_PATH);
+        const d = await apiJson<unknown>(authHeaders, RETENTION_PREFS_PATH, undefined, failText);
         if (!cancelled) setPrefs(normalizeRetentionPrefs(d));
       } catch {
         if (!cancelled) setPrefsFailed(true);
       }
       try {
-        const d = await apiJson<unknown>(authHeaders, DELIGHT_PREFS_PATH);
+        const d = await apiJson<unknown>(authHeaders, DELIGHT_PREFS_PATH, undefined, failText);
         if (!cancelled) setDelight(normalizeDelightPrefs(d));
       } catch {
         if (!cancelled) setDelightFailed(true);
@@ -189,7 +263,7 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
     try {
       const d = await apiJson<unknown>(authHeaders, RETENTION_PREFS_PATH, {
         method: "PATCH", body: { [key]: next },
-      });
+      }, failText);
       setPrefs(normalizeRetentionPrefs(d));
     } catch {
       setPrefs({ ...prefs, [key]: prev }); // revert on failure — the page's own rule
@@ -206,7 +280,7 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
     try {
       const d = await apiJson<unknown>(authHeaders, DELIGHT_PREFS_PATH, {
         method: "PATCH", body: { [key]: next },
-      });
+      }, failText);
       setDelight(normalizeDelightPrefs(d));
     } catch {
       setDelight({ ...delight, [key]: prev });
@@ -235,17 +309,20 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
       URL.revokeObjectURL(url);
       const s = exportSummary(payload);
       setExportNote(
-        `Your export is downloading — ${s.counts.projects} projects, ${s.counts.drafts} drafts, ${s.counts.clips} clips, ${s.counts.songs} songs, plus your profile.`,
+        t("worldRemainder.taiExportNote", {
+          projects: s.counts.projects, drafts: s.counts.drafts,
+          clips: s.counts.clips, songs: s.counts.songs,
+        }),
       );
     } catch {
-      setExportFailed("The export didn't come through — nothing was changed. Try again.");
+      setExportFailed(t("worldRemainder.taiExportFailed"));
     } finally {
       setExporting(false);
     }
   }
 
   const memberSince = profile?.created_at
-    ? new Date(profile.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+    ? new Date(profile.created_at).toLocaleDateString(i18n.language, { year: "numeric", month: "short", day: "numeric" })
     : null;
 
   /* Lane V-bucs remainder (stack700): the Visual Bucs field keeps the
@@ -261,22 +338,22 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
 
   return (
     <div className="space-y-3" data-testid="world-account-desk">
-      <NativeCard isLight={isLight} title="Account settings">
+      <NativeCard isLight={isLight} title={t("worldRemainder.taiTitle")}>
         {/* Fields — the session profile's own facts. Display name /
             bio / socials editing lives on the creator-profile rails
             (My public page, above); these are the account's fields. */}
         <div className="grid gap-2 sm:grid-cols-2" data-testid="world-account-fields">
           {([
-            { label: "Email", value: user?.email ?? "—" },
-            { label: "Display name", value: profile?.display_name ?? "—" },
-            { label: "Plan", value: profile?.plan ?? "—" },
+            { label: t("worldRemainder.taiFieldEmail"), value: user?.email ?? "—" },
+            { label: t("worldRemainder.taiFieldDisplayName"), value: profile?.display_name ?? "—" },
+            { label: t("worldRemainder.taiFieldPlan"), value: profile?.plan ?? "—" },
             {
-              label: "Visual Bucs",
-              value: typeof profile?.credits === "number" ? profile.credits.toLocaleString("en-US") : "—",
+              label: t("worldRemainder.taiFieldVisualBucs"),
+              value: typeof profile?.credits === "number" ? profile.credits.toLocaleString(i18n.language) : "—",
               detail: balanceComp && balanceComp.temporaryCredits > 0 ? (
                 <>
                   <span className={`block ${muted}`}>
-                    {t("balance.permanent_amount", { amount: balanceComp.permanentCredits.toLocaleString("en-US") })}
+                    {t("balance.permanent_amount", { amount: balanceComp.permanentCredits.toLocaleString(i18n.language) })}
                   </span>
                   <TemporaryBucsNote
                     composition={balanceComp}
@@ -286,7 +363,7 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
                 </>
               ) : null,
             },
-            ...(memberSince ? [{ label: "Member since", value: memberSince }] : []),
+            ...(memberSince ? [{ label: t("worldRemainder.taiFieldMemberSince"), value: memberSince }] : []),
           ] as { label: string; value: string; detail?: ReactNode }[]).map((f) => (
             <div key={f.label} className={`rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
               <p className={`text-[10px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{f.label}</p>
@@ -302,7 +379,7 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
 
         {/* Cursor — the same store the website's Cursor Lab writes. */}
         <p className={`mb-1.5 mt-4 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-          Cursor
+          {t("worldRemainder.taiCursorHeading")}
         </p>
         <div className="flex flex-wrap gap-1.5" data-testid="world-account-cursor">
           {CURSOR_OPTIONS.map((o) => (
@@ -314,28 +391,28 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
               data-testid={`world-account-cursor-${o.id}`}
               className={`${chipBtn(isLight)} ${cursor === o.id ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
             >
-              {o.name}
+              {t(CURSOR_NAME_KEY[o.id] ?? "worldRemainder.taiCursorSharkFin")}
             </button>
           ))}
         </div>
 
         {/* Preferences — the settings page's two switch boards. */}
         <p className={`mb-1.5 mt-4 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-          Preferences
+          {t("worldRemainder.taiPreferencesHeading")}
         </p>
         {prefsFailed ? (
           <NativeErrorState
             isLight={isLight}
-            title="Your preferences wouldn't load"
-            message="A failed load is not a setting — nothing was changed."
+            title={t("worldRemainder.taiPrefsLoadTitle")}
+            message={t("worldRemainder.taiPrefsLoadMessage")}
             onRetry={() => setTick((n) => n + 1)}
           />
         ) : prefs === null ? (
-          <NativeLoadingState isLight={isLight} message="Reading your preferences…" />
+          <NativeLoadingState isLight={isLight} message={t("worldRemainder.taiPrefsLoading")} />
         ) : (
           <PrefSwitches
             isLight={isLight}
-            defs={RETENTION_PREF_DEFS}
+            defs={RETENTION_PREF_DEFS.map((d) => ({ ...d, label: t(RETENTION_LABEL_KEY[d.key]!), blurb: t(RETENTION_BLURB_KEY[d.key]!) }))}
             values={prefs}
             savingKey={savingKey}
             onToggle={(k, n) => void togglePref(k, n)}
@@ -345,12 +422,12 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
         <div className="mt-3">
           {delightFailed ? (
             <p className={noteCls(isLight)} data-testid="world-account-delight-failed">
-              The delight switches wouldn&rsquo;t load — they keep their saved state.
+              {t("worldRemainder.taiDelightFailed")}
             </p>
           ) : delight === null ? null : (
             <PrefSwitches
               isLight={isLight}
-              defs={DELIGHT_PREF_DEFS}
+              defs={DELIGHT_PREF_DEFS.map((d) => ({ ...d, label: t(DELIGHT_LABEL_KEY[d.key]!), blurb: t(DELIGHT_BLURB_KEY[d.key]!) }))}
               values={delight}
               savingKey={savingKey}
               onToggle={(k, n) => void toggleDelight(k, n)}
@@ -362,12 +439,10 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
         {/* Danger zone — export completes here; deletion hands off. */}
         <div className={`mt-4 rounded-xl border px-3 py-3 ${isLight ? "border-red-500/40 bg-red-500/5" : "border-red-500/30 bg-red-950/20"}`} data-testid="world-account-danger">
           <p className="flex items-center gap-1.5 text-sm font-black text-red-400">
-            <AlertTriangle className="h-4 w-4" /> Danger zone
+            <AlertTriangle className="h-4 w-4" /> {t("worldRemainder.taiDangerTitle")}
           </p>
           <p className={`mt-1 text-xs ${muted}`}>
-            Take everything with you, right here. Deleting the account itself stays on the
-            website&rsquo;s settings page, behind its type-DELETE confirmation — by design,
-            so no walk through the palace can ever end an account by accident.
+            {t("worldRemainder.taiDangerBody")}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button
@@ -378,14 +453,14 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
               data-testid="world-account-export"
             >
               {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-              {exporting ? "Preparing…" : "Export my data"}
+              {exporting ? t("worldRemainder.taiExportPreparing") : t("worldRemainder.taiExportButton")}
             </button>
             <Link
               href={ACCOUNT_DELETE_HANDOFF_PATH}
               className={`${chipBtn(isLight)} border-red-400/60 font-black text-red-400`}
               data-testid="world-account-delete-handoff"
             >
-              Delete account — on the website settings
+              {t("worldRemainder.taiDeleteHandoff")}
             </Link>
           </div>
           {exportNote && <p className={`mt-2 ${noteCls(isLight)}`} data-testid="world-account-export-note">{exportNote}</p>}
@@ -399,6 +474,8 @@ export function AccountDesk({ isLight }: { isLight: boolean }) {
 /* ═══ #95 Giveaway contests (/api/contests) ══════════════════════════ */
 
 export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: boolean }) {
+  const { t, i18n } = useTranslation();
+  const failText = (status: number) => t("worldRemainder.taiRequestFailed", { status });
   const authHeaders = useAuthHeaders();
   const [contests, setContests] = useState<GiveawayContest[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
@@ -430,7 +507,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
   const loadList = useCallback(async () => {
     setListFailed(false);
     try {
-      const d = await apiJson<unknown>(authHeaders, GIVEAWAY_CONTESTS_PATH);
+      const d = await apiJson<unknown>(authHeaders, GIVEAWAY_CONTESTS_PATH, undefined, failText);
       setContests(normalizeGiveawayContests(d));
     } catch {
       setListFailed(true);
@@ -448,7 +525,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
     setDetailFailed(false);
     setDetail(null);
     try {
-      const d = await apiJson<unknown>(authHeaders, giveawayContestPath(id));
+      const d = await apiJson<unknown>(authHeaders, giveawayContestPath(id), undefined, failText);
       setDetail(normalizeGiveawayDetail(d));
     } catch {
       setDetailFailed(true);
@@ -463,10 +540,9 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
 
   if (isGuest) {
     return (
-      <NativeCard isLight={isLight} title="Giveaway contests">
+      <NativeCard isLight={isLight} title={t("worldRemainder.taiGiveawayGuestTitle")}>
         <p className={`text-sm ${muted}`} data-testid="world-giveaway-guest">
-          Giveaways are a member&rsquo;s own book — sign in and your contests, their entries
-          and the provably-fair draw all work right here.
+          {t("worldRemainder.taiGiveawayGuestBody")}
         </p>
       </NativeCard>
     );
@@ -484,15 +560,15 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
           entryMethods: cMethods, startsAt: cStarts || undefined, endsAt: cEnds || undefined,
           status: cStatus,
         }),
-      });
+      }, failText);
       const created = d.contest ? normalizeGiveawayContests({ contests: [d.contest] })[0] : undefined;
       setShowBuilder(false);
       setCTitle(""); setCPrize(""); setCDescription(""); setCRules("");
-      setNote("Your giveaway is on the book — open it to add entries and run the draw.");
+      setNote(t("worldRemainder.taiCreatedNote"));
       setTick((n) => n + 1);
       if (created) setOpenId(created.id);
     } catch (e) {
-      setNote(plainErrorText(e, "That contest didn't save."));
+      setNote(plainErrorText(e, t("worldRemainder.taiCreateFailed")));
     } finally {
       setBusy(null);
     }
@@ -506,11 +582,11 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
       await apiJson(authHeaders, giveawayEntriesPath(detail.contest.id), {
         method: "POST",
         body: { handle: eHandle.trim(), email: eEmail.trim() ? eEmail.trim() : null, entryMethod: eMethod },
-      });
+      }, failText);
       setEHandle(""); setEEmail("");
       await loadDetail(detail.contest.id);
     } catch (e) {
-      setNote(plainErrorText(e, "That entry didn't land."));
+      setNote(plainErrorText(e, t("worldRemainder.taiEntryFailed")));
     } finally {
       setBusy(null);
     }
@@ -522,10 +598,10 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
     try {
       await apiJson(authHeaders, giveawayEntryPath(detail.contest.id, entryId), {
         method: "PATCH", body: { isVerified: !isVerified },
-      });
+      }, failText);
       await loadDetail(detail.contest.id);
     } catch (e) {
-      setNote(plainErrorText(e, "That verification didn't land."));
+      setNote(plainErrorText(e, t("worldRemainder.taiVerifyFailed")));
     } finally {
       setBusy(null);
     }
@@ -536,12 +612,12 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
     setBusy("draw");
     setNote(null);
     try {
-      await apiJson(authHeaders, giveawayDrawPath(detail.contest.id), { method: "POST", body: {} });
+      await apiJson(authHeaders, giveawayDrawPath(detail.contest.id), { method: "POST", body: {} }, failText);
       await loadDetail(detail.contest.id);
       setTick((n) => n + 1);
-      setNote("The draw is done — the winner and its audit seed are on the book, verifiable by anyone.");
+      setNote(t("worldRemainder.taiDrawDoneNote"));
     } catch (e) {
-      setNote(plainErrorText(e, "The draw didn't run."));
+      setNote(plainErrorText(e, t("worldRemainder.taiDrawFailed")));
     } finally {
       setBusy(null);
     }
@@ -553,13 +629,13 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
     setBusy("announce");
     setNote(null);
     try {
-      await apiJson(authHeaders, giveawayAnnouncePath(detail.contest.id), { method: "POST", body: {} });
+      await apiJson(authHeaders, giveawayAnnouncePath(detail.contest.id), { method: "POST", body: {} }, failText);
       setAnnounceArmed(false);
       await loadDetail(detail.contest.id);
-      setNote("The winner announcement graphic is made — it's on the contest, ready to share.");
+      setNote(t("worldRemainder.taiAnnounceDoneNote"));
     } catch (e) {
       setAnnounceArmed(false);
-      setNote(plainErrorText(e, "The announcement didn't generate — you weren't charged for a failure."));
+      setNote(plainErrorText(e, t("worldRemainder.taiAnnounceFailed")));
     } finally {
       setBusy(null);
     }
@@ -573,12 +649,9 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
 
   return (
     <div className="space-y-3" data-testid="world-giveaway-desk">
-      <NativeCard isLight={isLight} title="Giveaway contests — your book">
+      <NativeCard isLight={isLight} title={t("worldRemainder.taiGiveawayTitle")}>
         <p className={`text-xs ${muted}`}>
-          The website&rsquo;s fan giveaways, in-world: your contests, their entry books, entry
-          verification and the provably-fair draw. Running one is free; only the AI winner
-          announcement charges ({GIVEAWAY_ANNOUNCE_COST_VB} Visual Bucs, and only when it succeeds).
-          World Contests on the stage are a different game — this is the giveaway book.
+          {t("worldRemainder.taiGiveawayIntro", { cost: GIVEAWAY_ANNOUNCE_COST_VB })}
         </p>
 
         <div className="mt-3">
@@ -589,16 +662,16 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
             data-testid="world-giveaway-builder-toggle"
             aria-expanded={showBuilder}
           >
-            <Plus className="h-3.5 w-3.5" /> New giveaway
+            <Plus className="h-3.5 w-3.5" /> {t("worldRemainder.taiNewGiveaway")}
           </button>
         </div>
 
         {showBuilder && (
           <div className="mt-3 space-y-2" data-testid="world-giveaway-builder">
-            <input value={cTitle} onChange={(e) => setCTitle(e.target.value)} placeholder="Contest title" maxLength={120} className={inputCls(isLight)} data-testid="world-giveaway-title" aria-label="Contest title" />
-            <input value={cPrize} onChange={(e) => setCPrize(e.target.value)} placeholder="Prize — what the winner takes" maxLength={200} className={inputCls(isLight)} data-testid="world-giveaway-prize" aria-label="Prize — what the winner takes" />
-            <textarea value={cDescription} onChange={(e) => setCDescription(e.target.value)} placeholder="Description" maxLength={2000} rows={2} className={inputCls(isLight)} data-testid="world-giveaway-description" aria-label="Giveaway description" />
-            <textarea value={cRules} onChange={(e) => setCRules(e.target.value)} placeholder="Rules" maxLength={4000} rows={2} className={inputCls(isLight)} data-testid="world-giveaway-rules" aria-label="Giveaway rules" />
+            <input value={cTitle} onChange={(e) => setCTitle(e.target.value)} placeholder={t("worldRemainder.taiContestTitle")} maxLength={120} className={inputCls(isLight)} data-testid="world-giveaway-title" aria-label={t("worldRemainder.taiContestTitle")} />
+            <input value={cPrize} onChange={(e) => setCPrize(e.target.value)} placeholder={t("worldRemainder.taiPrizePlaceholder")} maxLength={200} className={inputCls(isLight)} data-testid="world-giveaway-prize" aria-label={t("worldRemainder.taiPrizePlaceholder")} />
+            <textarea value={cDescription} onChange={(e) => setCDescription(e.target.value)} placeholder={t("worldRemainder.taiDescriptionPlaceholder")} maxLength={2000} rows={2} className={inputCls(isLight)} data-testid="world-giveaway-description" aria-label={t("worldRemainder.taiDescriptionAria")} />
+            <textarea value={cRules} onChange={(e) => setCRules(e.target.value)} placeholder={t("worldRemainder.taiRulesPlaceholder")} maxLength={4000} rows={2} className={inputCls(isLight)} data-testid="world-giveaway-rules" aria-label={t("worldRemainder.taiRulesAria")} />
             <div className="flex flex-wrap gap-1.5">
               {ENTRY_METHOD_CATALOG.map((m) => (
                 <button
@@ -609,24 +682,24 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
                   data-testid={`world-giveaway-method-${m.key}`}
                   className={`${chipBtn(isLight)} ${cMethods.includes(m.key) ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
                 >
-                  {m.label}
+                  {t(METHOD_LABEL_KEY[m.key] ?? "worldRemainder.taiMethodFollow")}
                 </button>
               ))}
             </div>
             <div className="flex flex-wrap gap-2">
               <label className={`flex-1 text-xs ${muted}`}>
-                Starts
+                {t("worldRemainder.taiStartsLabel")}
                 <input type="datetime-local" value={cStarts} onChange={(e) => setCStarts(e.target.value)} className={inputCls(isLight)} data-testid="world-giveaway-starts" />
               </label>
               <label className={`flex-1 text-xs ${muted}`}>
-                Ends
+                {t("worldRemainder.taiEndsLabel")}
                 <input type="datetime-local" value={cEnds} onChange={(e) => setCEnds(e.target.value)} className={inputCls(isLight)} data-testid="world-giveaway-ends" />
               </label>
               <label className={`text-xs ${muted}`}>
-                Status
+                {t("worldRemainder.taiStatusLabel")}
                 <select value={cStatus} onChange={(e) => setCStatus(e.target.value)} className={inputCls(isLight)} data-testid="world-giveaway-status">
-                  <option value="draft">Draft</option>
-                  <option value="active">Active</option>
+                  <option value="draft">{t("worldRemainder.taiStatusDraft")}</option>
+                  <option value="active">{t("worldRemainder.taiStatusActive")}</option>
                 </select>
               </label>
             </div>
@@ -638,7 +711,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
               data-testid="world-giveaway-create"
             >
               {busy === "create" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trophy className="h-3.5 w-3.5" />}
-              Create the giveaway — free
+              {t("worldRemainder.taiCreateButton")}
             </button>
           </div>
         )}
@@ -647,16 +720,16 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
           {listFailed ? (
             <NativeErrorState
               isLight={isLight}
-              title="Your giveaways wouldn't load"
-              message="A failed load is not an empty book — your contests are safe."
+              title={t("worldRemainder.taiListLoadTitle")}
+              message={t("worldRemainder.taiListLoadMessage")}
               onRetry={() => setTick((n) => n + 1)}
             />
           ) : contests === null ? (
-            <NativeLoadingState isLight={isLight} message="Opening the giveaway book…" />
+            <NativeLoadingState isLight={isLight} message={t("worldRemainder.taiListLoading")} />
           ) : contests.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="No giveaways yet — start one above; entries, verification and the fair draw all run from here."
+              message={t("worldRemainder.taiListEmpty")}
             />
           ) : (
             <div className="space-y-2">
@@ -665,7 +738,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
                   <div className="flex flex-wrap items-center gap-2">
                     <p className={`min-w-0 flex-1 truncate text-sm font-bold ${strong}`}>{c.title}</p>
                     <span className={`rounded-full border border-[#d4af37]/50 px-2 py-0.5 text-[10px] font-black uppercase ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{c.status}</span>
-                    <span className={`text-xs ${muted}`}>{c.entryCount} entries</span>
+                    <span className={`text-xs ${muted}`}>{t("worldRemainder.taiEntriesCount", { count: c.entryCount })}</span>
                     <button
                       type="button"
                       onClick={() => setOpenId(openId === c.id ? null : c.id)}
@@ -673,21 +746,21 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
                       data-testid={`world-giveaway-open-${c.id}`}
                       aria-expanded={openId === c.id}
                     >
-                      {openId === c.id ? "Close" : "Open the book"}
+                      {openId === c.id ? t("worldRemainder.taiCloseBook") : t("worldRemainder.taiOpenBook")}
                     </button>
                   </div>
-                  <p className={`mt-0.5 text-xs ${muted}`}>Prize: {c.prize || "—"}</p>
+                  <p className={`mt-0.5 text-xs ${muted}`}>{t("worldRemainder.taiPrizeLine", { prize: c.prize || "—" })}</p>
 
                   {openId === c.id && (
                     <div className="mt-3 space-y-3" data-testid="world-giveaway-detail">
                       {detailFailed ? (
-                        <NativeErrorState isLight={isLight} title="The book wouldn't open" message="The contest is fine — the fetch slipped." onRetry={() => void loadDetail(c.id)} />
+                        <NativeErrorState isLight={isLight} title={t("worldRemainder.taiDetailLoadTitle")} message={t("worldRemainder.taiDetailLoadMessage")} onRetry={() => void loadDetail(c.id)} />
                       ) : !detail || detail.contest.id !== c.id ? (
-                        <NativeLoadingState isLight={isLight} message="Opening the book…" />
+                        <NativeLoadingState isLight={isLight} message={t("worldRemainder.taiDetailLoading")} />
                       ) : (
                         <>
                           <p className={`text-xs ${muted}`}>
-                            {detail.stats.total} entries · {detail.stats.verified} verified — only verified entries can win the draw.
+                            {t("worldRemainder.taiStatsLine", { total: detail.stats.total, verified: detail.stats.verified })}
                           </p>
                           {detail.entries.length > 0 && (
                             <div className="space-y-1.5">
@@ -703,7 +776,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
                                     data-testid={`world-giveaway-verify-${e.id}`}
                                     className={`${chipBtn(isLight)} ${e.isVerified ? "border-emerald-400/60 text-emerald-400" : ""}`}
                                   >
-                                    {e.isVerified ? <><Check className="h-3 w-3" /> Verified</> : "Verify"}
+                                    {e.isVerified ? <><Check className="h-3 w-3" /> {t("worldRemainder.taiVerifiedBadge")}</> : t("worldRemainder.taiVerifyButton")}
                                   </button>
                                 </div>
                               ))}
@@ -711,9 +784,9 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
                           )}
                           {detail.contest.status !== "ended" && (
                             <div className="flex flex-wrap gap-2">
-                              <input value={eHandle} onChange={(ev) => setEHandle(ev.target.value)} placeholder="Entrant handle" maxLength={80} className={`${inputCls(isLight)} max-w-[180px]`} data-testid="world-giveaway-entry-handle" aria-label="Entrant handle" />
-                              <input value={eEmail} onChange={(ev) => setEEmail(ev.target.value)} placeholder="Email (optional)" className={`${inputCls(isLight)} max-w-[180px]`} data-testid="world-giveaway-entry-email" aria-label="Entrant email (optional)" />
-                              <select value={eMethod} onChange={(ev) => setEMethod(ev.target.value)} className={`${inputCls(isLight)} w-auto`} data-testid="world-giveaway-entry-method" aria-label="Entry method">
+                              <input value={eHandle} onChange={(ev) => setEHandle(ev.target.value)} placeholder={t("worldRemainder.taiEntrantHandle")} maxLength={80} className={`${inputCls(isLight)} max-w-[180px]`} data-testid="world-giveaway-entry-handle" aria-label={t("worldRemainder.taiEntrantHandle")} />
+                              <input value={eEmail} onChange={(ev) => setEEmail(ev.target.value)} placeholder={t("worldRemainder.taiEntrantEmail")} className={`${inputCls(isLight)} max-w-[180px]`} data-testid="world-giveaway-entry-email" aria-label={t("worldRemainder.taiEntrantEmailAria")} />
+                              <select value={eMethod} onChange={(ev) => setEMethod(ev.target.value)} className={`${inputCls(isLight)} w-auto`} data-testid="world-giveaway-entry-method" aria-label={t("worldRemainder.taiEntryMethodAria")}>
                                 {(detail.contest.entryMethods.length ? detail.contest.entryMethods : ["follow"]).map((m) => (
                                   <option key={m} value={m}>{m}</option>
                                 ))}
@@ -726,7 +799,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
                                 data-testid="world-giveaway-entry-add"
                               >
                                 {busy === "entry" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ticket className="h-3.5 w-3.5" />}
-                                Add entry — free
+                                {t("worldRemainder.taiAddEntryButton")}
                               </button>
                             </div>
                           )}
@@ -734,15 +807,15 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
                             <div data-testid="world-giveaway-winner">
                               <p className={`text-sm font-black ${strong}`}>
                                 <Crown className="mr-1 inline h-4 w-4 text-[#d4af37]" />
-                                Winner: {winner.handle}
+                                {t("worldRemainder.taiWinnerLine", { handle: winner.handle })}
                               </p>
                               {detail.contest.drawAudit && (
                                 <p className={`mt-0.5 text-xs ${muted}`} data-testid="world-giveaway-draw-audit">
-                                  Provably fair — seed {shortSeed(detail.contest.drawAudit.seed)} · drawn {formatDrawnAt(detail.contest.drawAudit.drawnAt)} · anyone can re-run the draw from the audit.
+                                  {t("worldRemainder.taiDrawAudit", { seed: shortSeed(detail.contest.drawAudit.seed), when: formatDrawnAt(detail.contest.drawAudit.drawnAt, i18n.language) })}
                                 </p>
                               )}
                               {detail.contest.announcementImageUrl ? (
-                                <img src={detail.contest.announcementImageUrl} alt="Winner announcement graphic" className="mt-2 max-w-xs rounded-xl border border-[#d4af37]/40" data-testid="world-giveaway-announce-img" />
+                                <img src={detail.contest.announcementImageUrl} alt={t("worldRemainder.taiAnnounceImgAlt")} className="mt-2 max-w-xs rounded-xl border border-[#d4af37]/40" data-testid="world-giveaway-announce-img" />
                               ) : (
                                 <button
                                   type="button"
@@ -753,8 +826,8 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
                                 >
                                   {busy === "announce" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                                   {announceArmed
-                                    ? `Confirm — ${GIVEAWAY_ANNOUNCE_COST_VB} Visual Bucs for the graphic`
-                                    : `Make the winner announcement — ${GIVEAWAY_ANNOUNCE_COST_VB} VB`}
+                                    ? t("worldRemainder.taiAnnounceConfirm", { cost: GIVEAWAY_ANNOUNCE_COST_VB })
+                                    : t("worldRemainder.taiAnnounceButton", { cost: GIVEAWAY_ANNOUNCE_COST_VB })}
                                 </button>
                               )}
                             </div>
@@ -767,7 +840,7 @@ export function GiveawayContestsDesk({ isLight, isGuest }: { isLight: boolean; i
                               data-testid="world-giveaway-draw"
                             >
                               {busy === "draw" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Dices className="h-3.5 w-3.5" />}
-                              Draw the winner — free
+                              {t("worldRemainder.taiDrawButton")}
                             </button>
                           )}
                         </>
@@ -802,6 +875,7 @@ function DirectionPad({
   max: number;
   testidPrefix: string;
 }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   return (
     <div>
@@ -810,7 +884,7 @@ function DirectionPad({
         {(["up"] as JackpotDirection[]).map((d) => {
           const Icon = DIR_ICON[d];
           return (
-            <button key={d} type="button" aria-label={d} disabled={sequence.length >= max} onClick={() => onPush(d)} data-testid={`${testidPrefix}-dir-${d}`} className={chipBtn(isLight)}>
+            <button key={d} type="button" aria-label={t(DIR_LABEL_KEY[d]!)} disabled={sequence.length >= max} onClick={() => onPush(d)} data-testid={`${testidPrefix}-dir-${d}`} className={chipBtn(isLight)}>
               <Icon className="h-4 w-4" />
             </button>
           );
@@ -819,7 +893,7 @@ function DirectionPad({
         {(["left", "down", "right"] as JackpotDirection[]).map((d) => {
           const Icon = DIR_ICON[d];
           return (
-            <button key={d} type="button" aria-label={d} disabled={sequence.length >= max} onClick={() => onPush(d)} data-testid={`${testidPrefix}-dir-${d}`} className={chipBtn(isLight)}>
+            <button key={d} type="button" aria-label={t(DIR_LABEL_KEY[d]!)} disabled={sequence.length >= max} onClick={() => onPush(d)} data-testid={`${testidPrefix}-dir-${d}`} className={chipBtn(isLight)}>
               <Icon className="h-4 w-4" />
             </button>
           );
@@ -827,16 +901,16 @@ function DirectionPad({
       </div>
       <p className={`mt-1.5 text-xs ${muted}`} data-testid={`${testidPrefix}-sequence`}>
         {sequence.length === 0
-          ? "No moves yet — tap the pad to build the code."
+          ? t("worldRemainder.taiPadEmpty")
           : sequence.map((d) => d.toUpperCase()).join(" · ")}
-        {` (${sequence.length}/${max})`}
+        {t("worldRemainder.taiPadCountSuffix", { n: sequence.length, max })}
       </p>
       <div className="mt-1.5 flex gap-1.5">
         <button type="button" onClick={onUndo} disabled={sequence.length === 0} className={chipBtn(isLight)} data-testid={`${testidPrefix}-undo`}>
-          <Delete className="h-3.5 w-3.5" /> Undo
+          <Delete className="h-3.5 w-3.5" /> {t("worldRemainder.taiPadUndo")}
         </button>
         <button type="button" onClick={onClear} disabled={sequence.length === 0} className={chipBtn(isLight)} data-testid={`${testidPrefix}-clear`}>
-          <RotateCcw className="h-3.5 w-3.5" /> Clear
+          <RotateCcw className="h-3.5 w-3.5" /> {t("worldRemainder.taiPadClear")}
         </button>
       </div>
     </div>
@@ -844,6 +918,8 @@ function DirectionPad({
 }
 
 export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: boolean }) {
+  const { t, i18n } = useTranslation();
+  const failText = (status: number) => t("worldRemainder.taiRequestFailed", { status });
   const authHeaders = useAuthHeaders();
   const [status, setStatus] = useState<JackpotStatus | null>(null);
   const [statusFailed, setStatusFailed] = useState(false);
@@ -888,7 +964,7 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
     let cancelled = false;
     (async () => {
       try {
-        const d = await apiJson<{ isAdmin?: unknown }>(authHeaders, JACKPOT_ADMIN_STATUS_PATH);
+        const d = await apiJson<{ isAdmin?: unknown }>(authHeaders, JACKPOT_ADMIN_STATUS_PATH, undefined, failText);
         if (!cancelled) setIsAdmin(d.isAdmin === true);
       } catch {
         if (!cancelled) setIsAdmin(false);
@@ -901,7 +977,7 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
   const loadEvents = useCallback(async () => {
     setEventsFailed(false);
     try {
-      const d = await apiJson<unknown>(authHeaders, JACKPOT_ADMIN_EVENTS_PATH);
+      const d = await apiJson<unknown>(authHeaders, JACKPOT_ADMIN_EVENTS_PATH, undefined, failText);
       setEvents(normalizeJackpotAdminEvents(d));
     } catch {
       setEventsFailed(true);
@@ -927,19 +1003,19 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
       const d: unknown = await res.json().catch(() => ({}));
       const o = normalizeJackpotAttempt(d);
       if (o.correct) {
-        setOutcome(`You cracked it — ${o.prizeCredits?.toLocaleString("en-US") ?? ""} Visual Bucs are yours. The palace herald has it from here.`);
+        setOutcome(t("worldRemainder.taiOutcomeWin", { prize: o.prizeCredits?.toLocaleString(i18n.language) ?? "" }));
         setTick((n) => n + 1);
       } else if (!res.ok) {
-        setOutcome(apiErrorMessage(o, "That try didn't count — try again in a bit."));
+        setOutcome(apiErrorMessage(o, t("worldRemainder.taiOutcomeFailed")));
       } else if (o.claimed) {
-        setOutcome(apiErrorMessage(o, `Already claimed${o.winnerDisplayName ? ` by ${o.winnerDisplayName}` : ""} — the next code is coming.`));
+        setOutcome(apiErrorMessage(o, t("worldRemainder.taiOutcomeClaimed", { by: o.winnerDisplayName ? t("worldRemainder.taiClaimedBy", { name: o.winnerDisplayName }) : "" })));
         setTick((n) => n + 1);
       } else {
-        setOutcome(`Not the code${o.triesLeft !== null ? ` — ${o.triesLeft} ${o.triesLeft === 1 ? "try" : "tries"} left today` : ""}.`);
+        setOutcome(t("worldRemainder.taiOutcomeMiss", { left: o.triesLeft !== null ? (o.triesLeft === 1 ? t("worldRemainder.taiTryLeftOne") : t("worldRemainder.taiTriesLeftMany", { count: o.triesLeft })) : "" }));
       }
       setSequence([]);
     } catch {
-      setOutcome("That try didn't reach the palace — nothing was spent, try again.");
+      setOutcome(t("worldRemainder.taiOutcomeUnreached"));
     } finally {
       setAttempting(false);
     }
@@ -957,12 +1033,12 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
           name: aName, codeSequence: aSequence, prizeCredits: prize,
           startsAt: aStarts || undefined, endsAt: aEnds || undefined,
         }),
-      });
+      }, failText);
       setASequence([]);
-      setAdminNote("The event is created — activate it below when its window opens.");
+      setAdminNote(t("worldRemainder.taiAdminCreatedNote"));
       await loadEvents();
     } catch (e) {
-      setAdminNote(plainErrorText(e, "That event didn't save."));
+      setAdminNote(plainErrorText(e, t("worldRemainder.taiAdminCreateFailed")));
     } finally {
       setAdminBusy(null);
     }
@@ -975,11 +1051,11 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
     try {
       await apiJson(authHeaders, jackpotAdminEventActionPath(ev.id, ev.isActive ? "deactivate" : "activate"), {
         method: "POST", body: {},
-      });
+      }, failText);
       await loadEvents();
       setTick((n) => n + 1);
     } catch (e) {
-      setAdminNote(plainErrorText(e, "That action didn't land."));
+      setAdminNote(plainErrorText(e, t("worldRemainder.taiAdminActionFailed")));
     } finally {
       setAdminBusy(null);
     }
@@ -991,34 +1067,34 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
 
   return (
     <div className="space-y-3" data-testid="world-jackpot-desk">
-      <NativeCard isLight={isLight} title="Thy Cheat Code Jackpot">
+      <NativeCard isLight={isLight} title={t("worldRemainder.taiJackpotTitle")}>
         {statusFailed ? (
           <NativeErrorState
             isLight={isLight}
-            title="The jackpot board wouldn't load"
-            message="A failed load is not an empty board — the event is safe."
+            title={t("worldRemainder.taiJackpotLoadTitle")}
+            message={t("worldRemainder.taiJackpotLoadMessage")}
             onRetry={() => setTick((n) => n + 1)}
           />
         ) : status === null ? (
-          <NativeLoadingState isLight={isLight} message="Reading the jackpot board…" />
+          <NativeLoadingState isLight={isLight} message={t("worldRemainder.taiJackpotLoading")} />
         ) : status.phase === "none" ? (
           <NativeEmptyState
             isLight={isLight}
-            message="No jackpot event on the board — when the King sets a secret code, it lands here; crack it and the Visual Bucs are yours."
+            message={t("worldRemainder.taiJackpotEmpty")}
           />
         ) : (
           <div data-testid="world-jackpot-status">
             <p className={`text-sm font-black ${strong}`}>
-              {status.name ?? "Thy Cheat Code Jackpot"} — {status.prizeCredits.toLocaleString("en-US")} Visual Bucs
+              {t("worldRemainder.taiJackpotPrizeLine", { name: status.name ?? t("worldRemainder.taiJackpotTitle"), prize: status.prizeCredits.toLocaleString(i18n.language) })}
               <span className={`ml-2 rounded-full border border-[#d4af37]/50 px-2 py-0.5 text-[10px] font-black uppercase ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                {status.phase}
+                {t(PHASE_KEY[status.phase] ?? "worldRemainder.taiPhaseUpcoming")}
               </span>
             </p>
             <p className={`mt-1 text-xs ${muted}`}>
-              {status.phase === "live" && `A secret ${status.codeLength}-move code. Three tries a day, spread out — the pad below is the real attempt rail, and the prize lands in your Visual Bucs balance.`}
-              {status.phase === "claimed" && `Claimed${status.winnerDisplayName ? ` by ${status.winnerDisplayName}` : ""} — a new code comes with the next event.`}
-              {status.phase === "upcoming" && `The window opens soon — the code length is ${status.codeLength} moves.`}
-              {status.phase === "ended" && "This event's window has closed — the next code is on its way."}
+              {status.phase === "live" && t("worldRemainder.taiPhaseLiveLine", { length: status.codeLength })}
+              {status.phase === "claimed" && t("worldRemainder.taiPhaseClaimedLine", { by: status.winnerDisplayName ? t("worldRemainder.taiClaimedBy", { name: status.winnerDisplayName }) : "" })}
+              {status.phase === "upcoming" && t("worldRemainder.taiPhaseUpcomingLine", { length: status.codeLength })}
+              {status.phase === "ended" && t("worldRemainder.taiPhaseEndedLine")}
             </p>
             {status.phase === "live" && !isGuest && (
               <div className="mt-3" data-testid="world-jackpot-play">
@@ -1039,13 +1115,13 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
                   data-testid="world-jackpot-attempt"
                 >
                   {attempting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trophy className="h-3.5 w-3.5" />}
-                  Try the code — free
+                  {t("worldRemainder.taiAttemptButton")}
                 </button>
               </div>
             )}
             {status.phase === "live" && isGuest && (
               <p className={`mt-2 text-xs ${muted}`} data-testid="world-jackpot-guest">
-                Members take their three tries a day right here — sign in to play the pad.
+                {t("worldRemainder.taiJackpotGuestLine")}
               </p>
             )}
             {outcome && <p className={`mt-2 ${noteCls(isLight)}`} data-testid="world-jackpot-outcome">{outcome}</p>}
@@ -1056,21 +1132,21 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
         {isAdmin === true && (
           <div className="mt-4" data-testid="world-jackpot-admin">
             <p className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              <ShieldCheck className="h-3.5 w-3.5" /> Set the next code — admin only
+              <ShieldCheck className="h-3.5 w-3.5" /> {t("worldRemainder.taiAdminHeading")}
             </p>
             <div className="mt-2 space-y-2">
-              <input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Event name" maxLength={120} className={inputCls(isLight)} data-testid="world-jackpot-admin-name" aria-label="Event name" />
+              <input value={aName} onChange={(e) => setAName(e.target.value)} placeholder={t("worldRemainder.taiAdminNamePlaceholder")} maxLength={120} className={inputCls(isLight)} data-testid="world-jackpot-admin-name" aria-label={t("worldRemainder.taiAdminNamePlaceholder")} />
               <div className="flex flex-wrap gap-2">
                 <label className={`flex-1 text-xs ${muted}`}>
-                  Prize (Visual Bucs, 100–1,000,000)
+                  {t("worldRemainder.taiAdminPrizeLabel")}
                   <input value={aPrize} onChange={(e) => setAPrize(e.target.value)} inputMode="numeric" className={inputCls(isLight)} data-testid="world-jackpot-admin-prize" />
                 </label>
                 <label className={`flex-1 text-xs ${muted}`}>
-                  Starts
+                  {t("worldRemainder.taiStartsLabel")}
                   <input type="datetime-local" value={aStarts} onChange={(e) => setAStarts(e.target.value)} className={inputCls(isLight)} data-testid="world-jackpot-admin-starts" />
                 </label>
                 <label className={`flex-1 text-xs ${muted}`}>
-                  Ends
+                  {t("worldRemainder.taiEndsLabel")}
                   <input type="datetime-local" value={aEnds} onChange={(e) => setAEnds(e.target.value)} className={inputCls(isLight)} data-testid="world-jackpot-admin-ends" />
                 </label>
               </div>
@@ -1091,24 +1167,24 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
                 data-testid="world-jackpot-admin-create"
               >
                 {adminBusy === "create" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                Create the event
+                {t("worldRemainder.taiAdminCreate")}
               </button>
               {adminNote && <p className={noteCls(isLight)} data-testid="world-jackpot-admin-note">{adminNote}</p>}
             </div>
 
             <div className="mt-3">
               {eventsFailed ? (
-                <NativeErrorState isLight={isLight} title="The event list wouldn't load" message="A failed load is not an empty list." onRetry={() => void loadEvents()} />
+                <NativeErrorState isLight={isLight} title={t("worldRemainder.taiEventsLoadTitle")} message={t("worldRemainder.taiEventsLoadMessage")} onRetry={() => void loadEvents()} />
               ) : events === null ? (
-                <NativeLoadingState isLight={isLight} message="Reading the events…" />
+                <NativeLoadingState isLight={isLight} message={t("worldRemainder.taiEventsLoading")} />
               ) : events.length === 0 ? (
-                <p className={`text-xs ${muted}`}>No events yet — create the first one above.</p>
+                <p className={`text-xs ${muted}`}>{t("worldRemainder.taiEventsEmpty")}</p>
               ) : (
                 <div className="space-y-1.5">
                   {events.map((ev) => (
                     <div key={ev.id} className="flex flex-wrap items-center gap-2" data-testid="world-jackpot-admin-event">
                       <span className={`min-w-0 flex-1 truncate text-sm ${strong}`}>
-                        {ev.name} <span className={muted}>· {ev.prizeCredits.toLocaleString("en-US")} VB · {ev.codeLength} moves · {jackpotEventPhase(ev)}</span>
+                        {ev.name} <span className={muted}>{t("worldRemainder.taiAdminEventMeta", { prize: ev.prizeCredits.toLocaleString(i18n.language), moves: ev.codeLength, phase: t(PHASE_KEY[jackpotEventPhase(ev)] ?? "worldRemainder.taiPhaseUpcoming") })}</span>
                       </span>
                       <button
                         type="button"
@@ -1118,7 +1194,7 @@ export function JackpotDesk({ isLight, isGuest }: { isLight: boolean; isGuest?: 
                         data-testid={`world-jackpot-admin-toggle-${ev.id}`}
                       >
                         {adminBusy === ev.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                        {ev.isActive ? "Deactivate" : "Activate"}
+                        {ev.isActive ? t("worldRemainder.taiDeactivate") : t("worldRemainder.taiActivate")}
                       </button>
                     </div>
                   ))}

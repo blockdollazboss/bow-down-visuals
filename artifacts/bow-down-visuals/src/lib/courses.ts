@@ -141,11 +141,15 @@ export function progressPct(total: number, completed: number): number {
 }
 
 /** "Unlocks Oct 31" for a drip-locked lesson (buyer-local date). */
-export function unlockLabel(unlockAt: string | null): string | null {
+export function unlockLabel(
+  unlockAt: string | null,
+  format?: (date: string) => string,
+): string | null {
   if (!unlockAt) return null;
   const d = new Date(unlockAt);
   if (Number.isNaN(d.getTime())) return null;
-  return `Unlocks ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+  const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return format ? format(date) : `Unlocks ${date}`;
 }
 
 /** The outline's one-line curriculum summary: "3 sections · 12 lessons". */

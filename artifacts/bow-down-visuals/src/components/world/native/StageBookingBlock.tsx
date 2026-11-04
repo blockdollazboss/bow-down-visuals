@@ -51,11 +51,11 @@ import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
  * catalog in all 10 locales (the nine non-English sets are
  * agent-drafted and UNREVIEWED). */
 
-function fmtShowWhen(iso: string): string {
+function fmtShowWhen(iso: string, language?: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleString(undefined, {
+    : d.toLocaleString(language, {
         weekday: "short",
         month: "short",
         day: "numeric",
@@ -70,7 +70,7 @@ function fmtClock(sec: number): string {
 }
 
 export function StageBookingBlock({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { getAccessToken } = useAuth();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -176,7 +176,7 @@ export function StageBookingBlock({ isLight, isGuest }: { isLight: boolean; isGu
         setError(resolved.kind === "message" ? resolved.message : t(`worldStageBooking.errors.${resolved.key}`));
         return;
       }
-      setNotice(t("worldStageBooking.booked", { when: fmtShowWhen(built.body.startsAt) }));
+      setNotice(t("worldStageBooking.booked", { when: fmtShowWhen(built.body.startsAt, i18n.language) }));
       setOpen(false);
       setTitle("");
       await refreshMine();
@@ -282,7 +282,7 @@ export function StageBookingBlock({ isLight, isGuest }: { isLight: boolean; isGu
                     {show.title}
                   </span>
                   <span className={`truncate text-xs ${muted}`}>
-                    {show.status === "live" ? t("worldStageBooking.liveNow") : fmtShowWhen(show.startsAt)} ·{" "}
+                    {show.status === "live" ? t("worldStageBooking.liveNow") : fmtShowWhen(show.startsAt, i18n.language)} ·{" "}
                     {show.contentRef === "live"
                       ? t("worldStageBooking.mineLiveContent")
                       : (catalog?.mine.find((i) => i.id === show.contentRef)?.title ??

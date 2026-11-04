@@ -94,7 +94,7 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
 };
 
 export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const authHeaders = useAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -185,21 +185,22 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
         /* The rail's own plain sentence answers — on a paid decline
            whose refund failed, that sentence IS the truth: the
            decline didn't land. */
-        throw new Error(apiErrorMessage(j, `Could not update that request (${res.status}).`));
+        throw new Error(apiErrorMessage(j, t("worldRemainder.shoUpdateFailed", { status: res.status })));
       }
       const updated = normalizeShoutoutRequest(j);
       if (status === "declined" && updated?.status === "refunded") {
         setRowNote((n) => ({
           ...n,
-          [req.id]:
-            `Declined — ${req.fanName}'s ${centsToDisplay(req.priceCents)} was refunded in full, ` +
-            "and they've been emailed that it's on its way back.",
+          [req.id]: t("worldRemainder.shoDeclinedRefunded", {
+            fan: req.fanName,
+            amount: centsToDisplay(req.priceCents),
+          }),
         }));
       }
       setDeclineArmed("");
       await Promise.all([loadRequests(), loadRevenue()]);
     } catch (err) {
-      setRowError((e) => ({ ...e, [req.id]: plainErrorText(err, "That didn't go through — try again.") }));
+      setRowError((e) => ({ ...e, [req.id]: plainErrorText(err, t("worldRemainder.shoDidntGoThrough")) }));
     } finally {
       setActing("");
     }
@@ -211,7 +212,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
     if (!shoutoutDeliveryFileReady(file.size)) {
       setRowError((e) => ({
         ...e,
-        [req.id]: "That video is over 80 MB — trim it or pick a smaller file.",
+        [req.id]: t("worldRemainder.shoVideoTooBig"),
       }));
       return;
     }
@@ -228,7 +229,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
         body: form,
       });
       const upData = (await upRes.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!upRes.ok) throw new Error(apiErrorMessage(upData, `Upload failed (${upRes.status})`));
+      if (!upRes.ok) throw new Error(apiErrorMessage(upData, t("worldRemainder.shoUploadFailed", { status: upRes.status })));
       const stored = shoutoutUploadRef(upData);
       if (!stored) throw new Error(t("shoutouts.errorUploadNoRef"));
       await patchRequest(req, "delivered", stored);
@@ -263,7 +264,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
       if (res.status === 402) {
         setAiOutOfCredits((e) => ({
           ...e,
-          [req.id]: apiErrorMessage(j, "You're out of Visual Bucs — top up to polish the words."),
+          [req.id]: apiErrorMessage(j, t("worldRemainder.shoOutOfCredits")),
         }));
         return;
       }
@@ -285,7 +286,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
 
   if (isGuest) {
     return (
-      <NativeCard isLight={isLight} title="Your shoutout counter">
+      <NativeCard isLight={isLight} title={t("worldRemainder.shoGuestTitle")}>
         <p data-testid="world-shoutouts-sell-signin" className={`text-sm ${muted}`}>
           {t("shoutouts.creatorSignInPrompt")}
         </p>
@@ -302,12 +303,12 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
         {revenueError ? (
           <NativeErrorState
             isLight={isLight}
-            title="The revenue read wouldn't open"
-            message="Your requests and earnings are safe — this read just couldn't reach them."
+            title={t("worldRemainder.shoRevenueLoadTitle")}
+            message={t("worldRemainder.shoRevenueLoadMessage")}
             onRetry={() => void loadRevenue()}
           />
         ) : revenue === null ? (
-          <NativeLoadingState isLight={isLight} message="Counting your shoutouts…" />
+          <NativeLoadingState isLight={isLight} message={t("worldRemainder.shoRevenueLoading")} />
         ) : (
           <div data-testid="world-shoutouts-sell-revenue">
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -330,8 +331,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
               ))}
             </div>
             <p className={`mt-3 text-[11px] ${muted}`}>
-              Tracked from your real requests. The platform fee is {revenue.platformFeePct}% —{" "}
-              {"\"You keep\""} is what's left after it.
+              {t("worldRemainder.shoFeeLine", { pct: revenue.platformFeePct })}
             </p>
           </div>
         )}
@@ -340,7 +340,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
       <NativeCard isLight={isLight} title={t("shoutouts.incomingRequests")}>
         <div className="mb-3 flex items-center justify-end">
           <select
-            aria-label="Filter by status"
+            aria-label={t("worldRemainder.shoFilterAria")}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className={`rounded-lg border px-3 py-1.5 text-sm ${
@@ -360,12 +360,12 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
         {requestsError ? (
           <NativeErrorState
             isLight={isLight}
-            title="Your requests wouldn't open"
-            message="The inbox is fine — this read just couldn't reach it. Nothing here is an empty inbox."
+            title={t("worldRemainder.shoRequestsLoadTitle")}
+            message={t("worldRemainder.shoRequestsLoadMessage")}
             onRetry={() => void loadRequests()}
           />
         ) : requests === null ? (
-          <NativeLoadingState isLight={isLight} message="Opening your requests…" />
+          <NativeLoadingState isLight={isLight} message={t("worldRemainder.shoRequestsLoading")} />
         ) : requests.length === 0 ? (
           <p className={`py-4 text-center text-sm ${muted}`}>{t("shoutouts.noRequests")}</p>
         ) : (
@@ -393,12 +393,12 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
                       </p>
                       <p className={`mt-1 text-[11px] ${muted}`}>
                         {centsToDisplay(r.priceCents)} ·{" "}
-                        {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ""}
+                        {r.createdAt ? new Date(r.createdAt).toLocaleDateString(i18n.language) : ""}
                         {r.priceCents > 0
                           ? isPaidShoutout(r)
-                            ? " · Paid"
-                            : " · Not paid yet"
-                          : " · Free"}
+                            ? t("worldRemainder.shoPaidSuffix")
+                            : t("worldRemainder.shoNotPaidSuffix")
+                          : t("worldRemainder.shoFreeSuffix")}
                       </p>
                       {r.deliveryUrl && (
                         <a
@@ -416,7 +416,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
                         STATUS_PILL[r.status] ?? ""
                       }`}
                     >
-                      {STATUS_LABEL_KEYS[r.status] ? t(STATUS_LABEL_KEYS[r.status]!) : "Refunded"}
+                      {STATUS_LABEL_KEYS[r.status] ? t(STATUS_LABEL_KEYS[r.status]!) : t("worldRemainder.shoRefunded")}
                     </span>
                   </div>
 
@@ -537,15 +537,13 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
                     >
                       <p className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/70"}`}>
                         {consequence.kind === "refund"
-                          ? `${r.fanName} already paid ${centsToDisplay(consequence.amountCents)} for this shoutout. ` +
-                            "Declining refunds them in full, automatically — the request closes as refunded " +
-                            "and the fan is emailed that the full refund is on its way back. " +
-                            "If the refund can't go through, the decline won't land and the request stays yours to retry."
+                          ? t("worldRemainder.shoDeclineRefund", {
+                              fan: r.fanName,
+                              amount: centsToDisplay(consequence.amountCents),
+                            })
                           : r.priceCents > 0
-                            ? `${r.fanName} hasn't paid for this shoutout — no payment was taken, so there's nothing to refund. ` +
-                              "Declining just closes the request, and the fan is emailed that it was declined."
-                            : "This is a free shoutout — no payment was taken, so there's nothing to refund. " +
-                              "Declining just closes the request, and the fan is emailed that it was declined."}
+                            ? t("worldRemainder.shoDeclineUnpaid", { fan: r.fanName })
+                            : t("worldRemainder.shoDeclineFree")}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <button
@@ -558,8 +556,10 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : null}
                           {consequence.kind === "refund"
-                            ? `Yes — decline & refund ${centsToDisplay(consequence.amountCents)}`
-                            : "Yes — decline it"}
+                            ? t("worldRemainder.shoDeclineRefundButton", {
+                                amount: centsToDisplay(consequence.amountCents),
+                              })
+                            : t("worldRemainder.shoDeclineButton")}
                         </button>
                         <button
                           type="button"
@@ -570,7 +570,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
                               : "border-white/15 text-white/60"
                           }`}
                         >
-                          Keep the request
+                          {t("worldRemainder.shoKeepRequest")}
                         </button>
                       </div>
                     </div>
@@ -585,15 +585,13 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
                     >
                       <p className={`inline-flex items-center gap-1.5 text-xs font-bold ${ink}`}>
                         <Video className="h-3.5 w-3.5 text-[#d4af37]" />
-                        Words to read on camera — {SHOUTOUT_AI_MESSAGE_COST_VB} Visual Bucs
+                        {t("worldRemainder.shoAiTitle", { cost: SHOUTOUT_AI_MESSAGE_COST_VB })}
                       </p>
                       <p className={`mt-1 text-[11px] ${muted}`}>
-                        Drafted from the fan's request: their occasion and their own words, polished
-                        into something that reads well out loud. Nothing is sent anywhere — the words
-                        are yours to record.
+                        {t("worldRemainder.shoAiIntro")}
                       </p>
                       <textarea
-                        aria-label="The fan's words to polish"
+                        aria-label={t("worldRemainder.shoAiNotesAria")}
                         value={aiNotes[r.id] ?? r.message}
                         onChange={(e) => setAiNotes((n) => ({ ...n, [r.id]: e.target.value }))}
                         rows={3}

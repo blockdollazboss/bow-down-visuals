@@ -5,10 +5,7 @@ import { Check, Home, Loader2, Pencil, RotateCcw, SkipForward, Wand2 } from "luc
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "@/components/world/native/NativeStates";
 import {
-  MOVE_HOME_ALL_SETTLED_COPY,
   MOVE_HOME_ANSWERS_PATH,
-  MOVE_HOME_APPROVE_COPY,
-  MOVE_HOME_BLOCKER_COPY,
   MOVE_HOME_PATH,
   MOVE_HOME_VERTICALS,
   buildMoveHomeAnswersPayload,
@@ -75,24 +72,47 @@ function s(v: unknown): string {
 function rec(v: unknown): Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 }
+const BLOCKER_KEY: Record<string, string> = {
+  no_connected_accounts: "worldRemainder.mvhBlockerNoAccounts",
+  needs_media: "worldRemainder.mvhBlockerNeedsMedia",
+  needs_profile: "worldRemainder.mvhBlockerNeedsProfile",
+};
+const APPROVE_KEY: Record<string, string> = {
+  profile: "worldRemainder.mvhApproveProfile",
+  store: "worldRemainder.mvhApproveStore",
+  press_kit: "worldRemainder.mvhApprovePressKit",
+  email_list: "worldRemainder.mvhApproveEmailList",
+  launch_posts: "worldRemainder.mvhApproveLaunchPosts",
+};
+const PRESS_LABEL_KEY: Record<string, string> = {
+  artistName: "worldRemainder.mvhPkArtistName",
+  tagline: "worldRemainder.mvhPkTagline",
+  genre: "worldRemainder.mvhPkGenre",
+  location: "worldRemainder.mvhPkLocation",
+  instagramUrl: "worldRemainder.mvhPkInstagram",
+  tiktokUrl: "worldRemainder.mvhPkTiktok",
+  youtubeUrl: "worldRemainder.mvhPkYoutube",
+  handle: "worldRemainder.mvhPkHandle",
+};
+
 function arr(v: unknown): Array<Record<string, unknown>> {
   return Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => typeof x === "object" && x !== null) : [];
 }
 
 /* ─── Per-step preview lines (the draft's own words) ────────────── */
 
-function previewLines(step: MoveHomeStepKey, draft: Record<string, unknown>): string[] {
+function previewLines(step: MoveHomeStepKey, draft: Record<string, unknown>, t: (key: string, opts?: Record<string, unknown>) => string): string[] {
   if (step === "profile") {
     return [
-      s(draft["displayName"]) && `Name: ${s(draft["displayName"])}`,
+      s(draft["displayName"]) && t("worldRemainder.mvhPreviewName", { name: s(draft["displayName"]) }),
       s(draft["bio"]),
-      s(draft["slug"]) && `Page: /${s(draft["slug"])}`,
+      s(draft["slug"]) && t("worldRemainder.mvhPreviewPage", { slug: s(draft["slug"]) }),
     ].filter(Boolean) as string[];
   }
   if (step === "store") {
     return arr(draft["products"]).map((p) => {
       const cents = typeof p["priceCents"] === "number" ? p["priceCents"] : 0;
-      return `${s(p["title"]) || "Untitled"} — $${(cents / 100).toFixed(2)}`;
+      return t("worldRemainder.mvhPreviewProduct", { title: s(p["title"]) || t("worldRemainder.mvhPreviewUntitled"), price: (cents / 100).toFixed(2) });
     });
   }
   if (step === "press_kit") {
@@ -100,8 +120,8 @@ function previewLines(step: MoveHomeStepKey, draft: Record<string, unknown>): st
   }
   if (step === "email_list") {
     return [
-      s(draft["name"]) && `List: ${s(draft["name"])}`,
-      s(draft["welcomeSubject"]) && `Welcome subject: ${s(draft["welcomeSubject"])}`,
+      s(draft["name"]) && t("worldRemainder.mvhPreviewList", { name: s(draft["name"]) }),
+      s(draft["welcomeSubject"]) && t("worldRemainder.mvhPreviewWelcomeSubject", { subject: s(draft["welcomeSubject"]) }),
       s(draft["welcomeBody"]),
     ].filter(Boolean) as string[];
   }
@@ -127,20 +147,22 @@ function EditorShell({ isLight, busy, onSaveClick, onCancel, children }: {
   onCancel: () => void;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="mt-2 space-y-2" data-testid="world-move-home-editor">
       {children}
       <div className="flex flex-wrap gap-2">
         <button type="button" className={goldBtn} disabled={busy} onClick={onSaveClick} data-testid="world-move-home-editor-save">
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Save edits
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} {t("worldRemainder.mvhSaveEdits")}
         </button>
-        <button type="button" className={chipBtn(isLight)} onClick={onCancel}>Cancel</button>
+        <button type="button" className={chipBtn(isLight)} onClick={onCancel}>{t("worldRemainder.mvhCancel")}</button>
       </div>
     </div>
   );
 }
 
 function ProfileEditor({ isLight, draft, busy, onSave, onCancel }: EditorProps) {
+  const { t } = useTranslation();
   const links = rec(draft["socialLinks"]);
   const [displayName, setDisplayName] = useState(s(draft["displayName"]));
   const [bio, setBio] = useState(s(draft["bio"]));
@@ -162,15 +184,16 @@ function ProfileEditor({ isLight, draft, busy, onSave, onCancel }: EditorProps) 
   };
   return (
     <EditorShell isLight={isLight} busy={busy} onSaveClick={save} onCancel={onCancel}>
-      <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={80} className={inputCls(isLight)} aria-label="Display name" placeholder="Display name" />
-      <textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={1200} rows={3} className={inputCls(isLight)} aria-label="Bio" placeholder="Bio" />
-      <input value={slug} onChange={(e) => setSlug(e.target.value)} maxLength={60} className={inputCls(isLight)} aria-label="Page address" placeholder="your-page-name" />
-      <textarea value={linksText} onChange={(e) => setLinksText(e.target.value)} rows={2} className={inputCls(isLight)} aria-label="Social links, one per line as name: link" placeholder={"Social links, one per line:\ninstagram: https://…"} />
+      <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={80} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhDisplayName")} placeholder={t("worldRemainder.mvhDisplayName")} />
+      <textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={1200} rows={3} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhBio")} placeholder={t("worldRemainder.mvhBio")} />
+      <input value={slug} onChange={(e) => setSlug(e.target.value)} maxLength={60} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhPageAddress")} placeholder={t("worldRemainder.mvhYourPageName")} />
+      <textarea value={linksText} onChange={(e) => setLinksText(e.target.value)} rows={2} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhSocialLinksAria")} placeholder={t("worldRemainder.mvhSocialLinksPlaceholder")} />
     </EditorShell>
   );
 }
 
 function StoreEditor({ isLight, draft, busy, onSave, onCancel }: EditorProps) {
+  const { t } = useTranslation();
   const [products, setProducts] = useState(() =>
     arr(draft["products"]).map((p) => ({
       kind: s(p["kind"]) === "digital" ? "digital" : "download",
@@ -199,19 +222,19 @@ function StoreEditor({ isLight, draft, busy, onSave, onCancel }: EditorProps) {
     <EditorShell isLight={isLight} busy={busy || !ready} onSaveClick={save} onCancel={onCancel}>
       {products.map((p, i) => (
         <div key={i} className="space-y-2 rounded-xl border border-[#d4af37]/25 p-2.5">
-          <input value={p.title} onChange={(e) => setP(i, { title: e.target.value })} maxLength={120} className={inputCls(isLight)} aria-label={`Product ${i + 1} title`} placeholder="Product title" />
-          <textarea value={p.description} onChange={(e) => setP(i, { description: e.target.value })} maxLength={600} rows={2} className={inputCls(isLight)} aria-label={`Product ${i + 1} description`} placeholder="What the buyer gets" />
+          <input value={p.title} onChange={(e) => setP(i, { title: e.target.value })} maxLength={120} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhProductTitleAria", { n: i + 1 })} placeholder={t("worldRemainder.mvhProductTitle")} />
+          <textarea value={p.description} onChange={(e) => setP(i, { description: e.target.value })} maxLength={600} rows={2} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhProductDescAria", { n: i + 1 })} placeholder={t("worldRemainder.mvhProductDescPlaceholder")} />
           <div className="flex gap-2">
-            <input value={p.dollars} onChange={(e) => setP(i, { dollars: e.target.value })} inputMode="decimal" className={`${inputCls(isLight)} w-28`} aria-label={`Product ${i + 1} price in dollars`} placeholder="Price $" />
-            <select value={p.kind} onChange={(e) => setP(i, { kind: e.target.value })} className={`${inputCls(isLight)} w-36`} aria-label={`Product ${i + 1} kind`}>
-              <option value="download">Download</option>
-              <option value="digital">Digital</option>
+            <input value={p.dollars} onChange={(e) => setP(i, { dollars: e.target.value })} inputMode="decimal" className={`${inputCls(isLight)} w-28`} aria-label={t("worldRemainder.mvhProductPriceAria", { n: i + 1 })} placeholder={t("worldRemainder.mvhProductPricePlaceholder")} />
+            <select value={p.kind} onChange={(e) => setP(i, { kind: e.target.value })} className={`${inputCls(isLight)} w-36`} aria-label={t("worldRemainder.mvhProductKindAria", { n: i + 1 })}>
+              <option value="download">{t("worldRemainder.mvhKindDownload")}</option>
+              <option value="digital">{t("worldRemainder.mvhKindDigital")}</option>
             </select>
           </div>
         </div>
       ))}
       <p className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/45"}`}>
-        These save as shop drafts — nothing is for sale until you publish them in your shop.
+        {t("worldRemainder.mvhStoreDraftsNote")}
       </p>
     </EditorShell>
   );
@@ -219,10 +242,7 @@ function StoreEditor({ isLight, draft, busy, onSave, onCancel }: EditorProps) {
 
 function PressKitEditor({ isLight, draft, busy, onSave, onCancel }: EditorProps) {
   const fields = ["artistName", "tagline", "genre", "location", "instagramUrl", "tiktokUrl", "youtubeUrl", "handle"] as const;
-  const labels: Record<string, string> = {
-    artistName: "Artist name", tagline: "Tagline", genre: "Genre", location: "Location",
-    instagramUrl: "Instagram link", tiktokUrl: "TikTok link", youtubeUrl: "YouTube link", handle: "Handle",
-  };
+  const { t } = useTranslation();
   const [vals, setVals] = useState<Record<string, string>>(() =>
     Object.fromEntries([...fields, "bio"].map((f) => [f, s(draft[f])])),
   );
@@ -230,14 +250,15 @@ function PressKitEditor({ isLight, draft, busy, onSave, onCancel }: EditorProps)
   return (
     <EditorShell isLight={isLight} busy={busy} onSaveClick={save} onCancel={onCancel}>
       {fields.map((f) => (
-        <input key={f} value={vals[f] ?? ""} onChange={(e) => setVals((v) => ({ ...v, [f]: e.target.value }))} className={inputCls(isLight)} aria-label={labels[f]} placeholder={labels[f]} />
+        <input key={f} value={vals[f] ?? ""} onChange={(e) => setVals((v) => ({ ...v, [f]: e.target.value }))} className={inputCls(isLight)} aria-label={t(PRESS_LABEL_KEY[f]!)} placeholder={t(PRESS_LABEL_KEY[f]!)} />
       ))}
-      <textarea value={vals["bio"] ?? ""} onChange={(e) => setVals((v) => ({ ...v, bio: e.target.value }))} maxLength={3000} rows={4} className={inputCls(isLight)} aria-label="Press kit bio" placeholder="Bio" />
+      <textarea value={vals["bio"] ?? ""} onChange={(e) => setVals((v) => ({ ...v, bio: e.target.value }))} maxLength={3000} rows={4} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhPkBioAria")} placeholder={t("worldRemainder.mvhBio")} />
     </EditorShell>
   );
 }
 
 function EmailListEditor({ isLight, draft, busy, onSave, onCancel }: EditorProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(s(draft["name"]));
   const [description, setDescription] = useState(s(draft["description"]));
   const [subject, setSubject] = useState(s(draft["welcomeSubject"]));
@@ -246,15 +267,16 @@ function EmailListEditor({ isLight, draft, busy, onSave, onCancel }: EditorProps
     onSave({ name: name.trim(), description: description.trim(), welcomeSubject: subject.trim(), welcomeBody: body.trim() });
   return (
     <EditorShell isLight={isLight} busy={busy} onSaveClick={save} onCancel={onCancel}>
-      <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className={inputCls(isLight)} aria-label="List name" placeholder="List name" />
-      <input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={600} className={inputCls(isLight)} aria-label="List description" placeholder="What subscribers get" />
-      <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={160} className={inputCls(isLight)} aria-label="Welcome email subject" placeholder="Welcome email subject" />
-      <textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={5000} rows={4} className={inputCls(isLight)} aria-label="Welcome email body" placeholder="Welcome email" />
+      <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhListName")} placeholder={t("worldRemainder.mvhListName")} />
+      <input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={600} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhListDescAria")} placeholder={t("worldRemainder.mvhListDescPlaceholder")} />
+      <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={160} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhWelcomeSubject")} placeholder={t("worldRemainder.mvhWelcomeSubject")} />
+      <textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={5000} rows={4} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhWelcomeBodyAria")} placeholder={t("worldRemainder.mvhWelcomeBodyPlaceholder")} />
     </EditorShell>
   );
 }
 
 function LaunchPostsEditor({ isLight, draft, busy, onSave, onCancel }: EditorProps) {
+  const { t } = useTranslation();
   const [posts, setPosts] = useState(() =>
     arr(draft["posts"]).map((p) => ({
       platform: s(p["platform"]),
@@ -285,10 +307,10 @@ function LaunchPostsEditor({ isLight, draft, busy, onSave, onCancel }: EditorPro
       {posts.map((p, i) => (
         <div key={i} className="space-y-2 rounded-xl border border-[#d4af37]/25 p-2.5">
           <p className={`text-xs font-bold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-            {p.accountLabel || p.platform} — the account stays as connected; edit the words.
+            {t("worldRemainder.mvhPostAccountNote", { label: p.accountLabel || p.platform })}
           </p>
-          <textarea value={p.caption} onChange={(e) => setP(i, { caption: e.target.value })} maxLength={2200} rows={3} className={inputCls(isLight)} aria-label={`Post ${i + 1} caption`} placeholder="Caption" />
-          <input value={p.hashtags} onChange={(e) => setP(i, { hashtags: e.target.value })} maxLength={500} className={inputCls(isLight)} aria-label={`Post ${i + 1} hashtags`} placeholder="#hashtags" />
+          <textarea value={p.caption} onChange={(e) => setP(i, { caption: e.target.value })} maxLength={2200} rows={3} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhPostCaptionAria", { n: i + 1 })} placeholder={t("worldRemainder.mvhCaptionPlaceholder")} />
+          <input value={p.hashtags} onChange={(e) => setP(i, { hashtags: e.target.value })} maxLength={500} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhPostHashtagsAria", { n: i + 1 })} placeholder="#hashtags" />
         </div>
       ))}
     </EditorShell>
@@ -306,7 +328,7 @@ const EDITORS: Record<MoveHomeStepKey, (p: EditorProps) => React.ReactNode> = {
 /* ─── The desk ──────────────────────────────────────────────────── */
 
 export function MoveHomeDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const locale = i18n.language;
   const authHeaders = useAuthHeaders();
   const [status, setStatus] = useState<MoveHomeStatusView | null>(null);
@@ -350,7 +372,7 @@ export function MoveHomeDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
       if (view) applyStatus(view);
       setNote(okNote);
     } catch (err) {
-      setNote(plainErrorText(err, "That didn't go through. Try again in a moment."));
+      setNote(plainErrorText(err, t("worldRemainder.mvhDidntGoThroughRetry")));
     } finally {
       setBusy(null);
     }
@@ -363,9 +385,9 @@ export function MoveHomeDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!res.ok) throw new Error(apiErrorMessage(data, "That didn't go through."));
+    if (!res.ok) throw new Error(apiErrorMessage(data, t("worldRemainder.mvhDidntGoThrough")));
     const parsed = moveHomeStatusOfResponse(data);
-    if (!parsed) throw new Error("That didn't go through.");
+    if (!parsed) throw new Error(t("worldRemainder.mvhDidntGoThrough"));
     return parsed;
   };
 
@@ -378,17 +400,17 @@ export function MoveHomeDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
         body: JSON.stringify(buildMoveHomeAnswersPayload(answers)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Your answers couldn't be saved."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldRemainder.mvhAnswersSaveFailed")));
       /* The PUT answers rail returns no status body — re-read it. */
       const again = await fetch(withLocale(MOVE_HOME_PATH, locale), { headers: await authHeaders() });
       const parsed = moveHomeStatusOfResponse(await again.json().catch(() => ({})));
-      if (!parsed) throw new Error("Your answers couldn't be saved.");
+      if (!parsed) throw new Error(t("worldRemainder.mvhAnswersSaveFailed"));
       return parsed;
-    }, "Answers saved.");
+    }, t("worldRemainder.mvhAnswersSaved"));
   };
 
   const buildDrafts = () =>
-    void run("draft", () => post("/api/move-home/draft"), "Drafts built — look each step over, edit anything, then approve the ones you like.");
+    void run("draft", () => post("/api/move-home/draft"), t("worldRemainder.mvhDraftsBuilt"));
 
   const saveStepEdit = (step: MoveHomeStepKey) => (payload: Record<string, unknown>) =>
     void run(`edit-${step}`, async () => {
@@ -398,18 +420,18 @@ export function MoveHomeDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Those edits couldn't be saved."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldRemainder.mvhEditsSaveFailed")));
       const parsed = moveHomeStatusOfResponse(data);
-      if (!parsed) throw new Error("Those edits couldn't be saved.");
+      if (!parsed) throw new Error(t("worldRemainder.mvhEditsSaveFailed"));
       setEditing(null);
       return parsed;
-    }, "Edits saved — still a draft until you approve it.");
+    }, t("worldRemainder.mvhEditsSaved"));
 
   const stepVerb = (step: MoveHomeStepView, verb: "approve" | "skip" | "reopen") =>
     void run(`${verb}-${step.key}`, () => post(moveHomeStepPath(step.key, verb)), {
-      approve: `“${step.title}” is approved and live.`,
-      skip: `“${step.title}” skipped — you can reopen it any time.`,
-      reopen: `“${step.title}” is back as a draft.`,
+      approve: t("worldRemainder.mvhStepApproved", { title: step.title }),
+      skip: t("worldRemainder.mvhStepSkipped", { title: step.title }),
+      reopen: t("worldRemainder.mvhStepReopened", { title: step.title }),
     }[verb]);
 
   const setA = (patch: Partial<MoveHomeAnswersDraft>) => setAnswers((a) => (a ? { ...a, ...patch } : a));
@@ -418,10 +440,10 @@ export function MoveHomeDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
     return (
       <div className="space-y-2" data-testid="world-move-home-desk">
         <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-          <Home className="h-4 w-4 text-[#d4af37]" /> Move your home here
+          <Home className="h-4 w-4 text-[#d4af37]" /> {t("worldRemainder.mvhTitle")}
         </p>
         <p className={`text-sm ${muted}`}>
-          Members get the guided five-step move — profile, starter shop, press kit, email list, and launch posts, drafted for you free. Sign in to run yours.
+          {t("worldRemainder.mvhGuestBody")}
         </p>
       </div>
     );
@@ -430,68 +452,69 @@ export function MoveHomeDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
   return (
     <div className="space-y-3" data-testid="world-move-home-desk">
       <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-        <Home className="h-4 w-4 text-[#d4af37]" /> Move your home here
+        <Home className="h-4 w-4 text-[#d4af37]" /> {t("worldRemainder.mvhTitle")}
       </p>
       <p className={`text-sm ${muted}`}>
-        Five steps and your whole home base is set up — drafted from your answers, approved by you one step at a time.
-        The whole move is free ({moveHomeDraftCost()} credits — it never charges).
+        {t("worldRemainder.mvhIntro", { cost: moveHomeDraftCost() })}
       </p>
 
       {failed ? (
         <NativeErrorState
           isLight={isLight}
-          title="Your move wouldn't load"
-          message="Your setup progress couldn't be reached. Nothing changed — try again."
+          title={t("worldRemainder.mvhLoadTitle")}
+          message={t("worldRemainder.mvhLoadMessage")}
           onRetry={() => void load()}
         />
       ) : status === null || answers === null ? (
-        <NativeLoadingState isLight={isLight} message="Loading your move…" />
+        <NativeLoadingState isLight={isLight} message={t("worldRemainder.mvhLoading")} />
       ) : (
         <>
           <p className={`text-xs ${muted}`} data-testid="world-move-home-context">
             {status.context.hasProfile
-              ? `Profile: ${status.context.profileSlug ? `/${status.context.profileSlug}` : "set up"}`
-              : "No profile yet — step one builds it"}
+              ? t("worldRemainder.mvhCtxProfile", {
+                  value: status.context.profileSlug ? `/${status.context.profileSlug}` : t("worldRemainder.mvhCtxSetUp"),
+                })
+              : t("worldRemainder.mvhCtxNoProfile")}
             {" · "}
-            {status.context.trackCount} songs · {status.context.videoCount} videos
+            {t("worldRemainder.mvhCtxCounts", { songs: status.context.trackCount, videos: status.context.videoCount })}
             {" · "}
             {status.context.connectedPlatforms.length > 0
-              ? `Connected: ${status.context.connectedPlatforms.map((p) => p.label).join(", ")}`
-              : "No social accounts connected yet"}
+              ? t("worldRemainder.mvhCtxConnected", { list: status.context.connectedPlatforms.map((p) => p.label).join(", ") })
+              : t("worldRemainder.mvhCtxNoSocial")}
           </p>
 
           {moveHomeAllSettled(status) ? (
-            <p className={noteCls} data-testid="world-move-home-done">{MOVE_HOME_ALL_SETTLED_COPY}</p>
+            <p className={noteCls} data-testid="world-move-home-done">{t("worldRemainder.mvhAllSettled")}</p>
           ) : null}
 
           {/* The intake answers. */}
           <div className={`rounded-2xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`} data-testid="world-move-home-answers">
-            <p className={`text-sm font-bold ${strong}`}>Your answers</p>
+            <p className={`text-sm font-bold ${strong}`}>{t("worldRemainder.mvhYourAnswers")}</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <input value={answers.displayName} onChange={(e) => setA({ displayName: e.target.value })} maxLength={80} className={inputCls(isLight)} placeholder="Your artist / creator name" aria-label="Your name" data-testid="world-move-home-name" />
-              <select value={answers.vertical} onChange={(e) => setA({ vertical: e.target.value })} className={inputCls(isLight)} aria-label="What you make" data-testid="world-move-home-vertical">
+              <input value={answers.displayName} onChange={(e) => setA({ displayName: e.target.value })} maxLength={80} className={inputCls(isLight)} placeholder={t("worldRemainder.mvhNamePlaceholder")} aria-label={t("worldRemainder.mvhNameAria")} data-testid="world-move-home-name" />
+              <select value={answers.vertical} onChange={(e) => setA({ vertical: e.target.value })} className={inputCls(isLight)} aria-label={t("worldRemainder.mvhVerticalAria")} data-testid="world-move-home-vertical">
                 {MOVE_HOME_VERTICALS.map((v) => (
                   <option key={v} value={v}>{v[0]!.toUpperCase() + v.slice(1)}</option>
                 ))}
               </select>
-              <input value={answers.genre} onChange={(e) => setA({ genre: e.target.value })} maxLength={60} className={inputCls(isLight)} placeholder="Genre / niche" aria-label="Genre" />
-              <input value={answers.tagline} onChange={(e) => setA({ tagline: e.target.value })} maxLength={160} className={inputCls(isLight)} placeholder="Tagline" aria-label="Tagline" />
-              <input value={answers.location} onChange={(e) => setA({ location: e.target.value })} maxLength={80} className={inputCls(isLight)} placeholder="Location" aria-label="Location" />
-              <input value={answers.handle} onChange={(e) => setA({ handle: e.target.value })} maxLength={40} className={inputCls(isLight)} placeholder="Handle fans know you by" aria-label="Handle" />
+              <input value={answers.genre} onChange={(e) => setA({ genre: e.target.value })} maxLength={60} className={inputCls(isLight)} placeholder={t("worldRemainder.mvhGenrePlaceholder")} aria-label={t("worldRemainder.mvhGenreAria")} />
+              <input value={answers.tagline} onChange={(e) => setA({ tagline: e.target.value })} maxLength={160} className={inputCls(isLight)} placeholder={t("worldRemainder.mvhPkTagline")} aria-label={t("worldRemainder.mvhPkTagline")} />
+              <input value={answers.location} onChange={(e) => setA({ location: e.target.value })} maxLength={80} className={inputCls(isLight)} placeholder={t("worldRemainder.mvhPkLocation")} aria-label={t("worldRemainder.mvhPkLocation")} />
+              <input value={answers.handle} onChange={(e) => setA({ handle: e.target.value })} maxLength={40} className={inputCls(isLight)} placeholder={t("worldRemainder.mvhHandlePlaceholder")} aria-label={t("worldRemainder.mvhPkHandle")} />
             </div>
-            <input value={answers.starterProductTitle} onChange={(e) => setA({ starterProductTitle: e.target.value })} maxLength={120} className={`${inputCls(isLight)} mt-2`} placeholder="First thing you'd sell (optional)" aria-label="Starter product" />
-            <textarea value={answers.bioSeed} onChange={(e) => setA({ bioSeed: e.target.value })} maxLength={600} rows={3} className={`${inputCls(isLight)} mt-2`} placeholder="A few lines about you — your story, your sound, what fans get" aria-label="About you" />
+            <input value={answers.starterProductTitle} onChange={(e) => setA({ starterProductTitle: e.target.value })} maxLength={120} className={`${inputCls(isLight)} mt-2`} placeholder={t("worldRemainder.mvhStarterProductPlaceholder")} aria-label={t("worldRemainder.mvhStarterProductAria")} />
+            <textarea value={answers.bioSeed} onChange={(e) => setA({ bioSeed: e.target.value })} maxLength={600} rows={3} className={`${inputCls(isLight)} mt-2`} placeholder={t("worldRemainder.mvhBioPlaceholder")} aria-label={t("worldRemainder.mvhBioAria")} />
             <div className="mt-2 flex flex-wrap gap-2">
               <button type="button" className={chipBtn(isLight)} disabled={busy !== null} onClick={saveAnswers} data-testid="world-move-home-save-answers">
-                {busy === "answers" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Save answers
+                {busy === "answers" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} {t("worldRemainder.mvhSaveAnswers")}
               </button>
               <button type="button" className={goldBtn} disabled={busy !== null || !moveHomeAnswersReady(answers)} onClick={buildDrafts} data-testid="world-move-home-build">
-                {busy === "draft" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />} Build my five drafts — free
+                {busy === "draft" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />} {t("worldRemainder.mvhBuildDrafts")}
               </button>
             </div>
             {status.copySource ? (
               <p className={`mt-2 text-xs ${muted}`}>
-                Draft copy: {status.copySource === "ai" ? "written by the AI writer from your answers" : "assembled from your answers"} — edit any of it below.
+                {status.copySource === "ai" ? t("worldRemainder.mvhDraftCopyAi") : t("worldRemainder.mvhDraftCopyPlain")}
               </p>
             ) : null}
           </div>
@@ -500,19 +523,19 @@ export function MoveHomeDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
           <div className="space-y-2">
             {status.steps.map((step) => {
               const draft = moveHomeDraftOf(status, step.key);
-              const lines = draft ? previewLines(step.key, draft) : [];
+              const lines = draft ? previewLines(step.key, draft, t) : [];
               return (
                 <div key={step.key} className={`rounded-2xl border px-4 py-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`} data-testid={`world-move-home-step-${step.key}`}>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className={`text-sm font-bold ${strong}`}>{step.title}</p>
                     <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black ${step.status === "approved" ? "bg-emerald-500/20 text-emerald-500" : step.status === "skipped" ? "bg-white/10 text-white/50" : step.blockedReason ? "bg-amber-500/20 text-amber-500" : "bg-[#d4af37]/20 text-[#d4af37]"}`}>
-                      {step.blockedReason ? "Needs something first" : step.status === "pending" ? "Not drafted" : step.status === "drafted" ? "Draft ready" : step.status === "approved" ? "Live" : "Skipped"}
+                      {step.blockedReason ? t("worldRemainder.mvhStatusBlocked") : step.status === "pending" ? t("worldRemainder.mvhStatusPending") : step.status === "drafted" ? t("worldRemainder.mvhStatusDrafted") : step.status === "approved" ? t("worldRemainder.mvhStatusLive") : t("worldRemainder.mvhStatusSkipped")}
                     </span>
                   </div>
                   <p className={`mt-0.5 text-xs ${muted}`}>{step.blurb}</p>
                   {step.blockedReason ? (
                     <p className="mt-1.5 text-sm text-amber-500" data-testid={`world-move-home-blocker-${step.key}`}>
-                      {MOVE_HOME_BLOCKER_COPY[step.blockedReason]}
+                      {t(BLOCKER_KEY[step.blockedReason]!)}
                     </p>
                   ) : null}
                   {lines.length > 0 ? (
@@ -523,29 +546,29 @@ export function MoveHomeDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
                     </div>
                   ) : null}
                   {step.status === "drafted" ? (
-                    <p className={`mt-2 text-xs ${muted}`}>{MOVE_HOME_APPROVE_COPY[step.key]}</p>
+                    <p className={`mt-2 text-xs ${muted}`}>{t(APPROVE_KEY[step.key]!)}</p>
                   ) : null}
                   <div className="mt-2 flex flex-wrap gap-2">
                     {step.status === "drafted" && draft ? (
                       <>
                         <button type="button" className={chipBtn(isLight)} disabled={busy !== null} aria-expanded={editing === step.key} onClick={() => setEditing(editing === step.key ? null : step.key)} data-testid={`world-move-home-edit-${step.key}`}>
-                          <Pencil className="h-3.5 w-3.5" /> {editing === step.key ? "Close the editor" : "Edit the draft"}
+                          <Pencil className="h-3.5 w-3.5" /> {editing === step.key ? t("worldRemainder.mvhCloseEditor") : t("worldRemainder.mvhEditDraft")}
                         </button>
                         <button type="button" className={goldBtn} disabled={busy !== null} onClick={() => stepVerb(step, "approve")} data-testid={`world-move-home-approve-${step.key}`}>
-                          {busy === `approve-${step.key}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Approve
+                          {busy === `approve-${step.key}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} {t("worldRemainder.mvhApprove")}
                         </button>
                         <button type="button" className={chipBtn(isLight)} disabled={busy !== null} onClick={() => stepVerb(step, "skip")} data-testid={`world-move-home-skip-${step.key}`}>
-                          <SkipForward className="h-3.5 w-3.5" /> Skip
+                          <SkipForward className="h-3.5 w-3.5" /> {t("worldRemainder.mvhSkip")}
                         </button>
                       </>
                     ) : null}
                     {(step.status === "approved" || step.status === "skipped") ? (
                       <button type="button" className={chipBtn(isLight)} disabled={busy !== null} onClick={() => stepVerb(step, "reopen")} data-testid={`world-move-home-reopen-${step.key}`}>
-                        <RotateCcw className="h-3.5 w-3.5" /> Reopen
+                        <RotateCcw className="h-3.5 w-3.5" /> {t("worldRemainder.mvhReopen")}
                       </button>
                     ) : null}
                     {step.status === "pending" && !step.blockedReason ? (
-                      <span className={`text-xs ${muted}`}>Builds with the draft run above.</span>
+                      <span className={`text-xs ${muted}`}>{t("worldRemainder.mvhBuildsWithDraft")}</span>
                     ) : null}
                   </div>
                   {editing === step.key && draft ? (
@@ -566,7 +589,7 @@ export function MoveHomeDesk({ isLight, isGuest }: { isLight: boolean; isGuest: 
 
           {note ? <p className={noteCls} data-testid="world-move-home-note">{note}</p> : null}
           {status.steps.length === 0 ? (
-            <NativeEmptyState isLight={isLight} message="No steps came back" detail="Your move couldn't be read. Try loading it again." />
+            <NativeEmptyState isLight={isLight} message={t("worldRemainder.mvhNoSteps")} detail={t("worldRemainder.mvhNoStepsDetail")} />
           ) : null}
         </>
       )}

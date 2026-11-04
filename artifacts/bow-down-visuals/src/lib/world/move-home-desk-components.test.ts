@@ -40,14 +40,14 @@ describe("the flow — answers, draft run, steps", () => {
   it("the draft run posts the draft rail and is presented as free", () => {
     expect(desk).toContain('post("/api/move-home/draft")');
     expect(desk).toContain("moveHomeDraftCost()");
-    expect(desk).toContain("Build my five drafts — free");
+    expect(desk).toContain('t("worldRemainder.mvhBuildDrafts")');
   });
 
   it("renders the rail's own step titles, blurbs and blockers — never invented ones", () => {
     expect(desk).toContain("{step.title}");
     expect(desk).toContain("{step.blurb}");
-    expect(desk).toContain("MOVE_HOME_BLOCKER_COPY[step.blockedReason]");
-    expect(desk).toContain("MOVE_HOME_APPROVE_COPY[step.key]");
+    expect(desk).toContain("t(BLOCKER_KEY[step.blockedReason]!)");
+    expect(desk).toContain("t(APPROVE_KEY[step.key]!)");
   });
 
   it("a blocked step gets no approve button path — verbs render only for drafted/settled steps", () => {
@@ -68,7 +68,7 @@ describe("the editors — one per step, on the PATCH rail", () => {
   });
 
   it("the store editor speaks honestly: drafts, not live products", () => {
-    expect(desk).toContain("nothing is for sale until you publish them in your shop");
+    expect(desk).toContain('t("worldRemainder.mvhStoreDraftsNote")');
   });
 
   it("the routes carry exactly the verbs the desk calls", () => {
@@ -88,7 +88,7 @@ describe("free + honest states", () => {
   });
 
   it("guests get the sign-in line; loading/failed/empty render as themselves", () => {
-    expect(desk).toContain("Sign in to run yours");
+    expect(desk).toContain('t("worldRemainder.mvhGuestBody")');
     expect(desk).toContain("NativeLoadingState");
     expect(desk).toContain("NativeErrorState");
     expect(desk).toContain("NativeEmptyState");

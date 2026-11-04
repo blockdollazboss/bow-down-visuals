@@ -386,8 +386,8 @@ describe("2.21 + 2.22 — the trophy ledger and catalog shape server truth only"
     expect(depthsPanel).toContain("e.amount.toLocaleString");
     expect(depthsPanel).toContain("c.reward > 0");
     // The Ring 3/4 sources render under their own names.
-    expect(depthsPanel).toContain("dailyQuestTitle(e.key)");
-    expect(depthsPanel).toContain("TUTORIAL_LEDGER_TITLE");
+    expect(depthsPanel).toContain("dailyTitle(e.key)");
+    expect(depthsPanel).toContain('t("worldRemainder.treTutorialTitle")');
   });
 });
 
@@ -466,7 +466,7 @@ describe("2.22 completed — the full catalog (both slates), trio days in past w
     expect(depthsPanel).toContain("normalizeQuestMarksBoard");
     expect(depthsPanel).toContain('data-testid="world-treasury-daily-catalog"');
     expect(depthsPanel).toContain('data-testid="world-treasury-marks-board"');
-    expect(depthsPanel).toContain("Quest marks — all time");
+    expect(depthsPanel).toContain('t("worldRemainder.treMarksTitle")');
     // The trio's amounts render from the payload — def reward + marks, row stamps.
     expect(depthsPanel).toContain("d.marks");
     expect(depthsPanel).toContain("d.rewardVb");

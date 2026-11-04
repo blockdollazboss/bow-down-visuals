@@ -6,7 +6,6 @@ import { NativeBoard, NativeBoardRow } from "./NativeBoard";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import {
   QUEST_DISPLAY,
-  TUTORIAL_LEDGER_TITLE,
   dailyQuestName,
   dailyQuestTitle,
   historyTotalVb,
@@ -71,16 +70,36 @@ interface StreakStatusDto {
   milestones: { days: number; reward: number; reached: boolean; claimed: boolean }[];
 }
 
-function fmtDate(iso: string | null | undefined): string {
+function fmtDate(iso: string | null | undefined, language?: string): string {
   if (!iso) return "";
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? ""
-    : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    : d.toLocaleDateString(language, { month: "short", day: "numeric", year: "numeric" });
 }
 
+const KIND_LABEL_KEY: Record<string, string> = {
+  quest: "worldRemainder.treKindQuest",
+  "daily-quest": "worldRemainder.treKindDailyQuest",
+  "king-gift": "worldRemainder.treKindKingGift",
+  tutorial: "worldRemainder.treKindTutorial",
+  "shark-drop": "worldRemainder.treKindSharkDrop",
+  crate: "worldRemainder.treKindCrate",
+  "daily-drop": "worldRemainder.treKindDailyDrop",
+  "streak-milestone": "worldRemainder.treKindStreakMilestone",
+};
+const DAILY_TITLE_KEY: Record<string, string> = {
+  "daily-first-frame": "worldRemainder.treDailyFirstFrame",
+  "daily-song-spark": "worldRemainder.treDailySongSpark",
+  "daily-ship-it": "worldRemainder.treDailyShipIt",
+  "daily-double-frame": "worldRemainder.treDailyDoubleFrame",
+  "daily-second-verse": "worldRemainder.treDailySecondVerse",
+  "daily-loudmouth": "worldRemainder.treDailyLoudmouth",
+  "daily-marathon-cut": "worldRemainder.treDailyMarathonCut",
+};
+
 export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { getAccessToken, user } = useAuth();
   const [tab, setTab] = useState<DepthsTab>("trophies");
   const [history, setHistory] = useState<TreasuryHistory | null>(null);
@@ -218,6 +237,15 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
     }
   }, [streakShape, user]);
 
+  const kindLabel = (kind: string): string =>
+    t(KIND_LABEL_KEY[kind] ?? "worldRemainder.treKindQuest");
+  const dailyTitle = (key: string | null): string =>
+    dailyQuestTitle(
+      key,
+      (k) => (DAILY_TITLE_KEY[k] ? t(DAILY_TITLE_KEY[k]) : undefined),
+      kindLabel,
+    );
+
   const questTitle = (key: string | null): string => {
     if (!key) return "";
     const display = QUEST_DISPLAY[key];
@@ -257,14 +285,13 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
           <Flame className="h-7 w-7 shrink-0 text-[#d4af37]" />
           <div className="min-w-0 flex-1">
             <p className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-              Streak moment — your flame stepped up
+              {t("worldRemainder.treMomentTitle")}
             </p>
             <p className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/60"}`}>
-              Your creation streak crossed {streakMoment.milestone.days} days — you&rsquo;re
-              on a {streakMoment.currentStreak}-day streak.{" "}
+              {t("worldRemainder.treMomentBody", { days: streakMoment.milestone.days, current: streakMoment.currentStreak })}{" "}
               {streakMoment.milestone.claimed
-                ? `Its ${streakMoment.milestone.reward.toLocaleString("en-US")} VB is already claimed — it's on your shelf below.`
-                : `${streakMoment.milestone.reward.toLocaleString("en-US")} VB is waiting — claim it on the streak board.`}
+                ? t("worldRemainder.treMomentClaimed", { reward: streakMoment.milestone.reward.toLocaleString(i18n.language) })
+                : t("worldRemainder.treMomentWaiting", { reward: streakMoment.milestone.reward.toLocaleString(i18n.language) })}
             </p>
           </div>
           <button
@@ -273,14 +300,14 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
             onClick={() => setStreakMoment(null)}
             className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
           >
-            Keep it burning
+            {t("worldRemainder.treMomentDismiss")}
           </button>
         </div>
       )}
       <div className="flex flex-wrap gap-2">
-        {tabBtn("trophies", "Trophies")}
-        {tabBtn("catalog", "Quest catalog")}
-        {tabBtn("standings", "Standings")}
+        {tabBtn("trophies", t("worldRemainder.treTabTrophies"))}
+        {tabBtn("catalog", t("worldRemainder.treTabCatalog"))}
+        {tabBtn("standings", t("worldRemainder.treTabStandings"))}
       </div>
 
       {tab === "trophies" && (
@@ -288,8 +315,8 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
           {historyFailed ? (
             <NativeErrorState
               isLight={isLight}
-              title="The trophy ledger wouldn't open"
-              message="Your claims are safe on the real rails — nothing here writes to them. Try again."
+              title={t("worldRemainder.treTrophiesLoadTitle")}
+              message={t("worldRemainder.treTrophiesLoadMessage")}
               onRetry={() => {
                 setHistoryFailed(false);
                 setHistory(null);
@@ -297,7 +324,7 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
               }}
             />
           ) : history === null ? (
-            <NativeLoadingState isLight={isLight} message="Polishing your trophies…" />
+            <NativeLoadingState isLight={isLight} message={t("worldRemainder.treTrophiesLoading")} />
           ) : (
             <>
               {/* Status strip: streak + lifetime claimed, all server sums. */}
@@ -309,42 +336,42 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
               >
                 <span className="inline-flex items-center gap-2 text-sm font-black">
                   <Trophy className="h-4 w-4 text-[#d4af37]" />
-                  {historyTotalVb(history.entries).toLocaleString("en-US")} VB claimed
+                  {t("worldRemainder.treVbClaimed", { total: historyTotalVb(history.entries).toLocaleString(i18n.language) })}
                 </span>
                 {streak && (
                   <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
                     <Flame className="h-3.5 w-3.5 text-[#d4af37]" />
-                    {streak.currentStreak}-day creation streak · longest {streak.longestStreak}
+                    {t("worldRemainder.treStreakLine", { current: streak.currentStreak, longest: streak.longestStreak })}
                   </span>
                 )}
                 {lastDailyClaim && (
                   <span className={`text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-                    Last daily drop claimed {fmtDate(lastDailyClaim)}
+                    {t("worldRemainder.treLastDailyClaim", { date: fmtDate(lastDailyClaim, i18n.language) })}
                   </span>
                 )}
               </div>
 
               {streak && streak.milestones.length > 0 && (
-                <NativeBoard isLight={isLight} title="Streak milestones">
+                <NativeBoard isLight={isLight} title={t("worldRemainder.treMilestonesTitle")}>
                   {streak.milestones.map((m) => (
                     <NativeBoardRow
                       key={m.days}
                       isLight={isLight}
-                      title={`${m.days}-day milestone`}
-                      detail={m.claimed ? "Claimed — it's on your shelf" : m.reached ? "Reached — claim it on the board above" : "Keep the streak alive to reach it"}
-                      meta={`${m.reward.toLocaleString("en-US")} VB`}
+                      title={t("worldRemainder.treMilestoneTitle", { days: m.days })}
+                      detail={m.claimed ? t("worldRemainder.treMilestoneClaimed") : m.reached ? t("worldRemainder.treMilestoneReached") : t("worldRemainder.treMilestoneKeepGoing")}
+                      meta={t("worldRemainder.treVbAmount", { amount: m.reward.toLocaleString(i18n.language) })}
                       highlighted={m.claimed}
                     />
                   ))}
                 </NativeBoard>
               )}
 
-              <NativeBoard isLight={isLight} title="Claim history">
+              <NativeBoard isLight={isLight} title={t("worldRemainder.treClaimHistoryTitle")}>
                 {history.entries.length === 0 ? (
                   <NativeEmptyState
                     isLight={isLight}
-                    message="No trophies yet — finish an objective above and claim it here."
-                    detail="Quest rewards, daily quests, the King's gifts, the tutorial reward, shark drops, hourly crates, daily drops and streak milestones you claim will line this shelf."
+                    message={t("worldRemainder.treNoTrophies")}
+                    detail={t("worldRemainder.treNoTrophiesDetail")}
                   />
                 ) : (
                   history.entries.map((e, i) => (
@@ -355,23 +382,21 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                         e.kind === "quest"
                           ? questTitle(e.key)
                           : e.kind === "daily-quest"
-                            ? dailyQuestTitle(e.key)
+                            ? dailyTitle(e.key)
                             : e.kind === "tutorial"
-                              ? TUTORIAL_LEDGER_TITLE
+                              ? t("worldRemainder.treTutorialTitle")
                               : e.kind === "streak-milestone"
-                                ? streakMilestoneTitle(e.key)
-                                : ledgerEntryKindLabel(e.kind)
+                                ? streakMilestoneTitle(e.key, (days) => t("worldRemainder.treStreakMilestoneTitle", { days }), kindLabel)
+                                : ledgerEntryKindLabel(e.kind, kindLabel)
                       }
-                      detail={`${ledgerEntryKindLabel(e.kind)} · ${fmtDate(e.at)}`}
-                      meta={`+${e.amount.toLocaleString("en-US")} VB`}
+                      detail={`${ledgerEntryKindLabel(e.kind, kindLabel)} · ${fmtDate(e.at, i18n.language)}`}
+                      meta={t("worldRemainder.treVbPlus", { amount: e.amount.toLocaleString(i18n.language) })}
                     />
                   ))
                 )}
               </NativeBoard>
               <p className={`px-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                Daily drops and streak milestones you claim now line this shelf too. Claims from
-                before the ledger began recording them kept no per-claim row — only your last
-                daily claim date (shown above) — so those aren&rsquo;t listed as rows here.
+                {t("worldRemainder.treLedgerFootnote")}
               </p>
             </>
           )}
@@ -383,8 +408,8 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
           {historyFailed ? (
             <NativeErrorState
               isLight={isLight}
-              title="The quest catalog wouldn't open"
-              message="The board above still holds this week's objectives. Try again."
+              title={t("worldRemainder.treCatalogLoadTitle")}
+              message={t("worldRemainder.treCatalogLoadMessage")}
               onRetry={() => {
                 setHistoryFailed(false);
                 setHistory(null);
@@ -392,10 +417,10 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
               }}
             />
           ) : history === null ? (
-            <NativeLoadingState isLight={isLight} message="Opening the quest catalog…" />
+            <NativeLoadingState isLight={isLight} message={t("worldRemainder.treCatalogLoading")} />
           ) : (
             <>
-              <NativeBoard isLight={isLight} title="Every quest in the kingdom">
+              <NativeBoard isLight={isLight} title={t("worldRemainder.treCatalogTitle")}>
                 {history.catalog.map((c) => {
                   const dest = questDestination(c.key);
                   return (
@@ -405,10 +430,10 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                       title={questTitle(c.key)}
                       detail={
                         dest?.kind === "station"
-                          ? `Done at the ${dest.stationName} in ${dest.roomName} — “Go do it” on the board walks you there`
-                          : "No desk in the palace performs this one yet — its board action opens it on the website"
+                          ? t("worldRemainder.treCatalogStationDetail", { station: dest.stationName, room: dest.roomName })
+                          : t("worldRemainder.treCatalogNoDesk")
                       }
-                      meta={c.reward > 0 ? `${c.reward.toLocaleString("en-US")} VB · ${c.target}× a week` : "Reward TBD"}
+                      meta={c.reward > 0 ? t("worldRemainder.treCatalogMeta", { reward: c.reward.toLocaleString(i18n.language), target: c.target }) : t("worldRemainder.treRewardTbd")}
                     />
                   );
                 })}
@@ -416,7 +441,7 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
 
               {history.dailyCatalog.length > 0 && (
                 <div data-testid="world-treasury-daily-catalog">
-                  <NativeBoard isLight={isLight} title="The Daily Quest Trio — the whole pool">
+                  <NativeBoard isLight={isLight} title={t("worldRemainder.treDailyCatalogTitle")}>
                     {history.dailyCatalog.map((d) => (
                       <NativeBoardRow
                         key={d.key}
@@ -424,19 +449,16 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                         title={d.name}
                         detail={
                           d.liveToday
-                            ? "On today's slate — finish it and claim before the day-turn"
-                            : "In the rotation — three of the seven stand each day"
+                            ? t("worldRemainder.treDailyLiveDetail")
+                            : t("worldRemainder.treDailyRotationDetail")
                         }
-                        meta={`${d.rewardVb.toLocaleString("en-US")} VB + ${d.marks} marks`}
+                        meta={t("worldRemainder.treDailyMeta", { vb: d.rewardVb.toLocaleString(i18n.language), marks: d.marks })}
                         highlighted={d.liveToday}
                       />
                     ))}
                   </NativeBoard>
                   <p className={`px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                    The trio turns at the palace day-turn (00:00 UTC), and a finish left unclaimed
-                    expires with its day. Daily rewards draw from the same shared weekly pool as
-                    the weekly quests — 300 VB a week across quests, the King&rsquo;s gifts and
-                    the tutorial.
+                    {t("worldRemainder.treDailyFootnote")}
                   </p>
                 </div>
               )}
@@ -444,11 +466,11 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
               {history.weeks.length === 0 ? (
                 <NativeEmptyState
                   isLight={isLight}
-                  message="No past weeks yet — this week's objectives are on the board above."
+                  message={t("worldRemainder.treNoWeeks")}
                 />
               ) : (
                 history.weeks.map((week) => (
-                  <NativeBoard key={week.weekStart} isLight={isLight} title={`Week of ${fmtDate(week.weekStart)}`}>
+                  <NativeBoard key={week.weekStart} isLight={isLight} title={t("worldRemainder.treWeekOf", { date: fmtDate(week.weekStart, i18n.language) })}>
                     {week.quests.map((q) => (
                       <NativeBoardRow
                         key={q.key}
@@ -456,10 +478,10 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                         title={questTitle(q.key)}
                         detail={
                           q.claimed
-                            ? `Claimed ${fmtDate(q.claimedAt)}`
+                            ? t("worldRemainder.treClaimedOn", { date: fmtDate(q.claimedAt, i18n.language) })
                             : q.completed
-                              ? "Finished — never claimed"
-                              : `${q.progress} of ${q.target} done`
+                              ? t("worldRemainder.treFinishedUnclaimed")
+                              : t("worldRemainder.treProgressOf", { progress: q.progress, target: q.target })
                         }
                         meta={`${q.progress}/${q.target}`}
                         highlighted={q.claimed}
@@ -472,7 +494,7 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                             isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
                           }`}
                         >
-                          Daily trio
+                          {t("worldRemainder.treDailyTrioHeading")}
                         </p>
                         {week.daily.map((d) => (
                           <NativeBoardRow
@@ -481,14 +503,14 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                             title={dailyQuestName(history.dailyCatalog, d.key) ?? d.key}
                             detail={
                               d.claimed
-                                ? `${fmtDate(d.day)} · Claimed ${fmtDate(d.claimedAt)}`
+                                ? t("worldRemainder.treDayClaimed", { day: fmtDate(d.day, i18n.language), date: fmtDate(d.claimedAt, i18n.language) })
                                 : d.completed
-                                  ? `${fmtDate(d.day)} · Finished — never claimed`
-                                  : `${fmtDate(d.day)} · ${d.progress} of ${d.target} done`
+                                  ? t("worldRemainder.treDayFinished", { day: fmtDate(d.day, i18n.language) })
+                                  : t("worldRemainder.treDayProgress", { day: fmtDate(d.day, i18n.language), progress: d.progress, target: d.target })
                             }
                             meta={
                               d.claimed
-                                ? `+${(d.rewardVb ?? 0).toLocaleString("en-US")} VB · ${d.marks} marks`
+                                ? t("worldRemainder.treDailyClaimedMeta", { vb: (d.rewardVb ?? 0).toLocaleString(i18n.language), marks: d.marks })
                                 : `${d.progress}/${d.target}`
                             }
                             highlighted={d.claimed}
@@ -509,29 +531,29 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
           {boardFailed ? (
             <NativeErrorState
               isLight={isLight}
-              title="The standings wouldn't load"
-              message="The kingdom's creators are still ranked on the real rails. Try again."
+              title={t("worldRemainder.treStandingsLoadTitle")}
+              message={t("worldRemainder.treStandingsLoadMessage")}
               onRetry={() => {
                 setBoardFailed(false);
                 setBoard(null);
               }}
             />
           ) : board === null ? (
-            <NativeLoadingState isLight={isLight} message="Reading the standings…" />
+            <NativeLoadingState isLight={isLight} message={t("worldRemainder.treStandingsLoading")} />
           ) : board.rows.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="No creations on the board yet this week — the first one takes the crown."
-              detail="The standings count this week's creations and exports across the kingdom."
+              message={t("worldRemainder.treStandingsEmpty")}
+              detail={t("worldRemainder.treStandingsEmptyDetail")}
             />
           ) : (
             <NativeBoard
               isLight={isLight}
-              title="This week's creators"
+              title={t("worldRemainder.treStandingsTitle")}
               headline={
                 board.viewerRank !== null ? (
                   <p className={`inline-flex items-center gap-2 px-1 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                    <Crown className="h-3.5 w-3.5" /> You stand #{board.viewerRank} this week — {board.viewerScore} creations + exports
+                    <Crown className="h-3.5 w-3.5" /> {t("worldRemainder.treViewerRank", { rank: board.viewerRank, score: board.viewerScore })}
                   </p>
                 ) : undefined
               }
@@ -540,14 +562,14 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                 <NativeBoardRow
                   key={r.rank}
                   isLight={isLight}
-                  title={`#${r.rank} · ${r.name}${r.isYou ? " (you)" : ""}`}
-                  detail={`${r.creations} creations · ${r.exports} exports`}
+                  title={`#${r.rank} · ${r.name}${r.isYou ? t("worldRemainder.treRowYouSuffix") : ""}`}
+                  detail={t("worldRemainder.treRowDetail", { creations: r.creations, exports: r.exports })}
                   meta={`${r.score}`}
                   highlighted={r.isYou}
                 />
               ))}
               <p className={`inline-flex items-center gap-1.5 px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                <Target className="h-3 w-3" /> Standings are honor only — no Visual Bucs ride on them.
+                <Target className="h-3 w-3" /> {t("worldRemainder.treStandingsHonor")}
               </p>
             </NativeBoard>
           )}
@@ -559,33 +581,33 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
             {marksFailed ? (
               <NativeErrorState
                 isLight={isLight}
-                title="The quest marks wouldn't load"
-                message="Every mark you've banked is safe on the claim rows. Try again."
+                title={t("worldRemainder.treMarksLoadTitle")}
+                message={t("worldRemainder.treMarksLoadMessage")}
                 onRetry={() => {
                   setMarksFailed(false);
                   setMarks(null);
                 }}
               />
             ) : marks === null ? (
-              <NativeLoadingState isLight={isLight} message="Counting the kingdom's marks…" />
+              <NativeLoadingState isLight={isLight} message={t("worldRemainder.treMarksLoading")} />
             ) : marks.rows.length === 0 ? (
               <NativeEmptyState
                 isLight={isLight}
-                message="No quest marks banked yet — the roll opens with the first claimed trio finish."
-                detail="Finish a Daily Quest Trio quest on the board above and claim it: its marks bank here, for good."
+                message={t("worldRemainder.treMarksEmpty")}
+                detail={t("worldRemainder.treMarksEmptyDetail")}
               />
             ) : (
               <NativeBoard
                 isLight={isLight}
-                title="Quest marks — all time"
+                title={t("worldRemainder.treMarksTitle")}
                 headline={
                   marks.viewerRank !== null ? (
                     <p className={`inline-flex items-center gap-2 px-1 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                      <Medal className="h-3.5 w-3.5" /> You stand #{marks.viewerRank} — {marks.viewerMarks.toLocaleString("en-US")} marks banked from {marks.viewerClaims} trio claims
+                      <Medal className="h-3.5 w-3.5" /> {t("worldRemainder.treMarksViewerRank", { rank: marks.viewerRank, marks: marks.viewerMarks.toLocaleString(i18n.language), claims: marks.viewerClaims })}
                     </p>
                   ) : marks.viewerMarks > 0 ? (
                     <p className={`inline-flex items-center gap-2 px-1 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                      <Medal className="h-3.5 w-3.5" /> You&rsquo;ve banked {marks.viewerMarks.toLocaleString("en-US")} marks — your standing is hidden by your leaderboard privacy setting
+                      <Medal className="h-3.5 w-3.5" /> {t("worldRemainder.treMarksViewerHidden", { marks: marks.viewerMarks.toLocaleString(i18n.language) })}
                     </p>
                   ) : undefined
                 }
@@ -594,15 +616,14 @@ export function TreasuryQuestDepths({ isLight }: { isLight: boolean }) {
                   <NativeBoardRow
                     key={r.rank}
                     isLight={isLight}
-                    title={`#${r.rank} · ${r.name}${r.isYou ? " (you)" : ""}`}
-                    detail={`${r.claims} trio ${r.claims === 1 ? "claim" : "claims"}`}
-                    meta={`${r.marks.toLocaleString("en-US")} marks`}
+                    title={`#${r.rank} · ${r.name}${r.isYou ? t("worldRemainder.treRowYouSuffix") : ""}`}
+                    detail={r.claims === 1 ? t("worldRemainder.treMarksRowDetailOne", { claims: r.claims }) : t("worldRemainder.treMarksRowDetailMany", { claims: r.claims })}
+                    meta={t("worldRemainder.treMarksMeta", { marks: r.marks.toLocaleString(i18n.language) })}
                     highlighted={r.isYou}
                   />
                 ))}
                 <p className={`inline-flex items-center gap-1.5 px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-                  <Medal className="h-3 w-3" /> Marks are banked by claiming Daily Quest Trio
-                  finishes. Honor only — they never convert to Visual Bucs.
+                  <Medal className="h-3 w-3" /> {t("worldRemainder.treMarksHonor")}
                 </p>
               </NativeBoard>
             )}

@@ -139,8 +139,8 @@ describe("PlansDesk wiring — no silent fall-through to the hosted rail", () =>
   it("the intent rides the pricing page's transport-resilient helper", () => {
     expect(plansDesk).toContain("postJsonWithTransportRetry(");
     expect(plansDesk).toContain('"/api/embedded-checkout/subscription/intent"');
-    expect(plansDesk).toContain("planIntentOutcome(result, plan.name)");
-    expect(plansDesk).toContain("checkoutFailureCopy(err)");
+    expect(plansDesk).toContain("planIntentOutcome(result, plan.name, planStrings)");
+    expect(plansDesk).toContain("checkoutFailureCopy(err, checkoutStrings)");
   });
 
   it("the old silent fall-through is gone", () => {

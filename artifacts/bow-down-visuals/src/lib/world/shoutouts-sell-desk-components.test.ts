@@ -63,8 +63,9 @@ describe("the decline tells the money truth before the tap", () => {
     expect(desk).toContain('data-testid="world-shoutout-sell-decline-arm"');
     expect(desk).toContain("shoutoutDeclineConsequence(r)");
     expect(desk).toContain("setDeclineArmed(r.id)");
-    expect(desk).toContain("refunds them in full, automatically");
-    expect(desk).toContain("nothing to refund");
+    expect(desk).toContain('t("worldRemainder.shoDeclineRefund"');
+    expect(desk).toContain('t("worldRemainder.shoDeclineUnpaid"');
+    expect(desk).toContain('t("worldRemainder.shoDeclineFree")');
     expect(desk).toContain('updated?.status === "refunded"');
   });
 
