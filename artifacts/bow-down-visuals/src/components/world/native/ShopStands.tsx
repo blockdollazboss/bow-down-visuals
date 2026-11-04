@@ -52,7 +52,7 @@ import {
   type MarketOrder, type MembershipPendingCheckout, type MembershipTierDto, type MineShopDto, type MyMembershipDto,
   type ProductFormState, type PublicProductDto,
   type PublicShopDto, type SellerEarnings, type ShopAnalytics, type ShopCreateFormState,
-  type ShopSettingsFormState,
+  type ShopSettingsFormState, type TierLabelStrings,
 } from "@/lib/world/shop-stands";
 import {
   SHOP_DESIGN_STARTERS,
