@@ -144,8 +144,8 @@ export function buildLadderPlans(
 }
 
 /** A ladder card's price line, the PlansDesk's dress: "Free" for
- *  the free tier, "$12/mo" for a paid one — formatted from the
- *  shared source's figure, never a literal. */
+ *  the free tier, the paid figure with "/mo" for a paid one —
+ *  formatted from the shared source's figure, never a literal. */
 export function ladderPriceLabel(view: LadderPlanView): string {
   return view.priceUsdPerMonth === 0 ? "Free" : `$${view.priceUsdPerMonth}/mo`;
 }

@@ -18,7 +18,9 @@ import {
   planChangeStartLine,
   planIntentOutcome,
   plansNote,
+  type PlanChangeOutcome,
   type PlanChangePreview,
+  type PlanIntentOutcome,
 } from "@/lib/world/money-desks-2";
 import {
   COACH_LADDER_TIER_STALL_MS,
@@ -209,7 +211,7 @@ function PlanLadderBody({
       }
       const headers = await authHeaders();
       const token = headers.Authorization?.replace(/^Bearer\s+/i, "") ?? null;
-      let outcome;
+      let outcome: PlanIntentOutcome;
       try {
         const result = await postJsonWithTransportRetry(
           "/api/embedded-checkout/subscription/intent",
@@ -297,7 +299,7 @@ function PlanLadderBody({
     try {
       const headers = await authHeaders();
       const token = headers.Authorization?.replace(/^Bearer\s+/i, "") ?? null;
-      let outcome;
+      let outcome: PlanChangeOutcome;
       try {
         const result = await postJsonWithTransportRetry(
           "/api/creator-tiers/change",
