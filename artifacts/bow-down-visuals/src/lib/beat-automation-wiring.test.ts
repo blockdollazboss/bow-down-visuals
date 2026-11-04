@@ -38,7 +38,9 @@ describe("beat automation + sends wiring (W3a)", () => {
   });
 
   it("stems pass their own channel (or none for melody) into the render", () => {
-    expect(aiAudio).toContain("await renderBeat(isolated, stemFx, autoChannel)");
+    /* Join composition (stack1500 join #2): renderBeat's third slot is
+     * the export format (mp3 lane); autoChannel rides fourth. */
+    expect(aiAudio).toContain("await renderBeat(isolated, stemFx, format, autoChannel)");
     expect(aiAudio).toContain('stem.kind === "bass"');
     /* The FX isolation carries the shared buses (the stem's room). */
     expect(beatExport).toContain("buses: normalizeBusesConfig(fx.buses ?? defaultBusesConfig())");

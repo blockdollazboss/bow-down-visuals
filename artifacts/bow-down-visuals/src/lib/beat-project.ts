@@ -51,6 +51,7 @@
  * humanize timing/velocity amounts + the seed the offsets hash from
  * (lib/beat-feel) — project-level beside swing, normalized with
  * defaults OFF so older projects load and sound exactly as before.
+ *
  * W3a (additive): each pattern carries automation lanes
  * (`automation`, lib/beat-automation.ts) — breakpoints for channel
  * volume/pan/delay/reverb — and each mixer channel carries sends to
@@ -80,6 +81,7 @@ import {
   normalizeBeatFeel,
   type BeatFeelState,
 } from "@/lib/beat-feel";
+import {
   cloneBeatAutomation,
   emptyBeatAutomation,
   normalizeBeatAutomation,
