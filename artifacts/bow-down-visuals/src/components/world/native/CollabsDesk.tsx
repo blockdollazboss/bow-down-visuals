@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Check, HeartHandshake, Loader2, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
@@ -31,7 +32,6 @@ import {
   parseMyCollabProfile,
   profileFormFrom,
   profileFormReady,
-  requestStatusLabel,
   sendRequestReady,
   type CollabMatchResult,
   type CollabProfileCard,
@@ -71,8 +71,38 @@ const EMPTY_FORM: CollabProfileForm = {
   isPublic: true,
 };
 
+/* The seam's niche vocabulary renders from the catalog, keyed by
+   the niche token, with the seam's label as the fallback. Request
+   status words mirror the seam's requestStatusLabel the same way. */
+const NICHE_KEYS: Record<string, string> = {
+  music: "worldSocialDesk.collabsNicheMusic",
+  gaming: "worldSocialDesk.collabsNicheGaming",
+  vlogging: "worldSocialDesk.collabsNicheVlogging",
+  comedy: "worldSocialDesk.collabsNicheComedy",
+  education: "worldSocialDesk.collabsNicheEducation",
+  fitness: "worldSocialDesk.collabsNicheFitness",
+  beauty: "worldSocialDesk.collabsNicheBeauty",
+  tech: "worldSocialDesk.collabsNicheTech",
+  cooking: "worldSocialDesk.collabsNicheCooking",
+  travel: "worldSocialDesk.collabsNicheTravel",
+  fashion: "worldSocialDesk.collabsNicheFashion",
+  podcasting: "worldSocialDesk.collabsNichePodcasting",
+  other: "worldSocialDesk.collabsNicheOther",
+};
+
 export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
+  const nicheText = (key: string) => {
+    const k = NICHE_KEYS[key];
+    return k ? t(k) : collabNicheLabel(key);
+  };
+  const statusText = (status: string) =>
+    status === "accepted"
+      ? t("worldSocialDesk.collabsStatusAccepted")
+      : status === "declined"
+        ? t("worldSocialDesk.collabsStatusDeclined")
+        : t("worldSocialDesk.collabsStatusWaiting");
   const { confirmedFetch } = useConfirmedApi();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
@@ -182,7 +212,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
         body: JSON.stringify(buildProfileBody(form)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't save your card (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldSocialDesk.collabsSaveFailedStatus", { status: res.status })));
       setMeRead((prev) =>
         prev?.state === "ready" || prev?.state === "none" ? { state: "ready", profile: {
           displayName: form.displayName.trim(),
@@ -193,10 +223,10 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
           isPublic: form.isPublic,
         } } : prev,
       );
-      setProfileNote("Your card is saved — creators browsing your niche can find you now.");
-      setProfilesTick((t) => t + 1);
+      setProfileNote(t("worldSocialDesk.collabsSavedNote"));
+      setProfilesTick((n) => n + 1);
     } catch (err) {
-      setProfileError(plainErrorText(err, "Couldn't save your card — try again."));
+      setProfileError(plainErrorText(err, t("worldSocialDesk.collabsSaveError")));
     } finally {
       setSavingProfile(false);
     }
@@ -220,12 +250,12 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
         setOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error(apiErrorMessage(data, `The matcher hiccupped (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldSocialDesk.collabsMatchFailedStatus", { status: res.status })));
       const parsed = parseMatchResult(data);
-      if (!parsed) throw new Error("The matcher answered in a shape the desk can't read — the rail refunds failed generations; if Bucs left your balance, the refund lands on its own.");
+      if (!parsed) throw new Error(t("worldSocialDesk.collabsMatchShapeError"));
       setMatch(parsed);
     } catch (err) {
-      setMatchError(plainErrorText(err, "The matcher hiccupped — try again."));
+      setMatchError(plainErrorText(err, t("worldSocialDesk.collabsMatchError")));
     } finally {
       setMatchBusyId(null);
     }
@@ -242,13 +272,13 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
         body: JSON.stringify(buildSendRequestBody(card.userId, composeText)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't send the request (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldSocialDesk.collabsSendFailedStatus", { status: res.status })));
       setComposeFor(null);
       setComposeText("");
-      setInboxNote(`Request sent to ${card.displayName} — if they reach back, you both unlock the intro.`);
-      setRequestsTick((t) => t + 1);
+      setInboxNote(t("worldSocialDesk.collabsRequestSentNote", { name: card.displayName }));
+      setRequestsTick((n) => n + 1);
     } catch (err) {
-      setInboxError(plainErrorText(err, "Couldn't send the request — try again."));
+      setInboxError(plainErrorText(err, t("worldSocialDesk.collabsSendError")));
     } finally {
       setSending(false);
     }
@@ -264,11 +294,11 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
         body: JSON.stringify({ action }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't answer (${res.status})`));
-      setInboxNote(action === "accepted" ? "Accepted — the intro is unlocked for you both." : "Declined — the request is closed.");
-      setRequestsTick((t) => t + 1);
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldSocialDesk.collabsRespondFailedStatus", { status: res.status })));
+      setInboxNote(action === "accepted" ? t("worldSocialDesk.collabsAcceptedNote") : t("worldSocialDesk.collabsDeclinedNote"));
+      setRequestsTick((n) => n + 1);
     } catch (err) {
-      setInboxError(plainErrorText(err, "Couldn't answer — try again."));
+      setInboxError(plainErrorText(err, t("worldSocialDesk.collabsRespondError")));
     } finally {
       setRespondBusyId(null);
     }
@@ -277,54 +307,48 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
   const myCardReady = meRead?.state === "ready";
 
   return (
-    <NativeCard isLight={isLight} title="Collabs — find your people">
+    <NativeCard isLight={isLight} title={t("worldSocialDesk.collabsTitle")}>
       <div data-testid="world-collabs-desk" className="space-y-4">
         {isGuest ? (
           <p className={`text-sm ${muted}`}>
-            Collabs are members&rsquo; business — creator cards, match reports and requests all ride
-            your account.{" "}
+            {t("worldSocialDesk.collabsGuestLead")}
             <Link href={GUEST_SIGN_IN_HREF} className="font-bold text-[#d4af37] underline">
-              Sign in
-            </Link>{" "}
-            and your card takes thirty seconds.
+              {t("worldSocialDesk.collabsSignIn")}
+            </Link>
+            {t("worldSocialDesk.collabsGuestTail")}
           </p>
         ) : (
           <>
             {/* ── Your card ── */}
             <div className="space-y-2">
-              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Your collab card</p>
+              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{t("worldSocialDesk.collabsYourCardHeading")}</p>
               {meRead === null ? (
-                <NativeLoadingState isLight={isLight} message="Reading your card…" />
+                <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.collabsCardLoading")} />
               ) : meRead.state === "failed" ? (
-                <p className={`text-xs ${muted}`}>
-                  Your card didn&rsquo;t answer just now — the browse and inbox below still stand;
-                  reopen the Hall to try your card again.
-                </p>
+                <p className={`text-xs ${muted}`}>{t("worldSocialDesk.collabsCardFailed")}</p>
               ) : (
                 <>
                   {meRead.state === "none" ? (
-                    <p className={`text-xs ${muted}`}>
-                      No card yet — make yours so creators can find you, match with you, and reach out.
-                    </p>
+                    <p className={`text-xs ${muted}`}>{t("worldSocialDesk.collabsNoCardYet")}</p>
                   ) : null}
                   <input
                     className={deskInputCls(isLight)}
-                    placeholder="Display name"
+                    placeholder={t("worldSocialDesk.collabsDisplayNameField")}
                     maxLength={60}
                     value={form.displayName}
                     onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-                    aria-label="Display name"
+                    aria-label={t("worldSocialDesk.collabsDisplayNameField")}
                   />
                   <div className="flex flex-wrap gap-2">
                     <select
                       className={deskInputCls(isLight)}
                       value={form.niche}
                       onChange={(e) => setForm({ ...form, niche: e.target.value })}
-                      aria-label="Your niche"
+                      aria-label={t("worldSocialDesk.collabsNicheAria")}
                     >
                       {COLLAB_NICHE_OPTIONS.map((n) => (
                         <option key={n.key} value={n.key}>
-                          {n.label}
+                          {nicheText(n.key)}
                         </option>
                       ))}
                     </select>
@@ -335,7 +359,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                         onChange={(e) => setForm({ ...form, isPublic: e.target.checked })}
                         className="h-4 w-4 accent-[#d4af37]"
                       />
-                      Public — creators can find this card
+                      {t("worldSocialDesk.collabsPublicLabel")}
                     </label>
                   </div>
                   {form.platforms.map((row, i) => (
@@ -349,7 +373,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                             platforms: form.platforms.map((r, j) => (j === i ? { ...r, platform: e.target.value } : r)),
                           })
                         }
-                        aria-label={`Platform ${i + 1}`}
+                        aria-label={t("worldSocialDesk.collabsPlatformAria", { n: i + 1 })}
                       >
                         {COLLAB_PLATFORM_OPTIONS.map((p) => (
                           <option key={p.key} value={p.key}>
@@ -359,7 +383,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                       </select>
                       <input
                         className={deskInputCls(isLight)}
-                        placeholder="Followers"
+                        placeholder={t("collabs.followersPlaceholder")}
                         inputMode="numeric"
                         value={row.followersText}
                         onChange={(e) =>
@@ -368,12 +392,12 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                             platforms: form.platforms.map((r, j) => (j === i ? { ...r, followersText: e.target.value } : r)),
                           })
                         }
-                        aria-label={`Followers on platform ${i + 1}`}
+                        aria-label={t("worldSocialDesk.collabsFollowersAria", { n: i + 1 })}
                       />
                       <button
                         type="button"
                         className={chipBtn(isLight)}
-                        aria-label={`Remove platform ${i + 1}`}
+                        aria-label={t("worldSocialDesk.collabsRemovePlatformAria", { n: i + 1 })}
                         onClick={() => setForm({ ...form, platforms: form.platforms.filter((_, j) => j !== i) })}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -388,26 +412,26 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                         setForm({ ...form, platforms: [...form.platforms, { platform: "tiktok", followersText: "0" }] })
                       }
                     >
-                      <Plus className="h-3.5 w-3.5" /> Add a platform
+                      <Plus className="h-3.5 w-3.5" /> {t("worldSocialDesk.collabsAddPlatform")}
                     </button>
                   ) : null}
                   <textarea
                     className={deskInputCls(isLight)}
-                    placeholder="What collabs are you after? (duets, remixes, co-streams…)"
+                    placeholder={t("worldSocialDesk.collabsInterestsPlaceholder")}
                     rows={2}
                     maxLength={500}
                     value={form.collabInterests}
                     onChange={(e) => setForm({ ...form, collabInterests: e.target.value })}
-                    aria-label="Collab interests"
+                    aria-label={t("worldSocialDesk.collabsInterestsAria")}
                   />
                   <textarea
                     className={deskInputCls(isLight)}
-                    placeholder="A line or two about you"
+                    placeholder={t("worldSocialDesk.collabsBioPlaceholder")}
                     rows={2}
                     maxLength={500}
                     value={form.bio}
                     onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                    aria-label="Bio"
+                    aria-label={t("collabs.bioLabel")}
                   />
                   {profileError ? (
                     <p className={`text-xs ${isLight ? "text-[#8a2f1b]" : "text-red-300"}`}>{profileError}</p>
@@ -420,7 +444,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                     onClick={() => void saveProfile()}
                   >
                     {savingProfile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                    Save my card — free
+                    {t("worldSocialDesk.collabsSaveCard")}
                   </button>
                 </>
               )}
@@ -428,10 +452,10 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
 
             {/* ── Browse + match ── */}
             <div className="space-y-2">
-              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>Find creators</p>
+              <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>{t("worldSocialDesk.collabsFindHeading")}</p>
               <div className="flex flex-wrap gap-1.5">
                 <button type="button" className={niche === "" ? goldBtn : chipBtn(isLight)} onClick={() => setNiche("")}>
-                  All
+                  {t("worldSocialDesk.collabsAllFilter")}
                 </button>
                 {COLLAB_NICHE_OPTIONS.map((n) => (
                   <button
@@ -440,24 +464,24 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                     className={niche === n.key ? goldBtn : chipBtn(isLight)}
                     onClick={() => setNiche(n.key)}
                   >
-                    {n.label}
+                    {nicheText(n.key)}
                   </button>
                 ))}
               </div>
               {profilesFailed ? (
                 <NativeErrorState
                   isLight={isLight}
-                  title="The browse wouldn't open"
-                  message="Creators are still out there — the directory just didn't answer. Try again."
-                  onRetry={() => setProfilesTick((t) => t + 1)}
+                  title={t("worldSocialDesk.collabsBrowseErrorTitle")}
+                  message={t("worldSocialDesk.collabsBrowseErrorMessage")}
+                  onRetry={() => setProfilesTick((n) => n + 1)}
                 />
               ) : profiles === null ? (
-                <NativeLoadingState isLight={isLight} message="Reading the directory…" />
+                <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.collabsBrowseLoading")} />
               ) : profiles.length === 0 ? (
                 <NativeEmptyState
                   isLight={isLight}
-                  message="No public cards in this niche yet."
-                  detail="Yours could be the first — the card form above takes thirty seconds."
+                  message={t("worldSocialDesk.collabsBrowseEmptyMessage")}
+                  detail={t("worldSocialDesk.collabsBrowseEmptyDetail")}
                 />
               ) : (
                 profiles.map((card) => (
@@ -470,8 +494,8 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                   >
                     <p className={`text-sm font-bold ${strong}`}>
                       {card.displayName}{" "}
-                      <span className={`text-xs font-semibold ${muted}`}>· {card.nicheLabel || collabNicheLabel(card.niche)}</span>
-                      {card.isOwn ? <span className={`text-xs ${muted}`}> · your card</span> : null}
+                      <span className={`text-xs font-semibold ${muted}`}>· {card.nicheLabel || nicheText(card.niche)}</span>
+                      {card.isOwn ? <span className={`text-xs ${muted}`}>{t("worldSocialDesk.collabsYourCardSuffix")}</span> : null}
                     </p>
                     {card.platforms.length > 0 ? (
                       <p className={`text-xs ${muted}`}>
@@ -481,7 +505,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                     {card.bio ? <p className={`text-xs ${muted}`}>{card.bio}</p> : null}
                     {card.collabInterests ? (
                       <p className={`text-xs ${muted}`}>
-                        <span className="font-bold">After:</span> {card.collabInterests}
+                        <span className="font-bold">{t("worldSocialDesk.collabsAfterLabel")}</span> {card.collabInterests}
                       </p>
                     ) : null}
                     {!card.isOwn ? (
@@ -498,11 +522,11 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                             ) : (
                               <Sparkles className="h-3.5 w-3.5" />
                             )}
-                            Match us — {COLLAB_MATCH_COST_VB} Bucs
+                            {t("worldSocialDesk.collabsMatchButton", { cost: COLLAB_MATCH_COST_VB })}
                           </button>
                         ) : (
                           <span className={`inline-flex items-center text-xs ${muted}`}>
-                            Save your card above and the matcher can read you both.
+                            {t("worldSocialDesk.collabsMatchArmedNote")}
                           </span>
                         )}
                         <button
@@ -514,7 +538,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                             setComposeText("");
                           }}
                         >
-                          <Send className="h-3.5 w-3.5" /> Send a request — free
+                          <Send className="h-3.5 w-3.5" /> {t("worldSocialDesk.collabsSendRequestFree")}
                         </button>
                       </div>
                     ) : null}
@@ -522,12 +546,12 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                       <div className="space-y-2 pt-1">
                         <textarea
                           className={deskInputCls(isLight)}
-                          placeholder={`Your pitch to ${card.displayName} — it stays locked until they accept`}
+                          placeholder={t("worldSocialDesk.collabsPitchPlaceholder", { name: card.displayName })}
                           rows={3}
                           maxLength={1000}
                           value={composeText}
                           onChange={(e) => setComposeText(e.target.value)}
-                          aria-label={`Request message to ${card.displayName}`}
+                          aria-label={t("worldSocialDesk.collabsPitchAria", { name: card.displayName })}
                         />
                         <button
                           type="button"
@@ -536,7 +560,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                           onClick={() => void sendRequest(card)}
                         >
                           {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                          Send the request
+                          {t("worldSocialDesk.collabsSendRequestButton")}
                         </button>
                       </div>
                     ) : null}
@@ -545,8 +569,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
               )}
               {outOfCredits ? (
                 <p className={`text-xs font-semibold ${strong}`}>
-                  Not enough Visual Bucs for a match — it costs {COLLAB_MATCH_COST_VB}. Top up at the
-                  Treasury; nothing was charged.
+                  {t("worldSocialDesk.collabsOutOfCredits", { cost: COLLAB_MATCH_COST_VB })}
                 </p>
               ) : null}
               {matchError ? (
@@ -560,26 +583,29 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                   }`}
                 >
                   <p className={`text-sm font-black ${strong}`}>
-                    You × {match.report.targetDisplayName} — {match.report.score}/100
+                    {t("worldSocialDesk.collabsMatchScoreLine", { name: match.report.targetDisplayName, score: match.report.score })}
                   </p>
                   <p className={`text-sm ${strong}`}>{match.report.verdict}</p>
                   {match.report.strengths.length > 0 ? (
                     <p className={`text-xs ${muted}`}>
-                      <span className="font-bold">Why it works:</span> {match.report.strengths.join(" · ")}
+                      <span className="font-bold">{t("worldSocialDesk.collabsWhyItWorks")}</span> {match.report.strengths.join(" · ")}
                     </p>
                   ) : null}
                   {match.report.risks.length > 0 ? (
                     <p className={`text-xs ${muted}`}>
-                      <span className="font-bold">Watch for:</span> {match.report.risks.join(" · ")}
+                      <span className="font-bold">{t("worldSocialDesk.collabsWatchFor")}</span> {match.report.risks.join(" · ")}
                     </p>
                   ) : null}
                   {match.report.ideas.length > 0 ? (
                     <p className={`text-xs ${muted}`}>
-                      <span className="font-bold">Ideas:</span> {match.report.ideas.join(" · ")}
+                      <span className="font-bold">{t("worldSocialDesk.collabsIdeas")}</span> {match.report.ideas.join(" · ")}
                     </p>
                   ) : null}
                   <p className={`text-xs ${muted}`}>
-                    {match.creditsUsed} Bucs used · {match.creditsRemaining.toLocaleString()} left.
+                    {t("worldSocialDesk.collabsCreditsLine", {
+                      used: match.creditsUsed,
+                      remaining: match.creditsRemaining.toLocaleString(i18n.language),
+                    })}
                   </p>
                 </div>
               ) : null}
@@ -588,7 +614,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
             {/* ── Requests ── */}
             <div className="space-y-2">
               <p className={`inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] ${muted}`}>
-                <HeartHandshake className="h-3.5 w-3.5" /> Requests
+                <HeartHandshake className="h-3.5 w-3.5" /> {t("worldSocialDesk.collabsRequestsHeading")}
               </p>
               {inboxNote ? <p className={`text-xs font-semibold ${strong}`}>{inboxNote}</p> : null}
               {inboxError ? (
@@ -597,17 +623,17 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
               {requestsFailed ? (
                 <NativeErrorState
                   isLight={isLight}
-                  title="Your requests wouldn't open"
-                  message="Requests are safe on the real rails — the inbox just didn't answer. Try again."
-                  onRetry={() => setRequestsTick((t) => t + 1)}
+                  title={t("worldSocialDesk.collabsRequestsErrorTitle")}
+                  message={t("worldSocialDesk.collabsRequestsErrorMessage")}
+                  onRetry={() => setRequestsTick((n) => n + 1)}
                 />
               ) : requests === null ? (
-                <NativeLoadingState isLight={isLight} message="Reading your requests…" />
+                <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.collabsRequestsLoading")} />
               ) : requests.received.length === 0 && requests.sent.length === 0 ? (
                 <NativeEmptyState
                   isLight={isLight}
-                  message="No requests yet, either way."
-                  detail="Send one from a creator's card above — the intro unlocks when you both say yes."
+                  message={t("worldSocialDesk.collabsRequestsEmptyMessage")}
+                  detail={t("worldSocialDesk.collabsRequestsEmptyDetail")}
                 />
               ) : (
                 <>
@@ -619,13 +645,13 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                       }`}
                     >
                       <p className={`text-xs font-bold ${strong}`}>
-                        From {r.fromDisplayName ?? "A creator"}
-                        {r.fromNiche ? ` · ${collabNicheLabel(r.fromNiche)}` : ""} —{" "}
-                        {requestStatusLabel(r.status)}
+                        {t("worldSocialDesk.collabsFromName", { name: r.fromDisplayName ?? t("collabs.anonymousCreator") })}
+                        {r.fromNiche ? t("worldSocialDesk.collabsNicheSegment", { niche: nicheText(r.fromNiche) }) : ""}
+                        {t("worldSocialDesk.collabsStatusSegment", { status: statusText(r.status) })}
                       </p>
                       {r.introLocked ? (
                         <p className={`text-xs ${muted}`}>
-                          {r.lockedReason ?? "Their pitch unlocks when you accept."}
+                          {r.lockedReason ?? t("worldSocialDesk.collabsLockedFallback")}
                         </p>
                       ) : (
                         <p className={`text-xs ${muted}`}>{r.message}</p>
@@ -638,7 +664,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                             disabled={respondBusyId === r.id}
                             onClick={() => void respond(r.id, "accepted")}
                           >
-                            <Check className="h-3.5 w-3.5" /> Accept
+                            <Check className="h-3.5 w-3.5" /> {t("collabs.accept")}
                           </button>
                           <button
                             type="button"
@@ -646,7 +672,7 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                             disabled={respondBusyId === r.id}
                             onClick={() => void respond(r.id, "declined")}
                           >
-                            <X className="h-3.5 w-3.5" /> Decline
+                            <X className="h-3.5 w-3.5" /> {t("collabs.decline")}
                           </button>
                         </div>
                       ) : null}
@@ -660,8 +686,9 @@ export function CollabsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
                       }`}
                     >
                       <p className={`text-xs font-bold ${strong}`}>
-                        To {r.toDisplayName ?? "A creator"}
-                        {r.toNiche ? ` · ${collabNicheLabel(r.toNiche)}` : ""} — {requestStatusLabel(r.status)}
+                        {t("worldSocialDesk.collabsToName", { name: r.toDisplayName ?? t("collabs.anonymousCreator") })}
+                        {r.toNiche ? t("worldSocialDesk.collabsNicheSegment", { niche: nicheText(r.toNiche) }) : ""}
+                        {t("worldSocialDesk.collabsStatusSegment", { status: statusText(r.status) })}
                       </p>
                       <p className={`text-xs ${muted}`}>{r.message}</p>
                     </div>

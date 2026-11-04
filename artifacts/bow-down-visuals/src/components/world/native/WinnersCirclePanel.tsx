@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Crown, LogIn, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,7 +12,6 @@ import {
   ContestApiError,
   contestDeadlineLine,
   contestPhaseLabel,
-  contestStageName,
   enterContestWork,
   fetchContestDetail,
   fetchContests,
@@ -20,7 +20,7 @@ import {
   hostContest,
   myContestEntry,
   nameContestWinners,
-  placeLabel,
+  type ContestErrorCopyBundle,
   type MyContestWork,
   type WinnersCircleHonor,
   type WorldContest,
@@ -75,9 +75,66 @@ function defaultDeadlineLocal(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/* The seam's word tables (stage / phase / place) render from the
+   catalog, keyed by the seam's own tokens, with the seam functions
+   kept as the fallback for anything unmapped. */
+const PHASE_KEYS: Record<string, string> = {
+  announced: "worldSocialDesk.winnersPhaseAnnounced",
+  open: "worldSocialDesk.winnersPhaseOpen",
+  judging: "worldSocialDesk.winnersPhaseJudging",
+  decided: "worldSocialDesk.winnersPhaseDecided",
+  "called-off": "worldSocialDesk.winnersPhaseCalledOff",
+};
+
 export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const userId = user?.id ?? null;
+
+  const stageName = (roomId: string) =>
+    roomId === HALL_ROOM_ID
+      ? t("worldSocialDesk.winnersStageThroneHall")
+      : roomId === MUSIC_HALL_ID
+        ? t("worldSocialDesk.winnersStageMusicHall")
+        : t("worldSocialDesk.winnersStagePalace");
+  const phaseText = (p: WorldContest["phase"]) => {
+    const k = PHASE_KEYS[p];
+    return k ? t(k) : contestPhaseLabel(p);
+  };
+  const placeText = (place: number) =>
+    place === 1
+      ? t("worldSocialDesk.winnersPlaceFirst")
+      : place === 2
+        ? t("worldSocialDesk.winnersPlaceSecond")
+        : place === 3
+          ? t("worldSocialDesk.winnersPlaceThird")
+          : t("worldSocialDesk.winnersPlaceOther", { place });
+  const deadlineLine = (c: WorldContest) =>
+    contestDeadlineLine(c, Date.now(), {
+      strings: {
+        close: t("worldSocialDesk.winnersDeadlineClose"),
+        closed: t("worldSocialDesk.winnersDeadlineClosed"),
+        decidedClosed: t("worldSocialDesk.winnersDeadlineDecidedClosed"),
+      },
+      locale: i18n.language,
+    });
+  const errorCopy: ContestErrorCopyBundle = {
+    FRONT_ROW_REQUIRED: t("worldSocialDesk.winnersErrFrontRow"),
+    NOT_A_STAGE: t("worldSocialDesk.winnersErrNotAStage"),
+    INVALID_DEADLINE: t("worldSocialDesk.winnersErrInvalidDeadline"),
+    ENTRIES_CLOSED: t("worldSocialDesk.winnersErrEntriesClosed"),
+    ALREADY_ENTERED: t("worldSocialDesk.winnersErrAlreadyEntered"),
+    NOT_PUBLISHED: t("worldSocialDesk.winnersErrNotPublished"),
+    WORK_NOT_FOUND: t("worldSocialDesk.winnersErrWorkNotFound"),
+    NOT_THE_HOST: t("worldSocialDesk.winnersErrNotTheHost"),
+    STILL_OPEN: t("worldSocialDesk.winnersErrStillOpen"),
+    ALREADY_DECIDED: t("worldSocialDesk.winnersErrAlreadyDecided"),
+    ENTRY_NOT_IN_CONTEST: t("worldSocialDesk.winnersErrEntryNotInContest"),
+    CONTEST_CALLED_OFF: t("worldSocialDesk.winnersErrContestCalledOff"),
+    NO_PROFILE: t("worldSocialDesk.winnersErrNoProfile"),
+    NOT_FOUND: t("worldSocialDesk.winnersErrNotFound"),
+    generic: t("worldSocialDesk.winnersErrGeneric"),
+  };
 
   const [contests, setContests] = useState<WorldContest[] | null>(null);
   const [honors, setHonors] = useState<WinnersCircleHonor[] | null>(null);
@@ -102,7 +159,7 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const refresh = useCallback(() => setTick((t) => t + 1), []);
+  const refresh = useCallback(() => setTick((n) => n + 1), []);
 
   /* The board + the Circle (public reads). */
   useEffect(() => {
@@ -184,11 +241,11 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
       const text = await fn();
       setNotice({ ok: true, text });
       refresh();
-      setDetailTick((t) => t + 1);
+      setDetailTick((n) => n + 1);
     } catch (err) {
       setNotice({
         ok: false,
-        text: err instanceof ContestApiError ? err.message : "The palace couldn't do that just now — try again.",
+        text: err instanceof ContestApiError ? err.message : t("worldSocialDesk.winnersErrGeneric"),
       });
     } finally {
       setBusy(false);
@@ -199,35 +256,35 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
     if (!detail) return;
     const work = (works ?? []).find((w) => w.id === pickedWorkId);
     if (!work) {
-      setNotice({ ok: false, text: "Pick one of your published works first." });
+      setNotice({ ok: false, text: t("worldSocialDesk.winnersPickWorkFirst") });
       return;
     }
     const token = await getAccessToken().catch(() => null);
     if (!token) return;
     await runAction(async () => {
-      await enterContestWork(token, detail.contest.id, work);
-      return `You're in — “${work.title}” stands entered in ${detail.contest.title}.`;
+      await enterContestWork(token, detail.contest.id, work, errorCopy);
+      return t("worldSocialDesk.winnersEnteredNotice", { work: work.title, contest: detail.contest.title });
     });
   }
 
   async function onNameWinners() {
     if (!detail) return;
     if (!podium.some(Boolean)) {
-      setNotice({ ok: false, text: "Name at least a first place before the podium stands." });
+      setNotice({ ok: false, text: t("worldSocialDesk.winnersNameFirstPlaceFirst") });
       return;
     }
     const token = await getAccessToken().catch(() => null);
     if (!token) return;
     await runAction(async () => {
-      await nameContestWinners(token, detail.contest.id, podium);
-      return "The winners stand in the Winners' Circle — the palace has heard it.";
+      await nameContestWinners(token, detail.contest.id, podium, errorCopy);
+      return t("worldSocialDesk.winnersNamedNotice");
     });
   }
 
   async function onHost() {
     const ends = new Date(hostDeadline);
     if (!hostTitle.trim() || !hostTheme.trim() || Number.isNaN(ends.getTime())) {
-      setNotice({ ok: false, text: "A contest needs a title, a theme and a deadline." });
+      setNotice({ ok: false, text: t("worldSocialDesk.winnersHostNeeds") });
       return;
     }
     const token = await getAccessToken().catch(() => null);
@@ -236,12 +293,13 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
       const created = await hostContest(
         token,
         buildContestBody({ title: hostTitle, theme: hostTheme, roomId: hostRoom, endsAtIso: ends.toISOString() }),
+        errorCopy,
       );
       setShowHostForm(false);
       setHostTitle("");
       setHostTheme("");
       if (created) setSelectedId(created.id);
-      return "Your contest is open — the palace can enter from this board.";
+      return t("worldSocialDesk.winnersHostedNotice");
     });
   }
 
@@ -268,21 +326,21 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
       )}
 
       {/* ── Contests ─────────────────────────────────────────── */}
-      <NativeBoard isLight={isLight} title="Contests on the stages">
+      <NativeBoard isLight={isLight} title={t("worldSocialDesk.winnersBoardTitle")}>
         {loadFailed ? (
           <NativeErrorState
             isLight={isLight}
-            title="The contest board wouldn't open"
-            message="The palace calendar didn't answer. Your contests and honors are unchanged."
+            title={t("worldSocialDesk.winnersLoadErrorTitle")}
+            message={t("worldSocialDesk.winnersLoadErrorMessage")}
             onRetry={refresh}
           />
         ) : contests === null ? (
-          <NativeLoadingState isLight={isLight} message="Reading the contest board…" />
+          <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.winnersLoading")} />
         ) : contests.length === 0 ? (
           <NativeEmptyState
             isLight={isLight}
-            message="No contests stand right now."
-            detail="When a creator hosts one — a theme, a stage, a deadline — it stands here for the whole palace to enter."
+            message={t("worldSocialDesk.winnersEmptyMessage")}
+            detail={t("worldSocialDesk.winnersEmptyDetail")}
           />
         ) : (
           contests.map((c) => (
@@ -290,8 +348,11 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
               key={c.id}
               isLight={isLight}
               title={c.title}
-              detail={`${c.theme ? `“${c.theme}” · ` : ""}${contestStageName(c.roomId)} · hosted by ${c.hostName} · ${contestDeadlineLine(c, Date.now())}`}
-              meta={`${contestPhaseLabel(c.phase)} · ${c.entryCount} ${c.entryCount === 1 ? "entry" : "entries"}`}
+              detail={`${c.theme ? t("worldSocialDesk.winnersThemePrefix", { theme: c.theme }) : ""}${t("worldSocialDesk.winnersRowDetail", { stage: stageName(c.roomId), name: c.hostName, deadline: deadlineLine(c) })}`}
+              meta={t("worldSocialDesk.winnersRowMeta", {
+                phase: phaseText(c.phase),
+                entries: t(c.entryCount === 1 ? "worldSocialDesk.winnersEntriesOne" : "worldSocialDesk.winnersEntriesMany", { count: c.entryCount }),
+              })}
               highlighted={selectedId === c.id}
               action={
                 <button
@@ -301,7 +362,7 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
                   aria-expanded={selectedId === c.id}
                   className={ghostBtn(isLight)}
                 >
-                  {selectedId === c.id ? "Close" : "Open"}
+                  {selectedId === c.id ? t("common.close") : t("worldSocialDesk.winnersOpen")}
                 </button>
               }
             />
@@ -315,18 +376,21 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
           {detailFailed ? (
             <NativeErrorState
               isLight={isLight}
-              title="That contest wouldn't open"
-              message="Its entries and honors are unchanged — try again."
-              onRetry={() => setDetailTick((t) => t + 1)}
+              title={t("worldSocialDesk.winnersDetailErrorTitle")}
+              message={t("worldSocialDesk.winnersDetailErrorMessage")}
+              onRetry={() => setDetailTick((n) => n + 1)}
             />
           ) : !detail ? (
-            <NativeLoadingState isLight={isLight} message="Opening the contest…" />
+            <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.winnersDetailLoading")} />
           ) : (
             <>
               <p className={`px-1 text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
                 {detail.contest.title}
                 <span className={`ml-2 text-xs font-semibold ${faint}`}>
-                  {contestPhaseLabel(detail.contest.phase)} · {contestStageName(detail.contest.roomId)}
+                  {t("worldSocialDesk.winnersPhaseStage", {
+                    phase: phaseText(detail.contest.phase),
+                    stage: stageName(detail.contest.roomId),
+                  })}
                 </span>
               </p>
 
@@ -336,8 +400,8 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
                     <p key={w.id} className={`inline-flex w-full items-center gap-2 text-sm ${sub}`}>
                       <Trophy className="h-4 w-4 shrink-0 text-[#d4af37]" />
                       <span>
-                        <strong className={isLight ? "text-[#2a1e07]" : "text-white"}>{placeLabel(w.place)}:</strong>{" "}
-                        {w.winnerName} — “{w.workTitle}”
+                        <strong className={isLight ? "text-[#2a1e07]" : "text-white"}>{placeText(w.place)}:</strong>{" "}
+                        {t("worldSocialDesk.winnersPodiumRest", { name: w.winnerName, work: w.workTitle })}
                       </span>
                     </p>
                   ))}
@@ -347,10 +411,10 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
               {detail.entries.length === 0 ? (
                 <NativeEmptyState
                   isLight={isLight}
-                  message="No entries yet."
+                  message={t("worldSocialDesk.winnersNoEntriesMessage")}
                   detail={
                     detail.contest.phase === "open"
-                      ? "The first work entered stands alone at the top — for now."
+                      ? t("worldSocialDesk.winnersNoEntriesDetailOpen")
                       : undefined
                   }
                 />
@@ -361,7 +425,10 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
                       key={e.id}
                       isLight={isLight}
                       title={e.workTitle}
-                      detail={`${e.workKind === "video" ? "Video" : "Track"} · entered by ${e.entrantName}`}
+                      detail={t("worldSocialDesk.winnersEntryDetail", {
+                        kind: t(e.workKind === "video" ? "worldSocialDesk.winnersKindVideo" : "worldSocialDesk.winnersKindTrack"),
+                        name: e.entrantName,
+                      })}
                       highlighted={!!userId && e.userId === userId}
                     />
                   ))}
@@ -372,39 +439,39 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
               {detail.contest.phase === "open" &&
                 (isGuest ? (
                   <p className={`inline-flex flex-wrap items-center gap-2 px-1 text-sm ${sub}`} data-testid="world-contest-guest-pitch">
-                    Guests can watch every contest — entering takes a membership.
+                    {t("worldSocialDesk.winnersGuestPitch")}
                     <Link href={GUEST_SIGN_IN_HREF} className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-bold text-black transition hover:scale-105">
-                      <LogIn className="h-3 w-3" /> Sign in to enter
+                      <LogIn className="h-3 w-3" /> {t("worldSocialDesk.winnersSignInToEnter")}
                     </Link>
                   </p>
                 ) : myEntry ? (
                   <p className={`px-1 text-sm ${sub}`} data-testid="world-contest-my-entry">
-                    You&rsquo;re in with “{myEntry.workTitle}” — one entry each, and yours stands.
+                    {t("worldSocialDesk.winnersMyEntry", { work: myEntry.workTitle })}
                   </p>
                 ) : (
                   <div className="flex flex-wrap items-end gap-2 px-1">
                     <label className={`flex min-w-56 flex-1 flex-col gap-1 text-xs font-bold ${sub}`}>
-                      Your work
+                      {t("worldSocialDesk.winnersYourWork")}
                       <select
                         data-testid="world-contest-work-picker"
                         value={pickedWorkId}
                         onChange={(e) => setPickedWorkId(e.target.value)}
                         className={inputCls(isLight)}
                       >
-                        <option value="">Pick one of your published works…</option>
+                        <option value="">{t("worldSocialDesk.winnersPickWork")}</option>
                         {(works ?? []).map((w) => (
                           <option key={w.id} value={w.id} disabled={!w.isPublished}>
-                            {w.title} ({w.workKind}){w.isPublished ? "" : " — not published yet"}
+                            {w.title} ({w.workKind}){w.isPublished ? "" : t("worldSocialDesk.winnersNotPublishedSuffix")}
                           </option>
                         ))}
                       </select>
                     </label>
                     <button type="button" data-testid="world-contest-enter" disabled={busy} onClick={onEnter} className={goldBtn}>
-                      Enter this work
+                      {t("worldSocialDesk.winnersEnterButton")}
                     </button>
                     {works !== null && publishedWorks.length === 0 && (
                       <p className={`w-full text-xs ${faint}`}>
-                        You have no published work to enter yet — publish a track or a video first, then it can stand here.
+                        {t("worldSocialDesk.winnersNoPublishedWork")}
                       </p>
                     )}
                   </div>
@@ -414,13 +481,10 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
               {detail.contest.phase === "judging" &&
                 (isHost ? (
                   <div className="space-y-2 px-1" data-testid="world-contest-judging">
-                    <p className={`text-sm ${sub}`}>
-                      The window has closed. Name the podium from the entries — your pick is the
-                      record, and it stands forever. Honors are the prize: no Visual Bucs move.
-                    </p>
+                    <p className={`text-sm ${sub}`}>{t("worldSocialDesk.winnersJudgingIntro")}</p>
                     {[0, 1, 2].map((slot) => (
                       <label key={slot} className={`flex flex-col gap-1 text-xs font-bold ${sub}`}>
-                        {placeLabel(slot + 1)}
+                        {placeText(slot + 1)}
                         <select
                           data-testid={`world-contest-podium-${slot + 1}`}
                           value={podium[slot] ?? ""}
@@ -439,13 +503,12 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
                       </label>
                     ))}
                     <button type="button" data-testid="world-contest-name-winners" disabled={busy} onClick={onNameWinners} className={goldBtn}>
-                      Name the winners
+                      {t("worldSocialDesk.winnersNameWinners")}
                     </button>
                   </div>
                 ) : (
                   <p className={`px-1 text-sm ${sub}`}>
-                    The window has closed — {detail.contest.hostName} names the winners, and they
-                    stand in the Circle below.
+                    {t("worldSocialDesk.winnersJudgingWaiting", { name: detail.contest.hostName })}
                   </p>
                 ))}
             </>
@@ -459,69 +522,69 @@ export function WinnersCirclePanel({ isLight, isGuest }: { isLight: boolean; isG
           {showHostForm ? (
             <div className="space-y-2" data-testid="world-contest-host-form">
               <p className={`inline-flex items-center gap-2 text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                <Crown className="h-4 w-4 text-[#d4af37]" /> Host a contest
+                <Crown className="h-4 w-4 text-[#d4af37]" /> {t("worldSocialDesk.winnersHostHeading")}
               </p>
               <label className={`flex flex-col gap-1 text-xs font-bold ${sub}`}>
-                Title
-                <input data-testid="world-contest-host-title" value={hostTitle} onChange={(e) => setHostTitle(e.target.value)} maxLength={120} className={inputCls(isLight)} placeholder="Best Hook in the Palace" />
+                {t("worldSocialDesk.winnersFieldTitle")}
+                <input data-testid="world-contest-host-title" value={hostTitle} onChange={(e) => setHostTitle(e.target.value)} maxLength={120} className={inputCls(isLight)} placeholder={t("worldSocialDesk.winnersHostTitlePlaceholder")} />
               </label>
               <label className={`flex flex-col gap-1 text-xs font-bold ${sub}`}>
-                Theme — the one line entrants create under
-                <input data-testid="world-contest-host-theme" value={hostTheme} onChange={(e) => setHostTheme(e.target.value)} maxLength={140} className={inputCls(isLight)} placeholder="A hook that stops the scroll" />
+                {t("worldSocialDesk.winnersFieldTheme")}
+                <input data-testid="world-contest-host-theme" value={hostTheme} onChange={(e) => setHostTheme(e.target.value)} maxLength={140} className={inputCls(isLight)} placeholder={t("worldSocialDesk.winnersHostThemePlaceholder")} />
               </label>
               <label className={`flex flex-col gap-1 text-xs font-bold ${sub}`}>
-                Stage
+                {t("worldSocialDesk.winnersFieldStage")}
                 <select data-testid="world-contest-host-stage" value={hostRoom} onChange={(e) => setHostRoom(e.target.value)} className={inputCls(isLight)}>
-                  <option value={MUSIC_HALL_ID}>Music Hall — any member may host</option>
-                  <option value={HALL_ROOM_ID}>Throne Hall — Front Row members and the house host</option>
+                  <option value={MUSIC_HALL_ID}>{t("worldSocialDesk.winnersStageMusicOption")}</option>
+                  <option value={HALL_ROOM_ID}>{t("worldSocialDesk.winnersStageThroneOption")}</option>
                 </select>
               </label>
               <label className={`flex flex-col gap-1 text-xs font-bold ${sub}`}>
-                Entry deadline
+                {t("worldSocialDesk.winnersFieldDeadline")}
                 <input data-testid="world-contest-host-deadline" type="datetime-local" value={hostDeadline} onChange={(e) => setHostDeadline(e.target.value)} className={inputCls(isLight)} />
               </label>
               <div className="flex gap-2">
                 <button type="button" data-testid="world-contest-host-submit" disabled={busy} onClick={onHost} className={goldBtn}>
-                  Open the contest
+                  {t("worldSocialDesk.winnersHostSubmit")}
                 </button>
                 <button type="button" onClick={() => setShowHostForm(false)} className={ghostBtn(isLight)}>
-                  Not now
+                  {t("worldSocialDesk.winnersNotNow")}
                 </button>
               </div>
             </div>
           ) : (
             <button type="button" data-testid="world-contest-host-open" onClick={() => setShowHostForm(true)} className={ghostBtn(isLight)}>
-              Host a contest
+              {t("worldSocialDesk.winnersHostHeading")}
             </button>
           )}
         </div>
       )}
 
       {/* ── The Winners' Circle ──────────────────────────────── */}
-      <NativeBoard isLight={isLight} title="The Winners' Circle">
+      <NativeBoard isLight={isLight} title={t("worldSocialDesk.winnersCircleTitle")}>
         {loadFailed ? (
           <NativeErrorState
             isLight={isLight}
-            title="The Circle wouldn't open"
-            message="The honors are recorded and unchanged — try again."
+            title={t("worldSocialDesk.winnersCircleErrorTitle")}
+            message={t("worldSocialDesk.winnersCircleErrorMessage")}
             onRetry={refresh}
           />
         ) : honors === null ? (
-          <NativeLoadingState isLight={isLight} message="Reading the honors…" />
+          <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.winnersCircleLoading")} />
         ) : honors.length === 0 ? (
           <NativeEmptyState
             isLight={isLight}
-            message="No honors yet."
-            detail="The first decided contest writes the first line here — winner, work, and the contest it came from, kept for good."
+            message={t("worldSocialDesk.winnersCircleEmptyMessage")}
+            detail={t("worldSocialDesk.winnersCircleEmptyDetail")}
           />
         ) : (
           honors.map((hon) => (
             <NativeBoardRow
               key={hon.id}
               isLight={isLight}
-              title={`${placeLabel(hon.place)} — ${hon.winnerName}`}
-              detail={`“${hon.workTitle}” (${hon.workKind}) · won ${hon.contestTitle} · ${contestStageName(hon.roomId)}`}
-              meta={new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(hon.decidedAt))}
+              title={t("worldSocialDesk.winnersHonorTitle", { place: placeText(hon.place), name: hon.winnerName })}
+              detail={t("worldSocialDesk.winnersHonorDetail", { work: hon.workTitle, kind: hon.workKind, contest: hon.contestTitle, stage: stageName(hon.roomId) })}
+              meta={new Intl.DateTimeFormat(i18n.language, { month: "short", day: "numeric", year: "numeric" }).format(new Date(hon.decidedAt))}
             />
           ))
         )}

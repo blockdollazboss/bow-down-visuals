@@ -579,12 +579,36 @@ export function threadCountOf(serverReplyCount: number, landedReplies: number): 
   return server + landed;
 }
 
+/** The toggle's words, suppliable by the caller (the Hall board
+ *  passes its catalog strings); the defaults are the English lines
+ *  verbatim, so an unbundled call renders exactly as before. */
+export interface ThreadToggleStrings {
+  replies: string;
+  hide: string;
+  show: string;
+  replyOne: string;
+  replyMany: string;
+}
+
+const THREAD_TOGGLE_EN: ThreadToggleStrings = {
+  replies: "Replies",
+  hide: "Hide {{count}} {{noun}}",
+  show: "{{count}} {{noun}}",
+  replyOne: "reply",
+  replyMany: "replies",
+};
+
 /** The toggle's words for a count: zero stays a plain invitation,
  *  and an open thread says what tapping again does. */
-export function threadToggleLabel(count: number, open: boolean): string {
-  if (count <= 0) return "Replies";
-  const noun = count === 1 ? "reply" : "replies";
-  return open ? `Hide ${count} ${noun}` : `${count} ${noun}`;
+export function threadToggleLabel(
+  count: number,
+  open: boolean,
+  strings: ThreadToggleStrings = THREAD_TOGGLE_EN,
+): string {
+  if (count <= 0) return strings.replies;
+  const noun = count === 1 ? strings.replyOne : strings.replyMany;
+  const tpl = open ? strings.hide : strings.show;
+  return tpl.replace("{{count}}", String(count)).replace("{{noun}}", noun);
 }
 
 /** Merge a fresh fetch of a node's children with the replies this

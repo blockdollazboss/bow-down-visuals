@@ -116,15 +116,15 @@ export function normalizeWorldEvents(payload: unknown): WorldEvent[] | null {
 /** When-line for a row: "Fri, Nov 6 · 7:00 PM" in the viewer's own
  *  locale, or the raw string when the date won't parse (never a
  *  fabricated "Invalid Date"). */
-export function eventWhenLabel(startsAt: string): string {
+export function eventWhenLabel(startsAt: string, locale?: string): string {
   const d = new Date(startsAt);
   if (Number.isNaN(d.getTime())) return startsAt;
-  const day = d.toLocaleDateString(undefined, {
+  const day = d.toLocaleDateString(locale, {
     weekday: "short",
     month: "short",
     day: "numeric",
   });
-  const time = d.toLocaleTimeString(undefined, {
+  const time = d.toLocaleTimeString(locale, {
     hour: "numeric",
     minute: "2-digit",
   });

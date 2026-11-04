@@ -1,5 +1,6 @@
 import { apiErrorMessage } from "../../../lib/api-error";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -42,6 +43,15 @@ const chipBtn = (isLight: boolean, active: boolean) =>
         : "border-white/15 text-white/75 hover:text-white"
   }`;
 
+/* The assist's tone vocabulary renders from the catalog, keyed by
+   the tone token, with the seam's label as the fallback. */
+const ASSIST_TONE_KEYS: Record<string, string> = {
+  hype: "worldSocialDesk.assistToneHype",
+  chill: "worldSocialDesk.assistToneChill",
+  professional: "worldSocialDesk.assistToneProfessional",
+  funny: "worldSocialDesk.assistToneFunny",
+};
+
 export function PostAssistBlock({
   isLight,
   onDraft,
@@ -50,6 +60,7 @@ export function PostAssistBlock({
   /** The drafted words, handed to the host composer — never posted here. */
   onDraft: (draft: string) => void;
 }) {
+  const { t } = useTranslation();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [prompt, setPrompt] = useState("");
@@ -74,22 +85,22 @@ export function PostAssistBlock({
         const d = data as { message?: string };
         setNote(
           res.status === 402
-            ? "Out of Visual Bucs — top up and Write It For Me is ready again."
-            : apiErrorMessage(d, "The pen ran dry — a failed assist is refunded. Try again."),
+            ? t("worldSocialDesk.assistOutOfCredits")
+            : apiErrorMessage(d, t("worldSocialDesk.assistFailedFallback")),
         );
         return;
       }
       const draft = parsePostAssistDraft(data);
       if (!draft) {
-        setNote("The assist came back without words — a failed assist is refunded. Try again.");
+        setNote(t("worldSocialDesk.assistNoWords"));
         return;
       }
       onDraft(draft);
       setPrompt("");
-      setNote("Drafted into your composer below — make it yours, then post it.");
+      setNote(t("worldSocialDesk.assistDraftedNote"));
       refreshProfile();
     } catch {
-      setNote("The assist didn't answer — a failed assist is refunded. Try again.");
+      setNote(t("worldSocialDesk.assistDidntAnswer"));
     } finally {
       setBusy(false);
     }
@@ -99,10 +110,10 @@ export function PostAssistBlock({
     <div data-testid="world-post-assist">
       <div className="flex gap-2">
         <input
-          aria-label="What should the post be about?"
+          aria-label={t("worldSocialDesk.assistPromptAria")}
           data-testid="world-post-assist-prompt"
           className={inputCls(isLight)}
-          placeholder="What's the post about? (a drop, a show, a thank-you)"
+          placeholder={t("worldSocialDesk.assistPromptPlaceholder")}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && void ask()}
@@ -116,25 +127,23 @@ export function PostAssistBlock({
           className={goldBtn}
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-          Write it for me · {POST_ASSIST_COST_VISUAL_BUCS} VB
+          {t("worldSocialDesk.assistButton", { cost: POST_ASSIST_COST_VISUAL_BUCS })}
         </button>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="world-post-assist-tones">
-        {POST_ASSIST_TONES.map((t) => (
+        {POST_ASSIST_TONES.map((toneOpt) => (
           <button
-            key={t.key}
+            key={toneOpt.key}
             type="button"
-            data-testid={`world-post-assist-tone-${t.key}`}
-            aria-pressed={tone === t.key}
-            onClick={() => setTone(t.key)}
-            className={chipBtn(isLight, tone === t.key)}
+            data-testid={`world-post-assist-tone-${toneOpt.key}`}
+            aria-pressed={tone === toneOpt.key}
+            onClick={() => setTone(toneOpt.key)}
+            className={chipBtn(isLight, tone === toneOpt.key)}
           >
-            {t.label}
+            {ASSIST_TONE_KEYS[toneOpt.key] ? t(ASSIST_TONE_KEYS[toneOpt.key]!) : toneOpt.label}
           </button>
         ))}
-        <span className={`text-[11px] ${muted}`}>
-          The draft lands in your composer — it never posts itself.
-        </span>
+        <span className={`text-[11px] ${muted}`}>{t("worldSocialDesk.assistNoteLine")}</span>
       </div>
       {note ? (
         <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-post-assist-note">

@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Send, Check, X, Ban, Plus, Pin, MessageCircle, Star, BarChart3, Loader2,
   Paperclip, Search, Link2, Sparkles, Music2, Clapperboard, Image as ImageIcon,
@@ -85,6 +86,42 @@ async function apiJson<T>(
   return data as T;
 }
 
+/* Catalog key-maps for the seam's label tables (unit 43): the seam
+   word stays the fallback — a type/view/reaction/tone with no
+   catalog key renders its English seam label exactly as before. */
+const WORK_KEYS: Record<string, string> = {
+  audio: "worldSocialDesk.dmWorkBeat",
+  video: "worldSocialDesk.dmWorkClip",
+  image: "worldSocialDesk.dmWorkArtwork",
+};
+function workLabel(type: DmAttachment["type"], t: (key: string) => string): string {
+  const key = WORK_KEYS[type];
+  return key ? t(key) : dmWorkLabel(type);
+}
+const VIEW_KEYS: Record<string, string> = {
+  chrono: "worldSocialDesk.hallViewLatest",
+  foryou: "worldSocialDesk.hallViewForYou",
+  drops: "worldSocialDesk.hallViewDrops",
+};
+const REACTION_KEYS: Record<string, string> = {
+  like: "worldSocialDesk.hallReactionLike",
+  fire: "worldSocialDesk.hallReactionFire",
+};
+function reactionLabel(r: { emoji: string; label: string }, t: (key: string) => string): string {
+  const key = REACTION_KEYS[r.emoji];
+  return key ? t(key) : r.label;
+}
+function viewLabel(v: { key: string; label: string }, t: (key: string) => string): string {
+  const key = VIEW_KEYS[v.key];
+  return key ? t(key) : v.label;
+}
+const TONE_KEYS: Record<ReplyDraftTone, string> = {
+  hype: "worldSocialDesk.hallToneHype",
+  grateful: "worldSocialDesk.hallToneGrateful",
+  playful: "worldSocialDesk.hallTonePlayful",
+  professional: "worldSocialDesk.hallToneProfessional",
+};
+
 const chipBtn = (isLight: boolean) =>
   `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
     isLight
@@ -128,6 +165,7 @@ function DmLitText({ text, query }: { text: string; query: string }) {
 function DmWorkCard({ att, isLight, mine, highlightQuery }: {
   att: DmAttachment; isLight: boolean; mine: boolean; highlightQuery?: string;
 }) {
+  const { t } = useTranslation();
   const Icon = att.type === "audio" ? Music2 : att.type === "video" ? Clapperboard : ImageIcon;
   return (
     <div
@@ -145,7 +183,7 @@ function DmWorkCard({ att, isLight, mine, highlightQuery }: {
               : att.name}
           </span>
           <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : mine ? "text-black/60" : "text-[#e8c86a]/80"}`}>
-            {dmWorkLabel(att.type)} · hand-off
+            {t("worldSocialDesk.dmHandOff", { work: workLabel(att.type, t) })}
           </span>
         </span>
       </div>
@@ -165,6 +203,7 @@ function DmWorkCard({ att, isLight, mine, highlightQuery }: {
 /* ═══ Post Office ═══════════════════════════════════════════════════ */
 
 export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useAuthHeaders();
   const { user } = useAuth();
   const [inbox, setInbox] = useState<DmConversation[]>([]);
@@ -339,7 +378,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
       setTab(d.conversation.status === "request" ? "requests" : "inbox");
       setActiveId(d.conversation.id);
     } catch (e) {
-      setNotice(plainErrorText(e, "Creator not found."));
+      setNotice(plainErrorText(e, t("worldSocialDesk.dmCreatorNotFound")));
     } finally {
       setStarting(false);
     }
@@ -348,7 +387,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
   async function uploadFile(file: File) {
     const kind = dmAttachmentKindForMime(file.type);
     if (!kind) {
-      setNotice("Only audio, video, or image files can ride in a message.");
+      setNotice(t("worldSocialDesk.dmUploadKindError"));
       return;
     }
     setUploading(true);
@@ -366,13 +405,13 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
         error?: string; message?: string;
       };
       if (!res.ok || !data.ref || !data.type) {
-        throw new Error(apiErrorMessage(data, "The upload didn't land."));
+        throw new Error(apiErrorMessage(data, t("worldSocialDesk.dmUploadError")));
       }
       /* Send the permanent ref, never the signed URL — the server
          persists the ref and mints fresh URLs on every read. */
       setPendingAtt({ url: data.ref, type: data.type, name: data.name ?? file.name });
     } catch (e) {
-      setNotice(plainErrorText(e, "The upload didn't land."));
+      setNotice(plainErrorText(e, t("worldSocialDesk.dmUploadError")));
     } finally {
       setUploading(false);
     }
@@ -383,7 +422,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
     if (!url) return;
     const kind = dmAttachmentKindForUrl(url);
     if (!kind) {
-      setNotice("That link doesn't name a beat, cover, or clip file — check the ending (.mp3, .jpg, .mp4…).");
+      setNotice(t("worldSocialDesk.dmLinkKindError"));
       return;
     }
     setPendingAtt({ url, type: kind, name: dmAttachmentNameForUrl(url) });
@@ -416,7 +455,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
       await loadThread(activeId);
       await loadConvs();
     } catch (e) {
-      setNotice(plainErrorText(e, "Couldn't send."));
+      setNotice(plainErrorText(e, t("worldSocialDesk.dmSendError")));
     } finally {
       setSending(false);
     }
@@ -436,19 +475,19 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
         await loadConvs();
       }
     } catch (e) {
-      setNotice(plainErrorText(e, "That didn't land — try again."));
+      setNotice(plainErrorText(e, t("worldSocialDesk.dmRequestActionError")));
     }
   }
 
   if (listState === "loading") {
-    return <NativeLoadingState isLight={isLight} message="Opening the post desk…" />;
+    return <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.dmLoadingDesk")} />;
   }
   if (listState === "failed") {
     return (
       <NativeErrorState
         isLight={isLight}
-        title="The post desk wouldn't open"
-        message="Your messages are safe on the real rails — the desk just couldn't fetch them."
+        title={t("worldSocialDesk.dmDeskErrorTitle")}
+        message={t("worldSocialDesk.dmDeskErrorMessage")}
         onRetry={() => { setListState("loading"); void loadConvs(); }}
       />
     );
@@ -465,7 +504,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
             tab === "inbox" ? "bg-[#d4af37] text-black" : chipBtn(isLight)
           }`}
         >
-          Inbox{dmUnreadTotal(inbox) > 0 ? ` (${dmUnreadTotal(inbox)})` : ""}
+          {t("worldSocialDesk.dmTabInbox")}{dmUnreadTotal(inbox) > 0 ? ` (${dmUnreadTotal(inbox)})` : ""}
         </button>
         <button
           type="button"
@@ -475,7 +514,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
             tab === "requests" ? "bg-[#d4af37] text-black" : chipBtn(isLight)
           }`}
         >
-          Requests{requests.length > 0 ? ` (${requests.length})` : ""}
+          {t("worldSocialDesk.dmTabRequests")}{requests.length > 0 ? ` (${requests.length})` : ""}
         </button>
         <button
           type="button"
@@ -484,7 +523,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
           aria-expanded={showNew}
           className={`${chipBtn(isLight)} ml-auto`}
         >
-          <Plus className="h-3.5 w-3.5" /> New message
+          <Plus className="h-3.5 w-3.5" /> {t("worldSocialDesk.dmNewMessage")}
         </button>
       </div>
 
@@ -494,8 +533,8 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
             value={newSlug}
             onChange={(e) => setNewSlug(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void startBySlug()}
-            placeholder="Creator name (their profile slug)"
-            aria-label="Creator name (their profile slug)"
+            placeholder={t("worldSocialDesk.dmNewSlugPlaceholder")}
+            aria-label={t("worldSocialDesk.dmNewSlugPlaceholder")}
             className={inputCls(isLight)}
             data-testid="world-dm-new-slug"
           />
@@ -506,7 +545,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
             className={goldBtn}
             data-testid="world-dm-new-start"
           >
-            {starting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Start
+            {starting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} {t("worldSocialDesk.dmStartButton")}
           </button>
         </div>
       )}
@@ -520,8 +559,8 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
         <input
           value={listQuery}
           onChange={(e) => setListQuery(e.target.value)}
-          placeholder="Search conversations — a name, a word, a piece of work…"
-          aria-label="Search conversations"
+          placeholder={t("worldSocialDesk.dmSearchConversationsPlaceholder")}
+          aria-label={t("worldSocialDesk.dmSearchConversationsAria")}
           className={`${inputCls(isLight)} pl-9`}
           data-testid="world-dm-search"
         />
@@ -534,8 +573,8 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
               isLight={isLight}
               message={
                 listQuery.trim()
-                  ? "No conversation matches that search."
-                  : tab === "inbox" ? "No conversations yet — go meet some creators." : "No requests. You're all clear."
+                  ? t("worldSocialDesk.dmEmptySearch")
+                  : tab === "inbox" ? t("worldSocialDesk.dmEmptyInbox") : t("worldSocialDesk.dmEmptyRequests")
               }
             />
           ) : (
@@ -573,8 +612,8 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                       {c.last_message?.body
                         ? c.last_message.body
                         : c.last_message?.attachment_name
-                          ? `${c.last_message.attachment_type === "audio" ? "Beat" : c.last_message.attachment_type === "video" ? "Clip" : "Artwork"}: ${c.last_message.attachment_name}`
-                          : "No messages yet"}
+                          ? t("worldSocialDesk.dmWorkPreview", { work: workLabel((c.last_message.attachment_type ?? "image") as DmAttachment["type"], t), name: c.last_message.attachment_name })
+                          : t("worldSocialDesk.dmNoMessagesYet")}
                     </span>
                   </span>
                 </button>
@@ -587,8 +626,8 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
           {!active ? (
             <NativeEmptyState
               isLight={isLight}
-              message="Pick a conversation — or start a new one."
-              detail="Mutual followers land straight in the inbox; everyone else goes to requests."
+              message={t("worldSocialDesk.dmPickConversation")}
+              detail={t("worldSocialDesk.dmPickConversationDetail")}
             />
           ) : (
             <div className="flex min-h-[220px] flex-col">
@@ -597,16 +636,16 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                   {dmConversationName(active)}
                 </span>
                 <span className={`text-[11px] font-semibold ${muted}`}>
-                  {threadStatus === "request" ? "Message request" : "Inbox"}
+                  {threadStatus === "request" ? t("worldSocialDesk.dmStatusRequest") : t("worldSocialDesk.dmTabInbox")}
                 </span>
                 <button
                   type="button"
                   data-testid="world-dm-block"
                   onClick={() => void requestAction("block")}
                   className={`ml-auto inline-flex items-center gap-1 text-[11px] font-bold bdv-touch-target ${isLight ? "text-red-900/70 hover:text-red-900" : "text-white/40 hover:text-red-300"}`}
-                  title="Block this conversation"
+                  title={t("worldSocialDesk.dmBlockTitle")}
                 >
-                  <Ban className="h-3.5 w-3.5" /> Block
+                  <Ban className="h-3.5 w-3.5" /> {t("worldSocialDesk.dmBlockButton")}
                 </button>
               </div>
 
@@ -615,8 +654,8 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                 <input
                   value={threadQuery}
                   onChange={(e) => setThreadQuery(e.target.value)}
-                  placeholder="Search this thread…"
-                  aria-label="Search this thread"
+                  placeholder={t("worldSocialDesk.dmThreadSearchPlaceholder")}
+                  aria-label={t("worldSocialDesk.dmThreadSearchAria")}
                   className={`${inputCls(isLight)} pl-9`}
                   data-testid="world-dm-thread-search"
                 />
@@ -624,7 +663,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
 
               {threadQuery.trim() && threadState === "ready" && (
                 <p className={`mb-2 text-[11px] font-semibold ${muted}`} data-testid="world-dm-thread-search-scope">
-                  {visibleMsgs.length} of {msgs.length} loaded messages match — search covers the latest 50 messages in this thread.
+                  {t("worldSocialDesk.dmSearchScopeLine", { visible: visibleMsgs.length, total: msgs.length })}
                 </p>
               )}
 
@@ -635,30 +674,30 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                   }`}
                   data-testid="world-dm-request-rail"
                 >
-                  <span className={`text-xs font-semibold ${muted}`}>They want to chat — accept?</span>
+                  <span className={`text-xs font-semibold ${muted}`}>{t("worldSocialDesk.dmRequestPrompt")}</span>
                   <button type="button" data-testid="world-dm-accept" onClick={() => void requestAction("accept")} className={goldBtn}>
-                    <Check className="h-3.5 w-3.5" /> Accept
+                    <Check className="h-3.5 w-3.5" /> {t("collabs.accept")}
                   </button>
                   <button type="button" data-testid="world-dm-decline" onClick={() => void requestAction("decline")} className={chipBtn(isLight)}>
-                    <X className="h-3.5 w-3.5" /> Decline
+                    <X className="h-3.5 w-3.5" /> {t("collabs.decline")}
                   </button>
                 </div>
               )}
 
               <div className="max-h-[30vh] flex-1 space-y-2 overflow-y-auto pr-1">
                 {threadState === "loading" ? (
-                  <NativeLoadingState isLight={isLight} message="Fetching the thread…" />
+                  <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.dmThreadLoading")} />
                 ) : threadState === "failed" ? (
                   <NativeErrorState
                     isLight={isLight}
-                    title="This thread wouldn't open"
-                    message="The conversation is fine — the fetch slipped."
+                    title={t("worldSocialDesk.dmThreadErrorTitle")}
+                    message={t("worldSocialDesk.dmThreadErrorMessage")}
                     onRetry={() => activeId && void loadThread(activeId)}
                   />
                 ) : msgs.length === 0 ? (
-                  <NativeEmptyState isLight={isLight} message="No messages yet — say the first word." />
+                  <NativeEmptyState isLight={isLight} message={t("worldSocialDesk.dmThreadEmpty")} />
                 ) : visibleMsgs.length === 0 ? (
-                  <NativeEmptyState isLight={isLight} message="Nothing in this thread matches that search." />
+                  <NativeEmptyState isLight={isLight} message={t("worldSocialDesk.dmThreadSearchEmpty")} />
                 ) : (
                   visibleMsgs.map((m) => {
                     const mine = m.senderUserId === user?.id;
@@ -708,7 +747,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                   data-testid="world-dm-pending-attachment"
                 >
                   <span className={`text-xs font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                    {dmWorkLabel(pendingAtt.type)} ready to hand off: {pendingAtt.name}
+                    {t("worldSocialDesk.dmPendingAttachment", { work: workLabel(pendingAtt.type, t), name: pendingAtt.name })}
                   </span>
                   <button
                     type="button"
@@ -716,7 +755,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                     className={`ml-auto inline-flex items-center gap-1 text-[11px] font-bold bdv-touch-target ${muted}`}
                     data-testid="world-dm-attachment-remove"
                   >
-                    <X className="h-3.5 w-3.5" /> Remove
+                    <X className="h-3.5 w-3.5" /> {t("worldSocialDesk.dmRemoveAttachment")}
                   </button>
                 </div>
               )}
@@ -727,8 +766,8 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                     value={linkUrl}
                     onChange={(e) => setLinkUrl(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && attachByUrl()}
-                    placeholder="Link to your file (…/beat.mp3, …/cover.jpg, …/clip.mp4)"
-                    aria-label="Link to your file"
+                    placeholder={t("worldSocialDesk.dmAttachUrlPlaceholder")}
+                    aria-label={t("worldSocialDesk.dmAttachUrlAria")}
                     className={inputCls(isLight)}
                     data-testid="world-dm-attach-url"
                   />
@@ -739,7 +778,7 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                     className={goldBtn}
                     data-testid="world-dm-attach-url-add"
                   >
-                    Attach
+                    {t("worldSocialDesk.dmAttachButton")}
                   </button>
                 </div>
               )}
@@ -764,19 +803,19 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                     disabled={uploading}
                     className={chipBtn(isLight)}
                     data-testid="world-dm-attach"
-                    title="Hand off a piece of your work — a beat, a cover, a clip"
+                    title={t("worldSocialDesk.dmAttachTitle")}
                   >
                     {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
-                    {uploading ? "Sending to the desk…" : "Attach work"}
+                    {uploading ? t("worldSocialDesk.dmUploadingToDesk") : t("worldSocialDesk.dmAttachWork")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowLink((v) => !v)}
                     className={chipBtn(isLight)}
                     data-testid="world-dm-attach-link"
-                    aria-label="Attach by link instead"
+                    aria-label={t("worldSocialDesk.dmAttachLinkTitle")}
                     aria-expanded={showLink}
-                    title="Attach by link instead"
+                    title={t("worldSocialDesk.dmAttachLinkTitle")}
                   >
                     <Link2 className="h-3.5 w-3.5" />
                   </button>
@@ -799,8 +838,8 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && void send()}
-                    placeholder="Write from the desk…"
-                    aria-label="Write from the desk"
+                    placeholder={t("worldSocialDesk.dmDraftPlaceholder")}
+                    aria-label={t("worldSocialDesk.dmDraftAria")}
                     maxLength={DM_DRAFT_MAX}
                     className={inputCls(isLight)}
                     data-testid="world-dm-draft"
@@ -813,12 +852,12 @@ export function PostOfficeDesk({ isLight }: { isLight: boolean }) {
                     data-testid="world-dm-send"
                   >
                     {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                    Send
+                    {t("worldSocialDesk.dmSendButton")}
                   </button>
                 </div>
               ) : threadStatus === "request" && active.requested_by_me ? (
                 <p className={`mt-2 text-center text-xs ${muted}`}>
-                  Request sent — they&rsquo;ll see it in their requests.
+                  {t("worldSocialDesk.dmRequestSentNote")}
                 </p>
               ) : null}
             </div>
@@ -850,6 +889,7 @@ function ThreadReplyNode({
   isGuest: boolean;
   authHeaders: () => Promise<Record<string, string>>;
 }) {
+  const { t } = useTranslation();
   const [children, setChildren] = useState<FeedPost[] | null>(null);
   const [childState, setChildState] = useState<ThreadLoadState>("idle");
   const [open, setOpen] = useState(false);
@@ -896,7 +936,7 @@ function ThreadReplyNode({
     } catch {
       setEmoji(prev.emoji);
       setCounts(prev.counts);
-      setReactNote("That reaction didn't land — try again.");
+      setReactNote(t("worldSocialDesk.hallReactionFailed"));
     }
   }
 
@@ -939,7 +979,7 @@ function ThreadReplyNode({
       setDraft("");
       setComposerOpen(false);
     } catch (e) {
-      setNote(plainErrorText(e, "The reply didn't land — try again."));
+      setNote(plainErrorText(e, t("worldSocialDesk.hallReplyFailed")));
     } finally {
       setSending(false);
     }
@@ -948,7 +988,7 @@ function ThreadReplyNode({
   return (
     <div data-testid="world-community-reply-node">
       <p className={`rounded-lg px-2.5 py-1.5 text-xs ${isLight ? "bg-[#C9A84C]/10 text-[#2a1e07]" : "bg-white/5 text-white/75"}`}>
-        <span className="font-bold">{reply.author?.display_name ?? "Creator"}:</span>{" "}
+        <span className="font-bold">{reply.author?.display_name ?? t("worldSocialDesk.hallCreatorFallback")}:</span>{" "}
         <KingTokenText body={reply.body} theme={isLight ? "light" : "dark"} />
       </p>
       <div className="mt-1 flex flex-wrap items-center gap-1.5 pl-1">
@@ -963,7 +1003,7 @@ function ThreadReplyNode({
               className={`${chipBtn(isLight)} ${emoji === r.emoji ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
             >
               <ReactionSticker reaction={r.emoji} className="h-[18px] w-[18px] object-contain" />
-              {r.label}
+              {reactionLabel(r, t)}
               {(counts[r.emoji] ?? 0) > 0 ? ` ${counts[r.emoji]}` : ""}
             </button>
           ) : (counts[r.emoji] ?? 0) > 0 ? (
@@ -975,7 +1015,7 @@ function ThreadReplyNode({
               className={chipBtn(isLight)}
             >
               <ReactionSticker reaction={r.emoji} className="h-[18px] w-[18px] object-contain" />
-              {r.label} {counts[r.emoji]}
+              {reactionLabel(r, t)} {counts[r.emoji]}
             </span>
           ) : null,
         )}
@@ -987,7 +1027,13 @@ function ThreadReplyNode({
             data-testid="world-community-node-toggle"
           >
             <MessageCircle className="h-3 w-3" />
-            {threadToggleLabel(count, open && childState === "ready")}
+            {threadToggleLabel(count, open && childState === "ready", {
+              replies: t("worldSocialDesk.hallThreadReplies"),
+              hide: t("worldSocialDesk.hallThreadHide"),
+              show: t("worldSocialDesk.hallThreadShow"),
+              replyOne: t("worldSocialDesk.hallThreadReplyOne"),
+              replyMany: t("worldSocialDesk.hallThreadReplyMany"),
+            })}
           </button>
         )}
         {canReply && (
@@ -997,7 +1043,7 @@ function ThreadReplyNode({
             className={chipBtn(isLight)}
             data-testid="world-community-node-reply-open" aria-expanded={composerOpen}
           >
-            <Send className="h-3 w-3" /> Reply
+            <Send className="h-3 w-3" /> {t("worldSocialDesk.hallReplyButton")}
           </button>
         )}
       </div>
@@ -1016,8 +1062,8 @@ function ThreadReplyNode({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void sendNodeReply()}
-              placeholder="Answer this reply…"
-              aria-label="Answer this reply"
+              placeholder={t("worldSocialDesk.hallAnswerPlaceholder")}
+              aria-label={t("worldSocialDesk.hallAnswerAria")}
               maxLength={500}
               className={inputCls(isLight)}
               data-testid="world-community-node-reply-draft"
@@ -1030,7 +1076,7 @@ function ThreadReplyNode({
               data-testid="world-community-node-reply-send"
             >
               {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-              Reply
+              {t("worldSocialDesk.hallReplyButton")}
             </button>
           </div>
           {note && (
@@ -1045,21 +1091,21 @@ function ThreadReplyNode({
           }`}
         >
           {childState === "loading" ? (
-            <NativeLoadingState isLight={isLight} message="Fetching replies…" />
+            <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.hallThreadLoadingReplies")} />
           ) : childState === "failed" ? (
             <div data-testid="world-community-node-failed">
               <NativeErrorState
                 isLight={isLight}
-                title="These replies wouldn't open"
-                message="The conversation is fine — the fetch slipped."
+                title={t("worldSocialDesk.hallNodeErrorTitle")}
+                message={t("worldSocialDesk.dmThreadErrorMessage")}
                 onRetry={() => void loadChildren()}
               />
             </div>
           ) : childState === "ready" && children !== null && children.length === 0 ? (
             <p className={`text-xs ${muted}`}>
               {count === 0
-                ? "No replies yet — this branch starts with the next voice."
-                : "This branch's replies aren't showing right now."}
+                ? t("worldSocialDesk.hallBranchEmptyZero")
+                : t("worldSocialDesk.hallBranchNotShowing")}
             </p>
           ) : childState === "ready" && children !== null ? (
             fullThread(children).map((r) => (
@@ -1090,6 +1136,7 @@ function NoticePostCard({
   onDeleted: (id: string) => void;
   onReposted: () => void;
 }) {
+  const { t } = useTranslation();
   const [emoji, setEmoji] = useState<string | null>(post.viewer_emoji);
   const [counts, setCounts] = useState<Record<string, number>>(post.reaction_counts ?? {});
   const [replies, setReplies] = useState<FeedPost[] | null>(null);
@@ -1255,7 +1302,7 @@ function NoticePostCard({
       }
     } catch {
       setSaved(!next);
-      setVerbNote("That save didn't land — try again.");
+      setVerbNote(t("worldSocialDesk.hallSaveDidntLand"));
     }
   }
 
@@ -1268,7 +1315,7 @@ function NoticePostCard({
       setRepostCount((n) => n + 1);
       onReposted();
     } catch {
-      setVerbNote("That repost didn't land — try again.");
+      setVerbNote(t("worldSocialDesk.hallRepostDidntLand"));
     }
   }
 
@@ -1283,7 +1330,7 @@ function NoticePostCard({
       );
       if (d.poll) setPoll(d.poll);
     } catch {
-      setVerbNote("That vote didn't land — try again.");
+      setVerbNote(t("worldSocialDesk.hallVoteDidntLand"));
     } finally {
       setVoting(false);
     }
@@ -1300,7 +1347,7 @@ function NoticePostCard({
       if (!res.ok) throw new Error("delete");
       onDeleted(post.id);
     } catch {
-      setVerbNote("That delete didn't land — the post is still yours.");
+      setVerbNote(t("worldSocialDesk.hallDeleteDidntLand"));
       setConfirmingDelete(false);
     } finally {
       setDeleting(false);
@@ -1361,7 +1408,7 @@ function NoticePostCard({
       replyWordsRef.current = { text: "", tone: replyTone };
       setDraftState("idle");
     } catch (e) {
-      setReplyNote(plainErrorText(e, "The reply didn't land — try again."));
+      setReplyNote(plainErrorText(e, t("worldSocialDesk.hallReplyFailed")));
     } finally {
       setReplying(false);
     }
@@ -1372,7 +1419,7 @@ function NoticePostCard({
       <div data-testid="world-community-post">
         <p className="flex flex-wrap items-center gap-2">
           <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-            {post.author?.display_name ?? "Creator"}
+            {post.author?.display_name ?? t("worldSocialDesk.hallCreatorFallback")}
           </span>
           {post.author?.slug && <span className={`text-xs ${muted}`}>@{post.author.slug}</span>}
         </p>
@@ -1391,7 +1438,7 @@ function NoticePostCard({
             }`}
             data-testid="world-feed-removed"
           >
-            Removed by moderation{post.removal_reason ? ` — ${post.removal_reason}` : ""}. Only you can see this post now.
+            {t("worldSocialDesk.hallRemovedPrefix")}{post.removal_reason ? t("worldSocialDesk.hallRemovedReasonSegment", { reason: post.removal_reason }) : ""}{t("worldSocialDesk.hallRemovedSuffix")}
           </p>
         )}
         {/* The poll (#80): vote in-world on the card's own rail; a
@@ -1428,8 +1475,10 @@ function NoticePostCard({
               );
             })}
             <p className={`text-[11px] ${muted}`}>
-              {pollTotalVotes(poll)} vote{pollTotalVotes(poll) === 1 ? "" : "s"}
-              {isGuest ? " — sign in to vote." : poll.viewer_option_id ? " — your vote is in." : ""}
+              {pollTotalVotes(poll) === 1
+                ? t("worldSocialDesk.hallPollVotesOne", { count: pollTotalVotes(poll) })
+                : t("worldSocialDesk.hallPollVotesMany", { count: pollTotalVotes(poll) })}
+              {isGuest ? t("worldSocialDesk.hallPollGuestSuffix") : poll.viewer_option_id ? t("worldSocialDesk.hallPollVotedSuffix") : ""}
             </p>
           </div>
         )}
@@ -1444,13 +1493,19 @@ function NoticePostCard({
               className={`${chipBtn(isLight)} ${emoji === r.emoji ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
             >
               <ReactionSticker reaction={r.emoji} className="h-[18px] w-[18px] object-contain" />
-              {r.label}
+              {reactionLabel(r, t)}
               {(counts[r.emoji] ?? 0) > 0 ? ` ${counts[r.emoji]}` : ""}
             </button>
           ))}
           <button type="button" onClick={() => toggleReplies()} className={chipBtn(isLight)} data-testid="world-community-thread-toggle">
             <MessageCircle className="h-3.5 w-3.5" />
-            {threadToggleLabel(replyCount, repliesOpen && threadState === "ready")}
+            {threadToggleLabel(replyCount, repliesOpen && threadState === "ready", {
+              replies: t("worldSocialDesk.hallThreadReplies"),
+              hide: t("worldSocialDesk.hallThreadHide"),
+              show: t("worldSocialDesk.hallThreadShow"),
+              replyOne: t("worldSocialDesk.hallThreadReplyOne"),
+              replyMany: t("worldSocialDesk.hallThreadReplyMany"),
+            })}
           </button>
           {/* Feed verbs (#80): members only — guests never see a
               dead button; the rails are requireAuth regardless. */}
@@ -1465,7 +1520,7 @@ function NoticePostCard({
                 className={`${chipBtn(isLight)} ${reposted ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
               >
                 <Repeat2 className="h-3.5 w-3.5" />
-                Repost{repostCount > 0 ? ` ${repostCount}` : ""}
+                {t("worldSocialDesk.hallRepostButton")}{repostCount > 0 ? ` ${repostCount}` : ""}
               </button>
               <button
                 type="button"
@@ -1475,7 +1530,7 @@ function NoticePostCard({
                 className={`${chipBtn(isLight)} ${saved ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
               >
                 <Bookmark className="h-3.5 w-3.5" />
-                {saved ? "Saved" : "Save"}
+                {saved ? t("worldSocialDesk.hallSavedButton") : t("worldSocialDesk.hallSaveButton")}
               </button>
               {own && !confirmingDelete && (
                 <button
@@ -1485,7 +1540,7 @@ function NoticePostCard({
                   className={chipBtn(isLight)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  Delete
+                  {t("worldSocialDesk.hallDeleteButton")}
                 </button>
               )}
               {own && confirmingDelete && (
@@ -1498,7 +1553,7 @@ function NoticePostCard({
                     className={`${chipBtn(isLight)} border-red-400/60 font-black text-red-400`}
                   >
                     {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                    Delete it for good?
+                    {t("worldSocialDesk.hallDeleteConfirm")}
                   </button>
                   <button
                     type="button"
@@ -1506,7 +1561,7 @@ function NoticePostCard({
                     data-testid="world-feed-delete-cancel"
                     className={chipBtn(isLight)}
                   >
-                    Keep it
+                    {t("worldSocialDesk.hallKeepIt")}
                   </button>
                 </>
               )}
@@ -1521,7 +1576,7 @@ function NoticePostCard({
               className={chipBtn(isLight)}
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Delete
+              {t("worldSocialDesk.hallDeleteButton")}
             </button>
           )}
           {removed && canVerb && own && confirmingDelete && (
@@ -1534,7 +1589,7 @@ function NoticePostCard({
                 className={`${chipBtn(isLight)} border-red-400/60 font-black text-red-400`}
               >
                 {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                Delete it for good?
+                {t("worldSocialDesk.hallDeleteConfirm")}
               </button>
               <button
                 type="button"
@@ -1542,7 +1597,7 @@ function NoticePostCard({
                 data-testid="world-feed-delete-cancel"
                 className={chipBtn(isLight)}
               >
-                Keep it
+                {t("worldSocialDesk.hallKeepIt")}
               </button>
             </>
           )}
@@ -1558,21 +1613,21 @@ function NoticePostCard({
         {repliesOpen && (
           <div className="mt-2 space-y-1.5" data-testid="world-community-thread">
             {threadState === "loading" ? (
-              <NativeLoadingState isLight={isLight} message="Fetching the thread…" />
+              <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.dmThreadLoading")} />
             ) : threadState === "failed" ? (
               <div data-testid="world-community-thread-failed">
                 <NativeErrorState
                   isLight={isLight}
-                  title="This thread wouldn't open"
-                  message="The conversation is fine — the fetch slipped. A thread that didn't load is never an empty thread."
+                  title={t("worldSocialDesk.dmThreadErrorTitle")}
+                  message={t("worldSocialDesk.hallThreadErrorMessageLong")}
                   onRetry={() => void loadThread()}
                 />
               </div>
             ) : threadState === "ready" && replies !== null && replies.length === 0 ? (
               <p className={`text-xs ${muted}`}>
                 {replyCount === 0
-                  ? "No replies yet — the thread starts with the next voice."
-                  : "This thread's replies aren't showing right now."}
+                  ? t("worldSocialDesk.hallCardThreadEmptyZero")
+                  : t("worldSocialDesk.hallThreadNotShowing")}
               </p>
             ) : threadState === "ready" && replies !== null ? (
               fullThread(replies).map((r) => (
@@ -1588,7 +1643,7 @@ function NoticePostCard({
             ) : null}
             {!threadReplyAllowed(isGuest) ? (
               <p className={`text-[11px] ${muted}`}>
-                You&rsquo;re reading the whole thread — sign in to add your voice to it.
+                {t("worldSocialDesk.hallGuestThreadNote")}
               </p>
             ) : (
               <div className="pt-1">
@@ -1596,16 +1651,16 @@ function NoticePostCard({
                     being drafted in — saved WITH the draft, so the
                     words come back in their tone on any device. */}
                 <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-                  {REPLY_DRAFT_TONES.map((t) => (
+                  {REPLY_DRAFT_TONES.map((toneOpt) => (
                     <button
-                      key={t.key}
+                      key={toneOpt.key}
                       type="button"
-                      data-testid={`world-community-reply-tone-${t.key}`}
-                      onClick={() => setReplyTone(t.key)}
-                      aria-pressed={replyTone === t.key}
-                      className={`${chipBtn(isLight)} ${replyTone === t.key ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
+                      data-testid={`world-community-reply-tone-${toneOpt.key}`}
+                      onClick={() => setReplyTone(toneOpt.key)}
+                      aria-pressed={replyTone === toneOpt.key}
+                      className={`${chipBtn(isLight)} ${replyTone === toneOpt.key ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
                     >
-                      {t.label}
+                      {t(TONE_KEYS[toneOpt.key])}
                     </button>
                   ))}
                 </div>
@@ -1614,8 +1669,8 @@ function NoticePostCard({
                     value={replyDraft}
                     onChange={(e) => setReplyDraft(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && void sendReply()}
-                    placeholder="Answer in the Hall…"
-                    aria-label="Answer in the Hall"
+                    placeholder={t("worldSocialDesk.hallAnswerInHallPlaceholder")}
+                    aria-label={t("worldSocialDesk.hallAnswerInHallAria")}
                     maxLength={500}
                     className={inputCls(isLight)}
                     data-testid="world-community-reply-draft"
@@ -1628,7 +1683,7 @@ function NoticePostCard({
                     data-testid="world-community-reply-send"
                   >
                     {replying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                    Reply
+                    {t("worldSocialDesk.hallReplyButton")}
                   </button>
                 </div>
                 {draftState !== "idle" && (
@@ -1637,10 +1692,10 @@ function NoticePostCard({
                     data-testid="world-community-reply-draft-state"
                   >
                     {draftState === "saving"
-                      ? "Saving your draft…"
+                      ? t("worldSocialDesk.hallDraftSaving")
                       : draftState === "saved"
-                        ? "Draft saved — it's kept on the bench until you send it."
-                        : "Couldn't save your draft — your words are still here, and saving retries as you type."}
+                        ? t("worldSocialDesk.hallDraftSaved")
+                        : t("worldSocialDesk.hallDraftSaveFailed")}
                   </p>
                 )}
                 {replyNote && (
@@ -1668,6 +1723,7 @@ function ReplyDraftsBench({
   authHeaders: () => Promise<Record<string, string>>;
   onPosted: () => void;
 }) {
+  const { t } = useTranslation();
   const [commentsText, setCommentsText] = useState("");
   const [tone, setTone] = useState<ReplyDraftTone>("hype");
   const [cost, setCost] = useState<number | null>(null);
@@ -1705,9 +1761,9 @@ function ReplyDraftsBench({
       });
       const replies = Array.isArray(d.replies) ? d.replies : [];
       setDrafts(replies);
-      if (replies.length === 0) setNote("Nothing came back — nothing was charged twice over; try again.");
+      if (replies.length === 0) setNote(t("worldSocialDesk.hallBenchNothingBack"));
     } catch (e) {
-      setNote(plainErrorText(e, "The drafts didn't land — try again."));
+      setNote(plainErrorText(e, t("worldSocialDesk.hallBenchDraftError")));
     } finally {
       setBusy(false);
     }
@@ -1720,38 +1776,38 @@ function ReplyDraftsBench({
     setNote(null);
     try {
       await apiJson(authHeaders, POSTS_PATH, { method: "POST", body: { body: text.trim() } });
-      setNote("Posted to the board — your reply is live under the Hall's posts.");
+      setNote(t("worldSocialDesk.hallBenchPostedNote"));
       onPosted();
     } catch (e) {
-      setNote(plainErrorText(e, "The post didn't land — try again."));
+      setNote(plainErrorText(e, t("worldSocialDesk.hallBenchPostError")));
     } finally {
       setPosting(null);
     }
   }
 
   return (
-    <NativeCard isLight={isLight} title="Reply drafts bench">
+    <NativeCard isLight={isLight} title={t("worldSocialDesk.hallBenchTitle")}>
       <div data-testid="world-community-reply-bench">
         <textarea
           value={commentsText}
           onChange={(e) => setCommentsText(e.target.value)}
-          placeholder={"Paste the comments you're answering — one per line…"}
-          aria-label="Paste the comments you're answering"
+          placeholder={t("worldSocialDesk.hallBenchCommentsPlaceholder")}
+          aria-label={t("worldSocialDesk.hallBenchCommentsAria")}
           rows={3}
           className={inputCls(isLight)}
           data-testid="world-community-bench-comments"
         />
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {REPLY_DRAFT_TONES.map((t) => (
+          {REPLY_DRAFT_TONES.map((toneOpt) => (
             <button
-              key={t.key}
+              key={toneOpt.key}
               type="button"
-              data-testid={`world-community-bench-tone-${t.key}`}
-              onClick={() => setTone(t.key)}
-              aria-pressed={tone === t.key}
-              className={`${chipBtn(isLight)} ${tone === t.key ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
+              data-testid={`world-community-bench-tone-${toneOpt.key}`}
+              onClick={() => setTone(toneOpt.key)}
+              aria-pressed={tone === toneOpt.key}
+              className={`${chipBtn(isLight)} ${tone === toneOpt.key ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
             >
-              {t.label}
+              {t(TONE_KEYS[toneOpt.key])}
             </button>
           ))}
           <button
@@ -1762,13 +1818,15 @@ function ReplyDraftsBench({
             data-testid="world-community-bench-draft"
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            Draft replies{cost !== null ? ` · ${cost} VB` : ""}
+            {t("worldSocialDesk.hallBenchDraftButton")}{cost !== null ? t("worldSocialDesk.hallBenchCostSuffix", { cost }) : ""}
           </button>
         </div>
         <p className={`mt-1.5 text-[11px] ${muted}`}>
           {batch.length > 0
-            ? `${batch.length} comment${batch.length === 1 ? "" : "s"} in this batch${cost !== null ? ` — one batch costs ${cost} VB, charged when you draft` : ""}.`
-            : "One batch drafts a reply for every pasted comment."}
+            ? batch.length === 1
+              ? t("worldSocialDesk.hallBenchBatchOne", { count: batch.length, costPart: cost !== null ? t("worldSocialDesk.hallBenchCostPart", { cost }) : "" })
+              : t("worldSocialDesk.hallBenchBatchMany", { count: batch.length, costPart: cost !== null ? t("worldSocialDesk.hallBenchCostPart", { cost }) : "" })
+            : t("worldSocialDesk.hallBenchBatchEmpty")}
         </p>
         {note && (
           <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>
@@ -1781,7 +1839,7 @@ function ReplyDraftsBench({
                 className={`rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
               >
                 <p className={`text-[11px] ${muted}`}>
-                  For: <span className="font-semibold">{batch[i] ?? ""}</span>
+                  {t("worldSocialDesk.hallBenchForPrefix")}<span className="font-semibold">{batch[i] ?? ""}</span>
                 </p>
                 <textarea
                   value={draft}
@@ -1792,7 +1850,7 @@ function ReplyDraftsBench({
                   maxLength={500}
                   className={`${inputCls(isLight)} mt-1.5`}
                   data-testid="world-community-bench-edit"
-                  aria-label="Your reply draft"
+                  aria-label={t("worldSocialDesk.hallBenchDraftAria")}
                 />
                 <div className="mt-1.5 flex justify-end">
                   <button
@@ -1803,7 +1861,7 @@ function ReplyDraftsBench({
                     data-testid="world-community-bench-post"
                   >
                     {posting === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pin className="h-3.5 w-3.5" />}
-                    Post to the board
+                    {t("worldSocialDesk.hallBenchPostButton")}
                   </button>
                 </div>
               </div>
@@ -1827,6 +1885,7 @@ function FeedComposerCard({
   authHeaders: () => Promise<Record<string, string>>;
   onPosted: () => void;
 }) {
+  const { t } = useTranslation();
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -1839,31 +1898,31 @@ function FeedComposerCard({
     try {
       await apiJson(authHeaders, POSTS_PATH, { method: "POST", body: { body: body.trim() } });
       setBody("");
-      setNote("Posted — it's live on the board below.");
+      setNote(t("worldSocialDesk.hallComposerPostedNote"));
       onPosted();
     } catch (e) {
-      setNote(plainErrorText(e, "The post didn't land — try again."));
+      setNote(plainErrorText(e, t("worldSocialDesk.hallBenchPostError")));
     } finally {
       setPosting(false);
     }
   }
 
   return (
-    <NativeCard isLight={isLight} title="Write a post">
+    <NativeCard isLight={isLight} title={t("worldSocialDesk.hallComposerTitle")}>
       <div data-testid="world-feed-composer">
         <PostAssistBlock isLight={isLight} onDraft={(draft) => setBody((b) => appendAssistDraft(b, draft))} />
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Say it to the Hall…"
-          aria-label="Say it to the Hall"
+          placeholder={t("worldSocialDesk.hallComposerPlaceholder")}
+          aria-label={t("worldSocialDesk.hallComposerAria")}
           rows={3}
           maxLength={500}
           className={`${inputCls(isLight)} mt-2`}
           data-testid="world-feed-composer-body"
         />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className={`text-[11px] ${muted}`}>{body.length}/500 — posting is free.</span>
+          <span className={`text-[11px] ${muted}`}>{t("worldSocialDesk.hallComposerCountLine", { count: body.length })}</span>
           <button
             type="button"
             onClick={() => void post()}
@@ -1872,7 +1931,7 @@ function FeedComposerCard({
             data-testid="world-feed-composer-post"
           >
             {posting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-            Post to the board
+            {t("worldSocialDesk.hallBenchPostButton")}
           </button>
         </div>
         {note && (
@@ -1884,6 +1943,7 @@ function FeedComposerCard({
 }
 
 export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useAuthHeaders();
   const [posts, setPosts] = useState<FeedPost[] | null>(null);
   const [feedFailed, setFeedFailed] = useState(false);
@@ -1975,7 +2035,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
       setPosts((prev) => mergeFeedPage(prev ?? [], page));
       setHasMore(feedHasMore(page.length));
     } catch {
-      setScanNote("The next page of the board wouldn't load — the posts above are safe; try again.");
+      setScanNote(t("worldSocialDesk.hallLoadMoreError"));
     } finally {
       setLoadingMore(false);
     }
@@ -1997,7 +2057,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
     if (scanBusy || !posts) return;
     const comments = commentsBatchFromPosts(posts);
     if (comments.length === 0) {
-      setScanNote("Nothing on the board to read yet — the scan runs on the board's own posts.");
+      setScanNote(t("worldSocialDesk.hallScanEmptyBoard"));
       return;
     }
     setScanBusy(kind);
@@ -2015,7 +2075,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
         setSentiment(d.report ?? null);
       }
     } catch (e) {
-      setScanNote(plainErrorText(e, "The scan didn't land — try again."));
+      setScanNote(plainErrorText(e, t("worldSocialDesk.hallScanError")));
     } finally {
       setScanBusy(null);
     }
@@ -2033,10 +2093,10 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
       );
       setVariants(Array.isArray(d.posts) ? d.posts : []);
       if (!Array.isArray(d.posts) || d.posts.length === 0) {
-        setPinNote("Nothing came back — nothing was pinned.");
+        setPinNote(t("worldSocialDesk.hallPinNothingBack"));
       }
     } catch (e) {
-      setPinNote(plainErrorText(e, "The draft didn't land — try again."));
+      setPinNote(plainErrorText(e, t("worldSocialDesk.hallPinDraftError")));
     } finally {
       setGenerating(false);
     }
@@ -2048,12 +2108,12 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
     setPinNote(null);
     try {
       await apiJson(authHeaders, POSTS_PATH, { method: "POST", body: { body: text.trim() } });
-      setPinNote("Pinned to the board — it's live on the notice board now.");
+      setPinNote(t("worldSocialDesk.hallPinPostedNote"));
       setVariants([]);
       setTopic("");
       setTick((n) => n + 1);
     } catch (e) {
-      setPinNote(plainErrorText(e, "The pin didn't land — try again."));
+      setPinNote(plainErrorText(e, t("worldSocialDesk.hallPinError")));
     } finally {
       setPinning(null);
     }
@@ -2065,7 +2125,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
           the board's own posts (the community page's exact rails).
           Each run costs 100 Visual Bucs server-side; the price is
           stated before the tap, per house law. */}
-      <NativeCard isLight={isLight} title="Hall highlights">
+      <NativeCard isLight={isLight} title={t("worldSocialDesk.hallHighlightsTitle")}>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -2075,7 +2135,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
             className={chipBtn(isLight)}
           >
             {scanBusy === "superfans" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Star className="h-3.5 w-3.5 text-[#d4af37]" />}
-            Superfan radar · 100 VB
+            {t("worldSocialDesk.hallScanSuperfans")}
           </button>
           <button
             type="button"
@@ -2085,12 +2145,12 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
             className={chipBtn(isLight)}
           >
             {scanBusy === "sentiment" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart3 className="h-3.5 w-3.5 text-[#d4af37]" />}
-            Read the room · 100 VB
+            {t("worldSocialDesk.hallScanSentiment")}
           </button>
           <span className={`text-[11px] ${muted}`}>
             {isGuest
-              ? "Sign in to run a scan — the board below still reads."
-              : "Runs read the board's recent posts; the price shows before anything runs."}
+              ? t("worldSocialDesk.hallScanGuestNote")
+              : t("worldSocialDesk.hallScanMemberNote")}
           </span>
         </div>
         {scanNote && (
@@ -2099,7 +2159,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
         {superfans !== null && (
           <div className="mt-2 space-y-1.5">
             {superfans.length === 0 ? (
-              <p className={`text-xs ${muted}`}>No superfans stood out in this batch — the room is warming up.</p>
+              <p className={`text-xs ${muted}`}>{t("worldSocialDesk.hallNoSuperfans")}</p>
             ) : (
               superfans.map((s, i) => (
                 <p key={`${s.author}-${i}`} className={`text-xs ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
@@ -2113,7 +2173,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
           <p className={`mt-2 text-xs ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
             <span className="font-black capitalize text-[#e8c86a]">{sentiment.overall}</span> · {sentiment.score}/100
             {sentiment.themes && sentiment.themes.length > 0
-              ? ` — ${sentiment.themes.map((t) => t.theme).slice(0, 3).join(" · ")}`
+              ? t("worldSocialDesk.hallSentimentThemes", { themes: sentiment.themes.map((th) => th.theme).slice(0, 3).join(" · ") })
               : ""}
           </p>
         )}
@@ -2127,14 +2187,14 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
 
       {/* Pin a post — draft with the generate-community-post family,
           then pin the chosen words to the board (POST /api/posts). */}
-      <NativeCard isLight={isLight} title="Pin a post">
+      <NativeCard isLight={isLight} title={t("worldSocialDesk.hallPinTitle")}>
         <div className="flex gap-2">
           <input
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void generatePin()}
-            placeholder="What's the word? (a drop, a poll, a hello)"
-            aria-label="What's the word?"
+            placeholder={t("worldSocialDesk.hallPinTopicPlaceholder")}
+            aria-label={t("worldSocialDesk.hallPinTopicAria")}
             className={inputCls(isLight)}
             data-testid="world-community-pin-topic"
           />
@@ -2146,7 +2206,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
             data-testid="world-community-pin-generate"
           >
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pin className="h-3.5 w-3.5" />}
-            Draft it{pinCost !== null ? ` · ${pinCost} VB` : ""}
+            {t("worldSocialDesk.hallPinDraft")}{pinCost !== null ? t("worldSocialDesk.hallBenchCostSuffix", { cost: pinCost }) : ""}
           </button>
         </div>
         {pinNote && (
@@ -2170,12 +2230,12 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
                   className={goldBtn}
                 >
                   {pinning === v.text ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pin className="h-3.5 w-3.5" />}
-                  Pin to the board
+                  {t("worldSocialDesk.hallPinButton")}
                 </button>
               </div>
             ))}
             <p className={`text-[11px] ${muted}`}>
-              Pinning posts your words to the board as-is — check the draft before it goes up.
+              {t("worldSocialDesk.hallPinCheckNote")}
             </p>
           </div>
         )}
@@ -2192,7 +2252,7 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
       <div>
         <div className="mb-1.5 flex flex-wrap items-center gap-1.5 px-1">
           <p className={`mr-1 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            On the board
+            {t("worldSocialDesk.hallBoardHeading")}
           </p>
           {FEED_VIEWS.map((v) => {
             const Icon = v.key === "chrono" ? Clock3 : v.key === "foryou" ? Flame : Radio;
@@ -2207,37 +2267,37 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
                 className={`${chipBtn(isLight)} ${view === v.key ? "border-[#d4af37] bg-[#d4af37]/15" : ""}`}
               >
                 <Icon className="h-3.5 w-3.5" />
-                {v.label}
+                {viewLabel(v, t)}
               </button>
             );
           })}
         </div>
         <p className={`mb-2 px-1 text-[11px] ${muted}`}>
           {view === "drops"
-            ? "New Drops — every release from creators you follow, last 30 days."
+            ? t("worldSocialDesk.hallViewDropsNote")
             : view === "chrono"
-              ? "Chronological — your timeline, no algorithm overlords."
-              : "For You — ranked by who you follow and what you engage with. Every post says why it's here. No paid boosting."}
+              ? t("worldSocialDesk.hallViewChronoNote")
+              : t("worldSocialDesk.hallViewForYouNote")}
         </p>
         {view === "drops" ? (
           dropsFailed ? (
             <NativeErrorState
               isLight={isLight}
-              title="The drops wire wouldn't load"
+              title={t("worldSocialDesk.hallDropsErrorTitle")}
               message={
                 isGuest
-                  ? "The wire reads for members — sign in on the website and the Hall will show the drops."
-                  : "The drops are fine — the wire just couldn't fetch them."
+                  ? t("worldSocialDesk.hallDropsErrorGuest")
+                  : t("worldSocialDesk.hallDropsErrorMember")
               }
               onRetry={() => setTick((n) => n + 1)}
             />
           ) : drops === null ? (
-            <NativeLoadingState isLight={isLight} message="Reading the drops wire…" />
+            <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.hallDropsLoading")} />
           ) : drops.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="No drops in the last 30 days."
-              detail="Follow more creators and their releases land here the moment they land."
+              message={t("worldSocialDesk.hallDropsEmptyMessage")}
+              detail={t("worldSocialDesk.hallDropsEmptyDetail")}
             />
           ) : (
             <div className="space-y-2" data-testid="world-feed-drops">
@@ -2256,14 +2316,14 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
                         {d.title}
                         {d.source === "discovery" && (
                           <span className="ml-2 rounded-full border border-[#d4af37]/60 px-1.5 py-px text-[9px] font-black uppercase text-[#e8c86a]">
-                            Discovery
+                            {t("worldSocialDesk.hallDiscoveryBadge")}
                           </span>
                         )}
                       </p>
                       <p className={`truncate text-xs ${muted}`}>
-                        {d.display_name ?? "Creator"}
+                        {d.display_name ?? t("worldSocialDesk.hallCreatorFallback")}
                         {d.why ? ` · ${d.why.label}` : ""}
-                        {` · ${new Date(d.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
+                        {` · ${new Date(d.created_at).toLocaleDateString(i18n.language, { month: "short", day: "numeric" })}`}
                       </p>
                     </div>
                   </div>
@@ -2274,21 +2334,21 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
         ) : feedFailed ? (
           <NativeErrorState
             isLight={isLight}
-            title="The notice board wouldn't open"
+            title={t("worldSocialDesk.hallBoardErrorTitle")}
             message={
               isGuest
-                ? "The board reads for members — sign in on the website and the Hall will show its posts."
-                : "The posts are fine — the board just couldn't fetch them."
+                ? t("worldSocialDesk.hallBoardErrorGuest")
+                : t("worldSocialDesk.hallBoardErrorMember")
             }
             onRetry={() => setTick((n) => n + 1)}
           />
         ) : posts === null ? (
-          <NativeLoadingState isLight={isLight} message="Pinning up the board…" />
+          <NativeLoadingState isLight={isLight} message={t("worldSocialDesk.hallBoardLoading")} />
         ) : posts.length === 0 ? (
           <NativeEmptyState
             isLight={isLight}
-            message="The board is bare right now."
-            detail="Pin the first post above — the Hall notices."
+            message={t("worldSocialDesk.hallBoardEmptyMessage")}
+            detail={t("worldSocialDesk.hallBoardEmptyDetail")}
           />
         ) : (
           <>
@@ -2316,12 +2376,12 @@ export function CommunityHallBoard({ isLight, isGuest }: { isLight: boolean; isG
                   data-testid="world-feed-load-more"
                 >
                   {loadingMore ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                  Load more posts
+                  {t("worldSocialDesk.hallLoadMoreButton")}
                 </button>
               </div>
             ) : (
               <p className={`mt-3 text-center text-[11px] ${muted}`} data-testid="world-feed-caught-up">
-                You&rsquo;re all caught up.
+                {t("worldSocialDesk.hallCaughtUp")}
               </p>
             )}
           </>

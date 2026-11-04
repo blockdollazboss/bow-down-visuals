@@ -241,21 +241,41 @@ export function placeLabel(place: number): string {
   return `Place ${place}`;
 }
 
+/** The deadline line's words, suppliable by the caller (the World
+ *  panel passes its catalog strings); the defaults are the English
+ *  lines verbatim, so an unbundled call renders exactly as before. */
+export interface ContestDeadlineStrings {
+  close: string;
+  closed: string;
+  decidedClosed: string;
+}
+
+const DEADLINE_STRINGS_EN: ContestDeadlineStrings = {
+  close: "Entries close {{when}}",
+  closed: "Entries closed {{when}}",
+  decidedClosed: "Decided — entries closed {{when}}",
+};
+
 /** "Entries close Fri, Oct 23, 8:00 PM" while the window stands;
  *  after it, the plain past tense. */
-export function contestDeadlineLine(c: Pick<WorldContest, "endsAt" | "phase">, nowMs: number): string {
+export function contestDeadlineLine(
+  c: Pick<WorldContest, "endsAt" | "phase">,
+  nowMs: number,
+  opts?: { strings?: ContestDeadlineStrings; locale?: string },
+): string {
   const ends = Date.parse(c.endsAt);
   if (!Number.isFinite(ends)) return "";
-  const when = new Intl.DateTimeFormat("en-US", {
+  const when = new Intl.DateTimeFormat(opts?.locale ?? "en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(ends));
-  if (c.phase === "decided") return `Decided — entries closed ${when}`;
-  if (c.phase === "judging" || ends <= nowMs) return `Entries closed ${when}`;
-  return `Entries close ${when}`;
+  const s = opts?.strings ?? DEADLINE_STRINGS_EN;
+  if (c.phase === "decided") return s.decidedClosed.replace("{{when}}", when);
+  if (c.phase === "judging" || ends <= nowMs) return s.closed.replace("{{when}}", when);
+  return s.close.replace("{{when}}", when);
 }
 
 /** The signed-in member's own entry, derived from the public
@@ -335,9 +355,21 @@ const FALLBACK_COPY: Record<string, string> = {
   NOT_FOUND: "No such contest.",
 };
 
-export function contestErrorCopy(code: string | null | undefined, serverMessage?: string): string {
+/** Caller-supplied refusal words (the World panel passes its
+ *  catalog strings, keyed by the server's refusal code, plus the
+ *  generic line under "generic"). The server's own message still
+ *  wins; the built-in English table is the default. */
+export type ContestErrorCopyBundle = Partial<Record<string, string>>;
+
+export function contestErrorCopy(
+  code: string | null | undefined,
+  serverMessage?: string,
+  copy?: ContestErrorCopyBundle,
+): string {
   if (serverMessage && serverMessage.trim()) return serverMessage;
+  if (code && copy?.[code]) return copy[code]!;
   if (code && FALLBACK_COPY[code]) return FALLBACK_COPY[code]!;
+  if (copy?.["generic"]) return copy["generic"]!;
   return "The palace couldn't do that just now — try again.";
 }
 
@@ -355,6 +387,7 @@ async function authedPost(
   token: string,
   path: string,
   body: unknown,
+  copy?: ContestErrorCopyBundle,
 ): Promise<unknown> {
   const res = await fetch(path, {
     method: "POST",
@@ -366,7 +399,7 @@ async function authedPost(
     const rec = isRecord(json) ? json : {};
     throw new ContestApiError(
       str(rec.error, "FAILED"),
-      contestErrorCopy(str(rec.error), str(rec.message)),
+      contestErrorCopy(str(rec.error), str(rec.message), copy),
     );
   }
   return json;
@@ -404,8 +437,9 @@ export async function fetchMyContestWorks(token: string): Promise<MyContestWork[
 export async function hostContest(
   token: string,
   body: ReturnType<typeof buildContestBody>,
+  copy?: ContestErrorCopyBundle,
 ): Promise<WorldContest | null> {
-  const json = await authedPost(token, "/api/world/contests", body);
+  const json = await authedPost(token, "/api/world/contests", body, copy);
   return isRecord(json) ? contest(json.contest) : null;
 }
 
@@ -413,11 +447,13 @@ export async function enterContestWork(
   token: string,
   contestId: string,
   work: Pick<MyContestWork, "id" | "workKind">,
+  copy?: ContestErrorCopyBundle,
 ): Promise<void> {
   await authedPost(
     token,
     `/api/world/contests/${encodeURIComponent(contestId)}/entries`,
     buildEntryBody(work),
+    copy,
   );
 }
 
@@ -425,10 +461,12 @@ export async function nameContestWinners(
   token: string,
   contestId: string,
   entryIdsInPodiumOrder: readonly (string | null)[],
+  copy?: ContestErrorCopyBundle,
 ): Promise<void> {
   await authedPost(
     token,
     `/api/world/contests/${encodeURIComponent(contestId)}/winners`,
     buildWinnersBody(entryIdsInPodiumOrder),
+    copy,
   );
 }

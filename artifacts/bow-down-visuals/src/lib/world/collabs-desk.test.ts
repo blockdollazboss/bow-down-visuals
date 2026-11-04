@@ -201,7 +201,7 @@ describe("the desk is mounted in the Hall and rides the confirmation", () => {
     expect(deskSrc).toContain("overrideCost: COLLAB_MATCH_COST_VB");
     expect(deskSrc).toContain("if (!res) return");
     /* The match button only arms with a saved card — no charge-then-refund dance. */
-    expect(deskSrc).toContain("Save your card above and the matcher can read you both.");
+    expect(deskSrc).toContain('t("worldSocialDesk.collabsMatchArmedNote")');
     /* A failed requests read shows an error, never a painted-empty inbox. */
     expect(deskSrc).toContain("setRequestsFailed(true)");
   });
