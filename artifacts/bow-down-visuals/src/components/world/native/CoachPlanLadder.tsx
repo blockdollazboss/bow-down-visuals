@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Crown, Loader2 } from "lucide-react";
 import { apiErrorMessage } from "@/lib/api-error";
 import { useCreatorTier } from "@/hooks/use-creator-tier";
@@ -70,17 +71,14 @@ import { goldBtn, useCoachAuthHeaders } from "./CoachPanelBits";
    status, period end) is shown from the rail instead. */
 
 export function CoachPlanLadderSection({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const [reloadKey, setReloadKey] = useState(0);
   const [successNote, setSuccessNote] = useState<string | null>(null);
   return (
-    <NativeCard isLight={isLight} title="Your creator plan — the full ladder">
+    <NativeCard isLight={isLight} title={t("worldJoinSweep.coachTitle")}>
       <div data-testid="world-coach-plan-ladder" className="space-y-3">
         <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-          The same ladder as Creator Plans, read from the one pricing source: every tier
-          sells at the same flat 5% platform fee, and paid tiers earn their keep with
-          features — your own domain, unlimited products, pro analytics, more AI
-          promotion boosts. Upgrading happens right here in the palace: the card form
-          opens in this desk, never on a hosted page.
+          {t("worldJoinSweep.coachIntro")}
         </p>
         {successNote ? (
           <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
@@ -110,6 +108,7 @@ function PlanLadderBody({
   onPlanChanged: (message: string) => void;
   onRetryTier: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const me = useCreatorTier();
   const authHeaders = useCoachAuthHeaders();
   const [overlay, setOverlay] = useState<Partial<Record<CreatorTierId, PlanConfigOverlay>>>({});
@@ -170,13 +169,13 @@ function PlanLadderBody({
       return (
         <NativeErrorState
           isLight={isLight}
-          title="Your plan wouldn't load"
-          message="We couldn't read your current plan, so the ladder can't honestly mark where you stand. Nothing about your plan has changed."
+          title={t("worldJoinSweep.coachLoadFailTitle")}
+          message={t("worldJoinSweep.coachLoadFailBody")}
           onRetry={onRetryTier}
         />
       );
     }
-    return <NativeLoadingState isLight={isLight} message="Reading your plan…" />;
+    return <NativeLoadingState isLight={isLight} message={t("worldJoinSweep.coachLoading")} />;
   }
 
   const plans = buildLadderPlans(overlay);
@@ -205,7 +204,7 @@ function PlanLadderBody({
          the door stops here and says so, plan untouched. */
       if (!hasStripePublishableKey()) {
         setDoorNote(
-          "Plan checkout isn't switched on inside the World right now — your plan is unchanged and nothing was charged.",
+          t("worldJoinSweep.coachDoorNote"),
         );
         return;
       }
@@ -234,7 +233,7 @@ function PlanLadderBody({
         return;
       }
       if (outcome.kind === "changed") {
-        onPlanChanged(`Your plan is now ${plan.name} — switched in place on the same subscription.`);
+        onPlanChanged(t("worldJoinSweep.coachNowLine", { name: plan.name }));
         return;
       }
       if (outcome.kind === "change") {
@@ -261,8 +260,7 @@ function PlanLadderBody({
      new plan shows where the member stands. */
   const confirmEmbedded = async (paymentIntentId: string) => {
     if (!embedded) return;
-    const fallback =
-      "Your payment went through — we're still applying your plan. Give it a moment, then check your standing here again.";
+    const fallback = t("worldJoinSweep.coachPaymentPending");
     try {
       const res = await fetch("/api/embedded-checkout/subscription/verify", {
         method: "POST",
@@ -279,7 +277,7 @@ function PlanLadderBody({
       }
       const name = embedded.tier === "elite" ? "Elite" : "Pro";
       setEmbedded(null);
-      onPlanChanged(`You're ${name} now. Your plan is active — paid right here, no detour.`);
+      onPlanChanged(t("worldJoinSweep.coachPaidLine", { name }));
     } catch {
       setError(fallback);
     }
@@ -316,7 +314,7 @@ function PlanLadderBody({
       }
       const name = changePreview.toPlanName;
       setChangePreview(null);
-      onPlanChanged(`Your plan is now ${name} — switched in place on the same subscription.`);
+      onPlanChanged(t("worldJoinSweep.coachNowLine", { name }));
     } finally {
       setChanging(false);
     }
@@ -325,12 +323,12 @@ function PlanLadderBody({
   return (
     <div className="space-y-3">
       <p className={`text-xs ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
-        You&rsquo;re on <strong className="capitalize">{myView?.name ?? me.tier}</strong>
-        {me.status !== "active" ? ` (${me.status.replace(/_/g, " ")})` : ""} — flat {me.feePct}{" "}
-        platform fee
-        {myView ? `, ${myView.aiBoostsPerMonth} AI promotion boosts a month` : ""}
+        {t("worldJoinSweep.coachYouAreOn")} <strong className="capitalize">{myView?.name ?? me.tier}</strong>
+        {me.status !== "active" ? ` (${me.status.replace(/_/g, " ")})` : ""}
+        {t("worldJoinSweep.coachStandingFee", { feePct: me.feePct })}
+        {myView ? t("worldJoinSweep.coachStandingBoosts", { boosts: myView.aiBoostsPerMonth }) : ""}
         {me.currentPeriodEnd
-          ? ` · current period runs to ${new Date(me.currentPeriodEnd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+          ? t("worldJoinSweep.coachStandingPeriod", { date: new Date(me.currentPeriodEnd).toLocaleDateString(i18n.language, { month: "short", day: "numeric", year: "numeric" }) })
           : ""}
         .
       </p>
@@ -362,13 +360,13 @@ function PlanLadderBody({
                 <Crown className="h-4 w-4 text-[#d4af37]" /> {plan.name}
                 {isMine && (
                   <span className="ml-auto rounded-full bg-[#d4af37] px-2 py-0.5 text-[10px] font-black text-black">
-                    Your plan
+                    {t("worldJoinSweep.coachYourPlanBadge")}
                   </span>
                 )}
               </p>
               {plan.tier === "pro" && !isMine && (
                 <p className={`mt-1 text-[10px] font-black uppercase tracking-wider ${isLight ? "text-[#7A5A12]" : "text-amber-300"}`}>
-                  Most creators pick this
+                  {t("worldJoinSweep.coachMostPicked")}
                 </p>
               )}
               <p className="mt-1 text-xl font-black text-[#d4af37]">
@@ -377,13 +375,13 @@ function PlanLadderBody({
                 ) : (
                   <>
                     ${plan.priceUsdPerMonth}
-                    <span className={`text-xs font-bold ${muted}`}>/month</span>
+                    <span className={`text-xs font-bold ${muted}`}>{t("worldJoinSweep.coachPerMonth")}</span>
                   </>
                 )}
               </p>
               {plan.tagline && <p className={`text-[11px] ${muted}`}>{plan.tagline}</p>}
               <p className={`mt-1 text-[11px] ${muted}`}>
-                {plan.feePct} platform fee · {plan.aiBoostsPerMonth} AI promotion boosts / month
+                {t("worldJoinSweep.coachFeeBoostLine", { feePct: plan.feePct, boosts: plan.aiBoostsPerMonth })}
               </p>
               <ul className={`mt-2 flex-1 space-y-1 text-[11px] ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>
                 {plan.features.map((f) => (
@@ -398,7 +396,7 @@ function PlanLadderBody({
                     isLight ? "border-emerald-700/40 text-emerald-800" : "border-emerald-400/40 text-emerald-300"
                   }`}
                 >
-                  Your current plan
+                  {t("worldJoinSweep.coachCurrentPlan")}
                 </p>
               ) : !paid ? (
                 /* A paid member on the Free card: leaving a paid
@@ -406,8 +404,7 @@ function PlanLadderBody({
                    to Free), never an instant switch — the card
                    says so instead of offering a dead door. */
                 <p className={`mt-3 text-center text-[11px] ${muted}`}>
-                  Leaving a paid plan is a glide, not a switch — your tier holds to the end
-                  of the period, then returns to Free.
+                  {t("worldJoinSweep.coachGlideNote")}
                 </p>
               ) : cta === "coming-soon" ? (
                 <button
@@ -415,7 +412,7 @@ function PlanLadderBody({
                   disabled
                   className="mt-3 rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold opacity-60 bdv-touch-target"
                 >
-                  {plan.name} — price coming soon
+                  {t("worldJoinSweep.coachPriceComingSoon", { name: plan.name })}
                 </button>
               ) : cta === "retry-load" ? (
                 <button
@@ -426,7 +423,7 @@ function PlanLadderBody({
                     isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"
                   }`}
                 >
-                  Couldn&rsquo;t load plans — tap to retry
+                  {t("worldJoinSweep.coachRetryLoad")}
                 </button>
               ) : (
                 <button
@@ -442,10 +439,10 @@ function PlanLadderBody({
                     <Crown className="h-3.5 w-3.5" />
                   )}
                   {busyTier === plan.tier
-                    ? "Opening checkout…"
+                    ? t("worldJoinSweep.coachOpeningCheckout")
                     : isSwitch
-                      ? `Switch to ${plan.name} — ${ladderPriceLabel(plan)}`
-                      : `Go ${plan.name} — ${ladderPriceLabel(plan)}`}
+                      ? t("worldJoinSweep.coachSwitchTo", { name: plan.name, price: ladderPriceLabel(plan) })
+                      : t("worldJoinSweep.coachGoPlan", { name: plan.name, price: ladderPriceLabel(plan) })}
                 </button>
               )}
             </div>
@@ -455,7 +452,7 @@ function PlanLadderBody({
       {embedded && (
         <div className="mx-auto w-full max-w-md" data-testid="world-coach-plans-embedded">
           <p className={`mb-2 text-center text-xs font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-            Finish your {embedded.tier === "elite" ? "Elite" : "Pro"} upgrade — right here:
+            {t("worldJoinSweep.coachFinishUpgrade", { tier: embedded.tier === "elite" ? "Elite" : "Pro" })}
           </p>
           <EmbeddedPaymentForm
             clientSecret={embedded.clientSecret}
@@ -468,7 +465,7 @@ function PlanLadderBody({
             onClick={() => setEmbedded(null)}
             className={`mt-2 w-full text-center text-xs bdv-touch-target ${isLight ? "text-[#6B5B36] hover:text-[#2a1e07]" : "text-white/40 hover:text-white/70"}`}
           >
-            Cancel — no charge
+            {t("worldJoinSweep.coachCancelNoCharge")}
           </button>
         </div>
       )}
@@ -480,7 +477,7 @@ function PlanLadderBody({
           }`}
         >
           <p className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-            Switch to {changePreview.toPlanName}?
+            {t("worldJoinSweep.coachSwitchConfirmTitle", { name: changePreview.toPlanName })}
           </p>
           <p className={`mt-1 text-xs ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>
             {planChangeChargeLine(changePreview)}
@@ -502,7 +499,7 @@ function PlanLadderBody({
               className={`${goldBtn} flex-1 justify-center px-3 py-1.5 text-xs`}
             >
               {changing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
-              {changing ? "Switching…" : `Yes, switch to ${changePreview.toPlanName}`}
+              {changing ? t("worldJoinSweep.coachSwitching") : t("worldJoinSweep.coachYesSwitch", { name: changePreview.toPlanName })}
             </button>
             <button
               type="button"
@@ -513,7 +510,7 @@ function PlanLadderBody({
                 isLight ? "border-[#7A5A12]/40 text-[#2a1e07]" : "border-white/20 text-white"
               }`}
             >
-              Not now
+              {t("worldJoinSweep.coachNotNow")}
             </button>
           </div>
         </div>

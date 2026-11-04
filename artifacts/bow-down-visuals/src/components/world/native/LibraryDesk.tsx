@@ -29,10 +29,10 @@
  * with a retry, never an empty shelf in disguise.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Copy, Heart } from "lucide-react";
 import {
   LIBRARY_BREADTHS,
-  LIBRARY_BREADTH_LABELS,
   LIBRARY_EDITOR_STATION_ID,
   LIBRARY_FONT_CATEGORY_FILTERS,
   LIBRARY_PRESET_CATEGORY_FILTERS,
@@ -53,7 +53,6 @@ import {
   wishlistOfResponse,
   wishlistPriceView,
   wishlistRemovePath,
-  WISHLIST_KIND_LABELS,
   withoutWishlistEntry,
   writeLibraryFavorites,
   writeLibraryRecent,
@@ -67,6 +66,18 @@ import type { PanelPayload } from "@/lib/world/panel-payload";
 import { ensureLibraryFonts } from "@/lib/load-fonts";
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
 
+/* Breadth + wishlist-kind labels resolve through the join sweep
+   (worldJoinSweep); the seam records stay the English defaults. */
+const BREADTH_LABEL_KEYS: Record<LibraryBreadth, string> = {
+  presets: "worldJoinSweep.libTabPresets",
+  fonts: "worldJoinSweep.libTabFonts",
+  wishlist: "worldJoinSweep.libTabWishlist",
+};
+const KIND_LABEL_KEYS: Record<WishlistEntry["itemKind"], string> = {
+  store_product: "worldJoinSweep.libKindStore",
+  shop_product: "worldJoinSweep.libKindShop",
+};
+
 export function LibraryDesk({
   isLight,
   onOpenStation,
@@ -74,6 +85,7 @@ export function LibraryDesk({
   isLight: boolean;
   onOpenStation?: (stationId: string, payload?: PanelPayload | null) => void;
 }) {
+  const { t } = useTranslation();
   const deskHeaders = useDeskAuthHeaders();
   const [breadth, setBreadth] = useState<LibraryBreadth>("presets");
   const [query, setQuery] = useState("");
@@ -145,7 +157,7 @@ export function LibraryDesk({
       });
       if (!res.ok) throw new Error("remove failed");
     } catch {
-      setNote("That remove didn't land — the item is back on your list. Try again in a moment.");
+      setNote(t("worldJoinSweep.libRemoveFailedNote"));
       void loadWishlist();
     } finally {
       setWishBusyId(null);
@@ -188,7 +200,7 @@ export function LibraryDesk({
       trackUse("font", font.apiName);
       window.setTimeout(() => setCopiedFamily((c) => (c === font.family ? null : c)), 2000);
     } catch {
-      setNote(`Copy didn't land — the line is on the card: ${snippet}`);
+      setNote(t("worldJoinSweep.libCopyFailedNote", { snippet }));
     }
   }
 
@@ -197,7 +209,7 @@ export function LibraryDesk({
     return (
       <button
         type="button"
-        aria-label={active ? "Remove from favorites" : "Add to favorites"}
+        aria-label={active ? t("worldJoinSweep.libFavRemove") : t("worldJoinSweep.libFavAdd")}
         aria-pressed={active}
         data-testid={`world-library-desk-fav-${slug}`}
         className={`ml-auto inline-flex items-center justify-center rounded-full p-1.5 bdv-touch-target ${
@@ -217,13 +229,13 @@ export function LibraryDesk({
   return (
     <div className="space-y-3" data-testid="world-library-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Thy Library</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldJoinSweep.libTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          Looks, fonts and your wishlist — the library&rsquo;s whole shelf, right here.
+          {t("worldJoinSweep.libIntro")}
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Library sections">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldJoinSweep.libSectionsLabel")}>
         {LIBRARY_BREADTHS.map((b) => (
           <button
             key={b}
@@ -234,7 +246,7 @@ export function LibraryDesk({
             className={chipCls(breadth === b)}
             onClick={() => setBreadth(b)}
           >
-            {LIBRARY_BREADTH_LABELS[b]}
+            {t(BREADTH_LABEL_KEYS[b])}
             {b === "wishlist" && wishItems ? ` (${wishItems.length})` : ""}
           </button>
         ))}
@@ -245,8 +257,8 @@ export function LibraryDesk({
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={breadth === "presets" ? "Search looks…" : "Search fonts…"}
-          aria-label={breadth === "presets" ? "Search presets" : "Search fonts"}
+          placeholder={breadth === "presets" ? t("worldJoinSweep.libSearchLooksPlaceholder") : t("worldJoinSweep.libSearchFontsPlaceholder")}
+          aria-label={breadth === "presets" ? t("worldJoinSweep.libSearchPresetsLabel") : t("worldJoinSweep.libSearchFontsLabel")}
           data-testid="world-library-desk-search"
           className={inputCls}
         />
@@ -254,7 +266,7 @@ export function LibraryDesk({
 
       {breadth === "presets" ? (
         <div className="space-y-3" data-testid="world-library-desk-presets">
-          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Preset categories">
+          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldJoinSweep.libPresetCatsLabel")}>
             {LIBRARY_PRESET_CATEGORY_FILTERS.map((c) => (
               <button
                 key={c}
@@ -290,7 +302,7 @@ export function LibraryDesk({
                 </div>
                 <p className={`text-sm font-bold ${strong}`}>{staged.name}</p>
                 <p className={`text-xs ${muted}`}>
-                  {staged.blurb} Live on the stage above, in {staged.toolLabel}.
+                  {staged.blurb} {t("worldJoinSweep.libStagedSuffix", { tool: staged.toolLabel })}
                 </p>
                 <button
                   type="button"
@@ -298,19 +310,19 @@ export function LibraryDesk({
                   className={chipCls(true)}
                   onClick={() => usePreset(staged)}
                 >
-                  Use in the Visual Vibes Editor
+                  {t("worldJoinSweep.libUseInEditor")}
                 </button>
               </div>
             ) : (
               <p className={`text-sm ${muted}`}>
-                Pick a look below to see it live on this stage — then take it into the editor.
+                {t("worldJoinSweep.libStageEmpty")}
               </p>
             )}
           </div>
 
           {presets.length === 0 ? (
             <p className={`text-sm ${muted}`} data-testid="world-library-desk-presets-empty">
-              No looks match that search.
+              {t("worldJoinSweep.libPresetsEmpty")}
             </p>
           ) : (
             <ul className="grid grid-cols-2 gap-1.5">
@@ -323,7 +335,7 @@ export function LibraryDesk({
                   <button
                     type="button"
                     className="block w-full text-left"
-                    aria-label={`Preview ${p.name}`}
+                    aria-label={t("worldJoinSweep.libPreviewLabel", { name: p.name })}
                     onClick={() => {
                       setStaged(p);
                       trackUse("preset", p.slug);
@@ -358,7 +370,7 @@ export function LibraryDesk({
 
       {breadth === "fonts" ? (
         <div className="space-y-3" data-testid="world-library-desk-fonts">
-          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Font categories">
+          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldJoinSweep.libFontCatsLabel")}>
             {LIBRARY_FONT_CATEGORY_FILTERS.map((c) => (
               <button
                 key={c}
@@ -376,7 +388,7 @@ export function LibraryDesk({
 
           {fonts.length === 0 ? (
             <p className={`text-sm ${muted}`} data-testid="world-library-desk-fonts-empty">
-              No fonts match that search.
+              {t("worldJoinSweep.libFontsEmpty")}
             </p>
           ) : (
             <ul className="space-y-1.5">
@@ -405,11 +417,11 @@ export function LibraryDesk({
                     >
                       {copiedFamily === f.family ? (
                         <>
-                          <Check className="h-3.5 w-3.5" /> Copied!
+                          <Check className="h-3.5 w-3.5" /> {t("worldJoinSweep.libCopied")}
                         </>
                       ) : (
                         <>
-                          <Copy className="h-3.5 w-3.5" /> Copy font
+                          <Copy className="h-3.5 w-3.5" /> {t("worldJoinSweep.libCopyFont")}
                         </>
                       )}
                     </button>
@@ -426,23 +438,22 @@ export function LibraryDesk({
         <div className="space-y-3" data-testid="world-library-desk-wishlist">
           {wishFailed ? (
             <div data-testid="world-library-desk-wishlist-failed">
-              <p className={errCls}>Your wishlist wouldn&rsquo;t load. Give it another shot.</p>
+              <p className={errCls}>{t("worldJoinSweep.libWishLoadFail")}</p>
               <button type="button" className={`mt-2 ${chipCls(false)}`} onClick={() => void loadWishlist()}>
-                Try again
+                {t("worldJoinSweep.libTryAgain")}
               </button>
             </div>
           ) : wishItems === null ? (
-            <p className={`text-sm ${muted}`}>Loading your wishlist…</p>
+            <p className={`text-sm ${muted}`}>{t("worldJoinSweep.libWishLoading")}</p>
           ) : wishItems.length === 0 ? (
             <p className={`text-sm ${muted}`} data-testid="world-library-desk-wishlist-empty">
-              Nothing on your wishlist yet — tap the heart on a product and it lands here, watched for a
-              price drop.
+              {t("worldJoinSweep.libWishEmpty")}
             </p>
           ) : (
             <ul className="space-y-1.5">
               {wishItems.map((entry) => {
                 const view = wishlistPriceView(entry);
-                const drop = wishlistDropLine(entry);
+                const drop = wishlistDropLine(entry, t("worldJoinSweep.libDropLine"));
                 const gone = view.nowLabel === null;
                 return (
                   <li
@@ -451,9 +462,9 @@ export function LibraryDesk({
                     data-testid={`world-library-desk-wish-${entry.id}`}
                   >
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={chipCls(false)}>{WISHLIST_KIND_LABELS[entry.itemKind]}</span>
+                      <span className={chipCls(false)}>{t(KIND_LABEL_KEYS[entry.itemKind])}</span>
                       <p className={`min-w-0 truncate text-sm font-bold ${gone ? muted : strong}`}>
-                        {gone ? "A saved product" : entry.title}
+                        {gone ? t("worldJoinSweep.libGoneTitle") : entry.title}
                       </p>
                       <button
                         type="button"
@@ -462,16 +473,16 @@ export function LibraryDesk({
                         disabled={wishBusyId !== null}
                         onClick={() => void removeWish(entry)}
                       >
-                        {wishBusyId === entry.id ? "Removing…" : "Remove"}
+                        {wishBusyId === entry.id ? t("worldJoinSweep.libRemoving") : t("worldJoinSweep.libRemove")}
                       </button>
                     </div>
                     {gone ? (
                       <p className={`mt-1 text-xs ${muted}`}>
-                        This one isn&rsquo;t listed anymore — removing it keeps the list honest.
+                        {t("worldJoinSweep.libGoneNote")}
                       </p>
                     ) : (
                       <p className={`mt-1 text-xs ${muted}`}>
-                        Saved at {view.savedLabel} · Now {view.nowLabel}
+                        {t("worldJoinSweep.libSavedNowLine", { saved: view.savedLabel, now: view.nowLabel })}
                       </p>
                     )}
                     {drop ? (
@@ -480,7 +491,7 @@ export function LibraryDesk({
                       </p>
                     ) : null}
                     {view.unavailable ? (
-                      <p className={`mt-1 text-xs ${muted}`}>Not on sale right now.</p>
+                      <p className={`mt-1 text-xs ${muted}`}>{t("worldJoinSweep.libNotOnSale")}</p>
                     ) : null}
                   </li>
                 );

@@ -767,11 +767,10 @@ export function ThemePacksDesk() {
       {look && lookPack ? (
         <div className="mt-4 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3" role="status" data-testid="theme-pack-look-banner">
           <p className="text-xs text-foreground">
-            You're previewing a shared look — <strong>{themePackCopy(lookPack, t).name}</strong> wearing the sender's
-            exact customization mix.
+            {t("worldJoinSweep.packBannerPreviewStart")}<strong>{themePackCopy(lookPack, t).name}</strong>{t("worldJoinSweep.packBannerPreviewEnd")}{" "}
             {lookPack.tier === "premium"
-              ? " This pack is premium: the preview is free, owning it is still 1,000 VB — the sender's link never bypasses the price."
-              : " This pack is included — apply it any time."}
+              ? t("worldJoinSweep.packBannerPremium")
+              : t("worldJoinSweep.packBannerIncluded")}
           </p>
         </div>
       ) : null}

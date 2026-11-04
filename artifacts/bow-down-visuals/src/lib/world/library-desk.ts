@@ -80,9 +80,9 @@ export const LIBRARY_BREADTH_LABELS: Record<LibraryBreadth, string> = {
 
 /** The station a preset's "Use" opens: the Create Wing's Visual
  *  Vibes Editor door — the same station the Daily Drop catalog
- *  sends video drops to. Opened with a null payload on purpose
- *  (see the header): no prefill is promised because none can
- *  honestly land today. */
+ *  sends video drops to. Opened carrying the library-preset
+ *  payload (see the header): the step-through seeds the preset's
+ *  own editor param, which the editor's param reader applies. */
 export const LIBRARY_EDITOR_STATION_ID = "visual-vibes-editor";
 
 /* ─── Presets — the page's own catalog, the page's own filters ──── */
@@ -373,12 +373,19 @@ export function wishlistPriceView(entry: WishlistEntry): WishlistPriceView {
   };
 }
 
-/** The dropped-by line, in the page's own words and money format. */
-export function wishlistDropLine(entry: WishlistEntry): string | null {
+/** The dropped-by line, in the page's own words and money format.
+ *  The wording rides an optional template (the desk passes its
+ *  worldJoinSweep.libDropLine translation; "{{amount}}" is the
+ *  seam-formatted money) — the default is the English line, so
+ *  every other caller renders byte-identically. */
+export function wishlistDropLine(
+  entry: WishlistEntry,
+  template = "Down {{amount}} since you saved it",
+): string | null {
   const view = wishlistPriceView(entry);
   return view.droppedCents === null
     ? null
-    : `Down ${wishlistMoney(view.droppedCents)} since you saved it`;
+    : template.replace("{{amount}}", wishlistMoney(view.droppedCents));
 }
 
 export const LIBRARY_DESK_PROMOTION =

@@ -880,6 +880,7 @@ function ShopDomainSection({
   isLight: boolean;
   onShopSaved: (pub: PublicShopDto, mine: MineShopDto) => void;
 }) {
+  const { t } = useTranslation();
   const authHeaders = useAuthHeaders();
   const status = shopDomainStatus(mineShop);
   const domain = mineShop.custom_domain ?? null;
@@ -899,7 +900,7 @@ function ShopDomainSection({
   const attach = async (value: string) => {
     if (busy) return;
     const body = buildShopDomainAttachBody(value);
-    if (!body) { setError("Type the domain you want to connect first."); return; }
+    if (!body) { setError(t("worldJoinSweep.domainNeedDomain")); return; }
     setBusy("attach");
     setError(null);
     setPendingReason(null);
@@ -910,15 +911,15 @@ function ShopDomainSection({
         body: JSON.stringify(body),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "That domain didn't connect — your shop is unchanged."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldJoinSweep.domainConnectFailed")));
       const parsed = parseShopDomainAttachResult(data);
-      if (!parsed) throw new Error("The connection came back without its DNS instructions — reconnect to get a fresh token.");
+      if (!parsed) throw new Error(t("worldJoinSweep.domainNoDnsInstructions"));
       setAttachInfo(parsed);
       setInput(parsed.domain);
       setConfirmingDetach(false);
       onShopSaved(shop, { ...mineShop, custom_domain: parsed.domain, domain_verified: false });
     } catch (e) {
-      setError(plainErrorText(e, "That domain didn't connect — your shop is unchanged."));
+      setError(plainErrorText(e, t("worldJoinSweep.domainConnectFailed")));
     } finally {
       setBusy(null);
     }
@@ -936,17 +937,17 @@ function ShopDomainSection({
         body: JSON.stringify({ shopId: shop.id }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "The verification check didn't run — try again."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldJoinSweep.domainVerifyDidntRun")));
       const result = parseShopDomainVerifyResult(data);
-      if (!result) throw new Error("The verification check came back unreadable — try again.");
+      if (!result) throw new Error(t("worldJoinSweep.domainVerifyUnreadable"));
       if (result.verified) {
         setAttachInfo(null);
         onShopSaved(shop, { ...mineShop, custom_domain: result.domain ?? domain, domain_verified: true });
       } else {
-        setPendingReason(result.reason ?? "Not verified yet — DNS can take a few minutes to propagate.");
+        setPendingReason(result.reason ?? t("worldJoinSweep.domainNotVerifiedYet"));
       }
     } catch (e) {
-      setError(plainErrorText(e, "The verification check didn't run — try again."));
+      setError(plainErrorText(e, t("worldJoinSweep.domainVerifyDidntRun")));
     } finally {
       setBusy(null);
     }
@@ -964,14 +965,14 @@ function ShopDomainSection({
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        throw new Error(apiErrorMessage(data, "Couldn't disconnect the domain."));
+        throw new Error(apiErrorMessage(data, t("worldJoinSweep.domainDisconnectFailed")));
       }
       setAttachInfo(null);
       setInput("");
       setConfirmingDetach(false);
       onShopSaved(shop, { ...mineShop, custom_domain: null, domain_verified: false });
     } catch (e) {
-      setError(plainErrorText(e, "Couldn't disconnect the domain."));
+      setError(plainErrorText(e, t("worldJoinSweep.domainDisconnectFailed")));
     } finally {
       setBusy(null);
     }
@@ -989,7 +990,7 @@ function ShopDomainSection({
       {confirmingDetach ? (
         <>
           <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-            Disconnect {domain} from your shop?
+            {t("worldJoinSweep.domainDisconnectPrompt", { domain })}
           </span>
           <button
             type="button"
@@ -998,9 +999,9 @@ function ShopDomainSection({
             disabled={busy !== null}
             className="inline-flex items-center gap-1.5 rounded-full border border-red-400/50 bg-red-400/10 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
           >
-            {busy === "detach" ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Disconnect it
+            {busy === "detach" ? <Loader2 className="h-3 w-3 animate-spin" /> : null} {t("worldJoinSweep.domainDisconnectIt")}
           </button>
-          <button type="button" onClick={() => setConfirmingDetach(false)} className={chipBtn(isLight)}>Keep it</button>
+          <button type="button" onClick={() => setConfirmingDetach(false)} className={chipBtn(isLight)}>{t("worldJoinSweep.domainKeepIt")}</button>
         </>
       ) : (
         <button
@@ -1009,7 +1010,7 @@ function ShopDomainSection({
           onClick={() => { setConfirmingDetach(true); setError(null); }}
           className={chipBtn(isLight)}
         >
-          Disconnect
+          {t("worldJoinSweep.domainDisconnect")}
         </button>
       )}
     </div>
@@ -1020,11 +1021,11 @@ function ShopDomainSection({
       <div className="flex items-center gap-2">
         <Globe className={`h-4 w-4 ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`} />
         <p className={`text-[11px] font-black uppercase tracking-wider ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}>
-          Your shop&rsquo;s own web address
+          {t("worldJoinSweep.domainTitle")}
         </p>
         {status === "verified" && (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
-            <BadgeCheck className="h-3.5 w-3.5" /> Verified
+            <BadgeCheck className="h-3.5 w-3.5" /> {t("worldJoinSweep.domainVerifiedBadge")}
           </span>
         )}
       </div>
@@ -1034,15 +1035,14 @@ function ShopDomainSection({
       {status === "none" && (
         <>
           <p className={`text-[11px] ${muted(isLight)}`}>
-            Point your own domain at your shop. You&rsquo;ll add one TXT record to prove ownership.
-            Free — no Visual Bucs; the rail checks that your plan covers shops when you connect, same as the website.
+            {t("worldJoinSweep.domainIntro")}
           </p>
           <div className="flex flex-wrap gap-1.5">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="shop.yourname.com"
-              aria-label="Your domain"
+              aria-label={t("worldJoinSweep.domainInputLabel")}
               className={`${inputCls(isLight)} min-w-0 flex-1`}
               data-testid="world-shop-domain-input"
             />
@@ -1053,7 +1053,7 @@ function ShopDomainSection({
               disabled={busy !== null || !input.trim()}
               className={goldBtn(busy !== null || !input.trim())}
             >
-              {busy === "attach" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />} Connect
+              {busy === "attach" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />} {t("worldJoinSweep.domainConnect")}
             </button>
           </div>
         </>
@@ -1063,35 +1063,35 @@ function ShopDomainSection({
         <div className="space-y-2">
           <p className={`text-xs ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
             <span className="font-mono font-bold">{domain}</span>{" "}
-            <span className={muted(isLight)}>is connected — it goes live once DNS proves it&rsquo;s yours.</span>
+            <span className={muted(isLight)}>{t("worldJoinSweep.domainConnectedSuffix")}</span>
           </p>
           <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
             <p className={`text-[11px] font-black uppercase tracking-wider ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}>
-              TXT record — proves the domain is yours
+              {t("worldJoinSweep.domainTxtRecordLabel")}
             </p>
             {attachInfo?.dns.step1 && <p className={`mt-1 text-[11px] ${muted(isLight)}`}>{attachInfo.dns.step1}</p>}
             <p className="mt-1 font-mono text-xs break-all">
-              <span className={muted(isLight)}>Host:</span>{" "}
+              <span className={muted(isLight)}>{t("worldJoinSweep.domainHostLabel")}</span>{" "}
               <span className={isLight ? "text-[#92600a]" : "text-amber-300"} data-testid="world-shop-domain-txt-host">
                 {attachInfo ? attachInfo.verification.host : shopDomainVerifyHost(domain)}
               </span>
             </p>
             <div className="mt-1 flex items-start justify-between gap-2">
               <p className="font-mono text-xs break-all">
-                <span className={muted(isLight)}>Value:</span>{" "}
+                <span className={muted(isLight)}>{t("worldJoinSweep.domainValueLabel")}</span>{" "}
                 <span className={isLight ? "text-[#92600a]" : "text-amber-300"} data-testid="world-shop-domain-txt-value">
                   {attachInfo ? attachInfo.verification.value : "••••••••"}
                 </span>
               </p>
               {attachInfo && (
-                <button type="button" onClick={copyToken} className="shrink-0 text-white/50 hover:text-white" title="Copy token" data-testid="world-shop-domain-copy">
+                <button type="button" onClick={copyToken} className="shrink-0 text-white/50 hover:text-white" title={t("worldJoinSweep.domainCopyTokenTitle")} data-testid="world-shop-domain-copy">
                   {copied ? <Check className="h-4 w-4 text-emerald-300" /> : <Copy className="h-4 w-4" />}
                 </button>
               )}
             </div>
             {!attachInfo && (
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <p className={`text-[11px] ${muted(isLight)}`}>Token issued when you connected — reconnect to get a fresh one.</p>
+                <p className={`text-[11px] ${muted(isLight)}`}>{t("worldJoinSweep.domainTokenIssuedNote")}</p>
                 <button
                   type="button"
                   data-testid="world-shop-domain-reconnect"
@@ -1099,20 +1099,20 @@ function ShopDomainSection({
                   disabled={busy !== null}
                   className={chipBtn(isLight)}
                 >
-                  {busy === "attach" ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Reconnect for a fresh token
+                  {busy === "attach" ? <Loader2 className="h-3 w-3 animate-spin" /> : null} {t("worldJoinSweep.domainReconnect")}
                 </button>
               </div>
             )}
           </div>
           <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
             <p className={`text-[11px] font-black uppercase tracking-wider ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}>
-              CNAME record — points the domain at your shop
+              {t("worldJoinSweep.domainCnameRecordLabel")}
             </p>
             {attachInfo?.dns.step2 ? (
               <p className={`mt-1 text-[11px] ${muted(isLight)}`}>{attachInfo.dns.step2}</p>
             ) : (
               <p className="mt-1 font-mono text-xs break-all">
-                <span className={muted(isLight)}>Host:</span> @ <span className={muted(isLight)}>→</span>{" "}
+                <span className={muted(isLight)}>{t("worldJoinSweep.domainHostLabel")}</span> @ <span className={muted(isLight)}>→</span>{" "}
                 <span className={isLight ? "text-[#92600a]" : "text-amber-300"}>{SHOP_DOMAIN_CNAME_TARGET}</span>
               </p>
             )}
@@ -1131,7 +1131,7 @@ function ShopDomainSection({
               disabled={busy !== null}
               className={goldBtn(busy !== null)}
             >
-              {busy === "verify" ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />} Verify domain
+              {busy === "verify" ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />} {t("worldJoinSweep.domainVerifyButton")}
             </button>
             {detachRow}
           </div>
@@ -1142,7 +1142,7 @@ function ShopDomainSection({
         <div className="space-y-2">
           <p className="font-mono text-sm font-bold text-emerald-300" data-testid="world-shop-domain-verified-domain">{domain}</p>
           <p className={`text-[11px] ${muted(isLight)}`}>
-            DNS proved this domain is yours — your shop answers on it. It also still lives at its handle on the square.
+            {t("worldJoinSweep.domainVerifiedNote")}
           </p>
           {detachRow}
         </div>

@@ -276,12 +276,12 @@ export function HookDesk(props: CreateDeskProps) {
         setHistory((h) => pushHookHistory(h, { mode, label: pfTitle.trim(), lines: [`${parsed.score}/100 — ${parsed.verdict}`], preflight: parsed }));
       } else if (mode === "titles") {
         const parsed = titlesOfResponse(data);
-        if (!parsed) { setNote("The titles came back empty — a failed make is refunded. Try again."); return; }
+        if (!parsed) { setNote(t("worldJoinSweep.tsbEmptyTitles")); return; }
         setTitlesResult(parsed);
         setHistory((h) => pushHookHistory(h, { mode, label: tsTopic.trim(), lines: parsed.titles.map((t) => t.title), titlesResult: parsed }));
       } else if (mode === "scripts") {
         const parsed = scriptOfResponse(data);
-        if (!parsed) { setNote("The script came back empty — a failed make is refunded. Try again."); return; }
+        if (!parsed) { setNote(t("worldJoinSweep.tsbEmptyScript")); return; }
         setScriptResult(parsed);
         setHistory((h) => pushHookHistory(h, { mode, label: swTopic.trim(), lines: parsed.beats.map((b) => b.spoken), scriptResult: parsed }));
       } else {
@@ -423,60 +423,59 @@ export function HookDesk(props: CreateDeskProps) {
 
       {mode === "titles" && (
         <div className="space-y-3">
-          <DeskTextField isLight={isLight} label="What is the video about?" value={tsTopic} onChange={setTsTopic} />
+          <DeskTextField isLight={isLight} label={t("worldJoinSweep.tsbTopicLabel")} value={tsTopic} onChange={setTsTopic} />
           <div className="grid gap-3 sm:grid-cols-2">
             <DeskSelectField
               isLight={isLight}
-              label="Platform"
+              label={t("worldJoinSweep.tsbPlatformLabel")}
               value={tsPlatform}
               onChange={(v) => setTsPlatform(v as TitlePlatform)}
               options={TITLE_PLATFORMS.map((p) => ({ value: p, label: p }))}
             />
             <DeskSelectField
               isLight={isLight}
-              label="Tone"
+              label={t("worldJoinSweep.tsbToneLabel")}
               value={tsTone}
               onChange={(v) => setTsTone(v as TitleTone)}
               options={TITLE_TONES.map((t) => ({ value: t, label: t }))}
             />
           </div>
-          <DeskTextField isLight={isLight} label="Keywords (optional)" value={tsKeywords} onChange={setTsKeywords} />
+          <DeskTextField isLight={isLight} label={t("worldJoinSweep.tsbKeywordsLabel")} value={tsKeywords} onChange={setTsKeywords} />
           <p className={`text-xs ${muted}`}>
-            Ten click-ranked titles, a full description, and platform tags. Scores are
-            packaging-readiness estimates — never a virality guarantee.
+            {t("worldJoinSweep.tsbTitlesNote")}
           </p>
         </div>
       )}
 
       {mode === "scripts" && (
         <div className="space-y-3">
-          <DeskTextField isLight={isLight} label="What is the video about?" value={swTopic} onChange={setSwTopic} />
+          <DeskTextField isLight={isLight} label={t("worldJoinSweep.tsbTopicLabel")} value={swTopic} onChange={setSwTopic} />
           <div className="grid gap-3 sm:grid-cols-3">
             <DeskSelectField
               isLight={isLight}
-              label="Platform"
+              label={t("worldJoinSweep.tsbPlatformLabel")}
               value={swPlatform}
               onChange={(v) => setSwPlatform(v as ScriptPlatform)}
               options={SCRIPT_PLATFORMS.map((p) => ({ value: p, label: p }))}
             />
             <DeskSelectField
               isLight={isLight}
-              label="Length"
+              label={t("worldJoinSweep.tsbLengthLabel")}
               value={swLength}
               onChange={(v) => setSwLength(v as ScriptLength)}
               options={SCRIPT_LENGTHS.map((l) => ({ value: l, label: l }))}
             />
             <DeskSelectField
               isLight={isLight}
-              label="Tone"
+              label={t("worldJoinSweep.tsbToneLabel")}
               value={swTone}
               onChange={(v) => setSwTone(v as ScriptTone)}
               options={SCRIPT_TONES.map((t) => ({ value: t, label: t }))}
             />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <DeskTextField isLight={isLight} label="Audience (optional)" value={swAudience} onChange={setSwAudience} />
-            <DeskTextField isLight={isLight} label="CTA goal (optional)" value={swCtaGoal} onChange={setSwCtaGoal} />
+            <DeskTextField isLight={isLight} label={t("worldJoinSweep.tsbAudienceLabel")} value={swAudience} onChange={setSwAudience} />
+            <DeskTextField isLight={isLight} label={t("worldJoinSweep.tsbCtaGoalLabel")} value={swCtaGoal} onChange={setSwCtaGoal} />
           </div>
         </div>
       )}
@@ -571,22 +570,22 @@ export function HookDesk(props: CreateDeskProps) {
 
       {mode === "titles" && titlesResult && (
         <div data-testid="world-hook-desk-result" className="space-y-2">
-          {titlesResult.titles.map((t, i) => (
+          {titlesResult.titles.map((title, i) => (
             <div key={i} className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
-              <CopyLine text={t.title} isLight={isLight} />
+              <CopyLine text={title.title} isLight={isLight} />
               <span className={`mt-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>
-                {i + 1} · readiness {t.score}/100
+                {t("worldJoinSweep.tsbReadinessLine", { rank: i + 1, score: title.score })}
               </span>
-              {t.why && <p className={muted}>{t.why}</p>}
+              {title.why && <p className={muted}>{title.why}</p>}
             </div>
           ))}
           <div className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
-            <p className={`mb-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Description</p>
+            <p className={`mb-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldJoinSweep.tsbDescriptionLabel")}</p>
             <p className="whitespace-pre-line">{titlesResult.description}</p>
           </div>
           {titlesResult.tags.length > 0 && (
             <p className={`text-xs ${muted}`}>
-              <span className="font-black uppercase tracking-[0.12em]">tags: </span>
+              <span className="font-black uppercase tracking-[0.12em]">{t("worldJoinSweep.tsbTagsLabel")}</span>
               {titlesResult.tags.map((tag) => `#${tag}`).join(" ")}
             </p>
           )}
@@ -600,7 +599,7 @@ export function HookDesk(props: CreateDeskProps) {
             <p className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{scriptResult.title}</p>
           )}
           <div className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
-            <p className={`mb-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>The hook — first 3 seconds</p>
+            <p className={`mb-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldJoinSweep.tsbHookLabel")}</p>
             <CopyLine text={scriptResult.hook} isLight={isLight} />
           </div>
           {scriptResult.beats.map((b, i) => (
@@ -609,13 +608,13 @@ export function HookDesk(props: CreateDeskProps) {
                 <span className="mr-2 font-bold">{b.timestamp}</span>
                 <CopyLine text={b.spoken} isLight={isLight} />
               </p>
-              {b.visualCue && <p className={muted}>On screen: {b.visualCue}</p>}
-              {b.broll && <p className={muted}>B-roll: {b.broll}</p>}
+              {b.visualCue && <p className={muted}>{t("worldJoinSweep.tsbOnScreenLine", { cue: b.visualCue })}</p>}
+              {b.broll && <p className={muted}>{t("worldJoinSweep.tsbBrollLine", { broll: b.broll })}</p>}
             </div>
           ))}
           {scriptResult.retentionBeats.length > 0 && (
             <div className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
-              <p className={`mb-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Retention beats</p>
+              <p className={`mb-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldJoinSweep.tsbRetentionLabel")}</p>
               {scriptResult.retentionBeats.map((r, i) => (
                 <p key={i}>
                   <span className="font-bold">{r.at}</span>
@@ -626,12 +625,12 @@ export function HookDesk(props: CreateDeskProps) {
           )}
           {scriptResult.cta && (
             <p className={`text-sm font-semibold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              CTA: {scriptResult.cta}
+              {t("worldJoinSweep.tsbCtaLine", { cta: scriptResult.cta })}
             </p>
           )}
           {scriptResult.teleprompter && (
             <div className={`rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
-              <p className={`mb-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>Teleprompter</p>
+              <p className={`mb-1 text-[11px] font-bold uppercase tracking-[0.12em] ${muted}`}>{t("worldJoinSweep.tsbTeleprompterLabel")}</p>
               <p className="whitespace-pre-line">
                 <CopyLine text={scriptResult.teleprompter} isLight={isLight} />
               </p>
