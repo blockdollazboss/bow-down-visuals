@@ -20,7 +20,7 @@ import { readFileSync } from "node:fs";
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
 const page = read("./team.tsx");
-const routes = read("../../api-server/src/routes/teams.ts");
+const routes = read("../../../api-server/src/routes/teams.ts");
 
 const LOCALES = ["en", "es", "fr", "de", "it", "pt", "ar", "hi", "ja", "ko"] as const;
 
