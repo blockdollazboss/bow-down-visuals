@@ -62,6 +62,12 @@ const BARE_ALLOWLIST: Array<[string, string]> = [
      lib/world/sponsor-depth.ts — payout/budget sentences), never a
      server body; the allowlist entry follows the code. */
   ["SponsorDepthDesk.tsx", "setDetailError(built.error)"],
+  /* stack1500 join #2: the Team desk's split-terms site is the same
+     shared builder as GroupProfileSettings.tsx above (buildSplitTerms
+     in lib/group-profile-view.ts — locally composed share-validation
+     sentences), never a server body; the allowlist entry follows the
+     code into the World desk. */
+  ["TeamDesk.tsx", "setError(built.error)"],
   ["LiveCaptionsStudioPanel.tsx", "setNote(r.error)"],
   ["copyright.tsx", "setError(result.error)"],
   ["ThemeKitPanel.tsx", "throw new Error(clean.error)"],

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { plainErrorText } from "../../../lib/api-error";
+import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { NativeEmptyState } from "@/components/world/native/NativeStates";
 import { deskInputCls } from "@/components/world/native/CreateDeskLeaf";
 import {
@@ -1379,7 +1379,7 @@ export function DropsBench({ isLight }: { isLight: boolean }) {
         return "Drop booked.";
       }
       const classified = dropBookingError(status, data);
-      if (classified.kind === "message") throw new Error(classified.message);
+      if (classified.kind === "message") throw new Error(apiErrorMessage(data, dropServerSentence("failed")));
       const key = status === 403 && classified.key === "failed" ? "refusedAdmin" : classified.key;
       throw new Error(dropServerSentence(key));
     });

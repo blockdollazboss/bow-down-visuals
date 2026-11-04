@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "39e3a490bebd65cf463d79fe1711f05e4f208a9b",
+  "baseCommit": "51a56acb3f68f4491f946cbbb4d28c003c80d1af",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -7870,7 +7870,7 @@
       ],
       "prices": [
         {
-          "feature": "AI Media Detector",
+          "feature": "AI Media Detection",
           "vb": 200,
           "endpoint": "/api/detect/media",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -9804,13 +9804,13 @@
       ],
       "prices": [
         {
-          "feature": "Interview Prep — Feedback",
+          "feature": "Interview Practice Feedback",
           "vb": 100,
           "endpoint": "/api/interview-prep/feedback",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Interview Prep — Session",
+          "feature": "Interview Prep Session",
           "vb": 200,
           "endpoint": "/api/interview-prep/session",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -10168,13 +10168,13 @@
       ],
       "prices": [
         {
-          "feature": "LLC Guide — Ask",
+          "feature": "LLC Guide Answer",
           "vb": 100,
           "endpoint": "/api/llc-guide/ask",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "LLC Guide — Plan",
+          "feature": "LLC Guide Plan",
           "vb": 100,
           "endpoint": "/api/llc-guide/plan",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
