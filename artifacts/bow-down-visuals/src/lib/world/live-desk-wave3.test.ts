@@ -30,7 +30,7 @@ import {
   BACKGROUND_MODE_OPTIONS, BACKGROUND_QUALITY_OPTIONS,
   GREENSCREEN_FINE_TUNE_SLIDERS, fineTuneSlidersForMode,
   engineKindLabel, engineFallbackNote, engineDownFromStatus, backdropTileActive,
-  LIVE_WAVE3_PROMOTIONS, LIVE_NATIVE_FOLLOW_ONS,
+  LIVE_WAVE3_PROMOTIONS, LIVE_NATIVE_FOLLOW_ONS, LIVE_WAVE4_PROMOTIONS,
 } from "./live-desk";
 import {
   loadGreenScreenFineTune, saveGreenScreenFineTune,
@@ -251,11 +251,19 @@ describe("#92 the board records wave III and the honest follow-ons", () => {
     expect(LIVE_WAVE3_PROMOTIONS[0]).toContain("BackgroundChanger");
   });
 
-  it("names the chroma-key and changer follow-ons instead of faking them", () => {
+  it("names the chroma-key follow-on; the changer follow-ons are carried now (#93)", () => {
     const joined = LIVE_NATIVE_FOLLOW_ONS.join(" ");
     expect(joined).toContain("chroma key");
     expect(joined).toContain("stage compositor");
-    expect(joined).toContain("Camera effects");
+    /* Camera effects, noise cancellation / voice effects, and
+       camera + mic switching left the follow-on board in wave IV —
+       they ride the desk's own changer now. The dedicated
+       live-desk-changer suite pins the carry; the chroma key stays
+       named here until its own lane lands it. */
+    expect(joined).not.toContain("Camera effects");
+    expect(joined).not.toContain("not yet carried");
+    expect(LIVE_WAVE4_PROMOTIONS).toHaveLength(1);
+    expect(LIVE_WAVE4_PROMOTIONS[0]).toContain("#93");
   });
 
   it("RTMP's verdict is the deployment env gate — the server's own words", () => {
