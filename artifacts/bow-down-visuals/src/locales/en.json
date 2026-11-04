@@ -15395,12 +15395,16 @@
     "addTestBtn": "Add 10 Test Visual Bucs (dev)",
     "addedBtn": "Visual Bucs Added!",
     "adding": "Adding…",
+    "balanceErrorTitle": "We couldn't check your balance",
+    "balanceErrorBody": "Your balance didn't come through, so we can't tell whether you have enough Visual Bucs for this. Try again — nothing was charged.",
     "body": "Not enough Visual Bucs. Please buy more Visual Bucs to continue.",
     "buyBtn": "Buy More Visual Bucs",
+    "checkingBalance": "Checking your balance…",
     "dismissAria": "Dismiss",
     "errAdd": "Failed to add Visual Bucs",
     "errFailed": "Failed",
     "historyBtn": "View Visual Buc History",
+    "retryBtn": "Try again",
     "title": "Not Enough Visual Bucs"
   },
   "showcasePublish": {

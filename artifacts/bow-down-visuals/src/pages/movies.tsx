@@ -527,7 +527,13 @@ export default function Movies() {
         </div>
       </main>
 
-      <OutOfCredits />
+      {/* Proven-balance gate (QC fix #2): the page-level notice proves
+          against the cheapest paid action on this page (clip detect,
+          CLIP_DETECT_CREDITS) — the card renders only on a proven
+          balance that affords neither action, never at load on an
+          unchecked balance. The concept action keeps its own
+          confirm-dialog + server-402 path. */}
+      <OutOfCredits cost={CLIP_DETECT_CREDITS} />
     </div>
   );
 }

@@ -453,7 +453,10 @@ export default function MediaDetector() {
           </div>
         )}
 
-        <OutOfCredits />
+        {/* Proven-balance gate (QC fix #2): renders the Not Enough Bucs
+            card only on a proven balance below CREDIT_COST — never at
+            load on an unchecked balance. */}
+        <OutOfCredits cost={CREDIT_COST} />
       </main>
 
     </div>

@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
-import { X, AlertTriangle } from "lucide-react";
+import { X, AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { balanceComposition } from "@/lib/balance";
+import { balanceReadFromAuth } from "@/lib/credits-gate";
 import { TemporaryBucsNote } from "@/components/BalanceBreakdown";
 
 interface ConfirmRequest {
@@ -21,7 +22,7 @@ interface CreditConfirmContextValue {
 const CreditConfirmContext = createContext<CreditConfirmContextValue | null>(null);
 
 export function CreditConfirmProvider({ children }: { children: ReactNode }) {
-  const { profile } = useAuth();
+  const { profile, loading, user, refreshProfile } = useAuth();
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
   const resolverRef = useRef<((v: boolean) => void) | null>(null);
 
@@ -42,8 +43,22 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
 
   const dialogRef = useModalA11y<HTMLDivElement>(!!request, () => close(false));
 
-  const balance = profile?.credits ?? 0;
-  const affordable = request ? balance >= request.cost : true;
+  /* Proven-balance gate (QC fix #2): the balance is a READ, not a
+     number-with-a-zero-fallback. Until the profile lands, the balance
+     is unknown — the dialog must say "checking" and must never print
+     0, a negative "After", or "Not enough Visual Bucs" on an unproven
+     balance. A signed-in profile that never arrives is a failed read
+     with a retry, not a proven 0. */
+  const balanceRead = balanceReadFromAuth({
+    loading,
+    hasUser: !!user,
+    profileCredits:
+      profile && typeof profile.credits === "number" ? profile.credits : null,
+  });
+  const provenBalance = balanceRead.status === "ready" ? balanceRead.balance : null;
+  const affordable = request
+    ? provenBalance !== null && provenBalance >= request.cost
+    : true;
   /* Lane V-bucs: while part of the balance is temporary, the dialog says
      so under the balance line — bonus Bucs are spent first, so the
      spender sees expiring money being used before it is gone. */
@@ -98,7 +113,13 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-white/50">Your balance</span>
-                <span className="font-bold text-white">{balance.toLocaleString("en-US")} Visual Bucs</span>
+                <span className="font-bold text-white">
+                  {provenBalance !== null
+                    ? `${provenBalance.toLocaleString("en-US")} Visual Bucs`
+                    : balanceRead.status === "failed"
+                      ? "Couldn't check"
+                      : "Checking…"}
+                </span>
               </div>
               {composition && composition.temporaryCredits > 0 && (
                 <p className="text-[11px] leading-snug text-amber-300/90">
@@ -108,12 +129,39 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
               <div className="flex justify-between text-sm border-t border-white/10 pt-2">
                 <span className="text-white/50">After</span>
                 <span className={`font-bold ${affordable ? "text-white" : "text-red-400"}`}>
-                  {(balance - request.cost).toLocaleString("en-US")} Visual Bucs
+                  {provenBalance !== null
+                    ? `${(provenBalance - request.cost).toLocaleString("en-US")} Visual Bucs`
+                    : "—"}
                 </span>
               </div>
             </div>
 
-            {!affordable && (
+            {balanceRead.status === "loading" && (
+              <div className="flex items-center gap-2 rounded-lg bg-white/[0.04] border border-white/10 p-3 mb-4" role="status">
+                <Loader2 className="h-4 w-4 text-white/50 shrink-0 animate-spin" />
+                <p className="text-xs text-white/60">
+                  Checking your balance — you can confirm as soon as it lands.
+                </p>
+              </div>
+            )}
+
+            {balanceRead.status === "failed" && (
+              <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/30 p-3 mb-4" role="alert">
+                <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
+                <p className="text-xs text-red-300">
+                  We couldn't check your balance, so we can't tell whether you have enough. Nothing was charged.{" "}
+                  <button
+                    type="button"
+                    className="underline font-bold inline-flex items-center gap-1"
+                    onClick={() => void refreshProfile()}
+                  >
+                    <RefreshCw className="h-3 w-3" /> Try again
+                  </button>
+                </p>
+              </div>
+            )}
+
+            {provenBalance !== null && !affordable && (
               <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/30 p-3 mb-4">
                 <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
                 <p className="text-xs text-red-300">
@@ -136,7 +184,7 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
               <Button
                 className="flex-1 bg-primary text-black font-black hover:bg-primary/90"
                 onClick={() => close(true)}
-                disabled={!affordable}
+                disabled={provenBalance === null || !affordable}
               >
                 Confirm — {request.cost} Visual Bucs
               </Button>

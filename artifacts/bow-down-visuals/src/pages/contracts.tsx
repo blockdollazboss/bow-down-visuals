@@ -394,7 +394,10 @@ export default function Contracts() {
         <PlainWordsDeals isLight={isLight} />
       </main>
 
-      <OutOfCredits />
+      {/* Proven-balance gate (QC fix #2): renders the Not Enough Bucs
+          card only on a proven balance below the analyzer's CREDIT_COST
+          — never at load on an unchecked balance. */}
+      <OutOfCredits cost={CREDIT_COST} />
     </div>
   );
 }

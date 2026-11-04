@@ -12393,13 +12393,17 @@
   "outOfCredits": {
     "addedBtn": "Visual Bucsが追加されました！",
     "adding": "追加中…",
+    "balanceErrorTitle": "We couldn't check your balance",
+    "balanceErrorBody": "Your balance didn't come through, so we can't tell whether you have enough Visual Bucs for this. Try again — nothing was charged.",
     "addTestBtn": "テスト用Visual Bucsを10追加（dev）",
     "body": "Visual Bucsが不足しています。続けるにはVisual Bucsを追加で購入してください。",
     "buyBtn": "Visual Bucsを追加購入",
+    "checkingBalance": "Checking your balance…",
     "dismissAria": "閉じる",
     "errAdd": "Visual Bucsの追加に失敗しました",
     "errFailed": "失敗",
     "historyBtn": "Visual Bucの履歴を見る",
+    "retryBtn": "Try again",
     "title": "Visual Bucsが不足しています"
   },
   "showcasePublish": {
