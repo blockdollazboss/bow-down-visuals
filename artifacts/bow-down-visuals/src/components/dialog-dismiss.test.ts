@@ -178,7 +178,7 @@ const SURVIVORS: [string, string][] = [
   ["pages/my-projects.tsx", "onClick={onClose}"],
   ["pages/songs.tsx", "onClick={() => setAddToAlbumSong(null)}"],
   ["pages/thumbnail-studio.tsx", "setLightbox(null)"],
-  ["pages/branding-shop.tsx", 'aria-label={t("brandingShop.closeCartAria")}'],
+  ["components/branding/BrandingShop.tsx", 'aria-label={t("brandingShop.closeCartAria")}'],
   ["pages/artist-setup.tsx", "onClick={onClose}"],
   ["pages/shorts.tsx", "onClick={() => setOpen(false)}"],
 ];
