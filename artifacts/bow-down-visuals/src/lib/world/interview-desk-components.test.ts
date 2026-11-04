@@ -41,13 +41,13 @@ describe("the whole coach in-panel", () => {
       'data-testid="world-interview-desk-build"',
       'data-testid="world-interview-desk-session"',
       "worldSponsorPress.ivTalkingPointsTitle", // "Your talking points — land these no matter what" — via the catalog (unit 47)
-      "Coach&rsquo;s tip:",
+      "worldSponsorPress.ivCoachTip", // "Coach's tip: …" — via the catalog (unit 47)
       'data-testid="world-interview-desk-answer"',
       'data-testid="world-interview-desk-score"',
       'data-testid="world-interview-desk-feedback"',
-      "What landed",
-      "Tighten this",
-      "A model answer",
+      "interviewPrep.whatLanded", // "What landed" — the 2D page's own key (unit 47)
+      "worldSponsorPress.ivTightenThis", // "Tighten this" — via the catalog (unit 47)
+      "worldSponsorPress.ivModelAnswer", // "A model answer" — via the catalog (unit 47)
     ]) {
       expect(desk, needle).toContain(needle);
     }
