@@ -1,5 +1,6 @@
 import { apiErrorMessage } from "../../../lib/api-error";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Clapperboard, Clock, Loader2, Scissors, Sparkles, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,7 +10,6 @@ import { AdvancedExpander, DeskSelectField, DeskTextField, deskInputCls } from "
 import type { CreateDeskProps } from "./CreateDesks";
 import {
   MOVIES_CLIP_CATEGORIES,
-  MOVIES_FORMAT_LABELS,
   MOVIES_FORMATS,
   buildClipDetectPayload,
   buildConceptHubAsset,
@@ -47,14 +47,23 @@ import {
    2D boundary: the station is membersOnly and both routes are
    requireAuth. */
 
-const MODES: ReadonlyArray<{ key: MoviesDeskMode; label: string; icon: LucideIcon }> = [
-  { key: "concept", label: "Concept Generator", icon: Sparkles },
-  { key: "clips", label: "Stream Clip Detector", icon: Scissors },
+/** Mode and format labels ride the 2D page's own catalog
+ *  (movies.tabs.* / movies.formats.* — the seam's label records
+ *  keep the English words as defaults for their other callers). */
+const MODES: ReadonlyArray<{ key: MoviesDeskMode; labelKey: string; icon: LucideIcon }> = [
+  { key: "concept", labelKey: "movies.tabs.concept", icon: Sparkles },
+  { key: "clips", labelKey: "movies.tabs.clips", icon: Scissors },
 ];
 
-const RUN_LABEL: Record<MoviesDeskMode, string> = {
-  concept: "Develop the concept",
-  clips: "Detect the highlights",
+const RUN_LABEL_KEYS: Record<MoviesDeskMode, string> = {
+  concept: "worldCatalogLibrary.moviesRunConcept",
+  clips: "worldCatalogLibrary.moviesRunClips",
+};
+
+const FORMAT_LABEL_KEYS: Record<MoviesFormat, string> = {
+  movie: "movies.formats.movie",
+  "web-series": "movies.formats.web-series",
+  "limited-series": "movies.formats.limited-series",
 };
 
 const EPISODE_COUNT_OPTIONS = Array.from({ length: 24 }, (_, i) => i + 1);
@@ -62,6 +71,7 @@ const STREAM_LENGTH_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 240, 360, 480, 720,
 const CLIP_COUNT_OPTIONS = Array.from({ length: 20 }, (_, i) => i + 1);
 
 export function MoviesDesk(props: CreateDeskProps) {
+  const { t, i18n } = useTranslation();
   const { isLight } = props;
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -127,7 +137,7 @@ export function MoviesDesk(props: CreateDeskProps) {
       }
       if (!res.ok) {
         const d = data as { message?: string; error?: string };
-        setNote(apiErrorMessage(d, "The studio hiccupped — a failed make is refunded. Try again."));
+        setNote(apiErrorMessage(d, t("worldCatalogLibrary.moviesFailStudio")));
         return;
       }
       /* Shape-guard the answer: a body that drifts is a failed
@@ -135,7 +145,7 @@ export function MoviesDesk(props: CreateDeskProps) {
       if (mode === "concept") {
         const parsed = conceptOfResponse(data);
         if (!parsed) {
-          setNote("The concept came back empty — a failed make is refunded. Try again.");
+          setNote(t("worldCatalogLibrary.moviesFailConceptEmpty"));
           return;
         }
         setConcept(parsed);
@@ -149,7 +159,7 @@ export function MoviesDesk(props: CreateDeskProps) {
       } else {
         const parsed = detectionOfResponse(data);
         if (!parsed) {
-          setNote("The highlights came back empty — a failed make is refunded. Try again.");
+          setNote(t("worldCatalogLibrary.moviesFailClipsEmpty"));
           return;
         }
         setDetection(parsed.detection);
@@ -157,7 +167,7 @@ export function MoviesDesk(props: CreateDeskProps) {
         setHistory((h) =>
           pushMoviesHistory(h, {
             mode,
-            label: parsed.detection.clips[0]?.title ?? "Clip detection",
+            label: parsed.detection.clips[0]?.title ?? t("worldCatalogLibrary.moviesClipDetectionFallback"),
             detection: parsed.detection,
             note: parsed.note,
           }),
@@ -165,7 +175,7 @@ export function MoviesDesk(props: CreateDeskProps) {
       }
       refreshProfile();
     } catch {
-      setNote("The studio hiccupped — a failed make is refunded. Try again.");
+      setNote(t("worldCatalogLibrary.moviesFailStudio"));
     } finally {
       setBusy(false);
     }
@@ -191,8 +201,8 @@ export function MoviesDesk(props: CreateDeskProps) {
 
   return (
     <div className="space-y-3" data-testid="world-create-movies-desk">
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Movies Desk tools">
-        {MODES.map(({ key, label, icon: Icon }) => (
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("worldCatalogLibrary.moviesAriaTools")}>
+        {MODES.map(({ key, labelKey, icon: Icon }) => (
           <button
             key={key}
             type="button"
@@ -202,7 +212,7 @@ export function MoviesDesk(props: CreateDeskProps) {
             onClick={() => switchMode(key)}
             className={chipCls(mode === key)}
           >
-            <Icon className="h-3.5 w-3.5" /> {label}
+            <Icon className="h-3.5 w-3.5" /> {t(labelKey)}
           </button>
         ))}
       </div>
@@ -211,7 +221,7 @@ export function MoviesDesk(props: CreateDeskProps) {
         <div className="space-y-3">
           <div>
             <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              What are you making?
+              {t("movies.whatMaking")}
             </span>
             <div className="flex flex-wrap gap-1.5">
               {MOVIES_FORMATS.map((f) => (
@@ -223,39 +233,39 @@ export function MoviesDesk(props: CreateDeskProps) {
                   onClick={() => setFormat(f)}
                   className={chipCls(format === f)}
                 >
-                  {MOVIES_FORMAT_LABELS[f]}
+                  {t(FORMAT_LABEL_KEYS[f])}
                 </button>
               ))}
             </div>
           </div>
           <label className="block">
             <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              Describe your concept
+              {t("movies.describeConcept")}
             </span>
             <textarea
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
               disabled={busy}
               rows={5}
-              placeholder="Give me the raw idea — characters, world, the vibe. The messier the better."
+              placeholder={t("worldCatalogLibrary.moviesIdeaPlaceholder")}
               className={deskInputCls(isLight)}
             />
           </label>
           <p className={`text-xs ${muted}`}>
-            {idea.trim().length} characters {idea.trim().length < 50 ? "(need 50+)" : "✓"}
+            {t("movies.charCount", { count: idea.trim().length })} {idea.trim().length < 50 ? t("movies.need50") : "✓"}
           </p>
           <AdvancedExpander isLight={isLight}>
             <div className="grid gap-3 p-3 sm:grid-cols-2">
               <DeskTextField
                 isLight={isLight}
-                label="Genre (optional)"
+                label={t("worldCatalogLibrary.moviesGenreLabel")}
                 value={genre}
                 onChange={setGenre}
-                placeholder="e.g. sci-fi thriller, street drama, dark comedy…"
+                placeholder={t("movies.genrePlaceholder")}
               />
               <DeskSelectField
                 isLight={isLight}
-                label="Episodes (series formats)"
+                label={t("worldCatalogLibrary.moviesEpisodesLabel")}
                 value={String(episodeCount)}
                 onChange={(v) => setEpisodeCount(Number(v) || 8)}
                 options={EPISODE_COUNT_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
@@ -269,42 +279,45 @@ export function MoviesDesk(props: CreateDeskProps) {
         <div className="space-y-3">
           <DeskTextField
             isLight={isLight}
-            label="Stream / VOD URL (optional)"
+            label={t("worldCatalogLibrary.moviesStreamUrlLabel")}
             value={streamUrl}
             onChange={setStreamUrl}
-            placeholder="https://twitch.tv/videos/… or youtube.com/watch?v=…"
+            placeholder={t("movies.streamUrlPlaceholder")}
           />
           <label className="block">
             <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              Describe the stream
+              {t("movies.describeStream")}
             </span>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={busy}
               rows={5}
-              placeholder="What happened? Big plays, funny fails, rage moments, wholesome bits — walk me through the stream."
+              placeholder={t("worldCatalogLibrary.moviesStreamPlaceholder")}
               className={deskInputCls(isLight)}
             />
           </label>
           <p className={`text-xs ${muted}`}>
-            {description.trim().length} characters {description.trim().length < 50 ? "(need 50+)" : "✓"}
+            {t("movies.charCount", { count: description.trim().length })} {description.trim().length < 50 ? t("movies.need50") : "✓"}
           </p>
           <AdvancedExpander isLight={isLight}>
             <div className="grid gap-3 p-3 sm:grid-cols-2">
               <DeskSelectField
                 isLight={isLight}
-                label="Stream length"
+                label={t("worldCatalogLibrary.moviesStreamLengthLabel")}
                 value={String(streamLengthMin)}
                 onChange={(v) => setStreamLengthMin(Number(v) || 120)}
                 options={STREAM_LENGTH_OPTIONS.map((n) => ({
                   value: String(n),
-                  label: n >= 60 ? `${n / 60} hr${n === 60 ? "" : "s"}` : `${n} min`,
+                  label:
+                    n >= 60
+                      ? t(n === 60 ? "worldCatalogLibrary.moviesLengthHourOne" : "worldCatalogLibrary.moviesLengthHourMany", { count: n / 60 })
+                      : t("worldCatalogLibrary.moviesLengthMinutes", { count: n }),
                 }))}
               />
               <DeskSelectField
                 isLight={isLight}
-                label="Clips wanted"
+                label={t("worldCatalogLibrary.moviesClipsWantedLabel")}
                 value={String(clipCount)}
                 onChange={(v) => setClipCount(Number(v) || 8)}
                 options={CLIP_COUNT_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
@@ -316,7 +329,7 @@ export function MoviesDesk(props: CreateDeskProps) {
 
       <div className="flex flex-wrap items-center gap-3">
         <span data-testid="world-movies-desk-cost" className={`text-xs font-semibold ${muted}`}>
-          Costs {cost.toLocaleString("en-US")} Visual Bucs — shown before anything runs.
+          {t("worldCatalogLibrary.moviesCostLine", { cost: cost.toLocaleString(i18n.language) })}
         </span>
         <button
           type="button"
@@ -326,19 +339,19 @@ export function MoviesDesk(props: CreateDeskProps) {
           className="ml-auto inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clapperboard className="h-4 w-4" />}
-          {busy ? (mode === "concept" ? "Developing…" : "Finding your highlights…") : RUN_LABEL[mode]}
+          {busy ? (mode === "concept" ? t("worldCatalogLibrary.moviesDeveloping") : t("movies.finding")) : t(RUN_LABEL_KEYS[mode])}
         </button>
       </div>
       {!ready && (
         <p className={`text-xs ${muted}`}>
           {mode === "concept"
-            ? "Describe the concept first — at least 50 characters, like the website asks."
-            : "Describe the stream first — at least 50 characters, like the website asks."}
+            ? t("worldCatalogLibrary.moviesNotReadyConcept")
+            : t("worldCatalogLibrary.moviesNotReadyStream")}
         </p>
       )}
       {outOfCredits && (
         <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-          You&rsquo;re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and the Movies Desk is ready again.
+          {t("worldCatalogLibrary.moviesOutOfBucs")}
         </p>
       )}
       {note && <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
@@ -346,13 +359,13 @@ export function MoviesDesk(props: CreateDeskProps) {
         <div data-testid="world-movies-desk-result" className="space-y-3">
           <div className={`rounded-xl border px-3 py-2 ${cardCls}`}>
             <p className={`text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              {MOVIES_FORMAT_LABELS[format]}
+              {t(FORMAT_LABEL_KEYS[format])}
             </p>
             <p className={`text-lg font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{concept.title}</p>
             {concept.tagline && <p className={`text-sm italic ${muted}`}>&ldquo;{concept.tagline}&rdquo;</p>}
           </div>
           <div className={`rounded-xl border px-3 py-2 text-sm ${cardCls}`}>
-            <p className="font-bold">Logline</p>
+            <p className="font-bold">{t("movies.logline")}</p>
             <p className={muted}>{concept.logline}</p>
             {concept.synopsis && <p className={`mt-2 ${muted}`}>{concept.synopsis}</p>}
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -363,11 +376,11 @@ export function MoviesDesk(props: CreateDeskProps) {
           {concept.episodes.length > 0 && (
             <div className="space-y-2">
               <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                {format === "movie" ? "Three-Act Structure" : `Episode Breakdown (${concept.episodes.length})`}
+                {format === "movie" ? t("movies.threeAct") : t("movies.episodeBreakdown", { count: concept.episodes.length })}
               </p>
               {concept.episodes.map((ep) => (
                 <div key={ep.number} className={`rounded-xl border px-3 py-2 text-sm ${cardCls}`}>
-                  <p className="font-bold">{format === "movie" ? ep.title : `Ep ${ep.number} — ${ep.title}`}</p>
+                  <p className="font-bold">{format === "movie" ? ep.title : t("movies.epLabel", { num: ep.number }) + ep.title}</p>
                   <p className={muted}>{ep.summary}</p>
                 </div>
               ))}
@@ -376,7 +389,7 @@ export function MoviesDesk(props: CreateDeskProps) {
           {concept.characters.length > 0 && (
             <div className="space-y-2">
               <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                Character Bible
+                {t("movies.characterBible")}
               </p>
               {concept.characters.map((c, i) => (
                 <div key={`${c.name}-${i}`} className={`rounded-xl border px-3 py-2 text-sm ${cardCls}`}>
@@ -385,32 +398,32 @@ export function MoviesDesk(props: CreateDeskProps) {
                     {c.role && <span className={`ml-2 text-[11px] font-black uppercase tracking-[0.12em] ${muted}`}>{c.role}</span>}
                   </p>
                   <p className={muted}>{c.description}</p>
-                  {c.arc && <p className={`mt-1 text-xs italic ${muted}`}>Arc: {c.arc}</p>}
+                  {c.arc && <p className={`mt-1 text-xs italic ${muted}`}>{t("movies.arcLabel")}: {c.arc}</p>}
                 </div>
               ))}
             </div>
           )}
           {concept.pilotHook && (
             <p className={`rounded-xl border px-3 py-2 text-sm ${cardCls}`}>
-              <span className="font-bold">Pilot Hook: </span>
+              <span className="font-bold">{t("movies.pilotHook")}: </span>
               <span className={muted}>{concept.pilotHook}</span>
             </p>
           )}
           {concept.comparables.length > 0 && (
             <p className={`text-xs ${muted}`}>
-              <span className="font-black uppercase tracking-[0.12em]">Comparables: </span>
+              <span className="font-black uppercase tracking-[0.12em]">{t("movies.comparables")}: </span>
               {concept.comparables.join(" · ")}
             </p>
           )}
           <p className={`text-xs ${muted}`}>
-            Saved to your hub project as a script asset — the script writer and the video tools pick it up from there.
+            {t("worldCatalogLibrary.moviesSavedLine")}
           </p>
           <button
             type="button"
             onClick={() => { setConcept(null); setIdea(""); setGenre(""); }}
             className={chipCls(false)}
           >
-            Develop another concept
+            {t("worldCatalogLibrary.moviesDevelopAnother")}
           </button>
         </div>
       )}
@@ -419,12 +432,12 @@ export function MoviesDesk(props: CreateDeskProps) {
         <div data-testid="world-movies-desk-result" className="space-y-3">
           {detection.streamSummary && (
             <div className={`rounded-xl border px-3 py-2 text-sm ${cardCls}`}>
-              <p className="font-bold">Stream Summary</p>
+              <p className="font-bold">{t("movies.streamSummary")}</p>
               <p className={muted}>{detection.streamSummary}</p>
             </div>
           )}
           <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            Clip-Worthy Moments ({detection.clips.length})
+            {t("movies.clipMoments", { count: detection.clips.length })}
           </p>
           {detection.clips.map((clip, i) => (
             <div key={`${clip.title}-${i}`} className={`rounded-xl border px-3 py-2 text-sm ${cardCls}`}>
@@ -441,22 +454,22 @@ export function MoviesDesk(props: CreateDeskProps) {
               <div className={`mt-1 flex flex-wrap gap-3 text-xs ${muted}`}>
                 {clip.timestamp && (
                   <span className="inline-flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" /> {clip.timestamp} · {clip.durationSec}s
+                    <Clock className="h-3.5 w-3.5" /> {t("worldCatalogLibrary.moviesTimestampLine", { timestamp: clip.timestamp, seconds: clip.durationSec })}
                   </span>
                 )}
                 {clip.viralityScore > 0 && (
                   <span className="inline-flex items-center gap-1 font-bold">
-                    <TrendingUp className="h-3.5 w-3.5" /> Virality {clip.viralityScore}/10
+                    <TrendingUp className="h-3.5 w-3.5" /> {t("worldCatalogLibrary.moviesVirality", { score: clip.viralityScore })}
                   </span>
                 )}
               </div>
-              {clip.hook && <p className={`mt-1 italic ${muted}`}>Hook: &ldquo;{clip.hook}&rdquo;</p>}
+              {clip.hook && <p className={`mt-1 italic ${muted}`}>{t("worldCatalogLibrary.moviesHookLine", { hook: clip.hook })}</p>}
               {clip.caption && <p className={`mt-1 text-xs ${muted}`}>{clip.caption}</p>}
             </div>
           ))}
           {detection.postingStrategy && (
             <div className={`rounded-xl border px-3 py-2 text-sm ${cardCls}`}>
-              <p className="font-bold">Posting Strategy</p>
+              <p className="font-bold">{t("movies.postingStrategy")}</p>
               <p className={muted}>{detection.postingStrategy}</p>
             </div>
           )}
@@ -466,7 +479,7 @@ export function MoviesDesk(props: CreateDeskProps) {
             onClick={() => { setDetection(null); setDescription(""); setStreamUrl(""); }}
             className={chipCls(false)}
           >
-            Analyze another stream
+            {t("worldCatalogLibrary.moviesAnalyzeAnother")}
           </button>
         </div>
       )}
@@ -474,7 +487,7 @@ export function MoviesDesk(props: CreateDeskProps) {
       {history.length > 0 && (
         <div>
           <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            This session
+            {t("worldCatalogLibrary.moviesSessionTitle")}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {history.map((entry, i) => (
@@ -484,7 +497,9 @@ export function MoviesDesk(props: CreateDeskProps) {
                 onClick={() => restoreHistory(entry)}
                 className={chipCls(mode === entry.mode)}
               >
-                {entry.mode === "concept" ? "Concept" : "Clips"}: {entry.label || "make"}
+                {t(entry.mode === "concept" ? "worldCatalogLibrary.moviesHistoryConcept" : "worldCatalogLibrary.moviesHistoryClips", {
+                  label: entry.label || t("worldCatalogLibrary.moviesHistoryMake"),
+                })}
               </button>
             ))}
           </div>
