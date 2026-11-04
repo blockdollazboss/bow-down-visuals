@@ -297,6 +297,21 @@ describe("parsers", () => {
     expect(parseTeamList(null)).toBeNull();
   });
 
+  it("canCreate rides the list: only an explicit true unlocks creation; reads parse either way", () => {
+    // Participation (owner ruling Nov 4, 2026): an under-★4 invitee's
+    // list parses fully — the flag only locks the CREATE action.
+    const locked = parseTeamList({ teams: [], invites: [], canCreate: false });
+    expect(locked?.canCreate).toBe(false);
+    const unlocked = parseTeamList({ teams: [], invites: [], canCreate: true });
+    expect(unlocked?.canCreate).toBe(true);
+    // Fail-closed for create: a missing or malformed flag reads locked,
+    // never open — while the caller's own data still parses.
+    const missing = parseTeamList({ teams: [teamRow()], invites: [] });
+    expect(missing?.canCreate).toBe(false);
+    expect(missing?.teams).toHaveLength(1);
+    expect(parseTeamList({ teams: [], invites: [], canCreate: "yes" })?.canCreate).toBe(false);
+  });
+
   it("detail requires a real team + member list", () => {
     const d = parseTeamDetail({
       team: teamRow(),

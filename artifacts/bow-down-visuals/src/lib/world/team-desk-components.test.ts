@@ -78,6 +78,20 @@ describe("honest states", () => {
     expect(desk).toContain("isTierGateError");
   });
 
+  it("participation: under ★4 the create card locks but invites stay reachable", () => {
+    // Owner ruling Nov 4, 2026: ★4 gates CREATING only. The desk
+    // drives the lock off the list rail's own canCreate flag — the
+    // invites card renders in the same ready phase, above the lock.
+    expect(desk).toContain("list.canCreate");
+    expect(desk).toContain("renderGateCard(true)");
+    expect(desk).toContain("accept the");
+    expect(desk).toContain("invite and join at any rank");
+    const invitesIdx = desk.indexOf('data-testid="world-team-invites"');
+    const gateIdx = desk.indexOf("{!team ? (");
+    expect(invitesIdx).toBeGreaterThan(-1);
+    expect(gateIdx).toBeGreaterThan(invitesIdx);
+  });
+
   it("the gate copy names the EARNING path — Shot Caller is a rank, never a plan for sale", () => {
     // The fabricated ladder price and the buy-your-way-there direction
     // are gone: no Shot Caller plan exists (ratified plans are Free /
