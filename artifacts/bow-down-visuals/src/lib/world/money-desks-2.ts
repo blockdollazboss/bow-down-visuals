@@ -969,10 +969,26 @@ export interface ClaimRow {
   resolutionNote: string | null;
 }
 
+/** The claim detail line's templates — the English pair-set below
+ *  is the source text; the catalogs carry the same templates under
+ *  worldCoachMoney.maClaim*, and the desk hands the walker's
+ *  language's set in (the questChipLine precedent). */
+export interface ClaimDetailStrings {
+  matchedAt: string;
+  confidence: string;
+  landmarks: string;
+}
+
+export const CLAIM_DETAIL_STRINGS_EN: ClaimDetailStrings = {
+  matchedAt: "matched at {{seconds}}s",
+  confidence: "confidence {{value}}",
+  landmarks: "{{matched}} of {{total}} landmarks matched",
+};
+
 /** GET /api/content-id/claims — the ClaimsPanel's rows, fuller than
  *  the board's status summary: role, notes and evidence ride along
  *  because the actions below are gated on them. */
-export function parseClaimRows(payload: unknown): ClaimRow[] {
+export function parseClaimRows(payload: unknown, detail: ClaimDetailStrings = CLAIM_DETAIL_STRINGS_EN): ClaimRow[] {
   if (!isObj(payload) || !Array.isArray(payload["claims"])) return [];
   const out: ClaimRow[] = [];
   for (const raw of payload["claims"]) {
@@ -984,9 +1000,15 @@ export function parseClaimRows(payload: unknown): ClaimRow[] {
     const conf = num(raw["confidence"]);
     const matched = num(raw["matchedLandmarks"]);
     const total = num(raw["totalLandmarks"]);
-    if (offset !== null) parts.push(`matched at ${offset}s`);
-    if (conf !== null) parts.push(`confidence ${conf}`);
-    if (matched !== null && total !== null) parts.push(`${matched} of ${total} landmarks matched`);
+    if (offset !== null) parts.push(detail.matchedAt.replaceAll("{{seconds}}", String(offset)));
+    if (conf !== null) parts.push(detail.confidence.replaceAll("{{value}}", String(conf)));
+    if (matched !== null && total !== null) {
+      parts.push(
+        detail.landmarks
+          .replaceAll("{{matched}}", String(matched))
+          .replaceAll("{{total}}", String(total)),
+      );
+    }
     out.push({
       id,
       label: str(raw["sourceLabel"]) ?? "Upload",
@@ -1019,8 +1041,12 @@ export function claimActionsFor(claim: ClaimRow): ClaimAction[] {
  *  resolve REQUIRES a note (the server 400s without one — the
  *  panel's input placeholder says the same); the gate here refuses
  *  the doomed call in the desk's own words first. */
-export function claimActionProblem(action: ClaimAction, note: string): string | null {
-  if (action === "resolve" && !note.trim()) return "Add a note first — a resolution records its reason.";
+export function claimActionProblem(
+  action: ClaimAction,
+  note: string,
+  resolveNeedsNote = "Add a note first — a resolution records its reason.",
+): string | null {
+  if (action === "resolve" && !note.trim()) return resolveNeedsNote;
   return null;
 }
 export function claimActionPayload(action: ClaimAction, note: string): { action: ClaimAction; note: string } {
