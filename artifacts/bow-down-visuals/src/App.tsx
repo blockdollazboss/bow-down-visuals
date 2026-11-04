@@ -1,7 +1,7 @@
 import { Switch, Route, Router as WouterRouter, useLocation, useSearch, Redirect } from "wouter";
 import { CreateRedirect } from "@/components/create-redirect";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Suspense, lazy, useEffect, useRef, Component, type ComponentType, type ErrorInfo, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, Component, type ComponentType, type ErrorInfo, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import InquiryModalHost from "@/components/InquiryModalHost";
 import { TooltipProvider } from "@/components/ui/tooltip";
