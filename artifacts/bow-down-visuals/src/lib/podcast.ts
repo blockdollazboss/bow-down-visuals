@@ -121,3 +121,728 @@ ALEX: Exactly. If your hook doesn't stop the scroll, nothing else matters. Not t
 JORDAN: So what's the fix? Give it to me straight.
 ALEX: Lead with the payoff. Tell them what they'll get before you tell them who you are.
 JORDAN: That's free game right there. Try it on your next upload and watch the retention graph.`;
+
+/* ── Episode templates — the starter-structure registry ────────────────
+   Stack-100 A7 (org/design strategy order, owner Nov 2: maximum
+   templates and presets). Every sibling creation surface got starters
+   in the org waves (song presets, lip-sync starters, store starters,
+   Go Live scenes) — the Podcast desk started from a blank page on
+   every episode. This registry is its starter shelf.
+
+   A template is ONLY a prefill. Applying one sets exactly the fields
+   its `description` states — fields the existing Podcast form already
+   exposes:
+     - the input mode (Script or Dialogue);
+     - the host format for Script templates (`format`);
+     - the script / dialogue script text, seeded with the template's
+       segment structure: one `# Heading` per segment (the server's
+       parser turns `# Heading` lines into chapter markers and never
+       speaks them) plus one spoken starter line per segment for the
+       creator to edit or replace.
+
+   A template NEVER:
+     - charges anything (picking one is a local form change only —
+       producing an episode keeps charging on its existing rail, at
+       its existing price, only when the creator presses Produce);
+     - submits a job, calls an API, or touches credits;
+     - touches the episode title, description, voices, or music bed —
+       those stay the creator's own.
+
+   Per-segment `guidance` is the plan for that segment: it renders on
+   the shelf card's rundown, never inside the seeded script — the
+   script carries headings and spoken starter lines only, so nothing
+   instructional can be read aloud by accident.
+------------------------------------------------------------------------ */
+
+export type PodcastSegmentKind = "intro" | "hook" | "segment" | "interview" | "outro";
+
+export const PODCAST_SEGMENT_KIND_LABELS: Record<PodcastSegmentKind, string> = {
+  intro: "Intro",
+  hook: "Hook",
+  segment: "Segment",
+  interview: "Interview",
+  outro: "Outro",
+};
+
+export interface PodcastTemplateStarterLine {
+  /** Speaker tag the line belongs to (a name from the template's
+   *  `speakers` for Dialogue templates; "HOST" for Script templates,
+   *  where the line is seeded untagged and read by the host voice). */
+  speaker: string;
+  /** The spoken starter line, seeded verbatim for the creator to edit. */
+  line: string;
+}
+
+export interface PodcastTemplateSegment {
+  kind: PodcastSegmentKind;
+  /** Segment name — becomes the seeded script's `# Heading` chapter. */
+  title: string;
+  /** What to do in this segment, in plain words. Shelf-only: it is
+   *  never written into the seeded script. */
+  guidance: string;
+  /** Suggested minutes for the segment (a planning guide, not a cap). */
+  minutes: number;
+  /** Spoken starter lines the apply seeds under this segment's heading. */
+  starterLines: PodcastTemplateStarterLine[];
+}
+
+export type PodcastTemplateId =
+  | "interview"
+  | "solo-commentary"
+  | "news-roundup"
+  | "story-episode"
+  | "panel-discussion"
+  | "listener-qa";
+
+export interface PodcastEpisodeTemplate {
+  id: PodcastTemplateId;
+  /** Starter name — a suggested use, never an outcome promise. */
+  name: string;
+  /** Who the starter is aimed at, in plain words. */
+  tagline: string;
+  /** What applying actually sets — mirrors the prefill exactly. */
+  description: string;
+  /** The Podcast form mode the starter selects. */
+  mode: "script" | "dialogue";
+  /** The host format a Script starter selects. Dialogue starters are
+   *  multi-voice by construction and carry null — applying one never
+   *  touches the format control (it does not apply in Dialogue mode). */
+  format: PodcastFormat | null;
+  /** The speaker tags a Dialogue starter seeds, in first-appearance
+   *  order (the desk auto-assigns a voice to each). Empty for Script
+   *  starters, whose seeded lines are untagged host lines. */
+  speakers: string[];
+  segments: PodcastTemplateSegment[];
+}
+
+export const PODCAST_EPISODE_TEMPLATES: PodcastEpisodeTemplate[] = [
+  {
+    id: "interview",
+    name: "Interview",
+    tagline: "One guest, one great conversation",
+    description:
+      "Switches to Dialogue mode and seeds the dialogue script with a six-segment interview structure — HOST and GUEST starter lines written in. Title, description, voices and music bed stay yours.",
+    mode: "dialogue",
+    format: null,
+    speakers: ["HOST", "GUEST"],
+    segments: [
+      {
+        kind: "intro",
+        title: "Intro",
+        guidance:
+          "Welcome listeners back, name the guest and what they're known for, and promise the one big thing this conversation delivers.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Welcome back to the show. Today's guest is [guest name] — [what they're known for] — and by the end of this conversation you'll know [the one big takeaway]. Let's get into it.",
+          },
+        ],
+      },
+      {
+        kind: "hook",
+        title: "The Hook",
+        guidance:
+          "Tease the single most surprising moment from the conversation, so listeners stay to hear it in context.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Later in this conversation, [guest name] reveals [the surprising moment] — and you do not want to miss how that plays out.",
+          },
+        ],
+      },
+      {
+        kind: "interview",
+        title: "The Warm-Up",
+        guidance:
+          "Start easy: how the guest got started, and the moment everything changed for them.",
+        minutes: 5,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Take me back to the beginning — how did you get started, and when did you know this was the thing?",
+          },
+          {
+            speaker: "GUEST",
+            line: "It started when [their origin moment] — and honestly, I almost didn't stick with it.",
+          },
+        ],
+      },
+      {
+        kind: "interview",
+        title: "The Deep Dive",
+        guidance:
+          "The main interview. Follow the answers, not just your question list — the follow-up question is where the gold is.",
+        minutes: 15,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Let's go deeper on [the main topic]. Walk me through exactly how you do it, step by step.",
+          },
+          {
+            speaker: "GUEST",
+            line: "The first thing most people get wrong is [the common mistake] — here's what actually works.",
+          },
+        ],
+      },
+      {
+        kind: "interview",
+        title: "Rapid Fire",
+        guidance:
+          "Short questions, fast answers. Keep it light and quick — one line each way, no long stories.",
+        minutes: 5,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Rapid fire — short questions, first answer that comes to mind. Ready? [Question one]?",
+          },
+          { speaker: "GUEST", line: "[Quick answer]." },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "Outro",
+        guidance:
+          "Thank the guest, tell listeners where to find them, and finish with one clear call to action.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "That's our show. Find [guest name] at [their link], follow the podcast so you never miss an episode, and we'll see you next time.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "solo-commentary",
+    name: "Solo Commentary",
+    tagline: "Just you and a strong point of view",
+    description:
+      "Switches to Script mode with a solo host and seeds the script with a six-segment commentary structure — a chapter heading and a spoken starter line per segment. Title, description, voice and music bed stay yours.",
+    mode: "script",
+    format: "single",
+    speakers: [],
+    segments: [
+      {
+        kind: "hook",
+        title: "The Hook",
+        guidance:
+          "Open with the boldest version of your take — the first two lines decide whether anyone keeps listening.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Nobody is telling you the truth about [your topic] — so I will.",
+          },
+        ],
+      },
+      {
+        kind: "intro",
+        title: "Intro",
+        guidance:
+          "Say who you are, what this show does, and exactly what this episode delivers.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Welcome to [show name], I'm [your name], and today we're breaking down [the topic] — what works, what doesn't, and what to do instead.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Main Take",
+        guidance:
+          "Make your central argument, and prove it with one concrete example or story.",
+        minutes: 8,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Here's my take: [your position]. And let me show you what I mean — [your example].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Other Side",
+        guidance:
+          "Make the strongest counter-argument honestly before you answer it — it's what makes your take believable.",
+        minutes: 5,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Now, the other side will tell you [the counter-argument] — and they're not entirely wrong. Here's where it falls apart: [your answer].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Takeaway",
+        guidance:
+          "Land the episode on the one action a listener can take today.",
+        minutes: 3,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "If you take one thing from this episode, make it this: [the action]. Do it today, not someday.",
+          },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "Outro",
+        guidance:
+          "Close with the call to action — follow, share with one person, and tease the next episode.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "That's it for today. Follow the show, share this with one person who needs it, and next time we're talking about [next topic].",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "news-roundup",
+    name: "News Roundup",
+    tagline: "The week's stories, in order",
+    description:
+      "Switches to Script mode with a solo host and seeds the script with a six-segment roundup structure — biggest story first, then what it all means. Title, description, voice and music bed stay yours.",
+    mode: "script",
+    format: "single",
+    speakers: [],
+    segments: [
+      {
+        kind: "intro",
+        title: "Intro",
+        guidance:
+          "Set the promise: what this roundup covers and how fast you'll get through it.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Welcome to [show name] — here's everything that actually matters in [your world] this week, fast.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Story One",
+        guidance:
+          "The biggest story first: what happened, why it matters, and your one-line verdict.",
+        minutes: 4,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "First up: [the headline]. Here's what happened — [the facts]. Why it matters: [the impact].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Story Two",
+        guidance:
+          "Same shape, second story. Facts first, verdict last — keep the pace up.",
+        minutes: 4,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Next: [the headline]. What we know so far — [the facts]. My verdict: [your take].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Story Three",
+        guidance:
+          "The third story — the one your listeners are most likely to have missed.",
+        minutes: 4,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "And one you might have missed: [the headline]. [The facts] — and here's the part nobody's talking about: [the angle].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "What It Means",
+        guidance:
+          "Connect the dots across the stories. The pattern is the value only you can add.",
+        minutes: 3,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Put it together and a pattern shows up: [the pattern]. Here's what I'd watch next: [what to watch].",
+          },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "Outro",
+        guidance:
+          "Wrap in one breath: where to follow for the next roundup, and when it lands.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "That's the week. Follow [show name] so next week's roundup finds you — see you then.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "story-episode",
+    name: "Story Episode",
+    tagline: "A narrative in three acts",
+    description:
+      "Switches to Script mode with a solo host and seeds the script with a six-segment story structure — cold open, three acts, payoff. Title, description, voice and music bed stay yours.",
+    mode: "script",
+    format: "single",
+    speakers: [],
+    segments: [
+      {
+        kind: "hook",
+        title: "Cold Open",
+        guidance:
+          "Start inside the most dramatic moment of the story, mid-action — then rewind and tell it properly.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "It was [the dramatic moment] — and [the main character] had no idea everything was about to change.",
+          },
+        ],
+      },
+      {
+        kind: "intro",
+        title: "Intro",
+        guidance:
+          "Name the show, set the scene, and tell listeners whose story this is.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Welcome to [show name]. Today's story is about [who or what] — and it starts long before that moment.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Act One — The Setup",
+        guidance:
+          "The world before everything changed: who they were, what they wanted, what stood in the way.",
+        minutes: 7,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Back then, [the main character] was [their starting point] — and all they wanted was [the goal].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Act Two — The Turn",
+        guidance:
+          "The complication: the setback, the discovery, or the choice that changes everything.",
+        minutes: 7,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Then came the moment nobody planned for: [the turn]. Nothing was the same after that.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Act Three — The Payoff",
+        guidance:
+          "Pay off the cold open: how it ends, and what it cost or earned them.",
+        minutes: 5,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Which brings us back to [the dramatic moment]. Here's how it actually ended: [the resolution].",
+          },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "Outro",
+        guidance:
+          "One line on what the story means, then the call to action and a tease of the next story.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "That's the story. Follow [show name] for the next one — and next time, it's about [next story].",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "panel-discussion",
+    name: "Panel Discussion",
+    tagline: "A host and two voices going back and forth",
+    description:
+      "Switches to Dialogue mode and seeds the dialogue script with a five-segment panel structure — HOST, PANELIST 1 and PANELIST 2 starter lines written in. Title, description, voices and music bed stay yours.",
+    mode: "dialogue",
+    format: null,
+    speakers: ["HOST", "PANELIST 1", "PANELIST 2"],
+    segments: [
+      {
+        kind: "intro",
+        title: "Intro",
+        guidance:
+          "Introduce the topic, then each panelist in one line — who they are and where they stand.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Welcome to [show name]. Today the panel takes on [the topic]. With me: [panelist one] and [panelist two] — let's get into it.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Topic One",
+        guidance:
+          "Pose the first question to one panelist, then bring the second in to agree, push back, or add what's missing.",
+        minutes: 10,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Topic one: [the first topic]. [Panelist one], you first — where do you land?",
+          },
+          {
+            speaker: "PANELIST 1",
+            line: "For me it's simple: [their position] — because [the reason].",
+          },
+          {
+            speaker: "PANELIST 2",
+            line: "I see it differently: [their position]. The part everyone's missing is [the angle].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Topic Two",
+        guidance:
+          "Second question — lead with the panelist who spoke least on topic one, so the voices stay balanced.",
+        minutes: 10,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Topic two: [the second topic]. [Panelist two], start us off this time.",
+          },
+          {
+            speaker: "PANELIST 2",
+            line: "This one comes down to [their position].",
+          },
+          {
+            speaker: "PANELIST 1",
+            line: "I'll grant that — but the real question is [the follow-up].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Hot Takes",
+        guidance:
+          "One bold take per panelist, no hedging. Keep it fast — the disagreement is the fun.",
+        minutes: 5,
+        starterLines: [
+          { speaker: "HOST", line: "Hot takes — one each, no hedging. Go." },
+          { speaker: "PANELIST 1", line: "Mine: [bold take one]." },
+          { speaker: "PANELIST 2", line: "Mine: [bold take two] — and I'll defend it." },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "Outro",
+        guidance:
+          "Thank the panel, recap the one moment listeners will argue about, and give the call to action.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "That's the panel. Tell us whose take you agree with, follow [show name], and we'll be back with the next one.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "listener-qa",
+    name: "Listener Q&A",
+    tagline: "Your audience asks, you answer",
+    description:
+      "Switches to Script mode with a solo host and seeds the script with a six-segment Q&A structure — each question read in the listener's words, then answered. Title, description, voice and music bed stay yours.",
+    mode: "script",
+    format: "single",
+    speakers: [],
+    segments: [
+      {
+        kind: "intro",
+        title: "Intro",
+        guidance:
+          "Tell listeners this episode is theirs: how the questions came in and how to send the next ones.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Welcome to [show name] — this episode belongs to you. You sent the questions, I'm answering them. Let's start.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Question One",
+        guidance:
+          "Read the question in the listener's own words and credit them by name before you answer.",
+        minutes: 5,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "First one comes from [listener name]: '[their question]' — great question. Here's my answer: [the answer].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Question Two",
+        guidance:
+          "Same shape. If the honest answer is 'it depends', say what it depends on.",
+        minutes: 5,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Next, [listener name] asks: '[their question]' — [the answer].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Question Three",
+        guidance:
+          "Save a question with a story in it for here — answer it with the example, not just the rule.",
+        minutes: 5,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "[Listener name] wants to know: '[their question]' — let me answer that with a story: [the example].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Rapid Fire",
+        guidance:
+          "Clear the small questions fast: read each one, answer in a line or two, keep moving.",
+        minutes: 3,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Rapid fire to finish: [listener name] asks [short question] — [short answer]. And [listener name] asks [short question] — [short answer].",
+          },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "Outro",
+        guidance:
+          "Thank everyone who asked, and tell listeners exactly where to send questions for the next Q&A.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "That's your questions answered. Send the next round to [where to send them], follow the show, and I'll see you in the next episode.",
+          },
+        ],
+      },
+    ],
+  },
+];
+
+export function getPodcastEpisodeTemplate(id: string): PodcastEpisodeTemplate | null {
+  return PODCAST_EPISODE_TEMPLATES.find((tpl) => tpl.id === id) ?? null;
+}
+
+/** Total suggested minutes across a template's segments. */
+export function podcastTemplateMinutes(template: PodcastEpisodeTemplate): number {
+  return template.segments.reduce((sum, s) => sum + s.minutes, 0);
+}
+
+/**
+ * One-line summary of exactly what a template seeds, built from its
+ * own structure (never hand-written per template), e.g.
+ * "6 segments · ~30 min of structure · 2 voices".
+ * The shelf card renders this so the label always matches the prefill.
+ */
+export function podcastTemplateSummary(template: PodcastEpisodeTemplate): string {
+  const parts = [
+    `${template.segments.length} segments`,
+    `~${podcastTemplateMinutes(template)} min of structure`,
+  ];
+  parts.push(
+    template.mode === "dialogue"
+      ? `${template.speakers.length} voices`
+      : "Solo host",
+  );
+  return parts.join(" · ");
+}
+
+/**
+ * The seeded script text for a template, in the exact shape the
+ * existing rails parse:
+ *   - one `# Heading` line per segment (chapter marker on the Script
+ *     rail, ignored-as-structure on the Dialogue rail — never spoken);
+ *   - Script templates: each starter line untagged (the host reads it);
+ *   - Dialogue templates: each starter line tagged `SPEAKER: line`,
+ *     the tag format both dialogue parsers already understand.
+ * Guidance is NOT included — it lives on the shelf card's rundown.
+ */
+export function buildPodcastTemplateScript(template: PodcastEpisodeTemplate): string {
+  const blocks = template.segments.map((segment) => {
+    const lines = segment.starterLines.map((l) =>
+      template.mode === "dialogue" ? `${l.speaker}: ${l.line}` : l.line,
+    );
+    return [`# ${segment.title}`, ...lines].join("\n");
+  });
+  return blocks.join("\n\n");
+}
+
+/** The form prefill a template applies — the exact object the Podcast
+ *  desk's apply handler consumes. */
+export interface PodcastTemplatePrefill {
+  mode: "script" | "dialogue";
+  /** Host format to select, or null to leave the control untouched. */
+  format: PodcastFormat | null;
+  /** Script text to seed, or null when the template is a Dialogue one. */
+  script: string | null;
+  /** Dialogue script to seed, or null when the template is a Script one. */
+  dialogueScript: string | null;
+}
+
+/**
+ * Apply a starter template: a pure prefill. Returns exactly the form
+ * fields the template sets — the episode title, description, voices
+ * and music bed are never part of it, and nothing is submitted or
+ * charged. This is the exact function the Podcast desk calls.
+ */
+export function podcastTemplatePrefill(
+  template: PodcastEpisodeTemplate,
+): PodcastTemplatePrefill {
+  const seeded = buildPodcastTemplateScript(template);
+  return {
+    mode: template.mode,
+    format: template.format,
+    script: template.mode === "script" ? seeded : null,
+    dialogueScript: template.mode === "dialogue" ? seeded : null,
+  };
+}
