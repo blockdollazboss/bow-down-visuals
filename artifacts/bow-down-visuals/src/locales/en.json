@@ -16112,6 +16112,7 @@
     "crownsTierPickPlaceholder": "Pick a tier…",
     "crownsTierSaveFailed": "Couldn't save that tier — try again in a moment.",
     "crownsTierSaving": "Save {{pct}}% vs monthly",
+    "crownsTierSelectAria": "Tier for the member you’re adding",
     "crownsTierUpdateFailed": "Couldn't update that tier.",
     "crownsTierUpdated": "“{{name}}” is updated — fans see the new terms on their next join.",
     "crownsTiersFailedMsg": "Your club is fine — its tiers couldn't be brought to the stand. Try again.",

@@ -215,7 +215,7 @@ export interface LeadMagnetStrings {
 
 /** The seam's English defaults — byte-identical to the desk's
  *  original literals; the desk passes catalog strings
- *  (worldCommerceStands.growthProblem*). */
+ *  (the namespace's growthProblem* keys). */
 export const LEAD_MAGNET_STRINGS_EN: LeadMagnetStrings = {
   titleRequired: "Give the free product a title first.",
   titleLong: "The title tops out at 160 characters.",
@@ -298,7 +298,7 @@ export interface BumpStrings {
 
 /** The seam's English defaults — byte-identical to the desk's
  *  original literals; the desk passes catalog strings
- *  (worldCommerceStands.growthProblemPercent / growthSummary*).
+ *  (the namespace's growthProblemPercent / growthSummary* keys).
  *  Templates carry {{max}} / {{title}} / {{pct}} / {{pctPart}}. */
 export const BUMP_STRINGS_EN: BumpStrings = {
   percentProblem: "The % off is a whole number from 0 to {{max}}.",
