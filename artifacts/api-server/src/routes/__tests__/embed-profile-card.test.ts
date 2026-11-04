@@ -16,9 +16,10 @@
  *   play counts and artwork. No invented content: an empty creator
  *   gets zeros, an empty list and featured: null.
  * - PROFILE_JS fills the frame: stats row, Featured drop, Top
- *   tracks mini-list, and the Follow door pinned to the bottom via
- *   margin-top:auto (.pf-follow); a content-less creator gets the
- *   honest "New creator" empty state with the larger avatar.
+ *   tracks mini-list, and the Follow door floating pinned to the
+ *   frame's bottom (.pf-follow, absolute) so it is always visible;
+ *   a content-less creator gets the honest "New creator" empty
+ *   state with the larger avatar.
  * - The brand bar's name never wraps mid-name (.brandtxt / .brandbar
  *   b nowrap rules in the shared shell CSS).
  *
@@ -305,8 +306,9 @@ describe("profile embed page — the frame-filling layout", () => {
     const { status, text } = await getPage(`/embed/profile/${PROFILE_SLUG}`);
     expect(status).toBe(200);
     expect(text).toContain('KIND="profile"');
-    /* The layout classes + the pin that kills the void. */
-    expect(text).toContain(".pf-follow{margin-top:auto}");
+    /* The layout classes + the always-visible bottom-pinned door. */
+    expect(text).toMatch(/\.pf-follow\{[^}]*position:absolute/);
+    expect(text).toMatch(/\.pf-follow\{[^}]*bottom:12px/);
     expect(text).toContain("pf-stats");
     expect(text).toContain("Top tracks");
     expect(text).toContain("pf-row-plays");

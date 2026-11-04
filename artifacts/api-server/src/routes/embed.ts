@@ -761,13 +761,20 @@ video{width:100%;height:100%;object-fit:contain;background:#000}
    is the last resort at extreme widths); the name itself never does. */
 .brandbar .brandtxt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .brandbar b{white-space:nowrap}
+@media (max-width:480px){
+/* At phone widths the full "Made with Bow Down Visuals" + CTA only
+   fits on one line a step smaller — never clipped, never wrapped. */
+.brandbar .brandtxt{font-size:10.5px}
+.brandbar .cta{font-size:11px;padding:6px 10px}
+}
 /* Profile card (embed-profile fix): a full-frame column — header,
-   stats, featured drop, top tracks — with the Follow door pinned to
-   the bottom by margin-top:auto, so the card fills its frame at any
-   height (~200–520px) instead of leaving a void under a top-loaded
-   header. All colors ride the shared theme variables, so the light
-   palette designs this layout too. */
-.pf{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;width:100%;flex:1;min-height:0}
+   stats, featured drop, top tracks — with the Follow door floating
+   pinned to the frame's bottom (absolute, .pf-follow) so it is
+   always visible and no dead void opens under a top-loaded header
+   at any frame height (~200–520px); longer cards scroll under it
+   (.pf carries the bottom clearance). All colors ride the shared
+   theme variables, so the light palette designs this layout too. */
+.pf{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;width:100%;flex:1;min-height:0;padding-bottom:70px}
 .pf-avatar{width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex-shrink:0}
 .pf-avatar-fb{background:var(--fallback);display:flex;align-items:center;justify-content:center;font-size:34px}
 .pf-avatar-lg{width:104px;height:104px}
@@ -786,8 +793,8 @@ video{width:100%;height:100%;object-fit:contain;background:#000}
 .pf-row-fb{width:38px;height:38px;border-radius:8px;background:var(--chip);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
 .pf-row-title{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
 .pf-row-plays{font-size:11px;color:var(--faint);white-space:nowrap;flex-shrink:0}
-.pf-follow{margin-top:auto}
-.pf-empty{width:100%;border:1px dashed var(--line);border-radius:12px;padding:18px 14px;color:var(--dim);font-size:13px;line-height:1.45}
+.pf-follow{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;z-index:2;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+.pf-empty{width:100%;flex:1;display:flex;flex-direction:column;justify-content:center;border:1px dashed var(--line);border-radius:12px;padding:18px 14px;color:var(--dim);font-size:13px;line-height:1.45}
 .pf-empty b{color:var(--ink);display:block;font-size:14px;margin-bottom:4px}
 `;
 
