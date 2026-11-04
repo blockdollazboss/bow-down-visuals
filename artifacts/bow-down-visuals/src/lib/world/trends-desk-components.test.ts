@@ -43,7 +43,12 @@ describe("the runs ride the confirmed-spend seam", () => {
     expect(desk).toContain("overrideCost: TREND_IDEAS_COST");
     expect(desk).toContain("overrideFeature: TREND_FEATURE_IDEAS");
     expect(desk).toContain("res.status === 402");
-    expect(desk).toContain("Treasury");
+    /* Since locale unit 44 the out-of-Bucs line renders through the
+       catalog (a MONEY line — en verbatim in every locale); the desk
+       references the key and en carries the Treasury words. */
+    expect(desk).toContain('t("worldLivePromo.trendsOutOfBucs", { feature: TREND_FEATURE_FORECAST })');
+    const en = JSON.parse(read("../../locales/en.json")) as { worldLivePromo?: Record<string, string> };
+    expect(en.worldLivePromo?.trendsOutOfBucs).toContain("Treasury");
   });
 
   it("the forecast renders whole; the watchlist is the page's own list", () => {

@@ -141,27 +141,108 @@ export function normalizeReferralSummary(payload: unknown): ReferralSummary | nu
   };
 }
 
+/* ── i18n string bundles (stack100 locale unit 44) ─────────────────
+   The composed lines below take an optional strings bundle whose
+   defaults are the original English, byte-identical; the desk
+   builds the bundle from the worldLivePromo catalog keys so the
+   words render in the walker's language. Templates carry
+   {{token}} slots the seam fills itself. The next-tier templates
+   state share rates and Buc milestone amounts — MONEY lines: the
+   catalog carries the English verbatim in every locale. */
+
+function fillToken(template: string, token: string, value: string): string {
+  return template.split(token).join(value);
+}
+
+export interface ReferralNextTierStrings {
+  /** Template: {{title}} + {{ratePct}} tokens. */
+  yoursAtSync: string;
+  /** Template: {{remaining}} + {{title}} + {{ratePct}} + {{bonus}} tokens. */
+  moreOne: string;
+  /** Template: {{remaining}} + {{title}} + {{ratePct}} + {{bonus}} tokens. */
+  moreMany: string;
+  /** Template: one {{bonus}} token — the milestone amount. */
+  bonusSuffix: string;
+}
+
+export const REFERRAL_NEXT_TIER_STRINGS_EN: ReferralNextTierStrings = {
+  yoursAtSync: "{{title}} is yours at your next sync — {{ratePct}}% share.",
+  moreOne: "{{remaining}} more signup to {{title}} — {{ratePct}}% share{{bonus}}.",
+  moreMany: "{{remaining}} more signups to {{title}} — {{ratePct}}% share{{bonus}}.",
+  bonusSuffix: " + a {{bonus}} Buc milestone",
+};
+
+/** Build the bundle from a translate function (the desk's `t`):
+ *  every field reads its worldLivePromo catalog key. */
+export function referralNextTierStrings(translate: (key: string) => string): ReferralNextTierStrings {
+  return {
+    yoursAtSync: translate("worldLivePromo.referralNextTierYours"),
+    moreOne: translate("worldLivePromo.referralNextTierMoreOne"),
+    moreMany: translate("worldLivePromo.referralNextTierMoreMany"),
+    bonusSuffix: translate("worldLivePromo.referralNextTierBonus"),
+  };
+}
+
 /** "3 more signups to The Don (40% share)" — from the rail's own
  *  next-tier fields; null at the top of the ladder. */
-export function nextTierLine(summary: ReferralSummary): string | null {
+export function nextTierLine(summary: ReferralSummary, strings: ReferralNextTierStrings = REFERRAL_NEXT_TIER_STRINGS_EN): string | null {
   const next = summary.nextTier;
   if (!next) return null;
   const remaining = Math.max(0, next.minReferrals - summary.totalReferrals);
-  if (remaining === 0) return `${next.title} is yours at your next sync — ${next.ratePct}% share.`;
-  return `${remaining} more signup${remaining === 1 ? "" : "s"} to ${next.title} — ${next.ratePct}% share${
-    next.milestoneBonus > 0 ? ` + a ${next.milestoneBonus} Buc milestone` : ""
-  }.`;
+  if (remaining === 0) {
+    return fillToken(fillToken(strings.yoursAtSync, "{{title}}", next.title), "{{ratePct}}", String(next.ratePct));
+  }
+  const bonus = next.milestoneBonus > 0 ? fillToken(strings.bonusSuffix, "{{bonus}}", String(next.milestoneBonus)) : "";
+  const template = remaining === 1 ? strings.moreOne : strings.moreMany;
+  return fillToken(
+    fillToken(
+      fillToken(fillToken(template, "{{remaining}}", String(remaining)), "{{title}}", next.title),
+      "{{ratePct}}", String(next.ratePct),
+    ),
+    "{{bonus}}", bonus,
+  );
+}
+
+export interface ReferralRankStrings {
+  weeklyRanked: string;
+  weeklyUnranked: string;
+  monthlyRanked: string;
+  monthlyUnranked: string;
+  allTimeRanked: string;
+  allTimeUnranked: string;
+}
+
+export const REFERRAL_RANK_STRINGS_EN: ReferralRankStrings = {
+  weeklyRanked: "Weekly #{{rank}}",
+  weeklyUnranked: "Weekly unranked",
+  monthlyRanked: "Monthly #{{rank}}",
+  monthlyUnranked: "Monthly unranked",
+  allTimeRanked: "All-time #{{rank}}",
+  allTimeUnranked: "All-time unranked",
+};
+
+/** Build the bundle from a translate function (the desk's `t`):
+ *  every field reads its worldLivePromo catalog key. */
+export function referralRankStrings(translate: (key: string) => string): ReferralRankStrings {
+  return {
+    weeklyRanked: translate("worldLivePromo.referralRankWeekly"),
+    weeklyUnranked: translate("worldLivePromo.referralRankWeeklyUnranked"),
+    monthlyRanked: translate("worldLivePromo.referralRankMonthly"),
+    monthlyUnranked: translate("worldLivePromo.referralRankMonthlyUnranked"),
+    allTimeRanked: translate("worldLivePromo.referralRankAllTime"),
+    allTimeUnranked: translate("worldLivePromo.referralRankAllTimeUnranked"),
+  };
 }
 
 /** The ranks strip: a window the rail left null reads "unranked",
  *  never a fabricated placing. */
-export function rankLine(summary: ReferralSummary): string {
-  const one = (label: string, rank: number | null) =>
-    `${label} ${rank !== null ? `#${rank}` : "unranked"}`;
+export function rankLine(summary: ReferralSummary, strings: ReferralRankStrings = REFERRAL_RANK_STRINGS_EN): string {
+  const one = (ranked: string, unranked: string, rank: number | null) =>
+    rank !== null ? fillToken(ranked, "{{rank}}", String(rank)) : unranked;
   return [
-    one("Weekly", summary.ranks.weekly),
-    one("Monthly", summary.ranks.monthly),
-    one("All-time", summary.ranks.alltime),
+    one(strings.weeklyRanked, strings.weeklyUnranked, summary.ranks.weekly),
+    one(strings.monthlyRanked, strings.monthlyUnranked, summary.ranks.monthly),
+    one(strings.allTimeRanked, strings.allTimeUnranked, summary.ranks.alltime),
   ].join(" · ");
 }
 
@@ -183,7 +264,7 @@ export interface ReferralContest {
   lastWinnerPeriod: string | null;
 }
 
-export function normalizeReferralContest(payload: unknown): ReferralContest | null {
+export function normalizeReferralContest(payload: unknown, fallbackName = "Anonymous Recruiter"): ReferralContest | null {
   const root = asRecord(payload);
   if (!root) return null;
   const period = str(root["period"]);
@@ -198,7 +279,7 @@ export function normalizeReferralContest(payload: unknown): ReferralContest | nu
     for (const raw of v) {
       const r = asRecord(raw);
       if (!r) continue;
-      out.push({ rank: num(r["rank"]), name: str(r["name"], "Anonymous Recruiter"), signups: num(r["signups"]) });
+      out.push({ rank: num(r["rank"]), name: str(r["name"], fallbackName), signups: num(r["signups"]) });
     }
     return out;
   };

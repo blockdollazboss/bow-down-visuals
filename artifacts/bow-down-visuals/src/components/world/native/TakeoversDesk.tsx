@@ -16,6 +16,7 @@
  * carries the name + email, so guests inquire in full.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   LOADING_INQUIRE_PATH,
@@ -49,6 +50,7 @@ function OfferBlock({
   inquirePath: string;
   formKey: string;
 }) {
+  const { t, i18n } = useTranslation();
   const [form, setForm] = useState<TakeoverInquiryForm>(EMPTY_FORM);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -72,7 +74,7 @@ function OfferBlock({
     const payload = buildTakeoverInquiryPayload(form);
     if (!payload || sending) {
       if (!payload) {
-        setError("Add your name, a valid email, and a working link to your video (the click-through link is optional, but must be a real link if you add it).");
+        setError(t("worldLivePromo.takeoverFormError"));
       }
       return;
     }
@@ -86,11 +88,11 @@ function OfferBlock({
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok || !takeoverInquiryOk(data)) {
-        throw new Error(apiErrorMessage(data, "Could not save your request. Please try again later."));
+        throw new Error(apiErrorMessage(data, t("worldLivePromo.takeoverSaveFailed")));
       }
       setSent(true);
     } catch (e) {
-      setError(plainErrorText(e, "Could not save your request. Please try again later."));
+      setError(plainErrorText(e, t("worldLivePromo.takeoverSaveFailed")));
     } finally {
       setSending(false);
     }
@@ -100,7 +102,7 @@ function OfferBlock({
     return (
       <section className={`rounded-xl border p-3 ${cardCls}`}>
         <p className={`text-sm font-bold ${strong}`}>{title}</p>
-        <p className={`mt-1 text-sm ${muted}`}>This offer wouldn&rsquo;t load just now — try the board again in a moment.</p>
+        <p className={`mt-1 text-sm ${muted}`}>{t("worldLivePromo.takeoverLoadFailed")}</p>
       </section>
     );
   }
@@ -108,7 +110,7 @@ function OfferBlock({
     return (
       <section className={`rounded-xl border p-3 ${cardCls}`}>
         <p className={`text-sm font-bold ${strong}`}>{title}</p>
-        <p className={`mt-1 text-sm ${muted}`}>Reading the offer…</p>
+        <p className={`mt-1 text-sm ${muted}`}>{t("worldLivePromo.takeoverReading")}</p>
       </section>
     );
   }
@@ -117,11 +119,10 @@ function OfferBlock({
     <section className={`rounded-xl border p-3 ${cardCls}`} data-testid={`world-takeovers-desk-offer-${formKey}`}>
       <div className="flex flex-wrap items-baseline gap-2">
         <p className={`text-sm font-black ${strong}`}>{offer.name}</p>
-        <span className={`text-sm font-bold ${strong}`}>${offer.priceDollars.toLocaleString()}</span>
-        <span className={`text-xs ${muted}`}>for {offer.durationDays} days</span>
+        <span className={`text-sm font-bold ${strong}`}>{t("worldLivePromo.takeoverPriceLine", { price: offer.priceDollars.toLocaleString(i18n.language), days: offer.durationDays })}</span>
       </div>
       {offer.surfaces.length > 0 ? (
-        <p className={`mt-0.5 text-xs ${muted}`}>Runs on: {offer.surfaces.join(" · ")}</p>
+        <p className={`mt-0.5 text-xs ${muted}`}>{t("worldLivePromo.takeoverRunsOn", { surfaces: offer.surfaces.join(" · ") })}</p>
       ) : null}
       {offer.specs.length > 0 ? (
         <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -132,26 +133,25 @@ function OfferBlock({
       ) : null}
       {sent ? (
         <p className={`mt-3 text-sm font-semibold ${strong}`} data-testid={`world-takeovers-desk-sent-${formKey}`}>
-          Request saved ✓ — the team reviews inquiries and replies by email. Nothing was charged
-          and nothing is booked yet.
+          {t("worldLivePromo.takeoverSent")}
         </p>
       ) : (
         <div className="mt-3 space-y-2">
           <div className="grid gap-2 sm:grid-cols-2">
             <label className={`text-xs ${muted}`}>
-              Your name
+              {t("worldLivePromo.takeoverNameLabel")}
               <input className={`${inputCls} mt-1`} maxLength={200} value={form.name} onChange={(e) => set({ name: e.target.value })} />
             </label>
             <label className={`text-xs ${muted}`}>
-              Email
+              {t("worldLivePromo.takeoverEmailLabel")}
               <input className={`${inputCls} mt-1`} maxLength={320} placeholder="you@brand.com" value={form.email} onChange={(e) => set({ email: e.target.value })} />
             </label>
             <label className={`text-xs ${muted}`}>
-              Your video link
+              {t("worldLivePromo.takeoverVideoLabel")}
               <input className={`${inputCls} mt-1`} maxLength={2000} placeholder="https://…" value={form.videoUrl} onChange={(e) => set({ videoUrl: e.target.value })} />
             </label>
             <label className={`text-xs ${muted}`}>
-              Click-through link (optional)
+              {t("worldLivePromo.takeoverTargetLabel")}
               <input className={`${inputCls} mt-1`} maxLength={2000} placeholder="https://…" value={form.targetUrl} onChange={(e) => set({ targetUrl: e.target.value })} />
             </label>
           </div>
@@ -162,10 +162,10 @@ function OfferBlock({
             disabled={sending}
             onClick={() => void inquire()}
           >
-            {sending ? "Sending…" : "Send the inquiry"}
+            {sending ? t("worldLivePromo.takeoverSending") : t("worldLivePromo.takeoverSend")}
           </button>
           <p className={`text-xs ${muted}`}>
-            An inquiry is a request, not a purchase — no charge is taken when you send it.
+            {t("worldLivePromo.takeoverInquiryNote")}
           </p>
           {error ? <p className={errCls}>{error}</p> : null}
         </div>
@@ -175,6 +175,7 @@ function OfferBlock({
 }
 
 export function TakeoversDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const [spotlight, setSpotlight] = useState<OfferSlot>({ offer: null, failed: false });
   const [loading, setLoading] = useState<OfferSlot>({ offer: null, failed: false });
 
@@ -204,14 +205,13 @@ export function TakeoversDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-4" data-testid="world-takeovers-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Takeovers</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldLivePromo.takeoversTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          Put your brand on the house&rsquo;s biggest screens — send an inquiry and the team takes
-          it from there.
+          {t("worldLivePromo.takeoversSubtitle")}
         </p>
       </div>
-      <OfferBlock isLight={isLight} title="Spotlight Takeover" slot={spotlight} inquirePath={SPOTLIGHT_INQUIRE_PATH} formKey="spotlight" />
-      <OfferBlock isLight={isLight} title="Loading Screen Takeover" slot={loading} inquirePath={LOADING_INQUIRE_PATH} formKey="loading" />
+      <OfferBlock isLight={isLight} title={t("worldLivePromo.takeoverSpotlightTitle")} slot={spotlight} inquirePath={SPOTLIGHT_INQUIRE_PATH} formKey="spotlight" />
+      <OfferBlock isLight={isLight} title={t("worldLivePromo.takeoverLoadingTitle")} slot={loading} inquirePath={LOADING_INQUIRE_PATH} formKey="loading" />
     </div>
   );
 }

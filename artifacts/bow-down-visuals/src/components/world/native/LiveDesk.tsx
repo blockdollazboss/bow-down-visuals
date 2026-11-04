@@ -8,6 +8,7 @@ import {
   ListMusic, Music2, Play, SkipForward, XCircle, CircleDollarSign,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTranslation } from "react-i18next";
 import { NativeLoadingState, NativeEmptyState } from "@/components/world/native";
 import { pendingRedemptionsFromPayload } from "@/lib/reach-watch";
 import { apiJson } from "@/lib/social-api";
@@ -93,8 +94,49 @@ import {
   SOURCE_CHROMA_UPDATE_COMMAND, CAMERA_MODE_OPTIONS, CHROMA_SLIDERS,
   chromaSettingsFor, chromaWithSlider, chromaUpdateArgs, isChromaUpdateReady,
   SOURCE_CHROMA_NOTE, type ChromaSettings,
+  liveControllerStrings, liveEngineStrings,
 } from "@/lib/world/live-desk";
 import type { NoiseCancellationLevel } from "@/lib/stream-kit/voice-isolator";
+
+/* ── i18n key maps (stack100 locale unit 44) ────────────────────────
+   The seam's option tables keep their English labels as the page
+   mirror (the wave-3 pins hold them); the desk renders the catalog
+   words for the walker's language, keyed by the option's own id. */
+const BG_MODE_LABEL_KEYS: Record<BackgroundMode, string> = {
+  green: "worldLivePromo.bgModeGreen",
+  blur: "worldLivePromo.bgModeBlur",
+  image: "worldLivePromo.bgModeBackdrop",
+  none: "worldLivePromo.bgModeOriginal",
+};
+const BG_QUALITY_LABEL_KEYS: Record<BackgroundQuality, string> = {
+  auto: "worldLivePromo.bgQualityAuto",
+  pro: "worldLivePromo.bgQualityPro",
+  tasks: "worldLivePromo.bgQualityMediaPipe",
+};
+const EXPIRY_LABEL_KEYS: Record<number, string> = {
+  60: "worldLivePromo.expiry60",
+  240: "worldLivePromo.expiry240",
+  1440: "worldLivePromo.expiry1440",
+  10080: "worldLivePromo.expiry10080",
+};
+const SLIDER_LABEL_KEYS: Record<keyof GreenScreenFineTune, string> = {
+  sensitivity: "worldLivePromo.sliderSensitivityLabel",
+  edgeShift: "worldLivePromo.sliderEdgeShiftLabel",
+  softness: "worldLivePromo.sliderSoftnessLabel",
+  smoothing: "worldLivePromo.sliderSmoothingLabel",
+  spill: "worldLivePromo.sliderSpillLabel",
+  blur: "worldLivePromo.sliderBlurLabel",
+  dim: "worldLivePromo.sliderDimLabel",
+};
+const SLIDER_HINT_KEYS: Record<keyof GreenScreenFineTune, string> = {
+  sensitivity: "worldLivePromo.sliderSensitivityHint",
+  edgeShift: "worldLivePromo.sliderEdgeShiftHint",
+  softness: "worldLivePromo.sliderSoftnessHint",
+  smoothing: "worldLivePromo.sliderSmoothingHint",
+  spill: "worldLivePromo.sliderSpillHint",
+  blur: "worldLivePromo.sliderBlurHint",
+  dim: "worldLivePromo.sliderDimHint",
+};
 
 /* ─── Live Wave I (stack-100 #85–#87) ───────────────────────────────
    The Go Live studio, its guests & backstage, and the guest door —
@@ -234,17 +276,18 @@ function BackstageChat({
   sending: boolean;
   testid: string;
 }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   return (
     <div>
       <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1" data-testid={`${testid}-list`}>
         {messages.length === 0 ? (
-          <p className={`text-sm ${muted}`}>Nothing backstage yet — this chat is private to the host and guests; the audience never sees it.</p>
+          <p className={`text-sm ${muted}`}>{t("worldLivePromo.backstageEmpty")}</p>
         ) : (
           messages.map((m) => (
             <p key={m.id} className={`text-sm ${isLight ? "text-[#2a1e07]" : "text-white/85"}`}>
               <span className="font-bold text-[#b8912c]">{m.author_name}</span>
-              {m.guest ? <span className={`ml-1 text-[10px] font-black uppercase ${muted}`}>guest</span> : null}{" "}
+              {m.guest ? <span className={`ml-1 text-[10px] font-black uppercase ${muted}`}>{t("worldLivePromo.backstageGuestBadge")}</span> : null}{" "}
               <span className="break-words">{m.body}</span>
             </p>
           ))
@@ -255,14 +298,14 @@ function BackstageChat({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") onSend(); }}
-          placeholder="Message backstage…"
-          aria-label="Message backstage"
+          placeholder={t("worldLivePromo.backstagePlaceholder")}
+          aria-label={t("worldLivePromo.backstageAria")}
           maxLength={BACKSTAGE_SAY_MAX}
           className={inputCls(isLight)}
           data-testid={`${testid}-input`}
         />
         <button type="button" onClick={onSend} disabled={sending || !backstageDraftReady(draft)} className={goldBtn} data-testid={`${testid}-send`}>
-          {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Send
+          {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} {t("worldLivePromo.backstageSend")}
         </button>
       </div>
     </div>
@@ -272,6 +315,7 @@ function BackstageChat({
 /* ═══ #85 The studio ════════════════════════════════════════════════ */
 
 export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; onStreamChange?: () => void }) {
+  const { t, i18n } = useTranslation();
   const token = useToken();
   const authHeaders = useAuthHeaders();
   const { getAccessToken } = useAuth();
@@ -365,14 +409,14 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
       bgModeRef.current = "image";
       const changer = changerRef.current;
       if (!changer) {
-        setBgNote("Start your camera, then your backdrop applies.");
+        setBgNote(t("worldLivePromo.bgNoteStartCamera"));
         return;
       }
       changer.setMode("image");
       const applied = await applyBackdropSelection(changer);
       if (!applied) {
         chooseBackdrop(previous);
-        setBgNote("That backdrop image could not be loaded.");
+        setBgNote(t("worldLivePromo.bgNoteLoadFailed"));
       } else {
         setBgNote(null);
       }
@@ -398,7 +442,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
         try {
           await changer.setImage(file);
         } catch (err) {
-          setBgNote(err instanceof BackgroundChangerError ? err.message : "That backdrop image could not be loaded.");
+          setBgNote(err instanceof BackgroundChangerError ? err.message : t("worldLivePromo.bgNoteLoadFailed"));
           return;
         }
       }
@@ -406,7 +450,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
       chooseBackdrop(selectionAfterUpload(backdropSelRef.current, { ok: true, name: file.name }));
       setBgMode("image");
       bgModeRef.current = "image";
-      setBgNote(changer ? null : "Got it — your photo goes behind you when the camera starts.");
+      setBgNote(changer ? null : t("worldLivePromo.bgNotePhotoHeld"));
     },
     [chooseBackdrop, holdCustomBackdrop],
   );
@@ -420,15 +464,15 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
         try {
           await changer.setImage(url);
         } catch (err) {
-          setBgNote(err instanceof BackgroundChangerError ? err.message : "That backdrop image could not be loaded.");
+          setBgNote(err instanceof BackgroundChangerError ? err.message : t("worldLivePromo.bgNoteLoadFailed"));
           return;
         }
       }
-      holdCustomBackdrop({ source: url, thumb: url, name: "Pasted image link" });
-      chooseBackdrop(selectionAfterUpload(backdropSelRef.current, { ok: true, name: "Pasted image link" }));
+      holdCustomBackdrop({ source: url, thumb: url, name: t("worldLivePromo.bgPastedLinkName") });
+      chooseBackdrop(selectionAfterUpload(backdropSelRef.current, { ok: true, name: t("worldLivePromo.bgPastedLinkName") }));
       setBgMode("image");
       bgModeRef.current = "image";
-      setBgNote(changer ? null : "Got it — that image goes behind you when the camera starts.");
+      setBgNote(changer ? null : t("worldLivePromo.bgNoteImageHeld"));
     },
     [chooseBackdrop, holdCustomBackdrop],
   );
@@ -544,7 +588,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
     try {
       const res = await fetch(LIVE_STATUS_PATH, { headers: await authHeaders() });
       if (!res.ok) throw new Error("status");
-      setStatus(normalizeLiveStatus(await res.json()));
+      setStatus(normalizeLiveStatus(await res.json(), t("worldLivePromo.liveStreamFallback")));
       setFailed(false);
     } catch {
       setFailed(true);
@@ -638,7 +682,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
         if (!applied) {
           chooseBackdrop(DEFAULT_BACKDROP_SELECTION);
           await changer.setImage(backdropSelectionSource(DEFAULT_BACKDROP_SELECTION, null)).catch(() => undefined);
-          setBgNote("That background couldn't be loaded — the Gold Stage is behind you instead. Your pick is still saved in the panel.");
+          setBgNote(t("worldLivePromo.bgNoteFallback"));
         }
       }
       /* #93: permission is granted now, so the device lists carry
@@ -653,7 +697,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
       setNote(
         err instanceof BackgroundChangerError
           ? err.message
-          : "Camera and mic couldn't start — check the browser's permission for this site, then try again.",
+          : t("worldLivePromo.studioNoteCameraFailed"),
       );
     }
   }
@@ -670,8 +714,8 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
 
   async function goLive() {
     const cam = camRef.current;
-    if (!cam) { setNote("Start your camera first — that's the feed your stream is built from."); return; }
-    if (!streamTitleReady(title)) { setNote("Give your stream a title — viewers find you by it in the Live rail."); return; }
+    if (!cam) { setNote(t("worldLivePromo.studioNoteStartCamera")); return; }
+    if (!streamTitleReady(title)) { setNote(t("worldLivePromo.studioNoteTitle")); return; }
     setPhase("connecting");
     setNote(null);
     const transport = createStreamTransport(status?.transport ?? "own");
@@ -681,14 +725,14 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
       setLiveId(transport.streamId ?? null);
       setViewers(0);
       setPhase("live");
-      setNote("You're live — your stream is on your profile and in the Live rail. Take the stage above to put it on the hall's big screen.");
+      setNote(t("worldLivePromo.studioNoteLive"));
       await loadStatus();
       onStreamChange?.();
     } catch (err) {
       setPhase("camera");
       const msg = err instanceof TransportError && (err.code === "NOT_CONFIGURED" || err.code === "STREAM_NOT_CONFIGURED")
-        ? "Live streaming isn't switched on yet on this site. Your camera works — broadcasting turns on the moment the owner enables it."
-        : plainErrorText(err, "Couldn't go live. Try again in a moment.");
+        ? t("worldLivePromo.studioNoteNotSwitchedOn")
+        : plainErrorText(err, t("worldLivePromo.studioNoteGoLiveFailed"));
       setNote(msg);
     }
   }
@@ -700,7 +744,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
     transportRef.current = null;
     setLiveId(null);
     setPhase("camera");
-    setNote("You're off air. The replay saves to your clips when the stage finishes it.");
+    setNote(t("worldLivePromo.studioNoteOffAir"));
     await loadStatus();
     onStreamChange?.();
   }
@@ -719,6 +763,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
+  const engineStrings = liveEngineStrings(t);
   const broadcastingHere = phase === "live" || phase === "connecting";
   const leftover = !broadcastingHere ? status?.liveStream ?? null : null;
 
@@ -726,33 +771,33 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
     <div className="space-y-4" data-testid="world-live-studio">
       <div className="flex flex-wrap items-center gap-2">
         <span className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-          <Radio className="h-4 w-4 text-[#d4af37]" /> Go Live — the studio, right here
+          <Radio className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.studioTitle")}
         </span>
         {phase === "live" && (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> LIVE · {viewers} watching
+            <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> {t("worldLivePromo.liveWatchingBadge", { count: viewers })}
           </span>
         )}
       </div>
 
       {failed ? (
-        <p className={`text-sm ${muted}`}>The studio status couldn&rsquo;t load. <button type="button" className="font-bold underline" onClick={() => void loadStatus()}>Try again</button></p>
+        <p className={`text-sm ${muted}`}>{t("worldLivePromo.studioStatusFailed")} <button type="button" className="font-bold underline" onClick={() => void loadStatus()}>{t("worldLivePromo.tryAgain")}</button></p>
       ) : status === null ? (
-        <NativeLoadingState isLight={isLight} message="Checking the studio…" />
+        <NativeLoadingState isLight={isLight} message={t("worldLivePromo.studioChecking")} />
       ) : (
         <>
           {!status.configured && (
             <p className={`text-sm ${muted}`}>
-              Live streaming isn&rsquo;t switched on yet on this site — your camera check below still works, and broadcasting turns on the moment the owner enables it.
+              {t("worldLivePromo.studioNotConfigured")}
             </p>
           )}
           {leftover && (
             <div className="flex flex-wrap items-center gap-2" data-testid="world-live-leftover">
-              <span className={`text-sm ${strong}`}>You&rsquo;re already live: <b>{leftover.title}</b> ({leftover.viewerCount} watching{leftover.startedAt ? ` · since ${new Date(leftover.startedAt).toLocaleTimeString()}` : ""})</span>
+              <span className={`text-sm ${strong}`}>{t("worldLivePromo.studioLeftoverPrefix")} <b>{leftover.title}</b>{t("worldLivePromo.studioLeftoverSuffix", { viewers: leftover.viewerCount, since: leftover.startedAt ? t("worldLivePromo.studioLeftoverSince", { time: new Date(leftover.startedAt).toLocaleTimeString(i18n.language) }) : "" })}</span>
               <button type="button" onClick={() => void endLeftover()} disabled={endingLeftover} className={redBtn} data-testid="world-live-end-leftover">
-                {endingLeftover ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />} End that stream
+                {endingLeftover ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />} {t("worldLivePromo.studioEndThatStream")}
               </button>
-              <span className={`text-xs ${muted}`}>Its guests &amp; backstage are in the panel below.</span>
+              <span className={`text-xs ${muted}`}>{t("worldLivePromo.studioLeftoverGuests")}</span>
             </div>
           )}
 
@@ -760,42 +805,42 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
             <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black">
               <video ref={videoRef} autoPlay playsInline muted className="aspect-video w-full object-cover" data-testid="world-live-camera" />
               {phase === "off" && (
-                <span className={`absolute inset-0 flex items-center justify-center text-sm ${muted}`}>Your camera is off</span>
+                <span className={`absolute inset-0 flex items-center justify-center text-sm ${muted}`}>{t("worldLivePromo.studioCameraOff")}</span>
               )}
             </div>
             <div className="space-y-2">
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Stream title — viewers find you by it"
+                placeholder={t("worldLivePromo.studioTitlePlaceholder")}
                 maxLength={200}
                 className={inputCls(isLight)}
                 data-testid="world-live-title"
-                aria-label="Stream title"
+                aria-label={t("worldLivePromo.streamTitleField")}
               />
               {phase === "off" ? (
                 <button type="button" onClick={() => void startCamera()} className={goldBtn} data-testid="world-live-camera-start">
-                  <Video className="h-3.5 w-3.5" /> Start camera
+                  <Video className="h-3.5 w-3.5" /> {t("worldLivePromo.studioStartCamera")}
                 </button>
               ) : (
                 <button type="button" onClick={() => void stopCamera()} disabled={broadcastingHere} className={chipBtn(isLight)} data-testid="world-live-camera-stop">
-                  <VideoOff className="h-3.5 w-3.5" /> Stop camera
+                  <VideoOff className="h-3.5 w-3.5" /> {t("worldLivePromo.studioStopCamera")}
                 </button>
               )}
               {phase === "camera" && (
                 <button type="button" onClick={() => void goLive()} disabled={!status.configured} className={redBtn} data-testid="world-live-go">
-                  <Radio className="h-3.5 w-3.5" /> Go live
+                  <Radio className="h-3.5 w-3.5" /> {t("worldLivePromo.studioGoLive")}
                 </button>
               )}
               {phase === "connecting" && (
-                <span className={`inline-flex items-center gap-2 text-sm ${muted}`}><Loader2 className="h-4 w-4 animate-spin" /> Connecting…</span>
+                <span className={`inline-flex items-center gap-2 text-sm ${muted}`}><Loader2 className="h-4 w-4 animate-spin" /> {t("worldLivePromo.studioConnecting")}</span>
               )}
               {phase === "live" && (
                 <button type="button" onClick={() => void endLive()} className={redBtn} data-testid="world-live-end">
-                  <Square className="h-3.5 w-3.5" /> End stream
+                  <Square className="h-3.5 w-3.5" /> {t("worldLivePromo.studioEndStream")}
                 </button>
               )}
-              <p className={`text-xs ${muted}`}>Broadcasting to: your profile (the site destination). Other platforms ride the destination keys below and join at fan-out, exactly as in the 2D studio.</p>
+              <p className={`text-xs ${muted}`}>{t("worldLivePromo.studioBroadcastingTo")}</p>
             </div>
           </div>
           {note && <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-note">{note}</p>}
@@ -806,14 +851,13 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
               device settings. */}
           <LiveCard isLight={isLight} testId="world-live-behind-me">
             <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-              <ImagePlus className="h-4 w-4 text-[#d4af37]" /> Behind me
+              <ImagePlus className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.behindTitle")}
             </p>
             <p className={`mt-1 text-xs ${muted}`}>
-              Your background lives here — turn on the green screen or a backdrop, then pick what sits behind you in
-              this same panel: a built-in scene, or your own photo.
+              {t("worldLivePromo.behindIntro")}
             </p>
-            <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Background mode">
-              {BACKGROUND_MODE_OPTIONS.map(({ mode: m, label }) => (
+            <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label={t("worldLivePromo.bgModeAria")}>
+              {BACKGROUND_MODE_OPTIONS.map(({ mode: m }) => (
                 <button
                   key={m}
                   type="button"
@@ -823,18 +867,18 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
                   className={bgMode === m ? goldBtn : chipBtn(isLight)}
                   data-testid={`world-live-bg-mode-${m}`}
                 >
-                  {label}
+                  {t(BG_MODE_LABEL_KEYS[m])}
                 </button>
               ))}
             </div>
             {engineDown && (
               <p className={`mt-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-bg-engine-down">
-                Background effects couldn&rsquo;t load — camera is running plain.
+                {t("worldLivePromo.bgEngineDown")}
               </p>
             )}
-            <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label="Background quality">
-              <span className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Quality</span>
-              {BACKGROUND_QUALITY_OPTIONS.map(({ quality: q, label }) => (
+            <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label={t("worldLivePromo.bgQualityAria")}>
+              <span className={`text-xs font-bold uppercase tracking-wider ${muted}`}>{t("worldLivePromo.bgQualityLabel")}</span>
+              {BACKGROUND_QUALITY_OPTIONS.map(({ quality: q }) => (
                 <button
                   key={q}
                   type="button"
@@ -843,33 +887,30 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
                   className={bgQuality === q ? goldBtn : chipBtn(isLight)}
                   data-testid={`world-live-bg-quality-${q}`}
                 >
-                  {label}
+                  {t(BG_QUALITY_LABEL_KEYS[q])}
                 </button>
               ))}
             </div>
             <p className={`mt-1 text-xs ${muted}`}>
-              Auto runs the Pro cutout and steps its quality down on its own if your device can&rsquo;t hold it — it never
-              swaps engines behind your back. Pro holds the sharpest cutout. MediaPipe is the lighter per-frame cutout:
-              easier on slower devices, less steady when you move. The engine only changes when you change it here.
+              {t("worldLivePromo.bgQualityExplainer")}
             </p>
             {phase !== "off" && (
               <p className={`mt-2 text-xs font-semibold ${muted}`} data-testid="world-live-bg-engine-status">
-                Background engine: {engineKindLabel(engineKind)}
+                {t("worldLivePromo.bgEngineStatus", { kind: engineKindLabel(engineKind, engineStrings) })}
               </p>
             )}
-            {phase !== "off" && engineFallbackNote(engineDetail) && (
+            {phase !== "off" && engineFallbackNote(engineDetail, engineStrings) && (
               <p className={`mt-1 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-bg-engine-fallback">
-                {engineFallbackNote(engineDetail)}
+                {engineFallbackNote(engineDetail, engineStrings)}
               </p>
             )}
             {greenScreenCueVisible(bgMode) && (
               <p className={`mt-4 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-bg-cue">
-                Green screen is on — pick any background below, or upload your own photo, and it goes right behind
-                you. It&rsquo;s all one step, right here.
+                {t("worldLivePromo.bgCue")}
               </p>
             )}
-            <p className={`mt-4 text-xs font-bold uppercase tracking-wider ${muted}`}>Your background</p>
-            <div className="mt-2 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4" role="group" aria-label="Your background">
+            <p className={`mt-4 text-xs font-bold uppercase tracking-wider ${muted}`}>{t("worldLivePromo.bgYourBackground")}</p>
+            <div className="mt-2 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4" role="group" aria-label={t("worldLivePromo.bgYourBackground")}>
               {BACKDROPS.map((b) => {
                 const active = backdropTileActive(backdropSel, { kind: "builtin", id: b.id }, bgMode);
                 return (
@@ -920,9 +961,9 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
               >
                 <span className={`flex aspect-video w-full flex-col items-center justify-center gap-1 rounded ${muted}`}>
                   <ImagePlus className="h-5 w-5" />
-                  <span className="text-[11px] font-bold leading-tight">Upload your photo</span>
+                  <span className="text-[11px] font-bold leading-tight">{t("worldLivePromo.bgUploadPhoto")}</span>
                 </span>
-                <span className={`mt-1 block text-[11px] leading-tight ${muted}`}>JPG, PNG or WebP</span>
+                <span className={`mt-1 block text-[11px] leading-tight ${muted}`}>{t("worldLivePromo.bgUploadFormats")}</span>
                 <input
                   type="file"
                   accept={BACKDROP_UPLOAD_ACCEPT}
@@ -937,8 +978,8 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <input
                 type="text"
-                aria-label="Backdrop image URL"
-                placeholder="…or paste your own backdrop image URL"
+                aria-label={t("worldLivePromo.bgUrlAria")}
+                placeholder={t("worldLivePromo.bgUrlPlaceholder")}
                 className={`${inputCls(isLight)} min-w-[220px] flex-1`}
                 data-testid="world-live-bg-url"
                 onKeyDown={(e) => {
@@ -955,25 +996,24 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
             {bgMode !== "none" && (
               <div className="mt-5 border-t border-dashed border-[#C9A84C]/25 pt-4" data-testid="world-live-bg-finetune">
                 <div className="flex items-center justify-between gap-2">
-                  <p className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Fine-tune your cutout</p>
+                  <p className={`text-xs font-bold uppercase tracking-wider ${muted}`}>{t("worldLivePromo.fineTuneTitle")}</p>
                   <button
                     type="button"
                     onClick={resetFineTune}
                     className={`text-xs font-bold underline underline-offset-2 ${isLight ? "text-[#92600a]" : "text-amber-300"}`}
                     data-testid="world-live-bg-finetune-reset"
                   >
-                    Reset to standard
+                    {t("worldLivePromo.fineTuneReset")}
                   </button>
                 </div>
                 <p className={`mt-1 text-xs ${muted}`}>
-                  Every slider applies live and stays saved on this device. Standard is the picture you already
-                  know — nothing changes until you move one.
+                  {t("worldLivePromo.fineTuneIntro")}
                 </p>
                 <div className="mt-3 grid gap-x-5 gap-y-3 sm:grid-cols-2">
                   {fineTuneSlidersForMode(bgMode).map((s) => (
                     <label key={s.key} className="block">
                       <span className="flex items-baseline justify-between gap-2">
-                        <span className={`text-xs font-bold ${muted}`}>{s.label}</span>
+                        <span className={`text-xs font-bold ${muted}`}>{t(SLIDER_LABEL_KEYS[s.key])}</span>
                         <span className={`text-xs font-black tabular-nums ${isLight ? "text-[#7A5A12]" : "text-[#fbbf24]"}`}>
                           {s.format(fineTune[s.key])}
                         </span>
@@ -984,12 +1024,12 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
                         max={s.max}
                         step={s.step}
                         value={fineTune[s.key]}
-                        aria-label={s.label}
+                        aria-label={t(SLIDER_LABEL_KEYS[s.key])}
                         onChange={(e) => applyFineTune({ [s.key]: Number(e.target.value) })}
                         className="mt-1 w-full accent-[#d4af37] bdv-touch-target"
                         data-testid={`world-live-bg-finetune-${s.key}`}
                       />
-                      <span className={`mt-0.5 block text-[11px] leading-snug ${muted}`}>{s.hint}</span>
+                      <span className={`mt-0.5 block text-[11px] leading-snug ${muted}`}>{t(SLIDER_HINT_KEYS[s.key])}</span>
                     </label>
                   ))}
                 </div>
@@ -1133,6 +1173,7 @@ interface IngestDto {
 }
 
 function IngestKeySection({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const [ingest, setIngest] = useState<IngestDto | null>(null);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
@@ -1149,7 +1190,7 @@ function IngestKeySection({ isLight }: { isLight: boolean }) {
       setIngest(res.ingest);
       setTitle(res.ingest.stream_title ?? "");
     } catch {
-      setNote("Your stream key status couldn't load. Try again in a moment.");
+      setNote(t("worldLivePromo.ingestLoadFailed"));
     }
   }, [getAccessToken]);
 
@@ -1159,7 +1200,7 @@ function IngestKeySection({ isLight }: { isLight: boolean }) {
     setBusy(action);
     setNote(null);
     try { await fn(); } catch (err) {
-      setNote(plainErrorText(err, "Something went wrong. Try again."));
+      setNote(plainErrorText(err, t("worldLivePromo.ingestSomethingWrong")));
     } finally { setBusy(null); }
   };
 
@@ -1169,19 +1210,19 @@ function IngestKeySection({ isLight }: { isLight: boolean }) {
   return (
     <LiveCard isLight={isLight} testId="world-live-ingest">
       <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-        <KeyRound className="h-4 w-4 text-[#d4af37]" /> Stream key (for other software)
+        <KeyRound className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.ingestTitle")}
       </p>
       {ingest === null ? (
-        <p className={`mt-1 text-sm ${muted}`}>Loading your key status…</p>
+        <p className={`mt-1 text-sm ${muted}`}>{t("worldLivePromo.ingestLoading")}</p>
       ) : !ingest.enabled ? (
         <p className={`mt-1 text-sm ${muted}`}>
-          Streaming from other software isn&rsquo;t open yet — it arrives with the launch setup. Your built-in studio above works today.
-          {ingest.has_key ? ` You do have a key (…${ingest.key_hint ?? ""}) — revoke and title controls stay live below.` : ""}
+          {t("worldLivePromo.ingestNotOpen")}
+          {ingest.has_key ? t("worldLivePromo.ingestNotOpenHasKey", { hint: ingest.key_hint ?? "" }) : ""}
         </p>
       ) : (
         <p className={`mt-1 text-sm ${muted}`}>
-          Point your encoder at <span className="font-mono">{ingest.ingest_url ?? "the ingest address"}</span> with your personal key.
-          {ingest.has_key ? ` Current key ends …${ingest.key_hint ?? ""}.` : " You don't have a key yet."}
+          {t("worldLivePromo.ingestPointAtBefore")} <span className="font-mono">{ingest.ingest_url ?? t("worldLivePromo.ingestAddressFallback")}</span> {t("worldLivePromo.ingestPointAtAfter")}
+          {ingest.has_key ? t("worldLivePromo.ingestCurrentKey", { hint: ingest.key_hint ?? "" }) : t("worldLivePromo.ingestNoKey")}
         </p>
       )}
       {/* Stream-key honesty (Stack-100 #2 item 79): nothing here has
@@ -1190,7 +1231,7 @@ function IngestKeySection({ isLight }: { isLight: boolean }) {
           actually connects. Never a silent "ready". */}
       {ingest?.enabled && ingest.has_key ? (
         <p className={`mt-1 text-xs ${muted}`} data-testid="world-live-ingest-untested">
-          This key is untested — it&rsquo;s proven the first time your encoder connects and the stream goes live.
+          {t("worldLivePromo.ingestUntested")}
         </p>
       ) : null}
       {ingest && (
@@ -1208,11 +1249,11 @@ function IngestKeySection({ isLight }: { isLight: boolean }) {
             data-testid="world-live-ingest-reveal"
           >
             {busy === "reveal" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
-            {ingest.has_key ? "Show my key" : "Create my key"}
+            {ingest.has_key ? t("worldLivePromo.ingestShowKey") : t("worldLivePromo.ingestCreateKey")}
           </button>
           {ingest.has_key && !confirmingRegen && (
             <button type="button" disabled={busy !== null || !ingest.enabled} onClick={() => setConfirmingRegen(true)} className={chipBtn(isLight)} data-testid="world-live-ingest-regen-ask">
-              <RefreshCw className="h-3.5 w-3.5" /> Regenerate
+              <RefreshCw className="h-3.5 w-3.5" /> {t("worldLivePromo.ingestRegenerate")}
             </button>
           )}
           {ingest.has_key && confirmingRegen && (
@@ -1225,12 +1266,12 @@ function IngestKeySection({ isLight }: { isLight: boolean }) {
                 setRevealedKey(res.stream_key);
                 setNotReshown(false);
                 setConfirmingRegen(false);
-                setNote("New key created — copy it now, because it can't be shown again. The old key stopped working the moment this one was made.");
+                setNote(t("worldLivePromo.ingestRegenNote"));
               })}
               className={redBtn}
               data-testid="world-live-ingest-regen-confirm"
             >
-              {busy === "regenerate" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Yes — new key, old one dies
+              {busy === "regenerate" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} {t("worldLivePromo.ingestRegenConfirm")}
             </button>
           )}
           {ingest.has_key && (
@@ -1243,12 +1284,12 @@ function IngestKeySection({ isLight }: { isLight: boolean }) {
                 setRevealedKey(null);
                 setNotReshown(false);
                 setConfirmingRegen(false);
-                setNote("Key revoked. Nothing can stream with it now.");
+                setNote(t("worldLivePromo.ingestRevokeNote"));
               })}
               className={chipBtn(isLight)}
               data-testid="world-live-ingest-revoke"
             >
-              {busy === "revoke" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />} Revoke
+              {busy === "revoke" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />} {t("worldLivePromo.revoke")}
             </button>
           )}
         </div>
@@ -1261,29 +1302,29 @@ function IngestKeySection({ isLight }: { isLight: boolean }) {
             className={chipBtn(isLight)}
             onClick={() => { void navigator.clipboard?.writeText(revealedKey).then(() => setCopied(true)).catch(() => undefined); }}
           >
-            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} {copied ? "Copied" : "Copy"}
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} {copied ? t("worldLivePromo.copied") : t("worldLivePromo.copy")}
           </button>
-          <span className={`text-xs ${muted}`}>Shown once — it can never be displayed again.</span>
+          <span className={`text-xs ${muted}`}>{t("worldLivePromo.ingestShownOnce")}</span>
         </div>
       )}
       {notReshown && (
-        <p className={`mt-2 text-sm ${muted}`}>Your key exists, but it&rsquo;s stored as a one-way hash — it can never be shown again. Regenerate to get a fresh one you can copy.</p>
+        <p className={`mt-2 text-sm ${muted}`}>{t("worldLivePromo.ingestNotReshown")}</p>
       )}
       {ingest?.has_key && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Standing stream title for key broadcasts" maxLength={120} className={`${inputCls(isLight)} max-w-sm`} data-testid="world-live-ingest-title" aria-label="Standing stream title" />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("worldLivePromo.ingestTitlePlaceholder")} maxLength={120} className={`${inputCls(isLight)} max-w-sm`} data-testid="world-live-ingest-title" aria-label={t("worldLivePromo.ingestTitleAria")} />
           <button
             type="button"
             disabled={busy !== null}
             onClick={() => void run("title", async () => {
               const res = await apiJson<{ ingest: IngestDto }>(getAccessToken, INGEST_KEY_PATH, { method: "PATCH", body: JSON.stringify({ stream_title: title.trim() || null }) });
               setIngest(res.ingest);
-              setNote("Standing title saved.");
+              setNote(t("worldLivePromo.ingestTitleSaved"));
             })}
             className={chipBtn(isLight)}
             data-testid="world-live-ingest-title-save"
           >
-            Save title
+            {t("worldLivePromo.ingestSaveTitle")}
           </button>
         </div>
       )}
@@ -1295,6 +1336,7 @@ function IngestKeySection({ isLight }: { isLight: boolean }) {
 /* ── #85 destination keys (DestinationKeysPanel's doors) ─────────── */
 
 function DestinationKeysSection({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const [destinations, setDestinations] = useState<SavedDestination[] | null>(null);
   const [platform, setPlatform] = useState("");
@@ -1309,7 +1351,7 @@ function DestinationKeysSection({ isLight }: { isLight: boolean }) {
       setDestinations(res.destinations);
     } catch {
       setDestinations([]);
-      setNote("Your destinations couldn't load. Try again in a moment.");
+      setNote(t("worldLivePromo.destLoadFailed"));
     }
   }, [getAccessToken]);
 
@@ -1321,36 +1363,36 @@ function DestinationKeysSection({ isLight }: { isLight: boolean }) {
   return (
     <LiveCard isLight={isLight} testId="world-live-destinations">
       <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-        <Link2 className="h-4 w-4 text-[#d4af37]" /> Destination keys — stream to other platforms too
+        <Link2 className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.destTitle")}
       </p>
-      <p className={`mt-1 text-sm ${muted}`}>Save a platform&rsquo;s ingest address + key once; add the platform to a broadcast and the fan-out carries your show there. Keys are stored server-side and never shown back.</p>
+      <p className={`mt-1 text-sm ${muted}`}>{t("worldLivePromo.destIntro")}</p>
       {destinations === null ? (
-        <p className={`mt-2 text-sm ${muted}`}>Loading your destinations…</p>
+        <p className={`mt-2 text-sm ${muted}`}>{t("worldLivePromo.destLoading")}</p>
       ) : destinations.length === 0 ? (
-        <p className={`mt-2 text-sm ${muted}`}>No destinations saved yet.</p>
+        <p className={`mt-2 text-sm ${muted}`}>{t("worldLivePromo.destEmpty")}</p>
       ) : (
         <ul className="mt-2 space-y-1.5">
           {destinations.map((d) => (
             <li key={d.platform} className="flex flex-wrap items-center gap-2 text-sm" data-testid="world-live-destination-row">
               <b className={`capitalize ${strong}`}>{d.platform}</b>
               <span className={`font-mono text-xs ${muted}`}>{d.ingestUrl}</span>
-              <span className={`text-xs ${muted}`}>{d.hasKey ? "key saved" : "no key"}</span>
+              <span className={`text-xs ${muted}`}>{d.hasKey ? t("worldLivePromo.destKeySaved") : t("worldLivePromo.destNoKey")}</span>
               <button
                 type="button"
                 className={chipBtn(isLight)}
                 onClick={() => { void reachApi.deleteDestination(getAccessToken, d.platform).then(() => load()).catch(() => undefined); }}
                 data-testid={`world-live-destination-delete-${d.platform}`}
               >
-                <Trash2 className="h-3.5 w-3.5" /> Remove
+                <Trash2 className="h-3.5 w-3.5" /> {t("worldLivePromo.remove")}
               </button>
             </li>
           ))}
         </ul>
       )}
       <div className="mt-3 grid gap-2 md:grid-cols-3">
-        <input value={platform} onChange={(e) => setPlatform(e.target.value)} placeholder="Platform (e.g. youtube)" className={inputCls(isLight)} data-testid="world-live-dest-platform" aria-label="Platform" />
-        <input value={ingestUrl} onChange={(e) => setIngestUrl(e.target.value)} placeholder="Ingest URL (rtmp://…)" className={inputCls(isLight)} data-testid="world-live-dest-url" aria-label="Ingest URL" />
-        <input value={streamKey} onChange={(e) => setStreamKey(e.target.value)} placeholder="Stream key" type="password" className={inputCls(isLight)} data-testid="world-live-dest-key" aria-label="Stream key" />
+        <input value={platform} onChange={(e) => setPlatform(e.target.value)} placeholder={t("worldLivePromo.destPlatformPlaceholder")} className={inputCls(isLight)} data-testid="world-live-dest-platform" aria-label={t("worldLivePromo.destPlatformAria")} />
+        <input value={ingestUrl} onChange={(e) => setIngestUrl(e.target.value)} placeholder={t("worldLivePromo.destUrlPlaceholder")} className={inputCls(isLight)} data-testid="world-live-dest-url" aria-label={t("worldLivePromo.destUrlAria")} />
+        <input value={streamKey} onChange={(e) => setStreamKey(e.target.value)} placeholder={t("worldLivePromo.destKeyPlaceholder")} type="password" className={inputCls(isLight)} data-testid="world-live-dest-key" aria-label={t("worldLivePromo.destKeyAria")} />
       </div>
       <button
         type="button"
@@ -1361,16 +1403,16 @@ function DestinationKeysSection({ isLight }: { isLight: boolean }) {
           try {
             await reachApi.saveDestination(getAccessToken, platform.trim().toLowerCase(), ingestUrl.trim(), streamKey.trim());
             setPlatform(""); setIngestUrl(""); setStreamKey("");
-            setNote("Saved. This platform will pick up your next broadcast when you add it to the stream's destinations.");
+            setNote(t("worldLivePromo.destSavedNote"));
             await load();
           } catch (err) {
-            setNote(plainErrorText(err, "That destination couldn't be saved."));
+            setNote(plainErrorText(err, t("worldLivePromo.destSaveFailed")));
           } finally { setBusy(false); }
         }}
         className={`${goldBtn} mt-2`}
         data-testid="world-live-dest-save"
       >
-        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Save destination
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} {t("worldLivePromo.destSave")}
       </button>
       {note && <p className={`mt-2 text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
     </LiveCard>
@@ -1381,6 +1423,7 @@ function DestinationKeysSection({ isLight }: { isLight: boolean }) {
 
 function LoyaltySection({ isLight, token }: { isLight: boolean; token: () => Promise<string> }) {
   void token;
+  const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const [profileId, setProfileId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -1425,15 +1468,15 @@ function LoyaltySection({ isLight, token }: { isLight: boolean; token: () => Pro
   return (
     <LiveCard isLight={isLight} testId="world-live-loyalty">
       <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-        <Trophy className="h-4 w-4 text-[#d4af37]" /> Channel loyalty
+        <Trophy className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.loyaltyTitle")}
       </p>
       {!loaded ? (
-        <p className={`mt-1 text-sm ${muted}`}>Loading your loyalty program…</p>
+        <p className={`mt-1 text-sm ${muted}`}>{t("worldLivePromo.loyaltyLoading")}</p>
       ) : !profileId ? (
-        <p className={`mt-1 text-sm ${muted}`}>Create your creator profile first — loyalty points live on your channel.</p>
+        <p className={`mt-1 text-sm ${muted}`}>{t("worldLivePromo.loyaltyNoProfile")}</p>
       ) : (
         <>
-          <p className={`mt-1 text-sm ${muted}`}>Fans earn your channel&rsquo;s points for watching, chatting and tipping, and spend them on perks you fulfill. Points are not Visual Bucs and can&rsquo;t be turned into Visual Bucs or money.</p>
+          <p className={`mt-1 text-sm ${muted}`}>{t("worldLivePromo.loyaltyIntro")}</p>
           <form
             className="mt-3 grid gap-2 md:grid-cols-3"
             onSubmit={async (e) => {
@@ -1448,50 +1491,50 @@ function LoyaltySection({ isLight, token }: { isLight: boolean; token: () => Pro
                   customRewardLabel: form.customLabel.trim() || null,
                   customRewardCost: form.customLabel.trim() ? form.customCost : null,
                 });
-                setNote("Saved. Your fans earn at these rates from now on.");
+                setNote(t("worldLivePromo.loyaltySavedNote"));
                 await load(profileId);
               } catch (err) {
-                setNote(plainErrorText(err, "Settings couldn't be saved."));
+                setNote(plainErrorText(err, t("worldLivePromo.loyaltySaveFailed")));
               }
             }}
           >
-            <label className={rowCls}>Program on
+            <label className={rowCls}>{t("worldLivePromo.loyaltyProgramOn")}
               <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} className="h-4 w-4 accent-[#d4af37]" data-testid="world-live-loyalty-enabled" />
             </label>
-            <label className={rowCls}>Points per 10 min watched
+            <label className={rowCls}>{t("worldLivePromo.loyaltyWatchLabel")}
               <select value={form.watch} onChange={(e) => setForm({ ...form, watch: Number(e.target.value) })} className={selectCls(isLight)} data-testid="world-live-loyalty-watch">
                 {LOYALTY_WATCH_MENU.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
             </label>
-            <label className={rowCls}>Points per chat message
+            <label className={rowCls}>{t("worldLivePromo.loyaltyChatLabel")}
               <select value={form.chat} onChange={(e) => setForm({ ...form, chat: Number(e.target.value) })} className={selectCls(isLight)} data-testid="world-live-loyalty-chat">
                 {LOYALTY_CHAT_MENU.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
             </label>
-            <label className={rowCls}>Points per 100 VB tipped
+            <label className={rowCls}>{t("worldLivePromo.loyaltyTipLabel")}
               <select value={form.tip} onChange={(e) => setForm({ ...form, tip: Number(e.target.value) })} className={selectCls(isLight)} data-testid="world-live-loyalty-tip">
                 {LOYALTY_TIP_MENU.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
             </label>
-            <label className={`${rowCls} md:col-span-2`}>Custom reward (you fulfill it)
-              <input value={form.customLabel} onChange={(e) => setForm({ ...form, customLabel: e.target.value })} placeholder="e.g. Pick next stream's game" className={`${inputCls(isLight)} min-w-0 flex-1`} data-testid="world-live-loyalty-custom-label" />
+            <label className={`${rowCls} md:col-span-2`}>{t("worldLivePromo.loyaltyCustomLabel")}
+              <input value={form.customLabel} onChange={(e) => setForm({ ...form, customLabel: e.target.value })} placeholder={t("worldLivePromo.loyaltyCustomPlaceholder")} className={`${inputCls(isLight)} min-w-0 flex-1`} data-testid="world-live-loyalty-custom-label" />
               <select value={form.customCost} onChange={(e) => setForm({ ...form, customCost: Number(e.target.value) })} className={selectCls(isLight)} data-testid="world-live-loyalty-custom-cost">
-                {LOYALTY_CUSTOM_COST_MENU.map((v) => <option key={v} value={v}>{v} pts</option>)}
+                {LOYALTY_CUSTOM_COST_MENU.map((v) => <option key={v} value={v}>{t("worldLivePromo.loyaltyCustomCost", { cost: v })}</option>)}
               </select>
             </label>
-            <button type="submit" className={goldBtn} data-testid="world-live-loyalty-save">Save loyalty settings</button>
+            <button type="submit" className={goldBtn} data-testid="world-live-loyalty-save">{t("worldLivePromo.loyaltySave")}</button>
           </form>
           {note && <p className={`mt-2 text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{note}</p>}
-          {state && <p className={`mt-2 text-xs ${muted}`}>Perks on your menu: {state.perks.map((p) => `${p.label} (${p.cost})`).join(" · ")}</p>}
+          {state && <p className={`mt-2 text-xs ${muted}`}>{t("worldLivePromo.loyaltyPerksLine", { list: state.perks.map((p) => t("worldLivePromo.loyaltyPerkItem", { label: p.label, cost: p.cost })).join(" · ") })}</p>}
 
-          <p className={`mt-4 text-xs font-black uppercase tracking-wider ${muted}`}>Redemption queue</p>
+          <p className={`mt-4 text-xs font-black uppercase tracking-wider ${muted}`}>{t("worldLivePromo.loyaltyQueueTitle")}</p>
           {queue.length === 0 ? (
-            <p className={`mt-1 text-sm ${muted}`}>Nothing waiting. When a fan redeems a perk it lands here.</p>
+            <p className={`mt-1 text-sm ${muted}`}>{t("worldLivePromo.loyaltyQueueEmpty")}</p>
           ) : (
             <ul className="mt-2 space-y-1.5">
               {queue.map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 text-sm" data-testid="world-live-redemption-row">
-                  <span className={strong}>{r.perkLabel} <span className={muted}>({r.pointsCost} pts)</span></span>
+                  <span className={strong}>{r.perkLabel} <span className={muted}>{t("worldLivePromo.loyaltyRowCost", { cost: r.pointsCost })}</span></span>
                   <span className="flex gap-1.5">
                     {(["fulfilled", "declined"] as const).map((d) => (
                       <button
@@ -1504,7 +1547,7 @@ function LoyaltySection({ isLight, token }: { isLight: boolean; token: () => Pro
                         }}
                         data-testid={`world-live-redemption-${d}`}
                       >
-                        {d === "fulfilled" ? "Mark fulfilled" : "Decline (refunds points)"}
+                        {d === "fulfilled" ? t("worldLivePromo.loyaltyFulfilled") : t("worldLivePromo.loyaltyDecline")}
                       </button>
                     ))}
                   </span>
@@ -1521,6 +1564,7 @@ function LoyaltySection({ isLight, token }: { isLight: boolean; token: () => Pro
 /* ═══ #86 Guests & backstage (host) ═════════════════════════════════ */
 
 export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const token = useToken();
   const authHeaders = useAuthHeaders();
   const [stream, setStream] = useState<{ id: string; title: string } | null>(null);
@@ -1613,9 +1657,9 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
       setCopied(false);
       setLabel("");
       await refreshRoster();
-      setNote("Invite ready — share the link. It's shown once; a lost link is replaced by minting a new one (and revoking the old).");
+      setNote(t("worldLivePromo.inviteReadyNote"));
     } catch (e) {
-      setNote(plainErrorText(e, "That invite couldn't be made."));
+      setNote(plainErrorText(e, t("worldLivePromo.inviteMintFailed")));
     } finally { setMinting(false); }
   }
 
@@ -1625,9 +1669,9 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
       const data = await revokeGuestInvite(stream.id, invite.id, await token());
       setFreshLink(null);
       await refreshRoster();
-      setNote(data.sessions_ended ? `Link revoked — ${data.sessions_ended} guest session(s) ended with it.` : "Link revoked.");
+      setNote(data.sessions_ended ? t("worldLivePromo.inviteRevokeEnded", { count: data.sessions_ended }) : t("worldLivePromo.inviteRevokeDone"));
     } catch (e) {
-      setNote(plainErrorText(e, "That invite couldn't be revoked."));
+      setNote(plainErrorText(e, t("worldLivePromo.inviteRevokeFailed")));
     }
   }
 
@@ -1636,7 +1680,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
     try {
       const data = await promoteGuest(stream.id, guest.id, await token());
       setGuests((gs) => gs.map((g) => (g.id === guest.id ? data.guest : g)));
-    } catch (e) { setNote(plainErrorText(e, "That guest couldn't be brought on stage.")); }
+    } catch (e) { setNote(plainErrorText(e, t("worldLivePromo.guestPromoteFailed"))); }
   }
 
   async function handleDemote(guest: GuestSessionDto) {
@@ -1644,7 +1688,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
     try {
       const data = await demoteGuest(stream.id, guest.id, await token());
       setGuests((gs) => gs.map((g) => (g.id === guest.id ? data.guest : g)));
-    } catch (e) { setNote(plainErrorText(e, "That guest couldn't be moved backstage.")); }
+    } catch (e) { setNote(plainErrorText(e, t("worldLivePromo.guestDemoteFailed"))); }
   }
 
   async function handleRemove(guest: GuestSessionDto) {
@@ -1652,7 +1696,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
     try {
       await removeGuest(stream.id, guest.id, await token());
       setGuests((gs) => gs.filter((g) => g.id !== guest.id));
-    } catch (e) { setNote(plainErrorText(e, "That guest couldn't be removed.")); }
+    } catch (e) { setNote(plainErrorText(e, t("worldLivePromo.guestRemoveFailed"))); }
   }
 
   async function enterBackstage() {
@@ -1661,14 +1705,14 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
     try {
       local = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     } catch {
-      setNote("Camera/mic unavailable — you're in backstage without media; chat and guest controls still work.");
+      setNote(t("worldLivePromo.backstageCameraNote"));
     }
     localStreamRef.current = local;
     if (localVideoRef.current && local) localVideoRef.current.srcObject = local;
-    const t = await token();
+    const tok = await token();
     const client = new BackstageClient({
       streamId: stream.id,
-      token: t,
+      token: tok,
       events: {
         onPeers: (next) => { setPeers(next); void refreshRoster(); },
         onChat: (message) => setMessages((ms) => (ms.some((m) => m.id === message.id) ? ms : [...ms, message])),
@@ -1682,7 +1726,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
             return next;
           });
         },
-        onBackstageClosed: () => setNote("The stream ended — backstage is closed."),
+        onBackstageClosed: () => setNote(t("worldLivePromo.backstageClosedNote")),
       },
     });
     clientRef.current = client;
@@ -1690,7 +1734,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
     if (local) client.joinMedia();
     setInBackstage(true);
     try {
-      const data = await hostBackstageHistory(stream.id, t);
+      const data = await hostBackstageHistory(stream.id, tok);
       setMessages(data.messages);
     } catch { /* live frames still land */ }
   }
@@ -1703,7 +1747,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
       setMessages((ms) => (ms.some((m) => m.id === data.message.id) ? ms : [...ms, data.message]));
       setDraft("");
     } catch (e) {
-      setNote(plainErrorText(e, "That message couldn't be sent."));
+      setNote(plainErrorText(e, t("worldLivePromo.backstageSendFailed")));
     } finally { setSending(false); }
   }
 
@@ -1714,35 +1758,35 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-3" data-testid="world-live-backstage">
       <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-        <ShieldCheck className="h-4 w-4 text-[#d4af37]" /> Guests &amp; backstage
+        <ShieldCheck className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.backstageTitle")}
       </p>
       {!stream ? (
         <NativeEmptyState
           isLight={isLight}
-          message="No live stream, no backstage"
-          detail="Backstage hangs off your live stream. Go live in the studio above and this panel wakes up — invite links, the guest roster and the private backstage chat all live here."
+          message={t("worldLivePromo.backstageNoStream")}
+          detail={t("worldLivePromo.backstageNoStreamDetail")}
         />
       ) : (
         <>
-          <p className={`text-sm ${muted}`}>Live now: <b className={strong}>{stream.title}</b>. Guests join backstage first — private greenroom, the audience sees and hears none of it — and only reach the audience when you bring them on stage.</p>
+          <p className={`text-sm ${muted}`}>{t("worldLivePromo.backstageLiveNowBefore")} <b className={strong}>{stream.title}</b>{t("worldLivePromo.backstageLiveNowAfter")}</p>
 
           <div className="flex flex-wrap items-end gap-2">
             <label className="min-w-40 flex-1">
-              <span className={`text-xs font-bold ${muted}`}>Invite label (optional)</span>
-              <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Tonight's co-host" maxLength={60} className={inputCls(isLight)} data-testid="world-live-invite-label" />
+              <span className={`text-xs font-bold ${muted}`}>{t("worldLivePromo.inviteLabelLabel")}</span>
+              <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("worldLivePromo.inviteLabelPlaceholder")} maxLength={60} className={inputCls(isLight)} data-testid="world-live-invite-label" />
             </label>
             <label>
-              <span className={`text-xs font-bold ${muted}`}>Expires</span>
+              <span className={`text-xs font-bold ${muted}`}>{t("worldLivePromo.inviteExpiresLabel")}</span>
               <select value={expiry} onChange={(e) => setExpiry(e.target.value)} className={`${selectCls(isLight)} block`} data-testid="world-live-invite-expiry">
-                {INVITE_EXPIRY_OPTIONS.map((o) => <option key={o.minutes} value={o.minutes}>{o.label}</option>)}
+                {INVITE_EXPIRY_OPTIONS.map((o) => <option key={o.minutes} value={o.minutes}>{t(EXPIRY_LABEL_KEYS[o.minutes] ?? "worldLivePromo.expiry240")}</option>)}
               </select>
             </label>
             <label className="w-28">
-              <span className={`text-xs font-bold ${muted}`}>Max joins</span>
-              <input value={maxJoins} onChange={(e) => setMaxJoins(e.target.value.replace(/[^0-9]/g, ""))} placeholder="No cap" inputMode="numeric" className={inputCls(isLight)} data-testid="world-live-invite-maxjoins" />
+              <span className={`text-xs font-bold ${muted}`}>{t("worldLivePromo.inviteMaxJoinsLabel")}</span>
+              <input value={maxJoins} onChange={(e) => setMaxJoins(e.target.value.replace(/[^0-9]/g, ""))} placeholder={t("worldLivePromo.inviteMaxJoinsPlaceholder")} inputMode="numeric" className={inputCls(isLight)} data-testid="world-live-invite-maxjoins" />
             </label>
             <button type="button" onClick={() => void handleMint()} disabled={minting} className={goldBtn} data-testid="world-live-invite-mint">
-              {minting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />} Mint invite link
+              {minting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />} {t("worldLivePromo.inviteMint")}
             </button>
           </div>
 
@@ -1755,7 +1799,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
                 onClick={() => { void navigator.clipboard?.writeText(freshLink).then(() => setCopied(true)).catch(() => undefined); }}
                 data-testid="world-live-invite-copy"
               >
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} {copied ? "Copied" : "Copy link"}
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} {copied ? t("worldLivePromo.copied") : t("worldLivePromo.copyLink")}
               </button>
             </div>
           )}
@@ -1764,10 +1808,10 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
             <ul className="space-y-1.5">
               {invites.filter((i) => !i.revoked_at).map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center gap-2 text-sm" data-testid="world-live-invite-row">
-                  <span className={strong}>{i.label ?? "Guest invite"}</span>
-                  <span className={muted}>…{i.token_hint} · {i.join_count} joined{i.max_joins ? ` of ${i.max_joins}` : ""}{i.expires_at ? ` · expires ${new Date(i.expires_at).toLocaleString()}` : ""}</span>
+                  <span className={strong}>{i.label ?? t("worldLivePromo.inviteFallbackLabel")}</span>
+                  <span className={muted}>{t("worldLivePromo.inviteMeta", { hint: i.token_hint, count: i.join_count })}{i.max_joins ? t("worldLivePromo.inviteMetaOf", { max: i.max_joins }) : ""}{i.expires_at ? t("worldLivePromo.inviteMetaExpires", { date: new Date(i.expires_at).toLocaleString(i18n.language) }) : ""}</span>
                   <button type="button" className={chipBtn(isLight)} onClick={() => void handleRevoke(i)} data-testid="world-live-invite-revoke">
-                    <Ban className="h-3.5 w-3.5" /> Revoke
+                    <Ban className="h-3.5 w-3.5" /> {t("worldLivePromo.revoke")}
                   </button>
                 </li>
               ))}
@@ -1775,28 +1819,28 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
           )}
 
           <div>
-            <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>In the room ({roster.length})</p>
+            <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>{t("worldLivePromo.roomTitle", { count: roster.length })}</p>
             {roster.length === 0 ? (
-              <p className={`mt-1 text-sm ${muted}`}>No guests yet — share an invite link and they&rsquo;ll land here.</p>
+              <p className={`mt-1 text-sm ${muted}`}>{t("worldLivePromo.roomEmpty")}</p>
             ) : (
               <ul className="mt-1.5 space-y-1.5">
                 {roster.map((g) => (
                   <li key={g.id} className="flex flex-wrap items-center gap-2 text-sm" data-testid="world-live-guest-row">
                     <span className={strong}>{g.displayName}</span>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${g.onStage ? "bg-red-500/15 text-red-300" : "bg-white/10 text-white/60"}`}>
-                      {g.onStage ? "On stage" : "Backstage"}
+                      {g.onStage ? t("worldLivePromo.guestOnStageBadge") : t("worldLivePromo.guestBackstageBadge")}
                     </span>
                     {g.onStage ? (
                       <button type="button" className={chipBtn(isLight)} onClick={() => void handleDemote(guests.find((x) => x.id === g.id)!)} data-testid="world-live-guest-demote">
-                        <ArrowDownCircle className="h-3.5 w-3.5" /> Back to backstage
+                        <ArrowDownCircle className="h-3.5 w-3.5" /> {t("worldLivePromo.guestDemote")}
                       </button>
                     ) : (
                       <button type="button" className={chipBtn(isLight)} onClick={() => void handlePromote(guests.find((x) => x.id === g.id)!)} data-testid="world-live-guest-promote">
-                        <ArrowUpCircle className="h-3.5 w-3.5" /> Bring on stage
+                        <ArrowUpCircle className="h-3.5 w-3.5" /> {t("worldLivePromo.guestPromote")}
                       </button>
                     )}
                     <button type="button" className={chipBtn(isLight)} onClick={() => void handleRemove(guests.find((x) => x.id === g.id)!)} data-testid="world-live-guest-remove">
-                      <UserX className="h-3.5 w-3.5" /> Remove
+                      <UserX className="h-3.5 w-3.5" /> {t("worldLivePromo.remove")}
                     </button>
                   </li>
                 ))}
@@ -1807,23 +1851,23 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
           <div>
             {!inBackstage ? (
               <button type="button" onClick={() => void enterBackstage()} className={goldBtn} data-testid="world-live-backstage-enter">
-                <Video className="h-3.5 w-3.5" /> Step into backstage
+                <Video className="h-3.5 w-3.5" /> {t("worldLivePromo.backstageEnter")}
               </button>
             ) : (
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`text-sm ${muted}`}>You&rsquo;re backstage — {peers.length} peer{peers.length === 1 ? "" : "s"} connected.</span>
+                  <span className={`text-sm ${muted}`}>{peers.length === 1 ? t("worldLivePromo.backstagePeersOne", { count: peers.length }) : t("worldLivePromo.backstagePeersMany", { count: peers.length })}</span>
                   <button type="button" onClick={leaveBackstage} className={chipBtn(isLight)} data-testid="world-live-backstage-leave">
-                    <LogOut className="h-3.5 w-3.5" /> Leave backstage
+                    <LogOut className="h-3.5 w-3.5" /> {t("worldLivePromo.backstageLeave")}
                   </button>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black">
                     <video ref={localVideoRef} autoPlay playsInline muted className="aspect-video w-full object-cover" data-testid="world-live-backstage-local" />
-                    <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold text-white">You (host)</span>
+                    <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold text-white">{t("worldLivePromo.youHost")}</span>
                   </div>
                   {[...remoteStreams.entries()].map(([key, s]) => (
-                    <RemoteVideo key={key} stream={s} label={peers.find((p) => p.guestSessionId === key)?.displayName ?? "Guest"} />
+                    <RemoteVideo key={key} stream={s} label={peers.find((p) => p.guestSessionId === key)?.displayName ?? t("worldLivePromo.guestFallbackName")} />
                   ))}
                 </div>
                 <BackstageChat isLight={isLight} messages={messages} draft={draft} setDraft={setDraft} onSend={() => void handleSend()} sending={sending} testid="world-live-backstage-chat" />
@@ -1845,6 +1889,7 @@ export function LiveBackstageDesk({ isLight }: { isLight: boolean }) {
 /* ═══ #87 Join a stream as a guest ══════════════════════════════════ */
 
 export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const [pasted, setPasted] = useState("");
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [info, setInfo] = useState<InviteInfoDto | null>(null);
@@ -1890,7 +1935,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
       local = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       setMediaNote(null);
     } catch {
-      setMediaNote("Camera/mic couldn't start — you're backstage without media; you can still chat, and the host can still bring you on stage.");
+      setMediaNote(t("worldLivePromo.guestMediaNote"));
     }
     localStreamRef.current = local;
     if (localVideoRef.current && local) localVideoRef.current.srcObject = local;
@@ -1940,7 +1985,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
       if (!tok) return;
       try {
         const beat = await guestHeartbeat(tok);
-        if (beat.stream_status !== "live") endWith("That stream has ended — thanks for being part of the show.");
+        if (beat.stream_status !== "live") endWith(t("worldLivePromo.guestHeartbeatEnded"));
         else setSession((s) => (s ? { ...s, state: beat.state } : s));
       } catch (e) {
         if (e instanceof GuestApiError && (e.status === 401 || e.status === 404)) endWith(e.message);
@@ -1956,7 +2001,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
 
   async function checkInvite() {
     const tok = extractInviteToken(pasted);
-    if (!tok) { setCheckError("Paste a guest invite link (or its token) — it looks like …/live/guest/…"); return; }
+    if (!tok) { setCheckError(t("worldLivePromo.guestPasteError")); return; }
     setChecking(true);
     setCheckError(null);
     setInfo(null);
@@ -1966,7 +2011,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
       setInviteToken(tok);
       setInfo(data);
       if (data.stream.status !== "live") {
-        setEndedReason("That stream has ended — the backstage is closed.");
+        setEndedReason(t("worldLivePromo.guestStreamEnded"));
         return;
       }
       /* Resume a stored pass after a refresh, like the guest page. */
@@ -1981,7 +2026,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
         } catch { /* a dead stored pass just means joining fresh */ }
       }
     } catch (e) {
-      setCheckError(plainErrorText(e, "That invite couldn't be checked."));
+      setCheckError(plainErrorText(e, t("worldLivePromo.guestCheckFailed")));
     } finally { setChecking(false); }
   }
 
@@ -1994,7 +2039,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
       try { sessionStorage.setItem(guestStorageKey(inviteToken), data.session_token); } catch { /* private mode */ }
       await startBackstage(data.session_token, data.session);
     } catch (e) {
-      setNote(plainErrorText(e, "Backstage couldn't let you in."));
+      setNote(plainErrorText(e, t("worldLivePromo.guestJoinFailed")));
     } finally { setJoining(false); }
   }
 
@@ -2004,7 +2049,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
       try { sessionStorage.removeItem(guestStorageKey(inviteToken)); } catch { /* private mode */ }
     }
     if (tok) await guestLeave(tok).catch(() => undefined);
-    endWith("You left backstage.");
+    endWith(t("worldLivePromo.guestLeft"));
   }
 
   async function handleSend() {
@@ -2016,7 +2061,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
       setMessages((ms) => (ms.some((m) => m.id === data.message.id) ? ms : [...ms, data.message]));
       setDraft("");
     } catch (e) {
-      setNote(plainErrorText(e, "That message couldn't be sent."));
+      setNote(plainErrorText(e, t("worldLivePromo.backstageSendFailed")));
     } finally { setSending(false); }
   }
 
@@ -2026,18 +2071,18 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-3" data-testid="world-live-guest-join">
       <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-        <UserPlus className="h-4 w-4 text-[#d4af37]" /> Join a stream as a guest
+        <UserPlus className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.guestTitle")}
       </p>
       <p className={`text-sm ${muted}`}>
-        Got a guest invite from another creator? Paste the link here — you step into THEIR backstage as a guest participant (your member account stays yours; the pass is the invite&rsquo;s, exactly like the guest page). The audience only sees you if that host brings you on stage.
+        {t("worldLivePromo.guestIntro")}
       </p>
 
       {!joined && (
         <>
           <div className="flex flex-wrap gap-2">
-            <input value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="Paste the invite link — …/live/guest/…" className={`${inputCls(isLight)} min-w-56 flex-1`} data-testid="world-live-join-paste" aria-label="Guest invite link" />
+            <input value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder={t("worldLivePromo.guestPastePlaceholder")} className={`${inputCls(isLight)} min-w-56 flex-1`} data-testid="world-live-join-paste" aria-label={t("worldLivePromo.guestPasteAria")} />
             <button type="button" onClick={() => void checkInvite()} disabled={checking || !pasted.trim()} className={goldBtn} data-testid="world-live-join-check">
-              {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} Check invite
+              {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} {t("worldLivePromo.guestCheck")}
             </button>
           </div>
           {checkError && <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{checkError}</p>}
@@ -2045,13 +2090,13 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
           {info && !endedReason && (
             <div className="space-y-2" data-testid="world-live-join-info">
               <p className={`text-sm ${strong}`}>
-                <b>{info.host.display_name}</b> invited you to <b>“{info.stream.title}”</b>
-                {info.invite.label ? <span className={muted}> · {info.invite.label}</span> : null}
+                <b>{info.host.display_name}</b> {t("worldLivePromo.guestInvitedMiddle")} <b>“{info.stream.title}”</b>
+                {info.invite.label ? <span className={muted}>{t("worldLivePromo.guestInvitedLabel", { label: info.invite.label })}</span> : null}
               </p>
               <div className="flex flex-wrap gap-2">
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="The name the host will see" maxLength={40} className={`${inputCls(isLight)} min-w-48 flex-1`} data-testid="world-live-join-name" aria-label="The name the host will see" />
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("worldLivePromo.guestNameField")} maxLength={40} className={`${inputCls(isLight)} min-w-48 flex-1`} data-testid="world-live-join-name" aria-label={t("worldLivePromo.guestNameField")} />
                 <button type="button" onClick={() => void handleJoin()} disabled={joining || !guestNameReady(name)} className={goldBtn} data-testid="world-live-join-join">
-                  {joining ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />} Step into backstage
+                  {joining ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />} {t("worldLivePromo.backstageEnter")}
                 </button>
               </div>
             </div>
@@ -2064,21 +2109,21 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
         <div className="space-y-2" data-testid="world-live-guest-room">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase ${session.state === "on_stage" ? "bg-red-500/15 text-red-300" : "bg-white/10 text-white/60"}`}>
-              {session.state === "on_stage" ? "You're on stage — the audience can see and hear you" : "Backstage — the audience can't see or hear you yet"}
+              {session.state === "on_stage" ? t("worldLivePromo.guestOnStageBadgeLong") : t("worldLivePromo.guestBackstageBadgeLong")}
             </span>
-            <span className={`text-sm ${muted}`}>{peers.length} peer{peers.length === 1 ? "" : "s"} backstage</span>
+            <span className={`text-sm ${muted}`}>{peers.length === 1 ? t("worldLivePromo.guestPeersOne", { count: peers.length }) : t("worldLivePromo.guestPeersMany", { count: peers.length })}</span>
             <button type="button" onClick={() => void handleLeave()} className={chipBtn(isLight)} data-testid="world-live-guest-leave">
-              <LogOut className="h-3.5 w-3.5" /> Leave backstage
+              <LogOut className="h-3.5 w-3.5" /> {t("worldLivePromo.backstageLeave")}
             </button>
           </div>
           {mediaNote && <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{mediaNote}</p>}
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black">
               <video ref={localVideoRef} autoPlay playsInline muted className="aspect-video w-full object-cover" data-testid="world-live-guest-local" />
-              <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold text-white">You (guest)</span>
+              <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold text-white">{t("worldLivePromo.youGuest")}</span>
             </div>
             {[...remoteStreams.entries()].map(([peerId, s]) => (
-              <RemoteVideo key={peerId} stream={s} label={peers.find((p) => p.peerId === peerId)?.displayName ?? "Backstage"} />
+              <RemoteVideo key={peerId} stream={s} label={peers.find((p) => p.peerId === peerId)?.displayName ?? t("worldLivePromo.guestBackstageBadge")} />
             ))}
           </div>
           <BackstageChat isLight={isLight} messages={messages} draft={draft} setDraft={setDraft} onSend={() => void handleSend()} sending={sending} testid="world-live-guest-chat" />
@@ -2093,6 +2138,7 @@ export function LiveGuestJoinDesk({ isLight }: { isLight: boolean }) {
 /* ═══ #88 Stream scheduling / management ══════════════════════════ */
 
 export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useAuthHeaders();
   const [view, setView] = useState<{ upcoming: ScheduledStreamRow[]; recent: ScheduledStreamRow[] } | null>(null);
   const [failed, setFailed] = useState(false);
@@ -2123,7 +2169,7 @@ export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
     setTitle(row.title);
     setGame(row.game ?? "");
     setWhen(toLocalInputValue(row.scheduledFor));
-    setNote("Editing — save posts the updated plan first, then cancels the old one, so a failed save never loses your stream.");
+    setNote(t("worldLivePromo.schedEditNote"));
   }
 
   function clearForm() {
@@ -2135,7 +2181,7 @@ export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
 
   async function handleSave() {
     if (!scheduleDraftReady(title, game)) {
-      setNote("Give the stream a title (the game line is optional).");
+      setNote(t("worldLivePromo.schedTitleNeeded"));
       return;
     }
     setSaving(true);
@@ -2152,17 +2198,17 @@ export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "That stream couldn't be scheduled."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldLivePromo.schedSaveFailed")));
       if (editingId) {
         await fetch(SCHEDULED_STREAM_PATH(editingId), { method: "DELETE", headers: await authHeaders() });
-        setNote("Stream updated — the new plan is below and the old one is cancelled.");
+        setNote(t("worldLivePromo.schedUpdatedNote"));
       } else {
-        setNote("Scheduled — it shows in your upcoming streams here and on the website's Go Live page.");
+        setNote(t("worldLivePromo.schedCreatedNote"));
       }
       clearForm();
       await load();
     } catch (e) {
-      setNote(plainErrorText(e, "That stream couldn't be scheduled."));
+      setNote(plainErrorText(e, t("worldLivePromo.schedSaveFailed")));
     } finally {
       setSaving(false);
     }
@@ -2174,7 +2220,7 @@ export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
     try {
       await fetch(SCHEDULED_STREAM_PATH(row.id), { method: "DELETE", headers: await authHeaders() });
       if (editingId === row.id) clearForm();
-      setNote(`"${row.title}" is cancelled.`);
+      setNote(t("worldLivePromo.streamCancelledNote", { title: row.title }));
       await load();
     } finally {
       setCancellingId(null);
@@ -2187,50 +2233,50 @@ export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-3" data-testid="world-live-schedule">
       <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-        <CalendarPlus className="h-4 w-4 text-[#d4af37]" /> Schedule a stream
+        <CalendarPlus className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.schedTitle")}
       </p>
-      <p className={`text-sm ${muted}`}>Plan ahead on the same list the website&rsquo;s Go Live page keeps — schedule here and it shows there, and the other way round.</p>
+      <p className={`text-sm ${muted}`}>{t("worldLivePromo.schedIntro")}</p>
       <div className="grid gap-2 md:grid-cols-3">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Stream title" maxLength={200} className={inputCls(isLight)} data-testid="world-live-sched-title" aria-label="Stream title" />
-        <input value={game} onChange={(e) => setGame(e.target.value)} placeholder="Game / content (optional)" maxLength={100} className={inputCls(isLight)} data-testid="world-live-sched-game" aria-label="Game or content (optional)" />
-        <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className={inputCls(isLight)} data-testid="world-live-sched-when" aria-label="Scheduled start time" />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("worldLivePromo.streamTitleField")} maxLength={200} className={inputCls(isLight)} data-testid="world-live-sched-title" aria-label={t("worldLivePromo.streamTitleField")} />
+        <input value={game} onChange={(e) => setGame(e.target.value)} placeholder={t("worldLivePromo.schedGamePlaceholder")} maxLength={100} className={inputCls(isLight)} data-testid="world-live-sched-game" aria-label={t("worldLivePromo.schedGameAria")} />
+        <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className={inputCls(isLight)} data-testid="world-live-sched-when" aria-label={t("worldLivePromo.schedWhenAria")} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => void handleSave()} disabled={saving || !scheduleDraftReady(title, game)} className={goldBtn} data-testid="world-live-sched-save">
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarPlus className="h-3.5 w-3.5" />}
-          {editingId ? "Save updated stream" : "Schedule stream"}
+          {editingId ? t("worldLivePromo.schedSaveEdit") : t("worldLivePromo.schedSaveNew")}
         </button>
         {editingId && (
           <button type="button" onClick={clearForm} className={chipBtn(isLight)} data-testid="world-live-sched-edit-cancel">
-            <X className="h-3.5 w-3.5" /> Stop editing
+            <X className="h-3.5 w-3.5" /> {t("worldLivePromo.schedStopEditing")}
           </button>
         )}
       </div>
       {note && <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-sched-note">{note}</p>}
 
       {failed ? (
-        <p className={`text-sm ${muted}`}>Your streams couldn&rsquo;t load. <button type="button" className="font-bold underline" onClick={() => void load()}>Try again</button></p>
+        <p className={`text-sm ${muted}`}>{t("worldLivePromo.schedLoadFailed")} <button type="button" className="font-bold underline" onClick={() => void load()}>{t("worldLivePromo.tryAgain")}</button></p>
       ) : view === null ? (
-        <NativeLoadingState isLight={isLight} message="Loading your streams…" />
+        <NativeLoadingState isLight={isLight} message={t("worldLivePromo.schedLoading")} />
       ) : (
         <>
-          <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>Upcoming</p>
+          <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>{t("worldLivePromo.schedUpcoming")}</p>
           {view.upcoming.length === 0 ? (
-            <p className={`text-sm ${muted}`}>No streams scheduled yet — set a date above and your next stream will show up here.</p>
+            <p className={`text-sm ${muted}`}>{t("worldLivePromo.schedEmpty")}</p>
           ) : (
             <ul className="space-y-1.5">
               {view.upcoming.map((s) => (
                 <li key={s.id} className="flex flex-wrap items-center gap-2 text-sm" data-testid="world-live-sched-row">
                   <span className={strong}>{s.title}</span>
                   <span className={muted}>
-                    {s.scheduledFor ? new Date(s.scheduledFor).toLocaleString() : "No date set"}
+                    {s.scheduledFor ? new Date(s.scheduledFor).toLocaleString(i18n.language) : t("worldLivePromo.schedNoDate")}
                     {s.game ? ` · ${s.game}` : ""}
                   </span>
                   <button type="button" className={chipBtn(isLight)} onClick={() => startEdit(s)} data-testid="world-live-sched-edit">
-                    <Pencil className="h-3.5 w-3.5" /> Edit
+                    <Pencil className="h-3.5 w-3.5" /> {t("worldLivePromo.schedEdit")}
                   </button>
                   <button type="button" className={chipBtn(isLight)} disabled={cancellingId === s.id} onClick={() => void handleCancel(s)} data-testid="world-live-sched-cancel">
-                    {cancellingId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Cancel stream
+                    {cancellingId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} {t("worldLivePromo.schedCancel")}
                   </button>
                 </li>
               ))}
@@ -2238,13 +2284,13 @@ export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
           )}
           {view.recent.length > 0 && (
             <>
-              <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>Recent</p>
+              <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>{t("worldLivePromo.schedRecent")}</p>
               <ul className="space-y-1.5">
                 {view.recent.map((s) => (
                   <li key={s.id} className="flex flex-wrap items-center gap-2 text-sm" data-testid="world-live-sched-recent-row">
                     <span className={strong}>{s.title}</span>
                     <span className={muted}>
-                      {s.endedAt ? new Date(s.endedAt).toLocaleDateString() : ""}
+                      {s.endedAt ? new Date(s.endedAt).toLocaleDateString(i18n.language) : ""}
                       {s.game ? ` · ${s.game}` : ""}
                     </span>
                   </li>
@@ -2261,6 +2307,7 @@ export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
 /* ═══ #89 Stream Controller deck ════════════════════════════════════ */
 
 export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [, setTick] = useState(0);
   const clientRef = useRef<ControllerRemoteClient | null>(null);
@@ -2364,26 +2411,27 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
   };
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
+  const ctrlStrings = liveControllerStrings(t);
 
   return (
     <div className="space-y-3" data-testid="world-live-controller">
       <div className="flex flex-wrap items-center gap-2">
         <span className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-          <Gamepad2 className="h-4 w-4 text-[#d4af37]" /> Stream Controller
+          <Gamepad2 className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.ctrlTitle")}
         </span>
         <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${muted}`} role="status">
           <span className={`inline-block h-2 w-2 rounded-full ${stageConnected && socketUp ? (state?.live ? "animate-pulse bg-red-500" : "bg-emerald-500") : "bg-white/30"}`} />
-          {controllerStatusLine(view)}
+          {controllerStatusLine(view, ctrlStrings)}
         </span>
       </div>
       <p className={`text-sm ${muted}`}>
-        The same deck as the phone remote ({CONTROLLER_WS_PATH}) — it pairs with the studio signed in as you, nobody else&rsquo;s, and every button shows the studio&rsquo;s confirmed state, never a guess.
+        {t("worldLivePromo.ctrlIntro", { path: CONTROLLER_WS_PATH })}
       </p>
       <div className={`rounded-2xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-[#14100a]" : "border-white/10 bg-[#14100a]"}`}>
         <StreamDeck
           state={state}
           canControl={stageConnected && socketUp}
-          unavailableNote={controllerUnavailableNote(view)}
+          unavailableNote={controllerUnavailableNote(view, ctrlStrings)}
           isPending={(cmd, sceneId) => client?.isPending(cmd, sceneId) ?? false}
           notice={client?.notice ?? null}
           onCommand={(cmd, args) => { client?.send(cmd, args); }}
@@ -2536,6 +2584,7 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
 /* ═══ #90 Live-watch parity — the audience side of the hall ═════════ */
 
 export function LiveWatchDesk({ isLight, screen }: { isLight: boolean; screen: { mode: string; streamId: string | null } | null }) {
+  const { t } = useTranslation();
   const streamId = watchStreamIdFromScreen(screen);
   const [stream, setStream] = useState<WatchStreamView | null>(null);
   const [failed, setFailed] = useState(false);
@@ -2553,7 +2602,7 @@ export function LiveWatchDesk({ isLight, screen }: { isLight: boolean; screen: {
     try {
       const res = await fetch(LIVE_STREAM_PATH(streamId));
       if (!res.ok) throw new Error("watch");
-      setStream(normalizeWatchStream(await res.json()));
+      setStream(normalizeWatchStream(await res.json(), t("worldLivePromo.liveStreamFallback"), t("worldLivePromo.creatorFallback")));
       setFailed(false);
     } catch {
       setFailed(true);
@@ -2615,12 +2664,12 @@ export function LiveWatchDesk({ isLight, screen }: { isLight: boolean; screen: {
     return (
       <div className="space-y-2" data-testid="world-live-watch">
         <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-          <Users className="h-4 w-4 text-[#d4af37]" /> Watching the hall
+          <Users className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.watchTitle")}
         </p>
         <NativeEmptyState
           isLight={isLight}
-          message="No live show on the big screen right now"
-          detail="When a stream takes the stage, its stream chat, the streamer's follow rail and the on-stage guests land here — the same watch setup as the website's live page, without leaving the hall."
+          message={t("worldLivePromo.watchEmpty")}
+          detail={t("worldLivePromo.watchEmptyDetail")}
         />
       </div>
     );
@@ -2632,18 +2681,18 @@ export function LiveWatchDesk({ isLight, screen }: { isLight: boolean; screen: {
     <div className="space-y-3" data-testid="world-live-watch">
       <div className="flex flex-wrap items-center gap-2">
         <span className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-          <Users className="h-4 w-4 text-[#d4af37]" /> Watching: {stream?.title ?? "the live show"}
+          <Users className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.watchWatching", { title: stream?.title ?? t("worldLivePromo.watchDefaultTitle") })}
         </span>
         {isLive && (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-300">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> LIVE · {stream?.viewerCount ?? 0} watching
+            <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> {t("worldLivePromo.liveWatchingBadge", { count: stream?.viewerCount ?? 0 })}
           </span>
         )}
       </div>
       {failed ? (
-        <p className={`text-sm ${muted}`}>The stream&rsquo;s details couldn&rsquo;t load — the show itself is on the big screen. <button type="button" className="font-bold underline" onClick={() => void load()}>Try again</button></p>
+        <p className={`text-sm ${muted}`}>{t("worldLivePromo.watchLoadFailed")} <button type="button" className="font-bold underline" onClick={() => void load()}>{t("worldLivePromo.tryAgain")}</button></p>
       ) : stream && !isLive ? (
-        <p className={`text-sm ${muted}`}>This stream has ended — chat below is its replay.</p>
+        <p className={`text-sm ${muted}`}>{t("worldLivePromo.watchEnded")}</p>
       ) : null}
 
       {creator && (
@@ -2657,7 +2706,7 @@ export function LiveWatchDesk({ isLight, screen }: { isLight: boolean; screen: {
           )}
           <span className="min-w-0">
             <span className={`block font-bold ${strong}`}>{creator.displayName}</span>
-            <span className={`block text-xs ${muted}`}>The streamer on the big screen</span>
+            <span className={`block text-xs ${muted}`}>{t("worldLivePromo.watchStreamerCaption")}</span>
           </span>
           <FollowButton profileId={creator.id} initialFollowing={followStates[creator.id]} />
           <PushAlertsToggle />
@@ -2666,11 +2715,11 @@ export function LiveWatchDesk({ isLight, screen }: { isLight: boolean; screen: {
 
       {onStage.length > 0 && (
         <div className="flex flex-wrap items-center gap-2" data-testid="world-live-watch-onstage">
-          <span className={`text-xs font-bold uppercase tracking-wider ${muted}`}>On stage</span>
+          <span className={`text-xs font-bold uppercase tracking-wider ${muted}`}>{t("worldLivePromo.watchOnStage")}</span>
           {onStage.map((name) => (
             <span key={name} className="inline-flex items-center gap-1.5 rounded-full border border-red-400/40 bg-red-500/10 px-3 py-1 text-xs font-bold text-red-200">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
-              {name} · Guest
+              {t("worldLivePromo.watchGuestChip", { name })}
             </span>
           ))}
         </div>
@@ -3266,6 +3315,7 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
 /* ═══ #91 Premiere / broadcast scheduling ═══════════════════════════ */
 
 export function LivePremiereDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const { getAccessToken } = useAuth();
   const authHeaders = useAuthHeaders();
   const [clips, setClips] = useState<FinishedClipOption[] | null>(null);
@@ -3294,7 +3344,7 @@ export function LivePremiereDesk({ isLight }: { isLight: boolean }) {
       try {
         const res = await fetch(GENERATED_CLIPS_PATH, { headers: await authHeaders() });
         if (!res.ok) throw new Error("clips");
-        setClips(normalizeFinishedClips(await res.json()));
+        setClips(normalizeFinishedClips(await res.json(), t("worldLivePromo.untitledVideo")));
       } catch {
         setClipsFailed(true);
         setClips([]);
@@ -3318,12 +3368,12 @@ export function LivePremiereDesk({ isLight }: { isLight: boolean }) {
         durationSeconds: Number(duration),
         scheduledAt: new Date(when).toISOString(),
       });
-      setNote("Premiere scheduled — at the start time it plays for everyone together, with live chat, right on its premiere page.");
+      setNote(t("worldLivePromo.premiereScheduledNote"));
       setTitle("");
       setWhen("");
       await loadUpcoming();
     } catch (err) {
-      setNote(plainErrorText(err, "That premiere couldn't be scheduled."));
+      setNote(plainErrorText(err, t("worldLivePromo.premiereSaveFailed")));
     } finally {
       setSaving(false);
     }
@@ -3334,10 +3384,10 @@ export function LivePremiereDesk({ isLight }: { isLight: boolean }) {
     setNote(null);
     try {
       await reachApi.cancelPremiere(getAccessToken, p.id);
-      setNote(`"${p.title}" is cancelled.`);
+      setNote(t("worldLivePromo.streamCancelledNote", { title: p.title }));
       await loadUpcoming();
     } catch (err) {
-      setNote(plainErrorText(err, "That premiere couldn't be cancelled."));
+      setNote(plainErrorText(err, t("worldLivePromo.premiereCancelFailed")));
     } finally {
       setCancellingId(null);
     }
@@ -3353,51 +3403,51 @@ export function LivePremiereDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-3" data-testid="world-live-premiere">
       <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-        <Clapperboard className="h-4 w-4 text-[#d4af37]" /> Schedule a premiere
+        <Clapperboard className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.premiereTitle")}
       </p>
-      <p className={`text-sm ${muted}`}>A finished video, shown first at a set time — countdown, live chat, everyone in sync. The same premiere the website&rsquo;s Broadcast page schedules; after it ends it&rsquo;s a normal watch page. It is always labelled a premiere, never dressed up as a live camera broadcast.</p>
+      <p className={`text-sm ${muted}`}>{t("worldLivePromo.premiereIntro")}</p>
       {clipsFailed && (
-        <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>Your finished videos couldn&rsquo;t load, so a premiere can&rsquo;t be scheduled right now.</p>
+        <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{t("worldLivePromo.premiereClipsFailed")}</p>
       )}
       <div className="grid gap-2 md:grid-cols-2">
-        <select value={clipId} onChange={(e) => setClipId(e.target.value)} className={selectCls(isLight)} data-testid="world-live-premiere-clip" aria-label="Pick a finished video">
-          <option value="">Pick a finished video…</option>
+        <select value={clipId} onChange={(e) => setClipId(e.target.value)} className={selectCls(isLight)} data-testid="world-live-premiere-clip" aria-label={t("worldLivePromo.premiereClipAria")}>
+          <option value="">{t("worldLivePromo.premiereClipPlaceholder")}</option>
           {(clips ?? []).map((c) => (
             <option key={c.id} value={c.id}>{c.title}</option>
           ))}
         </select>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Premiere title" maxLength={200} className={inputCls(isLight)} data-testid="world-live-premiere-title" aria-label="Premiere title" />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("worldLivePromo.premiereTitleField")} maxLength={200} className={inputCls(isLight)} data-testid="world-live-premiere-title" aria-label={t("worldLivePromo.premiereTitleField")} />
         <label className={`text-xs ${muted}`}>
-          Video length (seconds)
+          {t("worldLivePromo.premiereDurationLabel")}
           <input type="number" min={10} max={14400} value={duration} onChange={(e) => setDuration(e.target.value)} className={`${inputCls(isLight)} mt-1`} data-testid="world-live-premiere-duration" />
         </label>
         <label className={`text-xs ${muted}`}>
-          Starts at
+          {t("worldLivePromo.premiereStartsLabel")}
           <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className={`${inputCls(isLight)} mt-1`} data-testid="world-live-premiere-when" />
         </label>
       </div>
       <button type="button" onClick={() => void handleSchedule()} disabled={saving || !draftReady} className={goldBtn} data-testid="world-live-premiere-save">
-        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarClock className="h-3.5 w-3.5" />} Schedule premiere
+        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarClock className="h-3.5 w-3.5" />} {t("worldLivePromo.premiereSave")}
       </button>
       {note && <p className={`text-sm ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-premiere-note">{note}</p>}
 
-      <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>Upcoming premieres</p>
+      <p className={`text-xs font-black uppercase tracking-wider ${muted}`}>{t("worldLivePromo.premiereUpcoming")}</p>
       {upcoming === null ? (
-        <NativeLoadingState isLight={isLight} message="Loading premieres…" />
+        <NativeLoadingState isLight={isLight} message={t("worldLivePromo.premiereLoading")} />
       ) : upcoming.length === 0 ? (
-        <p className={`text-sm ${muted}`}>No premieres coming up — schedule the first one above.</p>
+        <p className={`text-sm ${muted}`}>{t("worldLivePromo.premiereEmpty")}</p>
       ) : (
         <ul className="space-y-1.5">
           {upcoming.map((p) => (
             <li key={p.id} className="flex flex-wrap items-center gap-2 text-sm" data-testid="world-live-premiere-row">
               <span className={strong}>{p.title}</span>
               <span className={muted}>
-                {p.phase === "live" ? "playing now" : p.scheduledAt ? new Date(p.scheduledAt).toLocaleString() : ""}
-                {p.creator ? ` · by ${p.creator.displayName}` : ""}
+                {p.phase === "live" ? t("worldLivePromo.premierePlayingNow") : p.scheduledAt ? new Date(p.scheduledAt).toLocaleString(i18n.language) : ""}
+                {p.creator ? t("worldLivePromo.premiereBy", { name: p.creator.displayName }) : ""}
               </span>
               {isOwnPremiere(p, myProfileId) && p.phase === "scheduled" && (
                 <button type="button" className={chipBtn(isLight)} disabled={cancellingId === p.id} onClick={() => void handleCancel(p)} data-testid="world-live-premiere-cancel">
-                  {cancellingId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />} Cancel premiere
+                  {cancellingId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />} {t("worldLivePromo.premiereCancel")}
                 </button>
               )}
             </li>

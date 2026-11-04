@@ -63,14 +63,45 @@ export function scriptFromMaker(state: Pick<UgcMakerState, "hook" | "scriptLines
   });
 }
 
+/* ── i18n string bundles (stack100 locale unit 44) ─────────────────
+   The refusal lines below take an optional strings bundle whose
+   defaults are the original English, byte-identical; the station
+   builds the bundle from the worldLivePromo catalog keys so the
+   words render in the walker's language. */
+
+export interface UgcMakerStrings {
+  scriptNeeded: string;
+  pickProduct: string;
+  nameProduct: string;
+  personaFirst: string;
+}
+
+export const UGC_MAKER_STRINGS_EN: UgcMakerStrings = {
+  scriptNeeded: "The ad needs a script — write one below or let Turbo write it.",
+  pickProduct: "Pick one of your shop products first.",
+  nameProduct: "Name the product this ad is for.",
+  personaFirst: "Generate the persona first — or switch the face to your own photo / no face.",
+};
+
+/** Build the bundle from a translate function (the station's `t`):
+ *  every field reads its worldLivePromo catalog key. */
+export function ugcMakerStrings(translate: (key: string) => string): UgcMakerStrings {
+  return {
+    scriptNeeded: translate("worldLivePromo.ugcMakerScriptNeeded"),
+    pickProduct: translate("worldLivePromo.ugcMakerPickProduct"),
+    nameProduct: translate("worldLivePromo.ugcMakerNameProduct"),
+    personaFirst: translate("worldLivePromo.ugcMakerPersonaFirst"),
+  };
+}
+
 /** The maker's refusal, in words, or null when the ad can be made.
  *  Mirrors the website panel's generateAd gates, in its order. */
-export function validateUgcMaker(state: UgcMakerState): string | null {
-  if (!scriptFromMaker(state)) return "The ad needs a script — write one below or let Turbo write it.";
-  if (state.productSource === "shop" && !state.shopProductId) return "Pick one of your shop products first.";
-  if (state.productSource === "upload" && !state.productName.trim()) return "Name the product this ad is for.";
+export function validateUgcMaker(state: UgcMakerState, strings: UgcMakerStrings = UGC_MAKER_STRINGS_EN): string | null {
+  if (!scriptFromMaker(state)) return strings.scriptNeeded;
+  if (state.productSource === "shop" && !state.shopProductId) return strings.pickProduct;
+  if (state.productSource === "upload" && !state.productName.trim()) return strings.nameProduct;
   if (state.faceMode === "persona" && !state.personaUrl) {
-    return "Generate the persona first — or switch the face to your own photo / no face.";
+    return strings.personaFirst;
   }
   return null;
 }
@@ -139,9 +170,28 @@ export interface UgcBriefFormState {
   productImageUrl: string;
 }
 
-export function validateBriefForm(form: UgcBriefFormState): string | null {
-  if (!form.productName.trim()) return "The brief needs the product's name.";
-  if (form.details.trim().length < 10) return "Say a little more in the brief — what the ad has to hit (10+ characters).";
+export interface UgcBriefStrings {
+  nameNeeded: string;
+  detailsNeeded: string;
+}
+
+export const UGC_BRIEF_STRINGS_EN: UgcBriefStrings = {
+  nameNeeded: "The brief needs the product's name.",
+  detailsNeeded: "Say a little more in the brief — what the ad has to hit (10+ characters).",
+};
+
+/** Build the bundle from a translate function (the station's `t`):
+ *  every field reads its worldLivePromo catalog key. */
+export function ugcBriefStrings(translate: (key: string) => string): UgcBriefStrings {
+  return {
+    nameNeeded: translate("worldLivePromo.ugcBriefNameNeeded"),
+    detailsNeeded: translate("worldLivePromo.ugcBriefDetailsNeeded"),
+  };
+}
+
+export function validateBriefForm(form: UgcBriefFormState, strings: UgcBriefStrings = UGC_BRIEF_STRINGS_EN): string | null {
+  if (!form.productName.trim()) return strings.nameNeeded;
+  if (form.details.trim().length < 10) return strings.detailsNeeded;
   return null;
 }
 

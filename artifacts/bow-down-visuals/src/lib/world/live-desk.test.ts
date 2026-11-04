@@ -87,9 +87,13 @@ describe("#85 studio rails — the 2D studio's verbatim doors", () => {
 
   it("stream key honesty (Stack-100 #2 item 79): the key is labelled untested until a broadcast connects", () => {
     /* No handshake test exists on this surface, so the desk must
-       say the key is untested rather than implying "ready". */
+       say the key is untested rather than implying "ready". Since
+       locale unit 44 the sentence renders through the catalog —
+       the desk references the key and en carries the words. */
     expect(deskSrc).toContain('data-testid="world-live-ingest-untested"');
-    expect(deskSrc).toContain("This key is untested");
+    expect(deskSrc).toContain('t("worldLivePromo.ingestUntested")');
+    const en = JSON.parse(read("../../locales/en.json")) as { worldLivePromo?: Record<string, string> };
+    expect(en.worldLivePromo?.ingestUntested).toContain("This key is untested");
     expect(deskSrc).toContain("ingest?.enabled && ingest.has_key");
   });
 

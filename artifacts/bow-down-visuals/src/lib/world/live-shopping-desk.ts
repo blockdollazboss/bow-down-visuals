@@ -124,7 +124,7 @@ export interface LiveShopStreamView {
   pinnedProductId: string | null;
 }
 
-export function normalizeLiveShopStreams(raw: unknown): LiveShopStreamView[] {
+export function normalizeLiveShopStreams(raw: unknown, fallbackTitle = "Live stream"): LiveShopStreamView[] {
   const d = (raw ?? {}) as Record<string, unknown>;
   const rows = Array.isArray(d["streams"]) ? d["streams"] : [];
   const out: LiveShopStreamView[] = [];
@@ -134,7 +134,7 @@ export function normalizeLiveShopStreams(raw: unknown): LiveShopStreamView[] {
     if (typeof s["id"] !== "string") continue;
     out.push({
       id: s["id"],
-      title: typeof s["title"] === "string" ? s["title"] : "Live stream",
+      title: typeof s["title"] === "string" ? s["title"] : fallbackTitle,
       status: typeof s["status"] === "string" ? s["status"] : "",
       pinnedProductId: typeof s["pinned_product_id"] === "string" ? s["pinned_product_id"] : null,
     });
@@ -165,7 +165,7 @@ export interface LiveShopAlertView {
   total: string;
 }
 
-export function normalizeLiveShopAlerts(raw: unknown): LiveShopAlertView[] {
+export function normalizeLiveShopAlerts(raw: unknown, fallbackBuyer = "A viewer"): LiveShopAlertView[] {
   const d = (raw ?? {}) as Record<string, unknown>;
   const rows = Array.isArray(d["alerts"]) ? d["alerts"] : [];
   const out: LiveShopAlertView[] = [];
@@ -176,7 +176,7 @@ export function normalizeLiveShopAlerts(raw: unknown): LiveShopAlertView[] {
     const totalCents = typeof a["total_cents"] === "number" ? a["total_cents"] : 0;
     out.push({
       id: a["id"],
-      buyerName: typeof a["buyer_name"] === "string" ? a["buyer_name"] : "A viewer",
+      buyerName: typeof a["buyer_name"] === "string" ? a["buyer_name"] : fallbackBuyer,
       quantity: typeof a["quantity"] === "number" ? a["quantity"] : 1,
       totalCents,
       total: typeof a["total"] === "string" ? a["total"] : formatPrice(totalCents),
@@ -203,7 +203,7 @@ export interface LiveShopDashboardView {
   perStream: LiveShopStreamRevenue[];
 }
 
-export function normalizeLiveShopDashboard(raw: unknown): LiveShopDashboardView | null {
+export function normalizeLiveShopDashboard(raw: unknown, fallbackTitle = "Stream"): LiveShopDashboardView | null {
   const d = (raw ?? {}) as Record<string, unknown>;
   const totals = (d["totals"] ?? null) as Record<string, unknown> | null;
   if (!totals) return null;
@@ -215,7 +215,7 @@ export function normalizeLiveShopDashboard(raw: unknown): LiveShopDashboardView 
     if (typeof s["stream_id"] !== "string") continue;
     perStream.push({
       streamId: s["stream_id"],
-      title: typeof s["title"] === "string" ? s["title"] : "Stream",
+      title: typeof s["title"] === "string" ? s["title"] : fallbackTitle,
       sales: typeof s["sales"] === "number" ? s["sales"] : 0,
       revenue: typeof s["revenue"] === "string" ? s["revenue"] : "$0.00",
       fees: typeof s["fees"] === "string" ? s["fees"] : "$0.00",
