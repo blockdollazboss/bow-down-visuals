@@ -970,7 +970,7 @@ function TutorialCardView({
             <CheckCircle2 className="h-4 w-4" /> {t("tutorials.completed")}
           </span>
         ) : state === "in_progress" ? (
-          <span className="shrink-0 text-xs font-bold text-[#d4af37]">{t("tutorials.inProgress")}
+          <span className="shrink-0 text-xs font-bold text-[#d4af37]">{t("tutorials.inProgress")}</span>
         ) : null}
       </div>
       {cardData.description && <p className={`mt-1 line-clamp-2 text-sm ${muted(isLight)}`}>{cardData.description}</p>}
