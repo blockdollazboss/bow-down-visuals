@@ -155,7 +155,9 @@ export function brandCalcResultOf(data: unknown): BrandCalcResult | null {
   };
 }
 
-/** "$1,200" — the desk's one money format. */
-export function formatMoney(n: number, currency: string): string {
-  return `${currency === "USD" ? "$" : `${currency} `}${n.toLocaleString()}`;
+/** "$1,200" — the desk's one money format. The locale rides in
+ *  from the component's i18n language; the bare call keeps the
+ *  runtime default, as before. */
+export function formatMoney(n: number, currency: string, locale?: string): string {
+  return `${currency === "USD" ? "$" : `${currency} `}${n.toLocaleString(locale)}`;
 }
