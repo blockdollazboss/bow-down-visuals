@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Code2, Heart, ListMusic, MessageCircle, Pause, Play, Repeat2, Send, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   copyText,
@@ -227,6 +228,7 @@ export function NowPlayingCard({
   isLight: boolean;
 }) {
   const { user, getAccessToken } = useAuth();
+  const { t } = useTranslation();
   const { current } = player;
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -378,7 +380,7 @@ export function NowPlayingCard({
   };
 
   const startReply = (c: MediaComment) => {
-    const name = c.display_name ?? "A listener";
+    const name = c.display_name ?? t("worldPrimitives.spListenerFallback");
     setReplyTo(name);
     setDraft(`@${name} `);
   };
@@ -468,7 +470,7 @@ export function NowPlayingCard({
 
   return (
     <div className="mb-3" data-testid="world-shelf-now-playing">
-      <NativeCard isLight={isLight} title="Now playing — here in the palace">
+      <NativeCard isLight={isLight} title={t("worldPrimitives.spNowPlayingTitle")}>
         <div className="flex flex-wrap items-start gap-3">
           {current.artworkUrl ? (
             <img src={current.artworkUrl} alt="" className="h-14 w-14 rounded-xl object-cover" />
@@ -482,15 +484,16 @@ export function NowPlayingCard({
               {current.title}
             </p>
             <p className={`truncate text-xs ${muted}`}>
-              {current.artistName ?? "Creator"} · {current.kind === "track" ? "Song" : "Video"} · personal
-              playback — just you, not the room
+              {t(current.kind === "track" ? "worldPrimitives.spSubtitleTrack" : "worldPrimitives.spSubtitleVideo", {
+                artist: current.artistName ?? t("worldPrimitives.spCreatorFallback"),
+              })}
             </p>
             {current.unpublished && (
               <p className="mt-1">
                 <span className="inline-flex items-center rounded-full bg-[#d4af37]/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#e8c86a]">
-                  Yours — not published yet
+                  {t("worldPrimitives.spUnpublishedBadge")}
                 </span>{" "}
-                <span className={`text-[11px] ${muted}`}>Only you can hear this one here.</span>
+                <span className={`text-[11px] ${muted}`}>{t("worldPrimitives.spUnpublishedNote")}</span>
               </p>
             )}
             {/* The transport: play/pause + a seek bar, as the
@@ -503,11 +506,11 @@ export function NowPlayingCard({
                 className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
               >
                 {player.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                {player.playing ? "Pause" : "Play"}
+                {player.playing ? t("worldPrimitives.spPause") : t("worldPrimitives.spPlay")}
               </button>
               <input
                 type="range"
-                aria-label="Seek"
+                aria-label={t("worldPrimitives.spSeekAria")}
                 min={0}
                 max={Math.max(player.durationSec, 0)}
                 step={0.1}
@@ -537,7 +540,7 @@ export function NowPlayingCard({
             </div>
             {likeFailed && (
               <p className={`mt-1 text-[11px] font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-                The like didn&rsquo;t land — the song plays on; try the heart again.
+                {t("worldPrimitives.spLikeFailed")}
               </p>
             )}
             {/* Extras (2.15): repost rides the track rails only —
@@ -561,7 +564,7 @@ export function NowPlayingCard({
                           : "border-white/15 text-white/75 hover:text-white"
                     }`}
                   >
-                    <Repeat2 className="h-3.5 w-3.5" /> {reposted ? "Reposted" : "Repost"} {repostCount > 0 ? repostCount : ""}
+                    <Repeat2 className="h-3.5 w-3.5" /> {reposted ? t("worldPrimitives.spReposted") : t("worldPrimitives.spRepost")} {repostCount > 0 ? repostCount : ""}
                   </button>
                 )}
                 <button
@@ -575,7 +578,7 @@ export function NowPlayingCard({
                   }`}
                 >
                   {embedCopied ? <Check className="h-3.5 w-3.5 text-[#d4af37]" /> : <Code2 className="h-3.5 w-3.5 text-[#d4af37]" />}
-                  {embedCopied ? "Embed code copied!" : "Copy embed code"}
+                  {embedCopied ? t("worldPrimitives.spEmbedCopied") : t("worldPrimitives.spCopyEmbed")}
                 </button>
               </div>
             )}
@@ -614,7 +617,7 @@ export function NowPlayingCard({
           <div className="mt-3" data-testid="world-shelf-queue">
             <div className="flex items-center justify-between gap-2">
               <p className={`inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                <ListMusic className="h-3.5 w-3.5" /> Up next
+                <ListMusic className="h-3.5 w-3.5" /> {t("worldPrimitives.spUpNext")}
               </p>
               {/* Clear the whole queue (2.15's proper queue): the
                   controller has always held clearQueue — the
@@ -628,7 +631,7 @@ export function NowPlayingCard({
                 onClick={player.clearQueue}
                 className={`text-[11px] font-bold transition bdv-touch-target ${isLight ? "text-[#6B5B36] hover:text-[#92600a]" : "text-white/50 hover:text-red-300"}`}
               >
-                Clear
+                {t("worldPrimitives.spClearQueue")}
               </button>
             </div>
             <ul className="mt-1 space-y-1">
@@ -639,13 +642,13 @@ export function NowPlayingCard({
                 >
                   <span className="min-w-0 flex-1 truncate">
                     <span className="font-bold">{q.title}</span>{" "}
-                    <span className={muted}>{q.artistName ?? "Creator"}</span>
+                    <span className={muted}>{q.artistName ?? t("worldPrimitives.spCreatorFallback")}</span>
                   </span>
                   <button
                     type="button"
                     data-testid="world-shelf-queue-remove"
                     onClick={() => player.removeQueued(q)}
-                    aria-label={`Remove ${q.title} from the queue`}
+                    aria-label={t("worldPrimitives.spRemoveFromQueueAria", { title: q.title })}
                     className={`rounded-full border p-1 transition bdv-touch-box ${
                       isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/60 hover:text-white"
                     }`}
@@ -664,7 +667,7 @@ export function NowPlayingCard({
         {moreItems !== null && moreItems.length > 0 && (
           <div className="mt-3" data-testid="world-shelf-more-from-artist">
             <p className={`inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              <ListMusic className="h-3.5 w-3.5" /> More from {current.artistName ?? "this artist"}
+              <ListMusic className="h-3.5 w-3.5" /> {current.artistName ? t("worldPrimitives.spMoreFromArtist", { artist: current.artistName }) : t("worldPrimitives.spMoreFromThisArtist")}
             </p>
             <ul className="mt-1 space-y-1">
               {moreItems.map((m) => (
@@ -678,7 +681,7 @@ export function NowPlayingCard({
                     onClick={() => void playMore(m.kind, m.id)}
                     className="inline-flex items-center gap-1 rounded-full bg-[#d4af37] px-2.5 py-1 text-[11px] font-bold text-black transition hover:scale-105 bdv-touch-target"
                   >
-                    <Play className="h-3 w-3" /> Play
+                    <Play className="h-3 w-3" /> {t("worldPrimitives.spPlay")}
                   </button>
                 </li>
               ))}
@@ -694,25 +697,25 @@ export function NowPlayingCard({
             that only looks empty. */}
         <div className="mt-3">
           <p className={`inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            <MessageCircle className="h-3.5 w-3.5" /> Comments{threadTotal > 0 ? ` · ${threadTotal}` : ""}
+            <MessageCircle className="h-3.5 w-3.5" /> {threadTotal > 0 ? t("worldPrimitives.spCommentsTitleWithCount", { count: threadTotal }) : t("worldPrimitives.spCommentsTitle")}
           </p>
           {commentsFailed ? (
             <NativeErrorState
               isLight={isLight}
-              title="The conversation wouldn't load"
-              message="Comments wouldn't load — the song plays on. Give it another shot."
+              title={t("worldPrimitives.spCommentsLoadTitle")}
+              message={t("worldPrimitives.spCommentsLoadMessage")}
               onRetry={retryThread}
             />
           ) : comments === null ? (
-            <p className={`mt-1 text-xs ${muted}`}>Reading the room…</p>
+            <p className={`mt-1 text-xs ${muted}`}>{t("worldPrimitives.spReadingRoom")}</p>
           ) : comments.length === 0 ? (
-            <p className={`mt-1 text-xs ${muted}`}>No comments yet — the first word is still unwritten.</p>
+            <p className={`mt-1 text-xs ${muted}`}>{t("worldPrimitives.spNoComments")}</p>
           ) : (
             <>
               <ul className="mt-1 max-h-56 space-y-1.5 overflow-y-auto pr-1">
                 {comments.map((c) => (
                   <li key={c.id} className={`text-xs ${isLight ? "text-[#2a1e07]" : "text-white/75"}`}>
-                    <span className="font-bold">{c.display_name ?? "A listener"}</span>{" "}
+                    <span className="font-bold">{c.display_name ?? t("worldPrimitives.spListenerFallback")}</span>{" "}
                     <span className={muted}>{c.body}</span>{" "}
                     {user && (
                       <button
@@ -721,7 +724,7 @@ export function NowPlayingCard({
                         onClick={() => startReply(c)}
                         className="font-bold text-[#e8c86a] underline-offset-2 hover:underline"
                       >
-                        Reply
+                        {t("worldPrimitives.spReply")}
                       </button>
                     )}
                   </li>
@@ -736,9 +739,9 @@ export function NowPlayingCard({
             <div className="mt-2">
               {replyTo && (
                 <p className={`mb-1 text-[11px] ${muted}`}>
-                  Replying to <span className="font-bold">{replyTo}</span> —{" "}
+                  {t("worldPrimitives.spReplyingTo")} <span className="font-bold">{replyTo}</span> —{" "}
                   <button type="button" onClick={() => { setReplyTo(null); setDraft(""); }} className="font-bold text-[#e8c86a]">
-                    cancel
+                    {t("worldPrimitives.spCancel")}
                   </button>
                 </p>
               )}
@@ -748,8 +751,8 @@ export function NowPlayingCard({
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") void onPost(); }}
-                  placeholder="Say something about what's playing…"
-                  aria-label="Say something about what's playing"
+                  placeholder={t("worldPrimitives.spCommentPlaceholder")}
+                  aria-label={t("worldPrimitives.spCommentAria")}
                   maxLength={500}
                   data-testid="world-shelf-comment-input"
                   className={`min-w-0 flex-1 rounded-full border px-3 py-1.5 text-xs outline-none bdv-touch-target ${
@@ -765,17 +768,17 @@ export function NowPlayingCard({
                   disabled={posting || !draft.trim()}
                   className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                 >
-                  <Send className="h-3.5 w-3.5" /> {posting ? "Posting…" : "Post"}
+                  <Send className="h-3.5 w-3.5" /> {posting ? t("worldPrimitives.spPosting") : t("worldPrimitives.spPost")}
                 </button>
               </div>
               {postFailed && (
                 <p className={`mt-1 text-[11px] font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-                  That comment didn&rsquo;t land — the song plays on; try posting again.
+                  {t("worldPrimitives.spPostFailed")}
                 </p>
               )}
             </div>
           ) : (
-            <p className={`mt-2 text-[11px] ${muted}`}>Sign in to join the conversation — reading is open to everyone here.</p>
+            <p className={`mt-2 text-[11px] ${muted}`}>{t("worldPrimitives.spSignInToComment")}</p>
           )}
           {!current.unpublished && (
             <p className={`mt-1.5 text-[11px] ${muted}`}>
@@ -786,7 +789,7 @@ export function NowPlayingCard({
                 data-testid="world-shelf-track-transfer"
                 className="font-bold text-[#e8c86a] underline underline-offset-2"
               >
-                Open the full page on the website ↗
+                {t("worldPrimitives.spOpenFullPage")}
               </a>
             </p>
           )}
