@@ -78,7 +78,7 @@ describe("court gathering — mounted in the Chamber, in the gallery's panel", (
 
 describe("court gathering — the calendar surfaces name the kind", () => {
   it("both kind-label maps carry the court gathering", () => {
-    expect(calendarBlock).toContain('royal_court: "Court gathering"');
+    expect(calendarBlock).toContain('royal_court: "worldScheduleRelease.calKindRoyalCourt"');
     expect(boardBlocks).toContain('royal_court: "Court gathering"');
   });
 

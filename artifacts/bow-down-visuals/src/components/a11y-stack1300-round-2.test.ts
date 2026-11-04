@@ -331,7 +331,7 @@ describe("W4 — the SchedulerDesk day cell is keyboard-operable (round-1 F3 pat
   it("a non-past day is a named, focusable button surface; a past day stays inert", () => {
     expect(cell).toContain('role={isPast ? undefined : "button"}');
     expect(cell).toContain("tabIndex={isPast ? undefined : 0}");
-    expect(cell).toContain("Start a post on");
+    expect(cell).toContain("worldScheduleRelease.schedCalStartAria");
   });
   it("Enter and Space fire the same compose-open the click fires, guarded from nested chips", () => {
     expect(cell).toContain("onKeyDown");

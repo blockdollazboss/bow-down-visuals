@@ -83,7 +83,7 @@ describe("items 72 + 73 (D-S2 / D-H5) — scheduler AI gate + pricing badge: STA
        BEFORE the button. */
     expect(SCHEDULER_BEST_TIME_COST_VISUAL_BUCS).toBe(100);
     expect(schedulerDeskSrc).toContain(
-      "Ask for the best times — {SCHEDULER_BEST_TIME_COST_VISUAL_BUCS} Visual Bucs, refunded if the AI fails.",
+      't("worldScheduleRelease.schedBestTimeIntro", { cost: SCHEDULER_BEST_TIME_COST_VISUAL_BUCS })',
     );
     expect(schedulerDeskSrc).toContain('data-testid="world-scheduler-best-time-ask"');
   });
