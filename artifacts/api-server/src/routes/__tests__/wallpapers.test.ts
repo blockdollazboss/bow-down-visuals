@@ -15,11 +15,15 @@
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import express from "express";
 import type { AddressInfo } from "node:net";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const h = vi.hoisted(() => ({
   ffmpegCalls: [] as string[][],
   ffmpegFail: false,
+  fetchCalls: [] as string[],
+  fetchImpl: null as null | ((url: string) => Promise<{ ok: boolean; status: number; arrayBuffer: () => Promise<ArrayBuffer> }>),
 }));
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -87,6 +91,7 @@ import wallpapersRouter, {
   sanitizePackName,
   renderSchema,
   screensaverSchema,
+  siteAssetPathForUrl,
   SCREENSAVER_RENDER_COST,
   CLEAN_RENDER_COST,
   PACK_OF_10_COST,
@@ -118,8 +123,19 @@ const EXPECTED: Array<[string, string, string, number, number]> = [
 const realFetch = globalThis.fetch;
 let server: any;
 let baseUrl: string;
+let assetRoot: string;
 
 beforeAll(async () => {
+  /* Fixture site-asset tree (QC-200 fix #11): the shipped public files
+     the device desk names — a pack ground + both logo lockups — in a
+     THEME_KIT_ASSET_DIR root, the same seam theme-kit.test.ts uses. */
+  assetRoot = mkdtempSync(join(tmpdir(), "wallpapers-assets-"));
+  mkdirSync(join(assetRoot, "wallpapers/theme-packs"), { recursive: true });
+  writeFileSync(join(assetRoot, "wallpapers/theme-packs/golden-marble-dark.webp"), Buffer.from("golden-marble-dark-bytes"));
+  writeFileSync(join(assetRoot, "logo-static.webp"), Buffer.from("logo-dark-bytes"));
+  writeFileSync(join(assetRoot, "logo-light.webp"), Buffer.from("logo-light-bytes"));
+  process.env["THEME_KIT_ASSET_DIR"] = assetRoot;
+
   const app = express();
   app.use(express.json());
   app.use((req: any, _res: any, next: any) => {
@@ -132,22 +148,31 @@ beforeAll(async () => {
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   vi.stubGlobal(
     "fetch",
-    async () => ({
-      ok: true,
-      status: 200,
-      arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
-    }),
+    async (url: unknown) => {
+      const u = String(url);
+      h.fetchCalls.push(u);
+      if (h.fetchImpl) return h.fetchImpl(u);
+      return {
+        ok: true,
+        status: 200,
+        arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
+      };
+    },
   );
 });
 
 afterAll(async () => {
   vi.unstubAllGlobals();
+  delete process.env["THEME_KIT_ASSET_DIR"];
+  rmSync(assetRoot, { recursive: true, force: true });
   await new Promise<void>((r) => server.close(() => r()));
 });
 
 beforeEach(() => {
   h.ffmpegCalls.length = 0;
   h.ffmpegFail = false;
+  h.fetchCalls.length = 0;
+  h.fetchImpl = null;
   vi.clearAllMocks();
 });
 
@@ -775,5 +800,83 @@ describe("desk price derivations land on the server constants (Stack-28 item 15)
     expect(deskSrc).not.toMatch(/const (GENERATE_COST|CLEAN_RENDER_COST)\s*=/);
     expect(deskSrc).toContain("WALLPAPER_CLEAN_PACK_COST");
     expect(deskSrc).toContain("WALLPAPER_PACK_OF_10_COST");
+  });
+});
+
+/* QC-200 fix queue #11 — the theme-pack device desk (Phone / Tablet /
+   Desktop sets + "Get this size") renders the pack grounds and logo
+   lockups from absolute URLs on the site's OWN origin. On staging that
+   origin sits behind the password gate, which answers any cookie-less
+   request 401 — and the rail's server-side fetch carries no cookie —
+   so every device render died at "Could not download source (401)"
+   while the kit rail (disk reads) worked on the same deploy. The fix:
+   a URL whose path names a shipped public file resolves from DISK;
+   only genuinely external URLs go over HTTP. This block simulates the
+   gate exactly — fetch answers 401 for everything — and proves the
+   renders still land, for one preset of each device kind the desk
+   zips (phone / tablet / desktop) and the single-size shape (a lone
+   render), with ZERO HTTP calls made. */
+describe("site assets resolve from disk, never the gated self-fetch (QC-200 #11)", () => {
+  const STAGING = "https://bow-down-visuals-staging.onrender.com";
+  const ground = `${STAGING}/wallpapers/theme-packs/golden-marble-dark.webp`;
+  const logo = `${STAGING}/logo-static.webp`;
+  const gate401 = async () => ({
+    ok: false,
+    status: 401,
+    arrayBuffer: async () => new Uint8Array(0).buffer,
+  });
+
+  it.each([
+    ["phone", "phone-iphone"],
+    ["tablet", "tablet-ipad"],
+    ["desktop", "desktop-4k"],
+  ])("render succeeds for a %s preset while HTTP is gated shut", async (_kind, presetKey) => {
+    h.fetchImpl = gate401;
+    const r = await call("POST", "/wallpapers/render", {
+      sourceUrl: ground,
+      presetKey,
+      logoUrl: logo,
+      branded: true,
+    });
+    expect(r.status).toBe(200);
+    expect(r.json.url).toContain("https://cdn.example/");
+    expect(h.ffmpegCalls).toHaveLength(1);
+    // Neither the ground nor the logo went over HTTP at all.
+    expect(h.fetchCalls).toHaveLength(0);
+  });
+
+  it("a genuinely external source still goes over HTTP — and its failure surfaces the real words", async () => {
+    const okRes = await call("POST", "/wallpapers/render", {
+      sourceUrl: "https://files.example/a.png",
+      presetKey: "phone-iphone",
+    });
+    expect(okRes.status).toBe(200);
+    expect(h.fetchCalls).toContain("https://files.example/a.png");
+
+    h.fetchCalls.length = 0;
+    h.fetchImpl = gate401;
+    const failRes = await call("POST", "/wallpapers/render", {
+      sourceUrl: "https://files.example/a.png",
+      presetKey: "phone-iphone",
+    });
+    expect(failRes.status).toBe(502);
+    expect(failRes.json.error).toContain("Could not download source (401)");
+    expect(h.fetchCalls).toContain("https://files.example/a.png");
+  });
+
+  it("siteAssetPathForUrl: plain asset paths resolve; traversal shapes are refused", () => {
+    expect(siteAssetPathForUrl(ground)).toBe("/wallpapers/theme-packs/golden-marble-dark.webp");
+    expect(siteAssetPathForUrl(logo)).toBe("/logo-static.webp");
+    // Encoded slashes are the real escape shape: they survive URL
+    // parsing as one segment and only appear after decoding.
+    expect(siteAssetPathForUrl(`${STAGING}/wallpapers/..%2f..%2fsecret`)).toBeNull();
+    expect(siteAssetPathForUrl(`${STAGING}/wallpapers/%2e%2e%2fsecret`)).toBeNull();
+    expect(siteAssetPathForUrl(`${STAGING}/a%5cb`)).toBeNull();
+    expect(siteAssetPathForUrl("not a url")).toBeNull();
+    expect(siteAssetPathForUrl(`${STAGING}/`)).toBeNull();
+    // Bare dot segments are normalized away by the URL parser itself,
+    // leaving a plain in-tree path that simply won't be found on disk
+    // (readSiteAsset only ever joins UNDER the asset roots).
+    expect(siteAssetPathForUrl(`${STAGING}/%2e%2e/%2e%2e/etc/passwd`)).toBe("/etc/passwd");
   });
 });

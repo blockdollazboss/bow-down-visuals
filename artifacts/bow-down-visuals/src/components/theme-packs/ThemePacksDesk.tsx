@@ -11,6 +11,7 @@ import {
   Sun,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { CURSOR_OPTIONS } from "@/lib/cursor-settings";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -174,7 +175,13 @@ function PackDeviceDownloads({
     setError(
       err instanceof Error && err.message === "signin"
         ? t("settings.themePacksDeviceSignin", { defaultValue: "Sign in to download device packs." })
-        : t("settings.themePacksDeviceError", { defaultValue: "That download hit a snag — try again in a moment." }),
+        : // The server's own words (translated at the fetch sites below
+          // through apiErrorMessage) reach the member — a bare "snag"
+          // is only the last resort when nothing plainer is known.
+          plainErrorText(
+            err,
+            t("settings.themePacksDeviceError", { defaultValue: "That download hit a snag — try again in a moment." }),
+          ),
     );
   };
 
@@ -192,7 +199,10 @@ function PackDeviceDownloads({
         brandName: null,
       }),
     });
-    if (!res.ok) throw new Error(`render failed (${res.status})`);
+    if (!res.ok) {
+      const json = (await res.json().catch(() => null)) as unknown;
+      throw new Error(apiErrorMessage(json, "That render didn't finish — try again in a moment."));
+    }
     const json = (await res.json()) as { url?: string };
     if (!json.url) throw new Error("render returned no url");
     return json.url;
@@ -215,7 +225,10 @@ function PackDeviceDownloads({
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ urls, name }),
       });
-      if (!zipRes.ok) throw new Error(`zip failed (${zipRes.status})`);
+      if (!zipRes.ok) {
+        const json = (await zipRes.json().catch(() => null)) as unknown;
+        throw new Error(apiErrorMessage(json, "That pack didn't build — try again in a moment."));
+      }
       const blob = await zipRes.blob();
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
