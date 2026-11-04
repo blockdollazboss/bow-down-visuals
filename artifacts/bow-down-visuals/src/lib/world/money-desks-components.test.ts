@@ -24,6 +24,7 @@ const packs = read("../../components/world/native/PacksDesk.tsx");
 const payout = read("../../components/world/native/PayoutDesk.tsx");
 const earningsBoard = read("../../components/world/native/boards/EarningsBoard.tsx");
 const stands = read("../../components/world/native/ShopStands.tsx");
+const enCommerce = (JSON.parse(read("../../locales/en.json")) as { worldCommerceStands: Record<string, string> }).worldCommerceStands;
 const rooms = read("../../components/world/native/CreatorRooms.tsx");
 const panel = read("../../components/world/StationPanel.tsx");
 
@@ -105,9 +106,12 @@ describe("#63 crowns creator desk contracts", () => {
     expect(stands).toContain("tierActivePayload(tier)");
     expect(stands).toContain('method: "DELETE"');
     expect(stands).toContain('data-testid="world-crowns-creator-desk"');
-    /* The fee honesty: the rail-reported % and the net line. */
+    /* The fee honesty: the rail-reported % and the net line. The line
+       renders through the catalog now (locale unit 41) — the en value
+       keeps the exact fee wording. */
     expect(stands).toContain("tierNetCents(tier.priceCents, feePct)");
-    expect(stands).toContain("after {feePct}% platform fee");
+    expect(stands).toContain('t("worldCommerceStands.crownsYouKeep"');
+    expect(enCommerce.crownsYouKeep).toContain("after {{fee}}% platform fee");
     /* Members only — the desk never renders for a guest. */
     expect(stands).toContain("{!isGuest && <CrownsCreatorDesk isLight={isLight} />}");
   });
@@ -153,8 +157,10 @@ describe("#63b crowns depth contracts (parity P3 — par-membership-depth)", () 
     expect(stands).toContain("savedMemberStatus(data)");
     expect(stands).toContain("applyMemberStatus(list, saved)");
     expect(stands).toContain("removeMemberRow(list, member.id)");
-    /* The manual add's honesty: a record, no payment taken. */
-    expect(stands).toContain("It takes no payment and sends them nothing.");
+    /* The manual add's honesty: a record, no payment taken. (Catalog
+       since locale unit 41 — the en value carries the sentence.) */
+    expect(stands).toContain('t("worldCommerceStands.crownsMemberAddNote")');
+    expect(enCommerce.crownsMemberAddNote).toContain("It takes no payment and sends them nothing.");
   });
 
   it("the perk suggester rides the confirmed-spend seam at the rail's own price", () => {
@@ -173,7 +179,7 @@ describe("#63b crowns depth contracts (parity P3 — par-membership-depth)", () 
     expect(stands).toContain("parseClubDirectory(await res.json())");
     expect(stands).toContain('data-testid="world-crowns-directory"');
     expect(stands).toContain('data-testid="world-crowns-directory-row"');
-    expect(stands).toContain("clubStartingLabel(row)");
+    expect(stands).toContain("clubStartingLabel(row, tierStrings, i18n.language)");
     expect(stands).toContain("onClick={() => void loadClub(row.creatorUserId)}");
     expect(stands).toContain("parseCreatorUserId(creatorInput)");
   });
@@ -182,7 +188,10 @@ describe("#63b crowns depth contracts (parity P3 — par-membership-depth)", () 
     expect(stands).toContain("membershipCheckoutPayload(tier.id, period, recipientId)");
     expect(stands).toContain("parseRecipientUserId(recipientInput)");
     expect(stands).toContain('data-testid="world-crowns-gift"');
-    expect(stands).toContain("Gift sent — they're a member now.");
+    /* The free-gift landing line renders through the catalog now
+       (locale unit 41) — the en value is the sentence, verbatim. */
+    expect(stands).toContain('t("worldCommerceStands.crownsGiftSent")');
+    expect(enCommerce.crownsGiftSent).toBe("Gift sent — they're a member now.");
     expect(stands).toContain("tierOffersTrial(tier) && !recipientId");
   });
 
