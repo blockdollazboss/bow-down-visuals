@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "51a56acb3f68f4491f946cbbb4d28c003c80d1af",
+  "baseCommit": "4ca89d2a34da2bf9b158c1320673b2c4338f96cc",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -10,10 +10,10 @@
   "generatedAt": "2026-11-04",
   "counts": {
     "routesInApp": 245,
-    "pageFiles": 188,
+    "pageFiles": 186,
     "features": 251,
     "excludedRoutes": 74,
-    "excludedPageFiles": 35,
+    "excludedPageFiles": 33,
     "pricedActions": 256,
     "routeFileEndpoints": 0,
     "guides": 11,
@@ -17871,11 +17871,6 @@
     },
     {
       "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/podcast.tsx",
-      "reason": "Legacy standalone page — route /podcast now redirects to /audio-studio?tab=podcast; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/promo-clip.tsx",
       "reason": "Legacy standalone page — route /promo-clip now redirects to /video-editor?tab=promo-clips; the live feature is covered by the target's knowledge entry."
     },
@@ -17943,11 +17938,6 @@
       "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/video-studio.tsx",
       "reason": "Legacy standalone page — route /video-studio now redirects to /video-editor; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/voiceover.tsx",
-      "reason": "Legacy standalone page — route /voiceover now redirects to /audio-studio?tab=voiceover; the live feature is covered by the target's knowledge entry."
     }
   ],
   "serverSurface": {
