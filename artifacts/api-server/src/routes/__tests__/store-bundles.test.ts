@@ -337,6 +337,15 @@ vi.mock("@workspace/db", async (importOriginal) => {
       }
 
       if (text.includes("SELECT id FROM profile_tracks")) {
+        /* Real Postgres: profile_tracks has NO file_url column — the
+           file lives in audio_url (schema/creator-platform.ts), so a
+           candidate query naming file_url dies 42703 before any row is
+           read. Emulate that here; without it this fake blesses SQL the
+           real database rejects (the QC-200 bundles-desk failure: the
+           desk's read 500'd for every seller, bundles or not). */
+        if (/\bfile_url\b/.test(text)) {
+          throw Object.assign(new Error('column "file_url" does not exist'), { code: "42703" });
+        }
         const rows = [...h.tracks.values()]
           .filter((t) => t.profile_id === params[0] && t.is_published && t.file_url)
           .map((t) => ({ id: t.id }));
@@ -344,6 +353,10 @@ vi.mock("@workspace/db", async (importOriginal) => {
       }
 
       if (text.includes("SELECT id FROM profile_videos")) {
+        /* Same emulation as tracks: the real column is video_url. */
+        if (/\bfile_url\b/.test(text)) {
+          throw Object.assign(new Error('column "file_url" does not exist'), { code: "42703" });
+        }
         const rows = [...h.videos.values()]
           .filter((v) => v.profile_id === params[0] && v.is_published && v.file_url)
           .map((v) => ({ id: v.id }));
@@ -823,6 +836,17 @@ describe("bundle management — POST / GET / PATCH /api/store/bundles", () => {
     expect(catalog).toEqual([
       `series:${SERIES1}`, `track:${TRACK1}`, `track:${TRACK2}`, `video:${VIDEO1}`,
     ].sort());
+  });
+
+  it("GET answers an honest empty state for a seller with no bundles yet", async () => {
+    /* OTHER_USER's profile owns one published track and zero bundles:
+       the desk read must answer 200 with an empty bundle list (the
+       panel's builder form is the empty state) — never a 500 dressed
+       as an outage. Regression pin for the QC-200 sitting finding. */
+    const { status, json } = await call("GET", "/store/bundles", { user: OTHER_USER });
+    expect(status).toBe(200);
+    expect(json.bundles).toEqual([]);
+    expect((json.sellable as any[]).map((s) => `${s.kind}:${s.id}`)).toEqual([`track:${OTHER_TRACK}`]);
   });
 
   it("a pulled component flags the bundle not-sellable on the seller's desk", async () => {

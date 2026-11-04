@@ -3496,8 +3496,12 @@ router.get("/store/bundles", requireAuth, async (req, res) => {
        would accept right now — the picker can only offer real bundles. */
     const sellable: { kind: string; id: string; title: string; listPriceCents: number; listPrice: string }[] = [];
     const candidateQueries: { kind: string; q: ReturnType<typeof sql> }[] = [
-      { kind: "track", q: sql`SELECT id FROM profile_tracks WHERE profile_id = ${profile.id} AND is_published AND file_url IS NOT NULL AND file_url <> ''` },
-      { kind: "video", q: sql`SELECT id FROM profile_videos WHERE profile_id = ${profile.id} AND is_published AND file_url IS NOT NULL AND file_url <> ''` },
+      /* The file columns are audio_url / video_url — the same columns
+         resolveSellableItem maps to file_url. There is NO file_url
+         column on either table: naming it here made Postgres 42703 the
+         whole desk read for every seller (QC-200 fix). */
+      { kind: "track", q: sql`SELECT id FROM profile_tracks WHERE profile_id = ${profile.id} AND is_published AND audio_url IS NOT NULL AND audio_url <> ''` },
+      { kind: "video", q: sql`SELECT id FROM profile_videos WHERE profile_id = ${profile.id} AND is_published AND video_url IS NOT NULL AND video_url <> ''` },
       { kind: "series", q: sql`SELECT id FROM playlists WHERE owner_profile_id = ${profile.id} AND kind = 'series' AND is_public AND price_cents > 0` },
     ];
     for (const { kind, q } of candidateQueries) {
