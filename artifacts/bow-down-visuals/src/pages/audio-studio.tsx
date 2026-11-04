@@ -29,8 +29,8 @@ import { LibrarySongPicker } from "@/components/audio-studio/LibrarySongPicker";
    MixMaster) stay in the page chunk; the modal and the song
    picker stay static because in-file panels use them. */
 const AiAudio = lazy(() => import("@/pages/ai-audio"));
-const VoiceoverStudio = lazy(() => import("@/pages/voiceover"));
-const PodcastStudio = lazy(() => import("@/pages/podcast"));
+const VoiceoverStudio = lazy(() => import("@/components/audio-studio/VoiceoverStudio"));
+const PodcastStudio = lazy(() => import("@/components/audio-studio/PodcastStudio"));
 const ViralSoundFinder = lazy(() => import("@/pages/sounds"));
 const HumToSong = lazy(() => import("@/components/HumToSong").then((m) => ({ default: m.HumToSong })));
 const FinishMySong = lazy(() => import("@/components/audio-studio/FinishMySong").then((m) => ({ default: m.FinishMySong })));
