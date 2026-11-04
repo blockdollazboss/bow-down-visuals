@@ -1,5 +1,6 @@
 import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CalendarClock,
   Check,
@@ -30,6 +31,7 @@ import {
   officeHoursMarker,
   officeHoursSessionWhen,
   officeHoursSlatePath,
+  officeHoursStrings,
   parseOfficeHoursEvents,
   plusDaysLocalValue,
   OFFICE_HOURS_BOOK_PATH,
@@ -39,6 +41,7 @@ import {
 } from "@/lib/world/office-hours";
 import {
   answerRoomInvite,
+  creatorRoomsStrings,
   creatorTrackPlayInput,
   creatorVideoPlayInput,
   fetchCreatorRoomDetail,
@@ -56,12 +59,14 @@ import {
 } from "@/lib/world/creator-rooms";
 import {
   creatorRoomEvolutionLine,
+  creatorRoomEvolutionStrings,
   creatorRoomStars,
   creatorRoomTierDressing,
 } from "@/lib/world/creator-room-tier";
 import {
   roomDressingBandName,
   roomDressingOptions,
+  roomDressingStrings,
   roomDressingStyleWords,
 } from "@/lib/world/creator-room-dressing";
 import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
@@ -126,12 +131,15 @@ import { PortraitCard } from "./PortraitCard";
 const detailCache = new Map<string, CreatorRoomDetail>();
 const detailInflight = new Map<string, Promise<CreatorRoomDetail | null>>();
 
-function loadRoomDetail(slug: string): Promise<CreatorRoomDetail | null> {
+function loadRoomDetail(
+  slug: string,
+  strings?: ReturnType<typeof creatorRoomsStrings>,
+): Promise<CreatorRoomDetail | null> {
   const cached = detailCache.get(slug);
   if (cached) return Promise.resolve(cached);
   const flying = detailInflight.get(slug);
   if (flying) return flying;
-  const p = fetchCreatorRoomDetail(slug).then((detail) => {
+  const p = fetchCreatorRoomDetail(slug, undefined, strings).then((detail) => {
     detailInflight.delete(slug);
     if (detail) detailCache.set(slug, detail);
     return detail;
@@ -170,6 +178,9 @@ function CreatorRoomDressingPicker({
   isLight: boolean;
   onDressingChanged?: (slug: string) => void;
 }) {
+  const { t } = useTranslation();
+  const roomsStrings = creatorRoomsStrings((k) => t(k));
+  const dressingStrings = roomDressingStrings((k) => t(k));
   const { getAccessToken } = useAuth();
   const { gateStars } = useUserMode();
   const [dressing, setDressing] = useState<CreatorRoomDressing | null>(detail.dressing);
@@ -183,7 +194,7 @@ function CreatorRoomDressingPicker({
     setDressing(detail.dressing);
   }, [detail.dressing]);
 
-  const options = roomDressingOptions(gateStars);
+  const options = roomDressingOptions(gateStars, dressingStrings);
   const currentId = dressing?.variantId ?? null;
 
   const pick = async (variantId: string) => {
@@ -193,13 +204,13 @@ function CreatorRoomDressingPicker({
     setSaved(false);
     try {
       const token = await getAccessToken();
-      const resolved = await putCreatorRoomDressing(slug, variantId, gateStars, token);
+      const resolved = await putCreatorRoomDressing(slug, variantId, gateStars, token, roomsStrings);
       setDressing(resolved);
       patchCachedRoomDressing(slug, resolved);
       setSaved(true);
       onDressingChanged?.(slug);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't save your room's dressing. Try again."));
+      setError(plainErrorText(err, t("worldCreatorRooms.dressingSaveFallback")));
     } finally {
       setSavingId(null);
     }
@@ -222,14 +233,14 @@ function CreatorRoomDressingPicker({
           isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"
         }`}
       >
-        <Paintbrush className="h-4 w-4 text-[#d4af37]" /> Your room&rsquo;s dressing
+        <Paintbrush className="h-4 w-4 text-[#d4af37]" /> {t("worldCreatorRooms.dressingTitle")}
       </p>
       <p className={`pt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
         {dressing
           ? dressing.picked
-            ? `Wearing: ${dressing.name}. Pick any look at or below your rung — your visitors see the one you choose.`
-            : `Wearing the ${dressing.name} default — your room's rung look, until you pick one of your own.`
-          : "Your room wears its classic look. Pick any look at or below your rung — your visitors see the one you choose."}
+            ? t("worldCreatorRooms.dressingWearingPicked", { name: dressing.name })
+            : t("worldCreatorRooms.dressingWearingDefault", { name: dressing.name })
+          : t("worldCreatorRooms.dressingNone")}
       </p>
       <div className="space-y-2.5 pt-2.5">
         {bands.map(({ band, options: bandOptions }) => (
@@ -288,11 +299,11 @@ function CreatorRoomDressingPicker({
                       ) : null}
                     </span>
                     <span className={`text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-                      {roomDressingStyleWords(variant)}
+                      {roomDressingStyleWords(variant, dressingStrings)}
                     </span>
                     {isCurrent && (
                       <span className="text-[11px] font-black uppercase tracking-wide text-[#e8c86a]">
-                        Wearing
+                        {t("worldCreatorRooms.dressingWearing")}
                       </span>
                     )}
                     {locked && lockReason && (
@@ -309,12 +320,12 @@ function CreatorRoomDressingPicker({
       </div>
       {error && (
         <p className={`pt-2 text-xs font-semibold ${isLight ? "text-[#9a3412]" : "text-red-300"}`}>
-          That dressing wouldn&rsquo;t save — {error}
+          {t("worldCreatorRooms.dressingSaveError", { error })}
         </p>
       )}
       {saved && !error && (
         <p className={`pt-2 text-xs font-semibold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-          Saved — your walls wear it now, and every visitor sees it.
+          {t("worldCreatorRooms.dressingSaved")}
         </p>
       )}
     </div>
@@ -326,6 +337,8 @@ function useRoomDetail(slug: string | null): {
   failed: boolean;
   retry: () => void;
 } {
+  const { t } = useTranslation();
+  const roomsStrings = creatorRoomsStrings((k) => t(k));
   const [detail, setDetail] = useState<CreatorRoomDetail | null>(null);
   const [failed, setFailed] = useState(false);
   const [tick, setTick] = useState(0);
@@ -333,7 +346,7 @@ function useRoomDetail(slug: string | null): {
     if (!slug) return;
     let cancelled = false;
     setFailed(false);
-    loadRoomDetail(slug).then((d) => {
+    loadRoomDetail(slug, roomsStrings).then((d) => {
       if (cancelled) return;
       if (d) setDetail(d);
       else setFailed(true);
@@ -373,6 +386,8 @@ function CreatorRoomInvitesBlock({
   mySlug: string | null;
   onEnterCreatorRoom: (slug: string) => void;
 }) {
+  const { t } = useTranslation();
+  const roomsStrings = creatorRoomsStrings((k) => t(k));
   const { user, getAccessToken } = useAuth();
   const [mine, setMine] = useState<{ pending: WorldRoomInvite[]; accepted: WorldRoomInvite[] } | null>(null);
   const [mineFailed, setMineFailed] = useState(false);
@@ -397,7 +412,7 @@ function CreatorRoomInvitesBlock({
     (async () => {
       try {
         const token = await getAccessToken();
-        const standing = await fetchRoomInvitesMine(token);
+        const standing = await fetchRoomInvitesMine(token, roomsStrings);
         if (!cancelled) setMine(standing);
       } catch {
         if (!cancelled) setMineFailed(true);
@@ -417,7 +432,7 @@ function CreatorRoomInvitesBlock({
       (async () => {
         try {
           const token = await getAccessToken();
-          const members = await fetchRoomInviteCandidates(token, query);
+          const members = await fetchRoomInviteCandidates(token, query, roomsStrings);
           if (!cancelled) {
             setCandidates(members);
             setCandidatesFailed(false);
@@ -442,15 +457,15 @@ function CreatorRoomInvitesBlock({
     setAnswerDone(null);
     try {
       const token = await getAccessToken();
-      await answerRoomInvite(invite.id, which, token);
+      await answerRoomInvite(invite.id, which, token, roomsStrings);
       setAnswerDone(
         which === "accept"
-          ? `You're in — ${invite.roomName} is under "Rooms you're in" whenever you're ready.`
-          : "Declined — the invite is closed.",
+          ? t("worldCreatorRooms.inviteAcceptedDone", { room: invite.roomName })
+          : t("worldCreatorRooms.inviteDeclinedDone"),
       );
       setTick((n) => n + 1);
     } catch (err) {
-      setAnswerError(plainErrorText(err, "Couldn't answer that invite. Try again."));
+      setAnswerError(plainErrorText(err, t("worldCreatorRooms.inviteAnswerFallback")));
     } finally {
       setAnsweringId(null);
     }
@@ -462,10 +477,10 @@ function CreatorRoomInvitesBlock({
     setSendError(null);
     try {
       const token = await getAccessToken();
-      await sendRoomInvite(mySlug, candidate.userId, token);
+      await sendRoomInvite(mySlug, candidate.userId, token, roomsStrings);
       setSentIds((prev) => new Set(prev).add(candidate.userId));
     } catch (err) {
-      setSendError(plainErrorText(err, "Couldn't send that invite. Try again."));
+      setSendError(plainErrorText(err, t("worldCreatorRooms.inviteSendFallback")));
     } finally {
       setSendingId(null);
     }
@@ -496,17 +511,17 @@ function CreatorRoomInvitesBlock({
       {showMine && (
         <div className={cardClass} data-testid="world-room-invites-for-you">
           <p className={headingClass}>
-            <Mail className="h-4 w-4 text-[#d4af37]" /> Invites for you
+            <Mail className="h-4 w-4 text-[#d4af37]" /> {t("worldCreatorRooms.inviteForYouTitle")}
           </p>
           {mineFailed ? (
             <div className="flex flex-col items-start gap-2 pt-2">
-              <p className={subClass}>Your invites wouldn&rsquo;t load — the doors are fine, the list slipped.</p>
+              <p className={subClass}>{t("worldCreatorRooms.inviteLoadFailed")}</p>
               <button
                 type="button"
                 onClick={() => setTick((n) => n + 1)}
                 className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105"
               >
-                Try again
+                {t("worldCreatorRooms.inviteTryAgain")}
               </button>
             </div>
           ) : (
@@ -522,10 +537,10 @@ function CreatorRoomInvitesBlock({
                       {avatar(invite.hostAvatarUrl, invite.hostName)}
                       <span className="min-w-0 flex-1">
                         <span className={`block truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                          {invite.hostName} invited you
+                          {t("worldCreatorRooms.inviteInvitedYou", { host: invite.hostName })}
                         </span>
                         <span className={`block truncate text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-                          {invite.roomName} — their place in the palace.
+                          {t("worldCreatorRooms.inviteRoomTagline", { room: invite.roomName })}
                         </span>
                       </span>
                       <button
@@ -535,7 +550,7 @@ function CreatorRoomInvitesBlock({
                         className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
                         data-testid="world-room-invite-accept"
                       >
-                        {answeringId === invite.id ? "Answering…" : "Accept"}
+                        {answeringId === invite.id ? t("worldCreatorRooms.inviteAnswering") : t("worldCreatorRooms.inviteAccept")}
                       </button>
                       <button
                         type="button"
@@ -548,7 +563,7 @@ function CreatorRoomInvitesBlock({
                         }`}
                         data-testid="world-room-invite-decline"
                       >
-                        Decline
+                        {t("worldCreatorRooms.inviteDecline")}
                       </button>
                     </div>
                   ))}
@@ -556,7 +571,7 @@ function CreatorRoomInvitesBlock({
               )}
               {mine!.accepted.length > 0 && (
                 <div className="space-y-2 pt-2">
-                  <p className={subClass}>Rooms you&rsquo;re in:</p>
+                  <p className={subClass}>{t("worldCreatorRooms.inviteRoomsYours")}</p>
                   {mine!.accepted.map((invite) => (
                     <div
                       key={invite.id}
@@ -569,7 +584,7 @@ function CreatorRoomInvitesBlock({
                           {invite.roomName}
                         </span>
                         <span className={`block truncate text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-                          {invite.hostName} invited you in — the door is yours.
+                          {t("worldCreatorRooms.inviteHostInvitedYou", { host: invite.hostName })}
                         </span>
                       </span>
                       <button
@@ -578,7 +593,7 @@ function CreatorRoomInvitesBlock({
                         className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105"
                         data-testid="world-room-invite-enter"
                       >
-                        <DoorOpen className="h-3.5 w-3.5" /> Enter
+                        <DoorOpen className="h-3.5 w-3.5" /> {t("worldCreatorRooms.inviteEnter")}
                       </button>
                     </div>
                   ))}
@@ -602,17 +617,17 @@ function CreatorRoomInvitesBlock({
       {mySlug && (
         <div className={cardClass} data-testid="world-room-invites-send">
           <p className={headingClass}>
-            <UserPlus className="h-4 w-4 text-[#d4af37]" /> Invite to your room
+            <UserPlus className="h-4 w-4 text-[#d4af37]" /> {t("worldCreatorRooms.inviteSendTitle")}
           </p>
           <p className={`${subClass} pt-1`}>
-            Pick a person — the invite goes out under your name, and they choose.
+            {t("worldCreatorRooms.inviteSendIntro")}
           </p>
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search members by name…"
-            aria-label="Search members to invite"
+            placeholder={t("worldCreatorRooms.inviteSearchPlaceholder")}
+            aria-label={t("worldCreatorRooms.inviteSearchAria")}
             className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none transition ${
               isLight
                 ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/60 focus:border-[#7A5A12]"
@@ -622,16 +637,16 @@ function CreatorRoomInvitesBlock({
           />
           <div className="space-y-2 pt-2">
             {candidatesFailed ? (
-              <p className={subClass}>The member list wouldn&rsquo;t load — try the search again in a moment.</p>
+              <p className={subClass}>{t("worldCreatorRooms.inviteListFailed")}</p>
             ) : candidates === null ? (
               <p className={`inline-flex items-center gap-2 ${subClass}`}>
-                <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> Opening the member list…
+                <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {t("worldCreatorRooms.inviteListLoading")}
               </p>
             ) : candidates.length === 0 ? (
               <p className={subClass}>
                 {query.trim()
-                  ? "Nobody on the member list matches that name."
-                  : "No other member has opened a room yet — the list fills as creators arrive."}
+                  ? t("worldCreatorRooms.inviteNoMatch")
+                  : t("worldCreatorRooms.inviteListEmpty")}
               </p>
             ) : (
               candidates.map((candidate) => {
@@ -653,7 +668,7 @@ function CreatorRoomInvitesBlock({
                     </span>
                     {sent ? (
                       <span className={`inline-flex items-center gap-1 text-xs font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                        <Check className="h-3.5 w-3.5" /> Invite sent
+                        <Check className="h-3.5 w-3.5" /> {t("worldCreatorRooms.inviteSent")}
                       </span>
                     ) : (
                       <button
@@ -663,7 +678,7 @@ function CreatorRoomInvitesBlock({
                         className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
                         data-testid="world-room-invite-send-button"
                       >
-                        {sendingId === candidate.userId ? "Sending…" : "Invite"}
+                        {sendingId === candidate.userId ? t("worldCreatorRooms.inviteSending") : t("worldCreatorRooms.inviteSend")}
                       </button>
                     )}
                   </div>
@@ -695,6 +710,9 @@ export function CreatorRoomsDirectory({
   mySlug: string | null;
   onEnterCreatorRoom: (slug: string) => void;
 }) {
+  const { t, i18n } = useTranslation();
+  const roomsStrings = creatorRoomsStrings((k) => t(k));
+  const evoStrings = creatorRoomEvolutionStrings((k) => t(k));
   const [rooms, setRooms] = useState<CreatorRoomSummary[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [tick, setTick] = useState(0);
@@ -702,7 +720,7 @@ export function CreatorRoomsDirectory({
   useEffect(() => {
     let cancelled = false;
     setFailed(false);
-    fetchCreatorRoomDirectory()
+    fetchCreatorRoomDirectory(undefined, roomsStrings)
       .then((list) => {
         if (!cancelled) setRooms(list);
       })
@@ -718,14 +736,14 @@ export function CreatorRoomsDirectory({
     return (
       <div className="flex flex-col items-start gap-2 px-1 py-3">
         <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-          The rooms wouldn&rsquo;t list — the doors are fine, the directory slipped.
+          {t("worldCreatorRooms.dirLoadFailed")}
         </p>
         <button
           type="button"
           onClick={() => setTick((n) => n + 1)}
           className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
-          Try again
+          {t("worldCreatorRooms.inviteTryAgain")}
         </button>
       </div>
     );
@@ -733,14 +751,14 @@ export function CreatorRoomsDirectory({
   if (rooms === null) {
     return (
       <p className={`inline-flex items-center gap-2 px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-        <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> Opening the arch…
+        <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {t("worldCreatorRooms.dirOpening")}
       </p>
     );
   }
   if (rooms.length === 0) {
     return (
       <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-        No creator has opened a room yet — the arch stands ready for the first host.
+        {t("worldCreatorRooms.dirEmpty")}
       </p>
     );
   }
@@ -778,15 +796,15 @@ export function CreatorRoomsDirectory({
       )}
       <span className="min-w-0 flex-1">
         <span className={`block truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-          {isMine ? "Your room" : r.roomName}
+          {isMine ? t("worldCreatorRooms.dirYourRoom") : r.roomName}
         </span>
         <span className={`block truncate text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-          {isMine ? `${r.displayName} — your place in the palace. ` : ""}
+          {isMine ? t("worldCreatorRooms.dirMinePrefix", { name: r.displayName }) : ""}
           {r.hasContent
-            ? "Their music and featured work are on the walls."
-            : "A quiet room — its host is still moving in."}
+            ? t("worldCreatorRooms.dirHasContent")
+            : t("worldCreatorRooms.dirNoContent")}
         </span>
-        {creatorRoomEvolutionLine(r.evolution) && (
+        {creatorRoomEvolutionLine(r.evolution, evoStrings, i18n.language) && (
           <span
             className="block truncate text-[11px] font-bold"
             style={{
@@ -796,13 +814,13 @@ export function CreatorRoomsDirectory({
             }}
             data-testid="world-creator-room-evolution"
           >
-            {creatorRoomEvolutionLine(r.evolution)}
+            {creatorRoomEvolutionLine(r.evolution, evoStrings, i18n.language)}
           </span>
         )}
       </span>
       {r.occupantCount > 0 && (
         <span className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-          <Users className="h-3.5 w-3.5" /> {r.occupantCount} in
+          <Users className="h-3.5 w-3.5" /> {t("worldCreatorRooms.dirOccupants", { count: r.occupantCount.toLocaleString(i18n.language) })}
         </span>
       )}
       <DoorOpen className="h-4 w-4 shrink-0 text-[#d4af37]" />
@@ -818,8 +836,7 @@ export function CreatorRoomsDirectory({
       />
       {others.map((r) => row(r, false))}
       <p className={`px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-        Every room is its creator&rsquo;s place — their screen, their music rail, their Front Row,
-        their store door. Pick one and the palace walks you through the arch.
+        {t("worldCreatorRooms.dirFooter")}
       </p>
     </div>
   );
@@ -848,6 +865,8 @@ function OfficeHoursBlock({
    *  ownership on every write regardless. */
   isOwnRoom: boolean;
 }) {
+  const { t, i18n } = useTranslation();
+  const officeStrings = officeHoursStrings((k) => t(k));
   const { getAccessToken } = useAuth();
   const [sessions, setSessions] = useState<OfficeHoursRow[] | null>(null);
   const [mine, setMine] = useState<OfficeHoursRow[]>([]);
@@ -916,7 +935,7 @@ function OfficeHoursBlock({
         endsAt: detail.officeHours.endsAt,
       }
     : null;
-  const marker = officeHoursMarker(fromSlate ?? seed, detail.displayName, now);
+  const marker = officeHoursMarker(fromSlate ?? seed, detail.displayName, now, officeStrings, i18n.language);
   const open = (sessions ?? []).filter(
     (s) =>
       (s.status === "scheduled" || s.status === "live") && Date.parse(s.endsAt) > now,
@@ -931,6 +950,7 @@ function OfficeHoursBlock({
       detail.slug,
       { title, note, startLocal, durationMin },
       Date.now(),
+      officeStrings,
     );
     if (!built.ok) {
       setFormError(built.error);
@@ -940,7 +960,7 @@ function OfficeHoursBlock({
     try {
       const token = await getAccessToken().catch(() => null);
       if (!token) {
-        setFormError("Sign in to book your office hours.");
+        setFormError(t("worldCreatorRooms.officeSignInBook"));
         return;
       }
       const res = await fetch(OFFICE_HOURS_BOOK_PATH, {
@@ -953,15 +973,15 @@ function OfficeHoursBlock({
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setFormError(officeHoursErrorCopy(res.status, payload));
+        setFormError(officeHoursErrorCopy(res.status, payload, officeStrings));
         return;
       }
-      setFormDone("Booked — it's on the palace calendar, and this room carries the hours.");
+      setFormDone(t("worldCreatorRooms.officeBookedDone"));
       /* One tap books the same slot next week. */
       setStartLocal((v) => plusDaysLocalValue(v, 7));
       setTick((n) => n + 1);
     } catch {
-      setFormError("The booking wouldn't land — try again.");
+      setFormError(t("worldCreatorRooms.officeBookFailed"));
     } finally {
       setBusy(false);
     }
@@ -974,7 +994,7 @@ function OfficeHoursBlock({
     try {
       const token = await getAccessToken().catch(() => null);
       if (!token) {
-        setFormError("Sign in to manage your office hours.");
+        setFormError(t("worldCreatorRooms.officeSignInManage"));
         return;
       }
       const res = await fetch(officeHoursCancelPath(id), {
@@ -983,13 +1003,13 @@ function OfficeHoursBlock({
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setFormError(officeHoursErrorCopy(res.status, payload));
+        setFormError(officeHoursErrorCopy(res.status, payload, officeStrings));
         return;
       }
-      setFormDone("Session cancelled — the calendar and the room read it already.");
+      setFormDone(t("worldCreatorRooms.officeCancelledDone"));
       setTick((n) => n + 1);
     } catch {
-      setFormError("The cancellation wouldn't land — try again.");
+      setFormError(t("worldCreatorRooms.officeCancelFailed"));
     } finally {
       setBusy(false);
     }
@@ -1019,7 +1039,7 @@ function OfficeHoursBlock({
             {marker.headline}
             {marker.inSession && (
               <span className="rounded-full bg-[#d4af37] px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-black">
-                On now
+                {t("worldCreatorRooms.officeOnNow")}
               </span>
             )}
           </p>
@@ -1027,8 +1047,7 @@ function OfficeHoursBlock({
             {marker.detail}
           </p>
           <p className={`pt-0.5 text-[11px] ${isLight ? "text-[#6B5B36]/80" : "text-white/35"}`}>
-            Booked hours on the palace calendar — who&rsquo;s standing in the room is on its
-            roster, not this card.
+            {t("worldCreatorRooms.officeMarkerNote")}
           </p>
         </div>
       )}
@@ -1044,7 +1063,7 @@ function OfficeHoursBlock({
               <span className={`font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
                 {s.title}
               </span>
-              <span>{officeHoursSessionWhen(s, now)}</span>
+              <span>{officeHoursSessionWhen(s, now, officeStrings, i18n.language)}</span>
             </p>
           ))}
         </div>
@@ -1052,32 +1071,31 @@ function OfficeHoursBlock({
       {isOwnRoom && (
         <div className="pt-3" data-testid="world-creator-room-office-hours-host">
           <p className={`text-xs font-black uppercase tracking-wide ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-            Your office hours
+            {t("worldCreatorRooms.officeYoursTitle")}
           </p>
           <p className={`pb-2 pt-0.5 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-            Hold court in this room: book the hour, and fans find it on the palace calendar
-            and on this room&rsquo;s door.
+            {t("worldCreatorRooms.officeYoursIntro")}
           </p>
           <div className="space-y-2">
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Office hours — ask me anything"
+              placeholder={t("worldCreatorRooms.officeTitlePlaceholder")}
               maxLength={120}
               className={inputCls}
               data-testid="world-office-hours-title"
-              aria-label="Office hours title"
+              aria-label={t("worldCreatorRooms.officeTitleAria")}
             />
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="What the hour is for (optional) — e.g. mixing questions, beat feedback"
+              placeholder={t("worldCreatorRooms.officeNotePlaceholder")}
               maxLength={140}
               className={inputCls}
               data-testid="world-office-hours-note"
-              aria-label="What the hour is for (optional)"
+              aria-label={t("worldCreatorRooms.officeNoteAria")}
             />
             <div className="flex flex-wrap items-center gap-2">
               <input
@@ -1090,7 +1108,7 @@ function OfficeHoursBlock({
                     : "border-[#d4af37]/25 bg-white/5 text-white"
                 }`}
                 data-testid="world-office-hours-start"
-                aria-label="Office hours start time"
+                aria-label={t("worldCreatorRooms.officeStartAria")}
               />
               <span className="inline-flex gap-1">
                 {OFFICE_HOURS_DURATIONS_MIN.map((m) => (
@@ -1107,7 +1125,7 @@ function OfficeHoursBlock({
                     }`}
                     data-testid={`world-office-hours-duration-${m}`}
                   >
-                    {m}m
+                    {t("worldCreatorRooms.officeDurationMin", { count: m })}
                   </button>
                 ))}
               </span>
@@ -1118,7 +1136,7 @@ function OfficeHoursBlock({
                 className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                 data-testid="world-office-hours-book"
               >
-                {busy ? "Booking…" : "Book the hour"}
+                {busy ? t("worldCreatorRooms.officeBooking") : t("worldCreatorRooms.officeBook")}
               </button>
             </div>
             {formError && (
@@ -1145,8 +1163,8 @@ function OfficeHoursBlock({
                     <span className={`font-semibold ${isLight ? "text-[#2a1e07]" : "text-white/80"}`}>
                       {s.title}
                     </span>{" "}
-                    · {officeHoursSessionWhen(s, now)}
-                    {s.status === "live" ? " · in session" : ""}
+                    · {officeHoursSessionWhen(s, now, officeStrings, i18n.language)}
+                    {s.status === "live" ? t("worldCreatorRooms.officeInSessionSuffix") : ""}
                   </span>
                   <button
                     type="button"
@@ -1159,7 +1177,7 @@ function OfficeHoursBlock({
                     }`}
                     data-testid="world-office-hours-cancel"
                   >
-                    Cancel
+                    {t("worldCreatorRooms.officeCancel")}
                   </button>
                 </p>
               ))}
@@ -1206,6 +1224,8 @@ export function CreatorRoomStation({
    *  plays on the Shelf player instead). */
   onPlayTrack: (trackId: string) => void;
 }) {
+  const { t: tr, i18n } = useTranslation();
+  const evoStrings = creatorRoomEvolutionStrings((k) => tr(k));
   const { detail, failed, retry } = useRoomDetail(slug);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
 
@@ -1213,14 +1233,14 @@ export function CreatorRoomStation({
     return (
       <div className="flex flex-col items-start gap-2 px-1 py-3">
         <p className={`text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-          This room&rsquo;s things wouldn&rsquo;t load — the room is here, its shelves slipped.
+          {tr("worldCreatorRooms.stationLoadFailed")}
         </p>
         <button
           type="button"
           onClick={retry}
           className="rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
         >
-          Try again
+          {tr("worldCreatorRooms.inviteTryAgain")}
         </button>
       </div>
     );
@@ -1228,7 +1248,7 @@ export function CreatorRoomStation({
   if (!detail) {
     return (
       <p className={`inline-flex items-center gap-2 px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-        <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> Stepping into {slug}&rsquo;s room…
+        <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {tr("worldCreatorRooms.stationSteppingIn", { slug })}
       </p>
     );
   }
@@ -1249,7 +1269,7 @@ export function CreatorRoomStation({
   /* The room's evolution (Ring 3, Phase 5): the owner's earned
    * rung + what stands next, off the room DTO — shown at the head
    * of the room's stations. Unmeasured rooms show nothing. */
-  const evoLine = creatorRoomEvolutionLine(detail.evolution);
+  const evoLine = creatorRoomEvolutionLine(detail.evolution, evoStrings, i18n.language);
   const evoHeader = evoLine ? (
     <p
       className="px-1 pb-2 text-xs font-bold"
@@ -1260,7 +1280,7 @@ export function CreatorRoomStation({
       }}
       data-testid="world-creator-room-station-evolution"
     >
-      {evoLine} — this room levels with its host.
+      {evoLine}{tr("worldCreatorRooms.stationEvoSuffix")}
     </p>
   ) : null;
 
@@ -1294,8 +1314,7 @@ export function CreatorRoomStation({
           {dressingDesk}
           {officeBlock}
           <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-            {detail.displayName} hasn&rsquo;t seated a Front Row yet — the chairs are here, the
-            portraits come when they crown their court.
+            {tr("worldCreatorRooms.stationFrontRowEmpty", { name: detail.displayName })}
           </p>
         </div>
       );
@@ -1333,17 +1352,16 @@ export function CreatorRoomStation({
                 {m.displayName}
               </span>
               <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-[#e8c86a]">
-                <Crown className="h-3 w-3" /> Seat #{m.position}
+                <Crown className="h-3 w-3" /> {tr("worldCreatorRooms.stationSeat", { position: m.position })}
               </span>
               <span className={`text-[11px] font-semibold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]/80"}`}>
-                See their card →
+                {tr("worldCreatorRooms.stationSeeCard")}
               </span>
             </button>
           ))}
         </div>
         <p className={`px-1 pt-2 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-          {detail.displayName}&rsquo;s Front Row — the creators they keep closest. A portrait
-          opens that creator&rsquo;s card, right here in the room.
+          {tr("worldCreatorRooms.stationFrontRowFooter", { name: detail.displayName })}
         </p>
       </div>
     );
@@ -1356,8 +1374,7 @@ export function CreatorRoomStation({
           {dressingDesk}
           {officeBlock}
           <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-            {detail.displayName} hasn&rsquo;t put any music on the rail yet — the shelf is here,
-            waiting for their first published song.
+            {tr("worldCreatorRooms.stationMusicEmpty", { name: detail.displayName })}
           </p>
         </div>
       );
@@ -1391,12 +1408,12 @@ export function CreatorRoomStation({
                   {t.title}
                   {isFeatured && (
                     <span className="ml-2 align-middle text-[10px] font-black uppercase tracking-wide text-[#e8c86a]">
-                      Featured
+                      {tr("worldCreatorRooms.stationFeatured")}
                     </span>
                   )}
                 </span>
                 <span className={`block text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-                  {detail.displayName} · {t.playCount.toLocaleString("en-US")} plays
+                  {tr("worldCreatorRooms.stationPlaysLine", { name: detail.displayName, count: t.playCount.toLocaleString(i18n.language) })}
                 </span>
               </span>
               <button
@@ -1410,14 +1427,13 @@ export function CreatorRoomStation({
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
               >
                 <Play className="h-3.5 w-3.5" />
-                {isCurrent && shelfPlayer.playing ? "Pause" : "Play"}
+                {isCurrent && shelfPlayer.playing ? tr("worldCreatorRooms.stationPause") : tr("worldCreatorRooms.stationPlay")}
               </button>
             </div>
           );
         })}
         <p className={`px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-          Plays here, for you, on the palace player — the room has no jukebox (that&rsquo;s the
-          Music Hall&rsquo;s, two doors west of the hall).
+          {tr("worldCreatorRooms.stationMusicFooter")}
         </p>
       </div>
     );
@@ -1431,8 +1447,7 @@ export function CreatorRoomStation({
           {dressingDesk}
           {officeBlock}
           <p className={`px-1 py-3 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/55"}`}>
-            {detail.displayName} hasn&rsquo;t put a video on the screen yet — the screen wears
-            their name until their first featured piece.
+            {tr("worldCreatorRooms.stationScreenEmpty", { name: detail.displayName })}
           </p>
         </div>
       );
@@ -1461,7 +1476,7 @@ export function CreatorRoomStation({
                 {video.title}
               </span>
               <span className={`block text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-                {detail.displayName} · {video.viewCount.toLocaleString("en-US")} views
+                {tr("worldCreatorRooms.stationViewsLine", { name: detail.displayName, count: video.viewCount.toLocaleString(i18n.language) })}
               </span>
             </span>
             <button
@@ -1475,14 +1490,12 @@ export function CreatorRoomStation({
               className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#d4af37] px-4 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
             >
               <Play className="h-3.5 w-3.5" />
-              {isCurrent && shelfPlayer.playing ? "Pause" : "Watch"}
+              {isCurrent && shelfPlayer.playing ? tr("worldCreatorRooms.stationPause") : tr("worldCreatorRooms.stationWatch")}
             </button>
           </div>
         </div>
         <p className={`px-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
-          The same piece plays on the room&rsquo;s big screen behind you — turn around. Watching
-          here gives you the sound and the transport; the screen on the wall is the room&rsquo;s
-          ambient showing.
+          {tr("worldCreatorRooms.stationScreenFooter")}
         </p>
       </div>
     );
@@ -1542,6 +1555,7 @@ function openCheckoutTab(url: string) {
 }
 
 function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDetail; isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
   const { getAccessToken } = useAuth();
   const authHeaders = async (): Promise<Record<string, string>> => {
     const token = await getAccessToken().catch(() => null);
@@ -1648,14 +1662,14 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
         setGiftEmbedded(null);
         try { localStorage.removeItem(giftScope); } catch { /* ignore */ }
       } else if (state === "pending") {
-        setNote("The gift card's payment hasn't completed yet — this room keeps the receipt and confirms the card itself the moment it lands.");
+        setNote(t("worldCreatorRooms.giftVerifyPending"));
       } else {
         setGiftEmbedded(null);
         try { localStorage.removeItem(giftScope); } catch { /* ignore */ }
-        setNote("That gift-card checkout closed before the payment landed — no card was issued, and nothing was charged for one.");
+        setNote(t("worldCreatorRooms.giftVerifyClosed"));
       }
     } catch {
-      setNote("The gift card's status couldn't be checked just now — nothing about it changed.");
+      setNote(t("worldCreatorRooms.giftVerifyUnknown"));
     } finally {
       setGiftRefreshing(false);
     }
@@ -1679,7 +1693,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
   const startGiftCheckout = async () => {
     if (!giftItem || giftBusy) return;
     if (isGuest) {
-      setNote("Buying rides your account — sign in on the website (the footer below) and come back through this door; the goods will be waiting.");
+      setNote(t("worldCreatorRooms.storeGuestNote"));
       return;
     }
     const problem = giftCardFormProblem(giftForm, giftItem.giftCardDenominationsCents);
@@ -1689,7 +1703,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
     }
     const payload = giftCardCheckoutPayload(giftItem.id, giftForm, giftItem.giftCardDenominationsCents, hasStripePublishableKey());
     if (!payload) {
-      setGiftError("Pick an amount and add the recipient's email first.");
+      setGiftError(t("worldCreatorRooms.giftFormIncomplete"));
       return;
     }
     setGiftBusy(true);
@@ -1703,7 +1717,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Gift-card checkout didn't start — nothing was charged."));
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldCreatorRooms.giftCheckoutNoStart")));
       const sessionId = typeof data.sessionId === "string" ? data.sessionId : "";
       if (sessionId) {
         try {
@@ -1712,15 +1726,15 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
       }
       if (typeof data.clientSecret === "string" && data.clientSecret) {
         setGiftEmbedded({ clientSecret: data.clientSecret, sessionId });
-        setNote(`Pay for the gift card right here in the room — it is delivered to ${giftForm.recipientEmail.trim()} the moment the payment lands, and this room confirms the card itself.`);
+        setNote(t("worldCreatorRooms.giftPayNote", { email: giftForm.recipientEmail.trim() }));
         return;
       }
       const url = hostedCheckoutUrl(data);
-      if (!url) throw new Error("Checkout didn't return a payment page — nothing was charged.");
+      if (!url) throw new Error(t("worldCreatorRooms.giftCheckoutNoPage"));
       openCheckoutTab(url);
-      setNote("Your gift-card checkout opened in a new tab — finish paying there. This room keeps the receipt: it confirms the card itself when the payment lands.");
+      setNote(t("worldCreatorRooms.giftHostedNote"));
     } catch (e) {
-      setGiftError(plainErrorText(e, "Gift-card checkout didn't start — nothing was charged."));
+      setGiftError(plainErrorText(e, t("worldCreatorRooms.giftCheckoutNoStart")));
     } finally {
       setGiftBusy(false);
     }
@@ -1747,13 +1761,13 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
         setCart([]);
         try { localStorage.removeItem(marketPendingKey(handle)); } catch { /* ignore */ }
       } else if (order?.status === "expired") {
-        setPendingNote("That checkout expired before payment — the order was never charged. Your cart is still here whenever you're ready.");
+        setPendingNote(t("worldCreatorRooms.orderExpired"));
         try { localStorage.removeItem(marketPendingKey(handle)); } catch { /* ignore */ }
       } else {
-        setPendingNote("Your order is saved as pending — payment hasn't confirmed yet. Finish at the hosted checkout, then check again here.");
+        setPendingNote(t("worldCreatorRooms.orderPendingRefresh"));
       }
     } catch {
-      setPendingNote("Your order is saved as pending — its status couldn't be refreshed just now. Nothing about it was changed.");
+      setPendingNote(t("worldCreatorRooms.orderPendingUnknown"));
     } finally {
       setRefreshingOrder(false);
     }
@@ -1797,7 +1811,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
         }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorLine(data, "Checkout didn't start — nothing was charged."));
+      if (!res.ok) throw new Error(apiErrorLine(data, t("worldCreatorRooms.cartCheckoutNoStart")));
       /* A gift card covering the whole cart answers paid with NO
          payment page (paidWithGiftCard) — a completed purchase,
          not a missing URL. */
@@ -1812,7 +1826,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
           try { localStorage.setItem(marketPendingKey(handle), data.sessionId); } catch { /* storage blocked */ }
         }
         setEmbeddedSecret(data.clientSecret);
-        setPendingNote("Your order is saved as pending — finish paying right here in this room. It confirms here the moment the payment lands; your place in the palace never moves.");
+        setPendingNote(t("worldCreatorRooms.orderPendingEmbedded"));
         return;
       }
       const url = hostedCheckoutUrl(data);
@@ -1821,12 +1835,12 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
           try { localStorage.setItem(marketPendingKey(handle), data.sessionId); } catch { /* storage blocked */ }
         }
         openCheckoutTab(url);
-        setPendingNote("Your checkout opened in a new tab — finish paying there. This room keeps your place and your cart, and confirms the order here when the payment lands.");
+        setPendingNote(t("worldCreatorRooms.orderPendingHosted"));
         return;
       }
-      throw new Error("Checkout didn't return a payment page — nothing was charged.");
+      throw new Error(t("worldCreatorRooms.giftCheckoutNoPage"));
     } catch (e) {
-      setOrderError(plainErrorText(e, "Checkout didn't start — nothing was charged, and your cart is untouched."));
+      setOrderError(plainErrorText(e, t("worldCreatorRooms.cartCheckoutFailedCart")));
     } finally {
       setPlacing(false);
     }
@@ -1836,7 +1850,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
   const buySingle = async (item: RoomStoreItem) => {
     if (busyId) return;
     if (isGuest) {
-      setNote("Buying rides your account — sign in on the website (the footer below) and come back through this door; the goods will be waiting.");
+      setNote(t("worldCreatorRooms.storeGuestNote"));
       return;
     }
     const rail = roomItemRail(item);
@@ -1857,23 +1871,23 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
           body: JSON.stringify({ ...shaped.body, uiMode: hasStripePublishableKey() ? "embedded" : undefined }),
         });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        if (!res.ok) throw new Error(apiErrorLine(data, "Checkout failed."));
+        if (!res.ok) throw new Error(apiErrorLine(data, t("worldCreatorRooms.buyCheckoutFailedPlain")));
         if (data.paid === true) {
           /* Gift-card tender covered it in full — the server
              already recorded the sale and delivered; there is no
              card form to mount (the store-buy page's own answer). */
-          setNote(`“${item.title}” is yours — paid in full with your gift card and delivered to your library.`);
+          setNote(t("worldCreatorRooms.storePaidFullGift", { title: item.title }));
           return;
         }
         if (typeof data.clientSecret === "string" && data.clientSecret) {
           setEmbeddedSecret(data.clientSecret);
-          setNote(`Pay for “${item.title}” right here in the room — the payment form is at the foot of this panel.`);
+          setNote(t("worldCreatorRooms.storePayHereNote", { title: item.title }));
           return;
         }
         const url = hostedCheckoutUrl(data);
-        if (!url) throw new Error("Checkout didn't return a payment page — nothing was charged.");
+        if (!url) throw new Error(t("worldCreatorRooms.giftCheckoutNoPage"));
         openCheckoutTab(url);
-        setNote(`Checkout for “${item.title}” opened in a new tab — finish paying there; your download lands with the payment.`);
+        setNote(t("worldCreatorRooms.storeHostedNote", { title: item.title }));
         return;
       }
       if (rail === "storefront") {
@@ -1887,26 +1901,26 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
           body: JSON.stringify({ ...storefrontCheckoutPayload(item, qtyInputs[item.id] ?? 1, giftCode), uiMode: hasStripePublishableKey() ? "embedded" : undefined }),
         });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        if (!res.ok) throw new Error(apiErrorLine(data, "Checkout failed."));
+        if (!res.ok) throw new Error(apiErrorLine(data, t("worldCreatorRooms.buyCheckoutFailedPlain")));
         if (paidWithGiftCard(data)) {
           /* The card covered it in full — the rail recorded the
              order and answers with no payment page at all. */
-          setNote(typeof data.note === "string" && data.note ? data.note : `“${item.title}” is yours — paid in full with your gift card.`);
+          setNote(typeof data.note === "string" && data.note ? data.note : t("worldCreatorRooms.storefrontPaidFullGift", { title: item.title }));
           return;
         }
         if (typeof data.clientSecret === "string" && data.clientSecret) {
           setEmbeddedSecret(data.clientSecret);
-          setNote(`Pay for “${item.title}” right here in the room — the payment form is at the foot of this panel.`);
+          setNote(t("worldCreatorRooms.storePayHereNote", { title: item.title }));
           return;
         }
         const url = hostedCheckoutUrl(data);
-        if (!url) throw new Error("Checkout didn't return a payment page — nothing was charged.");
+        if (!url) throw new Error(t("worldCreatorRooms.giftCheckoutNoPage"));
         openCheckoutTab(url);
-        setNote(`Checkout for “${item.title}” opened in a new tab — finish paying there.`);
+        setNote(t("worldCreatorRooms.storeHostedNotePlain", { title: item.title }));
         return;
       }
     } catch (e) {
-      setBuyError(plainErrorText(e, "Checkout failed — nothing was charged."));
+      setBuyError(plainErrorText(e, t("worldCreatorRooms.buyCheckoutFailed")));
     } finally {
       setBusyId(null);
     }
@@ -1921,21 +1935,20 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
       <p className={`inline-flex items-center gap-2 px-1 text-xs font-semibold ${mutedCls}`}>
         <ShoppingBag className="h-4 w-4 text-[#d4af37]" />
         {detail.storefront
-          ? `${detail.displayName} also runs ${detail.storefront.name} — its goods cart and check out right here, on the Marketplace rails.`
-          : `${detail.displayName}'s store, on their profile's own rails — bought right here in the room.`}
+          ? t("worldCreatorRooms.storeIntroShop", { name: detail.displayName, shop: detail.storefront.name })
+          : t("worldCreatorRooms.storeIntroProfile", { name: detail.displayName })}
       </p>
       {failed ? (
         <p className={`px-1 py-2 text-sm ${mutedCls}`}>
-          The store wouldn&rsquo;t open — the goods are fine, the stand slipped.
+          {t("worldCreatorRooms.storeOpenFailed")}
         </p>
       ) : items === null ? (
         <p className={`inline-flex items-center gap-2 px-1 py-2 text-sm ${mutedCls}`}>
-          <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> Setting out the goods…
+          <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" /> {t("worldCreatorRooms.storeSettingOut")}
         </p>
       ) : items.length === 0 ? (
         <p className={`px-1 py-2 text-sm ${mutedCls}`}>
-          Nothing is for sale here yet — the stand is built, the shelves fill when{" "}
-          {detail.displayName} lists their first piece.
+          {t("worldCreatorRooms.storeEmpty", { name: detail.displayName })}
         </p>
       ) : (
         <>
@@ -1960,7 +1973,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                   </span>
                   {item.price && (
                     <span className={`text-xs font-black ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                      {rail === "gift" ? `from ${item.price}` : item.price}
+                      {rail === "gift" ? t("worldCreatorRooms.storeFromPrice", { price: item.price }) : item.price}
                     </span>
                   )}
                   {rail === "market" ? (
@@ -1970,7 +1983,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                       onClick={() => setCart((c) => addToCartLines(c, item.id))}
                       className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                     >
-                      <Plus className="h-3.5 w-3.5" /> Add to cart
+                      <Plus className="h-3.5 w-3.5" /> {t("worldCreatorRooms.storeAddToCart")}
                     </button>
                   ) : rail === "store" ? (
                     <>
@@ -1979,8 +1992,8 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                           value={pwywInputs[item.id] ?? ""}
                           onChange={(e) => setPwywInputs((m) => ({ ...m, [item.id]: e.target.value }))}
                           inputMode="decimal"
-                          placeholder={`Your price — min $${(item.pwyw.minCents / 100).toFixed(2)}`}
-                          aria-label={`Your price for ${item.title}`}
+                          placeholder={t("worldCreatorRooms.storePwywPlaceholder", { min: `$${(item.pwyw.minCents / 100).toFixed(2)}` })}
+                          aria-label={t("worldCreatorRooms.storePwywAria", { title: item.title })}
                           className={`w-full rounded-xl border px-2.5 py-1.5 text-xs outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
                         />
                       )}
@@ -1998,9 +2011,9 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                   ) : rail === "storefront" ? (
                     <>
                       <span className="inline-flex items-center gap-1.5">
-                        <button type="button" aria-label="One less" onClick={() => setQtyInputs((m) => ({ ...m, [item.id]: Math.max(1, (m[item.id] ?? 1) - 1) }))} className={chipCls}><Minus className="h-3 w-3" /></button>
+                        <button type="button" aria-label={t("worldCreatorRooms.storeOneLess")} onClick={() => setQtyInputs((m) => ({ ...m, [item.id]: Math.max(1, (m[item.id] ?? 1) - 1) }))} className={chipCls}><Minus className="h-3 w-3" /></button>
                         <span className="w-5 text-center text-xs font-bold">{qtyInputs[item.id] ?? 1}</span>
-                        <button type="button" aria-label="One more" onClick={() => setQtyInputs((m) => ({ ...m, [item.id]: Math.min(99, (m[item.id] ?? 1) + 1) }))} className={chipCls}><Plus className="h-3 w-3" /></button>
+                        <button type="button" aria-label={t("worldCreatorRooms.storeOneMore")} onClick={() => setQtyInputs((m) => ({ ...m, [item.id]: Math.min(99, (m[item.id] ?? 1) + 1) }))} className={chipCls}><Plus className="h-3 w-3" /></button>
                       </span>
                       <button
                         type="button"
@@ -2016,7 +2029,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                   ) : rail === "gift" ? (
                     <>
                       <span className={`text-[11px] ${mutedCls}`}>
-                        Stored value for this store — pick an amount, it&rsquo;s emailed to them.
+                        {t("worldCreatorRooms.storeGiftBlurb")}
                       </span>
                       <button
                         type="button"
@@ -2030,7 +2043,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                         }}
                         className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                       >
-                        <Gift className="h-3.5 w-3.5" /> Buy a gift card
+                        <Gift className="h-3.5 w-3.5" /> {t("worldCreatorRooms.storeBuyGiftCard")}
                       </button>
                     </>
                   ) : item.buyUrl ? (
@@ -2040,7 +2053,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                       rel="noreferrer"
                       className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 bdv-touch-target"
                     >
-                      Buy on the website
+                      {t("worldCreatorRooms.storeBuyOnWebsite")}
                     </a>
                   ) : null}
                 </div>
@@ -2051,14 +2064,12 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
           {giftItem && (
             <div className={`rounded-2xl border px-3 py-3 ${cardCls}`} data-testid="world-room-store-gift-form">
               <p className={`flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                <Gift className="h-4 w-4 text-[#d4af37]" /> Gift card — {giftItem.title}
+                <Gift className="h-4 w-4 text-[#d4af37]" /> {t("worldCreatorRooms.giftFormTitle", { title: giftItem.title })}
               </p>
               <p className={`mt-1 text-xs ${mutedCls}`}>
-                For {detail.displayName}&rsquo;s store. Every cent you buy is a cent they can spend —
-                no platform fee is taken from a gift card, and whatever&rsquo;s unspent stays on the card.
-                It is delivered to the recipient&rsquo;s email, never to you.
+                {t("worldCreatorRooms.giftIntro", { name: detail.displayName })}
               </p>
-              <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Gift card amount">
+              <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={t("worldCreatorRooms.giftAmountGroupAria")}>
                 {(giftItem.giftCardDenominationsCents ?? []).map((d) => {
                   const picked = (giftForm.amountCents ?? giftItem.giftCardDenominationsCents?.[0]) === d;
                   return (
@@ -2086,23 +2097,23 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                   value={giftForm.recipientEmail}
                   onChange={(e) => setGiftForm((f) => ({ ...f, recipientEmail: e.target.value }))}
                   type="email"
-                  placeholder="Recipient's email — the card is delivered there"
-                  aria-label="Recipient's email"
+                  placeholder={t("worldCreatorRooms.giftRecipientPlaceholder")}
+                  aria-label={t("worldCreatorRooms.giftRecipientAria")}
                   data-testid="world-room-store-gift-recipient"
                   className={`w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
                 />
                 <input
                   value={giftForm.recipientName}
                   onChange={(e) => setGiftForm((f) => ({ ...f, recipientName: e.target.value }))}
-                  placeholder="Recipient's name (optional)"
-                  aria-label="Recipient's name"
+                  placeholder={t("worldCreatorRooms.giftRecipientNamePlaceholder")}
+                  aria-label={t("worldCreatorRooms.giftRecipientNameAria")}
                   className={`w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
                 />
                 <input
                   value={giftForm.message}
                   onChange={(e) => setGiftForm((f) => ({ ...f, message: e.target.value }))}
-                  placeholder="A note to go with it (optional)"
-                  aria-label="Gift message"
+                  placeholder={t("worldCreatorRooms.giftMessagePlaceholder")}
+                  aria-label={t("worldCreatorRooms.giftMessageAria")}
                   className={`w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
                 />
               </div>
@@ -2131,10 +2142,10 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                       disabled={giftRefreshing || !giftEmbedded.sessionId}
                       className={chipCls}
                     >
-                      {giftRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Check payment status
+                      {giftRefreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} {t("worldCreatorRooms.giftCheckStatus")}
                     </button>
                     <button type="button" onClick={() => setGiftEmbedded(null)} className={chipCls}>
-                      Close — the card still issues here when the payment lands
+                      {t("worldCreatorRooms.giftCloseStillIssues")}
                     </button>
                   </span>
                 </div>
@@ -2145,8 +2156,16 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                     <Check className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>
                       {giftIssued.duplicate
-                        ? "This payment already issued its gift card."
-                        : `Gift card issued${giftIssued.card ? ` — ${centsToDisplay(giftIssued.card.initialCents)} for ${giftIssued.card.storeName ?? `${detail.displayName}'s store`}` : ""}, emailed to ${giftIssued.card?.recipientEmail || "the recipient"}.`}
+                        ? t("worldCreatorRooms.giftIssuedDuplicate")
+                        : giftIssued.card
+                          ? t("worldCreatorRooms.giftIssuedFor", {
+                              amount: centsToDisplay(giftIssued.card.initialCents),
+                              store: giftIssued.card.storeName ?? t("worldCreatorRooms.giftStoreFallback", { name: detail.displayName }),
+                              email: giftIssued.card.recipientEmail || t("worldCreatorRooms.giftRecipientFallback"),
+                            })
+                          : t("worldCreatorRooms.giftIssuedPlain", {
+                              email: giftIssued.card?.recipientEmail || t("worldCreatorRooms.giftRecipientFallback"),
+                            })}
                     </span>
                   </p>
                   {giftIssued.code && (
@@ -2162,51 +2181,50 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
 
           <div className={`rounded-2xl border px-3 py-3 ${cardCls}`} data-testid="world-room-store-gift-code">
             <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-              Have a gift card from {detail.displayName}?
+              {t("worldCreatorRooms.giftHaveTitle", { name: detail.displayName })}
             </p>
             <input
               value={giftCode}
               onChange={(e) => setGiftCode(e.target.value)}
-              placeholder="Gift card code (optional) — BDV-XXXX-XXXX-XXXX-XXXX"
-              aria-label="Gift card code"
+              placeholder={t("worldCreatorRooms.giftCodePlaceholder")}
+              aria-label={t("worldCreatorRooms.giftCodeAria")}
               data-testid="world-room-store-gift-code-input"
               className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
             />
             <p className={`mt-1.5 text-[11px] ${mutedCls}`}>
-              It pays toward product buys and your cart here — covers what it can, the rest goes on
-              your payment method, and whatever&rsquo;s left stays on the card.
+              {t("worldCreatorRooms.giftTenderLine")}
             </p>
           </div>
 
           {(detailed.length > 0 || paidOrder || pendingNote) && shopId && (
             <div className={`rounded-2xl border px-3 py-3 ${cardCls}`} data-testid="world-room-store-cart">
               <p className={`text-xs font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                Your cart{count > 0 ? ` (${count})` : ""}
+                {count > 0 ? t("worldCreatorRooms.cartTitleCount", { count }) : t("worldCreatorRooms.cartTitle")}
               </p>
               {detailed.map((l) => (
                 <div key={l.productId} className="flex flex-wrap items-center gap-2 py-1.5">
                   <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{l.product.name}</span>
                   <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(l.product.price_cents * l.qty)}</span>
                   <span className="inline-flex items-center gap-1.5">
-                    <button type="button" aria-label="One less" onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty - 1))} className={chipCls}><Minus className="h-3 w-3" /></button>
+                    <button type="button" aria-label={t("worldCreatorRooms.storeOneLess")} onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty - 1))} className={chipCls}><Minus className="h-3 w-3" /></button>
                     <span className="w-5 text-center text-sm font-bold">{l.qty}</span>
-                    <button type="button" aria-label="One more" onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty + 1))} className={chipCls}><Plus className="h-3 w-3" /></button>
-                    <button type="button" aria-label="Remove from cart" onClick={() => setCart((c) => setCartLineQty(c, l.productId, 0))} className={chipCls}><Trash2 className="h-3 w-3" /></button>
+                    <button type="button" aria-label={t("worldCreatorRooms.storeOneMore")} onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty + 1))} className={chipCls}><Plus className="h-3 w-3" /></button>
+                    <button type="button" aria-label={t("worldCreatorRooms.storeRemoveFromCart")} onClick={() => setCart((c) => setCartLineQty(c, l.productId, 0))} className={chipCls}><Trash2 className="h-3 w-3" /></button>
                   </span>
                 </div>
               ))}
               {detailed.length > 0 && !paidOrder && (
                 <div className="mt-2 space-y-2 border-t border-[#d4af37]/25 pt-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className={mutedCls}>Total</span>
+                    <span className={mutedCls}>{t("worldCreatorRooms.cartTotal")}</span>
                     <span className="text-lg font-black">{centsToDisplay(total)}</span>
                   </div>
                   <input
                     value={buyerEmail}
                     onChange={(e) => setBuyerEmail(e.target.value)}
                     type="email"
-                    placeholder="Email for your receipt (optional)"
-                    aria-label="Email for your receipt (optional)"
+                    placeholder={t("worldCreatorRooms.cartEmailPlaceholder")}
+                    aria-label={t("worldCreatorRooms.cartEmailAria")}
                     className={`w-full rounded-xl border px-3 py-2 text-sm outline-none bdv-touch-target ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07]" : "border-white/15 bg-black/50 text-white"}`}
                   />
                   {orderError && <p className="text-xs font-semibold text-red-400">{orderError}</p>}
@@ -2215,7 +2233,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                     {CHECKOUT_TRANSFER_LABEL} · {centsToDisplay(total)}
                   </button>
                   <p className={`text-[11px] ${mutedCls}`}>
-                    Sellers keep 95% — the 5% platform fee comes out of the seller&rsquo;s cut, never on top of your price.
+                    {t("worldCreatorRooms.storeFeeLine")}
                   </p>
                 </div>
               )}
@@ -2226,10 +2244,10 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                     <span>{pendingNote}</span>
                   </p>
                   <p className={`text-[11px] ${mutedCls}`}>
-                    This order is pending — it is not paid yet, and it will never be shown as paid until the payment confirms.
+                    {t("worldCreatorRooms.orderPendingHonest")}
                   </p>
                   <button type="button" onClick={() => void refreshOrder()} disabled={refreshingOrder} className={chipCls}>
-                    Check again
+                    {t("worldCreatorRooms.orderCheckAgain")}
                   </button>
                 </div>
               )}
@@ -2238,8 +2256,8 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                   <p className={`flex items-start gap-2 text-xs font-bold ${isLight ? "text-[#4a6b1f]" : "text-emerald-300"}`}>
                     <Check className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>
-                      Paid — {centsToDisplay(paidOrder.gross_cents)} confirmed by the payment rail.
-                      {paidOrder.lines.length > 0 && <> Yours: {paidOrder.lines.map((l) => l.productName ?? "your piece").join(", ")}.</>}
+                      {t("worldCreatorRooms.storePaidLine", { amount: centsToDisplay(paidOrder.gross_cents) })}
+                      {paidOrder.lines.length > 0 && <>{t("worldCreatorRooms.storePaidYoursSuffix", { items: paidOrder.lines.map((l) => l.productName ?? t("worldCreatorRooms.storePaidItemFallback")).join(", ") })}</>}
                     </span>
                   </p>
                 </div>
@@ -2252,7 +2270,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
         <div className="space-y-2" data-testid="world-room-store-embedded-checkout">
           <EmbeddedSessionCheckout clientSecret={embeddedSecret} />
           <button type="button" onClick={() => setEmbeddedSecret(null)} className={chipCls}>
-            Close — nothing is charged until you pay in the form
+            {t("worldCreatorRooms.embeddedCloseNote")}
           </button>
         </div>
       )}
@@ -2260,8 +2278,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
       {buyError && <p className="px-1 text-xs font-semibold text-red-400">{buyError}</p>}
       <p className={`inline-flex items-center gap-1.5 px-1 pt-1 text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/40"}`}>
         <Home className="h-3.5 w-3.5 text-[#d4af37]" />
-        Buying finishes right here in the room — the payment form opens in this panel, and the
-        cart here is the same cart as this creator&rsquo;s Marketplace stand.
+        {t("worldCreatorRooms.storeFooter")}
       </p>
     </div>
   );

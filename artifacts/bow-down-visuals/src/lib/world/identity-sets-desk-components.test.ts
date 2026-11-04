@@ -13,11 +13,16 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import en from "../../locales/en.json";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const desk = read("../../components/world/native/IdentitySetsDesk.tsx");
 const panel = read("../../components/world/StationPanel.tsx");
 const routes = read("../../../../api-server/src/routes/artist-vault-identity.ts");
+/* stack100 unit 48: the desk renders through the worldCreatorRooms
+   catalog — the pins below assert the KEY in the desk and the
+   English copy in the catalog, so the coverage is unchanged. */
+const rooms = (en as { worldCreatorRooms: Record<string, string> }).worldCreatorRooms;
 
 describe("the My Studio mount", () => {
   it("is a lazy DeskDoor in the my-studio stack", () => {
@@ -45,17 +50,21 @@ describe("the picker + the set", () => {
   });
 
   it("the main photo is badged and generated photos are badged", () => {
-    expect(desk).toContain("Main photo");
-    expect(desk).toContain("In every pick, as the front anchor.");
+    expect(desk).toContain('t("worldCreatorRooms.identityMainPhoto")');
+    expect(rooms.identityMainPhoto).toBe("Main photo");
+    expect(desk).toContain('t("worldCreatorRooms.identityMainPhotoNote")');
+    expect(rooms.identityMainPhotoNote).toBe("In every pick, as the front anchor.");
     expect(desk).toContain('source === "generated"');
-    expect(desk).toContain("AI-generated");
+    expect(desk).toContain('t("worldCreatorRooms.identitySourceGenerated")');
+    expect(rooms.identitySourceGenerated).toBe("AI-generated");
   });
 });
 
 describe("manage — strict-owner honesty", () => {
   it("add / relabel / remove render only on the member's own characters", () => {
     expect(desk).toContain("selected.isOwn");
-    expect(desk).toContain("Adding and editing belong to its owner");
+    expect(desk).toContain('t("worldCreatorRooms.identitySharedNote")');
+    expect(rooms.identitySharedNote).toContain("Adding and editing belong to its owner");
     expect(desk).toContain('data-testid="world-identity-sets-shared-note"');
   });
 
@@ -69,11 +78,18 @@ describe("manage — strict-owner honesty", () => {
 
   it("the cap is honored in the desk before the rail has to refuse", () => {
     expect(desk).toContain("set.photos.length >= set.maxPhotos");
-    expect(desk).toContain("the most a set holds");
+    expect(desk).toContain('t("worldCreatorRooms.identitySetFull"');
+    expect(rooms.identitySetFull).toContain("the most a set holds");
   });
 
   it("a remove tells the soft-delete truth first (IDENTITY_REMOVE_COPY)", () => {
-    expect(desk).toContain("IDENTITY_REMOVE_COPY");
+    /* The seam still exports IDENTITY_REMOVE_COPY as the English
+       reference; the desk renders the catalog key, and the pin
+       asserts both carry the same sentence. */
+    expect(desk).toContain('t("worldCreatorRooms.identityRemoveCopy")');
+    expect(rooms.identityRemoveCopy).toBe(
+      "Removing takes the photo out of the set. The file itself is kept in storage — nothing is destroyed.",
+    );
     expect(desk).toContain('data-testid="world-identity-sets-remove-confirm"');
   });
 
@@ -100,11 +116,13 @@ describe("pick for a shot", () => {
   it("every pool photo is a one-tap override", () => {
     expect(desk).toContain("selection.pool.map");
     expect(desk).toContain("onClick={() => pickForShot(c.id)}");
-    expect(desk).toContain("your pick is never second-guessed");
+    expect(desk).toContain('t("worldCreatorRooms.identityOverrideNote")');
+    expect(rooms.identityOverrideNote).toContain("your pick is never second-guessed");
   });
 
   it("the desk never claims the picker sees inside a photo", () => {
-    expect(desk).toContain("It reads the labels, never inside the photo.");
+    expect(desk).toContain('t("worldCreatorRooms.identityPickIntro")');
+    expect(rooms.identityPickIntro).toContain("It reads the labels, never inside the photo.");
   });
 });
 
@@ -116,7 +134,8 @@ describe("free + honest states", () => {
   });
 
   it("guests get the sign-in line; loading/failed/empty render as themselves", () => {
-    expect(desk).toContain("Sign in to open your characters");
+    expect(desk).toContain('t("worldCreatorRooms.identityGuestIntro")');
+    expect(rooms.identityGuestIntro).toContain("Sign in to open your characters");
     expect(desk).toContain("NativeLoadingState");
     expect(desk).toContain("NativeErrorState");
     expect(desk).toContain("NativeEmptyState");

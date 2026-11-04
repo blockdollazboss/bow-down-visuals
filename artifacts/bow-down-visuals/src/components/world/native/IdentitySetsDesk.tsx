@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Camera, Check, Loader2, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "@/components/world/native/NativeStates";
@@ -9,7 +10,6 @@ import {
   IDENTITY_ANGLES,
   IDENTITY_EXPRESSIONS,
   IDENTITY_PHOTO_SOURCES,
-  IDENTITY_REMOVE_COPY,
   buildIdentityAddPayload,
   buildIdentityRelabelPayload,
   buildIdentitySelectPayload,
@@ -78,17 +78,51 @@ const inputCls = (isLight: boolean) =>
 const EMPTY_ADD: IdentityAddDraft = { imageUrl: "", angle: "front", expression: "neutral", wardrobe: "", source: "upload" };
 const EMPTY_SHOT: IdentityShotDraft = { cameraMovement: "", promptText: "", actionText: "", mood: "", wardrobeHint: "" };
 
+/* The rail's angle/expression labels render from the catalog;
+   the seam's label tables stay the fallback for any value the
+   rail sends that the catalog has no word for. */
+const ANGLE_LABEL_KEYS: Record<string, string> = {
+  front: "worldCreatorRooms.identityAngleFront",
+  three_quarter_left: "worldCreatorRooms.identityAngleThreeQuarterLeft",
+  three_quarter_right: "worldCreatorRooms.identityAngleThreeQuarterRight",
+  left_profile: "worldCreatorRooms.identityAngleLeftProfile",
+  right_profile: "worldCreatorRooms.identityAngleRightProfile",
+  back: "worldCreatorRooms.identityAngleBack",
+  full_body: "worldCreatorRooms.identityAngleFullBody",
+  close_up: "worldCreatorRooms.identityAngleCloseUp",
+};
+const EXPRESSION_LABEL_KEYS: Record<string, string> = {
+  neutral: "worldCreatorRooms.identityExprNeutral",
+  smile: "worldCreatorRooms.identityExprSmile",
+  laughing: "worldCreatorRooms.identityExprLaughing",
+  serious: "worldCreatorRooms.identityExprSerious",
+  intense: "worldCreatorRooms.identityExprIntense",
+  singing: "worldCreatorRooms.identityExprSinging",
+  sad: "worldCreatorRooms.identityExprSad",
+  surprised: "worldCreatorRooms.identityExprSurprised",
+};
+
 function PhotoLabels({ angle, expression, wardrobe, source }: { angle: string; expression: string; wardrobe: string | null; source: string }) {
+  const { t } = useTranslation();
+  const angleLabel = ANGLE_LABEL_KEYS[angle] ? t(ANGLE_LABEL_KEYS[angle]!) : identityAngleLabel(angle);
+  const expressionLabel = EXPRESSION_LABEL_KEYS[expression]
+    ? t(EXPRESSION_LABEL_KEYS[expression]!)
+    : identityExpressionLabel(expression);
   return (
     <p className="text-[11px] leading-snug opacity-80">
-      {identityAngleLabel(angle)} · {identityExpressionLabel(expression)}
+      {angleLabel} · {expressionLabel}
       {wardrobe ? ` · ${wardrobe}` : ""}
-      {source === "generated" ? " · AI-generated" : ""}
+      {source === "generated" ? t("worldCreatorRooms.identityGeneratedBadge") : ""}
     </p>
   );
 }
 
 export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
+  const { t } = useTranslation();
+  const angleLabel = (a: string): string =>
+    ANGLE_LABEL_KEYS[a] ? t(ANGLE_LABEL_KEYS[a]!) : identityAngleLabel(a);
+  const expressionLabel = (e: string): string =>
+    EXPRESSION_LABEL_KEYS[e] ? t(EXPRESSION_LABEL_KEYS[e]!) : identityExpressionLabel(e);
   const { user } = useAuth();
   const authHeaders = useAuthHeaders();
   const [vaults, setVaults] = useState<VaultCharacter[] | null>(null);
@@ -154,7 +188,7 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
       await loadSet(selectedId);
       setNote(okNote);
     } catch (err) {
-      setNote(plainErrorText(err, "That didn't go through. Try again in a moment."));
+      setNote(plainErrorText(err, t("worldCreatorRooms.identityOpFallback")));
     } finally {
       setBusy(null);
     }
@@ -169,9 +203,9 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
         body: JSON.stringify(buildIdentityAddPayload(addDraft)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "That photo couldn't be added."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreatorRooms.identityAddFallback")));
       setAddDraft(EMPTY_ADD);
-    }, "Photo added to the set — it's saved to permanent storage.");
+    }, t("worldCreatorRooms.identityAddedNote"));
   };
 
   const saveRelabel = (photo: IdentityPhoto) => {
@@ -183,9 +217,9 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
         body: JSON.stringify(buildIdentityRelabelPayload(relabel)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Those labels couldn't be saved."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreatorRooms.identityRelabelFallback")));
       setRelabelId(null);
-    }, "Labels saved.");
+    }, t("worldCreatorRooms.identityLabelsSavedNote"));
   };
 
   const removePhoto = (photo: IdentityPhoto) => {
@@ -196,9 +230,9 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
         headers: await authHeaders(),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "That photo couldn't be removed."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreatorRooms.identityRemoveFallback")));
       setConfirmRemoveId(null);
-    }, "Photo removed from the set. Its file is kept in storage, as always.");
+    }, t("worldCreatorRooms.identityRemovedNote"));
   };
 
   const pickForShot = (overridePhotoId?: string) => {
@@ -213,12 +247,12 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
           body: JSON.stringify(buildIdentitySelectPayload(shot, overridePhotoId)),
         });
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        if (!res.ok) throw new Error(apiErrorMessage(data, "The pick couldn't be made."));
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreatorRooms.identityPickFallback")));
         const parsed = identitySelectionOfResponse(data);
-        if (!parsed) throw new Error("The pick couldn't be made.");
+        if (!parsed) throw new Error(t("worldCreatorRooms.identityPickFallback"));
         setSelection(parsed);
       } catch (err) {
-        setNote(plainErrorText(err, "The pick couldn't be made. Try again in a moment."));
+        setNote(plainErrorText(err, t("worldCreatorRooms.identityPickFallbackRetry")));
       } finally {
         setBusy(null);
       }
@@ -232,10 +266,10 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
     return (
       <div className="space-y-2" data-testid="world-identity-sets-desk">
         <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-          <Camera className="h-4 w-4 text-[#d4af37]" /> Identity sets
+          <Camera className="h-4 w-4 text-[#d4af37]" /> {t("worldCreatorRooms.identityTitle")}
         </p>
         <p className={`text-sm ${muted}`}>
-          Members keep a labeled set of photos for each character, so every scene picks the right angle and expression. Sign in to open your characters&rsquo; sets.
+          {t("worldCreatorRooms.identityGuestIntro")}
         </p>
       </div>
     );
@@ -246,27 +280,28 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
   return (
     <div className="space-y-3" data-testid="world-identity-sets-desk">
       <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-        <Camera className="h-4 w-4 text-[#d4af37]" /> Identity sets
+        <Camera className="h-4 w-4 text-[#d4af37]" /> {t("worldCreatorRooms.identityTitle")}
       </p>
       <p className={`text-sm ${muted}`}>
-        Each character keeps a set of labeled photos — angles, expressions, wardrobe — so scene picks stay consistent.
-        Free ({identityPhotosCost()} credits), always.
+        {t("worldCreatorRooms.identityIntro")}
+        {" "}
+        {t("worldCreatorRooms.identityFreeLine", { cost: identityPhotosCost() })}
       </p>
 
       {vaultsFailed ? (
         <NativeErrorState
           isLight={isLight}
-          title="Your characters wouldn't load"
-          message="The character list couldn't be reached. Nothing changed — try again."
+          title={t("worldCreatorRooms.identityVaultsFailedTitle")}
+          message={t("worldCreatorRooms.identityVaultsFailedMessage")}
           onRetry={() => void loadVaults()}
         />
       ) : vaults === null ? (
-        <NativeLoadingState isLight={isLight} message="Loading your characters…" />
+        <NativeLoadingState isLight={isLight} message={t("worldCreatorRooms.identityLoadingCharacters")} />
       ) : vaults.length === 0 ? (
         <NativeEmptyState
           isLight={isLight}
-          message="No characters yet"
-          detail="Create a character in the Artist Vault first — its identity set lives here."
+          message={t("worldCreatorRooms.identityNoCharacters")}
+          detail={t("worldCreatorRooms.identityNoCharactersDetail")}
         />
       ) : (
         <>
@@ -290,7 +325,7 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
                   <img src={v.portraitUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
                 ) : null}
                 {v.name}
-                {!v.isOwn ? <span className="opacity-70">· shared</span> : null}
+                {!v.isOwn ? <span className="opacity-70">{t("worldCreatorRooms.identitySharedSuffix")}</span> : null}
               </button>
             ))}
           </div>
@@ -299,24 +334,24 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
             setFailed ? (
               <NativeErrorState
                 isLight={isLight}
-                title="That set wouldn't load"
-                message="The identity set couldn't be reached. Nothing changed — try again."
+                title={t("worldCreatorRooms.identitySetFailedTitle")}
+                message={t("worldCreatorRooms.identitySetFailedMessage")}
                 onRetry={() => void loadSet(selected.id)}
               />
             ) : set === null ? (
-              <NativeLoadingState isLight={isLight} message={`Loading ${selected.name}'s set…`} />
+              <NativeLoadingState isLight={isLight} message={t("worldCreatorRooms.identityLoadingSet", { name: selected.name })} />
             ) : (
               <>
                 {!selected.isOwn ? (
                   <p className={`text-sm ${muted}`} data-testid="world-identity-sets-shared-note">
-                    This character is shared with you — you can view its set and pick photos for shots. Adding and editing belong to its owner.
+                    {t("worldCreatorRooms.identitySharedNote")}
                   </p>
                 ) : null}
 
                 {/* Coverage — the rail's own checklist + words. */}
                 <div className={cardCls} data-testid="world-identity-sets-coverage">
                   <p className={`text-sm font-bold ${strong}`}>
-                    Coverage — {set.photos.length} of {set.maxPhotos} set photos
+                    {t("worldCreatorRooms.identityCoverageTitle", { count: set.photos.length, max: set.maxPhotos })}
                   </p>
                   {set.coverageSummary ? <p className={`mt-0.5 text-sm ${muted}`}>{set.coverageSummary}</p> : null}
                   <div className="mt-2 space-y-1.5">
@@ -342,16 +377,16 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="world-identity-sets-grid">
                   {set.mainPhotoUrl ? (
                     <div className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
-                      <img src={set.mainPhotoUrl} alt={`${selected.name} main photo`} className="aspect-square w-full object-cover" />
+                      <img src={set.mainPhotoUrl} alt={t("worldCreatorRooms.identityMainAlt", { name: selected.name })} className="aspect-square w-full object-cover" />
                       <div className="px-2.5 py-2">
-                        <p className={`text-xs font-bold ${strong}`}>Main photo</p>
-                        <p className={`text-[11px] ${muted}`}>In every pick, as the front anchor.</p>
+                        <p className={`text-xs font-bold ${strong}`}>{t("worldCreatorRooms.identityMainPhoto")}</p>
+                        <p className={`text-[11px] ${muted}`}>{t("worldCreatorRooms.identityMainPhotoNote")}</p>
                       </div>
                     </div>
                   ) : null}
                   {set.photos.map((photo) => (
                     <div key={photo.id} className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`} data-testid={`world-identity-sets-photo-${photo.id}`}>
-                      <img src={photo.imageUrl} alt={`${selected.name} — ${identityAngleLabel(photo.angle)}`} className="aspect-square w-full object-cover" />
+                      <img src={photo.imageUrl} alt={t("worldCreatorRooms.identityPhotoAlt", { name: selected.name, angle: angleLabel(photo.angle) })} className="aspect-square w-full object-cover" />
                       <div className="px-2.5 py-2">
                         <div className={strong}>
                           <PhotoLabels angle={photo.angle} expression={photo.expression} wardrobe={photo.wardrobe} source={photo.source} />
@@ -359,32 +394,32 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
                         {selected.isOwn ? (
                           relabelId === photo.id ? (
                             <div className="mt-2 space-y-1.5" data-testid="world-identity-sets-relabel">
-                              <select value={relabel.angle} onChange={(e) => setRelabel((r) => ({ ...r, angle: e.target.value }))} className={inputCls(isLight)} aria-label="Angle">
+                              <select value={relabel.angle} onChange={(e) => setRelabel((r) => ({ ...r, angle: e.target.value }))} className={inputCls(isLight)} aria-label={t("worldCreatorRooms.identityAngleAria")}>
                                 {IDENTITY_ANGLES.map((a) => (
-                                  <option key={a} value={a}>{identityAngleLabel(a)}</option>
+                                  <option key={a} value={a}>{angleLabel(a)}</option>
                                 ))}
                               </select>
-                              <select value={relabel.expression} onChange={(e) => setRelabel((r) => ({ ...r, expression: e.target.value }))} className={inputCls(isLight)} aria-label="Expression">
+                              <select value={relabel.expression} onChange={(e) => setRelabel((r) => ({ ...r, expression: e.target.value }))} className={inputCls(isLight)} aria-label={t("worldCreatorRooms.identityExpressionAria")}>
                                 {IDENTITY_EXPRESSIONS.map((e2) => (
-                                  <option key={e2} value={e2}>{identityExpressionLabel(e2)}</option>
+                                  <option key={e2} value={e2}>{expressionLabel(e2)}</option>
                                 ))}
                               </select>
-                              <input value={relabel.wardrobe} onChange={(e) => setRelabel((r) => ({ ...r, wardrobe: e.target.value }))} maxLength={120} className={inputCls(isLight)} aria-label="Wardrobe" placeholder="Wardrobe (blank clears it)" />
+                              <input value={relabel.wardrobe} onChange={(e) => setRelabel((r) => ({ ...r, wardrobe: e.target.value }))} maxLength={120} className={inputCls(isLight)} aria-label={t("worldCreatorRooms.identityWardrobeAria")} placeholder={t("worldCreatorRooms.identityWardrobePlaceholder")} />
                               <div className="flex gap-1.5">
                                 <button type="button" className={goldBtn} disabled={busy !== null} onClick={() => saveRelabel(photo)} data-testid="world-identity-sets-relabel-save">
-                                  {busy === `relabel-${photo.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Save
+                                  {busy === `relabel-${photo.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} {t("worldCreatorRooms.identitySave")}
                                 </button>
-                                <button type="button" className={chipBtn(isLight)} onClick={() => setRelabelId(null)}>Cancel</button>
+                                <button type="button" className={chipBtn(isLight)} onClick={() => setRelabelId(null)}>{t("worldCreatorRooms.identityCancel")}</button>
                               </div>
                             </div>
                           ) : confirmRemoveId === photo.id ? (
                             <div className="mt-2 space-y-1.5">
-                              <p className={`text-[11px] ${muted}`}>{IDENTITY_REMOVE_COPY}</p>
+                              <p className={`text-[11px] ${muted}`}>{t("worldCreatorRooms.identityRemoveCopy")}</p>
                               <div className="flex gap-1.5">
                                 <button type="button" className={goldBtn} disabled={busy !== null} onClick={() => removePhoto(photo)} data-testid="world-identity-sets-remove-confirm">
-                                  {busy === `remove-${photo.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Remove it
+                                  {busy === `remove-${photo.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} {t("worldCreatorRooms.identityRemoveIt")}
                                 </button>
-                                <button type="button" className={chipBtn(isLight)} onClick={() => setConfirmRemoveId(null)}>Keep it</button>
+                                <button type="button" className={chipBtn(isLight)} onClick={() => setConfirmRemoveId(null)}>{t("worldCreatorRooms.identityKeepIt")}</button>
                               </div>
                             </div>
                           ) : (
@@ -398,10 +433,10 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
                                 }}
                                 data-testid={`world-identity-sets-relabel-btn-${photo.id}`}
                               >
-                                <Pencil className="h-3 w-3" /> Relabel
+                                <Pencil className="h-3 w-3" /> {t("worldCreatorRooms.identityRelabel")}
                               </button>
                               <button type="button" className={chipBtn(isLight)} onClick={() => setConfirmRemoveId(photo.id)} data-testid={`world-identity-sets-remove-btn-${photo.id}`}>
-                                <Trash2 className="h-3 w-3" /> Remove
+                                <Trash2 className="h-3 w-3" /> {t("worldCreatorRooms.identityRemove")}
                               </button>
                             </div>
                           )
@@ -413,46 +448,46 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
                 {set.photos.length === 0 && !set.mainPhotoUrl ? (
                   <NativeEmptyState
                     isLight={isLight}
-                    message="This character has no identity photos yet"
-                    detail="Add labeled photos below and every scene pick gets steadier."
+                    message={t("worldCreatorRooms.identityNoPhotos")}
+                    detail={t("worldCreatorRooms.identityNoPhotosDetail")}
                   />
                 ) : null}
 
                 {/* Add a photo — owner only, capped honestly. */}
                 {selected.isOwn ? (
                   <div className={cardCls} data-testid="world-identity-sets-add">
-                    <p className={`text-sm font-bold ${strong}`}>Add a photo</p>
+                    <p className={`text-sm font-bold ${strong}`}>{t("worldCreatorRooms.identityAddTitle")}</p>
                     {atCap ? (
                       <p className={`mt-1 text-sm ${muted}`}>
-                        This set is full — {set.maxPhotos} photos is the most a set holds. Remove one before adding another.
+                        {t("worldCreatorRooms.identitySetFull", { max: set.maxPhotos })}
                       </p>
                     ) : (
                       <>
-                        <input value={addDraft.imageUrl} onChange={(e) => setAdd({ imageUrl: e.target.value })} className={`${inputCls(isLight)} mt-2`} placeholder="Photo link (https://…)" aria-label="Photo link" data-testid="world-identity-sets-add-url" />
+                        <input value={addDraft.imageUrl} onChange={(e) => setAdd({ imageUrl: e.target.value })} className={`${inputCls(isLight)} mt-2`} placeholder={t("worldCreatorRooms.identityPhotoLinkPlaceholder")} aria-label={t("worldCreatorRooms.identityPhotoLinkAria")} data-testid="world-identity-sets-add-url" />
                         <div className="mt-2 grid grid-cols-2 gap-2">
-                          <select value={addDraft.angle} onChange={(e) => setAdd({ angle: e.target.value })} className={inputCls(isLight)} aria-label="Angle">
+                          <select value={addDraft.angle} onChange={(e) => setAdd({ angle: e.target.value })} className={inputCls(isLight)} aria-label={t("worldCreatorRooms.identityAngleAria")}>
                             {IDENTITY_ANGLES.map((a) => (
-                              <option key={a} value={a}>{identityAngleLabel(a)}</option>
+                              <option key={a} value={a}>{angleLabel(a)}</option>
                             ))}
                           </select>
-                          <select value={addDraft.expression} onChange={(e) => setAdd({ expression: e.target.value })} className={inputCls(isLight)} aria-label="Expression">
+                          <select value={addDraft.expression} onChange={(e) => setAdd({ expression: e.target.value })} className={inputCls(isLight)} aria-label={t("worldCreatorRooms.identityExpressionAria")}>
                             {IDENTITY_EXPRESSIONS.map((e2) => (
-                              <option key={e2} value={e2}>{identityExpressionLabel(e2)}</option>
+                              <option key={e2} value={e2}>{expressionLabel(e2)}</option>
                             ))}
                           </select>
-                          <input value={addDraft.wardrobe} onChange={(e) => setAdd({ wardrobe: e.target.value })} maxLength={120} className={inputCls(isLight)} placeholder="Wardrobe (optional)" aria-label="Wardrobe" />
-                          <select value={addDraft.source} onChange={(e) => setAdd({ source: e.target.value })} className={inputCls(isLight)} aria-label="Where the photo came from">
+                          <input value={addDraft.wardrobe} onChange={(e) => setAdd({ wardrobe: e.target.value })} maxLength={120} className={inputCls(isLight)} placeholder={t("worldCreatorRooms.identityWardrobeOptionalPlaceholder")} aria-label={t("worldCreatorRooms.identityWardrobeAria")} />
+                          <select value={addDraft.source} onChange={(e) => setAdd({ source: e.target.value })} className={inputCls(isLight)} aria-label={t("worldCreatorRooms.identitySourceAria")}>
                             {IDENTITY_PHOTO_SOURCES.map((src) => (
-                              <option key={src} value={src}>{src === "generated" ? "AI-generated" : "Uploaded"}</option>
+                              <option key={src} value={src}>{src === "generated" ? t("worldCreatorRooms.identitySourceGenerated") : t("worldCreatorRooms.identitySourceUploaded")}</option>
                             ))}
                           </select>
                         </div>
                         <p className={`mt-1.5 text-xs ${muted}`}>
-                          On save, the photo is copied into permanent storage so it can never expire.
-                          {addDraft.source === "generated" ? " AI-generated photos are badged as generated everywhere they appear." : ""}
+                          {t("worldCreatorRooms.identitySaveNote")}
+                          {addDraft.source === "generated" ? t("worldCreatorRooms.identityGeneratedNote") : ""}
                         </p>
                         <button type="button" className={`${goldBtn} mt-2`} disabled={busy !== null || !identityAddReady(addDraft)} onClick={addPhoto} data-testid="world-identity-sets-add-btn">
-                          {busy === "add" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add to the set
+                          {busy === "add" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} {t("worldCreatorRooms.identityAddButton")}
                         </button>
                       </>
                     )}
@@ -462,31 +497,31 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
                 {/* Pick for a shot — the explainable selection. */}
                 <div className={cardCls} data-testid="world-identity-sets-pick">
                   <p className={`inline-flex items-center gap-2 text-sm font-bold ${strong}`}>
-                    <Sparkles className="h-4 w-4 text-[#d4af37]" /> Pick the photo for a shot
+                    <Sparkles className="h-4 w-4 text-[#d4af37]" /> {t("worldCreatorRooms.identityPickTitle")}
                   </p>
                   <p className={`mt-1 text-sm ${muted}`}>
-                    Describe the shot in words — the pick matches your labels for angle, expression, and wardrobe, and tells you why. It reads the labels, never inside the photo.
+                    {t("worldCreatorRooms.identityPickIntro")}
                   </p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    <input value={shot.cameraMovement} onChange={(e) => setShotField({ cameraMovement: e.target.value })} maxLength={500} className={inputCls(isLight)} placeholder="Camera move — slow orbit, close push-in…" aria-label="Camera movement" />
-                    <input value={shot.mood} onChange={(e) => setShotField({ mood: e.target.value })} maxLength={200} className={inputCls(isLight)} placeholder="Mood — joyful, tense…" aria-label="Mood" />
-                    <input value={shot.actionText} onChange={(e) => setShotField({ actionText: e.target.value })} maxLength={2000} className={inputCls(isLight)} placeholder="Action — singing the hook, turning away…" aria-label="Action" />
-                    <input value={shot.wardrobeHint} onChange={(e) => setShotField({ wardrobeHint: e.target.value })} maxLength={120} className={inputCls(isLight)} placeholder="Wardrobe for this shot (optional)" aria-label="Wardrobe hint" />
+                    <input value={shot.cameraMovement} onChange={(e) => setShotField({ cameraMovement: e.target.value })} maxLength={500} className={inputCls(isLight)} placeholder={t("worldCreatorRooms.identityCameraPlaceholder")} aria-label={t("worldCreatorRooms.identityCameraAria")} />
+                    <input value={shot.mood} onChange={(e) => setShotField({ mood: e.target.value })} maxLength={200} className={inputCls(isLight)} placeholder={t("worldCreatorRooms.identityMoodPlaceholder")} aria-label={t("worldCreatorRooms.identityMoodAria")} />
+                    <input value={shot.actionText} onChange={(e) => setShotField({ actionText: e.target.value })} maxLength={2000} className={inputCls(isLight)} placeholder={t("worldCreatorRooms.identityActionPlaceholder")} aria-label={t("worldCreatorRooms.identityActionAria")} />
+                    <input value={shot.wardrobeHint} onChange={(e) => setShotField({ wardrobeHint: e.target.value })} maxLength={120} className={inputCls(isLight)} placeholder={t("worldCreatorRooms.identityWardrobeHintPlaceholder")} aria-label={t("worldCreatorRooms.identityWardrobeHintAria")} />
                   </div>
-                  <textarea value={shot.promptText} onChange={(e) => setShotField({ promptText: e.target.value })} maxLength={5000} rows={2} className={`${inputCls(isLight)} mt-2`} placeholder="The scene prompt (optional)" aria-label="Scene prompt" />
+                  <textarea value={shot.promptText} onChange={(e) => setShotField({ promptText: e.target.value })} maxLength={5000} rows={2} className={`${inputCls(isLight)} mt-2`} placeholder={t("worldCreatorRooms.identityPromptPlaceholder")} aria-label={t("worldCreatorRooms.identityPromptAria")} />
                   <button type="button" className={`${goldBtn} mt-2`} disabled={busy !== null} onClick={() => pickForShot()} data-testid="world-identity-sets-pick-btn">
-                    {busy === "select" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />} Pick the photo
+                    {busy === "select" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />} {t("worldCreatorRooms.identityPickButton")}
                   </button>
 
                   {selection ? (
                     <div className="mt-3 space-y-2" data-testid="world-identity-sets-selection">
                       {selection.chosen ? (
                         <div className="flex items-start gap-3">
-                          <img src={selection.chosen.imageUrl} alt="The picked photo" className="h-16 w-16 shrink-0 rounded-xl object-cover" />
+                          <img src={selection.chosen.imageUrl} alt={t("worldCreatorRooms.identityPickedAlt")} className="h-16 w-16 shrink-0 rounded-xl object-cover" />
                           <div className="min-w-0">
                             <p className={`text-sm font-bold ${strong}`}>
-                              {selection.overridden ? "Your pick" : "Best match"}
-                              {selection.chosen.isMain ? " — the main photo" : ""}
+                              {selection.overridden ? t("worldCreatorRooms.identityYourPick") : t("worldCreatorRooms.identityBestMatch")}
+                              {selection.chosen.isMain ? t("worldCreatorRooms.identityMainSuffix") : ""}
                             </p>
                             <div className={strong}>
                               <PhotoLabels angle={selection.chosen.angle} expression={selection.chosen.expression} wardrobe={selection.chosen.wardrobe} source={selection.chosen.source} />
@@ -507,16 +542,16 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
                               onClick={() => pickForShot(c.id)}
                               className={chipBtn(isLight)}
                               data-testid={`world-identity-sets-override-${c.id}`}
-                              title={`${identityAngleLabel(c.angle)} · ${identityExpressionLabel(c.expression)}${c.score !== null ? ` · match ${c.score}` : ""}`}
+                              title={`${angleLabel(c.angle)} · ${expressionLabel(c.expression)}${c.score !== null ? t("worldCreatorRooms.identityMatchSuffix", { score: c.score }) : ""}`}
                             >
                               <img src={c.imageUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
-                              {c.isMain ? "Main" : identityAngleLabel(c.angle)}
+                              {c.isMain ? t("worldCreatorRooms.identityMainChip") : angleLabel(c.angle)}
                               {c.score !== null ? ` · ${c.score}` : ""}
                             </button>
                           ))}
                         </div>
                       ) : null}
-                      <p className={`text-xs ${muted}`}>Tap any photo in the row to use it instead — your pick is never second-guessed.</p>
+                      <p className={`text-xs ${muted}`}>{t("worldCreatorRooms.identityOverrideNote")}</p>
                     </div>
                   ) : null}
                 </div>
@@ -525,7 +560,7 @@ export function IdentitySetsDesk({ isLight, isGuest }: { isLight: boolean; isGue
               </>
             )
           ) : (
-            <p className={`text-sm ${muted}`}>Pick a character above to open its identity set.</p>
+            <p className={`text-sm ${muted}`}>{t("worldCreatorRooms.identityPickCharacterPrompt")}</p>
           )}
         </>
       )}

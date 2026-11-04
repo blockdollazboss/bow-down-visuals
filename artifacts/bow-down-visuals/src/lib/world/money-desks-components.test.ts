@@ -18,6 +18,12 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import en from "../../locales/en.json";
+
+/* stack100 unit 48: the room store renders through the
+   worldCreatorRooms catalog — pins assert the KEY in the desk
+   and the English copy in the catalog. */
+const roomsCatalog = (en as { worldCreatorRooms: Record<string, string> }).worldCreatorRooms;
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const packs = read("../../components/world/native/PacksDesk.tsx");
@@ -123,8 +129,10 @@ describe("#64 room store contracts", () => {
     expect(rooms).toContain("detailedMarketCart(cart, marketProducts)");
     expect(rooms).toContain("roomCartKey(handle, detail.slug)");
     expect(rooms).toContain('data-testid="world-room-store-checkout"');
-    /* The fee model line, the stand's own words. */
-    expect(rooms).toContain("Sellers keep 95% — the 5% platform fee");
+    /* The fee model line, the stand's own words (a MONEY line —
+       it rides English verbatim in every catalog, unit 48). */
+    expect(rooms).toContain('t("worldCreatorRooms.storeFeeLine")');
+    expect(roomsCatalog.storeFeeLine).toContain("Sellers keep 95% — the 5% platform fee");
   });
 
   it("buys tracks/videos and store products on their own rails", () => {
