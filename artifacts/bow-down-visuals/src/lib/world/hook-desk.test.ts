@@ -248,11 +248,11 @@ describe("the station + dispatch (source pins)", () => {
     /* The price is printed before the run, from the registry seam. */
     expect(deskSrc).toContain('data-testid="world-hook-desk-cost"');
     expect(deskSrc).toContain("hookDeskModeCost(mode)");
-    expect(deskSrc).toContain("shown before anything runs");
+    expect(deskSrc).toContain("worldCreateMedia.hookCostLine");
     /* Honest states: 402 reads as out-of-credits; results in-panel. */
     expect(deskSrc).toContain('data-testid="world-create-hook-desk"');
     expect(deskSrc).toContain('data-testid="world-hook-desk-result"');
-    expect(deskSrc).toContain("out of Visual Bucs");
+    expect(deskSrc).toContain("worldCreateMedia.hookOutOfBucs");
     /* Templates dock from the site's own libraries. */
     expect(deskSrc).toContain("HOOK_TEMPLATES");
     expect(deskSrc).toContain("CAPTION_PACKS");

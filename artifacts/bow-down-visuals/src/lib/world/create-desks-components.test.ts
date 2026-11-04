@@ -164,7 +164,7 @@ describe("2.9–2.11 thumbnail + cover contracts", () => {
     expect(thumbBenches).toContain('data-testid="world-thumbnail-bench"');
     expect(thumbBenches).toContain('data-testid="world-thumbnail-failed-slot"');
     expect(thumbBenches).toContain('data-testid="world-thumbnail-fresh-batch"');
-    expect(thumbBenches).toContain("were refunded");
+    expect(thumbBenches).toContain("worldCreateMedia.thBatchNote");
     /* No client-side image fabrication: variations come only from
        the server's responses — no canvas, no object-url minting of
        results (face/candidate previews are the only createObjectURL
@@ -181,7 +181,7 @@ describe("2.9–2.11 thumbnail + cover contracts", () => {
     expect(thumbBenches).toContain("localStorage.setItem(THUMBNAIL_WINNER_HANDOFF_KEY, url)");
     expect(thumbBenches).toContain('data-testid="world-thumbnail-winner"');
     expect(thumbBenches).toContain("buildThumbnailWinnerPublishHref");
-    expect(thumbBenches).toContain("Winner saved");
+    expect(thumbBenches).toContain("worldCreateMedia.thWinnerSaved");
   });
 
   it("cover desk carries presets, attribution, share tracking, showcase + history", () => {
