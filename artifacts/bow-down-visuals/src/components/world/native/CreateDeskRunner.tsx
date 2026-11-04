@@ -17,7 +17,7 @@ export type CreateDeskJobState = "idle" | "running" | "done" | "failed";
 export interface CreateDeskRunnerProps {
   isLight: boolean;
   /** The desk's own words for what is being made (the prompt
-   *  field's label, e.g. "Describe the song"). */
+   *  field's label, e.g. the Song Desk's describe label). */
   promptLabel: string;
   prompt: string;
   onPromptChange: (value: string) => void;

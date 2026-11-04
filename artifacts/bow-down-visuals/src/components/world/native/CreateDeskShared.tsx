@@ -24,7 +24,7 @@ import { SchedulerComposeStandalone } from "./SchedulerDesk";
 
 /* ─── Result chips ───────────────────────────────────────────────────
    The in-world next steps under a finished make. Every chip is a
-   real rail: Send to the editor saves the result as a project and
+   real rail: the editor chip saves the result as a project and
    steps through to the editor seeded with it; Put it on the
    jukebox rides the room socket's jukebox.add intent and lights
    ONLY for a published-track id (the queue's own rule) — before
