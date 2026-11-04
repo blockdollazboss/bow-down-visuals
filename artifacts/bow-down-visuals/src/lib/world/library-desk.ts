@@ -28,16 +28,15 @@
  * APPLY, HONESTLY: a preset's 2D "Use" is a deep link into the
  * Visual Vibes editor (?fx= / ?textstyle= / ?transition=),
  * which applies it there. In-World the editor is the Create
- * Wing's step-through door, whose seeded search carries only
- * ?project= today — there is no honest channel that lands a
- * preset inside it, so the desk does NOT pretend one exists:
- * a preset is applied LIVE to the desk's own preview stage
- * (the exact cssFilter / font the card promises), and "Use"
- * opens the Visual Vibes Editor station itself — the Daily
- * Drop catalog's video pattern (station opens with a null
- * payload rather than a faked prefill). Fonts apply for real:
- * the copied CSS line is the whole application, in-World and
- * on the page alike.
+ * Wing's step-through door, and the desk's "Use" now carries
+ * the picked look through the panel-payload channel (the
+ * library-preset kind): the step-through seeds the SAME param
+ * into the editor's search and the editor's own param reader
+ * applies it there — no second apply path exists (stack100
+ * phase-2 join repair; the desk also applies the preset LIVE
+ * to its own preview stage — the exact cssFilter / font the
+ * card promises). Fonts apply for real: the copied CSS line is
+ * the whole application, in-World and on the page alike.
  *
  * FAVORITES + RECENTS: the page keeps them in localStorage
  * (thy-library-favorites-v1 / thy-library-recent-v1). The desk

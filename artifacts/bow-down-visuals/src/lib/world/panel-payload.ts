@@ -27,6 +27,16 @@
                            preselected from the video-template
                            catalog the editor's Templates tab reads
                            (templates-desk.ts videoTemplatePrefill)
+     library-preset      → the Visual Vibes Editor step-through
+                           (stack100 phase-2 join repair): the
+                           Library desk's "Use" carries the picked
+                           look as the SAME query param the preset's
+                           2D deep link carries (?fx= / ?textstyle= /
+                           ?transition= with the preset slug), and
+                           the step-through seeds it into the
+                           editor's search — the editor's own param
+                           reader applies it there, exactly as on
+                           the page. No new editor plumbing.
 
    A desk applies a payload ONLY through parsePanelPayloadFor with
    its OWN station id: a payload addressed to another desk, a kind
@@ -40,7 +50,13 @@ export type PanelPayload =
   | { kind: "hook-template"; templateSlug: string }
   | { kind: "caption-pack"; templateSlug: string }
   | { kind: "thumbnail-template"; templateSlug: string }
-  | { kind: "video-template"; templateSlug: string };
+  | { kind: "video-template"; templateSlug: string }
+  | {
+      kind: "library-preset";
+      /** The editor query param the preset's 2D deep link carries. */
+      param: "fx" | "textstyle" | "transition";
+      slug: string;
+    };
 
 type PanelPayloadKind = PanelPayload["kind"];
 
@@ -49,6 +65,7 @@ const PAYLOAD_KINDS: ReadonlySet<string> = new Set([
   "caption-pack",
   "thumbnail-template",
   "video-template",
+  "library-preset",
 ]);
 
 /** Which payload kinds each station's desk can honestly apply.
@@ -58,6 +75,7 @@ const STATION_PAYLOAD_KINDS: Readonly<Record<string, ReadonlySet<PanelPayloadKin
   "hook-desk": new Set<PanelPayloadKind>(["hook-template", "caption-pack"]),
   "thumbnail-desk": new Set<PanelPayloadKind>(["thumbnail-template"]),
   "video-desk": new Set<PanelPayloadKind>(["video-template"]),
+  "visual-vibes-editor": new Set<PanelPayloadKind>(["library-preset"]),
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -76,6 +94,13 @@ export function parsePanelPayloadFor(stationId: string, raw: unknown): PanelPayl
   const kind = raw["kind"];
   if (typeof kind !== "string" || !PAYLOAD_KINDS.has(kind)) return null;
   if (!allowed.has(kind as PanelPayloadKind)) return null;
+  if (kind === "library-preset") {
+    const param = raw["param"];
+    if (param !== "fx" && param !== "textstyle" && param !== "transition") return null;
+    const slug = raw["slug"];
+    if (typeof slug !== "string" || slug.trim().length === 0) return null;
+    return { kind: "library-preset", param, slug };
+  }
   const slug = raw["templateSlug"];
   if (typeof slug !== "string" || slug.trim().length === 0) return null;
   return { kind: kind as PanelPayloadKind, templateSlug: slug } as PanelPayload;
@@ -103,4 +128,17 @@ export function thumbnailTemplatePayload(templateSlug: string): PanelPayload {
  *  the Video Desk's bench against the rail's own catalog. */
 export function videoTemplatePayload(templateSlug: string): PanelPayload {
   return { kind: "video-template", templateSlug };
+}
+
+/** The library-preset payload (the Library Desk's preset "Use",
+ *  stack100 phase-2 join repair): the param is the editor query
+ *  param the preset's 2D deep link carries, the slug a preset key
+ *  from the page's own catalog (data/library-presets). The
+ *  step-through host seeds both into the editor's search; the
+ *  editor's own param reader applies the look there. */
+export function libraryPresetPayload(
+  param: "fx" | "textstyle" | "transition",
+  slug: string,
+): PanelPayload {
+  return { kind: "library-preset", param, slug };
 }

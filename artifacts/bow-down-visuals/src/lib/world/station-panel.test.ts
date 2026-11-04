@@ -208,6 +208,13 @@ describe("editorStepthroughSearch", () => {
     expect(editorStepthroughSearch("a b/c")).toBe("project=a%20b%2Fc");
     expect(editorStepthroughSearch(null)).toBe("");
   });
+  it("carries a Library preset seed as the editor's own param (join repair)", () => {
+    expect(editorStepthroughSearch(null, { param: "fx", slug: "golden-hour" })).toBe("fx=golden-hour");
+    expect(editorStepthroughSearch("proj-1", { param: "textstyle", slug: "bold-caps" })).toBe(
+      "project=proj-1&textstyle=bold-caps",
+    );
+    expect(editorStepthroughSearch("proj-1", null)).toBe("project=proj-1");
+  });
 });
 
 describe("the editor station's shape (the router that once excluded it is gone)", () => {

@@ -43,6 +43,7 @@ import {
   fontPreviewFamily,
   libraryFontCategoryCount,
   libraryPresetCategoryCount,
+  presetEditorParam,
   presetStageStyle,
   readLibraryFavorites,
   readLibraryRecent,
@@ -59,6 +60,7 @@ import {
   type LibraryBreadth,
 } from "@/lib/world/library-desk";
 import type { LibraryPreset, LibraryPresetCategory } from "@/data/library-presets";
+import { libraryPresetPayload } from "@/lib/world/panel-payload";
 import type { LibraryFont, LibraryFontCategory } from "@/data/library-fonts";
 import type { WishlistEntry } from "@/lib/wishlists";
 import type { PanelPayload } from "@/lib/world/panel-payload";
@@ -166,10 +168,16 @@ export function LibraryDesk({
   function usePreset(preset: LibraryPreset) {
     setStaged(preset);
     trackUse("preset", preset.slug);
-    /* The editor door opens in-World with no payload — the
-       step-through cannot honestly carry the preset today, so
-       none is promised (the Daily Drop video pattern). */
-    onOpenStation?.(LIBRARY_EDITOR_STATION_ID, null);
+    /* The editor door opens in-World carrying the picked look: the
+       library-preset payload names the SAME editor param the
+       preset's 2D deep link carries, and the step-through seeds it
+       into the editor's search — its own param reader applies the
+       look there (stack100 phase-2 join repair; the channel is the
+       panel-payload union, parsed for the editor station). */
+    onOpenStation?.(
+      LIBRARY_EDITOR_STATION_ID,
+      libraryPresetPayload(presetEditorParam(preset), preset.slug),
+    );
   }
 
   async function copyFont(font: LibraryFont) {

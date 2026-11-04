@@ -6,8 +6,10 @@
  *   live preview stage, the editor door), fonts (the page's
  *   catalog + its copy-the-CSS apply), wishlist (the rails);
  * - every action riding its rail: presets open the Visual
- *   Vibes Editor STATION with a null payload (no faked
- *   prefill), fonts write the seam's snippet to the clipboard,
+ *   Vibes Editor STATION carrying the picked look through the
+ *   library-preset payload (the step-through seeds the SAME
+ *   param the preset's 2D deep link carries — phase-2 join
+ *   repair), fonts write the seam's snippet to the clipboard,
  *   wishlist removes ride the seam's DELETE path;
  * - the honest states separate: wishlist loading, empty,
  *   failed + retry; gone products named as gone;
@@ -81,13 +83,22 @@ describe("all three breadths present", () => {
 });
 
 describe("each breadth drives its rail", () => {
-  it("preset Use opens the editor station with a null payload — no faked prefill", () => {
-    expect(desk).toContain("onOpenStation?.(LIBRARY_EDITOR_STATION_ID, null)");
+  it("preset Use opens the editor station carrying the picked look (library-preset payload)", () => {
+    /* Phase-2 join repair: the step-through CAN honestly carry the
+       preset now — the payload names the editor param + slug, the
+       host seeds them into the editor's search, and the editor's
+       own param reader applies the look. No 2D eject anywhere. */
+    expect(desk).toContain("libraryPresetPayload(presetEditorParam(preset), preset.slug)");
+    expect(desk).toContain("LIBRARY_EDITOR_STATION_ID,");
     expect(seam).toContain('LIBRARY_EDITOR_STATION_ID = "visual-vibes-editor"');
     expect(desk).toContain("Use in the Visual Vibes Editor");
     /* The desk never builds the 2D deep link — no ?fx= eject. */
     expect(desk).not.toContain("useUrl");
     expect(desk).not.toContain("?fx=");
+    /* The host side of the channel: StationPanel parses the payload
+       for the editor station and seeds the step-through with it. */
+    expect(panel).toContain('stepPayload?.kind === "library-preset"');
+    expect(panel).toContain("preset={presetSeed}");
   });
 
   it("font Copy writes the seam's snippet — the page's exact line — to the clipboard", () => {

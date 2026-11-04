@@ -128,8 +128,25 @@ export function newestEditorProjectId(projects: ReadonlyArray<EditorProjectRow>)
   return bestId;
 }
 
+/** A Library preset seed for the step-through: the editor query
+ *  param the preset's 2D deep link carries, plus the preset slug.
+ *  The editor applies it through its own param reader — the same
+ *  reader the 2D "Use" link lands on (video-editor reads fx /
+ *  textstyle / transition on load). */
+export interface EditorPresetSeed {
+  param: "fx" | "textstyle" | "transition";
+  slug: string;
+}
+
 /** The search the step-through seeds for the editor: the project
- *  deep link when one exists, empty (a fresh editor) when not. */
-export function editorStepthroughSearch(projectId: string | null): string {
-  return projectId ? `project=${encodeURIComponent(projectId)}` : "";
+ *  deep link when one exists, empty (a fresh editor) when not —
+ *  plus the Library preset seed when a desk handed one over. */
+export function editorStepthroughSearch(
+  projectId: string | null,
+  preset?: EditorPresetSeed | null,
+): string {
+  const parts: string[] = [];
+  if (projectId) parts.push(`project=${encodeURIComponent(projectId)}`);
+  if (preset) parts.push(`${preset.param}=${encodeURIComponent(preset.slug)}`);
+  return parts.join("&");
 }

@@ -17,6 +17,7 @@ import { readFileSync } from "node:fs";
 import {
   captionPackPayload,
   hookTemplatePayload,
+  libraryPresetPayload,
   parsePanelPayloadFor,
   thumbnailTemplatePayload,
   videoTemplatePayload,
@@ -26,6 +27,7 @@ import { hookTemplatePrefill, captionPackPrefill } from "./hook-desk";
 import { getThumbnailTemplate } from "../../data/thumbnail-templates";
 import { VIDEO_TEMPLATE_METAS, getVideoTemplateMeta } from "../../data/video-templates";
 import { HOOK_TEMPLATES } from "../../data/hook-templates";
+import { LIBRARY_PRESETS } from "../../data/library-presets";
 import { CAPTION_PACKS } from "../../data/caption-templates";
 import { THUMBNAIL_TEMPLATES } from "../../data/thumbnail-templates";
 
@@ -176,6 +178,56 @@ describe("video-template — the fourth kind (Stack-100 wave 4, item 27)", () =>
       expect(getVideoTemplateMeta(meta.key)?.key).toBe(meta.key);
     }
     expect(getVideoTemplateMeta("no-such-template")).toBeNull();
+  });
+});
+
+describe("library-preset — the fifth kind (stack100 phase-2 join repair)", () => {
+  it("builds from a param + slug and nothing else — no money ever", () => {
+    expect(libraryPresetPayload("fx", "golden-hour")).toEqual({
+      kind: "library-preset",
+      param: "fx",
+      slug: "golden-hour",
+    });
+    expect(Object.values(libraryPresetPayload("fx", "x")).some((v) => typeof v === "number")).toBe(false);
+  });
+
+  it("parses only at the editor station — every desk rejects it", () => {
+    expect(parsePanelPayloadFor("visual-vibes-editor", libraryPresetPayload("textstyle", "a"))).toEqual({
+      kind: "library-preset",
+      param: "textstyle",
+      slug: "a",
+    });
+    expect(parsePanelPayloadFor("hook-desk", libraryPresetPayload("fx", "a"))).toBeNull();
+    expect(parsePanelPayloadFor("video-desk", libraryPresetPayload("fx", "a"))).toBeNull();
+    /* …and the editor station takes none of the desk kinds. */
+    expect(parsePanelPayloadFor("visual-vibes-editor", hookTemplatePayload("a"))).toBeNull();
+    expect(parsePanelPayloadFor("visual-vibes-editor", videoTemplatePayload("a"))).toBeNull();
+  });
+
+  it("rejects garbage wholesale — bad param, empty slug, drifted fields", () => {
+    expect(parsePanelPayloadFor("visual-vibes-editor", null)).toBeNull();
+    expect(parsePanelPayloadFor("visual-vibes-editor", { kind: "library-preset" })).toBeNull();
+    expect(parsePanelPayloadFor("visual-vibes-editor", { kind: "library-preset", param: "project", slug: "a" })).toBeNull();
+    expect(parsePanelPayloadFor("visual-vibes-editor", { kind: "library-preset", param: "fx", slug: "" })).toBeNull();
+    expect(parsePanelPayloadFor("visual-vibes-editor", { kind: "library-preset", param: "fx", slug: "  " })).toBeNull();
+    expect(parsePanelPayloadFor("visual-vibes-editor", { kind: "library-preset", param: "fx", slug: 250 })).toBeNull();
+  });
+
+  it("every preset in the page's catalog parses at the editor's gate", () => {
+    for (const preset of LIBRARY_PRESETS) {
+      const param =
+        preset.category === "Text Styles"
+          ? "textstyle"
+          : preset.category === "Transitions"
+            ? "transition"
+            : "fx";
+      expect(parsePanelPayloadFor("visual-vibes-editor", libraryPresetPayload(param, preset.slug))).toEqual({
+        kind: "library-preset",
+        param,
+        slug: preset.slug,
+      });
+    }
+    expect(LIBRARY_PRESETS.length).toBeGreaterThan(0);
   });
 });
 

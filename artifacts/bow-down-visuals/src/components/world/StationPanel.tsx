@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import type { PalaceStation } from "@/lib/world/stations";
 import type { PanelPayload } from "@/lib/world/panel-payload";
+import { parsePanelPayloadFor } from "@/lib/world/panel-payload";
 import {
   resolveStationPanel,
   editorStepthroughSearch,
@@ -313,8 +314,14 @@ class PanelBoundary extends Component<
    reads the seeded ?project= exactly as it reads the site's. When
    the resolved project lands a beat after the door opens, the seed
    updates in place and the editor's own load effect picks it up. */
-function StepThroughEditor({ projectId }: { projectId: string | null }) {
-  const search = editorStepthroughSearch(projectId);
+function StepThroughEditor({
+  projectId,
+  preset,
+}: {
+  projectId: string | null;
+  preset?: { param: "fx" | "textstyle" | "transition"; slug: string } | null;
+}) {
+  const search = editorStepthroughSearch(projectId, preset ?? null);
   const loc = useMemo(
     () => memoryLocation({ path: "/video-editor", searchPath: search }),
     [search],
@@ -973,6 +980,15 @@ export default function StationPanel(props: StationPanelProps) {
      opens full-screen INSIDE /world — no new tab, no lost place;
      the bar at the top is the way back to your exact spot. */
   if (resolution?.type === "stepthrough") {
+    /* A library-preset payload addressed to this station (the
+       Library desk's "Use") seeds the editor with the picked look —
+       parsed defensively for THIS station id; anything else opens
+       the editor exactly as blank as it always has. */
+    const stepPayload = parsePanelPayloadFor(station.id, target.payload ?? null);
+    const presetSeed =
+      stepPayload?.kind === "library-preset"
+        ? { param: stepPayload.param, slug: stepPayload.slug }
+        : null;
     return (
       <div className="fixed inset-0 z-[70] flex flex-col bg-black" data-testid="world-station-stepthrough">
         <div
@@ -1005,7 +1021,7 @@ export default function StationPanel(props: StationPanelProps) {
                 </div>
               }
             >
-              <StepThroughEditor projectId={props.editorProjectId ?? null} />
+              <StepThroughEditor projectId={props.editorProjectId ?? null} preset={presetSeed} />
             </Suspense>
           </PanelBoundary>
         </div>
