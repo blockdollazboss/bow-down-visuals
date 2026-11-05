@@ -156,7 +156,7 @@ describe("#93 the spoken notes are BroadcastStudio's own words", () => {
   it("the opening line is the page's initial voice note, verbatim", () => {
     expect(CAMERA_VOICE_OPENING_NOTE).toBe("Noise cancellation starts with the camera.");
     expect(studioSrc).toContain('"Noise cancellation starts with the camera."');
-    expect(deskSrc).toContain("useState<string>(CAMERA_VOICE_OPENING_NOTE)");
+    expect(deskSrc).toContain("useState<string>(() => t(\"worldDeskRemainder.liveCvOpeningNote\"))");
   });
 
   it("held noise picks speak the page's sentences", () => {
@@ -196,8 +196,8 @@ describe("#93 the desk drives the ONE kit — source pins", () => {
   });
 
   it("held picks speak through the seam's notes before the camera runs", () => {
-    expect(deskSrc).toContain("setCvNote(noiseHeldNote(level))");
-    expect(deskSrc).toContain("setCvNote(voiceEffectHeldNote(id))");
+    expect(deskSrc).toContain("setCvNote(noiseHeldNote(level, {");
+    expect(deskSrc).toContain("setCvNote(voiceEffectHeldNote(id, {");
     expect(deskSrc).toContain("noiseStatusLine(changer.getNoiseStatus())");
   });
 
@@ -240,7 +240,7 @@ describe("#93 honest states + the board", () => {
        other — the two never render together. */
     expect(deskSrc).toContain("deviceSwitchingAvailable(devicesError !== null) ? (");
     expect(deskSrc).toContain('data-testid="world-live-devices-unavailable"');
-    expect(deskSrc).toContain("Camera and microphone switching isn&rsquo;t available here");
+    expect(deskSrc).toContain("worldDeskRemainder.liveCvUnavailable");
   });
 
   it("records the wave-IV promotion", () => {

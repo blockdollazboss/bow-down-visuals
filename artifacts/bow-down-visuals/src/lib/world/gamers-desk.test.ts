@@ -114,7 +114,7 @@ describe("price — registry-derived, never a desk literal", () => {
   });
 
   it("the generate button renders its price from the derived constant", () => {
-    expect(deskSrc).toContain("Generate ideas · {GAMERS_IDEAS_COST} Visual Bucs");
+    expect(deskSrc).toContain("worldDeskRemainder.gamGenerate");
   });
 });
 
@@ -203,7 +203,7 @@ describe("pack — the page's success rule + the rail's shapes", () => {
 
   it("the out-of-credits line is the rail's own 402 message", () => {
     expect(railSrc).toContain(GAMERS_OUT_OF_CREDITS_LINE);
-    expect(deskSrc).toContain("GAMERS_OUT_OF_CREDITS_LINE");
+    expect(deskSrc).toContain("worldDeskRemainder.gamOutOfCredits");
   });
 
   it("the sample pack is the page's labeled sample, in the rail's shapes", () => {

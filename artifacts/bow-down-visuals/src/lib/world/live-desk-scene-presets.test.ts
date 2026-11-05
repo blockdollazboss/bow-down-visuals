@@ -349,7 +349,7 @@ describe("#94 the stage executor and the desk (source pins)", () => {
   it("the desk renders the picker from the seam, under the controller deck", () => {
     expect(deskSrc).toContain('data-testid="world-live-scene-presets"');
     expect(deskSrc).toContain("SCENE_PRESET_OPTIONS.map(");
-    expect(deskSrc).toContain("SCENE_PRESET_PICKER_NOTE");
+    expect(deskSrc).toContain("worldDeskRemainder.liveScenePickerNote");
     expect(deskSrc).toContain("world-live-preset-${preset.id}");
   });
 

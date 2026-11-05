@@ -117,13 +117,13 @@ describe("the spend path is the standing CreditConfirm, priced by the registry",
 
   it("button copy names the registry feature + cost, never a re-typed price", () => {
     for (const needle of [
-      "{ANALYTICS_INSIGHTS_FEATURE} — {ANALYTICS_INSIGHTS_COST_VB} Bucs",
-      "{ANALYTICS_SUGGESTIONS_FEATURE} — {ANALYTICS_SUGGESTIONS_COST_VB} Bucs",
-      "{GROWTH_PLAN_FEATURE} — {GROWTH_PLAN_COST_VB} Bucs",
-      "{CHANNEL_AUDIT_COST_VB} Bucs",
-      "{VIRALITY_CHECK_COST_VB} Bucs",
-      "{COMPETITOR_COST_VB} Bucs",
-      "{AI_COACH_FEATURE} — {AI_COACH_COST_VB} Bucs",
+      "anlFeatureCost\", { feature: ANALYTICS_INSIGHTS_FEATURE, cost: ANALYTICS_INSIGHTS_COST_VB }",
+      "anlFeatureCost\", { feature: ANALYTICS_SUGGESTIONS_FEATURE, cost: ANALYTICS_SUGGESTIONS_COST_VB }",
+      "anlFeatureCost\", { feature: GROWTH_PLAN_FEATURE, cost: GROWTH_PLAN_COST_VB }",
+      "anlFeatureCost\", { feature: CHANNEL_AUDIT_FEATURE, cost: CHANNEL_AUDIT_COST_VB }",
+      "anlFeatureCost\", { feature: VIRALITY_CHECK_FEATURE, cost: VIRALITY_CHECK_COST_VB }",
+      "anlFeatureCost\", { feature: COMPETITOR_FEATURE, cost: COMPETITOR_COST_VB }",
+      "anlCoachTitle\", { cost: AI_COACH_COST_VB }",
     ]) {
       expect(desk, needle).toContain(needle);
     }
@@ -136,7 +136,7 @@ describe("the spend path is the standing CreditConfirm, priced by the registry",
 
   it("a 402 speaks the house not-enough-Bucs line through the shared helper", () => {
     expect(desk).toContain("analyticsOutOfCredits(res.status, data)");
-    expect(desk).toContain("ANALYTICS_OUT_OF_CREDITS_LINE");
+    expect(desk).toContain("worldDeskRemainder.anlOutOfCredits");
     expect(seam).toContain("nothing was charged");
   });
 });
@@ -144,22 +144,22 @@ describe("the spend path is the standing CreditConfirm, priced by the registry",
 describe("the honest states stay honest", () => {
   it("a failed overview read is the error state with a retry — never zero stats", () => {
     expect(desk).toContain("NativeErrorState");
-    expect(desk).toContain("Your analytics overview wouldn't open");
+    expect(desk).toContain("worldDeskRemainder.anlOverviewFailedTitle");
     expect(desk).toContain("onRetry={() => setReloadTick((t) => t + 1)}");
-    expect(desk).toContain("missing is missing, not zero");
-    expect(desk).toContain("That is a missing read, not zero stats");
+    expect(desk).toContain("worldDeskRemainder.anlPartialNote");
+    expect(desk).toContain("worldDeskRemainder.anlNoDataDetail");
   });
 
   it("paid failures surface the rail's own words or the tool's failure line", () => {
     expect(desk).toContain("apiErrorMessage(data, failedLine)");
     for (const needle of [
-      "ANALYTICS_INSIGHTS_FAILED_LINE",
-      "ANALYTICS_SUGGESTIONS_FAILED_LINE",
+      "worldDeskRemainder.anlInsightsFailed",
+      "worldDeskRemainder.anlSuggestionsFailed",
       "GROWTH_PLAN_FAILED_LINE",
-      "CHANNEL_AUDIT_FAILED_LINE",
-      "VIRALITY_CHECK_FAILED_LINE",
-      "COMPETITOR_FAILED_LINE",
-      "AI_COACH_FAILED_LINE",
+      "worldDeskRemainder.anlAuditFailed",
+      "worldDeskRemainder.anlViralityFailed",
+      "worldDeskRemainder.anlCompetitorFailed",
+      "worldDeskRemainder.anlCoachFailed",
     ]) {
       expect(desk, needle).toContain(needle);
     }
@@ -167,9 +167,9 @@ describe("the honest states stay honest", () => {
   });
 
   it("gates refuse before the confirm: no connected account, no hub data, no titled post", () => {
-    expect(desk).toContain("ANALYTICS_NO_CONNECTED_LINE");
-    expect(desk).toContain("GROWTH_PLAN_NO_DATA_LINE");
-    expect(desk).toContain("AI_COACH_NEED_POST_LINE");
+    expect(desk).toContain("worldDeskRemainder.anlNoConnected");
+    expect(desk).toContain("worldDeskRemainder.anlGrowthPlanNoData");
+    expect(desk).toContain("worldDeskRemainder.anlCoachNeedPost");
     expect(desk).toContain("channelAuditReady(form)");
     expect(desk).toContain("viralityReady(form)");
     expect(desk).toContain("competitorReady");
@@ -177,7 +177,7 @@ describe("the honest states stay honest", () => {
 
   it("a partial overview says so out loud", () => {
     expect(desk).toContain("overview.partial");
-    expect(desk).toContain("Some sources didn't answer just now");
+    expect(desk).toContain("worldDeskRemainder.anlPartialNote");
   });
 });
 

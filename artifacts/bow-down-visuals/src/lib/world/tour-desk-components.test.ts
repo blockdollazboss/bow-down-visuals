@@ -43,8 +43,8 @@ describe("TourDesk — the native Tour Planner desk (stack1600 wave 4, desk #97)
     expect(desk).toContain("data-testid={`world-tour-desk-item-${d.id}`}");
     // A failed read is an honest failure with a way back — never
     // the empty-tour words.
-    expect(desk).toContain("wouldn&rsquo;t load. Give it another shot.");
-    expect(desk).toContain("No tour dates yet — add your first stop below.");
+    expect(desk).toContain("worldDeskRemainder.tourLoadFailed");
+    expect(desk).toContain("worldDeskRemainder.tourEmpty");
   });
 
   it("rides the shared CRUD rails with the page's verbs", () => {
@@ -65,14 +65,14 @@ describe("TourDesk — the native Tour Planner desk (stack1600 wave 4, desk #97)
     // the seam constant everywhere it appears.
     expect(desk).not.toMatch(/overrideCost:\s*\d/);
     expect(desk).not.toMatch(/\b300\s*(Visual Bucs|Bucs)/);
-    expect(desk).toContain("TOUR_OPTIMIZE_COST.toLocaleString()");
+    expect(desk).toContain("TOUR_OPTIMIZE_COST.toLocaleString(i18n.language)");
     // Out of Bucs names the way back: the Treasury packs desk.
-    expect(desk).toContain("Visual Buc Packs desk in the Treasury");
+    expect(desk).toContain("worldDeskRemainder.tourOutOfCredits");
   });
 
   it("carries the page's estimate honesty + plan discipline", () => {
-    expect(desk).toContain("AI estimates based on typical indie-tour costs");
-    expect(desk).toContain("not quotes or guarantees");
+    expect(desk).toContain("worldDeskRemainder.tourDisclaimer");
+    expect(desk).toContain("worldDeskRemainder.tourDisclaimer");
     expect(desk).toContain("loadTourPlan");
     expect(desk).toContain("saveTourPlan");
     expect(desk).toContain("clearTourPlan");

@@ -80,8 +80,8 @@ describe("publish desk — free means free (no spend machinery, ever)", () => {
       expect(src).not.toContain("CreditConfirm");
     }
     // The fee string that exists names the member's OWN price.
-    expect(desk).toContain("your price for your buyers");
-    expect(desk).toContain("Publishing is free — no Visual Bucs");
+    expect(desk).toContain("worldDeskRemainder.pubIntro");
+    expect(desk).toContain("worldDeskRemainder.pubFooter");
   });
 });
 
@@ -116,11 +116,11 @@ describe("publish desk — honest states", () => {
   });
 
   it("each shelf fails on its own, with a retry — a failure never reads as an empty shelf", () => {
-    expect(desk).toContain("wouldn&rsquo;t load. Give it another shot.");
+    expect(desk).toContain("worldDeskRemainder.pubShelfFailed");
     expect(desk).toContain("void loadShelf(kind)");
     // The empty state is a distinct sentence from any failure copy.
-    expect(desk).toContain("Nothing here yet");
-    expect(desk).toContain("No {kind === \"track\" ? \"tracks\" : \"videos\"} yet");
+    expect(desk).toContain("worldDeskRemainder.pubLibraryEmpty");
+    expect(desk).toContain("worldDeskRemainder.pubShelfEmpty");
   });
 
   it("the shelves settle independently (the page's S27-44 discipline)", () => {
@@ -136,8 +136,8 @@ describe("publish desk — honest states", () => {
   });
 
   it("delete is two-step inline — and a live row warns before the second tap", () => {
-    expect(desk).toContain("Tap again to delete");
-    expect(desk).toContain("Live — tap again to delete");
+    expect(desk).toContain("worldDeskRemainder.pubTapAgainDelete");
+    expect(desk).toContain("worldDeskRemainder.pubNowLive");
     expect(desk).toContain("confirmDeleteId");
   });
 });

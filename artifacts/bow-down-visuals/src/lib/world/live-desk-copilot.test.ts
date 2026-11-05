@@ -116,9 +116,9 @@ describe("prices — registry-derived, never re-typed", () => {
   });
 
   it("the desk shows the seam's prices on its buttons", () => {
-    expect(deskSrc).toContain("Build My Prep ({COPILOT_PREP_COST} VB)");
-    expect(deskSrc).toContain("Spot the Clips ({COPILOT_CLIP_PLAN_COST} VB)");
-    expect(deskSrc).toContain("`Cut it · ${HIGHLIGHT_CUT_COST_VB} VB`");
+    expect(deskSrc).toContain("worldDeskRemainder.copBuildPrep");
+    expect(deskSrc).toContain("worldDeskRemainder.copSpotClips");
+    expect(deskSrc).toContain("worldDeskRemainder.copCutIt");
   });
 });
 
@@ -194,16 +194,16 @@ describe("the confirmed-spend door — the desk's honesty wiring", () => {
     expect(deskSrc).toContain("setOutOfCredits(true)");
     expect(deskSrc).toContain("refreshProfile()");
     expect(deskSrc).toContain('data-testid="world-live-copilot-ooc"');
-    expect(deskSrc).toContain("nothing was charged");
+    expect(deskSrc).toContain("worldDeskRemainder.copOutOfCredits");
   });
 
   it("approving a highlight cut rides the same door at the 200 VB override, with the 2D notes", () => {
     expect(deskSrc).toContain("confirmedFetch(HIGHLIGHT_APPROVE_PATH(streamId, p.id)");
     expect(deskSrc).toContain("overrideCost: HIGHLIGHT_CUT_COST_VB");
     expect(deskSrc).toContain("overrideFeature: HIGHLIGHT_CUT_FEATURE");
-    expect(deskSrc).toContain("Cut cancelled — nothing was charged.");
-    expect(deskSrc).toContain("Not enough Visual Bucs for that cut — the proposal stays right here.");
-    expect(deskSrc).toContain("That cut didn't start. Try again in a moment.");
+    expect(deskSrc).toContain("worldDeskRemainder.copCutCancelled");
+    expect(deskSrc).toContain("worldDeskRemainder.copCutNotEnough");
+    expect(deskSrc).toContain("worldDeskRemainder.copCutDidntStart");
   });
 });
 
@@ -266,7 +266,7 @@ describe("live prefs — the automation switches on their own rail", () => {
     ]) {
       expect(deskSrc).toContain(`patchPrefs({ ${field}: !prefs.${field} })`);
     }
-    expect(deskSrc).toContain("Co-host settings saved.");
+    expect(deskSrc).toContain("worldDeskRemainder.copSettingsSaved");
     expect(deskSrc).toContain('data-testid="world-live-stage-save-prefs"');
   });
 });
@@ -363,9 +363,9 @@ describe("the per-stream stage desk — state, proposals, roster", () => {
   });
 
   it("states the peace law on the desk: flags are the creator's call, the co-host never acts on a person", () => {
-    expect(deskSrc).toContain("flags trouble for YOUR call");
-    expect(deskSrc).toContain("It never kicks, mutes, or locks anyone");
-    expect(deskSrc).toContain("Trouble flags — your call");
+    expect(deskSrc).toContain("worldDeskRemainder.copStageIntro");
+    expect(deskSrc).toContain("worldDeskRemainder.copStageIntro");
+    expect(deskSrc).toContain("worldDeskRemainder.copFlagsTitle");
   });
 });
 

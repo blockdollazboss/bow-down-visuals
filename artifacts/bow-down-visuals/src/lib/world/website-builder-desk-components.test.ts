@@ -31,7 +31,7 @@ describe("the board-desk shape + the My Studio mount", () => {
       "export function WebsiteBuilderDesk({ isLight }: { isLight: boolean })",
     );
     expect(desk).toContain('data-testid="world-website-builder-desk"');
-    expect(desk).toContain('title="Website Builder"');
+    expect(desk).toContain('worldDeskRemainder.bldTitle');
   });
 
   it("StationPanel lazy-loads it and stacks it at the My Studio board behind a DeskDoor", () => {
@@ -96,13 +96,13 @@ describe("money: the shared rails through the standing spend confirm", () => {
 
   it("out-of-credits is its own state, never an error dressed as success", () => {
     expect(desk).toContain("websiteBuilderOutOfCredits(res.status, data)");
-    expect(desk).toContain("WEBSITE_BUILDER_OUT_OF_CREDITS_LINE");
+    expect(desk).toContain("worldDeskRemainder.bldOutOfCredits");
     expect(seam).toContain("nothing was charged");
   });
 
   it("failure copy names the refund — the rail's honesty, mirrored", () => {
-    expect(desk).toContain("WEBSITE_BUILDER_GENERATION_FAILED_LINE");
-    expect(desk).toContain("WEBSITE_BUILDER_EDIT_FAILED_LINE");
+    expect(desk).toContain("worldDeskRemainder.bldGenerationFailed");
+    expect(desk).toContain("worldDeskRemainder.bldEditFailed");
     expect(seam).toContain("Generation failed — Visual Bucs were refunded.");
     expect(seam).toContain("Edit failed — Visual Bucs were refunded.");
     /* A response without files is a failure, never a result. */
@@ -131,7 +131,7 @@ describe("the free rails ride plain fetch on the seam paths", () => {
 
   it("deletes are two-step, spoken in-world", () => {
     expect(desk).toContain("confirmDeleteId");
-    expect(desk).toContain("Confirm delete");
+    expect(desk).toContain("worldDeskRemainder.bldConfirmDelete");
   });
 });
 
@@ -140,13 +140,13 @@ describe("honest states + the full flow in-panel", () => {
     expect(desk).toContain("NativeLoadingState");
     expect(desk).toContain("NativeErrorState");
     expect(desk).toContain("NativeEmptyState");
-    expect(desk).toContain("No saved sites yet.");
-    expect(desk).toContain("Couldn't load your saved sites.");
+    expect(desk).toContain("worldDeskRemainder.bldNoSites");
+    expect(desk).toContain("worldDeskRemainder.bldSitesLoadFailed");
   });
 
   it("the save-failed banner keeps the build and offers the retry save", () => {
-    expect(desk).toContain("WEBSITE_BUILDER_SAVE_FAILED_LINE");
-    expect(desk).toContain("Retry save");
+    expect(desk).toContain("worldDeskRemainder.bldSaveFailedLine");
+    expect(desk).toContain("worldDeskRemainder.bldRetrySave");
     expect(desk).toContain("setSaveFailed(!result.saved)");
   });
 
@@ -159,33 +159,33 @@ describe("honest states + the full flow in-panel", () => {
     expect(desk).toContain("parseGalleryTemplates(data)");
     expect(desk).toContain("cloneTemplateFiles(tpl)");
     expect(desk).toContain("starterBrief(tpl)");
-    expect(desk).toContain("Remix this template");
+    expect(desk).toContain("worldDeskRemainder.bldRemix");
   });
 
   it("versions: view loads the exact payload, restore appends a new head", () => {
-    expect(desk).toContain("websiteSourceLabel(v.source)");
+    expect(desk).toContain("websiteSourceLabel(v.source,");
     expect(desk).toContain("normalizeWebsiteVersionPayload");
-    expect(desk).toContain("Version history");
+    expect(desk).toContain("worldDeskRemainder.bldVersionHistory");
     expect(desk).toContain("Restore");
-    expect(desk).toContain("Nothing is ever overwritten.");
+    expect(desk).toContain("worldDeskRemainder.bldViewingVersion");
   });
 
   it("the preview is the private sandboxed iframe over the seam's inliner", () => {
     expect(desk).toContain('sandbox="allow-scripts"');
     expect(desk).toContain("srcDoc={buildPreviewHtml(files)}");
-    expect(desk).toContain("Private preview — only you can see this");
+    expect(desk).toContain("worldDeskRemainder.bldPrivatePreview");
   });
 
   it("the zip download is an in-desk file act on the page's JSZip mechanism", () => {
     expect(desk).toContain("jszip/3.10.1/jszip.min.js");
     expect(desk).toContain("websiteZipFolderName(businessName)");
     expect(desk).toContain("websiteZipFileName(businessName)");
-    expect(desk).toContain("Download site (.zip)");
+    expect(desk).toContain("worldDeskRemainder.bldDownloadZip");
   });
 
   it("the ownership law is stated in the desk — nothing hosted here", () => {
-    expect(desk).toContain("You own this outright.");
-    expect(desk).toContain("WEBSITE_BUILDER_FEE_NOTE");
+    expect(desk).toContain("worldDeskRemainder.bldOwnershipLead");
+    expect(desk).toContain("worldDeskRemainder.bldFeeNote");
   });
 });
 

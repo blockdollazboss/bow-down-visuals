@@ -35,14 +35,14 @@ describe("TemplatesDesk — the browse desk (source pins)", () => {
   it("search + category chips are wired to the seam filter, with an honest no-matches state", () => {
     expect(browse).toContain('data-testid="world-templates-desk-search"');
     expect(browse).toContain('data-testid="world-templates-desk-no-matches"');
-    expect(browse).toContain("Nothing in this gallery matches that");
+    expect(browse).toContain("worldDeskRemainder.tplNoMatches");
     expect(browse).toContain("setCategory(\"All\")");
   });
 
   it("the price line is registry-derived — the literal never appears; browsing stays free", () => {
     expect(browse).toContain("videoTemplateApplyCost()");
     expect(browse).toContain('data-testid="world-templates-desk-video-price"');
-    expect(browse).toContain("confirm before anything is charged");
+    expect(browse).toContain("worldDeskRemainder.tplVideoPrice");
     expect(browse).not.toContain(COST);
     expect(browse).not.toContain("confirmedFetch");
   });
@@ -90,9 +90,9 @@ describe("VideoTemplateBench — the payload's receiving end (source pins)", () 
     expect(bench).toContain("videoTemplateJobPath(jobId)");
     expect(bench).toContain("interpretTemplateJob");
     expect(bench).toContain('data-testid="world-video-template-bench-done"');
-    expect(bench).toContain("were refunded");
+    expect(bench).toContain("worldDeskRemainder.vtbRefundSuffix");
     expect(bench).toContain('data-testid="world-video-template-bench-job-error"');
-    expect(bench).toContain("out of Visual Bucs");
+    expect(bench).toContain("worldDeskRemainder.vtbOutOfCredits");
   });
 
   it("slots fill by upload (R2, the panel's ceiling) or pasted link, gated by the seam's media rules", () => {

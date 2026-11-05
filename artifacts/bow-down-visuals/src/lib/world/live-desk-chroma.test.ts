@@ -518,7 +518,7 @@ describe("#95 the stage executor and the desk (source pins)", () => {
     expect(deskSrc).toContain("world-live-chroma-${source.sourceId}");
     expect(deskSrc).toContain("CAMERA_MODE_OPTIONS.map(");
     expect(deskSrc).toContain("CHROMA_SLIDERS.map(");
-    expect(deskSrc).toContain("SOURCE_CHROMA_NOTE");
+    expect(deskSrc).toContain("worldDeskRemainder.liveChromaNote");
     expect(deskSrc).toContain('data-testid="world-live-chroma-unavailable"');
   });
 
