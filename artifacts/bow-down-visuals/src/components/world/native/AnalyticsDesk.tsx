@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { apiErrorMessage } from "@/lib/api-error";
@@ -7,44 +8,33 @@ import { NativeCard } from "./NativeCard";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import { deskInputCls, useDeskAuthHeaders } from "./CreateDeskLeaf";
 import {
-  AI_COACH_FAILED_LINE,
   AI_COACH_FEATURE,
-  AI_COACH_NEED_POST_LINE,
   AI_COACH_PATH,
   AI_COACH_COST_VB,
   ANALYTICS_HUB_STORAGE_KEY,
-  ANALYTICS_INSIGHTS_FAILED_LINE,
   ANALYTICS_INSIGHTS_FEATURE,
   ANALYTICS_INSIGHTS_PATH,
   ANALYTICS_INSIGHTS_COST_VB,
-  ANALYTICS_NO_CONNECTED_LINE,
-  ANALYTICS_OUT_OF_CREDITS_LINE,
-  ANALYTICS_OVERVIEW_FAILED_LINE,
   ANALYTICS_OVERVIEW_PATH,
   ANALYTICS_PLATFORM_LABELS,
-  ANALYTICS_SUGGESTIONS_FAILED_LINE,
   ANALYTICS_SUGGESTIONS_FEATURE,
   ANALYTICS_SUGGESTIONS_PATH,
   ANALYTICS_SUGGESTIONS_COST_VB,
   AUDIT_PLATFORMS,
   CHANNEL_AUDIT_COST_VB,
-  CHANNEL_AUDIT_FAILED_LINE,
   CHANNEL_AUDIT_FEATURE,
   CHANNEL_AUDIT_PATH,
   COACH_MAX_POSTS,
   COACH_PLATFORMS,
   COMPETITOR_ANALYSIS_PATH,
   COMPETITOR_COST_VB,
-  COMPETITOR_FAILED_LINE,
   COMPETITOR_FEATURE,
   GROWTH_PLAN_COST_VB,
   GROWTH_PLAN_FAILED_LINE,
   GROWTH_PLAN_FEATURE,
-  GROWTH_PLAN_NO_DATA_LINE,
   GROWTH_PLAN_PATH,
   GROWTH_PLATFORMS,
   VIRALITY_CHECK_COST_VB,
-  VIRALITY_CHECK_FAILED_LINE,
   VIRALITY_CHECK_FEATURE,
   VIRALITY_CHECK_PATH,
   VIRALITY_PLATFORMS,
@@ -209,6 +199,7 @@ function ToolStatus({
   error: string | null;
   outOfCredits: boolean;
 }) {
+  const { t } = useTranslation();
   if (busy) return <NativeLoadingState isLight={isLight} message={busyLabel} />;
   return (
     <>
@@ -219,7 +210,7 @@ function ToolStatus({
       ) : null}
       {outOfCredits ? (
         <p role="alert" className={`text-xs font-semibold ${strongCls(isLight)}`}>
-          {ANALYTICS_OUT_OF_CREDITS_LINE}
+          {t("worldDeskRemainder.anlOutOfCredits")}
         </p>
       ) : null}
     </>
@@ -254,13 +245,14 @@ function readStoredHubState(): AnalyticsHubState {
 }
 
 export function AnalyticsDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [overviewPhase, setOverviewPhase] = useState<"loading" | "ready" | "failed">(
     "loading",
   );
   const [overviewError, setOverviewError] = useState<string>(
-    ANALYTICS_OVERVIEW_FAILED_LINE,
+    t("worldDeskRemainder.anlOverviewFailed"),
   );
   const [reloadTick, setReloadTick] = useState(0);
   const [hubState, setHubState] = useState<AnalyticsHubState>(readStoredHubState);
@@ -286,7 +278,7 @@ export function AnalyticsDesk({ isLight }: { isLight: boolean }) {
         }
       } catch {
         if (!cancelled) {
-          setOverviewError(ANALYTICS_OVERVIEW_FAILED_LINE);
+          setOverviewError(t("worldDeskRemainder.anlOverviewFailed"));
           setOverviewPhase("failed");
         }
       }
@@ -311,13 +303,9 @@ export function AnalyticsDesk({ isLight }: { isLight: boolean }) {
 
   return (
     <div data-testid="world-analytics-desk" className="flex flex-col gap-3">
-      <NativeCard isLight={isLight} title="Analytics Desk">
+      <NativeCard isLight={isLight} title={t("worldDeskRemainder.anlTitle")}>
         <p className={`text-sm ${mutedCls(isLight)}`}>
-          The depth tools from your Analytics Hub, right here at the board: a full
-          channel audit, a pre-flight score for your next post, plain-English reads on
-          your connected numbers, a growth plan from your own stats, a competitor read,
-          and a coach for your posts. Every price is named before anything charges —
-          and on these rails a failed run refunds itself.
+          {t("worldDeskRemainder.anlIntro")}
         </p>
       </NativeCard>
 
@@ -359,30 +347,30 @@ function OverviewCard({
   error: string;
   onRetry: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   return (
     <div data-testid="world-analytics-desk-overview">
-      <NativeCard isLight={isLight} title="Connected accounts — live numbers (free)">
+      <NativeCard isLight={isLight} title={t("worldDeskRemainder.anlOverviewTitle")}>
         {phase === "loading" ? (
-          <NativeLoadingState isLight={isLight} message="Reading your connected accounts…" />
+          <NativeLoadingState isLight={isLight} message={t("worldDeskRemainder.anlReadingAccounts")} />
         ) : phase === "failed" || !overview ? (
           <NativeErrorState
             isLight={isLight}
-            title="Your analytics overview wouldn't open"
+            title={t("worldDeskRemainder.anlOverviewFailedTitle")}
             message={error}
             onRetry={onRetry}
           />
         ) : overview.platforms.length === 0 ? (
           <NativeEmptyState
             isLight={isLight}
-            message="No connected-account data came back."
-            detail="That is a missing read, not zero stats — try again in a moment."
+            message={t("worldDeskRemainder.anlNoData")}
+            detail={t("worldDeskRemainder.anlNoDataDetail")}
           />
         ) : (
           <div className="flex flex-col gap-3">
             {overview.partial ? (
               <p className={`text-xs font-semibold ${strongCls(isLight)}`}>
-                Some sources didn't answer just now — what's below is real; anything
-                missing is missing, not zero.
+                {t("worldDeskRemainder.anlPartialNote")}
               </p>
             ) : null}
             {overview.platforms.map((row) => (
@@ -395,13 +383,13 @@ function OverviewCard({
             ))}
             {overview.fetchedAt ? (
               <p className={`text-xs ${faintCls(isLight)}`}>
-                Read {analyticsTimeAgo(overview.fetchedAt, Date.now())} ·{" "}
+                {t("worldDeskRemainder.anlReadAgo", { ago: analyticsTimeAgo(overview.fetchedAt, Date.now(), { justNow: t("worldDeskRemainder.anlAgoJustNow"), minutes: t("worldDeskRemainder.anlAgoMinutes"), hours: t("worldDeskRemainder.anlAgoHours"), days: t("worldDeskRemainder.anlAgoDays") }) })}
                 <button
                   type="button"
                   onClick={onRetry}
                   className="font-bold text-[#d4af37] underline-offset-2 hover:underline"
                 >
-                  Refresh
+                  {t("worldDeskRemainder.anlRefresh")}
                 </button>
               </p>
             ) : null}
@@ -421,6 +409,7 @@ function OverviewPlatformRow({
   row: AnalyticsPlatformRow;
   snapshots: AnalyticsOverview["snapshots"];
 }) {
+  const { t, i18n } = useTranslation();
   const label = ANALYTICS_PLATFORM_LABELS[row.platform];
   const series = snapshots
     .filter((s) => s.platform === row.platform && s.followers !== null)
@@ -428,12 +417,12 @@ function OverviewPlatformRow({
     .reverse();
   const statusLine =
     row.status === "ok"
-      ? "Connected"
+      ? t("worldDeskRemainder.anlStatusConnected")
       : row.status === "expired"
-        ? "Connection expired"
+        ? t("worldDeskRemainder.anlStatusExpired")
         : row.status === "error"
-          ? "Didn't answer"
-          : "Not connected";
+          ? t("worldDeskRemainder.anlStatusDidntAnswer")
+          : t("worldDeskRemainder.anlStatusNotConnected");
   return (
     <div
       className={`rounded-xl border px-3 py-2.5 ${
@@ -466,15 +455,15 @@ function OverviewPlatformRow({
           <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {(
               [
-                ["Followers", row.stats.followers],
-                ["Following", row.stats.following],
-                ["Posts", row.stats.mediaCount],
-                ["Total likes", row.stats.totalLikes],
+                [t("worldDeskRemainder.anlStatFollowers"), row.stats.followers],
+                [t("worldDeskRemainder.anlStatFollowing"), row.stats.following],
+                [t("worldDeskRemainder.anlStatPosts"), row.stats.mediaCount],
+                [t("worldDeskRemainder.anlStatTotalLikes"), row.stats.totalLikes],
               ] as const
             ).map(([name, value]) => (
               <div key={name}>
                 <p className={`text-base font-black ${strongCls(isLight)}`}>
-                  {formatAnalyticsCount(value)}
+                  {formatAnalyticsCount(value, i18n.language)}
                 </p>
                 <p className={`text-[11px] ${faintCls(isLight)}`}>{name}</p>
               </div>
@@ -482,14 +471,12 @@ function OverviewPlatformRow({
           </div>
           {series.length >= 2 ? (
             <p className={`mt-2 text-xs ${mutedCls(isLight)}`}>
-              Followers {formatAnalyticsCount(series[0])} →{" "}
-              {formatAnalyticsCount(series[series.length - 1])} across {series.length}{" "}
-              saved reads
+              {t("worldDeskRemainder.anlFollowersAcross", { from: formatAnalyticsCount(series[0], i18n.language), to: formatAnalyticsCount(series[series.length - 1], i18n.language), count: series.length })}
             </p>
           ) : null}
           {row.topContent.length > 0 ? (
             <div className="mt-2 flex flex-col gap-1.5">
-              <p className={fieldLabelCls(isLight)}>Top posts</p>
+              <p className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlTopPosts")}</p>
               {row.topContent.slice(0, 3).map((tc, i) => (
                 <p key={i} className={`text-xs ${mutedCls(isLight)}`}>
                   <span className={strongCls(isLight)}>
@@ -498,10 +485,10 @@ function OverviewPlatformRow({
                   {tc.likes !== null || tc.comments !== null ? (
                     <span className={faintCls(isLight)}>
                       {" "}
-                      · {tc.likes !== null ? `${formatAnalyticsCount(tc.likes)} likes` : ""}
+                      · {tc.likes !== null ? t("worldDeskRemainder.anlLikesCount", { count: formatAnalyticsCount(tc.likes, i18n.language) }) : ""}
                       {tc.likes !== null && tc.comments !== null ? " · " : ""}
                       {tc.comments !== null
-                        ? `${formatAnalyticsCount(tc.comments)} comments`
+                        ? t("worldDeskRemainder.anlCommentsCount", { count: formatAnalyticsCount(tc.comments, i18n.language) })
                         : ""}
                     </span>
                   ) : null}
@@ -513,10 +500,10 @@ function OverviewPlatformRow({
       ) : (
         <p className={`mt-1.5 text-xs ${mutedCls(isLight)}`}>
           {row.status === "not_connected"
-            ? "Not connected yet. Account linking lives on the website's Analytics Hub — connect there and the numbers land here too."
+            ? t("worldDeskRemainder.anlNotConnectedBody")
             : row.status === "expired"
-              ? "This connection expired. Reconnect it on the website's Analytics Hub and the numbers land here again."
-              : (row.message ?? "This account didn't answer — refresh in a moment.")}
+              ? t("worldDeskRemainder.anlExpiredBody")
+              : (row.message ?? t("worldDeskRemainder.anlDidntAnswerBody"))}
         </p>
       )}
     </div>
@@ -534,14 +521,15 @@ function ConnectedAiCard({
   overview: AnalyticsOverview | null;
   phase: "loading" | "ready" | "failed";
 }) {
+  const { t } = useTranslation();
   const [niche, setNiche] = useState("");
   const insights = usePaidTool<AnalyticsInsights>(
     normalizeAnalyticsInsights,
-    ANALYTICS_INSIGHTS_FAILED_LINE,
+    t("worldDeskRemainder.anlInsightsFailed"),
   );
   const suggestions = usePaidTool<AnalyticsSuggestion[]>(
     normalizeAnalyticsSuggestions,
-    ANALYTICS_SUGGESTIONS_FAILED_LINE,
+    t("worldDeskRemainder.anlSuggestionsFailed"),
   );
   const okCount = overview ? connectedAnalyticsPlatforms(overview).length : 0;
 
@@ -549,7 +537,7 @@ function ConnectedAiCard({
     if (!overview) return null;
     const body = buildAnalyticsAiBody(overview, niche);
     if (!body) {
-      tool.setError(ANALYTICS_NO_CONNECTED_LINE);
+      tool.setError(t("worldDeskRemainder.anlNoConnected"));
       return null;
     }
     return body;
@@ -557,18 +545,17 @@ function ConnectedAiCard({
 
   return (
     <div data-testid="world-analytics-desk-connected-ai">
-      <NativeCard isLight={isLight} title="AI read on your connected numbers">
+      <NativeCard isLight={isLight} title={t("worldDeskRemainder.anlConnectedAiTitle")}>
         <p className={`text-sm ${mutedCls(isLight)}`}>
-          Two reads over the accounts above — what the numbers say, and what to make
-          next because of them. They only run on accounts that are actually reporting.
+          {t("worldDeskRemainder.anlConnectedAiIntro")}
         </p>
         <label className="mt-3 block">
-          <span className={fieldLabelCls(isLight)}>Your niche (optional)</span>
+          <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlNicheLabel")}</span>
           <input
             className={deskInputCls(isLight)}
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
-            placeholder="e.g. comedy skits, gospel covers, sneaker reviews"
+            placeholder={t("worldDeskRemainder.anlNichePlaceholder")}
             maxLength={80}
           />
         </label>
@@ -576,12 +563,12 @@ function ConnectedAiCard({
         {phase !== "ready" ? (
           <p className={`mt-3 text-xs ${mutedCls(isLight)}`}>
             {phase === "loading"
-              ? "Your connected accounts are still loading — the AI read opens when they land."
-              : "Your connected accounts didn't load — fix that read above first, then this opens."}
+              ? t("worldDeskRemainder.anlPhaseLoading")
+              : t("worldDeskRemainder.anlPhaseFailed")}
           </p>
         ) : okCount === 0 ? (
           <p className={`mt-3 text-xs font-semibold ${strongCls(isLight)}`}>
-            {ANALYTICS_NO_CONNECTED_LINE}
+            {t("worldDeskRemainder.anlNoConnected")}
           </p>
         ) : (
           <>
@@ -596,16 +583,16 @@ function ConnectedAiCard({
                     if (body) void insights.run(ANALYTICS_INSIGHTS_PATH, body);
                   }}
                 >
-                  {ANALYTICS_INSIGHTS_FEATURE} — {ANALYTICS_INSIGHTS_COST_VB} Bucs
+                  {t("worldDeskRemainder.anlFeatureCost", { feature: ANALYTICS_INSIGHTS_FEATURE, cost: ANALYTICS_INSIGHTS_COST_VB })}
                 </button>
                 <span className={`text-xs ${faintCls(isLight)}`}>
-                  The headline, what's moving, your best posting window.
+                  {t("worldDeskRemainder.anlInsightsSide")}
                 </span>
               </div>
               <ToolStatus
                 isLight={isLight}
                 busy={insights.busy}
-                busyLabel="Reading your numbers…"
+                busyLabel={t("worldDeskRemainder.anlInsightsBusy")}
                 error={insights.error}
                 outOfCredits={insights.outOfCredits}
               />
@@ -623,16 +610,16 @@ function ConnectedAiCard({
                     if (body) void suggestions.run(ANALYTICS_SUGGESTIONS_PATH, body);
                   }}
                 >
-                  {ANALYTICS_SUGGESTIONS_FEATURE} — {ANALYTICS_SUGGESTIONS_COST_VB} Bucs
+                  {t("worldDeskRemainder.anlFeatureCost", { feature: ANALYTICS_SUGGESTIONS_FEATURE, cost: ANALYTICS_SUGGESTIONS_COST_VB })}
                 </button>
                 <span className={`text-xs ${faintCls(isLight)}`}>
-                  Five ideas built from what's already working for you.
+                  {t("worldDeskRemainder.anlSuggestionsSide")}
                 </span>
               </div>
               <ToolStatus
                 isLight={isLight}
                 busy={suggestions.busy}
-                busyLabel="Cooking up ideas from your numbers…"
+                busyLabel={t("worldDeskRemainder.anlSuggestionsBusy")}
                 error={suggestions.error}
                 outOfCredits={suggestions.outOfCredits}
               />
@@ -654,6 +641,7 @@ function InsightsResult({
   isLight: boolean;
   result: AnalyticsInsights;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-2">
       {result.headline ? (
@@ -670,13 +658,13 @@ function InsightsResult({
       ))}
       {result.bestWindow ? (
         <p className={`text-sm ${mutedCls(isLight)}`}>
-          <span className={`font-bold ${strongCls(isLight)}`}>Best window: </span>
+          <span className={`font-bold ${strongCls(isLight)}`}>{t("worldDeskRemainder.anlBestWindowPrefix")}</span>
           {result.bestWindow}
         </p>
       ) : null}
       {result.recommendations.length > 0 ? (
         <div>
-          <p className={fieldLabelCls(isLight)}>Do this next</p>
+          <p className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlDoThisNext")}</p>
           <ol className={`list-decimal pl-5 text-sm ${mutedCls(isLight)}`}>
             {result.recommendations.map((r, i) => (
               <li key={i}>{r}</li>
@@ -695,12 +683,13 @@ function SuggestionsResult({
   isLight: boolean;
   result: AnalyticsSuggestion[];
 }) {
+  const { t } = useTranslation();
   if (result.length === 0) {
     return (
       <NativeEmptyState
         isLight={isLight}
-        message="The AI came back with no ideas this time."
-        detail="Your numbers are fine — run it again and it will take another pass."
+        message={t("worldDeskRemainder.anlSuggestionsEmpty")}
+        detail={t("worldDeskRemainder.anlSuggestionsEmptyDetail")}
       />
     );
   }
@@ -726,7 +715,7 @@ function SuggestionsResult({
           {s.why ? <p className={`mt-1 text-xs ${mutedCls(isLight)}`}>{s.why}</p> : null}
           {s.hook ? (
             <p className={`mt-1 text-xs ${mutedCls(isLight)}`}>
-              <span className={`font-bold ${strongCls(isLight)}`}>Opening hook: </span>
+              <span className={`font-bold ${strongCls(isLight)}`}>{t("worldDeskRemainder.anlOpeningHookPrefix")}</span>
               {s.hook}
             </p>
           ) : null}
@@ -759,12 +748,13 @@ function GrowthPlanCard({
   hubState: AnalyticsHubState;
   onSave: (key: GrowthPlatformKey, raw: HubInputs) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [selected, setSelected] = useState<GrowthPlatformKey>("tiktok");
   const [inputs, setInputs] = useState<HubInputs>(() =>
     statsToInputs(hubState.tiktok.stats),
   );
   const [savedNote, setSavedNote] = useState<string | null>(null);
-  const plan = usePaidTool<GrowthPlan>(normalizeGrowthPlan, GROWTH_PLAN_FAILED_LINE);
+  const plan = usePaidTool<GrowthPlan>(normalizeGrowthPlan, t("worldDeskRemainder.anlGrowthPlanFailed"));
   const selectedMeta = GROWTH_PLATFORMS.find((p) => p.key === selected)!;
   const history = hubState[selected].history;
   const hasData = hubStateHasData(hubState);
@@ -777,18 +767,14 @@ function GrowthPlanCard({
 
   function save() {
     onSave(selected, inputs);
-    setSavedNote(
-      `${selectedMeta.label} numbers saved — the website's Analytics Hub keeps the same set.`,
-    );
+    setSavedNote(t("worldDeskRemainder.anlNumbersSaved", { platform: selectedMeta.label }));
   }
 
   return (
     <div data-testid="world-analytics-desk-growth">
-      <NativeCard isLight={isLight} title="Your numbers & the Growth Plan">
+      <NativeCard isLight={isLight} title={t("worldDeskRemainder.anlGrowthTitle")}>
         <p className={`text-sm ${mutedCls(isLight)}`}>
-          Your own per-platform numbers — the same set your website Analytics Hub
-          keeps, so editing here edits there. Saving is free; the plan written from
-          them costs {GROWTH_PLAN_COST_VB} Bucs.
+          {t("worldDeskRemainder.anlGrowthIntro", { cost: GROWTH_PLAN_COST_VB })}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {GROWTH_PLATFORMS.map((p) => (
@@ -811,11 +797,11 @@ function GrowthPlanCard({
         <div className="mt-3 grid grid-cols-2 gap-2">
           {(
             [
-              ["followers", "Followers"],
-              ["views7d", "Views — last 7 days"],
-              ["views30d", "Views — last 30 days"],
-              ["engagementRate", "Engagement rate %"],
-              ["topPostViews", "Top post views"],
+              ["followers", t("worldDeskRemainder.anlStatFollowers")],
+              ["views7d", t("worldDeskRemainder.anlFieldViews7d")],
+              ["views30d", t("worldDeskRemainder.anlFieldViews30d")],
+              ["engagementRate", t("worldDeskRemainder.anlFieldEngagement")],
+              ["topPostViews", t("worldDeskRemainder.anlFieldTopPostViews")],
             ] as const
           ).map(([field, label]) => (
             <label key={field} className="block">
@@ -835,13 +821,13 @@ function GrowthPlanCard({
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button type="button" className={ghostButtonCls(isLight)} onClick={save}>
-            Save {selectedMeta.label} numbers
+            {t("worldDeskRemainder.anlSaveNumbers", { platform: selectedMeta.label })}
           </button>
           {history.length > 0 ? (
             <span className={`text-xs ${faintCls(isLight)}`}>
-              {history.length} snapshot{history.length === 1 ? "" : "s"} saved
+              {t(history.length === 1 ? "worldDeskRemainder.anlSnapshotOne" : "worldDeskRemainder.anlSnapshotMany", { count: history.length })}
               {history.length >= 2
-                ? ` · 30-day views ${formatAnalyticsCount(history[0].views30d)} → ${formatAnalyticsCount(history[history.length - 1].views30d)}`
+                ? t("worldDeskRemainder.anlViewsTrendSuffix", { from: formatAnalyticsCount(history[0].views30d, i18n.language), to: formatAnalyticsCount(history[history.length - 1].views30d, i18n.language) })
                 : ""}
             </span>
           ) : null}
@@ -859,24 +845,24 @@ function GrowthPlanCard({
               onClick={() => {
                 const body = buildGrowthPlanBody(hubState);
                 if (!body) {
-                  plan.setError(GROWTH_PLAN_NO_DATA_LINE);
+                  plan.setError(t("worldDeskRemainder.anlGrowthPlanNoData"));
                   return;
                 }
                 void plan.run(GROWTH_PLAN_PATH, body);
               }}
             >
-              {GROWTH_PLAN_FEATURE} — {GROWTH_PLAN_COST_VB} Bucs
+              {t("worldDeskRemainder.anlFeatureCost", { feature: GROWTH_PLAN_FEATURE, cost: GROWTH_PLAN_COST_VB })}
             </button>
             <span className={`text-xs ${faintCls(isLight)}`}>
               {hasData
-                ? "A summary, three moves, your best platform and where to focus."
-                : "Fill in at least one platform above first."}
+                ? t("worldDeskRemainder.anlGrowthSideHasData")
+                : t("worldDeskRemainder.anlGrowthSideNoData")}
             </span>
           </div>
           <ToolStatus
             isLight={isLight}
             busy={plan.busy}
-            busyLabel="Writing your growth plan…"
+            busyLabel={t("worldDeskRemainder.anlGrowthBusy")}
             error={plan.error}
             outOfCredits={plan.outOfCredits}
           />
@@ -888,14 +874,14 @@ function GrowthPlanCard({
                   {plan.result.bestPlatform ? (
                     <>
                       <span className={`font-bold ${strongCls(isLight)}`}>
-                        Best platform:{" "}
+                        {t("worldDeskRemainder.anlBestPlatformPrefix")}
                       </span>
                       {plan.result.bestPlatform}{" "}
                     </>
                   ) : null}
                   {plan.result.focusArea ? (
                     <>
-                      <span className={`font-bold ${strongCls(isLight)}`}>Focus: </span>
+                      <span className={`font-bold ${strongCls(isLight)}`}>{t("worldDeskRemainder.anlFocusPrefix")}</span>
                       {plan.result.focusArea}
                     </>
                   ) : null}
@@ -925,6 +911,7 @@ const GRADE_TONE: Record<string, string> = {
 };
 
 function ChannelAuditCard({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<ChannelAuditForm>({
     niche: "",
     handle: "",
@@ -935,7 +922,7 @@ function ChannelAuditCard({ isLight }: { isLight: boolean }) {
   });
   const audit = usePaidTool<ChannelAuditResult>(
     normalizeChannelAudit,
-    CHANNEL_AUDIT_FAILED_LINE,
+    t("worldDeskRemainder.anlAuditFailed"),
   );
 
   function set<K extends keyof ChannelAuditForm>(key: K, value: ChannelAuditForm[K]) {
@@ -944,36 +931,34 @@ function ChannelAuditCard({ isLight }: { isLight: boolean }) {
 
   return (
     <div data-testid="world-analytics-desk-audit">
-      <NativeCard isLight={isLight} title={`${CHANNEL_AUDIT_FEATURE} — ${CHANNEL_AUDIT_COST_VB} Bucs`}>
+      <NativeCard isLight={isLight} title={t("worldDeskRemainder.anlFeatureCost", { feature: CHANNEL_AUDIT_FEATURE, cost: CHANNEL_AUDIT_COST_VB })}>
         <p className={`text-sm ${mutedCls(isLight)}`}>
-          A graded read of your channel across six dimensions — posting consistency,
-          hooks, branding, captions, calls to action and your bio — each with the fix,
-          plus your top three priorities.
+          {t("worldDeskRemainder.anlAuditIntro")}
         </p>
         <div className="mt-3 grid gap-2">
           <label className="block">
-            <span className={fieldLabelCls(isLight)}>Your niche *</span>
+            <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlAuditNicheLabel")}</span>
             <input
               className={deskInputCls(isLight)}
               value={form.niche}
               onChange={(e) => set("niche", e.target.value)}
-              placeholder="e.g. plus-size fashion hauls, indie game devlogs"
+              placeholder={t("worldDeskRemainder.anlAuditNichePlaceholder")}
               maxLength={120}
             />
           </label>
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
-              <span className={fieldLabelCls(isLight)}>Handle (optional)</span>
+              <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlHandleLabel")}</span>
               <input
                 className={deskInputCls(isLight)}
                 value={form.handle}
                 onChange={(e) => set("handle", e.target.value)}
-                placeholder="@yourhandle"
+                placeholder={t("worldDeskRemainder.anlHandlePlaceholder")}
                 maxLength={80}
               />
             </label>
             <label className="block">
-              <span className={fieldLabelCls(isLight)}>Main platform</span>
+              <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlMainPlatformLabel")}</span>
               <select
                 className={deskInputCls(isLight)}
                 value={form.platform}
@@ -981,43 +966,43 @@ function ChannelAuditCard({ isLight }: { isLight: boolean }) {
               >
                 {AUDIT_PLATFORMS.map((p) => (
                   <option key={p.key} value={p.key}>
-                    {p.label}
+                    {p.key === "multi" ? t("worldDeskRemainder.anlAuditPlatformMulti") : p.label}
                   </option>
                 ))}
               </select>
             </label>
           </div>
           <label className="block">
-            <span className={fieldLabelCls(isLight)}>Your bio (optional)</span>
+            <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlBioLabel")}</span>
             <textarea
               className={deskInputCls(isLight)}
               rows={2}
               value={form.bio}
               onChange={(e) => set("bio", e.target.value)}
-              placeholder="Paste your current profile bio"
+              placeholder={t("worldDeskRemainder.anlBioPlaceholder")}
               maxLength={500}
             />
           </label>
           <label className="block">
-            <span className={fieldLabelCls(isLight)}>How often you post (optional)</span>
+            <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlPostFreqLabel")}</span>
             <input
               className={deskInputCls(isLight)}
               value={form.postsPerWeek}
               onChange={(e) => set("postsPerWeek", e.target.value)}
-              placeholder="e.g. 3 times a week"
+              placeholder={t("worldDeskRemainder.anlPostFreqPlaceholder")}
               maxLength={40}
             />
           </label>
           <label className="block">
             <span className={fieldLabelCls(isLight)}>
-              Recent posts — one per line, up to 10 (optional, sharper with them)
+              {t("worldDeskRemainder.anlRecentPostsLabel")}
             </span>
             <textarea
               className={deskInputCls(isLight)}
               rows={4}
               value={form.recentPostsText}
               onChange={(e) => set("recentPostsText", e.target.value)}
-              placeholder={"POV: the beat drops and…\nDay 12 of learning to sew…"}
+              placeholder={t("worldDeskRemainder.anlRecentPostsPlaceholder")}
             />
           </label>
         </div>
@@ -1029,21 +1014,19 @@ function ChannelAuditCard({ isLight }: { isLight: boolean }) {
               className={goldButtonCls(audit.busy)}
               onClick={() => {
                 if (!channelAuditReady(form)) {
-                  audit.setError(
-                    "Add your niche first — two characters is enough for the audit to work with.",
-                  );
+                  audit.setError(t("worldDeskRemainder.anlAuditGate"));
                   return;
                 }
                 void audit.run(CHANNEL_AUDIT_PATH, buildChannelAuditBody(form));
               }}
             >
-              Run the audit — {CHANNEL_AUDIT_COST_VB} Bucs
+              {t("worldDeskRemainder.anlAuditButton", { cost: CHANNEL_AUDIT_COST_VB })}
             </button>
           </div>
           <ToolStatus
             isLight={isLight}
             busy={audit.busy}
-            busyLabel="Grading your channel…"
+            busyLabel={t("worldDeskRemainder.anlAuditBusy")}
             error={audit.error}
             outOfCredits={audit.outOfCredits}
           />
@@ -1061,6 +1044,15 @@ function AuditResultView({
   isLight: boolean;
   result: ChannelAuditResult;
 }) {
+  const { t } = useTranslation();
+  const DIM_KEY: Record<string, string> = {
+    "posting-consistency": "worldDeskRemainder.anlDimPosting",
+    "hook-strength": "worldDeskRemainder.anlDimHook",
+    branding: "worldDeskRemainder.anlDimBranding",
+    "caption-quality": "worldDeskRemainder.anlDimCaption",
+    "cta-usage": "worldDeskRemainder.anlDimCta",
+    "profile-bio": "worldDeskRemainder.anlDimBio",
+  };
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-4">
@@ -1069,7 +1061,7 @@ function AuditResultView({
         </span>
         <div>
           <p className={`text-sm font-black ${strongCls(isLight)}`}>
-            {result.overallScore}/100 overall
+            {t("worldDeskRemainder.anlOverallScore", { score: result.overallScore })}
           </p>
           {result.verdict ? (
             <p className={`text-sm ${mutedCls(isLight)}`}>{result.verdict}</p>
@@ -1087,7 +1079,7 @@ function AuditResultView({
             <p className={`text-sm font-bold ${strongCls(isLight)}`}>
               <span className={d.gradeColor || GRADE_TONE[d.grade] || ""}>{d.grade}</span>
               {" · "}
-              {d.label}
+              {DIM_KEY[d.key] ? t(DIM_KEY[d.key]) : d.label}
               <span className={`ml-2 text-xs font-semibold ${faintCls(isLight)}`}>
                 {d.score}/100
               </span>
@@ -1097,7 +1089,7 @@ function AuditResultView({
             ) : null}
             {d.fix ? (
               <p className={`mt-1 text-xs ${mutedCls(isLight)}`}>
-                <span className={`font-bold ${strongCls(isLight)}`}>Fix: </span>
+                <span className={`font-bold ${strongCls(isLight)}`}>{t("worldDeskRemainder.anlFixPrefix")}</span>
                 {d.fix}
               </p>
             ) : null}
@@ -1106,7 +1098,7 @@ function AuditResultView({
       </div>
       {result.topPriorities.length > 0 ? (
         <div>
-          <p className={fieldLabelCls(isLight)}>Top priorities</p>
+          <p className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlTopPriorities")}</p>
           <ol className={`list-decimal pl-5 text-sm ${mutedCls(isLight)}`}>
             {result.topPriorities.map((p, i) => (
               <li key={i}>{p}</li>
@@ -1116,7 +1108,7 @@ function AuditResultView({
       ) : null}
       {result.quickActions.length > 0 ? (
         <div>
-          <p className={fieldLabelCls(isLight)}>Quick wins</p>
+          <p className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlQuickWins")}</p>
           <div className="flex flex-col gap-1">
             {result.quickActions.map((a, i) => (
               <p key={i} className={`text-sm ${mutedCls(isLight)}`}>
@@ -1167,6 +1159,7 @@ function HashtagChip({ tag, isLight }: { tag: string; isLight: boolean }) {
 }
 
 function ViralityCard({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<ViralityForm>({
     platform: "tiktok",
     caption: "",
@@ -1175,7 +1168,7 @@ function ViralityCard({ isLight }: { isLight: boolean }) {
   });
   const check = usePaidTool<ViralityResult>(
     normalizeViralityCheck,
-    VIRALITY_CHECK_FAILED_LINE,
+    t("worldDeskRemainder.anlViralityFailed"),
   );
 
   function set<K extends keyof ViralityForm>(key: K, value: ViralityForm[K]) {
@@ -1186,16 +1179,14 @@ function ViralityCard({ isLight }: { isLight: boolean }) {
     <div data-testid="world-analytics-desk-virality">
       <NativeCard
         isLight={isLight}
-        title={`${VIRALITY_CHECK_FEATURE} — ${VIRALITY_CHECK_COST_VB} Bucs`}
+        title={t("worldDeskRemainder.anlFeatureCost", { feature: VIRALITY_CHECK_FEATURE, cost: VIRALITY_CHECK_COST_VB })}
       >
         <p className={`text-sm ${mutedCls(isLight)}`}>
-          Score a post BEFORE it goes out — hook, caption and hashtags graded, the best
-          posting time named, and the fixes that move the score. A readiness score, not
-          a promise: no tool can guarantee a post takes off.
+          {t("worldDeskRemainder.anlViralityIntro")}
         </p>
         <div className="mt-3 grid gap-2">
           <label className="block">
-            <span className={fieldLabelCls(isLight)}>Platform</span>
+            <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlPlatformLabel")}</span>
             <select
               className={deskInputCls(isLight)}
               value={form.platform}
@@ -1209,33 +1200,33 @@ function ViralityCard({ isLight }: { isLight: boolean }) {
             </select>
           </label>
           <label className="block">
-            <span className={fieldLabelCls(isLight)}>Caption *</span>
+            <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlCaptionLabel")}</span>
             <textarea
               className={deskInputCls(isLight)}
               rows={3}
               value={form.caption}
               onChange={(e) => set("caption", e.target.value)}
-              placeholder="The exact caption you're about to post"
+              placeholder={t("worldDeskRemainder.anlCaptionPlaceholder")}
               maxLength={2000}
             />
           </label>
           <label className="block">
-            <span className={fieldLabelCls(isLight)}>Opening hook line (optional)</span>
+            <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlHookLineLabel")}</span>
             <input
               className={deskInputCls(isLight)}
               value={form.hookLine}
               onChange={(e) => set("hookLine", e.target.value)}
-              placeholder="The first line or first 3 seconds"
+              placeholder={t("worldDeskRemainder.anlHookLinePlaceholder")}
               maxLength={300}
             />
           </label>
           <label className="block">
-            <span className={fieldLabelCls(isLight)}>Hashtags (optional)</span>
+            <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlHashtagsLabel")}</span>
             <input
               className={deskInputCls(isLight)}
               value={form.hashtags}
               onChange={(e) => set("hashtags", e.target.value)}
-              placeholder="#fyp #yourtag"
+              placeholder={t("worldDeskRemainder.anlHashtagsPlaceholder")}
               maxLength={500}
             />
           </label>
@@ -1248,19 +1239,19 @@ function ViralityCard({ isLight }: { isLight: boolean }) {
               className={goldButtonCls(check.busy)}
               onClick={() => {
                 if (!viralityReady(form)) {
-                  check.setError("Write the caption first — that's what gets scored.");
+                  check.setError(t("worldDeskRemainder.anlViralityGate"));
                   return;
                 }
                 void check.run(VIRALITY_CHECK_PATH, buildViralityBody(form));
               }}
             >
-              Score this post — {VIRALITY_CHECK_COST_VB} Bucs
+              {t("worldDeskRemainder.anlViralityButton", { cost: VIRALITY_CHECK_COST_VB })}
             </button>
           </div>
           <ToolStatus
             isLight={isLight}
             busy={check.busy}
-            busyLabel="Scoring your post…"
+            busyLabel={t("worldDeskRemainder.anlViralityBusy")}
             error={check.error}
             outOfCredits={check.outOfCredits}
           />
@@ -1278,23 +1269,24 @@ function ViralityResultView({
   isLight: boolean;
   result: ViralityResult;
 }) {
+  const { t } = useTranslation();
   const blocks = [
-    { name: "Hook strength", block: result.hookStrength },
-    { name: "Caption", block: result.captionScore },
-    { name: "Hashtags", block: result.hashtagAnalysis },
+    { name: t("worldDeskRemainder.anlBlockHook"), block: result.hookStrength },
+    { name: t("worldDeskRemainder.anlBlockCaption"), block: result.captionScore },
+    { name: t("worldDeskRemainder.anlBlockHashtags"), block: result.hashtagAnalysis },
   ] as const;
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
         <ScoreBadge score={result.overallScore} isLight={isLight} />
-        <p className={`text-sm font-bold ${strongCls(isLight)}`}>Readiness score</p>
+        <p className={`text-sm font-bold ${strongCls(isLight)}`}>{t("worldDeskRemainder.anlReadinessScore")}</p>
       </div>
       {blocks.map(({ name, block }) =>
         block ? (
           <div key={name}>
             <p className={`text-sm ${mutedCls(isLight)}`}>
               <span className={`font-bold ${strongCls(isLight)}`}>
-                {name} — {block.score}/100
+                {t("worldDeskRemainder.anlBlockScore", { name, score: block.score })}
               </span>
               {block.feedback ? <> · {block.feedback}</> : null}
             </p>
@@ -1303,7 +1295,7 @@ function ViralityResultView({
       )}
       {result.hashtagAnalysis && result.hashtagAnalysis.suggestedHashtags.length > 0 ? (
         <div>
-          <p className={fieldLabelCls(isLight)}>Suggested hashtags — tap to copy</p>
+          <p className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlSuggestedHashtags")}</p>
           <div className="flex flex-wrap gap-1.5">
             {result.hashtagAnalysis.suggestedHashtags.map((tag) => (
               <HashtagChip key={tag} tag={tag} isLight={isLight} />
@@ -1313,7 +1305,7 @@ function ViralityResultView({
       ) : null}
       {result.postingTime ? (
         <p className={`text-sm ${mutedCls(isLight)}`}>
-          <span className={`font-bold ${strongCls(isLight)}`}>Best time: </span>
+          <span className={`font-bold ${strongCls(isLight)}`}>{t("worldDeskRemainder.anlBestTimePrefix")}</span>
           {result.postingTime.bestTime}
           {result.postingTime.reason ? (
             <span className={faintCls(isLight)}> — {result.postingTime.reason}</span>
@@ -1322,7 +1314,7 @@ function ViralityResultView({
       ) : null}
       {result.fixes.length > 0 ? (
         <div>
-          <p className={fieldLabelCls(isLight)}>Fixes that move the score</p>
+          <p className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlScoreFixes")}</p>
           <ol className={`list-decimal pl-5 text-sm ${mutedCls(isLight)}`}>
             {result.fixes.map((f, i) => (
               <li key={i}>{f}</li>
@@ -1337,6 +1329,7 @@ function ViralityResultView({
 /* ─── Competitor Tracker (200 Bucs) ────────────────────────────── */
 
 function CompetitorCard({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<CompetitorForm>({
     name: "",
     url: "",
@@ -1345,7 +1338,7 @@ function CompetitorCard({ isLight }: { isLight: boolean }) {
   });
   const look = usePaidTool<CompetitorResult>(
     normalizeCompetitorAnalysis,
-    COMPETITOR_FAILED_LINE,
+    t("worldDeskRemainder.anlCompetitorFailed"),
   );
 
   function set<K extends keyof CompetitorForm>(key: K, value: CompetitorForm[K]) {
@@ -1354,48 +1347,46 @@ function CompetitorCard({ isLight }: { isLight: boolean }) {
 
   return (
     <div data-testid="world-analytics-desk-competitor">
-      <NativeCard isLight={isLight} title={`${COMPETITOR_FEATURE} — ${COMPETITOR_COST_VB} Bucs`}>
+      <NativeCard isLight={isLight} title={t("worldDeskRemainder.anlFeatureCost", { feature: COMPETITOR_FEATURE, cost: COMPETITOR_COST_VB })}>
         <p className={`text-sm ${mutedCls(isLight)}`}>
-          A strategist's read on one rival in your niche — what they post, how often,
-          where they're strong, and the gaps you can walk through. Built from what you
-          tell it; the more honest the notes, the sharper the read.
+          {t("worldDeskRemainder.anlCompetitorIntro")}
         </p>
         <div className="mt-3 grid gap-2">
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
-              <span className={fieldLabelCls(isLight)}>Competitor name</span>
+              <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlCompetitorNameLabel")}</span>
               <input
                 className={deskInputCls(isLight)}
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
-                placeholder="Channel or creator name"
+                placeholder={t("worldDeskRemainder.anlCompetitorNamePlaceholder")}
                 maxLength={120}
               />
             </label>
             <label className="block">
-              <span className={fieldLabelCls(isLight)}>Channel URL</span>
+              <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlChannelUrlLabel")}</span>
               <input
                 className={deskInputCls(isLight)}
                 value={form.url}
                 onChange={(e) => set("url", e.target.value)}
-                placeholder="Link to their channel"
+                placeholder={t("worldDeskRemainder.anlChannelUrlPlaceholder")}
                 maxLength={2048}
               />
             </label>
           </div>
           <label className="block">
-            <span className={fieldLabelCls(isLight)}>The niche you share *</span>
+            <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlSharedNicheLabel")}</span>
             <input
               className={deskInputCls(isLight)}
               value={form.niche}
               onChange={(e) => set("niche", e.target.value)}
-              placeholder="e.g. budget travel vlogs"
+              placeholder={t("worldDeskRemainder.anlSharedNichePlaceholder")}
               maxLength={120}
             />
           </label>
           <label className="block">
             <span className={fieldLabelCls(isLight)}>
-              What you know about them (optional — posts, cadence, what lands)
+              {t("worldDeskRemainder.anlCompetitorNotesLabel")}
             </span>
             <textarea
               className={deskInputCls(isLight)}
@@ -1416,21 +1407,21 @@ function CompetitorCard({ isLight }: { isLight: boolean }) {
                 if (!competitorReady(form)) {
                   look.setError(
                     form.niche.trim().length < 2
-                      ? "Add the niche you share — 2+ characters."
-                      : "Name the competitor (2+ characters) or paste their channel URL first.",
+                      ? t("worldDeskRemainder.anlCompetitorGateNiche")
+                      : t("worldDeskRemainder.anlCompetitorGateName"),
                   );
                   return;
                 }
                 void look.run(COMPETITOR_ANALYSIS_PATH, buildCompetitorBody(form));
               }}
             >
-              Read this competitor — {COMPETITOR_COST_VB} Bucs
+              {t("worldDeskRemainder.anlCompetitorButton", { cost: COMPETITOR_COST_VB })}
             </button>
           </div>
           <ToolStatus
             isLight={isLight}
             busy={look.busy}
-            busyLabel="Reading your competitor…"
+            busyLabel={t("worldDeskRemainder.anlCompetitorBusy")}
             error={look.error}
             outOfCredits={look.outOfCredits}
           />
@@ -1448,10 +1439,11 @@ function CompetitorResultView({
   isLight: boolean;
   result: CompetitorResult;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-3">
       <p className={`text-sm font-black ${strongCls(isLight)}`}>
-        {result.competitorName || "Your competitor"}
+        {result.competitorName || t("worldDeskRemainder.anlYourCompetitor")}
         {result.niche ? (
           <span className={`ml-2 text-xs font-semibold ${mutedCls(isLight)}`}>
             {result.niche}
@@ -1460,7 +1452,7 @@ function CompetitorResultView({
       </p>
       {result.contentPillars.length > 0 ? (
         <div>
-          <p className={fieldLabelCls(isLight)}>What they post</p>
+          <p className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlWhatTheyPost")}</p>
           <div className="flex flex-col gap-1">
             {result.contentPillars.map((p, i) => (
               <p key={i} className={`text-sm ${mutedCls(isLight)}`}>
@@ -1473,16 +1465,16 @@ function CompetitorResultView({
       ) : null}
       {result.postingCadence ? (
         <p className={`text-sm ${mutedCls(isLight)}`}>
-          <span className={`font-bold ${strongCls(isLight)}`}>Cadence: </span>
+          <span className={`font-bold ${strongCls(isLight)}`}>{t("worldDeskRemainder.anlCadencePrefix")}</span>
           {result.postingCadence.assessment}
           {result.postingCadence.estimatedPostsPerWeek !== null
-            ? ` (≈ ${result.postingCadence.estimatedPostsPerWeek} posts/week)`
+            ? t("worldDeskRemainder.anlCadencePerWeek", { count: result.postingCadence.estimatedPostsPerWeek })
             : ""}
         </p>
       ) : null}
       {result.topFormats.length > 0 ? (
         <div>
-          <p className={fieldLabelCls(isLight)}>Formats that work for them</p>
+          <p className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlFormatsThatWork")}</p>
           <div className="flex flex-col gap-1">
             {result.topFormats.map((f, i) => (
               <p key={i} className={`text-sm ${mutedCls(isLight)}`}>
@@ -1497,7 +1489,7 @@ function CompetitorResultView({
         <div className="grid gap-3 sm:grid-cols-2">
           {result.strengths.length > 0 ? (
             <div>
-              <p className={fieldLabelCls(isLight)}>Their strengths</p>
+              <p className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlTheirStrengths")}</p>
               <ul className={`list-disc pl-5 text-sm ${mutedCls(isLight)}`}>
                 {result.strengths.map((s, i) => (
                   <li key={i}>{s}</li>
@@ -1507,7 +1499,7 @@ function CompetitorResultView({
           ) : null}
           {result.weaknesses.length > 0 ? (
             <div>
-              <p className={fieldLabelCls(isLight)}>Where they leave the door open</p>
+              <p className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlDoorOpen")}</p>
               <ul className={`list-disc pl-5 text-sm ${mutedCls(isLight)}`}>
                 {result.weaknesses.map((s, i) => (
                   <li key={i}>{s}</li>
@@ -1518,18 +1510,18 @@ function CompetitorResultView({
         </div>
       ) : null}
       <div>
-        <p className={fieldLabelCls(isLight)}>Your openings</p>
+        <p className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlYourOpenings")}</p>
         <div className="flex flex-col gap-1.5">
           {result.opportunities.map((o, i) => (
             <p key={i} className={`text-sm ${mutedCls(isLight)}`}>
               <span className={`font-bold ${strongCls(isLight)}`}>{o.gap}</span>
-              {o.howToExploit ? <> — play: {o.howToExploit}</> : null}
+              {o.howToExploit ? <> — {t("worldDeskRemainder.anlPlaySuffix")}{o.howToExploit}</> : null}
             </p>
           ))}
         </div>
       </div>
       <div>
-        <p className={fieldLabelCls(isLight)}>Takeaways</p>
+        <p className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlTakeaways")}</p>
         <ol className={`list-decimal pl-5 text-sm font-semibold ${strongCls(isLight)}`}>
           {result.takeaways.map((t, i) => (
             <li key={i}>{t}</li>
@@ -1562,10 +1554,11 @@ function CoachCard({
   isLight: boolean;
   hubState: AnalyticsHubState;
 }) {
+  const { t } = useTranslation();
   const [platform, setPlatform] = useState<CoachPlatformKey>("tiktok");
   const [niche, setNiche] = useState("");
   const [posts, setPosts] = useState<CoachPost[]>([blankCoachPost()]);
-  const coach = usePaidTool<AiCoachResult>(normalizeAiCoach, AI_COACH_FAILED_LINE);
+  const coach = usePaidTool<AiCoachResult>(normalizeAiCoach, t("worldDeskRemainder.anlCoachFailed"));
   const platformLabel = COACH_PLATFORMS.find((p) => p.key === platform)!.label;
 
   function setPost(i: number, patch: Partial<CoachPost>) {
@@ -1580,7 +1573,7 @@ function CoachCard({
       return [
         ...kept,
         {
-          title: `${platformLabel} top post`,
+          title: t("worldDeskRemainder.anlImportedPostTitle", { platform: platformLabel }),
           views: stats.topPostViews,
           likes: 0,
           comments: 0,
@@ -1594,16 +1587,13 @@ function CoachCard({
 
   return (
     <div data-testid="world-analytics-desk-coach">
-      <NativeCard isLight={isLight} title={`AI Coach — ${AI_COACH_COST_VB} Bucs`}>
+      <NativeCard isLight={isLight} title={t("worldDeskRemainder.anlCoachTitle", { cost: AI_COACH_COST_VB })}>
         <p className={`text-sm ${mutedCls(isLight)}`}>
-          Feed the coach your recent posts and their numbers — it reads WHY the
-          winners won and the rest stalled, and names the next posts to make. Titles
-          and views do most of the work; likes, comments, shares and watch time
-          sharpen it.
+          {t("worldDeskRemainder.anlCoachIntro")}
         </p>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <label className="block">
-            <span className={fieldLabelCls(isLight)}>Platform</span>
+            <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlPlatformLabel")}</span>
             <select
               className={deskInputCls(isLight)}
               value={platform}
@@ -1617,7 +1607,7 @@ function CoachCard({
             </select>
           </label>
           <label className="block">
-            <span className={fieldLabelCls(isLight)}>Your niche (optional)</span>
+            <span className={fieldLabelCls(isLight)}>{t("worldDeskRemainder.anlNicheLabel")}</span>
             <input
               className={deskInputCls(isLight)}
               value={niche}
@@ -1641,8 +1631,8 @@ function CoachCard({
                   className={deskInputCls(isLight)}
                   value={p.title}
                   onChange={(e) => setPost(i, { title: e.target.value })}
-                  placeholder={`Post ${i + 1} title`}
-                  aria-label={`Post ${i + 1} title`}
+                  placeholder={t("worldDeskRemainder.anlPostTitle", { n: i + 1 })}
+                  aria-label={t("worldDeskRemainder.anlPostTitle", { n: i + 1 })}
                   maxLength={200}
                 />
                 {posts.length > 1 ? (
@@ -1653,18 +1643,18 @@ function CoachCard({
                       setPosts((prev) => prev.filter((_, idx) => idx !== i))
                     }
                   >
-                    Remove
+                    {t("worldDeskRemainder.anlRemove")}
                   </button>
                 ) : null}
               </div>
               <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
                 {(
                   [
-                    ["views", "Views"],
-                    ["likes", "Likes"],
-                    ["comments", "Comments"],
-                    ["shares", "Shares"],
-                    ["watchTimeSec", "Watch sec"],
+                    ["views", t("worldDeskRemainder.anlStatViews")],
+                    ["likes", t("worldDeskRemainder.anlStatLikes")],
+                    ["comments", t("worldDeskRemainder.anlStatComments")],
+                    ["shares", t("worldDeskRemainder.anlStatShares")],
+                    ["watchTimeSec", t("worldDeskRemainder.anlStatWatchSec")],
                   ] as const
                 ).map(([field, label]) => (
                   <label key={field} className="block">
@@ -1703,15 +1693,14 @@ function CoachCard({
               )
             }
           >
-            Add a post
+            {t("worldDeskRemainder.anlAddPost")}
           </button>
           <button type="button" className={ghostButtonCls(isLight)} onClick={importFromStats}>
-            Import my {platformLabel} top post from my numbers
+            {t("worldDeskRemainder.anlImportTopPost", { platform: platformLabel })}
           </button>
         </div>
         <p className={`mt-2 text-xs ${faintCls(isLight)}`}>
-          Up to {COACH_MAX_POSTS} posts — bring your strongest set, best and worst
-          alike; the contrast is the lesson.
+          {t("worldDeskRemainder.anlCoachMaxNote", { max: COACH_MAX_POSTS })}
         </p>
         <div className="mt-3 flex flex-col gap-2">
           <div>
@@ -1721,7 +1710,7 @@ function CoachCard({
               className={goldButtonCls(coach.busy)}
               onClick={() => {
                 if (!aiCoachReady(posts)) {
-                  coach.setError(AI_COACH_NEED_POST_LINE);
+                  coach.setError(t("worldDeskRemainder.anlCoachNeedPost"));
                   return;
                 }
                 void coach.run(
@@ -1730,13 +1719,13 @@ function CoachCard({
                 );
               }}
             >
-              {AI_COACH_FEATURE} — {AI_COACH_COST_VB} Bucs
+              {t("worldDeskRemainder.anlFeatureCost", { feature: AI_COACH_FEATURE, cost: AI_COACH_COST_VB })}
             </button>
           </div>
           <ToolStatus
             isLight={isLight}
             busy={coach.busy}
-            busyLabel="The coach is reading your posts…"
+            busyLabel={t("worldDeskRemainder.anlCoachBusy")}
             error={coach.error}
             outOfCredits={coach.outOfCredits}
           />
@@ -1754,10 +1743,11 @@ function CoachResultView({
   isLight: boolean;
   result: AiCoachResult;
 }) {
+  const { t } = useTranslation();
   const lists = [
-    { name: "What's working", rows: result.patterns },
-    { name: "What's holding posts back", rows: result.mistakes },
-    { name: "Next posts to make", rows: result.nextSteps },
+    { name: t("worldDeskRemainder.anlWhatsWorking"), rows: result.patterns },
+    { name: t("worldDeskRemainder.anlWhatsHolding"), rows: result.mistakes },
+    { name: t("worldDeskRemainder.anlNextPosts"), rows: result.nextSteps },
   ] as const;
   return (
     <div className="flex flex-col gap-3">

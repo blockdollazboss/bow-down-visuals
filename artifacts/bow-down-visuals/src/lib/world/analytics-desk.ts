@@ -127,25 +127,43 @@ export function analyticsOutOfCredits(status: number, data: unknown): boolean {
 
 /** Compact figure formatting, the connected tab's own (connFmt):
  *  null reads "—" (unknown), never 0. */
-export function formatAnalyticsCount(n: number | null): string {
+export function formatAnalyticsCount(n: number | null, locale = "en-US"): string {
   if (n === null || n === undefined) return "—";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString("en-US");
+  return n.toLocaleString(locale);
 }
+
+export interface AnalyticsTimeAgoStrings {
+  justNow: string;
+  minutes: string;
+  hours: string;
+  days: string;
+}
+
+export const ANALYTICS_TIME_AGO_DEFAULTS: AnalyticsTimeAgoStrings = {
+  justNow: "just now",
+  minutes: "{{count}}m ago",
+  hours: "{{count}}h ago",
+  days: "{{count}}d ago",
+};
 
 /** "just now / Nm ago / Nh ago / Nd ago" for the overview's
  *  fetchedAt stamp — the page's connTimeAgo, in desk English. */
-export function analyticsTimeAgo(iso: string | null, now: number): string {
+export function analyticsTimeAgo(
+  iso: string | null,
+  now: number,
+  strings: AnalyticsTimeAgoStrings = ANALYTICS_TIME_AGO_DEFAULTS,
+): string {
   if (!iso) return "";
   const ms = now - new Date(iso).getTime();
-  if (!Number.isFinite(ms) || ms < 0) return "just now";
+  if (!Number.isFinite(ms) || ms < 0) return strings.justNow;
   const mins = Math.floor(ms / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return strings.justNow;
+  if (mins < 60) return strings.minutes.replace("{{count}}", String(mins));
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return strings.hours.replace("{{count}}", String(hrs));
+  return strings.days.replace("{{count}}", String(Math.floor(hrs / 24)));
 }
 
 /* ─── Connected overview (FREE) ────────────────────────────────── */
