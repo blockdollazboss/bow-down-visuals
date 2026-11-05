@@ -96,6 +96,12 @@ describe("lane boundaries", () => {
     const soundsLib = readFileSync(resolve(import.meta.dirname, "./beat-sounds.ts"), "utf8");
     expect(soundsLib).not.toContain("chargeCredits");
     expect(soundsLib).not.toContain("CREDIT_COSTS");
-    expect(soundsLib).toContain("NO bank entries ship");
+    // The bank landed Nov 5 (sound-bank registration lane): it ships as
+    // a generated static manifest registered from lib/beat-sound-bank —
+    // still no charges and no provider calls anywhere in the chain.
+    expect(soundsLib).toContain("from lib/beat-sound-bank.ts");
+    const bankLib = readFileSync(resolve(import.meta.dirname, "./beat-sound-bank.ts"), "utf8");
+    expect(bankLib).not.toContain("chargeCredits");
+    expect(bankLib).not.toContain("CREDIT_COSTS");
   });
 });
