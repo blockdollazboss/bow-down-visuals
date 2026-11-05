@@ -505,6 +505,6 @@ export function interpretTemplateJob(raw: unknown): TemplateJobRead {
  *  when it sent one, else the plain fallback. The bench renders
  *  THIS — it never reads the job body's error field itself
  *  (the api-error-guard's direct-field-set rule). */
-export function templateJobErrorLine(read: TemplateJobRead): string {
-  return read.error ?? "That render didn't finish.";
+export function templateJobErrorLine(read: TemplateJobRead, fallback: string = "That render didn't finish."): string {
+  return read.error ?? fallback;
 }

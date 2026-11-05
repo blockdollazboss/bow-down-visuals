@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Clapperboard, Link2, Upload, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -51,6 +52,7 @@ export function VideoTemplateBench({
   isLight: boolean;
   panelPayload?: unknown;
 }) {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
@@ -152,13 +154,13 @@ export function VideoTemplateBench({
     if (!slotAcceptsMedia(slot, file.name, file.type)) {
       setNotice(
         slot.kind === "video"
-          ? `"${slot.label}" needs a video file.`
-          : `"${slot.label}" needs a photo — that file is a video.`,
+          ? t("worldDeskRemainder.vtbNeedsVideoFile", { label: slot.label })
+          : t("worldDeskRemainder.vtbNeedsPhotoFile", { label: slot.label }),
       );
       return;
     }
     if (file.size > VIDEO_TEMPLATE_UPLOAD_MAX_BYTES) {
-      setNotice("That file is over 80 MB — trim it or pick a smaller one.");
+      setNotice(t("worldDeskRemainder.vtbFileTooBig"));
       return;
     }
     setUploadingSlot(slot.key);
@@ -173,12 +175,12 @@ export function VideoTemplateBench({
         token,
       );
       if (!slotAcceptsMedia(slot, url, file.type)) {
-        setNotice(`That upload doesn't fit "${slot.label}".`);
+        setNotice(t("worldDeskRemainder.vtbUploadDoesntFit", { label: slot.label }));
         return;
       }
       setSlotUrls((prev) => ({ ...prev, [slot.key]: url }));
     } catch {
-      setNotice("That upload didn't go through — check your connection and try again.");
+      setNotice(t("worldDeskRemainder.vtbUploadFailed"));
     } finally {
       setUploadingSlot(null);
     }
@@ -199,9 +201,9 @@ export function VideoTemplateBench({
         } else if (read.state === "failed") {
           stopPolling();
           setJobState("failed");
-          setJobError(templateJobErrorLine(read));
+          setJobError(templateJobErrorLine(read, t("worldDeskRemainder.vtbJobFailed")));
         } else {
-          setJobStage(read.stage || "working");
+          setJobStage(read.stage || t("worldDeskRemainder.vtbStageWorking"));
           setJobProgress(read.progress);
         }
       } catch {
@@ -214,7 +216,7 @@ export function VideoTemplateBench({
     if (!selected || jobState === "working") return;
     const missing = missingSlotLabels(selected, slotUrls);
     if (missing.length > 0) {
-      setNotice(`Add media for: ${missing.join(", ")} — every slot needs its clip or photo before the template can render.`);
+      setNotice(t("worldDeskRemainder.vtbAddMedia", { labels: missing.join(", ") }));
       return;
     }
     setNotice(null);
@@ -231,21 +233,21 @@ export function VideoTemplateBench({
         overrideFeature: applyFeature,
       });
     } catch {
-      setJobError("Couldn't reach the render — nothing was charged. Try again.");
+      setJobError(t("worldDeskRemainder.vtbReachFailed"));
       return;
     }
     if (!res) return; /* the member declined the confirmation — back to the form, untouched */
     if (!res.ok) {
       if (res.status === 402) {
-        setJobError("You're out of Visual Bucs — grab a pack and this template is yours.");
+        setJobError(t("worldDeskRemainder.vtbOutOfCredits"));
       } else {
-        setJobError(apiErrorMessage(await res.json().catch(() => null), "Couldn't start that render."));
+        setJobError(apiErrorMessage(await res.json().catch(() => null), t("worldDeskRemainder.vtbStartFailed")));
       }
       return;
     }
     const data = (await res.json().catch(() => null)) as { jobId?: string } | null;
     if (!data?.jobId) {
-      setJobError("The render didn't start — nothing was charged. Try again.");
+      setJobError(t("worldDeskRemainder.vtbRenderDidntStart"));
       return;
     }
     void refreshProfile();
@@ -259,22 +261,21 @@ export function VideoTemplateBench({
     <div className="space-y-3" data-testid="world-video-template-bench">
       <div>
         <h4 className={`flex items-center gap-2 text-sm font-bold ${text}`}>
-          <Clapperboard className="h-4 w-4 text-[#C9A227]" /> Video Templates
+          <Clapperboard className="h-4 w-4 text-[#C9A227]" /> {t("worldDeskRemainder.vtbTitle")}
         </h4>
         <p className={`mt-0.5 text-xs ${muted}`}>
-          Pick a template, drop in your clips and photos, and get an auto-edited video — {applyCost} Visual
-          Bucs per apply, confirmed before anything charges. A render that fails is refunded.
+          {t("worldDeskRemainder.vtbIntro", { cost: applyCost })}
         </p>
       </div>
 
       {loadState === "loading" ? (
-        <NativeLoadingState isLight={isLight} message="Loading the template catalog…" />
+        <NativeLoadingState isLight={isLight} message={t("worldDeskRemainder.vtbLoading")} />
       ) : loadState === "failed" ? (
         <div data-testid="world-video-template-bench-load-failed">
           <NativeErrorState
             isLight={isLight}
-            title="The template catalog wouldn't load"
-            message="The video templates didn't answer. Nothing was charged — try the catalog again."
+            title={t("worldDeskRemainder.vtbLoadFailedTitle")}
+            message={t("worldDeskRemainder.vtbLoadFailedMessage")}
             onRetry={() => void loadCatalog()}
           />
         </div>
@@ -300,8 +301,12 @@ export function VideoTemplateBench({
                 <p className={`text-sm font-semibold ${text}`}>{selected.name}</p>
                 <p className={`text-xs ${muted}`}>{selected.tagline}</p>
                 <p className={`mt-0.5 text-[11px] ${muted}`}>
-                  {selected.aspect} · about {Math.round(selected.outputSeconds)}s out ·{" "}
-                  {selected.slots.length} {selected.slots.length === 1 ? "clip" : "clips"}
+                  {t("worldDeskRemainder.vtbMeta", {
+                    aspect: selected.aspect,
+                    seconds: Math.round(selected.outputSeconds),
+                    count: selected.slots.length,
+                    clipWord: selected.slots.length === 1 ? t("worldDeskRemainder.vtbClipOne") : t("worldDeskRemainder.vtbClipMany"),
+                  })}
                 </p>
               </div>
 
@@ -320,7 +325,7 @@ export function VideoTemplateBench({
                         <p className={`text-xs font-semibold ${text}`}>
                           {slot.label}{" "}
                           <span className={muted}>
-                            · {slot.kind === "any" ? "clip or photo" : slot.kind} · {slot.durationSec}s
+                            · {slot.kind === "any" ? t("worldDeskRemainder.vtbKindAny") : slot.kind === "video" ? t("worldDeskRemainder.vtbKindVideo") : t("worldDeskRemainder.vtbKindPhoto")} · {slot.durationSec}s
                           </span>
                         </p>
                         {filled ? (
@@ -336,7 +341,7 @@ export function VideoTemplateBench({
                             }
                             data-testid={`world-video-template-bench-slot-clear-${slot.key}`}
                           >
-                            <X className="h-3 w-3" /> Clear
+                            <X className="h-3 w-3" /> {t("worldDeskRemainder.vtbClear")}
                           </button>
                         ) : null}
                       </div>
@@ -367,7 +372,7 @@ export function VideoTemplateBench({
                             className="inline-flex items-center gap-1 rounded-lg bg-[#C9A227] px-2.5 py-1.5 text-[11px] font-bold text-black transition hover:bg-[#dbb52f] disabled:opacity-50"
                             data-testid={`world-video-template-bench-slot-upload-${slot.key}`}
                           >
-                            <Upload className="h-3 w-3" /> {uploadingSlot === slot.key ? "Uploading…" : "Upload"}
+                            <Upload className="h-3 w-3" /> {uploadingSlot === slot.key ? t("worldDeskRemainder.vtbUploading") : t("worldDeskRemainder.vtbUpload")}
                           </button>
                           <div className="flex min-w-44 flex-1 items-center gap-1.5">
                             <Link2 className={`h-3.5 w-3.5 shrink-0 ${muted}`} />
@@ -380,15 +385,15 @@ export function VideoTemplateBench({
                                 if (!slotAcceptsMedia(slot, url)) {
                                   setNotice(
                                     slot.kind === "video"
-                                      ? `"${slot.label}" needs a video link.`
-                                      : `"${slot.label}" needs a photo link — that one is a video.`,
+                                      ? t("worldDeskRemainder.vtbNeedsVideoLink", { label: slot.label })
+                                      : t("worldDeskRemainder.vtbNeedsPhotoLink", { label: slot.label }),
                                   );
                                   return;
                                 }
                                 setSlotUrls((prev) => ({ ...prev, [slot.key]: url }));
                               }}
-                              placeholder="…or paste a media link"
-                              aria-label={`Paste a media link — ${slot.label}`}
+                              placeholder={t("worldDeskRemainder.vtbLinkPlaceholder")}
+                              aria-label={t("worldDeskRemainder.vtbLinkAria", { label: slot.label })}
                               className={inputCls}
                               data-testid={`world-video-template-bench-slot-url-${slot.key}`}
                             />
@@ -402,7 +407,7 @@ export function VideoTemplateBench({
 
               {selected.overlays.length > 0 ? (
                 <div className="space-y-1.5" data-testid="world-video-template-bench-overlays">
-                  <p className={`text-xs font-semibold ${text}`}>Words on the video</p>
+                  <p className={`text-xs font-semibold ${text}`}>{t("worldDeskRemainder.vtbWordsLabel")}</p>
                   {selected.overlays.map((o, i) => (
                     <input
                       key={i}
@@ -412,7 +417,7 @@ export function VideoTemplateBench({
                         setOverlayTexts((prev) => prev.map((t, j) => (j === i ? e.target.value : t)))
                       }
                       className={inputCls}
-                      aria-label={`Words on the video — ${o.position}`}
+                      aria-label={t("worldDeskRemainder.vtbWordsAria", { position: o.position })}
                       data-testid={`world-video-template-bench-overlay-${i}`}
                     />
                   ))}
@@ -421,16 +426,16 @@ export function VideoTemplateBench({
 
               <div className="space-y-1.5">
                 <label className={`block text-xs font-semibold ${text}`}>
-                  Music bed{" "}
+                  {t("worldDeskRemainder.vtbMusicBed")}{" "}
                   <span className={muted}>
-                    {selected.audioMode === "bed" ? "(the template drops your clips' sound for this)" : "(optional — your clips keep their sound without one)"}
+                    {selected.audioMode === "bed" ? t("worldDeskRemainder.vtbMusicBedDrops") : t("worldDeskRemainder.vtbMusicBedOptional")}
                   </span>
                 </label>
                 <input
                   value={musicBedUrl}
                   onChange={(e) => setMusicBedUrl(e.target.value)}
-                  placeholder="Paste a music link (mp3) — optional"
-                  aria-label="Music bed"
+                  placeholder={t("worldDeskRemainder.vtbMusicBedPlaceholder")}
+                  aria-label={t("worldDeskRemainder.vtbMusicBed")}
                   className={inputCls}
                   data-testid="world-video-template-bench-music-bed"
                 />
@@ -441,7 +446,7 @@ export function VideoTemplateBench({
                     onChange={(e) => setEndCard(e.target.checked)}
                     data-testid="world-video-template-bench-end-card"
                   />
-                  End card — your name over the last seconds
+                  {t("worldDeskRemainder.vtbEndCard")}
                 </label>
               </div>
 
@@ -457,22 +462,21 @@ export function VideoTemplateBench({
                     <div className="h-full bg-[#C9A227] transition-all" style={{ width: `${Math.max(4, Math.min(100, jobProgress))}%` }} />
                   </div>
                   <p className={`mt-1 text-xs ${muted}`}>
-                    {jobStage === "queued" ? "In the render queue…" : `Rendering — ${jobStage} · ${jobProgress}%`}
+                    {jobStage === "queued" ? t("worldDeskRemainder.vtbQueued") : t("worldDeskRemainder.vtbRendering", { stage: jobStage, progress: jobProgress })}
                   </p>
                 </div>
               ) : jobState === "done" && resultUrl ? (
                 <div data-testid="world-video-template-bench-done">
                   <video src={resultUrl} controls playsInline className="w-full rounded-xl" />
                   <p className={`mt-1 text-xs ${muted}`}>
-                    Done{resultDuration ? ` — ${resultDuration.toFixed(1)} seconds` : ""}. It's saved with your
-                    media; render another whenever you're ready.
+                    {t("worldDeskRemainder.vtbDone", { secondsPart: resultDuration ? t("worldDeskRemainder.vtbDoneSeconds", { seconds: resultDuration.toFixed(1) }) : "" })}
                   </p>
                 </div>
               ) : (
                 <>
                   {jobState === "failed" && jobError ? (
                     <p className="text-xs font-medium text-red-500" data-testid="world-video-template-bench-job-error">
-                      {jobError} The {applyCost} Visual Bucs for this render were refunded.
+                      {jobError}{t("worldDeskRemainder.vtbRefundSuffix", { cost: applyCost })}
                     </p>
                   ) : jobError ? (
                     <p className="text-xs font-medium text-red-500" data-testid="world-video-template-bench-apply-error">
@@ -485,14 +489,14 @@ export function VideoTemplateBench({
                     className="w-full rounded-lg bg-[#C9A227] px-3 py-2 text-sm font-bold text-black transition hover:bg-[#dbb52f]"
                     data-testid="world-video-template-bench-apply"
                   >
-                    Make my video — {applyCost} Visual Bucs
+                    {t("worldDeskRemainder.vtbApply", { cost: applyCost })}
                   </button>
                 </>
               )}
             </div>
           ) : (
             <p className={`text-xs ${muted}`} data-testid="world-video-template-bench-pick-first">
-              Pick a template above to start — or open one from the Templates desk and it lands here ready.
+              {t("worldDeskRemainder.vtbPickFirst")}
             </p>
           )}
         </>
