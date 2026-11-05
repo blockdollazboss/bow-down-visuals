@@ -26,6 +26,11 @@ export interface LibraryTemplate {
   gradient: string;
   /** Short usage hint shown on the card. */
   toolLabel: string;
+  /** Real artwork for signature brand templates (theme pair of public/
+   *  image paths), rendered in the card art box instead of the emoji
+   *  glyph. Only the King template carries this — its art is the King
+   *  himself, never the app-icon portrait and never a generic emoji. */
+  art?: { dark: string; light: string };
 }
 
 export const LIBRARY_TEMPLATE_CATEGORIES: LibraryTemplateCategory[] = [
@@ -102,7 +107,7 @@ const carouselTemplates: LibraryTemplate[] = CAROUSEL_SEEDS.map((s) => ({
 /* ─── Intros & Outros — 20 templates (deep-link into branding kit) ─── */
 const INTRO_DEEP_LINK = "/branding-kit?tab=intros";
 
-interface IntroSeed { slug: string; title: string; blurb: string; niche: string; emoji: string; gradient: string; kind: "Intro" | "Outro"; }
+interface IntroSeed { slug: string; title: string; blurb: string; niche: string; emoji: string; gradient: string; kind: "Intro" | "Outro"; art?: { dark: string; light: string }; }
 
 const INTRO_SEEDS: IntroSeed[] = [
   { slug: "intro-gold-reveal", title: "Gold Reveal", blurb: "Your logo bursts through gold particles. Pure luxury.", niche: "Luxury", emoji: "✨", gradient: "linear-gradient(135deg,#a16207 0%,#0a0a0a 100%)", kind: "Intro" },
@@ -111,7 +116,7 @@ const INTRO_SEEDS: IntroSeed[] = [
   { slug: "intro-bass-drop", title: "Bass Drop", blurb: "Screen shakes on the drop, logo slams in. Music channels.", niche: "Music", emoji: "🔊", gradient: "linear-gradient(135deg,#7c2d12 0%,#0a0a0a 100%)", kind: "Intro" },
   { slug: "intro-minimal-fade", title: "Minimal Fade", blurb: "Clean fade-in for talking-head and education channels.", niche: "Education", emoji: "◻️", gradient: "linear-gradient(135deg,#1c1917 0%,#0a0a0a 100%)", kind: "Intro" },
   { slug: "intro-neon-sign", title: "Neon Sign", blurb: "Your name flickers on like a neon sign. Nightlife vibe.", niche: "Lifestyle", emoji: "💡", gradient: "linear-gradient(135deg,#831843 0%,#020617 100%)", kind: "Intro" },
-  { slug: "intro-shark-bite", title: "Shark Bite", blurb: "The King Shark chomps the screen open. Signature Bow Down energy.", niche: "Brand", emoji: "🦈", gradient: "linear-gradient(135deg,#0c4a6e 0%,#020617 100%)", kind: "Intro" },
+  { slug: "intro-shark-bite", title: "Shark Bite", blurb: "The King Shark chomps the screen open. Signature Bow Down energy.", niche: "Brand", emoji: "🦈", gradient: "linear-gradient(135deg,#0c4a6e 0%,#020617 100%)", kind: "Intro", art: { dark: "images/shark-king-clean-authority.png", light: "images/shark-king-light-bowing.png" } },
   { slug: "intro-typewriter", title: "Typewriter", blurb: "Channel name types out with keystroke sounds. Writer/creator vibe.", niche: "Education", emoji: "⌨️", gradient: "linear-gradient(135deg,#44403c 0%,#0a0a0a 100%)", kind: "Intro" },
   { slug: "intro-zoom-rush", title: "Zoom Rush", blurb: "Hyperspace zoom into your logo. High-energy vlogs.", niche: "Vlogs", emoji: "💫", gradient: "linear-gradient(135deg,#6b21a8 0%,#0a0a0a 100%)", kind: "Intro" },
   { slug: "intro-ink-splash", title: "Ink Splash", blurb: "Ink splatters reveal your brand. Art and tattoo channels.", niche: "Art", emoji: "🖋️", gradient: "linear-gradient(135deg,#18181b 0%,#0a0a0a 100%)", kind: "Intro" },
@@ -137,6 +142,7 @@ const introTemplates: LibraryTemplate[] = INTRO_SEEDS.map((s) => ({
   useUrl: `${INTRO_DEEP_LINK}&template=${s.slug}`,
   gradient: s.gradient,
   toolLabel: "Branding Kit",
+  art: s.art,
 }));
 
 /* ─── Social Posts — 20 templates ─── */

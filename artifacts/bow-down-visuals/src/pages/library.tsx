@@ -378,8 +378,11 @@ function TemplateCard({ tpl, compact, isFav, onFav, onUse, t }: {
   return (
     <article className={`group rounded-2xl border overflow-hidden hover:border-[#c9a84c]/40 hover:-translate-y-1 transition-all ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
       <div className="relative h-28 flex items-center justify-center overflow-hidden" style={{ background: tpl.gradient }}>
-        {tpl.emoji === "🦈" ? (
-          <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="" aria-hidden="true" draggable={false} className="h-12 w-12 rounded-xl object-cover drop-shadow-lg" />
+        {tpl.art ? (
+          /* Signature brand template (the King): real King character art
+             in the same 48px tile the other cards' glyph occupies —
+             never the app-icon portrait, never a generic emoji shark. */
+          <img src={`${import.meta.env.BASE_URL}${isLight ? tpl.art.light : tpl.art.dark}`} alt="" aria-hidden="true" draggable={false} className="h-12 w-12 rounded-xl object-cover object-top drop-shadow-lg" />
         ) : (
           <span className="text-5xl drop-shadow-lg" aria-hidden="true">{tpl.emoji}</span>
         )}
