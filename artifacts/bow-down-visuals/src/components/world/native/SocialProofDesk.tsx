@@ -212,7 +212,7 @@ export function SocialProofDesk({ isLight }: { isLight: boolean }) {
                   <p className={`text-sm font-bold ${strong}`}>
                     {figure.label}
                     <span className={`ml-2 font-black ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-                      {formatProofValue(figure.value)}
+                      {formatProofValue(figure.value, i18n.language)}
                     </span>
                   </p>
                   <p className={`text-xs ${muted}`}>

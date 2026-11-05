@@ -7,17 +7,17 @@ import type { SocialProofFigureDto } from "./artist-profiles";
    never a k-abbreviation, never rounded up), and every figure carries
    the date the platform actually returned it. */
 
-export function formatProofValue(value: number): string {
-  return new Intl.NumberFormat("en-US").format(value);
+export function formatProofValue(value: number, locale = "en-US"): string {
+  return new Intl.NumberFormat(locale).format(value);
 }
 
 /** "Oct 21, 2026" for a valid ISO stamp; "" for anything unparseable —
     a figure without a trustworthy date renders without a date line
     rather than with an invented one. */
-export function proofUpdatedLabel(iso: string): string {
+export function proofUpdatedLabel(iso: string, locale = "en-US"): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
 }
 
 /** The strip shows exactly the figures the server shipped (it does its
