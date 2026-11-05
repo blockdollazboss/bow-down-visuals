@@ -23947,7 +23947,7 @@
     "liveSrCloseQueueRefund": "Close queue · refund the line",
     "liveSrClosedLine": "Les demandes de chansons sont fermées pour ce direct — le créateur les a désactivées.",
     "liveSrDeskHeading": "Demandes de chansons — votre bureau de file",
-    "liveSrDeskIntro": "Your rules, shown to fans up front before anyone tips: {{refundCopy}} Set them here — the fan panel reads the same rules.",
+    "liveSrDeskIntro": "Définissez vos règles avant de passer en direct — les fans les voient, ainsi que l'accord de remboursement, à l'avance avant que quiconque ne donne un pourboire.",
     "liveSrDeskOff": "Les demandes de chansons ne sont pas encore activées — vos règles s'enregistreront quand la file sera en direct.",
     "liveSrExcludeAria": "Retirer {{title}} des demandes",
     "liveSrExcludeLegend": "Retirer des chansons des demandes",

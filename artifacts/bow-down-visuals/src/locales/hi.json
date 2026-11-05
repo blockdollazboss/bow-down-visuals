@@ -23918,7 +23918,7 @@
     "liveSrCloseQueueRefund": "Close queue · refund the line",
     "liveSrClosedLine": "इस स्ट्रीम के लिए गाना अनुरोध बंद हैं — क्रिएटर ने उन्हें बंद रखा है।",
     "liveSrDeskHeading": "गाना अनुरोध — आपकी कतार डेस्क",
-    "liveSrDeskIntro": "Your rules, shown to fans up front before anyone tips: {{refundCopy}} Set them here — the fan panel reads the same rules.",
+    "liveSrDeskIntro": "लाइव जाने से पहले अपने नियम तय करें — प्रशंसक उन्हें, और रिफंड डील को, किसी के टिप देने से पहले ही देख लेते हैं।",
     "liveSrDeskOff": "गाना अनुरोध अभी चालू नहीं हैं — कतार लाइव होते ही आपके नियम सहेजे जाएंगे।",
     "liveSrExcludeAria": "{{title}} को अनुरोधों से निकालें",
     "liveSrExcludeLegend": "गानों को अनुरोधों से निकालें",

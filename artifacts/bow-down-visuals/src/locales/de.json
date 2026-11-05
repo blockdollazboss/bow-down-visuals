@@ -23918,7 +23918,7 @@
     "liveSrCloseQueueRefund": "Close queue · refund the line",
     "liveSrClosedLine": "Songwünsche sind für diesen Stream geschlossen — der Creator hat sie aus.",
     "liveSrDeskHeading": "Songwünsche — dein Warteschlangen-Schreibtisch",
-    "liveSrDeskIntro": "Your rules, shown to fans up front before anyone tips: {{refundCopy}} Set them here — the fan panel reads the same rules.",
+    "liveSrDeskIntro": "Lege deine Regeln fest, bevor du live gehst — Fans sehen sie und den Rückerstattungs-Deal im Voraus, bevor jemand Trinkgeld gibt.",
     "liveSrDeskOff": "Songwünsche sind noch nicht eingeschaltet — deine Regeln speichern sich, sobald die Warteschlange live ist.",
     "liveSrExcludeAria": "{{title}} aus den Wünschen nehmen",
     "liveSrExcludeLegend": "Songs aus den Wünschen nehmen",

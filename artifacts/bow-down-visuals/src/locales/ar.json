@@ -24034,7 +24034,7 @@
     "liveSrCloseQueueRefund": "Close queue · refund the line",
     "liveSrClosedLine": "طلبات الأغاني مغلقة لهذا البث — المنشئ أوقفها.",
     "liveSrDeskHeading": "طلبات الأغاني — مكتب قائمتك",
-    "liveSrDeskIntro": "Your rules, shown to fans up front before anyone tips: {{refundCopy}} Set them here — the fan panel reads the same rules.",
+    "liveSrDeskIntro": "حدد قواعدك قبل البث المباشر — يراها المعجبون، وصفقة الاسترداد، مقدمًا قبل أن يقدّم أي شخص إكرامية.",
     "liveSrDeskOff": "طلبات الأغاني غير مشغلة بعد — ستحفظ قواعدك بمجرد تفعيل القائمة.",
     "liveSrExcludeAria": "إخراج {{title}} من الطلبات",
     "liveSrExcludeLegend": "إخراج أغانٍ من الطلبات",

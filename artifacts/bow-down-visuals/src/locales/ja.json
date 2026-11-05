@@ -23914,7 +23914,7 @@
     "liveSrCloseQueueRefund": "Close queue · refund the line",
     "liveSrClosedLine": "この配信では曲リクエストは閉じています — クリエイターがオフにしています。",
     "liveSrDeskHeading": "曲リクエスト — あなたのキューデスク",
-    "liveSrDeskIntro": "Your rules, shown to fans up front before anyone tips: {{refundCopy}} Set them here — the fan panel reads the same rules.",
+    "liveSrDeskIntro": "ライブを始める前にルールを設定してください — ファンはそれと返金条件を、誰かチップする前に前もって確認できます。",
     "liveSrDeskOff": "曲リクエストはまだオンになっていません — キューがライブになるとルールが保存されます。",
     "liveSrExcludeAria": "{{title}}をリクエストから外す",
     "liveSrExcludeLegend": "曲をリクエストから外す",

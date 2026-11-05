@@ -23947,7 +23947,7 @@
     "liveSrCloseQueueRefund": "Close queue · refund the line",
     "liveSrClosedLine": "Le richieste di canzoni sono chiuse per questa diretta — il creator le ha disattivate.",
     "liveSrDeskHeading": "Richieste di canzoni — la tua scrivania della coda",
-    "liveSrDeskIntro": "Your rules, shown to fans up front before anyone tips: {{refundCopy}} Set them here — the fan panel reads the same rules.",
+    "liveSrDeskIntro": "Imposta le tue regole prima di andare live — i fan le vedono, insieme all'accordo di rimborso, in anticipo prima che chiunque lasci una mancia.",
     "liveSrDeskOff": "Le richieste di canzoni non sono ancora attivate — le tue regole si salveranno quando la coda sarà attiva.",
     "liveSrExcludeAria": "Togli {{title}} dalle richieste",
     "liveSrExcludeLegend": "Togli canzoni dalle richieste",

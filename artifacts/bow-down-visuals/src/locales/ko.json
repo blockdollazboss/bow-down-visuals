@@ -23918,7 +23918,7 @@
     "liveSrCloseQueueRefund": "Close queue · refund the line",
     "liveSrClosedLine": "이 방송에서는 곡 신청이 닫혀 있습니다 — 크리에이터가 꺼두었습니다.",
     "liveSrDeskHeading": "곡 신청 — 내 대기열 데스크",
-    "liveSrDeskIntro": "Your rules, shown to fans up front before anyone tips: {{refundCopy}} Set them here — the fan panel reads the same rules.",
+    "liveSrDeskIntro": "라이브를 시작하기 전에 규칙을 정하세요 — 팬들은 누구나 팁을 주기 전에 규칙과 환불 조건을 미리 봅니다.",
     "liveSrDeskOff": "곡 신청이 아직 켜져 있지 않습니다 — 대기열이 라이브가 되면 규칙이 저장됩니다.",
     "liveSrExcludeAria": "{{title}}을(를) 신청에서 제외",
     "liveSrExcludeLegend": "곡을 신청에서 제외",

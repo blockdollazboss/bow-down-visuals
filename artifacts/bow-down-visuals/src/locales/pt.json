@@ -23947,7 +23947,7 @@
     "liveSrCloseQueueRefund": "Close queue · refund the line",
     "liveSrClosedLine": "Os pedidos de músicas estão fechados para esta transmissão — o criador os desativou.",
     "liveSrDeskHeading": "Pedidos de músicas — sua mesa de fila",
-    "liveSrDeskIntro": "Your rules, shown to fans up front before anyone tips: {{refundCopy}} Set them here — the fan panel reads the same rules.",
+    "liveSrDeskIntro": "Defina suas regras antes de entrar ao vivo — os fãs as veem, e o acordo de reembolso, adiantado antes de qualquer gorjeta.",
     "liveSrDeskOff": "Os pedidos de músicas ainda não estão ativados — suas regras serão salvas quando a fila estiver ao vivo.",
     "liveSrExcludeAria": "Tirar {{title}} dos pedidos",
     "liveSrExcludeLegend": "Tirar músicas dos pedidos",
