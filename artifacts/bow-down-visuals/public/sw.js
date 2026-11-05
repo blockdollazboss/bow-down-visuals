@@ -16,9 +16,10 @@
  * Network-first for API + navigations.
  * Bump CACHE_VERSION to force clients onto fresh assets after a deploy —
  * v6 exists to purge the v5 caches, which hold engine glue pinned by the
- * old blanket cache-first rule.
+ * old blanket cache-first rule; v7 ships the offline page's brand image
+ * swap (app-icon portrait → the logo lockup, precached with the shell).
  */
-const CACHE_VERSION = "bdv-v6";
+const CACHE_VERSION = "bdv-v7";
 const STATIC_CACHE = `bdv-static-${CACHE_VERSION}`;
 const SHELL_CACHE = `bdv-shell-${CACHE_VERSION}`;
 
@@ -26,7 +27,7 @@ const SHELL_CACHE = `bdv-shell-${CACHE_VERSION}`;
 // rides along: when the shell itself never made it into the cache, an
 // offline open still lands on a designed page that says what's wrong —
 // never a bare text error or a half-booted shell.
-const APP_SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/offline.html"];
+const APP_SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/logo-static.webp", "/offline.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

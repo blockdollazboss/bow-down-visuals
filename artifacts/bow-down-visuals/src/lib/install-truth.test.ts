@@ -57,10 +57,11 @@ describe("web manifest — icons exist at their declared sizes", () => {
 });
 
 describe("service worker — cache policy mirrors the server's", () => {
-  it("cache version carries the v6 purge bump", () => {
-    // v6 deletes the v5 caches on activate — they hold engine glue
-    // pinned by the old blanket cache-first rule.
-    expect(swSource).toContain('const CACHE_VERSION = "bdv-v6"');
+  it("cache version carries the v7 purge bump", () => {
+    // v6 deleted the v5 caches on activate — they hold engine glue
+    // pinned by the old blanket cache-first rule. v7 ships the offline
+    // page's brand-image swap (portrait → logo lockup in the shell).
+    expect(swSource).toContain('const CACHE_VERSION = "bdv-v7"');
   });
 
   it("engine glue is classified and handled BEFORE the cache-first branch", () => {
@@ -94,7 +95,7 @@ describe("service worker — push rotation and offline honesty", () => {
   it("the offline page is self-contained and says what's wrong", () => {
     const html = readFileSync(publicFile("offline.html"), "utf8");
     expect(html).toContain("You're offline");
-    expect(html).toContain("/icon-192.png");
+    expect(html).toContain("/logo-static.webp");
     expect(html).not.toMatch(/https?:\/\//);
   });
 });
