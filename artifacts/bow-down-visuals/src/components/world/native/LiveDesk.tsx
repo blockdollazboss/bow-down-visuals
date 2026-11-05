@@ -554,7 +554,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
   async function pickVoiceFx(id: string) {
     setVoiceFx(id);
     const changer = changerRef.current;
-    if (!changer) { setCvNote(voiceEffectHeldNote(id, { off: t("worldDeskRemainder.liveVoiceHeldPlain"), willBeOn: t("worldDeskRemainder.liveVoiceHeldNow") })); return; }
+    if (!changer) { setCvNote(voiceEffectHeldNote(id, { off: t("worldDeskRemainder.liveVoiceHeldPlain"), willBeOn: t("worldDeskRemainder.liveVoiceHeldPending") })); return; }
     await changer.setVoiceEffect(id).catch((err) => {
       setCvNote(err instanceof BackgroundChangerError ? err.message : t("worldDeskRemainder.liveErrVoiceApply"));
     });
