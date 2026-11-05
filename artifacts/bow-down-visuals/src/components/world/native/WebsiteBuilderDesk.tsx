@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle, CheckCircle2, Download, Eye, FileCode2, FolderOpen, Globe,
   History, LayoutTemplate, Loader2, Plus, RotateCcw, Save, Shuffle, Sparkles,
@@ -21,15 +22,9 @@ import {
   type GalleryTemplate,
 } from "@/lib/website-builder-gallery";
 import {
-  WEBSITE_BUILDER_EDIT_FAILED_LINE,
   WEBSITE_BUILDER_EDIT_PATH,
-  WEBSITE_BUILDER_FEE_NOTE,
   WEBSITE_BUILDER_GENERATE_PATH,
-  WEBSITE_BUILDER_GENERATION_FAILED_LINE,
-  WEBSITE_BUILDER_OUT_OF_CREDITS_LINE,
-  WEBSITE_BUILDER_PREVIEW_OPENS_NOTE,
   WEBSITE_BUILDER_PROJECTS_PATH,
-  WEBSITE_BUILDER_SAVE_FAILED_LINE,
   WEBSITE_BUILDER_TEMPLATES,
   WEBSITE_BUILDER_TEMPLATES_PATH,
   WEBSITE_BUILD_COST_VB,
@@ -125,7 +120,15 @@ function formatDate(iso: string): string {
   }
 }
 
+const BLD_TPL_KEY: Record<string, { label: string; blurb: string }> = {
+  "artist-site": { label: "bldTplArtistLabel", blurb: "bldTplArtistBlurb" },
+  "press-kit": { label: "bldTplPressLabel", blurb: "bldTplPressBlurb" },
+  "link-in-bio": { label: "bldTplLinkLabel", blurb: "bldTplLinkBlurb" },
+  "tour-page": { label: "bldTplTourLabel", blurb: "bldTplTourBlurb" },
+};
+
 export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const { confirmedFetch } = useConfirmedApi();
   const { refreshProfile } = useAuth();
@@ -263,7 +266,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
       setSaveFailed(false);
       setShowPreview(true);
     } catch {
-      setError("Couldn't open that saved site.");
+      setError(t("worldDeskRemainder.bldOpenFailed"));
     } finally {
       setOpening(false);
     }
@@ -293,7 +296,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
         ),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't save that site."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldDeskRemainder.bldSaveFailed")));
       const saved = normalizeWebsiteSaveResult(data);
       if (!saved) throw new Error("save shape");
       setProjectId(saved.project.id);
@@ -303,7 +306,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
       setTick((t) => t + 1);
       void loadVersions(saved.project.id).catch(() => {});
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't save that site."));
+      setError(plainErrorText(err, t("worldDeskRemainder.bldSaveFailed")));
     } finally {
       setSavingRetry(false);
     }
@@ -321,7 +324,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
         headers: await authHeaders(),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Couldn't restore that version."));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldDeskRemainder.bldRestoreFailed")));
       const payload = normalizeWebsiteVersionPayload(data);
       if (!payload) throw new Error("restore shape");
       setFiles(payload.files);
@@ -334,7 +337,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
       void loadVersions(projectId).catch(() => {});
       setTick((t) => t + 1);
     } catch (err) {
-      setError(plainErrorText(err, "Couldn't restore that version."));
+      setError(plainErrorText(err, t("worldDeskRemainder.bldRestoreFailed")));
     } finally {
       setOpening(false);
     }
@@ -352,7 +355,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
       setConfirmDeleteId(null);
       if (id === projectId) startNewSite();
     } catch {
-      setError("Couldn't delete that site.");
+      setError(t("worldDeskRemainder.bldDeleteFailed"));
     }
   }
 
@@ -422,10 +425,10 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
         return;
       }
       if (!res.ok) {
-        throw new Error(apiErrorMessage(data, WEBSITE_BUILDER_GENERATION_FAILED_LINE));
+        throw new Error(apiErrorMessage(data, t("worldDeskRemainder.bldGenerationFailed")));
       }
       const result = normalizeWebsiteGenerateResult(data);
-      if (!result) throw new Error(WEBSITE_BUILDER_GENERATION_FAILED_LINE);
+      if (!result) throw new Error(t("worldDeskRemainder.bldGenerationFailed"));
       setFiles(result.files);
       setSeededFrom(result.seededFrom);
       setShowPreview(true);
@@ -439,7 +442,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
       setSaveFailed(!result.saved);
       refreshProfile();
     } catch (err) {
-      setError(plainErrorText(err, WEBSITE_BUILDER_GENERATION_FAILED_LINE));
+      setError(plainErrorText(err, t("worldDeskRemainder.bldGenerationFailed")));
     } finally {
       setBuilding(false);
     }
@@ -471,10 +474,10 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
         return;
       }
       if (!res.ok) {
-        throw new Error(apiErrorMessage(data, WEBSITE_BUILDER_EDIT_FAILED_LINE));
+        throw new Error(apiErrorMessage(data, t("worldDeskRemainder.bldEditFailed")));
       }
       const result = normalizeWebsiteEditResult(data);
-      if (!result) throw new Error(WEBSITE_BUILDER_EDIT_FAILED_LINE);
+      if (!result) throw new Error(t("worldDeskRemainder.bldEditFailed"));
       setFiles(result.files);
       setEditRequest("");
       if (result.projectId) {
@@ -486,7 +489,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
       }
       refreshProfile();
     } catch (err) {
-      setError(plainErrorText(err, WEBSITE_BUILDER_EDIT_FAILED_LINE));
+      setError(plainErrorText(err, t("worldDeskRemainder.bldEditFailed")));
     } finally {
       setEditing(false);
     }
@@ -513,7 +516,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setError("Could not create the zip. Try again.");
+      setError(t("worldDeskRemainder.bldZipFailed"));
     } finally {
       setDownloading(false);
     }
@@ -523,18 +526,18 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
   const fileNames = files ? Object.keys(files) : [];
 
   return (
-    <NativeCard isLight={isLight} title="Website Builder">
+    <NativeCard isLight={isLight} title={t("worldDeskRemainder.bldTitle")}>
       <div data-testid="world-website-builder-desk" className="space-y-3">
         <p className={`text-sm ${muted}`}>
-          Describe your site, the AI builds the complete package — pages, styles, and a deploy
-          guide. A build costs {WEBSITE_BUILD_COST_VB.toLocaleString("en-US")} Visual Bucs, named
-          again before anything charges; each follow-up edit is {WEBSITE_EDIT_COST_VB} Bucs.
-          Preview it privately here, download the zip, and host it on your own domain.
+          {t("worldDeskRemainder.bldIntro", {
+            buildCost: WEBSITE_BUILD_COST_VB.toLocaleString(i18n.language),
+            editCost: WEBSITE_EDIT_COST_VB,
+          })}
         </p>
 
         {error ? <p className={`text-xs ${errCls}`}>{error}</p> : null}
         {outOfCredits ? (
-          <p className={`text-xs font-semibold ${strong}`}>{WEBSITE_BUILDER_OUT_OF_CREDITS_LINE}</p>
+          <p className={`text-xs font-semibold ${strong}`}>{t("worldDeskRemainder.bldOutOfCredits")}</p>
         ) : null}
 
         {/* Save-failed banner: the build exists, the save didn't land */}
@@ -543,7 +546,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
             className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 text-xs ${amberBox}`}
           >
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <p className="flex-1">{WEBSITE_BUILDER_SAVE_FAILED_LINE}</p>
+            <p className="flex-1">{t("worldDeskRemainder.bldSaveFailedLine")}</p>
             <button
               type="button"
               className={goldBtn}
@@ -551,7 +554,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
               onClick={() => void retrySave()}
             >
               {savingRetry ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              Retry save
+              {t("worldDeskRemainder.bldRetrySave")}
             </button>
           </div>
         ) : null}
@@ -562,21 +565,21 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
         <div data-testid="world-website-builder-projects" className="space-y-1.5">
           <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>
             <FolderOpen className="mr-1.5 inline h-3.5 w-3.5 text-[#d4af37]" />
-            Your saved sites
+            {t("worldDeskRemainder.bldSavedSites")}
           </p>
           {projects === null && !projectsFailed ? (
-            <NativeLoadingState isLight={isLight} message="Loading your saved sites…" />
+            <NativeLoadingState isLight={isLight} message={t("worldDeskRemainder.bldLoadingSites")} />
           ) : projectsFailed ? (
             <NativeErrorState
               isLight={isLight}
-              message="Couldn't load your saved sites."
+              message={t("worldDeskRemainder.bldSitesLoadFailed")}
               onRetry={() => setTick((t) => t + 1)}
             />
           ) : projects && projects.length === 0 ? (
             <NativeEmptyState
               isLight={isLight}
-              message="No saved sites yet."
-              detail="Every site you build is saved to your account automatically — close the tab and pick up right where you left off."
+              message={t("worldDeskRemainder.bldNoSites")}
+              detail={t("worldDeskRemainder.bldNoSitesDetail")}
             />
           ) : (
             projects?.map((p) => (
@@ -594,12 +597,18 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                 <span className="min-w-0 flex-1">
                   <span className={`block truncate text-xs font-bold ${strong}`}>{p.name}</span>
                   <span className={`block text-[11px] ${muted}`}>
-                    {p.templateLabel ||
-                      WEBSITE_BUILDER_TEMPLATES.find((tpl) => tpl.key === p.template)?.label ||
-                      "Website Builder"}
-                    {" · "}Version {p.latestVersion} · {p.fileCount} files · {formatDate(p.updatedAt)}
+                    {t("worldDeskRemainder.bldProjectMeta", {
+                      label:
+                        p.templateLabel ||
+                        (BLD_TPL_KEY[p.template]
+                          ? t(`worldDeskRemainder.${BLD_TPL_KEY[p.template].label}`)
+                          : t("worldDeskRemainder.bldTitle")),
+                      version: p.latestVersion,
+                      count: p.fileCount,
+                      date: formatDate(p.updatedAt),
+                    })}
                   </span>
-                  <span className={`block text-[11px] ${muted}`}>{WEBSITE_BUILDER_PREVIEW_OPENS_NOTE}</span>
+                  <span className={`block text-[11px] ${muted}`}>{t("worldDeskRemainder.bldPreviewOpensNote")}</span>
                 </span>
                 <button
                   type="button"
@@ -607,7 +616,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                   disabled={opening}
                   onClick={() => void openProject(p.id)}
                 >
-                  <FolderOpen className="h-3.5 w-3.5" /> Open
+                  <FolderOpen className="h-3.5 w-3.5" /> {t("worldDeskRemainder.bldOpen")}
                 </button>
                 {confirmDeleteId === p.id ? (
                   <button
@@ -615,7 +624,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                     className={goldBtn}
                     onClick={() => void deleteBuild(p.id)}
                   >
-                    <Trash2 className="h-3.5 w-3.5" /> Confirm delete
+                    <Trash2 className="h-3.5 w-3.5" /> {t("worldDeskRemainder.bldConfirmDelete")}
                   </button>
                 ) : (
                   <button
@@ -623,7 +632,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                     className={chipBtn(isLight)}
                     onClick={() => setConfirmDeleteId(p.id)}
                   >
-                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                    <Trash2 className="h-3.5 w-3.5" /> {t("worldDeskRemainder.bldDelete")}
                   </button>
                 )}
               </div>
@@ -638,11 +647,10 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
           <div data-testid="world-website-builder-gallery" className="space-y-1.5">
             <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>
               <LayoutTemplate className="mr-1.5 inline h-3.5 w-3.5 text-[#d4af37]" />
-              Start from a finished look
+              {t("worldDeskRemainder.bldGalleryTitle")}
             </p>
             <p className={`text-xs ${muted}`}>
-              Real starter sites built for your kind of creating — remix one and it loads below,
-              ready to preview, edit, and take with you.
+              {t("worldDeskRemainder.bldGalleryIntro")}
             </p>
             {gallery.map((tpl) => (
               <div
@@ -656,12 +664,11 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                     {tpl.name} <span className={muted}>· {tpl.verticalLabel}</span>
                   </span>
                   <span className={`block text-[11px] ${muted}`}>
-                    {tpl.bestFor} · {Object.keys(tpl.files).length} files — a real starter site,
-                    not a picture of one
+                    {t("worldDeskRemainder.bldGalleryRow", { bestFor: tpl.bestFor, count: Object.keys(tpl.files).length })}
                   </span>
                 </span>
                 <button type="button" className={chipBtn(isLight)} onClick={() => remix(tpl)}>
-                  <Shuffle className="h-3.5 w-3.5" /> Remix this template
+                  <Shuffle className="h-3.5 w-3.5" /> {t("worldDeskRemainder.bldRemix")}
                 </button>
               </div>
             ))}
@@ -671,7 +678,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
         {/* The brief */}
         <div data-testid="world-website-builder-brief" className="space-y-2">
           <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>
-            1. Pick a template
+            {t("worldDeskRemainder.bldStep1")}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {WEBSITE_BUILDER_TEMPLATES.map((tpl) => (
@@ -682,50 +689,50 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                 className={template === tpl.key ? goldBtn : chipBtn(isLight)}
                 onClick={() => setTemplate(tpl.key)}
               >
-                {tpl.label}
+                {BLD_TPL_KEY[tpl.key] ? t(`worldDeskRemainder.${BLD_TPL_KEY[tpl.key].label}`) : tpl.label}
               </button>
             ))}
           </div>
           <p className={`text-xs ${muted}`}>
-            {WEBSITE_BUILDER_TEMPLATES.find((tpl) => tpl.key === template)?.blurb ?? ""}
+            {BLD_TPL_KEY[template] ? t(`worldDeskRemainder.${BLD_TPL_KEY[template].blurb}`) : (WEBSITE_BUILDER_TEMPLATES.find((tpl) => tpl.key === template)?.blurb ?? "")}
           </p>
 
           <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>
-            2. Describe your site
+            {t("worldDeskRemainder.bldStep2")}
           </p>
           <input
             className={deskInputCls(isLight)}
-            placeholder="Site / artist name — e.g. TRGDY TRBLZ"
+            placeholder={t("worldDeskRemainder.bldNamePlaceholder")}
             maxLength={WEBSITE_NAME_MAX}
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
-            aria-label="Site / artist name"
+            aria-label={t("worldDeskRemainder.bldNameAria")}
           />
           <textarea
             className={deskInputCls(isLight)}
-            placeholder={`What should the site say and do? (min ${WEBSITE_DESCRIPTION_MIN} characters)`}
+            placeholder={t("worldDeskRemainder.bldDescribePlaceholder", { min: WEBSITE_DESCRIPTION_MIN })}
             rows={4}
             maxLength={WEBSITE_DESCRIPTION_MAX}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            aria-label="What should the site say and do?"
+            aria-label={t("worldDeskRemainder.bldDescribeAria")}
           />
           <div className="grid gap-2 sm:grid-cols-2">
             <input
               className={deskInputCls(isLight)}
-              placeholder="Style preferences (optional) — e.g. bold typography, lots of imagery"
+              placeholder={t("worldDeskRemainder.bldStylePlaceholder")}
               maxLength={500}
               value={style}
               onChange={(e) => setStyle(e.target.value)}
-              aria-label="Style preferences"
+              aria-label={t("worldDeskRemainder.bldStyleAria")}
             />
             <input
               className={deskInputCls(isLight)}
-              placeholder="Colors (optional) — e.g. black and gold"
+              placeholder={t("worldDeskRemainder.bldColorsPlaceholder")}
               maxLength={200}
               value={colorScheme}
               onChange={(e) => setColorScheme(e.target.value)}
-              aria-label="Colors"
+              aria-label={t("worldDeskRemainder.bldColorsAria")}
             />
           </div>
           <button
@@ -740,10 +747,10 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
               <Sparkles className="h-3.5 w-3.5" />
             )}
             {building
-              ? "Building your site…"
-              : `Build my site — ${WEBSITE_BUILD_COST_VB.toLocaleString("en-US")} Visual Bucs`}
+              ? t("worldDeskRemainder.bldBuilding")
+              : t("worldDeskRemainder.bldBuildButton", { cost: WEBSITE_BUILD_COST_VB.toLocaleString(i18n.language) })}
           </button>
-          <p className={`text-[11px] ${muted}`}>{WEBSITE_BUILDER_FEE_NOTE}</p>
+          <p className={`text-[11px] ${muted}`}>{t("worldDeskRemainder.bldFeeNote")}</p>
         </div>
 
         {/* The working build */}
@@ -751,25 +758,27 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
           <div data-testid="world-website-builder-result" className="space-y-2">
             {seededFrom ? (
               <p className={`rounded-xl border px-3 py-2 text-xs ${muted} ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
-                <span className={`font-semibold ${strong}`}>Built from your real material.</span>{" "}
+                <span className={`font-semibold ${strong}`}>{t("worldDeskRemainder.bldSeededBanner")}</span>{" "}
                 {seededFrom.songs + seededFrom.videos + seededFrom.products + seededFrom.shows > 0
-                  ? `Your site was seeded with ${seededFrom.songs} songs, ${seededFrom.videos} videos, ${seededFrom.products} products, and ${seededFrom.shows} upcoming shows from your Bow Down Visuals account — real titles, prices, and dates, nothing invented.`
-                  : "You don't have catalog material on Bow Down Visuals yet, so sections without your content use clearly labeled placeholders you can edit."}
-                {seededFrom.brandKit
-                  ? " Your saved brand kit (colors, fonts, and logo) was used."
-                  : ""}
+                  ? t("worldDeskRemainder.bldSeededBody", {
+                      songs: seededFrom.songs,
+                      videos: seededFrom.videos,
+                      products: seededFrom.products,
+                      shows: seededFrom.shows,
+                    })
+                  : t("worldDeskRemainder.bldSeededEmpty")}
+                {seededFrom.brandKit ? t("worldDeskRemainder.bldSeededBrandKit") : ""}
               </p>
             ) : null}
             {remixedFrom ? (
               <p className={`rounded-xl border px-3 py-2 text-xs ${muted} ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
-                Started from the {remixedFrom} template — it's loaded in the preview below. Make
-                it yours with the edit box, or download it as-is.
+                {t("worldDeskRemainder.bldRemixBanner", { name: remixedFrom })}
               </p>
             ) : null}
 
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>
-                3. Preview &amp; take it with you
+                {t("worldDeskRemainder.bldStep3")}
               </p>
               <div className="flex gap-1.5">
                 <button
@@ -779,7 +788,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                   onClick={() => setShowPreview((v) => !v)}
                 >
                   <FileCode2 className="h-3.5 w-3.5" />
-                  {showPreview ? "View files" : "View preview"}
+                  {showPreview ? t("worldDeskRemainder.bldViewFiles") : t("worldDeskRemainder.bldViewPreview")}
                 </button>
                 <button
                   type="button"
@@ -792,7 +801,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                   ) : (
                     <Download className="h-3.5 w-3.5" />
                   )}
-                  {downloading ? "Zipping…" : "Download site (.zip)"}
+                  {downloading ? t("worldDeskRemainder.bldZipping") : t("worldDeskRemainder.bldDownloadZip")}
                 </button>
               </div>
             </div>
@@ -807,7 +816,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                   }`}
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  Saved to your account · Version {currentVersion ?? ""}
+                  {t("worldDeskRemainder.bldSavedVersion", { version: currentVersion ?? "" })}
                 </span>
                 <button
                   type="button"
@@ -815,10 +824,10 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                   aria-expanded={showVersions}
                   onClick={() => setShowVersions((v) => !v)}
                 >
-                  <History className="h-3.5 w-3.5" /> Version history
+                  <History className="h-3.5 w-3.5" /> {t("worldDeskRemainder.bldVersionHistory")}
                 </button>
                 <button type="button" className={chipBtn(isLight)} onClick={startNewSite}>
-                  <Plus className="h-3.5 w-3.5" /> Start a new site
+                  <Plus className="h-3.5 w-3.5" /> {t("worldDeskRemainder.bldStartNew")}
                 </button>
               </div>
             ) : null}
@@ -828,8 +837,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
             currentVersion !== null &&
             viewingVersion !== currentVersion ? (
               <p className={`rounded-xl border px-3 py-2 text-[11px] ${amberBox}`}>
-                You're viewing version {viewingVersion} — restoring it or editing from here saves
-                a new version. Nothing is ever overwritten.
+                {t("worldDeskRemainder.bldViewingVersion", { version: viewingVersion })}
               </p>
             ) : null}
 
@@ -843,18 +851,24 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                     }`}
                   >
                     <span className="min-w-0 flex-1 text-xs">
-                      <span className={`font-semibold ${strong}`}>Version {v.version}</span>
+                      <span className={`font-semibold ${strong}`}>{t("worldDeskRemainder.bldVersionRow", { version: v.version })}</span>
                       <span className={muted}>
                         {" · "}
-                        {websiteSourceLabel(v.source)}
+                        {websiteSourceLabel(v.source, {
+                          initial: t("worldDeskRemainder.bldSourceInitial"),
+                          rebuild: t("worldDeskRemainder.bldSourceRebuild"),
+                          edit: t("worldDeskRemainder.bldSourceEdit"),
+                          restore: t("worldDeskRemainder.bldSourceRestore"),
+                          savedCopy: t("worldDeskRemainder.bldSourceSavedCopy"),
+                        })}
                         {" · "}
-                        {v.fileCount} files
+                        {t("worldDeskRemainder.bldFilesCount", { count: v.fileCount })}
                         {" · "}
                         {formatDate(v.createdAt)}
                       </span>
                       {v.version === currentVersion ? (
                         <span className="ml-2 rounded-full bg-[#d4af37]/20 px-2 py-0.5 text-[10px] font-bold text-[#d4af37]">
-                          Current
+                          {t("worldDeskRemainder.bldCurrent")}
                         </span>
                       ) : null}
                       {v.note ? (
@@ -869,7 +883,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                       disabled={opening || v.version === viewingVersion}
                       onClick={() => projectId && void openProject(projectId, v.version)}
                     >
-                      <Eye className="h-3.5 w-3.5" /> View
+                      <Eye className="h-3.5 w-3.5" /> {t("worldDeskRemainder.bldView")}
                     </button>
                     {v.version !== currentVersion ? (
                       <button
@@ -878,7 +892,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                         disabled={opening}
                         onClick={() => void restoreVersion(v.version)}
                       >
-                        <RotateCcw className="h-3.5 w-3.5" /> Restore
+                        <RotateCcw className="h-3.5 w-3.5" /> {t("worldDeskRemainder.bldRestore")}
                       </button>
                     ) : null}
                   </div>
@@ -901,11 +915,11 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                   <span className="h-2.5 w-2.5 rounded-full bg-amber-500/70" />
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/70" />
                   <span className={`ml-2 text-[11px] ${muted}`}>
-                    Private preview — only you can see this
+                    {t("worldDeskRemainder.bldPrivatePreview")}
                   </span>
                 </div>
                 <iframe
-                  title="Site preview"
+                  title={t("worldDeskRemainder.bldPreviewTitle")}
                   sandbox="allow-scripts"
                   srcDoc={buildPreviewHtml(files)}
                   className="h-[420px] w-full bg-white"
@@ -924,7 +938,7 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                       <FileCode2 className="h-3.5 w-3.5 text-[#d4af37]" /> {name}
                     </span>
                     <span className={`text-[11px] ${muted}`}>
-                      {(new Blob([files[name]]).size / 1024).toFixed(1)} KB
+                      {t("worldDeskRemainder.bldFileSize", { size: (new Blob([files[name]]).size / 1024).toFixed(1) })}
                     </span>
                   </div>
                 ))}
@@ -935,20 +949,19 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
             <div className="space-y-2">
               <p className={`text-xs font-black uppercase tracking-[0.12em] ${muted}`}>
                 <Wand2 className="mr-1.5 inline h-3.5 w-3.5 text-[#d4af37]" />
-                Want changes? Just say so.
+                {t("worldDeskRemainder.bldEditsTitle")}
               </p>
               <p className={`text-xs ${muted}`}>
-                "Make the hero section darker", "change the headline to…", "use warmer colors" —
-                each edit regenerates the site at {WEBSITE_EDIT_COST_VB} Visual Bucs.
+                {t("worldDeskRemainder.bldEditsIntro", { cost: WEBSITE_EDIT_COST_VB })}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input
                   className={deskInputCls(isLight)}
-                  placeholder="Describe the change…"
+                  placeholder={t("worldDeskRemainder.bldEditPlaceholder")}
                   maxLength={WEBSITE_EDIT_MAX}
                   value={editRequest}
                   onChange={(e) => setEditRequest(e.target.value)}
-                  aria-label="Describe the change"
+                  aria-label={t("worldDeskRemainder.bldEditAria")}
                 />
                 <button
                   type="button"
@@ -962,17 +975,14 @@ export function WebsiteBuilderDesk({ isLight }: { isLight: boolean }) {
                     <Wand2 className="h-3.5 w-3.5" />
                   )}
                   {editing
-                    ? "Applying…"
-                    : `Apply edit — ${WEBSITE_EDIT_COST_VB} Visual Bucs`}
+                    ? t("worldDeskRemainder.bldApplying")
+                    : t("worldDeskRemainder.bldApplyEdit", { cost: WEBSITE_EDIT_COST_VB })}
                 </button>
               </div>
             </div>
 
             <p className={`rounded-xl border px-3 py-2 text-xs ${muted} ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
-              <span className={`font-semibold ${strong}`}>You own this outright.</span> The zip
-              includes every file plus a README with step-by-step deploy guides for Netlify,
-              Vercel, Cloudflare Pages, and cPanel. Put it on your own hosting, your own domain —
-              your responsibility, your asset.
+              <span className={`font-semibold ${strong}`}>{t("worldDeskRemainder.bldOwnershipLead")}</span> {t("worldDeskRemainder.bldOwnershipBody")}
             </p>
           </div>
         ) : null}

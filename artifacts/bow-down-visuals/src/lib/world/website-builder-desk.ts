@@ -547,19 +547,35 @@ export function websiteZipFileName(businessName: string): string {
   return `${websiteZipSlug(businessName)}-website.zip`;
 }
 
+export interface WebsiteSourceLabelStrings {
+  initial: string;
+  rebuild: string;
+  edit: string;
+  restore: string;
+  savedCopy: string;
+}
+
+export const WEBSITE_SOURCE_LABEL_DEFAULTS: WebsiteSourceLabelStrings = {
+  initial: "Initial build",
+  rebuild: "Rebuild",
+  edit: "Edit",
+  restore: "Restore",
+  savedCopy: "Saved copy",
+};
+
 /** Version sources, in the page's own English words. */
-export function websiteSourceLabel(source: string): string {
+export function websiteSourceLabel(source: string, s: WebsiteSourceLabelStrings = WEBSITE_SOURCE_LABEL_DEFAULTS): string {
   switch (source) {
     case "generate":
-      return "Initial build";
+      return s.initial;
     case "regenerate":
-      return "Rebuild";
+      return s.rebuild;
     case "edit":
-      return "Edit";
+      return s.edit;
     case "restore":
-      return "Restore";
+      return s.restore;
     case "save":
-      return "Saved copy";
+      return s.savedCopy;
     default:
       return source;
   }
