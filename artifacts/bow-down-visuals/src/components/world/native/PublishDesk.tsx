@@ -63,7 +63,7 @@ import {
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
 import { CreatorProfileCreateCard } from "./CreatorProfileCreate";
 
-const PUB_VERTICAL_KEY: Partial<Record<PublishVertical, string>> = {
+const PUB_VERTICAL_KEY: Partial<Record<string, string>> = {
   music: "pubVerticalMusic",
   video: "pubVerticalVideo",
   gaming: "pubVerticalGaming",
