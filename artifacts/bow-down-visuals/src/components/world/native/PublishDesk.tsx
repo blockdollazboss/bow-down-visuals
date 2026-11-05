@@ -22,6 +22,7 @@
  * in-world creation card (#48) instead of a dead end.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import {
   EMPTY_PUBLISH_DRAFT,
@@ -62,8 +63,48 @@ import {
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
 import { CreatorProfileCreateCard } from "./CreatorProfileCreate";
 
+const PUB_VERTICAL_KEY: Partial<Record<PublishVertical, string>> = {
+  music: "pubVerticalMusic",
+  video: "pubVerticalVideo",
+  gaming: "pubVerticalGaming",
+  podcast: "pubVerticalPodcast",
+  film: "pubVerticalFilm",
+  influencer: "pubVerticalInfluencer",
+  education: "pubVerticalEducation",
+  other: "pubVerticalOther",
+  comedy: "pubVerticalComedy",
+};
+
 export function PublishDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const deskHeaders = useDeskAuthHeaders();
+  const displayTitle = (title: string) =>
+    title === "Untitled" ? t("worldDeskRemainder.pubUntitled") : title;
+  const draftErrorStrings = {
+    titleRequired: t("worldDeskRemainder.pubErrTitleRequired"),
+    titleTooLong: t("worldDeskRemainder.pubErrTitleTooLong"),
+    audioMissing: t("worldDeskRemainder.pubErrAudioMissing"),
+    videoMissing: t("worldDeskRemainder.pubErrVideoMissing"),
+    mediaLinkTooLong: t("worldDeskRemainder.pubErrMediaLinkTooLong"),
+    genreTooLong: t("worldDeskRemainder.pubErrGenreTooLong"),
+    isrcTooLong: t("worldDeskRemainder.pubErrIsrcTooLong"),
+    tagsTooMany: (max: number) => t("worldDeskRemainder.pubErrTagsTooMany", { max }),
+    descriptionTooLong: t("worldDeskRemainder.pubErrDescriptionTooLong"),
+    seasonInvalid: t("worldDeskRemainder.pubErrSeasonInvalid"),
+    episodeInvalid: t("worldDeskRemainder.pubErrEpisodeInvalid"),
+  };
+  const fileErrorStrings = {
+    dropAudio: t("worldDeskRemainder.pubErrDropAudio"),
+    dropVideo: t("worldDeskRemainder.pubErrDropVideo"),
+    typeUnsupported: t("worldDeskRemainder.pubErrFileTypeUnsupported"),
+    fileTooBig: t("worldDeskRemainder.pubErrFileTooBig"),
+    artworkNotImage: t("worldDeskRemainder.pubErrArtworkNotImage"),
+    artworkTooBig: t("worldDeskRemainder.pubErrArtworkTooBig"),
+  };
+  const priceLabelStrings = {
+    free: t("worldDeskRemainder.pubPriceFree"),
+    download: (amount: string) => t("worldDeskRemainder.pubPriceDownload", { amount }),
+  };
 
   const [profiles, setProfiles] = useState<PublishProfile[] | null>(null);
   const [profilesFailed, setProfilesFailed] = useState(false);
@@ -164,12 +205,12 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
       fd.append("file", f);
       const res = await fetch(PUBLISH_UPLOAD_PATH, { method: "POST", headers, body: fd });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Upload failed (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldDeskRemainder.pubUploadFailedStatus", { status: res.status })));
       const up = publishUploadOfResponse(data);
-      if (!up) throw new Error("The upload came back unusable — try again.");
+      if (!up) throw new Error(t("worldDeskRemainder.pubUploadUnusable"));
       return up;
     },
-    [deskHeaders],
+    [deskHeaders, t],
   );
 
   function probeDuration(f: File, kind: PublishKind) {
@@ -190,7 +231,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
 
   function pickMedia(f: File | undefined | null) {
     if (!f) return;
-    const err = publishMediaFileError(f, draft.kind);
+    const err = publishMediaFileError(f, draft.kind, fileErrorStrings);
     if (err) {
       setFormError(err);
       return;
@@ -202,7 +243,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
 
   async function pickArtwork(f: File | undefined | null) {
     if (!f) return;
-    const err = publishArtworkFileError(f);
+    const err = publishArtworkFileError(f, fileErrorStrings);
     if (err) {
       setFormError(err);
       return;
@@ -214,7 +255,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
       setArtworkRef(up.ref);
       setDraft((prev) => ({ ...prev, artworkUrl: up.url }));
     } catch (e) {
-      setFormError(plainErrorText(e, "Artwork upload failed — try again."));
+      setFormError(plainErrorText(e, t("worldDeskRemainder.pubArtworkFailed")));
     } finally {
       setArtUploading(false);
     }
@@ -272,10 +313,10 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
     if (saving) return;
     const targetProfileId = editing ? editing.profileId : profileId;
     if (!targetProfileId) {
-      setFormError("Create your creator profile first — the card above does it in one step.");
+      setFormError(t("worldDeskRemainder.pubNoProfile"));
       return;
     }
-    const problem = publishDraftError(draft, { hasFile: file !== null, editing: editing !== null });
+    const problem = publishDraftError(draft, { hasFile: file !== null, editing: editing !== null }, draftErrorStrings);
     if (problem) {
       setFormError(problem);
       return;
@@ -304,18 +345,18 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(body),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `Save failed (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldDeskRemainder.pubSaveFailedStatus", { status: res.status })));
       const saved = publishItemOfSaveResponse(draft.kind, data);
-      if (!saved) throw new Error("The save came back unusable — check your library before trying again.");
+      if (!saved) throw new Error(t("worldDeskRemainder.pubSaveUnusable"));
       setNote(
         saved.isPublished
-          ? `"${saved.title}" is live on your profile.`
-          : `"${saved.title}" is saved as a draft.`,
+          ? t("worldDeskRemainder.pubNowLive", { title: displayTitle(saved.title) })
+          : t("worldDeskRemainder.pubNowDraft", { title: displayTitle(saved.title) }),
       );
       resetComposer();
       void loadShelf(saved.kind);
     } catch (e) {
-      setFormError(plainErrorText(e, "Save failed — try again."));
+      setFormError(plainErrorText(e, t("worldDeskRemainder.pubSaveFailed")));
     } finally {
       setSaving(false);
     }
@@ -335,7 +376,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify(buildPublishStateBody(!item.isPublished)),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok) throw new Error(apiErrorMessage(data, `That didn't land (${res.status})`));
+      if (!res.ok) throw new Error(apiErrorMessage(data, t("worldDeskRemainder.pubToggleFailedStatus", { status: res.status })));
       const apply = (items: PublishItem[] | null) =>
         items ? withPublishItemState(items, item.id, !item.isPublished) : items;
       if (item.kind === "track") setTracks(apply);
@@ -345,7 +386,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
         patchDraft({ publishNow: !item.isPublished });
       }
     } catch (e) {
-      setNote(plainErrorText(e, "That didn't land — try again."));
+      setNote(plainErrorText(e, t("worldDeskRemainder.pubToggleFailed")));
     } finally {
       setTogglingId(null);
     }
@@ -363,14 +404,14 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
       const res = await fetch(publishItemPath(item), { method: "DELETE", headers });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        throw new Error(apiErrorMessage(data, `Delete failed (${res.status})`));
+        throw new Error(apiErrorMessage(data, t("worldDeskRemainder.pubDeleteFailedStatus", { status: res.status })));
       }
       if (item.kind === "track") setTracks((prev) => (prev ? withoutPublishItem(prev, item.id) : prev));
       else setVideos((prev) => (prev ? withoutPublishItem(prev, item.id) : prev));
       if (editing?.id === item.id) resetComposer();
-      setNote(`"${item.title}" is deleted.`);
+      setNote(t("worldDeskRemainder.pubDeleted", { title: displayTitle(item.title) }));
     } catch (e) {
-      setNote(plainErrorText(e, "Delete failed — try again."));
+      setNote(plainErrorText(e, t("worldDeskRemainder.pubDeleteFailed")));
     } finally {
       setDeletingId(null);
       setConfirmDeleteId(null);
@@ -388,21 +429,21 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
       return (
         <div data-testid={`world-publish-desk-${kind === "track" ? "tracks" : "videos"}-failed`}>
           <p className={errCls}>
-            Your {kind === "track" ? "tracks" : "videos"} wouldn&rsquo;t load. Give it another shot.
+            {t("worldDeskRemainder.pubShelfFailed", { kind: kind === "track" ? t("worldDeskRemainder.pubTracksWord") : t("worldDeskRemainder.pubVideosWord") })}
           </p>
           <button type="button" className={`mt-2 ${chipCls(false)}`} onClick={() => void loadShelf(kind)}>
-            Try again
+            {t("worldDeskRemainder.pubTryAgain")}
           </button>
         </div>
       );
     }
     if (items === null) {
-      return <p className={`text-sm ${muted}`}>Loading your {kind === "track" ? "tracks" : "videos"}…</p>;
+      return <p className={`text-sm ${muted}`}>{t("worldDeskRemainder.pubShelfLoading", { kind: kind === "track" ? t("worldDeskRemainder.pubTracksWord") : t("worldDeskRemainder.pubVideosWord") })}</p>;
     }
     if (items.length === 0) {
       return (
         <p className={`text-sm ${muted}`}>
-          No {kind === "track" ? "tracks" : "videos"} yet — publish your first one below.
+          {t("worldDeskRemainder.pubShelfEmpty", { kind: kind === "track" ? t("worldDeskRemainder.pubTracksWord") : t("worldDeskRemainder.pubVideosWord") })}
         </p>
       );
     }
@@ -415,13 +456,13 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
             data-testid={`world-publish-desk-item-${item.id}`}
           >
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`text-sm font-bold ${strong}`}>{item.title}</span>
-              <span className={chipCls(item.isPublished)}>{item.isPublished ? "Live" : "Draft"}</span>
+              <span className={`text-sm font-bold ${strong}`}>{displayTitle(item.title)}</span>
+              <span className={chipCls(item.isPublished)}>{item.isPublished ? t("worldDeskRemainder.pubLive") : t("worldDeskRemainder.pubDraft")}</span>
               {item.genre ? <span className={`text-xs ${muted}`}>{item.genre}</span> : null}
               {item.kind === "video" && item.season ? (
                 <span className={`text-xs ${muted}`}>
-                  S{item.season}
-                  {item.episode ? ` · E${item.episode}` : ""}
+                  {t("worldDeskRemainder.pubSeason", { season: item.season })}
+                  {item.episode ? t("worldDeskRemainder.pubEpisodeSuffix", { episode: item.episode }) : ""}
                 </span>
               ) : null}
               <span className="ml-auto flex gap-1.5">
@@ -432,7 +473,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
                   disabled={togglingId !== null}
                   onClick={() => void toggleState(item)}
                 >
-                  {togglingId === item.id ? "Working…" : item.isPublished ? "Take down" : "Publish"}
+                  {togglingId === item.id ? t("worldDeskRemainder.pubWorking") : item.isPublished ? t("worldDeskRemainder.pubTakeDown") : t("worldDeskRemainder.pubPublish")}
                 </button>
                 <button
                   type="button"
@@ -440,7 +481,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
                   data-testid={`world-publish-desk-edit-${item.id}`}
                   onClick={() => startEdit(item)}
                 >
-                  Edit
+                  {t("worldDeskRemainder.pubEdit")}
                 </button>
                 <button
                   type="button"
@@ -450,19 +491,19 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
                   onClick={() => void deleteItem(item)}
                 >
                   {deletingId === item.id
-                    ? "Deleting…"
+                    ? t("worldDeskRemainder.pubDeleting")
                     : confirmDeleteId === item.id
                       ? item.isPublished
-                        ? "Live — tap again to delete"
-                        : "Tap again to delete"
-                      : "Delete"}
+                        ? t("worldDeskRemainder.pubLiveTapDelete")
+                        : t("worldDeskRemainder.pubTapAgainDelete")
+                      : t("worldDeskRemainder.pubDelete")}
                 </button>
               </span>
             </div>
             <p className={`mt-0.5 text-xs ${muted}`}>
               {[
                 publishDurationLabel(item.durationSec),
-                item.kind === "track" ? publishPriceLabel(item.downloadPriceCents) : "",
+                item.kind === "track" ? publishPriceLabel(item.downloadPriceCents, priceLabelStrings) : "",
                 item.kind === "track" && item.isrc ? `ISRC ${item.isrc}` : "",
               ]
                 .filter(Boolean)
@@ -485,19 +526,17 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-3" data-testid="world-publish-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Publish</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldDeskRemainder.pubTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          Your tracks and videos, live on your profile or saved as drafts — the same library as the
-          website&rsquo;s Publish page. Publishing your own work is free; a track&rsquo;s download
-          price is your price for your buyers.
+          {t("worldDeskRemainder.pubIntro")}
         </p>
       </div>
 
       {profilesFailed ? (
         <div data-testid="world-publish-desk-profiles-failed">
-          <p className={errCls}>Your creator profile wouldn&rsquo;t load. Give it another shot.</p>
+          <p className={errCls}>{t("worldDeskRemainder.pubProfileFailed")}</p>
           <button type="button" className={`mt-2 ${chipCls(false)}`} onClick={() => void loadProfiles()}>
-            Try again
+            {t("worldDeskRemainder.pubTryAgain")}
           </button>
         </div>
       ) : profiles !== null && profiles.length === 0 ? (
@@ -506,10 +545,10 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
         </div>
       ) : profiles !== null && profiles.length > 1 && !editing ? (
         <label className={`block text-xs ${muted}`}>
-          Publishing to
+          {t("worldDeskRemainder.pubPublishingTo")}
           <select
             data-testid="world-publish-desk-profile"
-            aria-label="Profile to publish to"
+            aria-label={t("worldDeskRemainder.pubProfileAria")}
             className={`${inputCls} mt-1`}
             value={profileId ?? ""}
             onChange={(e) => setProfileId(e.target.value)}
@@ -525,21 +564,21 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
 
       {shelvesLoading ? (
         <p className={`text-sm ${muted}`} data-testid="world-publish-desk-loading">
-          Loading your library…
+          {t("worldDeskRemainder.pubLibraryLoading")}
         </p>
       ) : (
         <>
           {bothEmpty && !tracksFailed && !videosFailed ? (
             <p className={`text-sm ${muted}`} data-testid="world-publish-desk-empty">
-              Nothing here yet — upload a finished track or video below and put it on your profile.
+              {t("worldDeskRemainder.pubLibraryEmpty")}
             </p>
           ) : null}
           <div className="space-y-2">
-            <p className={`text-sm font-bold ${strong}`}>Tracks</p>
+            <p className={`text-sm font-bold ${strong}`}>{t("worldDeskRemainder.pubTracksHeading")}</p>
             {shelfBlock("track", tracks, tracksFailed)}
           </div>
           <div className="space-y-2">
-            <p className={`text-sm font-bold ${strong}`}>Videos</p>
+            <p className={`text-sm font-bold ${strong}`}>{t("worldDeskRemainder.pubVideosHeading")}</p>
             {shelfBlock("video", videos, videosFailed)}
           </div>
         </>
@@ -549,7 +588,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
 
       <div className={`rounded-xl border p-3 ${cardCls}`} data-testid="world-publish-desk-composer">
         <p className={`text-sm font-bold ${strong}`}>
-          {editing ? `Edit "${editing.title}"` : "Publish something new"}
+          {editing ? t("worldDeskRemainder.pubEditTitle", { title: displayTitle(editing.title) }) : t("worldDeskRemainder.pubNewTitle")}
         </p>
 
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -560,7 +599,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
             disabled={editing !== null}
             onClick={() => pickKind("track")}
           >
-            Track
+            {t("worldDeskRemainder.pubKindTrack")}
           </button>
           <button
             type="button"
@@ -569,18 +608,18 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
             disabled={editing !== null}
             onClick={() => pickKind("video")}
           >
-            Video
+            {t("worldDeskRemainder.pubKindVideo")}
           </button>
           <select
             data-testid="world-publish-desk-category"
-            aria-label="Category"
+            aria-label={t("worldDeskRemainder.pubCategoryAria")}
             className={`${inputCls} w-auto`}
             value={draft.category}
             onChange={(e) => pickCategory(e.target.value as PublishVertical)}
           >
             {PUBLISH_VERTICALS.map((v) => (
               <option key={v} value={v}>
-                {PUBLISH_VERTICAL_LABELS[v]}
+                {PUB_VERTICAL_KEY[v] ? t(`worldDeskRemainder.${PUB_VERTICAL_KEY[v]}`) : PUBLISH_VERTICAL_LABELS[v]}
               </option>
             ))}
           </select>
@@ -589,17 +628,17 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
         <div className="mt-2 grid gap-2">
           <input
             data-testid="world-publish-desk-title"
-            aria-label="Title"
+            aria-label={t("worldDeskRemainder.pubTitleAria")}
             className={inputCls}
             value={draft.title}
             maxLength={160}
             onChange={(e) => patchDraft({ title: e.target.value })}
-            placeholder={draft.kind === "track" ? "Track title" : "Video title"}
+            placeholder={draft.kind === "track" ? t("worldDeskRemainder.pubTrackTitlePlaceholder") : t("worldDeskRemainder.pubVideoTitlePlaceholder")}
           />
 
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className={chipCls(false)} onClick={() => mediaInputRef.current?.click()}>
-              {file ? "Change file" : draft.kind === "track" ? "Upload audio" : "Upload video"}
+              {file ? t("worldDeskRemainder.pubChangeFile") : draft.kind === "track" ? t("worldDeskRemainder.pubUploadAudio") : t("worldDeskRemainder.pubUploadVideo")}
             </button>
             <input
               ref={mediaInputRef}
@@ -616,7 +655,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
               <>
                 <span className={`text-xs ${muted}`}>
                   {file.name}
-                  {durationSec ? ` · ${durationSec}s` : ""}
+                  {durationSec ? t("worldDeskRemainder.pubFileSeconds", { seconds: durationSec }) : ""}
                 </span>
                 <button
                   type="button"
@@ -626,21 +665,21 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
                     setDurationSec(editing?.durationSec ?? null);
                   }}
                 >
-                  Remove
+                  {t("worldDeskRemainder.pubRemove")}
                 </button>
               </>
             ) : (
-              <span className={`text-xs ${muted}`}>or paste a link:</span>
+              <span className={`text-xs ${muted}`}>{t("worldDeskRemainder.pubOrPasteLink")}</span>
             )}
           </div>
           {!file ? (
             <input
               data-testid="world-publish-desk-media-url"
-              aria-label={draft.kind === "track" ? "Audio link" : "Video link"}
+              aria-label={draft.kind === "track" ? t("worldDeskRemainder.pubAudioLinkAria") : t("worldDeskRemainder.pubVideoLinkAria")}
               className={inputCls}
               value={draft.mediaUrl}
               onChange={(e) => patchDraft({ mediaUrl: e.target.value })}
-              placeholder={draft.kind === "track" ? "Audio link (https://…)" : "Video link (https://…)"}
+              placeholder={draft.kind === "track" ? t("worldDeskRemainder.pubAudioLinkPlaceholder") : t("worldDeskRemainder.pubVideoLinkPlaceholder")}
             />
           ) : null}
 
@@ -652,10 +691,10 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
               onClick={() => artInputRef.current?.click()}
             >
               {artUploading
-                ? "Uploading art…"
+                ? t("worldDeskRemainder.pubUploadingArt")
                 : draft.kind === "track"
-                  ? "Upload artwork"
-                  : "Upload thumbnail"}
+                  ? t("worldDeskRemainder.pubUploadArtwork")
+                  : t("worldDeskRemainder.pubUploadThumbnail")}
             </button>
             <input
               ref={artInputRef}
@@ -670,7 +709,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
             />
             <input
               data-testid="world-publish-desk-artwork-url"
-              aria-label={draft.kind === "track" ? "Artwork link" : "Thumbnail link"}
+              aria-label={draft.kind === "track" ? t("worldDeskRemainder.pubArtworkLinkAria") : t("worldDeskRemainder.pubThumbnailLinkAria")}
               className={`${inputCls} min-w-40 flex-1`}
               value={draft.artworkUrl}
               onChange={(e) => {
@@ -678,7 +717,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
                 patchDraft({ artworkUrl: e.target.value });
               }}
               placeholder={
-                draft.kind === "track" ? "Artwork link (optional)" : "Thumbnail link (optional)"
+                draft.kind === "track" ? t("worldDeskRemainder.pubArtworkLinkPlaceholder") : t("worldDeskRemainder.pubThumbnailLinkPlaceholder")
               }
             />
           </div>
@@ -687,12 +726,12 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
             <div className="grid gap-2 sm:grid-cols-2">
               <select
                 data-testid="world-publish-desk-genre"
-                aria-label="Genre"
+                aria-label={t("worldDeskRemainder.pubGenreAria")}
                 className={inputCls}
                 value={draft.genre}
                 onChange={(e) => patchDraft({ genre: e.target.value })}
               >
-                <option value="">Pick a genre…</option>
+                <option value="">{t("worldDeskRemainder.pubPickGenre")}</option>
                 {genreOptions.map((g) => (
                   <option key={g} value={g}>
                     {g}
@@ -706,65 +745,65 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
                 value={draft.isrc}
                 maxLength={32}
                 onChange={(e) => patchDraft({ isrc: e.target.value })}
-                placeholder="ISRC (optional)"
+                placeholder={t("worldDeskRemainder.pubIsrcPlaceholder")}
               />
               <input
                 data-testid="world-publish-desk-tags"
-                aria-label="Tags"
+                aria-label={t("worldDeskRemainder.pubTagsAria")}
                 className={inputCls}
                 value={draft.tagsInput}
                 onChange={(e) => patchDraft({ tagsInput: e.target.value })}
-                placeholder="Tags, comma, separated"
+                placeholder={t("worldDeskRemainder.pubTagsPlaceholder")}
               />
               <input
                 data-testid="world-publish-desk-price"
-                aria-label="Download price in dollars"
+                aria-label={t("worldDeskRemainder.pubPriceAria")}
                 className={inputCls}
                 value={draft.priceDollars}
                 inputMode="decimal"
                 onChange={(e) => patchDraft({ priceDollars: e.target.value })}
-                placeholder="Download price $ — blank is free"
+                placeholder={t("worldDeskRemainder.pubPricePlaceholder")}
               />
             </div>
           ) : (
             <div className="grid gap-2">
               <textarea
                 data-testid="world-publish-desk-description"
-                aria-label="Description"
+                aria-label={t("worldDeskRemainder.pubDescription")}
                 className={inputCls}
                 value={draft.description}
                 rows={3}
                 maxLength={2000}
                 onChange={(e) => patchDraft({ description: e.target.value })}
-                placeholder="Description"
+                placeholder={t("worldDeskRemainder.pubDescription")}
               />
               <div className="grid gap-2 sm:grid-cols-2">
                 <input
                   data-testid="world-publish-desk-season"
-                  aria-label="Season"
+                  aria-label={t("worldDeskRemainder.pubSeasonAria")}
                   className={inputCls}
                   value={draft.season}
                   inputMode="numeric"
                   onChange={(e) => patchDraft({ season: e.target.value })}
-                  placeholder="Season (film & TV)"
+                  placeholder={t("worldDeskRemainder.pubSeasonPlaceholder")}
                 />
                 <input
                   data-testid="world-publish-desk-episode"
-                  aria-label="Episode"
+                  aria-label={t("worldDeskRemainder.pubEpisode")}
                   className={inputCls}
                   value={draft.episode}
                   inputMode="numeric"
                   onChange={(e) => patchDraft({ episode: e.target.value })}
-                  placeholder="Episode"
+                  placeholder={t("worldDeskRemainder.pubEpisode")}
                 />
               </div>
               <input
                 data-testid="world-publish-desk-alt-text"
-                aria-label="Thumbnail description for accessibility"
+                aria-label={t("worldDeskRemainder.pubAltTextAria")}
                 className={inputCls}
                 value={draft.thumbnailAltText}
                 onChange={(e) => patchDraft({ thumbnailAltText: e.target.value })}
-                placeholder="Describe the thumbnail (accessibility)"
+                placeholder={t("worldDeskRemainder.pubAltTextPlaceholder")}
               />
             </div>
           )}
@@ -778,7 +817,7 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
             aria-pressed={draft.publishNow}
             onClick={() => patchDraft({ publishNow: !draft.publishNow })}
           >
-            {draft.publishNow ? "Live on my profile" : "Keep as draft"}
+            {draft.publishNow ? t("worldDeskRemainder.pubLiveOnProfile") : t("worldDeskRemainder.pubKeepDraft")}
           </button>
           <button
             type="button"
@@ -788,23 +827,22 @@ export function PublishDesk({ isLight }: { isLight: boolean }) {
             onClick={() => void save()}
           >
             {saving
-              ? "Saving…"
+              ? t("worldDeskRemainder.pubSaving")
               : editing
-                ? "Save changes"
+                ? t("worldDeskRemainder.pubSaveChanges")
                 : draft.publishNow
-                  ? "Publish — go live"
-                  : "Save draft"}
+                  ? t("worldDeskRemainder.pubPublishGoLive")
+                  : t("worldDeskRemainder.pubSaveDraft")}
           </button>
           {editing ? (
             <button type="button" className={chipCls(false)} onClick={resetComposer}>
-              Cancel editing
+              {t("worldDeskRemainder.pubCancelEditing")}
             </button>
           ) : null}
         </div>
         {formError ? <p className={`mt-2 ${errCls}`}>{formError}</p> : null}
         <p className={`mt-2 text-xs ${muted}`}>
-          Publishing is free — no Visual Bucs. Files up to 80 MB; artwork up to{" "}
-          {PUBLISH_ARTWORK_MAX_BYTES / (1024 * 1024)} MB.
+          {t("worldDeskRemainder.pubFooter", { artworkMb: PUBLISH_ARTWORK_MAX_BYTES / (1024 * 1024) })}
         </p>
       </div>
     </div>

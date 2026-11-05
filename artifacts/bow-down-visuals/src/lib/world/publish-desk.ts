@@ -401,33 +401,60 @@ function positiveIntOrUndefined(input: string): number | undefined {
  * is only demanded when neither a file nor a link is present
  * AND nothing is being edited.
  */
+export interface PublishDraftErrorStrings {
+  titleRequired: string;
+  titleTooLong: string;
+  audioMissing: string;
+  videoMissing: string;
+  mediaLinkTooLong: string;
+  genreTooLong: string;
+  isrcTooLong: string;
+  tagsTooMany: (max: number) => string;
+  descriptionTooLong: string;
+  seasonInvalid: string;
+  episodeInvalid: string;
+}
+
+export const PUBLISH_DRAFT_ERROR_DEFAULTS: PublishDraftErrorStrings = {
+  titleRequired: "Give your content a title.",
+  titleTooLong: "That title is too long.",
+  audioMissing: "Add your audio file — or paste a link to it.",
+  videoMissing: "Add your video file — or paste a link to it.",
+  mediaLinkTooLong: "That media link is too long.",
+  genreTooLong: "That genre is too long.",
+  isrcTooLong: "That ISRC is too long.",
+  tagsTooMany: (max) => `Keep it to ${max} tags or fewer.`,
+  descriptionTooLong: "That description is too long.",
+  seasonInvalid: "Season must be a whole number, 1 or more.",
+  episodeInvalid: "Episode must be a whole number, 1 or more.",
+};
+
 export function publishDraftError(
   draft: PublishDraft,
   opts: { hasFile: boolean; editing: boolean },
+  s: PublishDraftErrorStrings = PUBLISH_DRAFT_ERROR_DEFAULTS,
 ): string | null {
-  if (!draft.title.trim()) return "Give your content a title.";
-  if (draft.title.trim().length > PUBLISH_TITLE_MAX) return "That title is too long.";
+  if (!draft.title.trim()) return s.titleRequired;
+  if (draft.title.trim().length > PUBLISH_TITLE_MAX) return s.titleTooLong;
   if (!opts.hasFile && !draft.mediaUrl.trim() && !opts.editing) {
-    return draft.kind === "track"
-      ? "Add your audio file — or paste a link to it."
-      : "Add your video file — or paste a link to it.";
+    return draft.kind === "track" ? s.audioMissing : s.videoMissing;
   }
   if (draft.mediaUrl.trim() && draft.mediaUrl.trim().length > 2048) {
-    return "That media link is too long.";
+    return s.mediaLinkTooLong;
   }
-  if (draft.genre.trim().length > PUBLISH_GENRE_MAX) return "That genre is too long.";
-  if (draft.isrc.trim().length > PUBLISH_ISRC_MAX) return "That ISRC is too long.";
+  if (draft.genre.trim().length > PUBLISH_GENRE_MAX) return s.genreTooLong;
+  if (draft.isrc.trim().length > PUBLISH_ISRC_MAX) return s.isrcTooLong;
   if (parseTagsInput(draft.tagsInput).length > PUBLISH_MAX_TAGS) {
-    return `Keep it to ${PUBLISH_MAX_TAGS} tags or fewer.`;
+    return s.tagsTooMany(PUBLISH_MAX_TAGS);
   }
   if (draft.description.length > PUBLISH_DESCRIPTION_MAX) {
-    return "That description is too long.";
+    return s.descriptionTooLong;
   }
   if (draft.season.trim() && positiveIntOrUndefined(draft.season) === undefined) {
-    return "Season must be a whole number, 1 or more.";
+    return s.seasonInvalid;
   }
   if (draft.episode.trim() && positiveIntOrUndefined(draft.episode) === undefined) {
-    return "Episode must be a whole number, 1 or more.";
+    return s.episodeInvalid;
   }
   return null;
 }
@@ -509,22 +536,41 @@ export function publishUploadKindFor(mime: string): PublishUploadKind | null {
 /** Pre-flight in the page's words, against the rail's caps —
  *  the rail refuses the same files with the same meaning, so a
  *  bad pick is stopped here instead of after an 80 MB upload. */
+export interface PublishFileErrorStrings {
+  dropAudio: string;
+  dropVideo: string;
+  typeUnsupported: string;
+  fileTooBig: string;
+  artworkNotImage: string;
+  artworkTooBig: string;
+}
+
+export const PUBLISH_FILE_ERROR_DEFAULTS: PublishFileErrorStrings = {
+  dropAudio: "Drop an audio file (MP3, WAV, M4A…) for a track.",
+  dropVideo: "Drop a video file (MP4, MOV, WebM) for a video.",
+  typeUnsupported: "That file type isn't supported — use audio or video.",
+  fileTooBig: "That file is over the 80 MB upload limit.",
+  artworkNotImage: "Artwork must be an image file.",
+  artworkTooBig: "Artwork must be 10 MB or smaller.",
+};
+
 export function publishMediaFileError(
   file: { type: string; size: number },
   kind: PublishKind,
+  s: PublishFileErrorStrings = PUBLISH_FILE_ERROR_DEFAULTS,
 ): string | null {
   const isAudio = file.type.startsWith("audio/");
   const isVideo = file.type.startsWith("video/");
-  if (kind === "track" && !isAudio) return "Drop an audio file (MP3, WAV, M4A…) for a track.";
-  if (kind === "video" && !isVideo) return "Drop a video file (MP4, MOV, WebM) for a video.";
-  if (!isAudio && !isVideo) return "That file type isn't supported — use audio or video.";
-  if (file.size > PUBLISH_UPLOAD_MAX_BYTES) return "That file is over the 80 MB upload limit.";
+  if (kind === "track" && !isAudio) return s.dropAudio;
+  if (kind === "video" && !isVideo) return s.dropVideo;
+  if (!isAudio && !isVideo) return s.typeUnsupported;
+  if (file.size > PUBLISH_UPLOAD_MAX_BYTES) return s.fileTooBig;
   return null;
 }
 
-export function publishArtworkFileError(file: { type: string; size: number }): string | null {
-  if (!file.type.startsWith("image/")) return "Artwork must be an image file.";
-  if (file.size > PUBLISH_ARTWORK_MAX_BYTES) return "Artwork must be 10 MB or smaller.";
+export function publishArtworkFileError(file: { type: string; size: number }, s: PublishFileErrorStrings = PUBLISH_FILE_ERROR_DEFAULTS): string | null {
+  if (!file.type.startsWith("image/")) return s.artworkNotImage;
+  if (file.size > PUBLISH_ARTWORK_MAX_BYTES) return s.artworkTooBig;
   return null;
 }
 
@@ -567,7 +613,17 @@ export function publishDurationLabel(sec: number | null): string {
 
 /** The member's download price, for track rows: their price for
  *  their buyers — never a site charge. */
-export function publishPriceLabel(cents: number | null): string {
-  if (!cents || cents <= 0) return "Free download";
-  return `$${(cents / 100).toFixed(2)} download`;
+export interface PublishPriceLabelStrings {
+  free: string;
+  download: (amount: string) => string;
+}
+
+export const PUBLISH_PRICE_LABEL_DEFAULTS: PublishPriceLabelStrings = {
+  free: "Free download",
+  download: (amount) => `$${amount} download`,
+};
+
+export function publishPriceLabel(cents: number | null, s: PublishPriceLabelStrings = PUBLISH_PRICE_LABEL_DEFAULTS): string {
+  if (!cents || cents <= 0) return s.free;
+  return s.download((cents / 100).toFixed(2));
 }
