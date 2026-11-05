@@ -11,6 +11,7 @@ import {
   CreditsDisabledError,
 } from "../lib/credits";
 import { resolveCreatorTier } from "../middlewares/require-tier";
+import { isAdminUserId } from "../lib/admin";
 import { feeSplit, PLATFORM_FEE_BPS } from "../lib/platform-fees";
 import { logger } from "../lib/logger";
 import {
@@ -184,6 +185,15 @@ async function ownedPackIds(userId: string): Promise<string[]> {
 }
 
 async function isElite(userId: string, plan: unknown): Promise<boolean> {
+  /* Owner exemption (standing rule, Oct 29, 2026; re-verified Nov 4):
+     premium packs are included with Elite, and an admin account
+     passes tier gates without a paid row (the requireTier rule) — so
+     the owner's premium packs are unlocked, owned or not, through the
+     ONE fail-closed predicate (lib/admin.ts). This moves an
+     entitlement lock only: pack prices, purchases and the
+     creator-pack split are untouched, and non-admins resolve through
+     the same tier read as before. */
+  if (await isAdminUserId(userId)) return true;
   const { tier } = await resolveCreatorTier(userId, plan as never);
   return tier === "elite";
 }

@@ -2,6 +2,7 @@ import { Router } from "express";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
+import { skipIfAdmin } from "../lib/admin";
 import { z } from "zod";
 import { db, reviewLinksTable, reviewCommentsTable, generatedClipsTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -68,6 +69,12 @@ const reviewCreateLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  /* Owner exemption (standing rule, Oct 29, 2026; re-verified Nov 4):
+     per-user rate pacing is a customer POLICY limit, so an admin never
+     burns this bucket (the house skip, lib/admin.ts). The unlock
+     limiter below deliberately carries NO skip — it keys on IP+token
+     and guards the public unlock door against brute force. */
+  skip: skipIfAdmin,
   keyGenerator: (req) => (req as { userId?: string }).userId || (req.ip ? ipKeyGenerator(req.ip) : "unknown"),
   message: { error: "Too many review links. Please try again later." },
 });

@@ -2,6 +2,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db, teamsTable, teamMembersTable } from "@workspace/db";
 import { logger } from "./logger";
 import { getCreatorRank } from "./creator-rank";
+import { isAdminUserId } from "./admin";
 
 /**
  * Creator Rank ladder: ★1 Street Punk, ★2 Hustler, ★3 Gangster,
@@ -23,9 +24,19 @@ const SHOT_CALLER_TIER = 4;
  * checkout exists"). Nothing a user does ever raises it, so the gate was
  * closed to every self-serve creator, including ones who had earned ★4+.
  *
- * Fail-closed: a rank read that fails = no access, same posture as before.
+ * Owner exemption (standing rule, Oct 29, 2026; re-verified Nov 4): the
+ * ★4 gate is a customer POLICY gate — it locks a feature — so an admin
+ * account is never rank-gated, through the ONE fail-closed predicate
+ * (lib/admin.ts). The ladder itself is untouched: an admin's earned
+ * rank still computes and displays exactly as before (admin status
+ * moves locks, never stars), and every non-admin resolves through the
+ * same rank read as before.
+ *
+ * Fail-closed: a rank read that fails = no access, same posture as before
+ * (the admin leg is fail-closed inside the predicate itself).
  */
 export async function isShotCallerOrHigher(userId: string): Promise<boolean> {
+  if (await isAdminUserId(userId)) return true;
   try {
     const rank = await getCreatorRank(userId);
     return rank.stars >= SHOT_CALLER_TIER;

@@ -7,6 +7,7 @@ import { db } from "@workspace/db";
 import { customDomainsTable, creatorProfilesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
+import { skipIfAdmin } from "../lib/admin";
 
 const router = Router();
 
@@ -123,6 +124,12 @@ const createLimiter = rateLimit({
   limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  /* Owner exemption (standing rule, Oct 29, 2026; re-verified Nov 4):
+     per-user rate pacing is a customer POLICY limit, so an admin never
+     burns this bucket (the house skip, lib/admin.ts). The DNS-facing
+     verify/resolve limiters below deliberately carry NO skip — they
+     key on IP/domain and pace the third-party-facing surface. */
+  skip: skipIfAdmin,
   keyGenerator: (req) => req.userId ?? (req.ip ? ipKeyGenerator(req.ip) : "unknown"),
   message: { error: "Easy, shark — 10 new domains per hour is plenty. 🦈" },
 });
