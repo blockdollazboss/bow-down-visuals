@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, LayoutTemplate, Search } from "lucide-react";
 import {
   TEMPLATE_GALLERIES,
@@ -39,6 +40,7 @@ export function TemplatesDesk({
   isLight: boolean;
   onOpenStation?: (stationId: string, payload?: PanelPayload | null) => void;
 }) {
+  const { t } = useTranslation();
   const [gallery, setGallery] = useState<TemplateGalleryId>("videos");
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
@@ -75,20 +77,15 @@ export function TemplatesDesk({
     <div className="space-y-3" data-testid="world-templates-desk">
       <div>
         <h3 className={`flex items-center gap-2 text-base font-bold ${text}`}>
-          <LayoutTemplate className="h-4 w-4 text-[#C9A227]" /> Templates
+          <LayoutTemplate className="h-4 w-4 text-[#C9A227]" /> {t("worldDeskRemainder.tplTitle")}
         </h3>
-        <p className={`mt-0.5 text-xs ${muted}`}>
-          Every template gallery on the site, in one place. Pick a template and it opens at its own desk,
-          already loaded — videos at the Video Desk, hooks and captions at the Hook Desk, thumbnails at the
-          Thumbnail Desk.
-        </p>
+        <p className={`mt-0.5 text-xs ${muted}`}>{t("worldDeskRemainder.tplIntro")}</p>
         {gallery === "videos" ? (
           <p className={`mt-1 text-xs ${muted}`} data-testid="world-templates-desk-video-price">
-            Browsing is free. Applying a video template costs {applyCost} Visual Bucs — you're asked to
-            confirm before anything is charged, and a render that fails is refunded.
+            {t("worldDeskRemainder.tplVideoPrice", { cost: applyCost })}
           </p>
         ) : (
-          <p className={`mt-1 text-xs ${muted}`}>Browsing and opening are free — each desk prices its own makes.</p>
+          <p className={`mt-1 text-xs ${muted}`}>{t("worldDeskRemainder.tplFreeLine")}</p>
         )}
       </div>
 
@@ -115,7 +112,7 @@ export function TemplatesDesk({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search templates…"
+          placeholder={t("worldDeskRemainder.tplSearchPlaceholder")}
           className={`w-full bg-transparent text-sm outline-none ${text} placeholder:opacity-50`}
           data-testid="world-templates-desk-search"
         />
@@ -137,8 +134,7 @@ export function TemplatesDesk({
 
       {cards.length === 0 ? (
         <p className={`text-sm ${muted}`} data-testid="world-templates-desk-no-matches">
-          Nothing in this gallery matches that — try a different search or category. The full gallery is
-          still here behind the filters.
+          {t("worldDeskRemainder.tplNoMatches")}
         </p>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2" data-testid="world-templates-desk-cards">
@@ -167,7 +163,7 @@ export function TemplatesDesk({
                   className="mt-2 inline-flex items-center gap-1 rounded-lg bg-[#C9A227] px-3 py-1.5 text-xs font-bold text-black transition hover:bg-[#dbb52f]"
                   data-testid={`world-templates-desk-use-${card.slug}`}
                 >
-                  Use this template <ArrowRight className="h-3.5 w-3.5" />
+                  {t("worldDeskRemainder.tplUse")} <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               ) : null}
             </div>

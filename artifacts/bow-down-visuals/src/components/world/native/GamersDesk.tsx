@@ -24,6 +24,7 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Check, Clapperboard, Copy, Gamepad2, Loader2, Radio, Sparkles, Tag, Trophy,
 } from "lucide-react";
@@ -34,10 +35,23 @@ import { GAMERS_IDEAS_COST } from "@/lib/gamers-prices";
 import {
   GAMERS_IDEAS_PATH, GAMERS_CONTENT_TYPES, GAMERS_GAME_MAX, GAMERS_NICHE_MAX,
   GAMERS_TRENDING_GAMES, GAMERS_SAMPLE_PACK, GAMERS_TOOL_CARDS,
-  GAMERS_OUT_OF_CREDITS_LINE,
   gamersDraftReady, buildGamersIdeasBody, normalizeGamersPack, gamersOutOfCredits,
   type GamersContentType, type GamersIdeaPack,
 } from "@/lib/world/gamers-desk";
+
+const GAM_TYPE_KEY: Record<string, { label: string; blurb: string }> = {
+  stream: { label: "gamTypeStreamLabel", blurb: "gamTypeStreamBlurb" },
+  video: { label: "gamTypeVideoLabel", blurb: "gamTypeVideoBlurb" },
+  shorts: { label: "gamTypeShortsLabel", blurb: "gamTypeShortsBlurb" },
+};
+const GAM_TOOL_KEY: Record<string, { label: string; blurb: string }> = {
+  "Stream Overlays & Alerts": { label: "gamToolOverlaysLabel", blurb: "gamToolOverlaysBlurb" },
+  "Gaming Thumbnails": { label: "gamToolThumbnailsLabel", blurb: "gamToolThumbnailsBlurb" },
+  "Clip Highlights": { label: "gamToolClipsLabel", blurb: "gamToolClipsBlurb" },
+  "Gaming Intros & Outros": { label: "gamToolIntrosLabel", blurb: "gamToolIntrosBlurb" },
+  "Gaming Hook Generator": { label: "gamToolHooksLabel", blurb: "gamToolHooksBlurb" },
+  "Go Live Multistream": { label: "gamToolMultistreamLabel", blurb: "gamToolMultistreamBlurb" },
+};
 
 const goldBtn =
   "inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3.5 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 bdv-touch-target";
@@ -49,11 +63,12 @@ const inputCls = (isLight: boolean) =>
   }`;
 
 function CopyLine({ text, isLight }: { text: string; isLight: boolean }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <button
       type="button"
-      aria-label="Copy"
+      aria-label={t("worldDeskRemainder.gamCopyAria")}
       data-testid="world-gamers-copy"
       onClick={async () => {
         try {
@@ -86,6 +101,7 @@ function PackBlock({
   isSample: boolean;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <div data-testid={testId}>
       <div className="mb-2 flex items-center justify-between">
@@ -94,7 +110,7 @@ function PackBlock({
         </h4>
         {isSample && (
           <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-widest ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/40"}`}>
-            Sample
+            {t("worldDeskRemainder.gamSampleBadge")}
           </span>
         )}
       </div>
@@ -104,6 +120,7 @@ function PackBlock({
 }
 
 export function GamersDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -123,7 +140,7 @@ export function GamersDesk({ isLight }: { isLight: boolean }) {
   async function generate() {
     if (loading) return;
     if (!gamersDraftReady(game, niche)) {
-      setError("Tell us which game first — the AI needs a game to build around.");
+      setError(t("worldDeskRemainder.gamNeedGame"));
       return;
     }
     setLoading(true);
@@ -143,12 +160,12 @@ export function GamersDesk({ isLight }: { isLight: boolean }) {
         return;
       }
       const normalized = res.ok ? normalizeGamersPack(data) : null;
-      if (!normalized) throw new Error(apiErrorMessage(data, "Generation failed"));
+      if (!normalized) throw new Error(apiErrorMessage(data, t("worldDeskRemainder.gamGenerationFailed")));
       setPack(normalized);
       setIsSample(false);
       refreshProfile();
     } catch (e) {
-      setError(plainErrorText(e, "The generator hiccupped — try again."));
+      setError(plainErrorText(e, t("worldDeskRemainder.gamGeneratorHiccup")));
     } finally {
       setLoading(false);
     }
@@ -161,14 +178,14 @@ export function GamersDesk({ isLight }: { isLight: boolean }) {
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className={`flex items-center gap-2 text-sm font-black uppercase tracking-widest ${body}`}>
-          <Gamepad2 className="h-4 w-4 text-[#b8912c]" aria-hidden="true" /> Gamers Hub
+          <Gamepad2 className="h-4 w-4 text-[#b8912c]" aria-hidden="true" /> {t("worldDeskRemainder.gamTitle")}
         </h3>
         <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${muted}`}>
-          <Sparkles className="h-3 w-3" aria-hidden="true" /> AI powered · {GAMERS_IDEAS_COST} Visual Bucs per idea pack
+          <Sparkles className="h-3 w-3" aria-hidden="true" /> {t("worldDeskRemainder.gamPriceLine", { count: GAMERS_IDEAS_COST })}
         </span>
       </div>
       <p className={`mt-1 text-sm ${muted}`}>
-        The Home of Gamers idea engine — stream titles, video ideas and tags for your next run, without leaving the palace.
+        {t("worldDeskRemainder.gamIntro")}
       </p>
 
       {/* content type — the page's three, one pack shape each */}
@@ -189,18 +206,18 @@ export function GamersDesk({ isLight }: { isLight: boolean }) {
                   }`
             }
           >
-            {c.label}
+            {t(`worldDeskRemainder.${GAM_TYPE_KEY[c.key]?.label ?? "gamTypeStreamLabel"}`)}
           </button>
         ))}
       </div>
-      <p className={`mt-1.5 text-xs ${muted}`}>{activeType.blurb}</p>
+      <p className={`mt-1.5 text-xs ${muted}`}>{t(`worldDeskRemainder.${GAM_TYPE_KEY[activeType.key]?.blurb ?? "gamTypeStreamBlurb"}`)}</p>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <input
           value={game}
           onChange={(e) => setGame(e.target.value)}
-          placeholder="Which game?"
-          aria-label="Game"
+          placeholder={t("worldDeskRemainder.gamGamePlaceholder")}
+          aria-label={t("worldDeskRemainder.gamGameAria")}
           maxLength={GAMERS_GAME_MAX}
           className={inputCls(isLight)}
           data-testid="world-gamers-game"
@@ -208,8 +225,8 @@ export function GamersDesk({ isLight }: { isLight: boolean }) {
         <input
           value={niche}
           onChange={(e) => setNiche(e.target.value)}
-          placeholder="Niche or angle (optional)"
-          aria-label="Niche or angle"
+          placeholder={t("worldDeskRemainder.gamNichePlaceholder")}
+          aria-label={t("worldDeskRemainder.gamNicheAria")}
           maxLength={GAMERS_NICHE_MAX}
           className={inputCls(isLight)}
           data-testid="world-gamers-niche"
@@ -217,7 +234,7 @@ export function GamersDesk({ isLight }: { isLight: boolean }) {
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="world-gamers-trending">
-        <span className={`text-[11px] font-bold uppercase tracking-widest ${muted}`}>Trending</span>
+        <span className={`text-[11px] font-bold uppercase tracking-widest ${muted}`}>{t("worldDeskRemainder.gamTrending")}</span>
         {GAMERS_TRENDING_GAMES.map((g) => (
           <button
             key={g.name}
@@ -243,18 +260,18 @@ export function GamersDesk({ isLight }: { isLight: boolean }) {
       >
         {loading ? (
           <>
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Generating…
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> {t("worldDeskRemainder.gamGenerating")}
           </>
         ) : (
           <>
-            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Generate ideas · {GAMERS_IDEAS_COST} Visual Bucs
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("worldDeskRemainder.gamGenerate", { count: GAMERS_IDEAS_COST })}
           </>
         )}
       </button>
 
       {outOfCredits && (
         <p className={`mt-3 rounded-xl border px-3 py-2 text-sm ${isLight ? "border-amber-600/40 bg-amber-100/60 text-[#6B4E00]" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}`} data-testid="world-gamers-out-of-credits">
-          {GAMERS_OUT_OF_CREDITS_LINE}
+          {t("worldDeskRemainder.gamOutOfCredits")}
         </p>
       )}
       {error && !outOfCredits && (
@@ -265,7 +282,7 @@ export function GamersDesk({ isLight }: { isLight: boolean }) {
 
       {/* the pack — sample until the first real generation lands */}
       <div className="mt-4 space-y-4" data-testid="world-gamers-pack">
-        <PackBlock isLight={isLight} testId="world-gamers-titles" icon={<Radio className="h-3.5 w-3.5" />} title="Stream titles" isSample={isSample}>
+        <PackBlock isLight={isLight} testId="world-gamers-titles" icon={<Radio className="h-3.5 w-3.5" />} title={t("worldDeskRemainder.gamPackTitles")} isSample={isSample}>
           <ul className="space-y-1.5">
             {pack.titles.map((line, i) => (
               <li key={i} className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white/85"}`}>
@@ -275,7 +292,7 @@ export function GamersDesk({ isLight }: { isLight: boolean }) {
             ))}
           </ul>
         </PackBlock>
-        <PackBlock isLight={isLight} testId="world-gamers-ideas" icon={<Clapperboard className="h-3.5 w-3.5" />} title="Video ideas" isSample={isSample}>
+        <PackBlock isLight={isLight} testId="world-gamers-ideas" icon={<Clapperboard className="h-3.5 w-3.5" />} title={t("worldDeskRemainder.gamPackIdeas")} isSample={isSample}>
           <ul className="space-y-1.5">
             {pack.videoIdeas.map((line, i) => (
               <li key={i} className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-sm ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white/85"}`}>
@@ -285,7 +302,7 @@ export function GamersDesk({ isLight }: { isLight: boolean }) {
             ))}
           </ul>
         </PackBlock>
-        <PackBlock isLight={isLight} testId="world-gamers-tags" icon={<Tag className="h-3.5 w-3.5" />} title="Tags" isSample={isSample}>
+        <PackBlock isLight={isLight} testId="world-gamers-tags" icon={<Tag className="h-3.5 w-3.5" />} title={t("worldDeskRemainder.gamPackTags")} isSample={isSample}>
           <div className="flex flex-wrap gap-1.5">
             {pack.tags.map((tag, i) => (
               <span key={i} className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/70"}`}>
@@ -299,18 +316,18 @@ export function GamersDesk({ isLight }: { isLight: boolean }) {
       {/* the toolkit — the page's six cards as a browse shelf */}
       <div className={`mt-4 border-t pt-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
         <h4 className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest ${isLight ? "text-[#7A5A12]" : "text-[#d4af37]"}`}>
-          <Trophy className="h-3.5 w-3.5" aria-hidden="true" /> The Gamer Toolkit
+          <Trophy className="h-3.5 w-3.5" aria-hidden="true" /> {t("worldDeskRemainder.gamToolkitTitle")}
         </h4>
         <div className="mt-2 grid gap-2 sm:grid-cols-2" data-testid="world-gamers-toolkit">
           {GAMERS_TOOL_CARDS.map((card) => (
             <div key={card.label} className={`rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/60" : "border-white/10 bg-white/5"}`}>
-              <p className={`text-sm font-bold ${body}`}>{card.label}</p>
-              <p className={`mt-0.5 text-xs ${muted}`}>{card.blurb}</p>
+              <p className={`text-sm font-bold ${body}`}>{t(`worldDeskRemainder.${GAM_TOOL_KEY[card.label]?.label ?? "gamToolOverlaysLabel"}`)}</p>
+              <p className={`mt-0.5 text-xs ${muted}`}>{t(`worldDeskRemainder.${GAM_TOOL_KEY[card.label]?.blurb ?? "gamToolOverlaysBlurb"}`)}</p>
             </div>
           ))}
         </div>
         <p className={`mt-2 text-xs ${muted}`}>
-          Browse shelf — every tool's working home is its own desk in the palace; this desk is the idea engine.
+          {t("worldDeskRemainder.gamFooter")}
         </p>
       </div>
     </div>
