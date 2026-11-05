@@ -31,7 +31,7 @@ describe("the board-desk shape + the My Studio mount", () => {
 
 describe("the figures in-panel", () => {
   it("values ride the website's own formatter; toggles are aria-pressed switches", () => {
-    expect(desk).toContain("formatProofValue(figure.value)");
+    expect(desk).toContain("formatProofValue(figure.value, i18n.language)");
     expect(desk).toContain("aria-pressed={figure.visible}");
     expect(desk).toContain('t("worldSocialDesk.proofShowing")');
     expect(desk).toContain('t("worldSocialDesk.proofHidden")');
