@@ -138,6 +138,13 @@ import {
   sampleIdFromBeatSoundId,
   validateBeatSampleFile,
 } from "@/lib/beat-sample-library";
+import { registerBankSounds } from "@/lib/beat-sound-bank";
+
+/* Sound bank (Nov 5 render): register the 316 bank sounds into the
+ * registry once, at module load — before any sequencer render — so the
+ * track sound pickers show the real bank. Metadata only; each bank
+ * file is fetched + decoded lazily on first use. */
+registerBankSounds();
 import {
   beatMixerGraphSignature,
   buildBeatMixerGraph,
@@ -2325,8 +2332,8 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
   const chainSecs = arrangementDurationSec(arrangement, bpm, stepResolver);
   const chainLengthLabel = `${Math.floor(chainSecs / 60)}:${String(Math.round(chainSecs % 60)).padStart(2, "0")}`;
 
-  /* W2-L2: bank sounds registered by a manifest (empty until the sound
-   * bank lands — the picker shows that section honestly empty). */
+  /* Sound bank registered at module load (lib/beat-sound-bank) — the
+   * picker lists the real bank sounds from this registry read. */
   const bankSounds = listBeatSoundsBySource("bank");
 
   return (
@@ -2902,8 +2909,9 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
                 >{t(tr.labelKey, { defaultValue: tr.id })}</button>
                 </div>
                 {/* Sound picker (W2-L2): built-in voices, the sound bank
-                    (honestly empty until the bank lands), your loaded
-                    files, and loading your own file onto this track. */}
+                    (registered at module load — the real 316 sounds),
+                    your loaded files, and loading your own file onto
+                    this track. */}
                 <div className="flex items-center gap-1" data-testid={`beat-sound-picker-${tr.id}`}>
                   <select
                     value={soundId}

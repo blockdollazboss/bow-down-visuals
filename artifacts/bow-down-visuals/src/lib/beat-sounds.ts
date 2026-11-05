@@ -7,13 +7,13 @@
  *   • the CURRENT nine synthesized voices, registered as built-in entries
  *     (they wrap the existing synthHit recipes by key — the recipes are
  *     NOT rewritten or moved; playback still calls synthHit for them);
- *   • a "bank" source for the owner's rendered sound bank. The bank is
- *     POSTPONED until after the Nov 5 usage reset — NO bank entries ship
- *     in this lane and no audio files are generated or bundled. When the
- *     bank lands it calls registerBeatSoundManifest(entries) with its
- *     manifest (each entry carrying an audio URL) and consumers — the
- *     picker, the transport, the offline render — pick the sounds up
- *     with NO code changes;
+ *   • a "bank" source for the owner's rendered sound bank, registered
+ *     from lib/beat-sound-bank.ts (generated manifest: 316 original
+ *     synthesized sounds — six drum kits, tuned 808s/basses/melodic
+ *     sets, FX — served as static files under /sound-bank/). AiAudio
+ *     calls registerBankSounds() once at module load and consumers —
+ *     the picker, the transport, the offline render — pick the sounds
+ *     up with NO code changes;
  *   • an "upload" source for a signed-in creator's own audio file,
  *     decoded in the browser and held in memory (an object URL +
  *     AudioBuffer in this module). The assignment (the sound id +
@@ -31,15 +31,23 @@
  * Pure UI = FREE. No charges, no provider calls, no sound generation.
  */
 
-/** Drum categories — one per sequencer track, index-aligned with the
- *  TRACKS table in components/audio-studio/AiAudio.tsx (kick … crash). */
-export type BeatSoundKind =
+/** The nine sequencer track kinds — the only kinds a track, a built-in
+ *  synth voice or a creator upload may carry. */
+export type BeatTrackKind =
   | "kick" | "snare" | "clap" | "chat" | "ohat"
   | "b808" | "perc" | "shk" | "crash";
 
+/** Every kind a registry entry may carry: the nine track kinds plus
+ *  the bank-only kinds ("bass" | "melodic" | "fx") — they name what a
+ *  bank sound is, never a sequencer track. BEAT_TRACK_KINDS below
+ *  stays the nine track kinds and every track-indexed helper
+ *  (defaults, clamping, fallback) keeps working off it alone. Tuned
+ *  808s register as "b808", the 808 track's own kind. */
+export type BeatSoundKind = BeatTrackKind | "bass" | "melodic" | "fx";
+
 /** Track order — index i of a beat project grid/mixer/sound array is
  *  BEAT_TRACK_KINDS[i]. Mirrors TRACKS in components/audio-studio/AiAudio.tsx. */
-export const BEAT_TRACK_KINDS: BeatSoundKind[] = [
+export const BEAT_TRACK_KINDS: BeatTrackKind[] = [
   "kick", "snare", "clap", "chat", "ohat", "b808", "perc", "shk", "crash",
 ];
 
@@ -53,8 +61,8 @@ export interface BeatSoundEntry {
   kind: BeatSoundKind;
   source: BeatSoundSource;
   /** Synth voice key — the TrackId synthHit() switches on. Present iff
-   *  source === "synth". */
-  synthKey?: BeatSoundKind;
+   *  source === "synth". Always a track kind. */
+  synthKey?: BeatTrackKind;
   /** Audio URL for a sample-backed sound (bank asset or upload object
    *  URL). Present for bank entries; upload entries carry their session
    *  object URL. Sample playback rate/pitch is always 1.0 in this lane. */
@@ -62,14 +70,34 @@ export interface BeatSoundEntry {
   /** Playback gain multiplier applied on top of step velocity/accent.
    *  Defaults to 1. */
   defaultVolume: number;
+  /** Sound-bank metadata (bank entries only): the bank's own category,
+   *  so the registered bank keeps its shape — six drum kits, tuned
+   *  808/bass/melodic sets, FX — instead of flattening into track
+   *  kinds. Absent on synth voices and uploads. */
+  bankCategory?: "drums" | "808" | "bass" | "melodic" | "fx";
+  /** Drum kit a bank drum belongs to ("core" | "trap" | "drill" |
+   *  "boombap" | "afrobeats" | "house"). Bank drums only. */
+  kit?: string;
+  /** Instrument family of a tuned/FX bank sound ("keys", "sub", …). */
+  instrument?: string;
+  /** Named note of a tuned bank sound ("C#1", "A4", …). */
+  note?: string;
+  /** MIDI note number of a tuned bank sound (0–127). */
+  midi?: number;
 }
 
 export type BeatSoundManifestEntry = Omit<BeatSoundEntry, "defaultVolume"> & {
   defaultVolume?: number;
 };
 
-const KIND_SET = new Set<string>(BEAT_TRACK_KINDS);
+const KIND_SET = new Set<string>([
+  ...BEAT_TRACK_KINDS,
+  // Bank-only kinds (see BeatSoundKind) — valid on manifest entries,
+  // never on a sequencer track.
+  "bass", "melodic", "fx",
+]);
 const SOURCE_SET = new Set<string>(["synth", "bank", "upload"]);
+const BANK_CATEGORY_SET = new Set<string>(["drums", "808", "bass", "melodic", "fx"]);
 
 export function isBeatSoundKind(v: unknown): v is BeatSoundKind {
   return typeof v === "string" && KIND_SET.has(v);
@@ -79,7 +107,7 @@ export function isBeatSoundKind(v: unknown): v is BeatSoundKind {
  * Names are the track names the sequencer already shows. These entries
  * wrap the existing synthHit voices by key; no recipe lives here. */
 
-const BUILTIN_DEFS: Array<{ kind: BeatSoundKind; name: string }> = [
+const BUILTIN_DEFS: Array<{ kind: BeatTrackKind; name: string }> = [
   { kind: "kick", name: "Kick" },
   { kind: "snare", name: "Snare" },
   { kind: "clap", name: "Clap" },
@@ -100,7 +128,7 @@ export const BUILTIN_BEAT_SOUNDS: BeatSoundEntry[] = BUILTIN_DEFS.map((d) => ({
   defaultVolume: 1,
 }));
 
-export function defaultSoundIdForKind(kind: BeatSoundKind): string {
+export function defaultSoundIdForKind(kind: BeatTrackKind): string {
   return `synth:${kind}`;
 }
 
@@ -115,7 +143,7 @@ export function clampTrackIndex(trackIndex: number): number {
   return Math.max(0, Math.min(BEAT_TRACK_KINDS.length - 1, Math.floor(trackIndex)));
 }
 
-export function kindForTrack(trackIndex: number): BeatSoundKind {
+export function kindForTrack(trackIndex: number): BeatTrackKind {
   return BEAT_TRACK_KINDS[clampTrackIndex(trackIndex)]!;
 }
 
@@ -146,6 +174,10 @@ function normalizeManifestEntry(raw: unknown): BeatSoundEntry | null {
     typeof r.defaultVolume === "number" && Number.isFinite(r.defaultVolume)
       ? Math.min(1.5, Math.max(0, r.defaultVolume))
       : 1;
+  // Bank metadata passes through only when it validates — a malformed
+  // optional field is dropped, never a reason to reject the sound.
+  const shortText = (v: unknown): string | undefined =>
+    typeof v === "string" && v.trim() !== "" && v.length <= 60 ? v.trim() : undefined;
   return {
     id: r.id.trim(),
     name: r.name.trim().slice(0, 120),
@@ -153,6 +185,15 @@ function normalizeManifestEntry(raw: unknown): BeatSoundEntry | null {
     source: r.source,
     ...(typeof r.url === "string" && r.url.trim() !== "" ? { url: r.url.trim() } : {}),
     defaultVolume: vol,
+    ...(typeof r.bankCategory === "string" && BANK_CATEGORY_SET.has(r.bankCategory)
+      ? { bankCategory: r.bankCategory as BeatSoundEntry["bankCategory"] }
+      : {}),
+    ...(shortText(r.kit) ? { kit: shortText(r.kit) } : {}),
+    ...(shortText(r.instrument) ? { instrument: shortText(r.instrument) } : {}),
+    ...(shortText(r.note) ? { note: shortText(r.note) } : {}),
+    ...(typeof r.midi === "number" && Number.isInteger(r.midi) && r.midi >= 0 && r.midi <= 127
+      ? { midi: r.midi }
+      : {}),
   };
 }
 
@@ -211,8 +252,10 @@ export function listBeatSoundsBySource(source: BeatSoundSource): BeatSoundEntry[
   return listBeatSounds().filter((s) => s.source === source);
 }
 
-/** True once a bank manifest has been registered. False today — the
- *  picker renders its bank section honestly empty until then. */
+/** True once a bank manifest has been registered — AiAudio registers
+ *  the rendered bank at module load, so the picker's bank section is
+ *  populated wherever the sequencer is; before registration it renders
+ *  its bank section honestly empty. */
 export function hasBankSounds(): boolean {
   return listBeatSoundsBySource("bank").length > 0;
 }
