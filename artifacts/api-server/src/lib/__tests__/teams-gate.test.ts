@@ -19,6 +19,13 @@
  * real creator can actually produce are fed through the genuine ladder
  * math, so "can anyone ever pass?" is answered by computation, not by a
  * stubbed star count alone.
+ *
+ * OWNER EXEMPTION (added Nov 4, 2026, admin-unrestricted re-verification):
+ * the gate is a customer POLICY gate, so an admin account passes at any
+ * earned rank through the one fail-closed predicate (lib/admin.ts —
+ * isAdminUserId), per the standing Oct 29 rule. The final describe pins
+ * that leg; the predicate's own fail-closed proofs live in
+ * admin-unrestricted.test.ts.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "fs";
@@ -35,10 +42,23 @@ vi.mock("../creator-rank", async (importOriginal) => {
   return { ...actual, getCreatorRank: vi.fn() };
 });
 
+/* The admin predicate is seamed here the same way: the gate consumes
+   isAdminUserId from lib/admin.ts (the ONE fail-closed definition).
+   The predicate's own fail-closed behaviour (unset env → false,
+   lookup error → false) is pinned in admin-unrestricted.test.ts;
+   these tests pin the GATE's use of it. Default: not an admin, so
+   every pre-existing case above resolves exactly as before. */
+vi.mock("../admin", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return { ...actual, isAdminUserId: vi.fn() };
+});
+
 import { isShotCallerOrHigher } from "../teams";
 import { getCreatorRank, rankFromCounts, EMPTY_RANK_COUNTS, type RankCounts } from "../creator-rank";
+import { isAdminUserId } from "../admin";
 
 const mockedRank = vi.mocked(getCreatorRank);
+const mockedAdmin = vi.mocked(isAdminUserId);
 
 function rankWith(stars: number) {
   return { ...rankFromCounts(EMPTY_RANK_COUNTS), stars };
@@ -46,6 +66,8 @@ function rankWith(stars: number) {
 
 beforeEach(() => {
   mockedRank.mockReset();
+  mockedAdmin.mockReset();
+  mockedAdmin.mockResolvedValue(false);
 });
 
 describe("isShotCallerOrHigher — the earned-rank gate", () => {
@@ -116,5 +138,39 @@ describe("the gate's source — wiring pins", () => {
     expect(src).not.toContain("getUserPlanTier");
     expect(src).not.toContain('select("plan_tier")');
     expect(src).not.toContain("getSupabaseAdmin");
+  });
+
+  it("carries the owner exemption through the ONE admin predicate", () => {
+    expect(src).toContain('from "./admin"');
+    expect(src).toContain("isAdminUserId");
+  });
+});
+
+describe("owner exemption — the admin leg (Nov 4, 2026 re-verification)", () => {
+  /* Standing rule (Oct 29, 2026): an admin account carries no customer
+     restrictions. The ★4 gate locks a FEATURE, so it is a policy gate
+     and admins pass it — through the same fail-closed predicate every
+     other exemption uses. The ladder is untouched: these tests pin
+     that the admin leg short-circuits the LOCK, and that non-admins
+     resolve through the identical rank read as before (the describes
+     above, with the predicate defaulted to false). */
+
+  it("an admin passes at ★1 — and the ladder is never consulted", async () => {
+    mockedAdmin.mockResolvedValue(true);
+    mockedRank.mockResolvedValue(rankWith(1) as any);
+    await expect(isShotCallerOrHigher("owner-1")).resolves.toBe(true);
+    expect(mockedRank).not.toHaveBeenCalled();
+  });
+
+  it("an admin passes even when the rank read would fail", async () => {
+    mockedAdmin.mockResolvedValue(true);
+    mockedRank.mockRejectedValue(new Error("db gone"));
+    await expect(isShotCallerOrHigher("owner-1")).resolves.toBe(true);
+  });
+
+  it("the predicate is consulted with the caller's own id", async () => {
+    mockedRank.mockResolvedValue(rankWith(4) as any);
+    await expect(isShotCallerOrHigher("someone")).resolves.toBe(true);
+    expect(mockedAdmin).toHaveBeenCalledWith("someone");
   });
 });

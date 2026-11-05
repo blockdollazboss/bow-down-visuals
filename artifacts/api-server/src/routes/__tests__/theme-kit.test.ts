@@ -17,7 +17,7 @@
  *    claims at 0, insufficient → 402 with no charge.
  *  - look links: premium pack reports priceRespected + ruled price.
  */
-import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } from "vitest";
 import { randomUUID } from "crypto";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -27,6 +27,7 @@ import type { AddressInfo } from "node:net";
 
 const BUYER = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const CREATOR = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const ADMIN = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const PROFILE = "11111111-1111-4111-8111-111111111111";
 
 const h = vi.hoisted(() => ({
@@ -39,6 +40,7 @@ const h = vi.hoisted(() => ({
   refunds: [] as Array<{ userId: string; cost: number; action: string }>,
   voided: [] as string[],
   zipErrorMode: null as null | "mid-stream" | "pre-byte",
+  adminProfileEmails: new Map<string, string>(),
 }));
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -52,6 +54,37 @@ vi.mock("../../middlewares/require-auth", () => ({
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   return { ...actual, get db() { return h.db; } };
+});
+
+/* The profiles-email lookup the ONE admin predicate (lib/admin.ts
+   isAdminUserId) resolves identity through, seamed: the fake client
+   answers profiles.email by user id from h.adminProfileEmails.
+   Empty map (the default) = no profile found = not an admin, so
+   every pre-existing case in this file behaves exactly as before. */
+vi.mock("../../lib/supabase-admin", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    getSupabaseAdmin: () => ({
+      from: (_table: string) => {
+        let wantedId = "";
+        const chain: Record<string, unknown> = {
+          select: () => chain,
+          eq: (_col: string, value: string) => {
+            wantedId = value;
+            return chain;
+          },
+          single: async () => {
+            const email = h.adminProfileEmails.get(wantedId);
+            return email
+              ? { data: { email }, error: null }
+              : { data: null, error: { message: "profile not found (test stub)" } };
+          },
+        };
+        return chain;
+      },
+    }),
+  };
 });
 
 vi.mock("../../middlewares/require-tier", () => ({
@@ -571,5 +604,52 @@ describe("bundle zip failure mid-stream (Stack-100 #33)", () => {
     // ran to a real finish, not a truncation.
     expect(r.buf.includes(Buffer.from("PK\x05\x06"))).toBe(true);
     expect(r.buf.includes(Buffer.from("ios/GUIDED-SETUP.txt"))).toBe(true);
+  });
+});
+
+describe("owner exemption — premium packs pass as Elite (Nov 4, 2026 re-verification)", () => {
+  /* Standing rule (Oct 29, 2026): an admin account passes tier gates
+     without a paid row. Premium theme packs are included with Elite,
+     so the owner's packs unlock through the ONE fail-closed admin
+     predicate (lib/admin.ts isAdminUserId, seamed above at the
+     profiles-email lookup). The ADMIN caller below has NO purchase
+     row and NO subscription row — the unlock is the exemption, not a
+     record — and downloads never charge, which the first test also
+     pins. The predicate's own fail-closed proofs live in
+     lib/__tests__/admin-unrestricted.test.ts. */
+  const OWNER_EMAIL = "owner@example.test";
+  let savedAdminEmails: string | undefined;
+
+  beforeEach(() => {
+    savedAdminEmails = process.env["ADMIN_EMAILS"];
+    h.adminProfileEmails.set(ADMIN, OWNER_EMAIL);
+    h.userId = ADMIN;
+    h.userPlan = null;
+  });
+
+  afterEach(() => {
+    if (savedAdminEmails === undefined) delete process.env["ADMIN_EMAILS"];
+    else process.env["ADMIN_EMAILS"] = savedAdminEmails;
+    h.adminProfileEmails.clear();
+  });
+
+  it("an admin on no plan downloads a premium pack he never bought — 200, real kit, no charge", async () => {
+    process.env["ADMIN_EMAILS"] = OWNER_EMAIL;
+    const r = await callBytes("POST", "/theme-packs/kit/kings-set/download", { kind: "windows", mode: "dark" });
+    expect(r.status).toBe(200);
+    expect(r.buf.subarray(0, 4).toString("ascii")).toBe("MSCF");
+    expect(h.charges).toHaveLength(0);
+  });
+
+  it("with ADMIN_EMAILS unset, the same account is locked like any member (fail-closed)", async () => {
+    delete process.env["ADMIN_EMAILS"];
+    const r = await call("POST", "/theme-packs/kit/kings-set/download", { kind: "windows", mode: "dark" });
+    expect(r.status).toBe(403);
+  });
+
+  it("a profile email that is NOT on the allowlist stays locked", async () => {
+    process.env["ADMIN_EMAILS"] = "somebody-else@example.test";
+    const r = await call("POST", "/theme-packs/kit/kings-set/download", { kind: "windows", mode: "dark" });
+    expect(r.status).toBe(403);
   });
 });
