@@ -23,7 +23,7 @@ import {
 } from "@/lib/stream-controller";
 import { LayoutTemplate } from "lucide-react";
 import {
-  SCENE_PRESET_OPTIONS, SCENE_PRESET_APPLY_COMMAND, SCENE_PRESET_PICKER_NOTE,
+  SCENE_PRESET_OPTIONS, SCENE_PRESET_APPLY_COMMAND,
   scenePresetApplyArgs,
 } from "@/lib/world/live-desk";
 import { Wand2 } from "lucide-react";
@@ -89,11 +89,11 @@ import {
   fineTuneSlidersForMode, engineKindLabel, engineFallbackNote, engineDownFromStatus,
   backdropTileActive,
   CAMERA_EFFECT_OPTIONS, VOICE_EFFECT_OPTIONS, NOISE_CANCELLATION_OPTIONS,
-  NOISE_CANCELLATION_DEFAULT, CAMERA_VOICE_OPENING_NOTE,
+  NOISE_CANCELLATION_DEFAULT,
   noiseHeldNote, voiceEffectHeldNote, noiseStatusLine, deviceSwitchingAvailable,
   SOURCE_CHROMA_UPDATE_COMMAND, CAMERA_MODE_OPTIONS, CHROMA_SLIDERS,
   chromaSettingsFor, chromaWithSlider, chromaUpdateArgs, isChromaUpdateReady,
-  SOURCE_CHROMA_NOTE, type ChromaSettings,
+  type ChromaSettings,
   liveControllerStrings, liveEngineStrings,
 } from "@/lib/world/live-desk";
 import type { NoiseCancellationLevel } from "@/lib/stream-kit/voice-isolator";
@@ -505,7 +505,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
   const [ncLevel, setNcLevel] = useState<NoiseCancellationLevel>(NOISE_CANCELLATION_DEFAULT);
   const [voiceFx, setVoiceFx] = useState<string>("none");
   const [mirror, setMirror] = useState(false);
-  const [cvNote, setCvNote] = useState<string>(CAMERA_VOICE_OPENING_NOTE);
+  const [cvNote, setCvNote] = useState<string>(() => t("worldDeskRemainder.liveCvOpeningNote"));
   const [cameraId, setCameraId] = useState("");
   const [micId, setMicId] = useState("");
   const [cameras, setCameras] = useState<Array<{ deviceId: string; label: string }>>([]);
@@ -530,10 +530,10 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
       setDevicesError(
         err instanceof BackgroundChangerError
           ? err.message
-          : "This browser does not expose media devices.",
+          : t("worldDeskRemainder.liveErrNoMediaDevices"),
       );
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { void loadDevices(); }, [loadDevices]);
 
@@ -545,18 +545,18 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
   async function pickNcLevel(level: NoiseCancellationLevel) {
     setNcLevel(level);
     const changer = changerRef.current;
-    if (!changer) { setCvNote(noiseHeldNote(level)); return; }
+    if (!changer) { setCvNote(noiseHeldNote(level, { off: t("worldDeskRemainder.liveNoiseHeldIdle"), on: t("worldDeskRemainder.liveNoiseHeldLive") })); return; }
     await changer.setNoiseCancellation(level).catch((err) => {
-      setCvNote(err instanceof BackgroundChangerError ? err.message : "Noise cancellation couldn't be changed on this device.");
+      setCvNote(err instanceof BackgroundChangerError ? err.message : t("worldDeskRemainder.liveErrNoiseChange"));
     });
   }
 
   async function pickVoiceFx(id: string) {
     setVoiceFx(id);
     const changer = changerRef.current;
-    if (!changer) { setCvNote(voiceEffectHeldNote(id)); return; }
+    if (!changer) { setCvNote(voiceEffectHeldNote(id, { off: t("worldDeskRemainder.liveVoiceHeldPlain"), willBeOn: t("worldDeskRemainder.liveVoiceHeldNow") })); return; }
     await changer.setVoiceEffect(id).catch((err) => {
-      setCvNote(err instanceof BackgroundChangerError ? err.message : "That voice effect couldn't be applied on this device.");
+      setCvNote(err instanceof BackgroundChangerError ? err.message : t("worldDeskRemainder.liveErrVoiceApply"));
     });
   }
 
@@ -565,7 +565,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
     const changer = changerRef.current;
     if (!changer) return;
     await changer.switchCamera(deviceId || undefined).catch((err) => {
-      setCvNote(err instanceof BackgroundChangerError ? err.message : "That camera couldn't be switched to — check it is still connected.");
+      setCvNote(err instanceof BackgroundChangerError ? err.message : t("worldDeskRemainder.liveErrCameraSwitch"));
     });
   }
 
@@ -574,7 +574,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
     const changer = changerRef.current;
     if (!changer) return;
     await changer.switchMicrophone(deviceId || undefined).catch((err) => {
-      setCvNote(err instanceof BackgroundChangerError ? err.message : "That microphone couldn't be switched to — check it is still connected.");
+      setCvNote(err instanceof BackgroundChangerError ? err.message : t("worldDeskRemainder.liveErrMicSwitch"));
     });
   }
 
@@ -668,7 +668,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
       const changer = changerRef.current;
       await changer.start(cameraId || undefined);
       const feed = changer.getStream();
-      if (!feed) throw new Error("The camera kit produced no feed.");
+      if (!feed) throw new Error(t("worldDeskRemainder.liveErrNoFeed"));
       camRef.current = feed;
       if (videoRef.current) videoRef.current.srcObject = feed;
       setEngineDown(bgMode !== "none" && !!changer.engineError);
@@ -1043,14 +1043,12 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
               Every control drives the kit the Behind-me card owns. */}
           <LiveCard isLight={isLight} testId="world-live-camera-voice">
             <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-              <Sparkles className="h-4 w-4 text-[#d4af37]" /> Camera &amp; voice
+              <Sparkles className="h-4 w-4 text-[#d4af37]" /> {t("worldDeskRemainder.liveCvTitle")}
             </p>
             <p className={`mt-1 text-xs ${muted}`}>
-              The 2D studio&rsquo;s camera kit, right here: an effect on your picture, cleaning and effects on
-              your voice, and the camera and microphone you choose. Everything applies live — and picks you make
-              before starting are live from the first frame.
+              {t("worldDeskRemainder.liveCvIntro")}
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Camera and microphone">
+            <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label={t("worldDeskRemainder.liveCvAriaDevices")}>
               {deviceSwitchingAvailable(devicesError !== null) ? (
                 <>
                   <label className="flex min-w-[160px] flex-1 items-center gap-2 text-xs">
@@ -1059,10 +1057,10 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
                       value={cameraId}
                       onChange={(e) => void pickCamera(e.target.value)}
                       className={`${selectCls(isLight)} w-auto flex-1`}
-                      aria-label="Camera"
+                      aria-label={t("worldDeskRemainder.liveCvAriaCamera")}
                       data-testid="world-live-camera-select"
                     >
-                      <option value="">Default camera</option>
+                      <option value="">{t("worldDeskRemainder.liveCvDefaultCamera")}</option>
                       {cameras.map((c) => (
                         <option key={c.deviceId} value={c.deviceId}>{c.label}</option>
                       ))}
@@ -1074,10 +1072,10 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
                       value={micId}
                       onChange={(e) => void pickMic(e.target.value)}
                       className={`${selectCls(isLight)} w-auto flex-1`}
-                      aria-label="Microphone"
+                      aria-label={t("worldDeskRemainder.liveCvAriaMic")}
                       data-testid="world-live-mic-select"
                     >
-                      <option value="">Default microphone</option>
+                      <option value="">{t("worldDeskRemainder.liveCvDefaultMic")}</option>
                       {mics.map((m) => (
                         <option key={m.deviceId} value={m.deviceId}>{m.label}</option>
                       ))}
@@ -1086,7 +1084,7 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
                 </>
               ) : (
                 <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-live-devices-unavailable">
-                  Camera and microphone switching isn&rsquo;t available here — {devicesError} Your default camera and microphone are used.
+                  {t("worldDeskRemainder.liveCvUnavailable", { error: devicesError })}
                 </p>
               )}
               <label className="flex cursor-pointer items-center gap-2 text-sm">
@@ -1094,18 +1092,18 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
                   type="button"
                   role="switch"
                   aria-checked={mirror}
-                  aria-label="Mirror my view"
+                  aria-label={t("worldDeskRemainder.liveCvMirrorAria")}
                   onClick={pickMirror}
                   className={`relative h-6 w-10 shrink-0 rounded-full transition-colors bdv-touch-target ${mirror ? "bg-[#d4af37]" : isLight ? "bg-[#7A5A12]/30" : "bg-white/15"}`}
                   data-testid="world-live-mirror"
                 >
                   <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-all ${mirror ? "left-[18px]" : "left-0.5"}`} />
                 </button>
-                Mirror my view
+                {t("worldDeskRemainder.liveCvMirrorLabel")}
               </label>
             </div>
-            <p className={`mt-4 text-xs font-bold uppercase tracking-wider ${muted}`}>Camera effects</p>
-            <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Camera effect presets">
+            <p className={`mt-4 text-xs font-bold uppercase tracking-wider ${muted}`}>{t("worldDeskRemainder.liveCvCameraEffects")}</p>
+            <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label={t("worldDeskRemainder.liveCvAriaCameraPresets")}>
               {CAMERA_EFFECT_OPTIONS.map((e) => (
                 <button
                   key={e.id}
@@ -1119,8 +1117,8 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
                 </button>
               ))}
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label="Noise cancellation level">
-              <span className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Noise Cancellation</span>
+            <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label={t("worldDeskRemainder.liveCvAriaNoise")}>
+              <span className={`text-xs font-bold uppercase tracking-wider ${muted}`}>{t("worldDeskRemainder.liveCvNoiseCanc")}</span>
               {NOISE_CANCELLATION_OPTIONS.map(({ level, label }) => (
                 <button
                   key={level}
@@ -1130,12 +1128,12 @@ export function LiveStudioDesk({ isLight, onStreamChange }: { isLight: boolean; 
                   className={ncLevel === level ? goldBtn : chipBtn(isLight)}
                   data-testid={`world-live-nc-${level}`}
                 >
-                  {label}
+                  {level === "off" ? t("worldDeskRemainder.liveNoiseOff") : level === "on" ? t("worldDeskRemainder.liveNoiseOn") : t("worldDeskRemainder.liveNoiseMax")}
                 </button>
               ))}
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Voice effect presets">
-              <span className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Voice Effects</span>
+            <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label={t("worldDeskRemainder.liveCvAriaVoicePresets")}>
+              <span className={`text-xs font-bold uppercase tracking-wider ${muted}`}>{t("worldDeskRemainder.liveCvVoiceEffects")}</span>
               {VOICE_EFFECT_OPTIONS.map((e) => (
                 <button
                   key={e.id}
@@ -2448,7 +2446,7 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
             The panel below rides the deck box's dark-lock styling. */}
         <div className="mt-4 border-t border-white/10 pt-3" data-testid="world-live-scene-presets">
           <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#fbbf24]/80">
-            <LayoutTemplate className="h-3.5 w-3.5" /> Scene presets
+            <LayoutTemplate className="h-3.5 w-3.5" /> {t("worldDeskRemainder.liveSceneHeading")}
           </p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {SCENE_PRESET_OPTIONS.map((preset) => {
@@ -2469,14 +2467,14 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
                   <span className="block pr-5 text-sm font-bold leading-tight text-white/90">{preset.name}</span>
                   <span className="mt-0.5 block text-[11px] leading-snug text-white/50">{preset.blurb}</span>
                   <span className="mt-1 block text-[10px] font-black uppercase tracking-widest text-white/40">
-                    {isP ? "Sending…" : "Adds scene to Preview"}
+                    {isP ? t("worldDeskRemainder.liveSceneSending") : t("worldDeskRemainder.liveSceneAdds")}
                   </span>
                   {isP && <Loader2 className="absolute right-2.5 top-2.5 h-3.5 w-3.5 animate-spin text-white/70" />}
                 </button>
               );
             })}
           </div>
-          <p className="mt-2 text-[11px] leading-snug text-white/50">{SCENE_PRESET_PICKER_NOTE}</p>
+          <p className="mt-2 text-[11px] leading-snug text-white/50">{t("worldDeskRemainder.liveScenePickerNote")}</p>
         </div>
         {/* #95 — per-source chroma key: the running studio's
             Preview-scene camera sources with SourcesPanel's mode
@@ -2486,17 +2484,17 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
             published state — nothing optimistic, no keyer here. */}
         <div className="mt-4 border-t border-white/10 pt-3" data-testid="world-live-source-chroma">
           <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">
-            <Wand2 className="h-3.5 w-3.5" /> Source green screen
+            <Wand2 className="h-3.5 w-3.5" /> {t("worldDeskRemainder.liveChromaHeading")}
           </div>
           {state?.cameraSources === undefined ? (
             <p className="mt-2 text-xs leading-relaxed text-white/60" data-testid="world-live-chroma-unavailable">
               {state
-                ? "This studio isn't reporting its camera sources yet, so their green screens stay on the studio screen for now."
-                : "Waiting for the studio to report its camera sources…"}
+                ? t("worldDeskRemainder.liveChromaUnavailable")
+                : t("worldDeskRemainder.liveChromaWaiting")}
             </p>
           ) : state.cameraSources.length === 0 ? (
             <p className="mt-2 text-xs leading-relaxed text-white/60" data-testid="world-live-chroma-empty">
-              The studio&rsquo;s Preview scene has no camera sources to key.
+              {t("worldDeskRemainder.liveChromaEmpty")}
             </p>
           ) : (
             <div className="mt-3 space-y-4">
@@ -2509,7 +2507,7 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
                       <span className="min-w-0 flex-1 truncate text-xs font-medium text-white/85">{source.name}</span>
                       {sending ? (
                         <span className="flex items-center gap-1 text-[11px] text-white/50">
-                          <Loader2 className="h-3 w-3 animate-spin" /> Sending…
+                          <Loader2 className="h-3 w-3 animate-spin" /> {t("worldDeskRemainder.liveSceneSending")}
                         </span>
                       ) : null}
                     </div>
@@ -2527,14 +2525,14 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
                           }`}
                           data-testid={`world-live-chroma-mode-${option.mode}-${source.sourceId}`}
                         >
-                          {option.label}
+                          {option.mode === "kit" ? t("worldDeskRemainder.liveModeBackdrop") : t("worldDeskRemainder.liveModeGreen")}
                         </button>
                       ))}
                     </div>
                     {shown.cameraMode === "chroma" ? (
                       <div className="mt-2 space-y-2">
                         <label className="flex items-center justify-between gap-2 text-[11px] text-white/60">
-                          Key color
+                          {t("worldDeskRemainder.liveChromaKeyColor")}
                           <input
                             type="color"
                             value={shown.chroma.color.toLowerCase()}
@@ -2548,7 +2546,7 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
                         {CHROMA_SLIDERS.map((slider) => (
                           <label key={slider.key} className="block text-[11px] text-white/60">
                             <span className="flex items-center justify-between">
-                              <span>{slider.label}</span>
+                              <span>{slider.key === "similarity" ? t("worldDeskRemainder.liveChromaSimilarity") : t("worldDeskRemainder.liveChromaSmoothness")}</span>
                               <span>{Math.round(shown.chroma[slider.key] * 100)}</span>
                             </span>
                             <input
@@ -2575,7 +2573,7 @@ export function LiveControllerDesk({ isLight }: { isLight: boolean }) {
               })}
             </div>
           )}
-          <p className="mt-3 text-[11px] leading-relaxed text-white/45">{SOURCE_CHROMA_NOTE}</p>
+          <p className="mt-3 text-[11px] leading-relaxed text-white/45">{t("worldDeskRemainder.liveChromaNote")}</p>
         </div>
       </div>
     </div>
@@ -2769,10 +2767,11 @@ function SongRequestQueueRows({
   onSkip?: (r: SongRequestDto) => void;
   skippingId?: string | null;
 }) {
+  const { t } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   if (queue.length === 0) {
-    return <p className={`text-sm ${muted}`}>No requests yet. The line is empty.</p>;
+    return <p className={`text-sm ${muted}`}>{t("worldDeskRemainder.liveSrQueueEmpty")}</p>;
   }
   return (
     <ol className="space-y-2" data-testid="world-live-songreq-queue">
@@ -2796,14 +2795,14 @@ function SongRequestQueueRows({
             <span className="min-w-0 flex-1">
               <span className={`block truncate text-sm font-bold ${strong}`}>
                 {r.songTitle}
-                {mine && <span className="ml-2 text-xs font-black uppercase tracking-wider text-[#b8912c]">Yours</span>}
+                {mine && <span className="ml-2 text-xs font-black uppercase tracking-wider text-[#b8912c]">{t("worldDeskRemainder.liveSrYours")}</span>}
               </span>
               <span className={`block text-xs ${muted}`}>
-                Requested by {r.fan.displayName} · {formatBucs(r.amountVb)} tip
+                {t("worldDeskRemainder.liveSrRequestedBy", { name: r.fan.displayName, amount: formatBucs(r.amountVb) })}
               </span>
             </span>
             <span className={`shrink-0 text-xs font-bold ${r.status === "playing" ? "text-[#b8912c]" : muted}`}>
-              {requestStatusLabel(r)}
+              {requestStatusLabel(r, { playing: t("worldDeskRemainder.liveSrStatusPlaying"), inLinePosition: t("worldDeskRemainder.liveSrStatusInLinePosition"), inLine: t("worldDeskRemainder.liveSrStatusInLine"), played: t("worldDeskRemainder.liveSrStatusPlayed"), skippedRefunded: t("worldDeskRemainder.liveSrStatusSkippedRefunded"), skipped: t("worldDeskRemainder.liveSrStatusSkipped"), endedRefunded: t("worldDeskRemainder.liveSrStatusEndedRefunded"), ended: t("worldDeskRemainder.liveSrStatusEnded") })}
             </span>
             {onSkip && r.status === "queued" && (
               <button
@@ -2814,7 +2813,7 @@ function SongRequestQueueRows({
                 data-testid="world-live-songreq-skip"
               >
                 {skippingId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
-                Skip · refund
+                {t("worldDeskRemainder.liveSrSkipRefund")}
               </button>
             )}
           </li>
@@ -2827,7 +2826,7 @@ function SongRequestQueueRows({
 /* ── The fan face (the watch desk's request panel) ───────────────── */
 
 export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: boolean; streamId: string; isLive: boolean }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const authHeaders = useAuthHeaders();
   const [view, setView] = useState<SongRequestQueueView | null>(null);
@@ -2861,7 +2860,7 @@ export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: b
   const strong = isLight ? "text-[#2a1e07]" : "text-white";
   const heading = (
     <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-      <ListMusic className="h-4 w-4 text-[#d4af37]" /> Song requests
+      <ListMusic className="h-4 w-4 text-[#d4af37]" /> {t("worldDeskRemainder.liveSrPanelHeading")}
     </p>
   );
 
@@ -2869,7 +2868,7 @@ export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: b
     return (
       <div className="space-y-2" data-testid="world-live-songreq-panel">
         {heading}
-        <p className={`text-sm ${muted}`}>Song requests aren&rsquo;t switched on yet.</p>
+        <p className={`text-sm ${muted}`}>{t("worldDeskRemainder.liveSrDeskOff")}</p>
       </div>
     );
   }
@@ -2897,19 +2896,19 @@ export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: b
       });
       const d = (await res.json().catch(() => null)) as { error?: string; request?: SongRequestDto } | null;
       if (!res.ok) {
-        setError(apiErrorMessage(d, "That request didn't go through. Try again."));
+        setError(apiErrorMessage(d, t("worldDeskRemainder.liveSrRequestFailed")));
         return;
       }
       intentKeyRef.current = "";
       setNote(
         d?.request?.position
-          ? `You're in line — #${d.request.position} for “${d.request.songTitle}”.`
-          : "Your request is in the queue.",
+          ? t("worldDeskRemainder.liveSrInLineNote", { position: d.request.position, title: d.request.songTitle })
+          : t("worldDeskRemainder.liveSrQueuedNote"),
       );
       setAmount("");
       await load();
     } catch {
-      setError("That request didn't go through. Try again.");
+      setError(t("worldDeskRemainder.liveSrRequestFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -2928,11 +2927,11 @@ export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: b
       >
         {view.rules.requestsOpen ? (
           <>
-            {view.tipBounds && upfrontRuleLines(view.rules, view.tipBounds).map((line) => <p key={line}>{line}</p>)}
+            {view.tipBounds && upfrontRuleLines(view.rules, view.tipBounds, { catalogOnly: t("worldDeskRemainder.liveSrRuleCatalogOnly"), anySong: t("worldDeskRemainder.liveSrRuleAnySong"), minTip: t("worldDeskRemainder.liveSrRuleMinTip"), tipsRun: t("worldDeskRemainder.liveSrRuleTipsRun"), notRequestable: t("worldDeskRemainder.liveSrRuleNotRequestable") }).map((line) => <p key={line}>{line}</p>)}
             {view.refundCopy && <p className="mt-1 font-semibold">{view.refundCopy}</p>}
           </>
         ) : (
-          <p>Song requests are closed for this stream — the creator has them off.</p>
+          <p>{t("worldDeskRemainder.liveSrClosedLine")}</p>
         )}
       </div>
 
@@ -2942,48 +2941,48 @@ export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: b
         <div data-testid="world-live-songreq-form">
           {view.catalog.length === 0 ? (
             <p className={`text-sm ${muted}`}>
-              This creator hasn&rsquo;t added songs to their catalog yet — there&rsquo;s nothing to request yet.
+              {t("worldDeskRemainder.liveSrCatalogEmpty")}
             </p>
           ) : requestable.length === 0 ? (
-            <p className={`text-sm ${muted}`}>Every catalog song is out of requests for this stream.</p>
+            <p className={`text-sm ${muted}`}>{t("worldDeskRemainder.liveSrCatalogAllOut")}</p>
           ) : !user ? (
-            <p className={`text-sm ${muted}`}>Song requests are for signed-in members.</p>
+            <p className={`text-sm ${muted}`}>{t("worldDeskRemainder.liveSrSignedIn")}</p>
           ) : (
             <div className="flex flex-wrap items-end gap-2">
               <label className="min-w-[180px] flex-1">
-                <span className={`mb-1 block text-xs font-bold uppercase tracking-wider ${muted}`}>Song</span>
+                <span className={`mb-1 block text-xs font-bold uppercase tracking-wider ${muted}`}>{t("worldDeskRemainder.liveSrSongLabel")}</span>
                 <select
                   value={songId}
                   onChange={(e) => setSongId(e.target.value)}
                   className={`${selectCls(isLight)} w-full`}
                   data-testid="world-live-songreq-song"
-                  aria-label="Song to request"
+                  aria-label={t("worldDeskRemainder.liveSrAriaSong")}
                 >
-                  <option value="">Pick a song…</option>
+                  <option value="">{t("worldDeskRemainder.liveSrPickSong")}</option>
                   {view.catalog.map((s) => (
                     <option key={s.id} value={s.id} disabled={s.excluded}>
                       {s.title}
-                      {s.excluded ? " — not requestable" : ""}
+                      {s.excluded ? t("worldDeskRemainder.liveSrNotRequestableSuffix") : ""}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="w-32">
-                <span className={`mb-1 block text-xs font-bold uppercase tracking-wider ${muted}`}>Tip (VB)</span>
+                <span className={`mb-1 block text-xs font-bold uppercase tracking-wider ${muted}`}>{t("worldDeskRemainder.liveSrTipLabel")}</span>
                 <input
                   value={amount}
                   onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
                   inputMode="numeric"
                   placeholder={
                     view.rules.minTipVb !== null
-                      ? `Min ${view.rules.minTipVb.toLocaleString(i18n.language)}`
+                      ? t("worldDeskRemainder.liveSrTipPlaceholderMin", { min: view.rules.minTipVb.toLocaleString(i18n.language) })
                       : view.tipBounds
-                        ? `From ${view.tipBounds.minVb.toLocaleString(i18n.language)}`
-                        : "Tip"
+                        ? t("worldDeskRemainder.liveSrTipPlaceholderFrom", { min: view.tipBounds.minVb.toLocaleString(i18n.language) })
+                        : t("worldDeskRemainder.liveSrTipPlaceholder")
                   }
                   className={inputCls(isLight)}
                   data-testid="world-live-songreq-amount"
-                  aria-label="Tip amount in Visual Bucs"
+                  aria-label={t("worldDeskRemainder.liveSrAriaTip")}
                 />
               </label>
               <button
@@ -2994,7 +2993,7 @@ export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: b
                 data-testid="world-live-songreq-submit"
               >
                 {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CircleDollarSign className="h-3.5 w-3.5" />}
-                Request it
+                {t("worldDeskRemainder.liveSrRequestIt")}
               </button>
             </div>
           )}
@@ -3017,6 +3016,7 @@ export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: b
 /* ── The creator face (the queue desk) ───────────────────────────── */
 
 export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const authHeaders = useAuthHeaders();
   const [view, setView] = useState<SongRequestRulesView | null>(null);
   const [failed, setFailed] = useState(false);
@@ -3071,7 +3071,7 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
 
   async function saveRules() {
     if (!songRequestMinTipReady(minTip, view?.tipBounds ?? null)) {
-      setDeskError("That minimum tip doesn't fit the request range — clear it, or set an amount inside the range the panel shows.");
+      setDeskError(t("worldDeskRemainder.liveSrMinTipRangeError"));
       return;
     }
     setSaving(true);
@@ -3090,13 +3090,13 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
       });
       const d = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) {
-        setDeskError(apiErrorMessage(d, "Your rules couldn't be saved. Try again."));
+        setDeskError(apiErrorMessage(d, t("worldDeskRemainder.liveSrSaveFailed")));
         return;
       }
-      setSavedNote("Rules saved — fans see them up front on the request panel.");
+      setSavedNote(t("worldDeskRemainder.liveSrRulesSaved"));
       await loadRules();
     } catch {
-      setDeskError("Your rules couldn't be saved. Try again.");
+      setDeskError(t("worldDeskRemainder.liveSrSaveFailed"));
     } finally {
       setSaving(false);
     }
@@ -3113,10 +3113,10 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify({}),
       });
       const d = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) setDeskError(apiErrorMessage(d, "That didn't go through. Try again."));
+      if (!res.ok) setDeskError(apiErrorMessage(d, t("worldDeskRemainder.liveSrQueueActionFailed")));
       await loadQueue();
     } catch {
-      setDeskError("That didn't go through. Try again.");
+      setDeskError(t("worldDeskRemainder.liveSrQueueActionFailed"));
     } finally {
       setBusy(null);
     }
@@ -3132,10 +3132,10 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
         body: JSON.stringify({}),
       });
       const d = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) setDeskError(apiErrorMessage(d, "That skip didn't go through. Try again."));
+      if (!res.ok) setDeskError(apiErrorMessage(d, t("worldDeskRemainder.liveSrSkipFailed")));
       await loadQueue();
     } catch {
-      setDeskError("That skip didn't go through. Try again.");
+      setDeskError(t("worldDeskRemainder.liveSrSkipFailed"));
     } finally {
       setSkippingId(null);
     }
@@ -3150,27 +3150,27 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
   return (
     <div className="space-y-3" data-testid="world-live-song-requests">
       <p className={`inline-flex items-center gap-2 text-sm font-black ${strong}`}>
-        <ListMusic className="h-4 w-4 text-[#d4af37]" /> Song Requests — your queue desk
+        <ListMusic className="h-4 w-4 text-[#d4af37]" /> {t("worldDeskRemainder.liveSrDeskHeading")}
       </p>
       <p className={`text-sm ${muted}`}>
-        Set your rules before you go live — fans see them, and the refund deal, up front before anyone tips.{" "}
+        {t("worldDeskRemainder.liveSrDeskIntro")}{" "}
         {view?.refundCopy}
       </p>
 
       {failed ? (
         <p className={`text-sm ${muted}`}>
-          Your request rules couldn&rsquo;t load.{" "}
+          {t("worldDeskRemainder.liveSrRulesLoadFailed")}{" "}
           <button type="button" className="font-bold underline" onClick={() => void loadRules()}>
-            Try again
+            {t("worldDeskRemainder.liveSrTryAgain")}
           </button>
         </p>
       ) : view === null ? (
-        <NativeLoadingState isLight={isLight} message="Loading your request rules…" />
+        <NativeLoadingState isLight={isLight} message={t("worldDeskRemainder.liveSrLoadingRules")} />
       ) : (
         <>
           {!view.available && (
             <p className={`text-sm font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
-              Song requests aren&rsquo;t switched on yet — your rules will save once the queue is live.
+              {t("worldDeskRemainder.liveSrDeskOffLong")}
             </p>
           )}
 
@@ -3183,9 +3183,9 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
                 onChange={(e) => setOpen(e.target.checked)}
                 className="h-4 w-4 accent-[#d4af37]"
                 data-testid="world-live-songreq-rules-open"
-                aria-label="Requests open"
+                aria-label={t("worldDeskRemainder.liveSrRequestsOpenLabel")}
               />
-              Requests open
+              {t("worldDeskRemainder.liveSrRequestsOpenLabel")}
             </label>
             <label className="flex items-center gap-2.5 text-sm font-semibold select-none">
               <input
@@ -3194,29 +3194,29 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
                 onChange={(e) => setCatalogOnly(e.target.checked)}
                 className="h-4 w-4 accent-[#d4af37]"
                 data-testid="world-live-songreq-rules-catalog-only"
-                aria-label="Catalog only — requests must be my own songs"
+                aria-label={t("worldDeskRemainder.liveSrCatalogOnlyLabel")}
               />
-              Catalog only — requests must be my own songs
+              {t("worldDeskRemainder.liveSrCatalogOnlyLabel")}
             </label>
             <label className="block">
               <span className={`mb-1 block text-xs font-bold uppercase tracking-wider ${muted}`}>
-                Minimum tip (VB) — yours to set, blank = none
+                {t("worldDeskRemainder.liveSrMinTipLabel")}
               </span>
               <input
                 value={minTip}
                 onChange={(e) => setMinTip(e.target.value.replace(/[^0-9]/g, ""))}
                 inputMode="numeric"
-                placeholder="No minimum"
+                placeholder={t("worldDeskRemainder.liveSrMinTipPlaceholder")}
                 className={inputCls(isLight)}
                 data-testid="world-live-songreq-rules-min-tip"
-                aria-label="Minimum tip in Visual Bucs"
+                aria-label={t("worldDeskRemainder.liveSrMinTipAria")}
               />
             </label>
           </div>
 
           {view.catalog.length > 0 ? (
             <fieldset>
-              <legend className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Take songs out of requests</legend>
+              <legend className={`text-xs font-bold uppercase tracking-wider ${muted}`}>{t("worldDeskRemainder.liveSrExcludeLegend")}</legend>
               <div className="mt-2 flex flex-wrap gap-2">
                 {view.catalog.map((s) => (
                   <label
@@ -3237,23 +3237,23 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
                       onChange={() => toggleExcluded(s.id)}
                       className="h-3.5 w-3.5 accent-red-400"
                       data-testid={`world-live-songreq-exclude-${s.id}`}
-                      aria-label={`Take ${s.title} out of requests`}
+                      aria-label={t("worldDeskRemainder.liveSrExcludeAria", { title: s.title })}
                     />
                     {s.title}
-                    {excluded.includes(s.id) ? " · out" : ""}
+                    {excluded.includes(s.id) ? t("worldDeskRemainder.liveSrOutSuffix") : ""}
                   </label>
                 ))}
               </div>
             </fieldset>
           ) : (
             <p className={`text-sm ${muted}`}>
-              You have no songs in your catalog yet — once you add songs, fans can request them here.
+              {t("worldDeskRemainder.liveSrYourCatalogEmpty")}
             </p>
           )}
 
           <div className="flex items-center gap-3">
             <button type="button" onClick={() => void saveRules()} disabled={saving} className={goldBtn} data-testid="world-live-songreq-rules-save">
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Save rules
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} {t("worldDeskRemainder.liveSrSaveRules")}
             </button>
             {savedNote && (
               <span className="text-xs font-semibold text-emerald-500" role="status">
@@ -3266,7 +3266,7 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
           {liveStreamId ? (
             <div className="border-t border-[#C9A84C]/20 pt-4" data-testid="world-live-songreq-live-controls">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className={`mr-auto text-sm font-black uppercase tracking-wider ${strong}`}>Live queue</h3>
+                <h3 className={`mr-auto text-sm font-black uppercase tracking-wider ${strong}`}>{t("worldDeskRemainder.liveSrLiveQueueHeading")}</h3>
                 <button
                   type="button"
                   onClick={() => void queueAction(SONG_REQUEST_PLAY_NEXT_PATH(liveStreamId), "play")}
@@ -3275,7 +3275,7 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
                   data-testid="world-live-songreq-play-next"
                 >
                   {busy === "play" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                  Play next
+                  {t("worldDeskRemainder.liveSrPlayNext")}
                 </button>
                 <button
                   type="button"
@@ -3285,7 +3285,7 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
                   data-testid="world-live-songreq-close"
                 >
                   {busy === "close" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <SkipForward className="h-3.5 w-3.5" />}
-                  Close queue · refund the line
+                  {t("worldDeskRemainder.liveSrCloseQueueRefund")}
                 </button>
               </div>
               <div className="mt-3">
@@ -3299,8 +3299,7 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
             </div>
           ) : (
             <p className={`border-t border-[#C9A84C]/20 pt-4 text-sm ${muted}`}>
-              You&rsquo;re not live right now — your queue controls appear here while you stream. Ending a stream
-              automatically refunds every request that never played.
+              {t("worldDeskRemainder.liveSrNotLiveNote")}
             </p>
           )}
           {deskError && (

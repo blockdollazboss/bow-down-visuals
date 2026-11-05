@@ -808,22 +808,34 @@ export const CAMERA_VOICE_OPENING_NOTE = "Noise cancellation starts with the cam
  *  verbatim: with no changer running yet, the pick is held and the
  *  creator is told what it means — off passes the mic through
  *  unchanged; on/max start with the camera. */
-export function noiseHeldNote(level: NoiseCancellationLevel): string {
-  return level === "off"
-    ? "Noise cancellation is off — your mic will pass through unchanged."
-    : "Noise cancellation will start with the camera.";
+export interface NoiseHeldStrings {
+  off: string;
+  on: string;
 }
 
-/** BroadcastStudio's held-pick note for a voice effect, verbatim:
- *  "none" reads as effects off; any other pick names the effect
- *  that will be on the creator's voice when the camera starts. An
- *  id the kit doesn't carry names nothing — the desk only renders
- *  the kit's own library, so this fallback is unreachable from the
- *  card; it exists so the helper never invents a label. */
-export function voiceEffectHeldNote(effectId: string): string {
-  if (effectId === "none") return "Voice effects are off.";
+export const NOISE_HELD_DEFAULTS: NoiseHeldStrings = {
+  off: "Noise cancellation is off — your mic will pass through unchanged.",
+  on: "Noise cancellation will start with the camera.",
+};
+
+export function noiseHeldNote(level: NoiseCancellationLevel, strings: NoiseHeldStrings = NOISE_HELD_DEFAULTS): string {
+  return level === "off" ? strings.off : strings.on;
+}
+
+export interface VoiceEffectHeldStrings {
+  off: string;
+  willBeOn: string;
+}
+
+export const VOICE_EFFECT_HELD_DEFAULTS: VoiceEffectHeldStrings = {
+  off: "Voice effects are off.",
+  willBeOn: "{{label}} will be on your voice when you start the camera.",
+};
+
+export function voiceEffectHeldNote(effectId: string, strings: VoiceEffectHeldStrings = VOICE_EFFECT_HELD_DEFAULTS): string {
+  if (effectId === "none") return strings.off;
   const label = VOICE_EFFECTS.find((e) => e.id === effectId)?.label;
-  return label ? `${label} will be on your voice when you start the camera.` : "Voice effects are off.";
+  return label ? strings.willBeOn.replace("{{label}}", label) : strings.off;
 }
 
 /** The live noise truth, spoken the kit's way: the VoiceIsolator's

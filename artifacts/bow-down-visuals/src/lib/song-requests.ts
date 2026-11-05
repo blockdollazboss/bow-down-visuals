@@ -41,35 +41,69 @@ export interface QueuePayload {
   queue: SongRequestDto[];
 }
 
+export interface UpfrontRuleStrings {
+  catalogOnly: string;
+  anySong: string;
+  minTip: string;
+  tipsRun: string;
+  notRequestable: string;
+}
+
+export const UPFRONT_RULE_DEFAULTS: UpfrontRuleStrings = {
+  catalogOnly: "Requests come from this creator's own catalog — the songs listed below.",
+  anySong: "Any song in the house catalog can be requested.",
+  minTip: "This creator's minimum tip for a request is {{amount}}.",
+  tipsRun: "Request tips run {{min}}–{{max}}.",
+  notRequestable: "Songs marked “not requestable” have been taken out of requests by the creator.",
+};
+
 /** The up-front rule lines, built ONLY from what the server sent. */
-export function upfrontRuleLines(rules: RequestRulesDto, tipBounds: { minVb: number; maxVb: number }): string[] {
+export function upfrontRuleLines(rules: RequestRulesDto, tipBounds: { minVb: number; maxVb: number }, strings: UpfrontRuleStrings = UPFRONT_RULE_DEFAULTS): string[] {
   const lines: string[] = [];
-  lines.push(
-    rules.catalogOnly
-      ? "Requests come from this creator's own catalog — the songs listed below."
-      : "Any song in the house catalog can be requested.",
-  );
+  lines.push(rules.catalogOnly ? strings.catalogOnly : strings.anySong);
   if (rules.minTipVb !== null) {
-    lines.push(`This creator's minimum tip for a request is ${formatBucs(rules.minTipVb)}.`);
+    lines.push(strings.minTip.replace("{{amount}}", formatBucs(rules.minTipVb)));
   }
-  lines.push(`Request tips run ${formatBucs(tipBounds.minVb)}–${formatBucs(tipBounds.maxVb)}.`);
+  lines.push(strings.tipsRun.replace("{{min}}", formatBucs(tipBounds.minVb)).replace("{{max}}", formatBucs(tipBounds.maxVb)));
   if (rules.excludedSongIds.length > 0) {
-    lines.push("Songs marked “not requestable” have been taken out of requests by the creator.");
+    lines.push(strings.notRequestable);
   }
   return lines;
 }
 
-export function requestStatusLabel(r: SongRequestDto): string {
+export interface RequestStatusStrings {
+  playing: string;
+  inLinePosition: string;
+  inLine: string;
+  played: string;
+  skippedRefunded: string;
+  skipped: string;
+  endedRefunded: string;
+  ended: string;
+}
+
+export const REQUEST_STATUS_DEFAULTS: RequestStatusStrings = {
+  playing: "Now playing",
+  inLinePosition: "#{{position}} in line",
+  inLine: "In line",
+  played: "Played",
+  skippedRefunded: "Skipped by the creator · tip refunded",
+  skipped: "Skipped by the creator",
+  endedRefunded: "Stream ended before it played · tip refunded",
+  ended: "Stream ended before it played",
+};
+
+export function requestStatusLabel(r: SongRequestDto, strings: RequestStatusStrings = REQUEST_STATUS_DEFAULTS): string {
   switch (r.status) {
     case "playing":
-      return "Now playing";
+      return strings.playing;
     case "queued":
-      return r.position ? `#${r.position} in line` : "In line";
+      return r.position ? strings.inLinePosition.replace("{{position}}", String(r.position)) : strings.inLine;
     case "played":
-      return "Played";
+      return strings.played;
     case "skipped":
-      return r.refunded ? "Skipped by the creator · tip refunded" : "Skipped by the creator";
+      return r.refunded ? strings.skippedRefunded : strings.skipped;
     case "expired":
-      return r.refunded ? "Stream ended before it played · tip refunded" : "Stream ended before it played";
+      return r.refunded ? strings.endedRefunded : strings.ended;
   }
 }
