@@ -19,6 +19,7 @@
  * deleted — a plan never points at a show that moved.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
@@ -40,9 +41,7 @@ import {
   TOUR_OPTIMIZE_PATH,
   TOUR_DATES_PATH,
   TOUR_STATUSES,
-  TOUR_STATUS_LABELS,
   TOUR_TRANSPORTS,
-  TOUR_TRANSPORT_LABELS,
   buildOptimizePayload,
   buildTourDatePayload,
   draftOfDate,
@@ -57,10 +56,21 @@ import {
 } from "@/lib/world/tour-desk";
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
 
-const ESTIMATE_DISCLAIMER =
-  "Routing and budget figures are AI estimates based on typical indie-tour costs — not quotes or guarantees. Confirm real prices before you book anything.";
+const TOUR_STATUS_KEY: Record<string, string> = {
+  upcoming: "tourStatusUpcoming",
+  confirmed: "tourStatusConfirmed",
+  completed: "tourStatusCompleted",
+  cancelled: "tourStatusCancelled",
+};
+const TOUR_TRANSPORT_KEY: Record<string, string> = {
+  van: "tourTransportVan",
+  bus: "tourTransportBus",
+  flights: "tourTransportFlights",
+  mixed: "tourTransportMixed",
+};
 
 export function TourDesk({ isLight }: { isLight: boolean }) {
+  const { t, i18n } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
   const { refreshProfile } = useAuth();
   const deskHeaders = useDeskAuthHeaders();
@@ -142,7 +152,16 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
 
   async function saveDate() {
     if (saving) return;
-    const problem = tourDraftError(draft);
+    const problem = tourDraftError(draft, {
+      cityRequired: t("worldDeskRemainder.tourErrCityRequired"),
+      cityTooLong: t("worldDeskRemainder.tourErrCityTooLong"),
+      venueRequired: t("worldDeskRemainder.tourErrVenueRequired"),
+      venueTooLong: t("worldDeskRemainder.tourErrVenueTooLong"),
+      dateRequired: t("worldDeskRemainder.tourErrDateRequired"),
+      dateInvalid: t("worldDeskRemainder.tourErrDateInvalid"),
+      notesTooLong: t("worldDeskRemainder.tourErrNotesTooLong"),
+      pickStatus: t("worldDeskRemainder.tourErrPickStatus"),
+    });
     if (problem) {
       setNote(problem);
       return;
@@ -158,13 +177,13 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
       });
       const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(apiErrorMessage(data, "Couldn't save the tour date — try again."));
+        throw new Error(apiErrorMessage(data, t("worldDeskRemainder.tourSaveFailed")));
       }
       resetComposer();
       invalidatePlan();
       await load();
     } catch (err) {
-      setNote(plainErrorText(err, "Couldn't save the tour date — try again."));
+      setNote(plainErrorText(err, t("worldDeskRemainder.tourSaveFailed")));
     } finally {
       setSaving(false);
     }
@@ -183,10 +202,10 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
       const res = await fetch(tourDatePath(d.id), { method: "DELETE", headers });
       if (!res.ok) {
         const data: unknown = await res.json().catch(() => ({}));
-        throw new Error(apiErrorMessage(data, "Couldn't delete the tour date — try again."));
+        throw new Error(apiErrorMessage(data, t("worldDeskRemainder.tourDeleteFailed")));
       }
     } catch (err) {
-      setNote(plainErrorText(err, "Couldn't delete the tour date — try again."));
+      setNote(plainErrorText(err, t("worldDeskRemainder.tourDeleteFailed")));
       void load();
     } finally {
       setDeletingId(null);
@@ -214,10 +233,10 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
         return;
       }
       if (!res.ok) {
-        throw new Error(apiErrorMessage(data, "The tour optimizer hiccupped — any charge was refunded. Try again."));
+        throw new Error(apiErrorMessage(data, t("worldDeskRemainder.tourOptimizerRefunded")));
       }
       const built = planOfResponse(data, dates.map((d) => d.id));
-      if (!built) throw new Error("The plan came back unusable — your Visual Bucs were refunded. Try again.");
+      if (!built) throw new Error(t("worldDeskRemainder.tourPlanUnusable"));
       const newPlan: TourPlan = {
         stops: built.stops,
         budget: built.budget,
@@ -228,7 +247,7 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
       saveTourPlan(newPlan);
       refreshProfile();
     } catch (err) {
-      setOptimizeError(plainErrorText(err, "The tour optimizer hiccupped — try again."));
+      setOptimizeError(plainErrorText(err, t("worldDeskRemainder.tourOptimizerHiccup")));
     } finally {
       setOptimizing(false);
     }
@@ -236,37 +255,36 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
 
   const budgetRows = plan
     ? [
-        { label: "Travel", value: plan.budget.travel },
-        { label: "Lodging", value: plan.budget.lodging },
-        { label: "Venues", value: plan.budget.venues },
-        { label: "Crew", value: plan.budget.crew },
-        { label: "Food per-diem", value: plan.budget.food_per_diem },
-        { label: "Contingency", value: plan.budget.contingency },
+        { label: t("worldDeskRemainder.tourBudgetTravel"), value: plan.budget.travel },
+        { label: t("worldDeskRemainder.tourBudgetLodging"), value: plan.budget.lodging },
+        { label: t("worldDeskRemainder.tourBudgetVenues"), value: plan.budget.venues },
+        { label: t("worldDeskRemainder.tourBudgetCrew"), value: plan.budget.crew },
+        { label: t("worldDeskRemainder.tourBudgetFood"), value: plan.budget.food_per_diem },
+        { label: t("worldDeskRemainder.tourBudgetContingency"), value: plan.budget.contingency },
       ]
     : [];
 
   return (
     <div className="space-y-3" data-testid="world-tour-desk">
       <div>
-        <p className={`text-base font-black ${strong}`}>Tour Planner</p>
+        <p className={`text-base font-black ${strong}`}>{t("worldDeskRemainder.tourTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          Your tour dates, kept here and on the website — one list. Dates are free; the AI route +
-          budget plan is {TOUR_OPTIMIZE_COST.toLocaleString()} Visual Bucs.
+          {t("worldDeskRemainder.tourIntro", { cost: TOUR_OPTIMIZE_COST.toLocaleString(i18n.language) })}
         </p>
       </div>
 
       {failed ? (
         <div data-testid="world-tour-desk-failed">
-          <p className={errCls}>Your tour dates wouldn&rsquo;t load. Give it another shot.</p>
+          <p className={errCls}>{t("worldDeskRemainder.tourLoadFailed")}</p>
           <button type="button" className={`mt-2 ${chipCls(false)}`} onClick={() => void load()}>
-            Try again
+            {t("worldDeskRemainder.tourTryAgain")}
           </button>
         </div>
       ) : dates === null ? (
-        <p className={`text-sm ${muted}`}>Loading your tour dates…</p>
+        <p className={`text-sm ${muted}`}>{t("worldDeskRemainder.tourLoading")}</p>
       ) : dates.length === 0 ? (
         <p className={`text-sm ${muted}`} data-testid="world-tour-desk-empty">
-          No tour dates yet — add your first stop below.
+          {t("worldDeskRemainder.tourEmpty")}
         </p>
       ) : (
         <ul className="space-y-1.5">
@@ -280,7 +298,7 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
                 <span className={`text-sm font-bold ${strong}`}>{d.city}</span>
                 <span className={`text-xs ${muted}`}>{d.venue}</span>
                 <span className={chipCls(d.status === "confirmed")}>
-                  {TOUR_STATUS_LABELS[d.status]}
+                  {t(`worldDeskRemainder.${TOUR_STATUS_KEY[d.status] ?? "tourStatusUpcoming"}`)}
                 </span>
                 <span className="ml-auto flex gap-1.5">
                   <button
@@ -289,7 +307,7 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
                     data-testid={`world-tour-desk-edit-${d.id}`}
                     onClick={() => startEdit(d)}
                   >
-                    Edit
+                    {t("worldDeskRemainder.tourEdit")}
                   </button>
                   <button
                     type="button"
@@ -298,11 +316,11 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
                     disabled={deletingId !== null}
                     onClick={() => void deleteDate(d)}
                   >
-                    {deletingId === d.id ? "Deleting…" : "Delete"}
+                    {deletingId === d.id ? t("worldDeskRemainder.tourDeleting") : t("worldDeskRemainder.tourDelete")}
                   </button>
                 </span>
               </div>
-              <p className={`mt-0.5 text-xs ${muted}`}>{showDateTimeLabel(d.show_date)}</p>
+              <p className={`mt-0.5 text-xs ${muted}`}>{showDateTimeLabel(d.show_date, i18n.language)}</p>
               {d.notes ? <p className={`mt-0.5 text-xs ${muted}`}>{d.notes}</p> : null}
             </li>
           ))}
@@ -310,29 +328,29 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
       )}
 
       <div className={`rounded-xl border p-3 ${cardCls}`} data-testid="world-tour-desk-composer">
-        <p className={`text-sm font-bold ${strong}`}>{editingId ? "Edit this stop" : "Add a stop"}</p>
+        <p className={`text-sm font-bold ${strong}`}>{editingId ? t("worldDeskRemainder.tourEditStop") : t("worldDeskRemainder.tourAddStop")}</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           <input
             data-testid="world-tour-desk-city"
-            aria-label="City"
+            aria-label={t("worldDeskRemainder.tourCity")}
             className={inputCls}
             value={draft.city}
             maxLength={120}
             onChange={(e) => patchDraft({ city: e.target.value })}
-            placeholder="City"
+            placeholder={t("worldDeskRemainder.tourCity")}
           />
           <input
             data-testid="world-tour-desk-venue"
-            aria-label="Venue"
+            aria-label={t("worldDeskRemainder.tourVenue")}
             className={inputCls}
             value={draft.venue}
             maxLength={200}
             onChange={(e) => patchDraft({ venue: e.target.value })}
-            placeholder="Venue"
+            placeholder={t("worldDeskRemainder.tourVenue")}
           />
           <input
             data-testid="world-tour-desk-show-date"
-            aria-label="Show date and time"
+            aria-label={t("worldDeskRemainder.tourShowDateAria")}
             type="datetime-local"
             className={inputCls}
             value={draft.showDateLocal}
@@ -340,15 +358,15 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
           />
           <input
             data-testid="world-tour-desk-notes"
-            aria-label="Notes (optional)"
+            aria-label={t("worldDeskRemainder.tourNotesAria")}
             className={inputCls}
             value={draft.notes}
             maxLength={1000}
             onChange={(e) => patchDraft({ notes: e.target.value })}
-            placeholder="Notes — load-in, contacts…"
+            placeholder={t("worldDeskRemainder.tourNotesPlaceholder")}
           />
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Show status">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label={t("worldDeskRemainder.tourShowStatusAria")}>
           {TOUR_STATUSES.map((s) => (
             <button
               key={s}
@@ -359,7 +377,7 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
               className={chipCls(draft.status === s)}
               onClick={() => patchDraft({ status: s })}
             >
-              {TOUR_STATUS_LABELS[s]}
+              {t(`worldDeskRemainder.${TOUR_STATUS_KEY[s] ?? "tourStatusUpcoming"}`)}
             </button>
           ))}
         </div>
@@ -371,11 +389,11 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
             disabled={saving}
             onClick={() => void saveDate()}
           >
-            {saving ? "Saving…" : editingId ? "Save changes" : "Add date"}
+            {saving ? t("worldDeskRemainder.tourSaving") : editingId ? t("worldDeskRemainder.tourSaveChanges") : t("worldDeskRemainder.tourAddDate")}
           </button>
           {editingId ? (
             <button type="button" className={chipCls(false)} onClick={resetComposer}>
-              Cancel edit
+              {t("worldDeskRemainder.tourCancelEdit")}
             </button>
           ) : null}
         </div>
@@ -385,26 +403,25 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
       </div>
 
       <div className={`rounded-xl border p-3 ${cardCls}`} data-testid="world-tour-desk-optimizer">
-        <p className={`text-sm font-bold ${strong}`}>Routing + budget</p>
+        <p className={`text-sm font-bold ${strong}`}>{t("worldDeskRemainder.tourRoutingTitle")}</p>
         <p className={`text-xs ${muted}`}>
-          The smart order for your stops plus a full budget breakdown —{" "}
-          {TOUR_OPTIMIZE_COST.toLocaleString()} Visual Bucs per plan.
+          {t("worldDeskRemainder.tourOptimizerLine", { cost: TOUR_OPTIMIZE_COST.toLocaleString(i18n.language) })}
         </p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           <input
             data-testid="world-tour-desk-home-base"
-            aria-label="Home base city"
+            aria-label={t("worldDeskRemainder.tourHomeBase")}
             className={inputCls}
             value={homeBase}
             maxLength={120}
             onChange={(e) => setHomeBase(e.target.value)}
-            placeholder="Home base city"
+            placeholder={t("worldDeskRemainder.tourHomeBase")}
           />
           <label className={`flex items-center gap-2 text-xs ${muted}`}>
-            Crew size
+            {t("worldDeskRemainder.tourCrewSize")}
             <input
               data-testid="world-tour-desk-crew"
-              aria-label="Crew size"
+              aria-label={t("worldDeskRemainder.tourCrewSize")}
               type="number"
               min={1}
               max={50}
@@ -414,7 +431,7 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
             />
           </label>
         </div>
-        <div className="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Transport">
+        <div className="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("worldDeskRemainder.tourTransportAria")}>
           {TOUR_TRANSPORTS.map((tp) => (
             <button
               key={tp}
@@ -425,7 +442,7 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
               className={chipCls(transport === tp)}
               onClick={() => setTransport(tp)}
             >
-              {TOUR_TRANSPORT_LABELS[tp]}
+              {t(`worldDeskRemainder.${TOUR_TRANSPORT_KEY[tp] ?? "tourTransportVan"}`)}
             </button>
           ))}
         </div>
@@ -442,28 +459,30 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
             onClick={() => void optimize()}
           >
             {optimizing
-              ? "Planning the route…"
-              : `Optimize ${dates?.length ?? 0} stops · ${TOUR_OPTIMIZE_COST.toLocaleString()} Visual Bucs`}
+              ? t("worldDeskRemainder.tourPlanning")
+              : t("worldDeskRemainder.tourOptimizeButton", {
+                  count: dates?.length ?? 0,
+                  cost: TOUR_OPTIMIZE_COST.toLocaleString(i18n.language),
+                })}
           </button>
           {dates && dates.length < 2 ? (
-            <span className={`text-xs ${muted}`}>Add at least 2 tour dates before running the AI optimizer.</span>
+            <span className={`text-xs ${muted}`}>{t("worldDeskRemainder.tourNeedTwo")}</span>
           ) : null}
         </div>
         {outOfCredits ? (
           <p className={`mt-2 ${errCls}`}>
-            You&rsquo;re out of Visual Bucs — top up at the Visual Buc Packs desk in the Treasury and
-            the optimizer is ready again.
+            {t("worldDeskRemainder.tourOutOfCredits")}
           </p>
         ) : null}
         {optimizeError ? (
           <p className={`mt-2 ${errCls}`} data-testid="world-tour-desk-optimize-error">{optimizeError}</p>
         ) : null}
-        <p className={`mt-2 text-xs ${muted}`}>{ESTIMATE_DISCLAIMER}</p>
+        <p className={`mt-2 text-xs ${muted}`}>{t("worldDeskRemainder.tourDisclaimer")}</p>
       </div>
 
       {plan ? (
         <div className={`rounded-xl border p-3 ${cardCls}`} data-testid="world-tour-desk-plan">
-          <p className={`text-sm font-bold ${strong}`}>Your route, in order</p>
+          <p className={`text-sm font-bold ${strong}`}>{t("worldDeskRemainder.tourRouteTitle")}</p>
           <ol className="mt-2 space-y-1.5">
             {plan.stops.map((s) => (
               <li key={s.date_id} className="text-sm">
@@ -471,13 +490,13 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
                   {s.order}. {s.city}
                 </span>{" "}
                 <span className={muted}>
-                  — {s.venue} · {showDateTimeLabel(s.show_date)}
+                  — {s.venue} · {showDateTimeLabel(s.show_date, i18n.language)}
                 </span>
                 {s.travel_from_previous ? (
                   <p className={`text-xs ${muted}`}>
                     {s.travel_from_previous}
                     {s.estimated_travel_miles != null && s.estimated_travel_miles > 0
-                      ? ` · ~${s.estimated_travel_miles.toLocaleString("en-US")} mi`
+                      ? t("worldDeskRemainder.tourTravelSuffix", { miles: s.estimated_travel_miles.toLocaleString(i18n.language) })
                       : ""}
                   </p>
                 ) : null}
@@ -485,7 +504,7 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
             ))}
           </ol>
           <p className={`mt-2 text-xs ${muted}`}>
-            About {totalMiles(plan.stops).toLocaleString("en-US")} miles of travel in this order.
+            {t("worldDeskRemainder.tourAboutMiles", { miles: totalMiles(plan.stops).toLocaleString(i18n.language) })}
           </p>
           {plan.routing_notes ? (
             <p className={`mt-2 whitespace-pre-wrap text-sm ${muted}`}>{plan.routing_notes}</p>
@@ -494,12 +513,12 @@ export function TourDesk({ isLight }: { isLight: boolean }) {
             {budgetRows.map((row) => (
               <p key={row.label} className={`flex justify-between text-sm ${muted}`}>
                 <span>{row.label}</span>
-                <span>{formatMoney(row.value, plan.budget.currency)}</span>
+                <span>{formatMoney(row.value, plan.budget.currency, i18n.language)}</span>
               </p>
             ))}
             <p className={`flex justify-between border-t pt-1 text-sm font-bold ${strong} ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
-              <span>Estimated total</span>
-              <span>{formatMoney(plan.budget.total, plan.budget.currency)}</span>
+              <span>{t("worldDeskRemainder.tourEstimatedTotal")}</span>
+              <span>{formatMoney(plan.budget.total, plan.budget.currency, i18n.language)}</span>
             </p>
           </div>
           {plan.budget.notes.length > 0 ? (

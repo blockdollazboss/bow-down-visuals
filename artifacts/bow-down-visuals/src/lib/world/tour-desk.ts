@@ -151,15 +151,37 @@ export function draftOfDate(d: TourDate): TourDateDraft {
  * the field ceilings); the page's validateTourDateForm covers
  * the same ground in its words.
  */
-export function tourDraftError(draft: TourDateDraft): string | null {
-  if (!draft.city.trim()) return "City is required.";
-  if (draft.city.trim().length > TOUR_CITY_MAX) return "City is too long.";
-  if (!draft.venue.trim()) return "Venue is required.";
-  if (draft.venue.trim().length > TOUR_VENUE_MAX) return "Venue is too long.";
-  if (!draft.showDateLocal) return "Show date is required.";
-  if (Number.isNaN(new Date(draft.showDateLocal).getTime())) return "Show date is invalid.";
-  if (draft.notes.length > TOUR_NOTES_MAX) return "Notes are too long.";
-  if (!(TOUR_STATUSES as readonly string[]).includes(draft.status)) return "Pick a status.";
+export interface TourDraftErrorStrings {
+  cityRequired: string;
+  cityTooLong: string;
+  venueRequired: string;
+  venueTooLong: string;
+  dateRequired: string;
+  dateInvalid: string;
+  notesTooLong: string;
+  pickStatus: string;
+}
+
+export const TOUR_DRAFT_ERROR_DEFAULTS: TourDraftErrorStrings = {
+  cityRequired: "City is required.",
+  cityTooLong: "City is too long.",
+  venueRequired: "Venue is required.",
+  venueTooLong: "Venue is too long.",
+  dateRequired: "Show date is required.",
+  dateInvalid: "Show date is invalid.",
+  notesTooLong: "Notes are too long.",
+  pickStatus: "Pick a status.",
+};
+
+export function tourDraftError(draft: TourDateDraft, s: TourDraftErrorStrings = TOUR_DRAFT_ERROR_DEFAULTS): string | null {
+  if (!draft.city.trim()) return s.cityRequired;
+  if (draft.city.trim().length > TOUR_CITY_MAX) return s.cityTooLong;
+  if (!draft.venue.trim()) return s.venueRequired;
+  if (draft.venue.trim().length > TOUR_VENUE_MAX) return s.venueTooLong;
+  if (!draft.showDateLocal) return s.dateRequired;
+  if (Number.isNaN(new Date(draft.showDateLocal).getTime())) return s.dateInvalid;
+  if (draft.notes.length > TOUR_NOTES_MAX) return s.notesTooLong;
+  if (!(TOUR_STATUSES as readonly string[]).includes(draft.status)) return s.pickStatus;
   return null;
 }
 

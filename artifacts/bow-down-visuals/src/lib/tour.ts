@@ -53,10 +53,10 @@ export function showDateLabel(iso: string): string {
 }
 
 /** "Sat, Nov 15 · 8:00 PM" for datetime-local prefill or display. */
-export function showDateTimeLabel(iso: string): string {
+export function showDateTimeLabel(iso: string, locale: string = "en-US"): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("en-US", {
+  return d.toLocaleDateString(locale, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -93,15 +93,15 @@ export function daysUntil(iso: string, now: number = Date.now()): number {
 }
 
 /** Format a money value with 0 decimals. */
-export function formatMoney(amount: number, currency: string = "USD"): string {
+export function formatMoney(amount: number, currency: string = "USD", locale: string = "en-US"): string {
   try {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat(locale, {
       style: "currency",
       currency,
       maximumFractionDigits: 0,
     }).format(amount);
   } catch {
-    return `${currency} ${Math.round(amount).toLocaleString("en-US")}`;
+    return `${currency} ${Math.round(amount).toLocaleString(locale)}`;
   }
 }
 
