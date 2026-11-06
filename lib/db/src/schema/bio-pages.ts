@@ -70,6 +70,9 @@ export const BIO_THEMES = [
   { key: "golden-marble", label: "Golden Marble", blurb: "Warm golden marble with antique gold — the house light look" },
   { key: "ivory-pearl", label: "Ivory Pearl", blurb: "Soft ivory pearl with champagne gold lines" },
   { key: "rose-champagne", label: "Rose Champagne", blurb: "Blush marble with rose-gold shine" },
+  { key: "cobalt-stage", label: "Cobalt Stage", blurb: "Deep cobalt with silver-gold trim — cool stage light" },
+  { key: "mint-atelier", label: "Mint Atelier", blurb: "Pale mint with antique gold — a fresh, tailored light look" },
+  { key: "amber-dusk", label: "Amber Dusk", blurb: "Burnt amber over espresso — sunset turned after-dark" },
 ] as const;
 export const BIO_THEME_KEYS = new Set(BIO_THEMES.map((t) => t.key));
 

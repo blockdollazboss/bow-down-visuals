@@ -12433,7 +12433,13 @@
       "ivoryPearl": "Ivory Pearl",
       "ivoryPearlBlurb": "Soft ivory pearl with champagne gold lines",
       "roseChampagne": "Rose Champagne",
-      "roseChampagneBlurb": "Blush marble with rose-gold shine"
+      "roseChampagneBlurb": "Blush marble with rose-gold shine",
+      "cobaltStage": "Cobalt Stage",
+      "cobaltStageBlurb": "Deep cobalt with silver-gold trim — cool stage light",
+      "mintAtelier": "Mint Atelier",
+      "mintAtelierBlurb": "Pale mint with antique gold — a fresh, tailored light look",
+      "amberDusk": "Amber Dusk",
+      "amberDuskBlurb": "Burnt amber over espresso — sunset turned after-dark"
     },
     "links": {
       "title": "Links",

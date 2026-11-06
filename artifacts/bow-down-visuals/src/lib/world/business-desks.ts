@@ -868,6 +868,9 @@ export const BIO_PAGE_THEMES = [
   { key: "golden-marble", label: "Golden Marble" },
   { key: "ivory-pearl", label: "Ivory Pearl" },
   { key: "rose-champagne", label: "Rose Champagne" },
+  { key: "cobalt-stage", label: "Cobalt Stage" },
+  { key: "mint-atelier", label: "Mint Atelier" },
+  { key: "amber-dusk", label: "Amber Dusk" },
 ] as const;
 
 export const BIO_SOCIAL_FIELDS = [
