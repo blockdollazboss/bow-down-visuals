@@ -1,5 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Trophy, Timer, Users, Loader2, Crown, ChevronRight, Rocket,
@@ -89,22 +89,28 @@ export default function ContestHubWidget() {
   const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [data, setData] = useState<WeeklyData | null>(null);
+  /* Honest load failure (Stack-200 D2 A17): a failed weekly read used
+     to be indistinguishable from loading — the widget simply never
+     rendered, and a live contest looked like no contest. */
+  const [loadFailed, setLoadFailed] = useState(false);
   const [prefsOff, setPrefsOff] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [launching, setLaunching] = useState(false);
   const [launchError, setLaunchError] = useState<string | null>(null);
   const isLight = useIsLightTheme();
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/challenges/weekly");
-        if (res.ok && !cancelled) setData(await res.json());
-      } catch { /* non-fatal: the widget simply doesn't render */ }
-    })();
-    return () => { cancelled = true; };
+  const loadWeekly = useCallback(async () => {
+    try {
+      const res = await fetch("/api/challenges/weekly");
+      if (!res.ok) throw new Error("weekly load failed");
+      setData(await res.json());
+      setLoadFailed(false);
+    } catch {
+      setLoadFailed(true);
+    }
   }, []);
+
+  useEffect(() => { void loadWeekly(); }, [loadWeekly]);
 
   /* Retention toggle: only hide when explicitly switched off. Defaults to
      on, so the widget renders even before the prefs plumbing lands. */
@@ -174,7 +180,22 @@ export default function ContestHubWidget() {
   };
 
   if (prefsOff) return null;
-  if (!data) return null; // loading or failed — the widget never blocks the page
+  if (!data && loadFailed) {
+    return (
+      <section className={cn(
+        "rounded-2xl border px-4 py-3 flex items-center gap-3",
+        isLight ? "border-[#c9a84c]/30 bg-[#F7F1E3]" : "border-primary/25 bg-[#14100a]",
+      )} data-testid="contest-hub-load-error">
+        <Trophy className="h-5 w-5 text-white/30 shrink-0" />
+        <span className="flex-1 text-xs font-bold text-white/50">{t("weekly_contest.load_error")}</span>
+        <button type="button" onClick={() => void loadWeekly()}
+          className="text-[11px] font-bold text-amber-200/80 hover:text-amber-200 transition-colors bdv-touch-target">
+          {t("weekly_contest.load_retry")}
+        </button>
+      </section>
+    );
+  }
+  if (!data) return null; // still loading — the widget never blocks the page
 
   const enterHref = challenge
     ? (user

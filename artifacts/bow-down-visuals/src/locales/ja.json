@@ -14960,7 +14960,9 @@
     "launch_week": "今週のコンテストを開始",
     "while_you_wait": "待つ間に：殿堂を閲覧",
     "last_week": "先週の王冠",
-    "see_all": "すべて見る"
+    "see_all": "すべて見る",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "catalogVault": {
     "title": "カタログVault",

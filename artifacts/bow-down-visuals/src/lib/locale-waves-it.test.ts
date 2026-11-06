@@ -680,6 +680,8 @@ const W6_LEGIT: string[] = [
   "promote.results.cta",
   "promote.tones.hype",
   "weekly_contest.hall_of_fame",
+  "weekly_contest.load_error",
+  "weekly_contest.load_retry",
   "coach.tabTeam",
   "coach.cadencePlaceholder",
   "coach.crossLinkBrand",

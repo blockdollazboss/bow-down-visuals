@@ -3311,7 +3311,9 @@
     "launch_week": "Launch this week's contest",
     "while_you_wait": "While you wait: browse the hall of fame",
     "last_week": "Last week's crowns",
-    "see_all": "See all"
+    "see_all": "See all",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "contracts": {
     "paste_the_full_contract_here_cop": "Paste the full contract here — copy it from the PDF or document they sent you. The more complete, the better the analysis.",

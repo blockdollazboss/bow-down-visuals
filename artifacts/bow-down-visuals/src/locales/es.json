@@ -15326,7 +15326,9 @@
     "launch_week": "Lanzar el concurso de esta semana",
     "while_you_wait": "Mientras esperas: explora el salón de la fama",
     "last_week": "Las coronas de la semana pasada",
-    "see_all": "Ver todo"
+    "see_all": "Ver todo",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "catalogVault": {
     "title": "Bóveda del Catálogo",

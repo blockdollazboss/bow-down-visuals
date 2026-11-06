@@ -14986,7 +14986,9 @@
     "launch_week": "Lançar o concurso desta semana",
     "while_you_wait": "Enquanto espera: navegue no hall da fama",
     "last_week": "Coroas da semana passada",
-    "see_all": "Ver tudo"
+    "see_all": "Ver tudo",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "catalogVault": {
     "title": "Cofre do Catálogo",

@@ -15326,7 +15326,9 @@
     "launch_week": "Lancer le concours de cette semaine",
     "while_you_wait": "En attendant : parcourez le temple de la renommée",
     "last_week": "Les couronnes de la semaine dernière",
-    "see_all": "Tout voir"
+    "see_all": "Tout voir",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "catalogVault": {
     "title": "Coffre du Catalogue",

@@ -14964,7 +14964,9 @@
     "launch_week": "इस सप्ताह की प्रतियोगिता लॉन्च करें",
     "while_you_wait": "जब आप प्रतीक्षा करें: हॉल ऑफ़ फ़ेम ब्राउज़ करें",
     "last_week": "पिछले सप्ताह के ताज",
-    "see_all": "सब देखें"
+    "see_all": "सब देखें",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "catalogVault": {
     "title": "कैटलॉग वॉल्ट",

@@ -356,6 +356,8 @@ const W5_ALLOW = new Set([
   "retention.awayDigest.bowRace",
   "retention.quests_progress",
   "retention.streak_load_error",
+  "weekly_contest.load_error",
+  "weekly_contest.load_retry",
   "retention.streak_retry",
   "scriptWriter.platformTiktok",
   "scriptWriter.platformYoutube",

@@ -15454,7 +15454,9 @@
     "launch_week": "أطلق مسابقة هذا الأسبوع",
     "while_you_wait": "أثناء الانتظار: تصفح قاعة المشاهير",
     "last_week": "تيجان الأسبوع الماضي",
-    "see_all": "عرض الكل"
+    "see_all": "عرض الكل",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "catalogVault": {
     "title": "خزنة الكتالوج",

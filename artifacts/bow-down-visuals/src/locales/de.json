@@ -15393,7 +15393,9 @@
     "launch_week": "Wettbewerb dieser Woche starten",
     "while_you_wait": "Während du wartest: Stöbere in der Ruhmeshalle",
     "last_week": "Kronen der letzten Woche",
-    "see_all": "Alle ansehen"
+    "see_all": "Alle ansehen",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "qrLogin": {
     "title": "Scannen zum Anmelden",

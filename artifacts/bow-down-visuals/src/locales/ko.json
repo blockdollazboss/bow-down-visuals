@@ -15023,7 +15023,9 @@
     "launch_week": "이번 주 콘테스트 시작",
     "while_you_wait": "기다리는 동안: 명예의 전당 탐색",
     "last_week": "지난주 왕관",
-    "see_all": "모두 보기"
+    "see_all": "모두 보기",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "catalogVault": {
     "title": "카탈로그 볼트",

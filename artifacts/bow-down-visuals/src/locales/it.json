@@ -15136,7 +15136,9 @@
     "launch_week": "Lancia il concorso di questa settimana",
     "while_you_wait": "Nell'attesa: esplora la hall of fame",
     "last_week": "Le corone della settimana scorsa",
-    "see_all": "Vedi tutto"
+    "see_all": "Vedi tutto",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "privacy": {
     "contactSupport": "Contatti / Assistenza",

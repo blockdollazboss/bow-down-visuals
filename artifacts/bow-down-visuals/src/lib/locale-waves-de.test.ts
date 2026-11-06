@@ -993,6 +993,8 @@ const W6_LEGIT_IDENTICAL = new Set([
   "websiteBuilder.templatePressKit",
   "websiteBuilder.versionLabel",
   "weekly_contest.entries",
+  "weekly_contest.load_error",
+  "weekly_contest.load_retry",
 ]);
 describe("de W6 namespaces (Stack-28 appendix)", () => {
   it("every en key exists non-empty in de and no untranslated residue remains", () => checkWave(W6_NAMESPACES, W6_LEGIT_IDENTICAL));

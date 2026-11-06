@@ -692,6 +692,8 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "retention.prefs.dailyDropEnabled.title",
   "retention.quests_progress",
   "retention.streak_load_error",
+  "weekly_contest.load_error",
+  "weekly_contest.load_retry",
   "retention.streak_retry",
   "scriptWriter.audienceLabel",
   "scriptWriter.lengthDeep",
