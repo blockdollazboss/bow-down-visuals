@@ -23,6 +23,7 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
 /** Surface id → the file that must render its finale, and how. */
 const SURFACE_FILES: Record<string, { file: string; needle: string }> = {
   create: { file: "../pages/create.tsx", needle: '<CreationFinale surfaceId="create" />' },
+  "cover-art": { file: "../pages/cover-art.tsx", needle: '<CreationFinale surfaceId="cover-art" />' },
   "video-editor": { file: "../components/editor/sections/ExportSection.tsx", needle: 'label: "Video Editor"' },
   "audio-studio": { file: "../pages/audio-studio.tsx", needle: '<CreationFinale surfaceId="audio-studio" />' },
   "thumbnail-studio": { file: "../pages/thumbnail-studio.tsx", needle: '<CreationFinale surfaceId="thumbnail-studio" />' },
@@ -64,6 +65,14 @@ describe("the pre-wired publish door", () => {
     expect(params.get("from")).toBe("/books");
     expect(params.get("type")).toBeNull();
   });
+
+  it("cover art's door names Cover Art and points at its own route (stack200 C1)", () => {
+    const href = buildCreationPublishHref(creationSurface("cover-art"));
+    const params = new URLSearchParams(href.slice("/publish?".length));
+    expect(params.get("from")).toBe("/cover-art");
+    expect(params.get("fromLabel")).toBe("Cover Art");
+    expect(params.get("type")).toBeNull();
+  });
 });
 
 describe("the finale's four doors", () => {
@@ -85,6 +94,15 @@ describe("finale reachability — one pin per surface", () => {
       expect(src).toContain(pin.needle);
     });
   }
+
+  it("the Create shell stands its generic finale down while the coverart panel is active (stack200 C1)", () => {
+    /* Cover Art renders its own registered finale inside the panel;
+       if the shell also rendered the "create" finale, the coverart
+       panel would show two stacked finales. */
+    const src = read("../pages/create.tsx");
+    expect(src).toContain('panel !== "coverart"');
+    expect(src).toContain('<CreationFinale surfaceId="create" />');
+  });
 
   it("the component itself renders all four chain doors from the seam", () => {
     const src = read("../components/player/CreationFinale.tsx");
