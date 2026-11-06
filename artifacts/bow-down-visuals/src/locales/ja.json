@@ -24249,5 +24249,10 @@
     "loading": "Loading offers…",
     "loadError": "Your offers couldn't load — buyers' offers may be waiting on you. Check your connection and try again.",
     "retry": "Try again"
+  },
+  "priorityDm": {
+    "settingsLoading": "Loading your priority DM settings…",
+    "settingsLoadError": "Your priority DM settings couldn't load, so nothing here is guessed — your real settings are unchanged and nothing can be saved until they load. Try again.",
+    "retry": "Try again"
   }
 }
