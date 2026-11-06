@@ -99,6 +99,27 @@ export const PHOTO_DEVELOP_PRESETS: readonly PhotoDevelopPreset[] = [
     ["#d98a4a", "#2a1428"],
     { exposure: -0.35, brightness: -6, contrast: 14, temperature: 34, hue: -6, saturation: 8, lightness: -8 },
   ),
+  /* ── Stack 200 upgrade wave (Lane U2): the two looks the shelf had
+     no answer for. Every existing grade is warm or neutral-warm;
+     teal-shadow is the first cool recipe (teal pushed into the
+     shadows, skin-safe desaturation). And black-gold-mono's whole
+     identity is its gold tone — silver-noir is the neutral mono:
+     fully desaturated with the temperature dead at zero, blacks
+     crushed harder. ── */
+  look(
+    "teal-shadow",
+    "Teal Shadow",
+    "Cool teal shadows, cinematic calm — the first cold grade on the shelf.",
+    ["#7fd4c9", "#0d3038"],
+    { exposure: -0.1, brightness: -2, contrast: 24, temperature: -38, hue: 8, saturation: -8, lightness: -4 },
+  ),
+  look(
+    "silver-noir",
+    "Silver Noir",
+    "True silver black-and-white — crushed blacks, no gold tone at all.",
+    ["#e8e8ec", "#101014"],
+    { exposure: 0.05, brightness: -6, contrast: 42, temperature: 0, saturation: -100, lightness: -3 },
+  ),
 ];
 
 export function photoDevelopPresetById(id: string): PhotoDevelopPreset | null {
