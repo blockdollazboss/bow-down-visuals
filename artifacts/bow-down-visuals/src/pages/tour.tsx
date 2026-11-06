@@ -25,6 +25,7 @@ import {
 } from "@/lib/tour";
 import type { TourDate, TourPlan, OptimizedStop } from "@/lib/tour";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 
 /* ─── Tour Planner ────────────────────────────────────────────────────────
@@ -65,6 +66,7 @@ export default function Tour() {
   usePageTitle("Tour Planner", "Plan your tour dates, cities, and routing.");
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [dates, setDates] = useState<TourDate[]>([]);
   const [loadingDates, setLoadingDates] = useState(true);
   const [datesError, setDatesError] = useState(false);
@@ -226,13 +228,14 @@ export default function Tour() {
     setError(null);
     setOutOfCredits(false);
     try {
-      const token = await getAccessToken();
-      const res = await fetch("/api/tour/optimize", {
+      /* Priced (300 VB, registry-priced): route through the confirmed
+         path like every other spend on the site and in the World —
+         confirmedFetch shows the spend confirmation with the ruled
+         price and attaches the auth token. A cancel returns null:
+         no request is issued and no charge happens. */
+      const res = await confirmedFetch("/api/tour/optimize", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           home_base: homeBase.trim(),
           transport,
@@ -240,6 +243,7 @@ export default function Tour() {
           date_ids: dates.map((d) => d.id),
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation
       const data = (await res.json().catch(() => ({}))) as Partial<TourPlan> & {
         creditsUsed?: number;
         creditsRemaining?: number;
