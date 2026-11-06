@@ -415,6 +415,19 @@ export const THUMBNAIL_TEMPLATES: ThumbnailTemplate[] = [
     keywords: ["side hustle thumbnail", "money shorts thumbnail", "business shorts thumbnail", "passive income thumbnail"],
     emoji: "💸",
   },
+  {
+    slug: "live-stream-thumbnail",
+    title: "Live Stream Thumbnail",
+    metaDescription: "Live stream YouTube thumbnail template with a bold LIVE badge and host-frame layout. Built for stream replays, VOD covers, and going-live posts.",
+    blurb: "LIVE badge with a framed host layout. For stream replays and VOD covers.",
+    category: "Live",
+    stylePreset: "bold-text-pop",
+    aspectRatio: "16:9",
+    prompt: "Live stream thumbnail, host framed inside a bold border frame, bright red LIVE badge in the top corner, streaming setup with monitor glow in the background, high-energy high-contrast composition with space for text",
+    overlayText: "WE'RE LIVE!",
+    keywords: ["live stream thumbnail", "stream replay thumbnail", "vod thumbnail", "live youtube thumbnail ideas"],
+    emoji: "🔴",
+  },
 ];
 
 export const THUMBNAIL_CATEGORIES = [
