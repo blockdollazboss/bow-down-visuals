@@ -664,6 +664,15 @@ const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
         { step: "detector", hint: "Scan for copies of your best-performing content monthly" },
       ],
     },
+    {
+      key: "skill-sprint", name: "Skill Sprint", blurb: "One skill. Seven days. No skipping.", icon: CalendarDays,
+      projectName: "Skill Sprint",
+      concept: "A 7-day skill sprint: pick ONE skill — hooks, camera presence, mixing, anything — and train it with one focused lesson and one real rep every day for a week. Short daily reps compound; by day 7 you've got proof of progress and a habit that sticks.",
+      preload: [
+        { step: "academy", hint: "One sprint lesson a day for 7 days — in order, no skipping ahead" },
+        { step: "guides", hint: "Pair each day's lesson with its matching guide, then do the rep" },
+      ],
+    },
   ],
   business: [
     {
@@ -682,6 +691,16 @@ const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
       preload: [
         { step: "presskit", hint: "Lead with numbers · end with the story" },
         { step: "emaillist", hint: "Your list is the asset — start it with the press kit" },
+      ],
+    },
+    {
+      key: "client-welcome-kit", name: "Client Welcome Kit", blurb: "Onboard clients like a pro from day one.", icon: Handshake,
+      projectName: "Client Welcome Kit",
+      concept: "A client-onboarding pack that makes you look established from the first email: a short welcome video, your press kit as proof, and the booking paperwork ready to sign. Clients who feel taken care of on day one stay, pay on time, and refer.",
+      preload: [
+        { step: "video", hint: "Film a 60-second welcome: who you help, what happens next, one promise" },
+        { step: "presskit", hint: "Your kit is the client's proof — best work first, numbers up top" },
+        { step: "contracts", hint: "Booking contract + deposit terms go out with the welcome pack — signed before session one" },
       ],
     },
   ],
