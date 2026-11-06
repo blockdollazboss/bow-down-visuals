@@ -261,7 +261,7 @@ const PacksDesk = lazy(() => import("@/components/world/native/PacksDesk").then(
 const SeasonMarksWall = lazy(() => import("@/components/world/native/SeasonMarksWall").then((m) => ({ default: m.SeasonMarksWall })));
 const JukeboxPanel = lazy(() => import("@/components/world/native/JukeboxPanel"));
 
-import { PanelBoundary } from "@/components/world/PanelBoundary";
+import { PanelBoundary } from "@/components/world/panel-boundary";
 
 /* The Suspense door a lazy desk renders behind: while its chunk
    lands, the desk's own loading state stands in its place — the

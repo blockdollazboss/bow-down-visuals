@@ -16,8 +16,11 @@
  * custom panel id) at the render site; every DeskDoor inside the
  * Community Hall stack and the shared native-stacks region gets
  * its OWN PanelBoundary; NowPlayingCard is wrapped. PanelBoundary
- * itself is the World's pre-existing boundary class (exported here
- * only so its behavior is testable).
+ * itself is the World's pre-existing boundary class — extracted
+ * from StationPanel.tsx and converted from JSX to createElement
+ * form (components/world/panel-boundary.ts, the section-boundary
+ * core pattern) with its rendered HTML proven byte-identical to
+ * the JSX version in both themes before the JSX file was removed.
  * Idiom follows lane D3: real-class composition + source pins.
  */
 import { createElement, type ReactElement } from "react";
@@ -25,7 +28,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { PanelBoundary } from "./PanelBoundary";
+import { PanelBoundary } from "./panel-boundary";
 
 const read = (rel: string) => readFileSync(join(__dirname, rel), "utf8");
 const panelSource = read("./StationPanel.tsx");
