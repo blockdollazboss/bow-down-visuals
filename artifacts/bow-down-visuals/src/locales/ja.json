@@ -11682,7 +11682,9 @@
       "atRiskSub": "今日受け取らないと、ストリークがゼロにリセットされます。",
       "freezeSalvageTitle": "🧊 {{streak}}日ストリークを救おう！",
       "freezeSalvageSub": "昨日を逃しました — ストリークフリーズがチェーンを救います。今日受け取りましょう！"
-    }
+    },
+    "streak_load_error": "Your creation streak couldn't load — rewards you can claim may be waiting.",
+    "streak_retry": "Try again"
   },
   "share": {
     "title": "共有",

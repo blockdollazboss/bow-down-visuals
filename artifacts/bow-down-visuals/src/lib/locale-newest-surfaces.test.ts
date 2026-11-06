@@ -427,13 +427,16 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
        trends.radar outsideTitle / outsideSubtitle / outsideBadge /
        outsideViews / outsideNote keys ×5 (the Trend Radar
        "Heating up outside" YouTube lane) in all ten catalogs
-       = 5041. The nine non-en renderings are agent-drafted and
+       = 5041, plus the Stack-200 D2 honest-load fill:
+       retention streak_load_error / streak_retry keys ×2 (the
+       Creation Streak widget's failed-load card) in all ten
+       catalogs = 5043. The nine non-en renderings are agent-drafted and
        UNREVIEWED under the standing locale law.
        (Round 6's
        syncPitch load keys ×8, labelPitch labels keys ×2 and
        merch designs keys ×3 sit outside this derived set, like
        the rounds 4–5 merch keys above.) */
-    expect(REQUIRED.length).toBe(5041);
+    expect(REQUIRED.length).toBe(5043);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {

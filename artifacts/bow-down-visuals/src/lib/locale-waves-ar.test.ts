@@ -355,6 +355,8 @@ const W5_ALLOW = new Set([
   "randomizer.crossLink.name",
   "retention.awayDigest.bowRace",
   "retention.quests_progress",
+  "retention.streak_load_error",
+  "retention.streak_retry",
   "scriptWriter.platformTiktok",
   "scriptWriter.platformYoutube",
   "setlist.durationPlaceholder",

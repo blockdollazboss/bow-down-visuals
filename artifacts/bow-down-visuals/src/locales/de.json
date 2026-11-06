@@ -12616,7 +12616,9 @@
       "atRiskSub": "Löse heute ein, sonst wird deine Serie auf null zurückgesetzt.",
       "freezeSalvageTitle": "🧊 Rette deine {{streak}}-Tage-Serie!",
       "freezeSalvageSub": "Du hast gestern verpasst — ein Serien-Freeze rettet deine Kette. Löse heute ein!"
-    }
+    },
+    "streak_load_error": "Your creation streak couldn't load — rewards you can claim may be waiting.",
+    "streak_retry": "Try again"
   },
   "share": {
     "title": "Teilen",

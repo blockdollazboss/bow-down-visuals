@@ -12689,7 +12689,9 @@
       "atRiskSub": "اطلب اليوم وإلا ستُصفَّر سلسلتك.",
       "freezeSalvageTitle": "🧊 أنقذ سلسلتك من {{streak}} يوماً!",
       "freezeSalvageSub": "فاتك الأمس — تجميد السلسلة سينقذ سلسلتك. اطلب اليوم!"
-    }
+    },
+    "streak_load_error": "Your creation streak couldn't load — rewards you can claim may be waiting.",
+    "streak_retry": "Try again"
   },
   "share": {
     "title": "مشاركة",

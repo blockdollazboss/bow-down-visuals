@@ -13323,7 +13323,9 @@
       "atRiskSub": "Réclame aujourd'hui ou ta série retombe à zéro.",
       "freezeSalvageTitle": "🧊 Sauve ta série de {{streak}} jours !",
       "freezeSalvageSub": "Tu as manqué hier : un gel de série sauvera ta chaîne. Réclame aujourd'hui !"
-    }
+    },
+    "streak_load_error": "Your creation streak couldn't load — rewards you can claim may be waiting.",
+    "streak_retry": "Try again"
   },
   "retentionDelight": {
     "board_load_error": "Impossible de charger le classement — l'accès a simplement échoué.",

@@ -798,6 +798,8 @@ const W5_LEGIT_IDENTICAL = new Set([
   "retention.drops.podcast-episode-thumbnail.title",
   "retention.prefs.dailyDropEnabled.title",
   "retention.quests_progress",
+  "retention.streak_load_error",
+  "retention.streak_retry",
   "scheduler.bestTime.benchmark",
   "scheduler.bestTime.bucs",
   "scheduler.bestTime.cost",

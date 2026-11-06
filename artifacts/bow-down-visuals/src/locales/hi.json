@@ -11685,7 +11685,9 @@
       "atRiskSub": "आज क्लेम करें वरना आपकी स्ट्रीक शून्य पर रीसेट हो जाएगी।",
       "freezeSalvageTitle": "🧊 अपनी {{streak}} दिन की स्ट्रीक बचाएं!",
       "freezeSalvageSub": "आप कल चूक गए — एक स्ट्रीक फ़्रीज़ आपकी चेन बचा लेगा। आज क्लेम करें!"
-    }
+    },
+    "streak_load_error": "Your creation streak couldn't load — rewards you can claim may be waiting.",
+    "streak_retry": "Try again"
   },
   "share": {
     "title": "शेयर करें",

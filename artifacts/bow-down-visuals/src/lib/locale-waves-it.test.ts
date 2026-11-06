@@ -593,6 +593,8 @@ const W5_LEGIT: string[] = [
   "repurpose.modeStreamVod",
   "retention.awayDigest.bowRace",
   "retention.quests_progress",
+  "retention.streak_load_error",
+  "retention.streak_retry",
   "scheduler.bestTime.cost",
   "scheduler.communityPosts.platformLabels.instagram",
   "scheduler.communityPosts.platformLabels.threads",

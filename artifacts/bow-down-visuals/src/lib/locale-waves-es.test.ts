@@ -581,6 +581,8 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "retention.drops.podcast-episode-thumbnail.title",
   "retention.prefs.dailyDropEnabled.title",
   "retention.quests_progress",
+  "retention.streak_load_error",
+  "retention.streak_retry",
   "scriptWriter.bRollLabel",
   "scriptWriter.beatLabel",
   "scriptWriter.lengthDeep",

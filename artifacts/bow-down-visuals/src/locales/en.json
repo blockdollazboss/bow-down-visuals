@@ -14027,7 +14027,9 @@
       "atRiskSub": "Claim today or your streak resets to zero.",
       "freezeSalvageTitle": "🧊 Save your {{streak}}-day streak!",
       "freezeSalvageSub": "You missed yesterday — a streak freeze will save your chain. Claim today!"
-    }
+    },
+    "streak_load_error": "Your creation streak couldn't load — rewards you can claim may be waiting.",
+    "streak_retry": "Try again"
   },
   "retentionDelight": {
     "sharkDrop_title": "The Shark Dropped Something",

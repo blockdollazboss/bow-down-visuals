@@ -12620,7 +12620,9 @@
       "atRiskSub": "Reclama hoy o tu racha volverá a cero.",
       "freezeSalvageTitle": "🧊 ¡Salva tu racha de {{streak}} días!",
       "freezeSalvageSub": "Ayer no creaste: una congelación de racha salvará tu cadena. ¡Reclama hoy!"
-    }
+    },
+    "streak_load_error": "Your creation streak couldn't load — rewards you can claim may be waiting.",
+    "streak_retry": "Try again"
   },
   "share": {
     "title": "Compartir",

@@ -11685,7 +11685,9 @@
       "atRiskSub": "오늘 받지 않으면 스트릭이 0으로 초기화돼요.",
       "freezeSalvageTitle": "🧊 {{streak}}일 스트릭을 구하세요!",
       "freezeSalvageSub": "어제를 놓쳤어요 — 스트릭 프리즈가 체인을 구해 줄 거예요. 오늘 받으세요!"
-    }
+    },
+    "streak_load_error": "Your creation streak couldn't load — rewards you can claim may be waiting.",
+    "streak_retry": "Try again"
   },
   "share": {
     "title": "공유",
