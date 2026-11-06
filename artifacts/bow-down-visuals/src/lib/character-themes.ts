@@ -110,6 +110,15 @@ export const CHARACTER_THEMES: CharacterTheme[] = [
     deep: "#5C940D",
     cardTint: "rgba(169,227,75,0.08)",
   },
+  {
+    id: "sapphire-court",
+    name: "Sapphire Court",
+    vibe: "Deep sapphire · platinum · midnight court",
+    primary: "#0F52BA",
+    highlight: "#E8E9EB",
+    deep: "#0A2A5E",
+    cardTint: "rgba(15,82,186,0.08)",
+  },
 ];
 
 const FALLBACK = CHARACTER_THEMES[0]!;
