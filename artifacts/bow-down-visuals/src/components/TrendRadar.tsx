@@ -2,7 +2,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import { Radar, AlertTriangle, RotateCcw, Music2, Hash, Shapes, ArrowRight } from "lucide-react";
+import { Radar, AlertTriangle, RotateCcw, Music2, Hash, Shapes, ArrowRight, SquarePlay, Play } from "lucide-react";
 import { Link } from "wouter";
 
 /* ── Trend Radar (UPGRADE #178) ────────────────────────────────────────
@@ -12,7 +12,17 @@ import { Link } from "wouter";
    exists only with real mass AND real lift; a quiet family says so
    plainly instead of padding. One tap on any row lands in Create
    with the trend pre-loaded: the sound attached, or the genre /
-   format scaffolded as the concept. Nothing here is predicted. */
+   format scaffolded as the concept. Nothing here is predicted.
+
+   ── C-30 "Heating up outside" ────────────────────────────────────────
+   One additive family lives BELOW the on-site lanes: YouTube's
+   current most-popular music chart, served by the API as its own
+   labeled `outsideHeat` block. Its numbers are YouTube's own —
+   printed under YouTube's name, never mixed into the counted plays
+   above it (the honest note stays word-for-word true because this
+   section renders after it). It ships dark: with no YouTube key on
+   the server the API sends null and this section simply does not
+   exist — no placeholder, no error, no invented numbers. */
 
 interface TrendVelocity {
   currentPlays: number;
@@ -42,16 +52,39 @@ interface FormatTrend {
   createLink: string;
 }
 
+/* C-30 outside heat — YouTube's own chart, YouTube's own numbers.
+   Deliberately NOT shaped like the on-site families: no trend
+   velocity, no pace text, no createLink into Create — a snapshot
+   with a click-through to the video on YouTube. */
+interface YoutubeHeatVideo {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+  viewCount: number;
+  thumbnailUrl: string | null;
+  url: string;
+  source: string;
+}
+
+interface YoutubeHeat {
+  source: string;
+  region: string;
+  videos: YoutubeHeatVideo[];
+}
+
 interface TrendFeed {
   generatedAt: string;
   sounds: SoundTrend[];
   topics: TopicTrend[];
   formats: FormatTrend[];
+  /* null whenever the outside family is dormant (no key, chart
+     unreachable) — the section then renders nothing at all. */
+  outsideHeat: YoutubeHeat | null;
 }
 
 export function TrendRadar() {
   const isLight = useIsLightTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [feed, setFeed] = useState<TrendFeed | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -75,6 +108,10 @@ export function TrendRadar() {
           sounds: Array.isArray(d.sounds) ? d.sounds : [],
           topics: Array.isArray(d.topics) ? d.topics : [],
           formats: Array.isArray(d.formats) ? d.formats : [],
+          outsideHeat:
+            d.outsideHeat && Array.isArray(d.outsideHeat.videos) && d.outsideHeat.videos.length > 0
+              ? d.outsideHeat
+              : null,
         });
       } catch {
         if (!cancelled) setLoadError(true);
@@ -96,6 +133,22 @@ export function TrendRadar() {
 
   const allEmpty =
     feed !== null && feed.sounds.length === 0 && feed.topics.length === 0 && feed.formats.length === 0;
+
+  /* C-30: the outside family shows only when the API actually sent
+     videos — dormant (null) means the section does not exist. */
+  const outsideVideos = feed?.outsideHeat?.videos ?? [];
+  const showOutside = outsideVideos.length > 0;
+
+  function formatOutsideViews(n: number): string {
+    try {
+      return new Intl.NumberFormat(i18n.language, {
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }).format(n);
+    } catch {
+      return String(n);
+    }
+  }
 
   return (
     <section
@@ -130,7 +183,7 @@ export function TrendRadar() {
         </div>
       ) : feed === null ? (
         <p className="mt-5 text-sm text-white/40">{t("trends.radar.loading")}</p>
-      ) : allEmpty ? (
+      ) : allEmpty && !showOutside ? (
         <p className="mt-5 text-sm leading-relaxed text-white/50">{t("trends.radar.allEmpty")}</p>
       ) : (
         <div className="mt-6 space-y-8">
@@ -217,6 +270,77 @@ export function TrendRadar() {
           </div>
 
           <p className="text-[11px] leading-relaxed text-white/35">{t("trends.radar.honestNote")}</p>
+
+          {/* ── C-30: Heating up outside (YouTube) ───────────────────
+              Visually its own lane: a red-accented panel under the
+              on-site lanes, YouTube named in the heading, the badge,
+              and every card's view count. Renders ONLY when the API
+              sent real chart rows — dormant means absent, entirely. */}
+          {showOutside && (
+            <div
+              className={`rounded-2xl border p-4 md:p-5 ${
+                isLight
+                  ? "border-red-900/20 bg-red-500/[0.05]"
+                  : "border-red-500/25 bg-red-500/[0.04]"
+              }`}
+              data-testid="trend-radar-outside-heat"
+            >
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#FF0000] text-white">
+                  <SquarePlay className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <h3 className="font-display text-lg font-black">{t("trends.radar.outsideTitle")}</h3>
+                <span className="rounded-full bg-[#FF0000] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">
+                  {t("trends.radar.outsideBadge")}
+                </span>
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-white/45">
+                {t("trends.radar.outsideSubtitle")}
+              </p>
+              <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {outsideVideos.map((v) => (
+                  <a
+                    key={v.videoId}
+                    href={v.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`group flex gap-3 rounded-xl border p-2.5 transition ${
+                      isLight
+                        ? "border-red-900/15 bg-white/60 hover:border-red-500/50"
+                        : "border-white/10 bg-black/40 hover:border-red-500/50"
+                    }`}
+                  >
+                    {v.thumbnailUrl ? (
+                      <img
+                        src={v.thumbnailUrl}
+                        alt=""
+                        loading="lazy"
+                        className="h-16 w-28 shrink-0 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-16 w-28 shrink-0 items-center justify-center rounded-lg bg-[#FF0000]/15 text-[#FF0000]">
+                        <Play className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                    )}
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-bold text-white group-hover:underline">
+                        {v.title}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[11px] text-white/40">
+                        {v.channelTitle}
+                      </span>
+                      <span className="mt-1 block text-[11px] font-semibold text-red-400">
+                        {t("trends.radar.outsideViews", { count: formatOutsideViews(v.viewCount) })}
+                      </span>
+                    </span>
+                  </a>
+                ))}
+              </div>
+              <p className="mt-3 text-[11px] leading-relaxed text-white/35">
+                {t("trends.radar.outsideNote")}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </section>

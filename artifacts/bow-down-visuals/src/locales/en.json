@@ -7665,6 +7665,11 @@
       "pace": "{{current}} plays in 24h · {{velocity}}x its usual pace",
       "coldStart": "Brand new — {{current}} plays in its first 24 hours",
       "honestNote": "Every number above is a counted play from the last 24 hours, compared with the same item's own prior 7 days. If a lane looks short, that's the honest picture — the bar never lowers to fill the page.",
+      "outsideTitle": "Heating up outside",
+      "outsideSubtitle": "YouTube's most popular music videos right now — heat from beyond Bow Down, so you can be first here with what's already moving out there.",
+      "outsideBadge": "YouTube",
+      "outsideViews": "{{count}} views on YouTube",
+      "outsideNote": "These numbers are YouTube's own. This lane never mixes with the counted Bow Down plays above, and nothing here is a Bow Down play count.",
       "format": {
         "short": "Shorts",
         "duet": "Duets",

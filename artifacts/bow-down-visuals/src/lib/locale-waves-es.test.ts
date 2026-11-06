@@ -603,6 +603,7 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "titles.toneHype",
   "trends.nicheFitness",
   "trends.nicheGaming",
+  "trends.radar.outsideBadge",
   "trends.platformInstagram",
   "trends.platformTiktok",
   "trends.platformYoutube",

@@ -7305,6 +7305,11 @@
       "pace": "{{current}} riproduzioni in 24 h · {{velocity}}x il suo ritmo solito",
       "coldStart": "Appena nato — {{current}} riproduzioni nelle sue prime 24 ore",
       "honestNote": "Ogni numero qui sopra è una riproduzione contata delle ultime 24 ore, confrontata con i 7 giorni precedenti dello stesso elemento. Se una corsia sembra corta, quella è l'immagine onesta — l'asticella non si abbassa mai per riempire la pagina.",
+      "outsideTitle": "Fuori si scalda",
+      "outsideSubtitle": "I video musicali più popolari su YouTube in questo momento — calore da fuori Bow Down, per arrivare primo qui con ciò che si muove già là fuori.",
+      "outsideBadge": "YouTube",
+      "outsideViews": "{{count}} visualizzazioni su YouTube",
+      "outsideNote": "Questi numeri sono di YouTube. Questa corsia non si mescola mai con le riproduzioni contate di Bow Down qui sopra, e niente qui è un conteggio di riproduzioni Bow Down.",
       "format": {
         "short": "Corti",
         "duet": "Duetti",

@@ -423,12 +423,17 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
        catalogs = 5016, plus the Stack-100 A7 podcast templates
        fill: podcast.templates keys ×4 (title / note / apply /
        applied — the episode-template shelf chrome) in all ten
-       catalogs = 5036.
+       catalogs = 5036, plus the C-30 outside-heat fill:
+       trends.radar outsideTitle / outsideSubtitle / outsideBadge /
+       outsideViews / outsideNote keys ×5 (the Trend Radar
+       "Heating up outside" YouTube lane) in all ten catalogs
+       = 5041. The nine non-en renderings are agent-drafted and
+       UNREVIEWED under the standing locale law.
        (Round 6's
        syncPitch load keys ×8, labelPitch labels keys ×2 and
        merch designs keys ×3 sit outside this derived set, like
        the rounds 4–5 merch keys above.) */
-    expect(REQUIRED.length).toBe(5036);
+    expect(REQUIRED.length).toBe(5041);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {

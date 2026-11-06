@@ -7291,6 +7291,11 @@
       "pace": "24時間で{{current}}回再生 · 通常ペースの{{velocity}}倍",
       "coldStart": "生まれたて — 最初の24時間で{{current}}回再生",
       "honestNote": "上の数字はすべて、過去24時間に数えた再生を、同じアイテム自身の過去7日間と比べたものです。レーンが短く見えるなら、それが正直な姿です — ページを埋めるために基準が下がることは決してありません。",
+      "outsideTitle": "外でも熱くなっています",
+      "outsideSubtitle": "YouTubeで今最も人気のミュージックビデオ — Bow Downの外の熱。向こうで既に動いているものを、ここで最初に届けるために。",
+      "outsideBadge": "YouTube",
+      "outsideViews": "YouTubeで{{count}}回再生",
+      "outsideNote": "これらの数字はYouTube自身のものです。このレーンが上のBow Downの再生数と混ざることは決してなく、ここにあるものはBow Downの再生数ではありません。",
       "format": {
         "short": "ショート",
         "duet": "デュエット",
