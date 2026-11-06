@@ -22,6 +22,7 @@ import InvoiceGeneratorPanel from "@/components/outreach/InvoiceGeneratorPanel";
 import SponsorPipeline from "@/components/wave8/SponsorPipeline";
 import { SponsorDashboardPanel } from "@/components/sponsors/SponsorDashboardPanel";
 import { PostDealPanel } from "@/components/sponsors/PostDealPanel";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── Thy Cheat Code's Sponsors Hub (ONE canonical file) ───────────────────
    Find Deals: AI matches creators with brand partnership opportunities —
@@ -423,6 +424,7 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
         </p>
 
         {mainTab === "finder" && (
+        <SectionBoundary name="brand-deals-tab-finder">
         <>
         {/* Thy Cheat Code's coaching callout */}
         <div className="relative mt-8 flex gap-3 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-transparent p-4">
@@ -755,19 +757,20 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
           </div>
         )}
         </>
+        </SectionBoundary>
         )}
 
         {/* ── PITCH KIT TAB — absorbed from /sponsorship-outreach ── */}
         {mainTab === "pitch" && (
           <div className="relative mt-4">
-            <PitchKitTab onFindDeals={() => setMainTab("finder")} />
+            <SectionBoundary name="brand-deals-tab-pitch"><PitchKitTab onFindDeals={() => setMainTab("finder")} /></SectionBoundary>
           </div>
         )}
 
         {/* ── MARKETPLACE TAB — absorbed from /sponsors ── */}
         {mainTab === "marketplace" && (
           <div className="relative mt-4">
-            <MarketplaceTab onManage={() => setMainTab("manage")} onPost={() => setMainTab("post")} />
+            <SectionBoundary name="brand-deals-tab-marketplace"><MarketplaceTab onManage={() => setMainTab("manage")} onPost={() => setMainTab("post")} /></SectionBoundary>
           </div>
         )}
 
@@ -775,10 +778,12 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
             (C-21). My posted deals · my applications · my earnings. ── */}
         {mainTab === "manage" && (
           <div className="relative mt-4">
-            <SponsorDashboardPanel
-              onPostDeal={() => setMainTab("post")}
-              onBrowseDeals={() => setMainTab("marketplace")}
-            />
+            <SectionBoundary name="brand-deals-tab-manage">
+              <SponsorDashboardPanel
+                onPostDeal={() => setMainTab("post")}
+                onBrowseDeals={() => setMainTab("marketplace")}
+              />
+            </SectionBoundary>
           </div>
         )}
 
@@ -786,7 +791,7 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
             (C-21). The posting flow itself is unchanged. ── */}
         {mainTab === "post" && (
           <div className="relative mt-4">
-            <PostDealPanel onBack={() => setMainTab("marketplace")} />
+            <SectionBoundary name="brand-deals-tab-post"><PostDealPanel onBack={() => setMainTab("marketplace")} /></SectionBoundary>
           </div>
         )}
       </main>
@@ -1187,23 +1192,25 @@ function PitchKitTab({ onFindDeals }: { onFindDeals: () => void }) {
 
       {/* sponsor read generator — deal landed? write the actual spoken read */}
       <div className="mt-4">
-        <SponsorReadPanel />
+        <SectionBoundary name="brand-deals-sponsor-read"><SponsorReadPanel /></SectionBoundary>
       </div>
 
       {/* invoice generator — deal landed? bill the brand. Prefilled from the
           pitch form above (brand) and the creator profile / active artist. */}
       <div>
-        <InvoiceGeneratorPanel
-          prefillBrand={brandName}
-          prefillCreator={creatorName || activeArtist?.artist_name || ""}
-        />
+        <SectionBoundary name="brand-deals-invoice">
+          <InvoiceGeneratorPanel
+            prefillBrand={brandName}
+            prefillCreator={creatorName || activeArtist?.artist_name || ""}
+          />
+        </SectionBoundary>
       </div>
 
       {/* ── DEAL PIPELINE — Wave 8 SponsorPipeline kanban (Pitched →
           Negotiating → Closed → Paid) + free outreach tracker, inside the
           Pitch Kit tab. Paid → /api/money income-ledger handoff intact. */}
       <div className="mt-12 border-t border-white/10 pt-12">
-        <PipelineTab />
+        <SectionBoundary name="brand-deals-pipeline"><PipelineTab /></SectionBoundary>
       </div>
     </div>
   );
