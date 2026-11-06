@@ -11,7 +11,6 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { NativeCard } from "./NativeCard";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import {
-  UGC_PAYMENT_NOTE,
   UGC_PERSONA_CREDIT_COST,
   UGC_STYLES,
   UGC_VIDEO_CREDIT_COST,
@@ -31,6 +30,7 @@ import {
   briefAction,
   fundUgcBrief,
   confirmUgcBriefFunding,
+  ugcBriefMoneyNote,
   ugcBriefNetPreview,
   recordUgcAdShare,
   ugcAdShareText,
@@ -806,7 +806,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
                         })()}
                       </div>
                     ) : null}
-                    <p className={`mt-1 text-[11px] ${muted}`}>{brief.paymentNote || UGC_PAYMENT_NOTE}</p>
+                    <p className={`mt-1 text-[11px] ${muted}`}>{brief.paymentNote || ugcBriefMoneyNote(brief)}</p>
 
                     {brief.status === "delivered" && brief.brandUserId === user?.id ? (
                       <button type="button" data-testid="world-ugc-brief-review" onClick={() => void reviewDeliveredAd(brief)} disabled={busy} className={`${chipBtn(isLight, false)} mt-2`}>

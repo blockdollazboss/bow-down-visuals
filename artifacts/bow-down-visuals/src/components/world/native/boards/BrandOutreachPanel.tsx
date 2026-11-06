@@ -19,7 +19,7 @@ import {
   type ChartsBoardStrings,
   type UgcBriefResult,
 } from "@/lib/world/charts-board";
-import { UGC_PAYMENT_NOTE, UGC_STYLES } from "@/lib/ugc-ads";
+import { UGC_BRIEFS_MONEY_NOTE, UGC_STYLES } from "@/lib/ugc-ads";
 import { copyText } from "@/lib/streaming";
 
 /* ─── BrandOutreachPanel — the For Brands tab's outreach, in-world ──
@@ -35,9 +35,13 @@ import { copyText } from "@/lib/streaming";
      here: subject, message, a Copy for the walker's own sending,
      the rail's tips, and the Bucs it actually moved.
    - the BRIEF: POST /api/ugc-briefs, the Promote page's board.
-     A brief carries no charge (the honesty note below rides the
-     panel, as it rides the board), and the posted brief confirms
-     here — it is live on the Promote board for creators to claim.
+     A brief posted here carries no price and no charge; priced
+     briefs (posted on the site) ride the escrow rail, so the
+     honesty note below is the combined conditional money note —
+     escrow truth for a priced brief, the off-site note for a brief
+     with no price — as it rides the board, and the posted brief
+     confirms here — it is live on the Promote board for creators
+     to claim.
    Payload shaping, vocabularies, and answer/error reading live in
    lib/world/charts-board.ts; this panel is the form only. Members
    only — the board mounts it behind the same !isGuest gate the
@@ -461,7 +465,7 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
       </div>
 
       <div className="space-y-1.5">
-        <p className={`text-xs ${muted}`}>{UGC_PAYMENT_NOTE}</p>
+        <p className={`text-xs ${muted}`}>{UGC_BRIEFS_MONEY_NOTE}</p>
         <p className={`text-xs ${muted}`}>
           {t("worldBoards.boPreferPages")}{" "}
           <Link

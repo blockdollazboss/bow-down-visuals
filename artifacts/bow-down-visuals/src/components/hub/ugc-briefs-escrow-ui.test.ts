@@ -42,9 +42,16 @@ describe("hub UgcAdsPanel — briefs escrow", () => {
     expect(src).toContain("ugcBriefFunded");
   });
 
-  it("approval reads as the release; the board note tells the escrow truth", () => {
+  it("approval reads as the release; the board note tells the whole conditional truth", () => {
     expect(src).toContain("Approve & release");
-    expect(src).toContain("UGC_ESCROW_NOTE");
+    /* The header renders the seam's combined conditional note
+       (escrow for priced briefs, off-site for a brief with no
+       price) — never an inline composition that lowercases the
+       brand name to glue the sentences (C-25 follow-up). */
+    expect(src).toContain("UGC_BRIEFS_MONEY_NOTE");
+    expect(src).not.toContain("charAt(0).toLowerCase()");
+    expect(src).not.toContain("UGC_PAYMENT_NOTE");
+    expect(src).not.toContain("UGC_ESCROW_NOTE");
     expect(src).toContain("Creator receives");
     expect(src).toContain("escrowStatusLabel(brief.escrowStatus)");
     expect(src).toContain("ugcBriefNetPreview(brief)");

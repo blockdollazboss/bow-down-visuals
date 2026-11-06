@@ -9,7 +9,9 @@
  *   nothing else (no invented hrefs, no new system);
  * - the page source: the tab types its rows with the seam, renders
  *   the stats strip, docks the doors + the two shared takeover
- *   inquiry modals, and carries the briefs board's no-money note.
+ *   inquiry modals, and carries the briefs board's conditional
+ *   money note (escrow for priced briefs, off-site for free ones —
+ *   never the blanket free-brief note alone).
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -80,8 +82,13 @@ describe("the /charts For Brands tab (source pins)", () => {
     expect(chartsPageSrc).toContain('data-testid="brand-takeover-loading"');
   });
 
-  it("carries the briefs board's no-money note, imported from the one seam", () => {
-    expect(chartsPageSrc).toContain("UGC_PAYMENT_NOTE");
+  it("carries the briefs board's conditional money note, imported from the one seam", () => {
+    expect(chartsPageSrc).toContain("UGC_BRIEFS_MONEY_NOTE");
     expect(chartsPageSrc).toContain('from "@/lib/ugc-ads"');
+    /* The blanket free-brief note must NOT stand alone on this
+       surface (C-25 follow-up): priced briefs ride the escrow rail,
+       so the off-site words reach this page only inside the
+       combined conditional note, from the seam. */
+    expect(chartsPageSrc).not.toContain("UGC_PAYMENT_NOTE");
   });
 });

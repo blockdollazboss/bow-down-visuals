@@ -33,6 +33,27 @@ export const UGC_PAYMENT_NOTE =
 export const UGC_ESCROW_NOTE =
   "Bow Down Visuals holds this brief's payment safely and releases it to the creator when the brand approves the delivery.";
 
+/** The money note for ONE brief, chosen by its priced state — the
+    same conditional the server's DTO applies (routes/ugc-briefs.ts:
+    priceCents == null → the off-site note; priced → the escrow
+    note). Per-brief surfaces render the server's paymentNote, which
+    carries this same choice; this helper is the fallback when a
+    brief arrives without one. */
+export function ugcBriefMoneyNote(brief: { priceCents?: number | null }): string {
+  return brief.priceCents != null ? UGC_ESCROW_NOTE : UGC_PAYMENT_NOTE;
+}
+
+/** The money note for surfaces that speak about briefs IN GENERAL
+    (the briefs board header, the /charts For Brands tab, the World
+    outreach panel): BOTH branches of the conditional above, in
+    words — the escrow truth for a priced brief, then the off-site
+    note scoped to a brief with no price. Composed from the two
+    branch constants verbatim so the words can never drift apart:
+    the brand name is never lowercased to glue the sentences
+    together, and the free-brief note never stands alone as a claim
+    about all briefs. */
+export const UGC_BRIEFS_MONEY_NOTE = `${UGC_ESCROW_NOTE} For a brief with no price, ${UGC_PAYMENT_NOTE}`;
+
 export const UGC_STYLES = [
   { key: "unboxing", label: "Unboxing", blurb: "First reaction, product reveal" },
   { key: "honest-review", label: "Honest review", blurb: "Straight talk, real verdict" },
@@ -213,7 +234,10 @@ export function normalizeUgcBrief(raw: unknown): UgcBrief | null {
     status,
     claimedByUserId: strOrNull(raw.claimedByUserId),
     deliveredAdId: strOrNull(raw.deliveredAdId),
-    paymentNote: str(raw.paymentNote) || UGC_PAYMENT_NOTE,
+    /* The server's note wins; the fallback is the SAME conditional
+       the server applies, never the blanket free-brief note on a
+       priced brief. */
+    paymentNote: str(raw.paymentNote) || ugcBriefMoneyNote({ priceCents: numOrNull(raw.priceCents) }),
     priceCents: numOrNull(raw.priceCents),
     escrowStatus: strOrNull(raw.escrowStatus),
     feeBps: numOrNull(raw.feeBps),

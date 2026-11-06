@@ -166,7 +166,11 @@ describe("ugc station — prices, confirmation law, board honesty (source pins)"
 
   it("the board states the no-money note verbatim and offers the full lifecycle", () => {
     expect(UGC_PAYMENT_NOTE).toContain("doesn't hold or move money for briefs");
-    expect(station).toContain("UGC_PAYMENT_NOTE");
+    /* Per-brief fallback is the seam's CONDITIONAL note (C-25
+       follow-up): a priced brief falls back to the escrow note,
+       never the blanket free-brief note. */
+    expect(station).toContain("ugcBriefMoneyNote(brief)");
+    expect(station).not.toContain("UGC_PAYMENT_NOTE");
     expect(station).toContain('data-testid="world-ugc-payment-note"');
     for (const id of ["claim", "deliver", "approve", "release", "close"]) {
       expect(station).toContain(`data-testid="world-ugc-brief-${id}"`);
