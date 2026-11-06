@@ -13,6 +13,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
 import NicheAnalyzerPanel from "@/components/coach/NicheAnalyzerPanel";
@@ -378,12 +379,13 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
  </div>
 
  {activeTab === "money" ? (
- <MoneyTrackerPanel />
+ <SectionBoundary name="coach-tab-money"><MoneyTrackerPanel /></SectionBoundary>
  ) : activeTab === "actions" ? (
- <ActionTrackerPanel />
+ <SectionBoundary name="coach-tab-actions"><ActionTrackerPanel /></SectionBoundary>
  ) : activeTab === "niche" ? (
- <NicheAnalyzerPanel />
+ <SectionBoundary name="coach-tab-niche"><NicheAnalyzerPanel /></SectionBoundary>
  ) : (
+ <SectionBoundary name="coach-tab-plan">
  <>
  {/* ── INPUTS ─────────────────────────────────────────────────── */}
  <div className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
@@ -774,6 +776,7 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
  </div>
  )}
  </>
+ </SectionBoundary>
  )}
 
  {/* ── MORE MONEY TOOLS directory ─────────────────────────────── */}

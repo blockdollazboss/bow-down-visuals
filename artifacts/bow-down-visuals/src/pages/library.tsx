@@ -31,6 +31,7 @@ import { apiJson } from "@/lib/social-api";
 import { SAVES_PATH } from "@/lib/world/saved-desk";
 import { FeatureVersePanel } from "@/components/collabs/FeatureVersePanel";
 import GiftsForYou from "@/components/storefront/GiftsForYou";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── Thy Library ───────────────────────────────────────────────────────
    The connective tissue between tools: templates, presets, and fonts.
@@ -210,7 +211,7 @@ export default function Library() {
             gifts you sent, inside the Library — renders nothing when
             the user has no gifts, and fails silently on its own so it
             can never take the Library down. ── */}
-        <GiftsForYou />
+        <SectionBoundary name="library-gifts"><GiftsForYou /></SectionBoundary>
 
         {/* ── Search ── */}
         <div className="relative max-w-xl mx-auto mb-6">
@@ -249,6 +250,7 @@ export default function Library() {
 
         {/* ── Recently used ── */}
         {recentTemplates.length > 0 && tab === "templates" && !q && (
+          <SectionBoundary name="library-recent">
           <div className="mb-10">
             <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-white/40 mb-4">
               <Clock className="h-4 w-4" /> {t("library.recentlyUsed", { defaultValue: "Recently used" })}
@@ -261,10 +263,12 @@ export default function Library() {
               ))}
             </div>
           </div>
+          </SectionBoundary>
         )}
 
         {/* ═══ TEMPLATES ═══ */}
         {tab === "templates" && (
+          <SectionBoundary name="library-tab-templates">
           <>
             <CategoryPills
               categories={["All", ...LIBRARY_TEMPLATE_CATEGORIES]}
@@ -279,10 +283,12 @@ export default function Library() {
             </div>
             {filteredTemplates.length === 0 && <EmptyState t={t} />}
           </>
+          </SectionBoundary>
         )}
 
         {/* ═══ PRESETS ═══ */}
         {tab === "presets" && (
+          <SectionBoundary name="library-tab-presets">
           <>
             <CategoryPills
               categories={["All", ...LIBRARY_PRESET_CATEGORIES]}
@@ -297,10 +303,12 @@ export default function Library() {
             </div>
             {filteredPresets.length === 0 && <EmptyState t={t} />}
           </>
+          </SectionBoundary>
         )}
 
         {/* ═══ FONTS ═══ */}
         {tab === "fonts" && (
+          <SectionBoundary name="library-tab-fonts">
           <>
             <CategoryPills
               categories={["All", ...LIBRARY_FONT_CATEGORIES]}
@@ -315,11 +323,12 @@ export default function Library() {
             </div>
             {filteredFonts.length === 0 && <EmptyState t={t} />}
           </>
+          </SectionBoundary>
         )}
 
         {/* ═══ WISHLIST (Wave 4 #38) ═══ */}
         {tab === "wishlist" && (
-          <WishlistPanel onCountChange={setWishlistCount} />
+          <SectionBoundary name="library-tab-wishlist"><WishlistPanel onCountChange={setWishlistCount} /></SectionBoundary>
         )}
 
         {/* ═══ SAVED (Stack-100 A16) — the member's bookmark shelf
@@ -328,14 +337,14 @@ export default function Library() {
             /saved and the World SavedDesk read. /saved stays as the
             door it already is. ═══ */}
         {tab === "saved" && (
-          <SavedPanel onCountChange={setSavedCount} />
+          <SectionBoundary name="library-tab-saved"><SavedPanel onCountChange={setSavedCount} /></SectionBoundary>
         )}
 
         {/* ═══ FEATURE ORDERS (Stack-200 N7) — the buyer's/seller's
             Feature Verse orders dock here; the market + listing live
             on the Collabs page's Feature Verse tab. ═══ */}
         {tab === "features" && (
-          <FeatureVersePanel variant="orders" onOrdersLoaded={setFeatureOrderCount} />
+          <SectionBoundary name="library-tab-features"><FeatureVersePanel variant="orders" onOrdersLoaded={setFeatureOrderCount} /></SectionBoundary>
         )}
 
         {/* ═══ PURCHASES (stack400 lane 2) — the buyer's downloads home:
@@ -343,7 +352,7 @@ export default function Library() {
             download link + order id. The endpoint existed since payfix
             lane 4; this tab is its first frontend surface. ═══ */}
         {tab === "purchases" && (
-          <PurchasesPanel onCountChange={setPurchasesCount} />
+          <SectionBoundary name="library-tab-purchases"><PurchasesPanel onCountChange={setPurchasesCount} /></SectionBoundary>
         )}
       </div>
     </div>
