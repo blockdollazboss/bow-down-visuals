@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { tipJarPendingForUser } from "./generate/tip-jar";
-import { sellerStoreSales, sellerBeats, sellerMemberships, sellerBrandDeals, sellerShoutouts, sellerTipJar, sellerUgcBriefs, readPendingPayoutForSeller } from "../lib/seller-earnings";
+import { sellerStoreSales, sellerBeats, sellerMemberships, sellerBrandDeals, sellerShoutouts, sellerTipJar, sellerUgcBriefs, sellerBookings, readPendingPayoutForSeller } from "../lib/seller-earnings";
 
 /* ─── Unified earnings (Stack 8 #5; payfix store-dashboards) ─────────────
    ONE money picture per creator, read-only over the existing ledgers —
@@ -56,6 +56,15 @@ import { sellerStoreSales, sellerBeats, sellerMemberships, sellerBrandDeals, sel
                   the release split of the held amount at the rail's
                   5% fee; a brief refunded after release is excluded
                   here and reversed in the payout ledger
+     bookings     performance_bookings rows whose escrow RELEASED
+                  (stack200 M1, migration 0325) — the artist payout
+                  stamp from the release split of the held amount at
+                  the rail's 15% fee (Gate #5 shape: $250 → $212.50
+                  artist); a booking refunded after release is
+                  excluded here and reversed in the payout ledger.
+                  Before 0325 this source did not exist: the release
+                  told the artist "You were paid" while the money
+                  reached no earnings or payout surface at all
 
    The pending-payout figure + its ledger rows live at
    GET /api/earnings/pending-payout (readPendingPayoutForSeller in
@@ -155,6 +164,17 @@ export async function ugcBriefs(userId: string) {
   };
 }
 
+export async function bookings(userId: string) {
+  const b = await sellerBookings(userId);
+  return {
+    status: "ok" as const,
+    totalCents: b.totalCents,
+    count: b.count,
+    grossCents: b.grossCents,
+    feeCents: b.feeCents,
+  };
+}
+
 export async function tips(userId: string) {
   const r = await db.execute(sql`
     SELECT COALESCE(SUM(amount_vb), 0)::int AS vb, COUNT(*)::int AS n
@@ -207,6 +227,7 @@ router.get("/earnings", requireAuth, async (req, res) => {
   const shout = await settle("shoutouts", () => shoutouts(userId));
   const jar = await settle("tipJar", () => tipJar(userId));
   const ugc = await settle("ugcBriefs", () => ugcBriefs(userId));
+  const book = await settle("bookings", () => bookings(userId));
   const tip = await settle("tips", () => tips(userId));
 
   const sources = {
@@ -217,16 +238,17 @@ router.get("/earnings", requireAuth, async (req, res) => {
     shoutouts: shout ?? { ...errSource(), grossCents: null, feeCents: null },
     tipJar: jar ?? errSource(),
     ugcBriefs: ugc ?? { ...errSource(), grossCents: null, feeCents: null },
+    bookings: book ?? { ...errSource(), grossCents: null, feeCents: null },
     tips: tip ?? {
       status: "error" as const, streamTipsVb: null, streamTipCount: null,
       stageTipsVb: null, stageTipCount: null,
       tipJarPendingCents: null, tipJarPendingCount: null, tipJarStatus: "pending_payment" as const,
     },
   };
-  const partial = !store || !beat || !memb || !deals || !shout || !jar || !ugc || !tip;
+  const partial = !store || !beat || !memb || !deals || !shout || !jar || !ugc || !book || !tip;
   const totalCents =
     (store?.totalCents ?? 0) + (beat?.totalCents ?? 0) + (memb?.totalCents ?? 0) + (deals?.totalCents ?? 0) +
-    (shout?.totalCents ?? 0) + (jar?.totalCents ?? 0) + (ugc?.totalCents ?? 0);
+    (shout?.totalCents ?? 0) + (jar?.totalCents ?? 0) + (ugc?.totalCents ?? 0) + (book?.totalCents ?? 0);
 
   res.json({
     userId,
