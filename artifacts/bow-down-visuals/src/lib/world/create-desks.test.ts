@@ -813,8 +813,8 @@ describe("Ring 2 Create Wing depth — storyboard / wizard / song tabs / thumbna
     expect(m.THUMBNAIL_BATCH_SIZE).toBe(4);
 
     /* Winner save: the handoff key is the website's exact key (the
-       one video-studio.tsx reads back), and the publish href is the
-       publish protocol prefilled with the winner as the thumbnail. */
+       thumbnail-studio winner bar's own key), and the publish href is
+       the publish protocol prefilled with the winner as the thumbnail. */
     expect(m.THUMBNAIL_WINNER_HANDOFF_KEY).toBe("wave8_thumbnail_winner");
     const href = m.buildThumbnailWinnerPublishHref({ winnerUrl: "https://cdn.example/winner.png", title: " My Video " });
     expect(href.startsWith("/publish?")).toBe(true);

@@ -1,7 +1,7 @@
 /**
  * wallpapers-desk.test.ts — Stack-28 items 12–16: the Wallpapers desk's
- * wiring to its rails, pinned at the source-shape level (the pattern
- * video-studio.test.ts uses for the same dead-path class).
+ * wiring to its rails, pinned at the source-shape level (the source-pin
+ * pattern the desk suites use for this dead-path class).
  *
  * Item 12 — the screensaver "Generate video" button POSTed
  * /api/generate-video, an endpoint that never existed (pinned dead by

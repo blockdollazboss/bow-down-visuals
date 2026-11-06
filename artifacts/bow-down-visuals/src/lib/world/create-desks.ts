@@ -1712,11 +1712,14 @@ export function thumbnailBenchSlots(
 
 /** The A/B winner's save rail is the website's own: picking a winner
  *  on thumbnail-studio.tsx stores the winner's PERMANENT url under
- *  this localStorage key, and video-studio.tsx reads it back as the
- *  video's thumbnail in the packaging flow. The in-world bench
- *  writes the exact same key with the exact same value (the server's
- *  permanent ref — mirror-on-save already happened server-side at
- *  generation), so a winner picked in the palace travels identically. */
+ *  this localStorage key. (Its original reader, the legacy
+ *  video-studio page, was retired — /video-studio redirects to
+ *  /video-editor and the dead page file was removed in stack200 C1;
+ *  the winner's live travel door is the /publish href below.) The
+ *  in-world bench writes the exact same key with the exact same value
+ *  (the server's permanent ref — mirror-on-save already happened
+ *  server-side at generation), so a winner picked in the palace
+ *  travels identically. */
 export const THUMBNAIL_WINNER_HANDOFF_KEY = "wave8_thumbnail_winner";
 
 /** The winner's publish door, the website winner bar's own protocol:
