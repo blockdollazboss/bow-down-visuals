@@ -447,8 +447,9 @@ describe("shoutouts + tip jar — the missing rails (0323)", () => {
     );
     expect(summary.shoutouts.totalCents).toBe(accrualByKind.shoutout_request);
     expect(summary.tipJar.totalCents).toBe(accrualByKind.tip_jar_tip);
-    /* Basket 7774 + shoutout 950 + tip 500 — summary and pending agree. */
-    expect(summary.totalCents).toBe(7774 + 950 + 500);
+    /* Basket 7654 (membership at its fee-net $10.80, w8 membership lane)
+       + shoutout 950 + tip 500 — summary and pending agree. */
+    expect(summary.totalCents).toBe(7654 + 950 + 500);
     expect(summary.totalCents).toBe(read.pendingCents);
   });
 
