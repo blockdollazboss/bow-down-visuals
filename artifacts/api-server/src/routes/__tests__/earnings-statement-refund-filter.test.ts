@@ -9,7 +9,9 @@
  * /api/earnings disagreed. These tests drive the REAL buildYearStatement
  * against real Postgres semantics (pg-mem) and pin the agreement:
  *   - a refunded membership contributes 0 cents and 0 records;
- *   - an active paid membership still counts in full;
+ *   - an active paid membership still counts — at its fee-net figure
+ *     (the w8 membership lane's net-of-10% derivation, so a $5.00
+ *     membership counts 450, exactly what sellerMemberships reports);
  *   - the statement's membership figure EQUALS sellerMemberships().
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -96,7 +98,7 @@ describe("buildYearStatement — memberships source excludes refunded rows", () 
 
     const stmt = await buildYearStatement(USER, YEAR);
     expect(stmt.sources.memberships.status).toBe("ok");
-    expect(stmt.sources.memberships.totalCents).toBe(500);
+    expect(stmt.sources.memberships.totalCents).toBe(450);
     expect(stmt.sources.memberships.count).toBe(1);
 
     const viaEarnings = await sellerMemberships(USER);
