@@ -264,3 +264,54 @@ describe("D6 · C-21 keying (items 46–47, 52)", () => {
     expect(src).not.toContain("when you release payment after they deliver");
   });
 });
+
+/* ── Items 50+51+53 — sound picker, sound names rule, beats modal ── */
+
+const SOUND_PICKER_KEYS = [
+  "beatMaker.soundPickerAria",
+  "beatMaker.soundSaved",
+  "beatMaker.soundNotLoadedShort",
+  "beatMaker.soundGroupBuiltIn",
+  "beatMaker.soundGroupBank",
+  "beatMaker.soundBankComing",
+  "beatMaker.soundGroupYours",
+  "beatMaker.soundSessionOnlyShort",
+  "beatMaker.soundNoneLoaded",
+  "beatMaker.soundLoadOwn",
+];
+const BEATS_MODAL_KEYS = [
+  "beats.soldExclusively",
+  "beats.sellPrefilledNote",
+  "beats.noStemsOnFile",
+  "beats.signInToLicense",
+  "beats.signInToLicenseButton",
+  "beats.agreeAndPayButton",
+];
+
+describe("D6 · beat studio + beats modal keying (items 50–51, 53)", () => {
+  it("the sound-picker family exists in all 10 catalogs, English-verbatim", () => {
+    for (const k of SOUND_PICKER_KEYS) expectVerbatimEverywhere(k);
+    expect(EN["beatMaker.soundGroupBank"]).toBe("Sound Bank");
+    /* The picker resolves through t() — the keys were defaultValue-only before. */
+    const src = read("../components/audio-studio/AiAudio.tsx");
+    for (const k of SOUND_PICKER_KEYS) expect(src).toContain(`t("${k}"`);
+  });
+
+  it("item 51 ruled: sound names are product names, documented at the registry", () => {
+    expect(read("./beat-sounds.ts")).toContain("sound DISPLAY\n * NAMES are product names");
+    expect(read("./beat-sounds.ts")).toContain("NOT\n * catalog keys");
+  });
+
+  it("the beats modal's six defaultValue-only strings are real keys in all 10 catalogs", () => {
+    for (const k of BEATS_MODAL_KEYS) expectVerbatimEverywhere(k);
+    expect(EN["beats.agreeAndPayButton"]).toBe("Agree & pay — {{price}}");
+    const src = read("../pages/beats.tsx");
+    for (const k of BEATS_MODAL_KEYS) expect(src).toContain(`t("${k}"`);
+  });
+
+  it("item 53 exemption: the plain-terms legal copy is formally exempt, documented at the constant", () => {
+    const src = read("./beat-license-terms.ts");
+    expect(src).toContain("LOCALE EXEMPTION (Stack-200 D6, hardening §D item 53)");
+    expect(src).toContain("DELIBERATELY English-only");
+  });
+});

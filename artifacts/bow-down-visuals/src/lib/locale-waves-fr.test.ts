@@ -424,6 +424,22 @@ describe("fr-W3 (Stack-28 #91)", () => {
 
 const W4_NAMESPACES = ["mastering", "samples", "vocalPolish", "vocalTune", "songRework", "producerTag", "audioStudio", "stems", "singingVoice", "bgReplace", "beatMaker", "aiAudio", "makeSong", "songs", "sounds", "sfx", "beats", "translate", "vocalRemoval", "audioCleanup", "voiceover", "scheduler"] as const;
 const W4_LEGIT: ReadonlySet<string> = new Set([
+  "beatMaker.soundBankComing",
+  "beatMaker.soundGroupBank",
+  "beatMaker.soundGroupBuiltIn",
+  "beatMaker.soundGroupYours",
+  "beatMaker.soundLoadOwn",
+  "beatMaker.soundNoneLoaded",
+  "beatMaker.soundNotLoadedShort",
+  "beatMaker.soundPickerAria",
+  "beatMaker.soundSaved",
+  "beatMaker.soundSessionOnlyShort",
+  "beats.agreeAndPayButton",
+  "beats.noStemsOnFile",
+  "beats.sellPrefilledNote",
+  "beats.signInToLicense",
+  "beats.signInToLicenseButton",
+  "beats.soldExclusively",
   "vocalTune.styleHardtuneLabel",
   "bgReplace.ai.styleLabel",
   "scheduler.bestTime.score",

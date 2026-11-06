@@ -2100,7 +2100,17 @@
     "advancedBadge": "고급",
     "sequencerTooltip": "스텝 시퀀서는 고급 모드 도구입니다",
     "presetHouse": "하우스",
-    "trackCrash": "크래시"
+    "trackCrash": "크래시",
+    "soundBankComing": "Coming with the sound bank",
+    "soundGroupBank": "Sound Bank",
+    "soundGroupBuiltIn": "Built-in sounds",
+    "soundGroupYours": "Your sounds",
+    "soundLoadOwn": "Load your own sound (WAV or MP3)",
+    "soundNoneLoaded": "No sounds loaded yet",
+    "soundNotLoadedShort": "not loaded",
+    "soundPickerAria": "{{label}} sound",
+    "soundSaved": "Saved sound",
+    "soundSessionOnlyShort": "this session only"
   },
   "beats": {
     "errorTitleUrlRequired": "제목과 오디오 URL은 필수입니다.",
@@ -2216,7 +2226,13 @@
     "templateSave": "라이선스 저장",
     "templateCancel": "취소",
     "retry": "다시 시도",
-    "useInSong": "이 비트를 노래에 사용"
+    "useInSong": "이 비트를 노래에 사용",
+    "agreeAndPayButton": "Agree & pay — {{price}}",
+    "noStemsOnFile": "No stems on file",
+    "sellPrefilledNote": "Your beat came with you — its audio, title and tempo are filled in below. Check the details, set your prices, and list it.",
+    "signInToLicense": "Licensing a beat needs an account — sign in and you'll come right back to this beat.",
+    "signInToLicenseButton": "Sign in to license this beat",
+    "soldExclusively": "Sold exclusively"
   },
   "betaAccess": {
     "pageTitle": "베타 액세스",

@@ -2100,7 +2100,17 @@
     "advancedBadge": "上級",
     "sequencerTooltip": "ステップシーケンサーはAdvancedモードのツールです",
     "presetHouse": "ハウス",
-    "trackCrash": "クラッシュ"
+    "trackCrash": "クラッシュ",
+    "soundBankComing": "Coming with the sound bank",
+    "soundGroupBank": "Sound Bank",
+    "soundGroupBuiltIn": "Built-in sounds",
+    "soundGroupYours": "Your sounds",
+    "soundLoadOwn": "Load your own sound (WAV or MP3)",
+    "soundNoneLoaded": "No sounds loaded yet",
+    "soundNotLoadedShort": "not loaded",
+    "soundPickerAria": "{{label}} sound",
+    "soundSaved": "Saved sound",
+    "soundSessionOnlyShort": "this session only"
   },
   "beats": {
     "errorTitleUrlRequired": "タイトルと音声URLは必須です。",
@@ -2216,7 +2226,13 @@
     "templateSave": "ライセンスを保存",
     "templateCancel": "キャンセル",
     "retry": "再試行",
-    "useInSong": "このビートを曲で使う"
+    "useInSong": "このビートを曲で使う",
+    "agreeAndPayButton": "Agree & pay — {{price}}",
+    "noStemsOnFile": "No stems on file",
+    "sellPrefilledNote": "Your beat came with you — its audio, title and tempo are filled in below. Check the details, set your prices, and list it.",
+    "signInToLicense": "Licensing a beat needs an account — sign in and you'll come right back to this beat.",
+    "signInToLicenseButton": "Sign in to license this beat",
+    "soldExclusively": "Sold exclusively"
   },
   "betaAccess": {
     "pageTitle": "ベータアクセス",

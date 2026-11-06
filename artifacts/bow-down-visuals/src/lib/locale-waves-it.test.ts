@@ -385,6 +385,22 @@ describe("it-W3 (Stack-28 #93) — create video/image + audio namespaces fully I
 // ── it-W4 (Stack-28 appendix) — audio + tools namespaces closed whole ──
 const W4_NAMESPACES = ["fillerRemover", "mastering", "lrcExport", "samples", "vocalPolish", "vocalTune", "songRework", "producerTag", "audioStudio", "stems", "singingVoice", "beatMaker", "bgReplace", "makeSong", "aiAudio", "sounds", "songs", "beats", "sfx", "translate", "vocalRemoval", "voiceover"];
 const W4_LEGIT = new Set([
+  "beatMaker.soundBankComing",
+  "beatMaker.soundGroupBank",
+  "beatMaker.soundGroupBuiltIn",
+  "beatMaker.soundGroupYours",
+  "beatMaker.soundLoadOwn",
+  "beatMaker.soundNoneLoaded",
+  "beatMaker.soundNotLoadedShort",
+  "beatMaker.soundPickerAria",
+  "beatMaker.soundSaved",
+  "beatMaker.soundSessionOnlyShort",
+  "beats.agreeAndPayButton",
+  "beats.noStemsOnFile",
+  "beats.sellPrefilledNote",
+  "beats.signInToLicense",
+  "beats.signInToLicenseButton",
+  "beats.soldExclusively",
   "vocalTune.styleHardtuneLabel",
   "lrcExport.aiCost",
   "mastering.truePeakMix",

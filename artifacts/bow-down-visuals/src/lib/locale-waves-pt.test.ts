@@ -359,6 +359,22 @@ describe("pt W3 (Stack-28 #96) — namespaces closed whole", () => {
 
 const W4_NAMESPACES = ["lrcExport", "samples", "vocalPolish", "vocalTune", "songRework", "producerTag", "audioStudio", "stems", "singingVoice", "beatMaker", "bgReplace", "makeSong", "aiAudio", "songs", "sounds", "beats", "sfx", "translate", "vocalRemoval", "audioCleanup", "voiceover", "scheduler"] as const;
 const W4_LEGIT: ReadonlySet<string> = new Set([
+  "beatMaker.soundBankComing",
+  "beatMaker.soundGroupBank",
+  "beatMaker.soundGroupBuiltIn",
+  "beatMaker.soundGroupYours",
+  "beatMaker.soundLoadOwn",
+  "beatMaker.soundNoneLoaded",
+  "beatMaker.soundNotLoadedShort",
+  "beatMaker.soundPickerAria",
+  "beatMaker.soundSaved",
+  "beatMaker.soundSessionOnlyShort",
+  "beats.agreeAndPayButton",
+  "beats.noStemsOnFile",
+  "beats.sellPrefilledNote",
+  "beats.signInToLicense",
+  "beats.signInToLicenseButton",
+  "beats.soldExclusively",
   "vocalTune.styleHardtuneLabel",
   "bgReplace.ai.presetsTab",
   "lrcExport.aiCost",

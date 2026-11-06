@@ -2100,7 +2100,17 @@
     "vibePlaceholder": "Dunkle Piano-Melodie, harte 808s, rollende Hi-Hats — Late-Night-Driving-Energie…",
     "yourBeatTitle": "Dein Beat",
     "presetHouse": "House",
-    "trackCrash": "Crash"
+    "trackCrash": "Crash",
+    "soundBankComing": "Coming with the sound bank",
+    "soundGroupBank": "Sound Bank",
+    "soundGroupBuiltIn": "Built-in sounds",
+    "soundGroupYours": "Your sounds",
+    "soundLoadOwn": "Load your own sound (WAV or MP3)",
+    "soundNoneLoaded": "No sounds loaded yet",
+    "soundNotLoadedShort": "not loaded",
+    "soundPickerAria": "{{label}} sound",
+    "soundSaved": "Saved sound",
+    "soundSessionOnlyShort": "this session only"
   },
   "beats": {
     "aiSuggestsPrefix": "KI schlägt vor: ",
@@ -2216,7 +2226,13 @@
     "templateSave": "Lizenz speichern",
     "templateCancel": "Abbrechen",
     "retry": "Erneut versuchen",
-    "useInSong": "Diesen Beat in einem Song verwenden"
+    "useInSong": "Diesen Beat in einem Song verwenden",
+    "agreeAndPayButton": "Agree & pay — {{price}}",
+    "noStemsOnFile": "No stems on file",
+    "sellPrefilledNote": "Your beat came with you — its audio, title and tempo are filled in below. Check the details, set your prices, and list it.",
+    "signInToLicense": "Licensing a beat needs an account — sign in and you'll come right back to this beat.",
+    "signInToLicenseButton": "Sign in to license this beat",
+    "soldExclusively": "Sold exclusively"
   },
   "betaAccess": {
     "backHome": "Zurück zur Startseite",

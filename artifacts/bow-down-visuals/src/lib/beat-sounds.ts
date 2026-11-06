@@ -29,6 +29,16 @@
  *     built-in synth voice — never a silent dead track.
  *
  * Pure UI = FREE. No charges, no provider calls, no sound generation.
+ *
+ * LOCALE RULE (Stack-200 D6, hardening §D item 51): sound DISPLAY
+ * NAMES are product names — the name of a built-in voice, a bank
+ * sound, or a creator's uploaded sample is the artifact's own name
+ * (like a sample pack's file names, or a preset's name on a synth),
+ * not UI copy. They render as-is in every locale and are NOT
+ * catalog keys; the picker's chrome around them (group labels,
+ * aria, empty states) IS keyed (beatMaker.sound*). If a future
+ * manifest ever ships per-locale names, they ride the manifest as
+ * data — never as 316 catalog entries.
  */
 
 /** The nine sequencer track kinds — the only kinds a track, a built-in

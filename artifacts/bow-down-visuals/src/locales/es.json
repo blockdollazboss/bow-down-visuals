@@ -2100,7 +2100,17 @@
     "advancedBadge": "AVANZADO",
     "sequencerTooltip": "El Secuenciador de Pasos es una herramienta de modo Avanzado",
     "presetHouse": "House",
-    "trackCrash": "Crash"
+    "trackCrash": "Crash",
+    "soundBankComing": "Coming with the sound bank",
+    "soundGroupBank": "Sound Bank",
+    "soundGroupBuiltIn": "Built-in sounds",
+    "soundGroupYours": "Your sounds",
+    "soundLoadOwn": "Load your own sound (WAV or MP3)",
+    "soundNoneLoaded": "No sounds loaded yet",
+    "soundNotLoadedShort": "not loaded",
+    "soundPickerAria": "{{label}} sound",
+    "soundSaved": "Saved sound",
+    "soundSessionOnlyShort": "this session only"
   },
   "beats": {
     "errorTitleUrlRequired": "Título y URL de audio son requeridos.",
@@ -2217,7 +2227,13 @@
     "templateSave": "Guardar licencia",
     "templateCancel": "Cancelar",
     "retry": "Reintentar",
-    "useInSong": "Usar este beat en una canción"
+    "useInSong": "Usar este beat en una canción",
+    "agreeAndPayButton": "Agree & pay — {{price}}",
+    "noStemsOnFile": "No stems on file",
+    "sellPrefilledNote": "Your beat came with you — its audio, title and tempo are filled in below. Check the details, set your prices, and list it.",
+    "signInToLicense": "Licensing a beat needs an account — sign in and you'll come right back to this beat.",
+    "signInToLicenseButton": "Sign in to license this beat",
+    "soldExclusively": "Sold exclusively"
   },
   "betaAccess": {
     "pageTitle": "Acceso Beta",

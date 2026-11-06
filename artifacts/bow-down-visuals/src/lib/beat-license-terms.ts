@@ -201,6 +201,16 @@ export function plainWordsForTerms(terms: BeatLicenseTerms): PlainTermsSection[]
   ];
 }
 
+/* LOCALE EXEMPTION (Stack-200 D6, hardening §D item 53): the plain-
+   words terms copy — this constant and the sections
+   plainWordsForTerms() generates from a license's own terms — is
+   DELIBERATELY English-only, the PUBLISHING_COPY precedent
+   (server-owned legal copy stays the English source in every
+   locale). These words are the license's legal text: they are
+   snapshotted onto the license exactly as shown, so a translation
+   is a legal-review act, never an agent draft. The modal's chrome
+   around them (the pay CTA, the sign-in door, the sold/stems
+   labels) IS catalog-keyed (beats.*). */
 export const BEAT_PLAIN_TERMS_COPY = {
   agreeAndPay: "Agree & pay",
   agreeHint:

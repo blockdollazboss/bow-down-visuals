@@ -2175,7 +2175,17 @@
     "advancedBadge": "AVANCÉ",
     "sequencerTooltip": "Le Step Sequencer est un outil en mode avancé",
     "presetHouse": "House",
-    "trackCrash": "Crash"
+    "trackCrash": "Crash",
+    "soundBankComing": "Coming with the sound bank",
+    "soundGroupBank": "Sound Bank",
+    "soundGroupBuiltIn": "Built-in sounds",
+    "soundGroupYours": "Your sounds",
+    "soundLoadOwn": "Load your own sound (WAV or MP3)",
+    "soundNoneLoaded": "No sounds loaded yet",
+    "soundNotLoadedShort": "not loaded",
+    "soundPickerAria": "{{label}} sound",
+    "soundSaved": "Saved sound",
+    "soundSessionOnlyShort": "this session only"
   },
   "beats": {
     "errorTitleUrlRequired": "Le titre et l'URL audio sont requis.",
@@ -2292,7 +2302,13 @@
     "templateSave": "Enregistrer la licence",
     "templateCancel": "Annuler",
     "retry": "Réessayer",
-    "useInSong": "Utiliser ce beat dans une chanson"
+    "useInSong": "Utiliser ce beat dans une chanson",
+    "agreeAndPayButton": "Agree & pay — {{price}}",
+    "noStemsOnFile": "No stems on file",
+    "sellPrefilledNote": "Your beat came with you — its audio, title and tempo are filled in below. Check the details, set your prices, and list it.",
+    "signInToLicense": "Licensing a beat needs an account — sign in and you'll come right back to this beat.",
+    "signInToLicenseButton": "Sign in to license this beat",
+    "soldExclusively": "Sold exclusively"
   },
   "betaAccess": {
     "pageTitle": "Accès bêta",
