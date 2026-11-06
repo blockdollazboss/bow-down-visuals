@@ -633,7 +633,7 @@ export async function buildYearStatement(userId: string, year: number) {
     WHERE user_id = ${userId} AND event_type = 'sale' AND EXTRACT(YEAR FROM created_at) = ${year}`));
   const memberships = await one(() => sum(sql`
     SELECT COALESCE(SUM(price_cents),0)::int AS cents, COUNT(*)::int AS n FROM fan_members
-    WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL AND EXTRACT(YEAR FROM created_at) = ${year}`));
+    WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL AND status <> 'refunded' AND EXTRACT(YEAR FROM created_at) = ${year}`));
   const brandDeals = await one(() => sum(sql`
     SELECT COALESCE(SUM(net_cents),0)::int AS cents, COUNT(*)::int AS n FROM sponsor_payouts
     WHERE creator_user_id = ${userId} AND status = 'released' AND EXTRACT(YEAR FROM created_at) = ${year}`));

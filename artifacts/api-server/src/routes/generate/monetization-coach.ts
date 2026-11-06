@@ -143,7 +143,7 @@ export async function readCreatorState(userId: string): Promise<CreatorState> {
     const members = await db.execute(sql`
       SELECT COALESCE(SUM(price_cents), 0)::int AS cents
       FROM fan_members
-      WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL
+      WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL AND status <> 'refunded'
     `);
     const deals = await db.execute(sql`
       SELECT COALESCE(SUM(net_cents), 0)::int AS cents
