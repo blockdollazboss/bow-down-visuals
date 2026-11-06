@@ -127,6 +127,7 @@ const W1_LEGIT = new Set([
   "brandDeals.resultsCount",
   "brandingShop.departments.merch",
   "brandingShop.emailPlaceholder",
+  "brandingShop.noPaymentNote",
   "contracts.type.management",
   "credit-history.dashboard",
   "jewelry.merchWord",

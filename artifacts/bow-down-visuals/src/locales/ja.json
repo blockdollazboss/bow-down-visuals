@@ -2566,7 +2566,7 @@
     "nichePlaceholder": "例: 高級ヒップホップストリートウェア",
     "noOrdersText": "グッズの注文はここに表示されます。",
     "noOrdersTitle": "注文はまだありません",
-    "noPaymentNote": "今日のお支払いはありません——ドロップシップパートナー連携は近日対応予定。",
+    "noPaymentNote": "Payments are live (test mode) — you pay through secure checkout when you place your order, and your order is confirmed the moment your payment confirms. No fake transactions, ever.",
     "orderReceived": "注文を受け付けました!",
     "paidBadge": "支払い済み",
     "payOrder": "{{amount}}を支払う",

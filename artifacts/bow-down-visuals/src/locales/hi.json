@@ -2566,7 +2566,7 @@
     "nichePlaceholder": "e.g. luxury hip-hop streetwear",
     "noOrdersText": "आपके merch ऑर्डर यहां दिखेंगे।",
     "noOrdersTitle": "अभी तक कोई ऑर्डर नहीं",
-    "noPaymentNote": "आज कोई भुगतान नहीं लिया गया — dropship partner integration जल्द आ रहा है।",
+    "noPaymentNote": "Payments are live (test mode) — you pay through secure checkout when you place your order, and your order is confirmed the moment your payment confirms. No fake transactions, ever.",
     "orderReceived": "ऑर्डर प्राप्त हुआ!",
     "paidBadge": "भुगतान हुआ",
     "payOrder": "{{amount}} का भुगतान करें",

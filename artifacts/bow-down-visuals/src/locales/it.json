@@ -2567,7 +2567,7 @@
     "nichePlaceholder": "es. streetwear hip-hop di lusso",
     "noOrdersText": "I tuoi ordini merch appariranno qui.",
     "noOrdersTitle": "Nessun ordine ancora",
-    "noPaymentNote": "Nessun pagamento addebitato oggi — integrazione con il partner dropship in arrivo.",
+    "noPaymentNote": "Payments are live (test mode) — you pay through secure checkout when you place your order, and your order is confirmed the moment your payment confirms. No fake transactions, ever.",
     "orderReceived": "Ordine ricevuto!",
     "paidBadge": "Pagato",
     "payOrder": "Paga {{amount}}",

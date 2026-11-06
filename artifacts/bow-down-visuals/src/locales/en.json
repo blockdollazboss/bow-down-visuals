@@ -2735,7 +2735,7 @@
     "ordersLoadError": "We couldn't load your orders",
     "ordersLoadErrorBody": "Your orders are safe — this page just couldn't reach them. Check your connection and try again.",
     "retryLoad": "Try again",
-    "noPaymentNote": "No payment taken today — dropship partner integration coming soon.",
+    "noPaymentNote": "Payments are live (test mode) — you pay through secure checkout when you place your order, and your order is confirmed the moment your payment confirms. No fake transactions, ever.",
     "orderReceived": "Order received!",
     "paidBadge": "Paid",
     "payOrder": "Pay {{amount}}",

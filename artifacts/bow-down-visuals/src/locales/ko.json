@@ -2566,7 +2566,7 @@
     "nichePlaceholder": "예) 럭셔리 힙합 스트리트웨어",
     "noOrdersText": "굿즈 주문이 여기에 표시됩니다.",
     "noOrdersTitle": "아직 주문이 없습니다",
-    "noPaymentNote": "오늘은 결제 없음 — 드롭십 파트너 연동 예정.",
+    "noPaymentNote": "Payments are live (test mode) — you pay through secure checkout when you place your order, and your order is confirmed the moment your payment confirms. No fake transactions, ever.",
     "orderReceived": "주문 접수!",
     "paidBadge": "결제 완료",
     "payOrder": "{{amount}} 결제",

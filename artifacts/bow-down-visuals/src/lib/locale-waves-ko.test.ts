@@ -113,6 +113,8 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "distribute.bow_down_records", "distribute.isrc", "distribute.isrc_2",
     "distribute.visual_bucs", "distribute.100_visual_bucs", "distribute.tier.ep.label",
     "playlistPitch.copyDmLabel",
+    // money copy — English verbatim in every catalog, never translated
+    "brandingShop.noPaymentNote",
     // numeric ranges alone
     "brandDeals.audiences.k10_50k", "brandDeals.audiences.k1_10k",
     "brandDeals.audiences.k250plus", "brandDeals.audiences.k50_250k",
