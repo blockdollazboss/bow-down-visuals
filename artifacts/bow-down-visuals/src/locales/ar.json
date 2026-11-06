@@ -2572,7 +2572,7 @@
     "nichePlaceholder": "مثل ملابس الشارع الهيب هوب الفاخرة",
     "noOrdersText": "ستظهر طلبات منتجاتك هنا.",
     "noOrdersTitle": "لا توجد طلبات بعد",
-    "noPaymentNote": "لا دفع اليوم — تكامل شريك الإسقاط قادم قريباً.",
+    "noPaymentNote": "Payments are live (test mode) — you pay through secure checkout when you place your order, and your order is confirmed the moment your payment confirms. No fake transactions, ever.",
     "orderReceived": "تم استلام الطلب!",
     "paidBadge": "مدفوع",
     "payOrder": "ادفع {{amount}}",

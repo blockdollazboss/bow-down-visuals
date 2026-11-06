@@ -2568,7 +2568,7 @@
     "nichePlaceholder": "z. B. Luxury-Hip-Hop-Streetwear",
     "noOrdersText": "Deine Merch-Bestellungen erscheinen hier.",
     "noOrdersTitle": "Noch keine Bestellungen",
-    "noPaymentNote": "Heute keine Zahlung genommen — Dropship-Partner-Integration kommt bald.",
+    "noPaymentNote": "Payments are live (test mode) — you pay through secure checkout when you place your order, and your order is confirmed the moment your payment confirms. No fake transactions, ever.",
     "orderReceived": "Bestellung erhalten!",
     "paidBadge": "Bezahlt",
     "payOrder": "{{amount}} zahlen",

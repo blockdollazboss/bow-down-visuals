@@ -84,6 +84,7 @@ const W1_ALLOW = new Set([
   "brandDeals.audiences.k250plus",
   "brandDeals.audiences.k50_250k",
   "brandDeals.resultsCount",
+  "brandingShop.noPaymentNote",
   "distribute.100_visual_bucs",
   "distribute.bow_down_records",
   "distribute.isrc",

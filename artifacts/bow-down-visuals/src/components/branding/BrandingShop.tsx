@@ -33,9 +33,12 @@ import {
    never touches inventory.
 
    v1 HONESTY CONTRACT: order statuses are only "received" /
-   "pending_fulfillment". No shipped/delivered/tracking fiction — the UI says
-   "dropship partner integration coming soon". Browsing + ordering is FREE;
-   only the AI brand-kit design costs credits (200 Visual Bucs per set).
+   "pending_fulfillment". No shipped/delivered/tracking fiction. Browsing is
+   FREE; the AI brand-kit design costs credits (200 Visual Bucs per set),
+   and merch orders are paid through secure checkout (test mode) when the
+   order is placed — the note under the Place Order button says exactly
+   that (brandingShop.noPaymentNote, English verbatim in every catalog:
+   money copy is never translated).
 
    PAYMENTS (w8): merch orders pay ON this page (owner law 2026-10-26:
    never leave the site) — both pay paths (the cart drawer's Place

@@ -58,6 +58,7 @@ const W1_LEGIT_IDENTICAL = new Set([
   "brandingShop.colors.gold",
   "brandingShop.departments.merch",
   "brandingShop.departments.smart",
+  "brandingShop.noPaymentNote",
   "brandingShop.smartCardsBadge",
   "brandingShop.tabs.shop",
   "brandingShop.trackingLabel",

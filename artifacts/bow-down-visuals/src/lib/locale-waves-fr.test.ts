@@ -44,6 +44,7 @@ const W1_LEGIT: ReadonlySet<string> = new Set([
   "brandDeals.resultsCount",
   "brandDeals.tabs.marketplace",
   "brandingShop.departments.merch",
+  "brandingShop.noPaymentNote",
   "brandingShop.styleLabel",
   "brandingShop.totalLabel",
   "contracts.type.distribution",
