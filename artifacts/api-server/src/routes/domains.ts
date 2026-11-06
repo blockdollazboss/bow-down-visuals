@@ -7,15 +7,19 @@ import { db } from "@workspace/db";
 import { customDomainsTable, creatorProfilesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import { skipIfAdmin } from "../lib/admin";
+import { isAdminUserId, skipIfAdmin } from "../lib/admin";
+import { resolveHostingEntitlement } from "../lib/profile-website";
 
 const router = Router();
 
 /* ── Custom domains — Worker 10: creator "own website" flagship ─────────────
    Every creator gets <slug>.bowdownvisuals.com FREE (resolved by convention,
-   no row needed — see GET /api/domains/resolve). The paid tier connects their
-   OWN domain: they add a CNAME + a TXT proof-of-ownership record at their DNS
-   provider, hit "Check now", and we flip the row to active.
+   no row needed — see GET /api/domains/resolve). Their OWN domain rides the
+   Hosting product (owner's ruled model): an active Hosting subscription
+   ($9/mo) or Creator Elite (Hosting included) connects it — the POST below
+   is gated on resolveHostingEntitlement, admins exempt. They add a CNAME +
+   a TXT proof-of-ownership record at their DNS provider, hit "Check now",
+   and we flip the row to active.
 
    CONFIG — read this before prod:
    - DOMAINS_CNAME_TARGET: the CNAME target we tell creators to point at.
@@ -164,6 +168,25 @@ router.post("/domains", requireAuth, createLimiter, async (req, res) => {
   const profile = await myProfile(req.userId!);
   if (!profile) {
     res.status(404).json({ error: "Build your creator page first — domains attach to a profile. 🦈" });
+    return;
+  }
+
+  /* Hosting gate (owner's ruled model, Stack-200 M3): a custom domain
+     rides the Hosting product — an active profile-hosting subscription
+     ($9/mo) OR Creator Elite, which includes Hosting. Pro alone does
+     NOT unlock it. Admin accounts are exempt (standing ADMIN
+     UNRESTRICTED ruling) through the ONE predicate, checked first like
+     every other gate; resolveHostingEntitlement applies the same
+     exemption internally for its own callers. The refusal names exactly
+     what unlocks the door — never a bare 403. */
+  const domainEntitled =
+    (await isAdminUserId(req.userId!)) ||
+    (await resolveHostingEntitlement(profile.id, req.userId!)).entitled;
+  if (!domainEntitled) {
+    res.status(403).json({
+      error:
+        "Your own custom domain rides the Hosting plan — $9/mo on its own, or included free with Creator Elite. Pick up either one and this door opens. 🦈",
+    });
     return;
   }
 

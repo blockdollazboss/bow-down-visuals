@@ -22341,7 +22341,7 @@
     "domKeep": "Conserver",
     "domLoadFailed": "Impossible de charger vos domaines — rien n’a changé à leur sujet.",
     "domNoProfile": "Les domaines se rattachent à votre page de créateur — créez-la d’abord (l’annuaire des Creator Rooms en est la porte d’entrée), puis revendiquez votre domaine ici même.",
-    "domNone": "No custom domains yet — your free subdomain above is already working, and your own .com is one claim away.",
+    "domNone": "No custom domains yet — your free subdomain above is already working. Your own .com comes with the Hosting plan ($9/mo), or included free with Creator Elite.",
     "domPlaceholderWarning": "Attention : la cible CNAME de la plateforme est encore l’espace réservé — notre équipe est en train de brancher la cible réelle. Votre enregistrement TXT prouve déjà la propriété.",
     "domPrimary": " · principal",
     "domReading": "Lecture de vos domaines…",

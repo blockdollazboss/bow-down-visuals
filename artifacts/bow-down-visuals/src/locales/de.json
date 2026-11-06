@@ -22312,7 +22312,7 @@
     "domKeep": "Behalten",
     "domLoadFailed": "Deine Domains konnten nicht geladen werden — an ihnen hat sich nichts geändert.",
     "domNoProfile": "Domains werden mit deiner Creator-Seite verknüpft — erstelle sie zuerst (das Verzeichnis der Creator Rooms hat die Tür), dann beanspruche deine Domain gleich hier.",
-    "domNone": "No custom domains yet — your free subdomain above is already working, and your own .com is one claim away.",
+    "domNone": "No custom domains yet — your free subdomain above is already working. Your own .com comes with the Hosting plan ($9/mo), or included free with Creator Elite.",
     "domPlaceholderWarning": "Achtung: Das CNAME-Ziel der Plattform ist noch der Platzhalter — unser Team richtet gerade das echte Ziel ein. Dein TXT-Eintrag beweist bereits die Inhaberschaft.",
     "domPrimary": " · primär",
     "domReading": "Deine Domains werden gelesen…",
