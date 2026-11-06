@@ -131,7 +131,6 @@ router.post("/director-look", requireAuth, freeAiLimiter, async (req, res) => {
         { role: "user", content: sceneLines.join("\n") },
       ],
       max_completion_tokens: 400,
-      temperature: 0.6,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "";

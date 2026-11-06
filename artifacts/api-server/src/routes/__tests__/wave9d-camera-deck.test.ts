@@ -172,7 +172,8 @@ describe("POST /prompt — legacy byte-stability", () => {
     const args = testState.lastCompletionArgs;
     expect(args.messages[0].content).toBe(LEGACY_SYSTEM);
     expect(args.messages[1].content).toBe(LEGACY_USER);
-    expect(args.temperature).toBe(0.6);
+    // GPT-6.1 Sol rejects sampling params — the request must not send one.
+    expect(args.temperature).toBeUndefined();
     expect(args.max_completion_tokens).toBe(400);
   });
 

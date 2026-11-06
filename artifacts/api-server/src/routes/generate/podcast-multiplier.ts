@@ -325,7 +325,6 @@ async function summarizeEpisode(title: string, transcriptText: string): Promise<
       ],
       response_format: { type: "text" },
       max_completion_tokens: 500,
-      temperature: 0.6,
     });
     return completion.choices[0]?.message?.content?.trim() ?? "";
   } catch (err) {

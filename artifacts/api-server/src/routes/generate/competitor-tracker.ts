@@ -300,7 +300,6 @@ router.post("/competitor-analysis", requireAuth, publicApiLimiter, async (req, r
       response_format: { type: "json_object" },
       /* GPT-6 rejects `max_tokens` — always use `max_completion_tokens`. */
       max_completion_tokens: 1800,
-      temperature: 0.5,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

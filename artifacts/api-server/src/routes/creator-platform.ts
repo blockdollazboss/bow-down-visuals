@@ -3180,7 +3180,6 @@ router.post("/playlists/:id/series-assist", requireAuth, freeAiLimiter, async (r
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 1800,
-        temperature: 0.7,
       });
       raw = completion.choices[0]?.message?.content ?? "{}";
     } catch (err) {

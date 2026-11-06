@@ -1758,7 +1758,6 @@ router.post("/memberships/ai-perks", requireAuth, publicApiLimiter, async (req, 
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1200,
-      temperature: 0.5,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

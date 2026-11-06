@@ -329,7 +329,7 @@ const AI_ANNOUNCEMENT_DIRECTION: Record<(typeof AI_ANNOUNCEMENT_TYPES)[number], 
   schedule: "scheduled an upcoming stream — get people to mark their calendars",
 };
 
-/* Text model: centralized in getTextModel() (default gpt-6-sol, env-overridable
+/* Text model: centralized in getTextModel() (default gpt-6.1-sol, env-overridable
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
 
@@ -409,7 +409,6 @@ router.post("/discord/ai-announcement", requireAuth, publicApiLimiter, async (re
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 600,
-      temperature: 0.9,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

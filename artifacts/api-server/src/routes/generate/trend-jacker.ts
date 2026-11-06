@@ -133,7 +133,6 @@ router.post("/trend-jacker/draft", requireAuth, publicApiLimiter, async (req, re
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 2500,
-      temperature: 0.8,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

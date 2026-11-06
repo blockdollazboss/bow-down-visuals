@@ -295,7 +295,6 @@ router.post("/channel-audit", requireAuth, publicApiLimiter, async (req, res) =>
       response_format: { type: "json_object" },
       /* GPT-6 rejects `max_tokens` — always use `max_completion_tokens`. */
       max_completion_tokens: 1600,
-      temperature: 0.4,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

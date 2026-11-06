@@ -433,7 +433,6 @@ router.post("/books/ai/assist", requireAuth, async (req, res) => {
         { role: "user", content: prompt },
       ],
       max_tokens: 2500,
-      temperature: 0.8,
     });
     const result = completion.choices[0]?.message?.content?.trim() ?? "";
     res.json({ ok: true, action, result });

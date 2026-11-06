@@ -69,7 +69,7 @@ export const calculateSchema = z.object({
   niche: z.string().min(1).max(120),
 });
 
-/* Text model: centralized in getTextModel() (default gpt-6-sol,
+/* Text model: centralized in getTextModel() (default gpt-6.1-sol,
    env-overridable via OPENAI_TEXT_MODEL). Called per-request like every
    other route — do not hardcode model IDs. */
 
@@ -266,7 +266,6 @@ router.post(
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 1500,
-        temperature: 0.3,
       });
 
       const raw = completion.choices[0]?.message?.content ?? "{}";

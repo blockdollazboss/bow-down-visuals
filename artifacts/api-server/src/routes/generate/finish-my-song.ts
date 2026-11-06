@@ -140,7 +140,6 @@ async function writeCompletion(
     ],
     response_format: { type: "json_object" },
     max_completion_tokens: 2500,
-    temperature: 0.7,
   });
 
   const raw = completion.choices[0]?.message?.content ?? "{}";

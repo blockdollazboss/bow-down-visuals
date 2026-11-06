@@ -612,7 +612,6 @@ router.post("/royalties/insights", requireAuth, publicApiLimiter, async (req, re
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 800,
-      temperature: 0.4,
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     let insights: { title: string; detail: string }[] = [];

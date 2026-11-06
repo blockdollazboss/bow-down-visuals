@@ -96,7 +96,7 @@ export async function notifySponsorEscrowReversed(dealId: string): Promise<void>
  *  - AI pitch writer / AI deal matcher: 100 credits each, charged BEFORE the
  *    model call, auto-refunded on provider failure.
  *
- * GPT-6 note: use `max_completion_tokens` — gpt-6-sol rejects `max_tokens`.
+ * GPT-6 note: use `max_completion_tokens` — gpt-6.1-sol rejects `max_tokens`.
  *
  * Queries use raw SQL via db.execute(sql``) rather than the drizzle query
  * builder (same pattern as the locations route — pg-mem and the node-postgres
@@ -458,7 +458,6 @@ router.post("/sponsors/pitch", requireAuth, publicApiLimiter, async (req, res) =
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 800,
-      temperature: 0.5,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -578,7 +577,6 @@ router.post("/sponsors/match", requireAuth, publicApiLimiter, async (req, res) =
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 800,
-      temperature: 0.3,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

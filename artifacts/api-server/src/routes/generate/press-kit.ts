@@ -177,7 +177,6 @@ async function writeArtistBio(args: {
       },
     ],
     max_completion_tokens: 600,
-    temperature: 0.8,
   });
 
   const bio = completion.choices[0]?.message?.content?.trim() ?? "";

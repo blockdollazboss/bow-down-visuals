@@ -127,7 +127,6 @@ async function aiPolish(
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 700,
-      temperature: 0.5,
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const j = JSON.parse(raw) as { picks?: unknown };

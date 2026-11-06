@@ -87,7 +87,6 @@ router.post("/hashtags", requireAuth, async (req, res) => {
         model,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        temperature: 0.7,
       }),
       signal: AbortSignal.timeout(60_000),
     });

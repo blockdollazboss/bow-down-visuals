@@ -375,7 +375,6 @@ router.post("/theme", requireAuth, publicApiLimiter, async (req, res) => {
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1200,
-      temperature: regenerate ? 0.9 : 0.7,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -469,7 +468,6 @@ router.post("/bio", requireAuth, publicApiLimiter, async (req, res) => {
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 500,
-      temperature: 0.75,
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     let bio = "";

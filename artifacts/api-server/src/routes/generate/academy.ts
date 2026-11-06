@@ -29,7 +29,7 @@ export { ACADEMY_CREDIT_COST };
 const LEVELS = ["beginner", "intermediate", "advanced"] as const;
 const PLATFORMS = ["youtube", "tiktok", "instagram", "twitch", "x"] as const;
 
-/* Text model: centralized in getTextModel() (default gpt-6-sol,
+/* Text model: centralized in getTextModel() (default gpt-6.1-sol,
    env-overridable via OPENAI_TEXT_MODEL). GPT-6 rejects `max_tokens` —
    always use `max_completion_tokens`. */
 
@@ -130,7 +130,6 @@ router.post("/academy/learning-path", requireAuth, publicApiLimiter, async (req,
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1500,
-      temperature: 0.4,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -254,7 +253,6 @@ router.post("/academy/ask", requireAuth, publicApiLimiter, async (req, res) => {
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1200,
-      temperature: 0.5,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -361,7 +359,6 @@ router.post("/academy/lesson", requireAuth, publicApiLimiter, async (req, res) =
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1800,
-      temperature: 0.5,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

@@ -99,7 +99,6 @@ async function translateSegments(texts: string[], targetLabel: string): Promise<
       model,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      temperature: 0.3,
     }),
     signal: AbortSignal.timeout(180_000),
   });

@@ -139,7 +139,6 @@ router.post("/generate-community-post", requireAuth, async (req, res) => {
         model,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        temperature: 0.85,
       }),
       signal: AbortSignal.timeout(120_000),
     });

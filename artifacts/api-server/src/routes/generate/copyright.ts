@@ -178,7 +178,6 @@ router.post("/copyright/draft", requireAuth, publicApiLimiter, async (req, res) 
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 900,
-      temperature: 0.4,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -241,7 +240,6 @@ router.post("/copyright/ask", requireAuth, publicApiLimiter, async (req, res) =>
         { role: "user", content: parsed.data.question.slice(0, 1000) },
       ],
       max_completion_tokens: 700,
-      temperature: 0.4,
     });
 
     const answer = (completion.choices[0]?.message?.content ?? "").trim();

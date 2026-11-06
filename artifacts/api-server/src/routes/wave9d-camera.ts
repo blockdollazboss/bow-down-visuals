@@ -198,7 +198,6 @@ router.post("/wave9d/camera/prompt", requireAuth, publicApiLimiter, async (req, 
         },
       ],
       max_completion_tokens: 400,
-      temperature: 0.6,
     });
 
     const enrichedPrompt = (completion.choices[0]?.message?.content ?? "").trim();
@@ -327,7 +326,6 @@ router.post("/wave9d/camera/design", requireAuth, publicApiLimiter, freeAiLimite
         },
       ],
       max_completion_tokens: 700,
-      temperature: 0.7,
     });
 
     const rawText = (completion.choices[0]?.message?.content ?? "").trim();

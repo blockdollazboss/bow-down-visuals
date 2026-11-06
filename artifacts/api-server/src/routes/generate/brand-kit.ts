@@ -355,7 +355,6 @@ const generateBrandKitHandler = async (req: Request, res: Response) => {
         },
       ],
       max_completion_tokens: 2000,
-      temperature: 0.8,
     });
 
     const raw = completion.choices[0]?.message?.content?.trim();

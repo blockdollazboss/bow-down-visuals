@@ -159,7 +159,6 @@ router.post("/stream-copilot/prep", requireAuth, publicApiLimiter, async (req, r
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 2000,
-      temperature: 0.7,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -253,7 +252,6 @@ router.post("/stream-copilot/clip-plan", requireAuth, publicApiLimiter, async (r
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 2500,
-      temperature: 0.75,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

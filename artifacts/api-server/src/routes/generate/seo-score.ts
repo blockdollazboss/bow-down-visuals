@@ -141,7 +141,6 @@ router.post("/seo-score", requireAuth, async (req, res) => {
         model,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        temperature: 0.3,
       }),
       signal: AbortSignal.timeout(120_000),
     });

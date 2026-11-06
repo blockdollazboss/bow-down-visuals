@@ -210,7 +210,6 @@ router.post("/content-calendar", requireAuth, publicApiLimiter, async (req, res)
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 6000,
-      temperature: 0.8,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

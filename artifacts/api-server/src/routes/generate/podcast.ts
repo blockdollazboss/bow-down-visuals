@@ -414,7 +414,6 @@ async function writeScriptFromTopic(topic: string): Promise<string> {
     ],
     response_format: { type: "text" },
     max_completion_tokens: 4000,
-    temperature: 0.8,
   });
   const script = completion.choices[0]?.message?.content?.trim() ?? "";
   if (script.length < 50) throw new Error("Script generation returned too little text");

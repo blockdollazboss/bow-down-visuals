@@ -76,7 +76,7 @@ const promoSchema = z.object({
   focus: z.string().max(300).optional().default(""),
 });
 
-/* Text model: centralized in getTextModel() (default gpt-6-sol, env-overridable
+/* Text model: centralized in getTextModel() (default gpt-6.1-sol, env-overridable
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
 
@@ -168,7 +168,6 @@ router.post("/promo-generator", requireAuth, publicApiLimiter, async (req, res) 
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1000,
-      temperature: 0.8,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";

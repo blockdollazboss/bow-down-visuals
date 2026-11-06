@@ -411,7 +411,6 @@ router.post("/jewelry/consult", requireAuth, async (req, res) => {
         { role: "user", content: parsed.data.message },
       ],
       max_completion_tokens: 600,
-      temperature: 0.7,
     });
     const reply =
       completion.choices[0]?.message?.content?.trim() ||

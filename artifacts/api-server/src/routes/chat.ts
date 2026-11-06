@@ -17,7 +17,7 @@ import { resolveOptionalSession } from "../lib/optional-auth";
 
 const router = Router();
 
-/* Text model: centralized in getTextModel() (default gpt-6-sol, env-overridable
+/* Text model: centralized in getTextModel() (default gpt-6.1-sol, env-overridable
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
 
@@ -151,7 +151,6 @@ router.post("/chat", maybeAuth, publicApiLimiter, async (req, res) => {
         { role: "user", content: message.trim() },
       ],
       max_completion_tokens: CHAT_MAX_OUTPUT_TOKENS,
-      temperature: 0.7,
     });
 
     let reply =

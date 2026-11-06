@@ -192,7 +192,6 @@ router.post("/storyboard", requireAuth, async (req, res) => {
         model,
         messages: [{ role: "user", content: planPrompt }],
         response_format: { type: "json_object" },
-        temperature: 0.5,
       }),
       signal: AbortSignal.timeout(120_000),
     });
