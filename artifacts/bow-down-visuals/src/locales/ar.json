@@ -2136,6 +2136,8 @@
     "playPreview": "تشغيل المعاينة",
     "fromPrice": "ابتداءً من {{price}}",
     "licenseButton": "رخّص",
+    "licensedBadge": "مرخّص",
+    "alreadyLicensed": "لديك بالفعل ترخيص لهذا البيت.",
     "sellTitle": "أدرج لحناً — مجاناً",
     "sellSubtitle": "الإدراج مجاني. يأخذ الموقع 15% فقط عند البيع.",
     "titleLabel": "العنوان *",

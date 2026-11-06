@@ -2132,6 +2132,8 @@
     "playPreview": "プレビューを再生",
     "fromPrice": "{{price}}〜",
     "licenseButton": "ライセンス",
+    "licensedBadge": "ライセンス済み",
+    "alreadyLicensed": "このビートのライセンスはすでに所有しています。",
     "sellTitle": "ビートを出品 — 無料",
     "sellSubtitle": "出品は無料。売れたときだけサイトが15%いただきます。",
     "titleLabel": "タイトル *",

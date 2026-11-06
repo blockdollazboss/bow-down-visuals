@@ -2132,6 +2132,8 @@
     "playPreview": "미리듣기 재생",
     "fromPrice": "{{price}}부터",
     "licenseButton": "라이선스",
+    "licensedBadge": "라이선스 보유",
+    "alreadyLicensed": "이미 이 비트의 라이선스를 보유하고 있습니다.",
     "sellTitle": "비트 등록 — 무료",
     "sellSubtitle": "등록은 무료입니다. 판매 시에만 사이트가 15%를 가져갑니다.",
     "titleLabel": "제목 *",

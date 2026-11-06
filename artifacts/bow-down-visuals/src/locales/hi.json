@@ -2132,6 +2132,8 @@
     "playPreview": "प्रीव्यू चलाएं",
     "fromPrice": "{{price}} से शुरू",
     "licenseButton": "लाइसेंस लें",
+    "licensedBadge": "लाइसेंस प्राप्त",
+    "alreadyLicensed": "आपके पास इस बीट का लाइसेंस पहले से है।",
     "sellTitle": "बीट लिस्ट करें — मुफ़्त",
     "sellSubtitle": "लिस्टिंग मुफ़्त है। साइट सिर्फ़ बेचने पर 15% लेती है।",
     "titleLabel": "टाइटल *",
