@@ -164,6 +164,32 @@ export const SONG_PRESETS: SongPreset[] = [
     simplePrompt: "powerful rock anthem with epic guitars",
     form: { genre: "Rock" },
   },
+  /* ── Stack 200 upgrade wave (Lane U2): Gospel and Country were
+     always values the genre select accepts, but no preset reached
+     for them. Both set exactly their genre (plus the beat-style
+     recipe words the census specified) — nothing else. ── */
+  {
+    id: "gospel-choir",
+    label: "Gospel Choir",
+    emoji: "🙏",
+    group: "genre",
+    simplePrompt: "uplifting gospel song led by a big choir — call-and-response verses, organ swells, handclaps",
+    form: {
+      genre: "Gospel",
+      beatStyle: "Choir-led — organ and piano, handclaps, call-and-response dynamics",
+    },
+  },
+  {
+    id: "country-story",
+    label: "Country Story",
+    emoji: "🤠",
+    group: "genre",
+    simplePrompt: "story-first country song — one small-town story told verse by verse, fiddle and steel over acoustic strum",
+    form: {
+      genre: "Country",
+      beatStyle: "Fiddle and pedal steel, acoustic strum, story-first verses",
+    },
+  },
 
   /* ── By mood & vibe — sets the mood select (Lo-Fi: beat style only,
         because the form has no Lo-Fi genre or mood value) ── */
@@ -282,6 +308,20 @@ export const SONG_PRESETS: SongPreset[] = [
       songLength: "Full song",
       specialInstructions:
         "Structure: full song — intro, two verses, big chorus, bridge, final chorus.",
+    },
+  },
+  /* ── Stack 200 upgrade wave (Lane U2): the dance-record structure
+     none of the six carried — tension first, release second. Like
+     every structure preset it rides Special Instructions only. ── */
+  {
+    id: "build-and-drop",
+    label: "Build & Drop",
+    emoji: "🔊",
+    group: "structure",
+    simplePrompt: "dance record built on tension — long rising build, then the drop hits hard",
+    form: {
+      specialInstructions:
+        "Structure: build tension through the verse — rising drums, filtered synths, everything climbing — then a full drop; the second build climbs higher and the final drop lands biggest.",
     },
   },
 ];
