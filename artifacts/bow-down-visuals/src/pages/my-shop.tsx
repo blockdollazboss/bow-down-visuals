@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import PosMode from "@/components/PosMode";
 import CommercePixelsSettings, {
   pixelsToForm,
@@ -835,6 +836,7 @@ export default function MyShop() {
             {/* editor */}
             {activeShop && (
               <div className="space-y-8">
+                <SectionBoundary name="myshop-details">
                 <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <h2 className="text-lg font-bold">{t("myShop.shopDetails")}</h2>
@@ -1055,10 +1057,12 @@ export default function MyShop() {
 
                   <DomainManager shop={activeShop} authed={authed} onUpdate={setActiveShop} />
                 </section>
+                </SectionBoundary>
 
                 {/* Commerce tracking pixels (wave-4 #41) — docked in the
                     shop settings (MONEY workflow): the owner's own
                     Meta/TikTok/Google IDs for this shop. */}
+                <SectionBoundary name="myshop-pixels">
                 <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
                   <CommercePixelsSettings
                     key={activeShop.id}
@@ -1073,12 +1077,14 @@ export default function MyShop() {
                     onSave={saveShopPixels}
                   />
                 </section>
+                </SectionBoundary>
 
                 {/* Sell in person (POS mode) — QR / payment-link till +
                     cash recorder, docked in My Shop (Stack-100 #3 #28). */}
-                <PosMode key={activeShop.id} shop={activeShop} products={products} authed={authed} />
+                <SectionBoundary name="myshop-pos"><PosMode key={activeShop.id} shop={activeShop} products={products} authed={authed} /></SectionBoundary>
 
                 {/* products */}
+                <SectionBoundary name="myshop-products">
                 <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-bold">{t("myShop.products")} <span className="text-white/40 text-sm font-normal">({products.length})</span></h2>
@@ -1351,15 +1357,16 @@ export default function MyShop() {
                     </div>
                   )}
                 </section>
+                </SectionBoundary>
 
                 {/* Verified-purchase reviews for this shop's products —
                     respond + flag/hide moderation, docked in the
                     seller's shop dashboard (Stack-100 #3, #14). */}
-                <SellerReviewsPanel productType="shop_product" heading="Shop reviews" />
+                <SectionBoundary name="myshop-reviews"><SellerReviewsPanel productType="shop_product" heading="Shop reviews" /></SectionBoundary>
 
-                <DiscountCodesCard shop={activeShop} authed={authed} />
+                <SectionBoundary name="myshop-discounts"><DiscountCodesCard shop={activeShop} authed={authed} /></SectionBoundary>
 
-                <AnalyticsCard shopId={activeShop.id} authed={authed} />
+                <SectionBoundary name="myshop-analytics"><AnalyticsCard shopId={activeShop.id} authed={authed} /></SectionBoundary>
               </div>
             )}
           </div>

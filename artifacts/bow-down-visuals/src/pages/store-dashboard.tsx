@@ -37,6 +37,7 @@ import {
 } from "@/lib/office-hours";
 import SplitsEditor from "@/components/splits/SplitsEditor";
 import PushOptInPrompt from "@/components/PushOptInPrompt";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import CommercePixelsSettings, {
   pixelsToForm,
   type CommercePixelsFormValue,
@@ -2355,7 +2356,7 @@ export default function StoreDashboard() {
 
       {/* Wave 4 #43: buyer offers on storefront products land here —
           accept / decline / counter; renders only when offers exist. */}
-      <SellerOffersInbox itemKind="store_product" className="mb-6" />
+      <SectionBoundary name="store-offers-inbox"><SellerOffersInbox itemKind="store_product" className="mb-6" /></SectionBoundary>
 
       {noProfile ? (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.06] p-8 text-center">
@@ -2419,7 +2420,7 @@ export default function StoreDashboard() {
           ) : !checklist ? (
             <div className="flex justify-center py-20 text-white/40"><Loader2 className="h-8 w-8 animate-spin" /></div>
           ) : (
-            <EarningsHero data={checklist} />
+            <SectionBoundary name="store-earnings-hero"><EarningsHero data={checklist} /></SectionBoundary>
           )}
 
           {/* In-context push ask (EVERYTHING SMART): only once the
@@ -2427,16 +2428,18 @@ export default function StoreDashboard() {
               ask here, never on a cold first page load. */}
           {checklist && checklist.earnings.orderCount > 0 && (
             <div className="mt-5">
+              <SectionBoundary name="store-push-prompt">
               <PushOptInPrompt
                 when
                 context="first-sale"
                 headline="Want the next sale to ping your phone?"
                 body="Turn on device notifications and a completed sale reaches you the moment it lands — even with the site closed."
               />
+              </SectionBoundary>
             </div>
           )}
 
-          <div className="mt-5"><ConnectPayoutCard /></div>
+          <SectionBoundary name="store-connect-payout"><div className="mt-5"><ConnectPayoutCard /></div></SectionBoundary>
 
           <div className="mb-6 mt-6 flex gap-2 overflow-x-auto border-b border-white/10 pb-px">
             {tabs.map((t) => (
@@ -2455,6 +2458,7 @@ export default function StoreDashboard() {
           </div>
 
           {tab === "overview" && overviewStates.overview === "ok" && checklist && (
+            <SectionBoundary name="store-overview-grid">
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
               <div className="lg:col-span-3"><NextMoveCard data={checklist} /></div>
               <div className="lg:col-span-2"><ChecklistCard data={checklist} /></div>
@@ -2480,22 +2484,23 @@ export default function StoreDashboard() {
                 </span>
               </Link>
             </div>
+            </SectionBoundary>
           )}
-          {tab === "overview" && <StorefrontPixelsCard />}
-          {tab === "products" && <ProductsTab slug={slug} onChanged={load} />}
-          {tab === "products" && <CourseBuilderPanel />}
+          <SectionBoundary name="store-pixels">{tab === "overview" && <StorefrontPixelsCard />}</SectionBoundary>
+          <SectionBoundary name="store-tab-products">{tab === "products" && <ProductsTab slug={slug} onChanged={load} />}</SectionBoundary>
+          <SectionBoundary name="store-course-builder">{tab === "products" && <CourseBuilderPanel />}</SectionBoundary>
           {tab === "products" && (
             <div className="mt-5">
-              <ShopifyBridgeCard onImported={load} />
+              <SectionBoundary name="store-shopify-bridge"><ShopifyBridgeCard onImported={load} /></SectionBoundary>
             </div>
           )}
-          {tab === "orders" && <OrdersTab />}
-          {tab === "discounts" && <DiscountsTab />}
-          {tab === "reviews" && <SellerReviewsPanel productType="store_product" />}
-          {tab === "giftcards" && <GiftCardsTab />}
+          <SectionBoundary name="store-tab-orders">{tab === "orders" && <OrdersTab />}</SectionBoundary>
+          <SectionBoundary name="store-tab-discounts">{tab === "discounts" && <DiscountsTab />}</SectionBoundary>
+          <SectionBoundary name="store-tab-reviews">{tab === "reviews" && <SellerReviewsPanel productType="store_product" />}</SectionBoundary>
+          <SectionBoundary name="store-tab-giftcards">{tab === "giftcards" && <GiftCardsTab />}</SectionBoundary>
           </>
           )}
-          {surface === "digital" && <DigitalSalesTab />}
+          <SectionBoundary name="store-tab-digital">{surface === "digital" && <DigitalSalesTab />}</SectionBoundary>
         </>
       )}
     </div>
