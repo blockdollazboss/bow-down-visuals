@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Mic, Lightbulb, Zap, Package, Loader2, ShoppingCart, Upload,
   CheckCircle2, ShieldCheck, Truck, FileCheck2, X, Plus, Minus, Sparkles,
@@ -88,6 +89,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function StudioGearShop() {
   const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
 
   const [sel, setSel] = useState<Record<GearProductId, Selection>>(() =>
@@ -121,7 +123,8 @@ export default function StudioGearShop() {
   const [placing, setPlacing] = useState(false);
 
   /* orders */
-  const [orders, setOrders] = useState<GearOrder[]>([]);
+  const [orders, setOrders] = useState<GearOrder[] | null>(null);
+  const [ordersFailed, setOrdersFailed] = useState(false);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [proofBusy, setProofBusy] = useState<string | null>(null);
   const [revisionNotes, setRevisionNotes] = useState<Record<string, string>>({});
@@ -223,10 +226,16 @@ export default function StudioGearShop() {
     setOrdersLoading(true);
     try {
       const res = await authed("/api/studio-gear/orders");
+      if (!res.ok) throw new Error("gear orders load failed");
       const data = (await res.json().catch(() => ({}))) as { orders?: GearOrder[] };
       setOrders(Array.isArray(data.orders) ? data.orders : []);
+      setOrdersFailed(false);
     } catch {
-      /* orders list is best-effort */
+      /* Empty-lie fix: a failed load is NOT "no gear orders" — keep
+         whatever is already on screen and raise the honest failed
+         state below. Made-to-order orders (including pending proof
+         approvals) must never silently vanish. */
+      setOrdersFailed(true);
     } finally {
       setOrdersLoading(false);
     }
@@ -591,7 +600,15 @@ export default function StudioGearShop() {
           <h3 className="mb-4 flex items-center gap-2 text-lg font-bold">
             <Package className="h-5 w-5 text-primary" /> My gear orders
           </h3>
-          {ordersLoading ? (
+          {ordersFailed && (!orders || orders.length === 0) ? (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.04] p-5" data-testid="studio-gear-orders-load-error">
+              <p className="text-sm text-red-300">{t("studioGearOrders.loadError")}</p>
+              <button type="button" onClick={() => void loadOrders()}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3.5 py-1.5 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+                {t("studioGearOrders.retry")}
+              </button>
+            </div>
+          ) : !orders || ordersLoading ? (
             <div className="flex items-center gap-2 text-sm text-white/50">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading your gear orders…
             </div>
@@ -599,6 +616,15 @@ export default function StudioGearShop() {
             <p className="text-sm text-white/40">No gear orders yet — your made-to-order pieces will show up here.</p>
           ) : (
             <div className="space-y-4">
+              {ordersFailed && (
+                <p className="flex flex-wrap items-center gap-2 text-sm text-red-300" data-testid="studio-gear-orders-reload-error">
+                  {t("studioGearOrders.loadError")}
+                  <button type="button" onClick={() => void loadOrders()}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+                    {t("studioGearOrders.retry")}
+                  </button>
+                </p>
+              )}
               {orders.map((o) => (
                 <div key={o.id} className={`rounded-2xl border p-5 ${cardCls}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm">

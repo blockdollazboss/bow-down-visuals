@@ -24248,5 +24248,9 @@
     "arcadeGoldName": "आर्केड गोल्ड",
     "arcadeGoldTagline": "चीट-कोड चारकोल, गर्म सोना, अंगार की चमक",
     "arcadeGoldDescription": "महल का चीट-कोड पक्ष: गर्म चारकोल संगमरमर, गर्म सोना, और अंधेरे में अंगार की आभा — दिन में गर्म कागज़ संगमरमर और गहरा कांस्य। Game Controller कर्सर के साथ मेल खाता है।"
+  },
+  "studioGearOrders": {
+    "loadError": "Your gear orders couldn't load — your made-to-order pieces and proof approvals may be waiting. Check your connection and try again.",
+    "retry": "Try again"
   }
 }

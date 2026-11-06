@@ -24277,5 +24277,9 @@
     "arcadeGoldName": "Oro Arcade",
     "arcadeGoldTagline": "Carbone codice trucco, oro rovente, bagliore di brace",
     "arcadeGoldDescription": "Il lato codice trucco del palazzo: marmo carbone caldo, oro rovente e un bagliore di brace al buio — marmo carta calda e bronzo profondo di giorno. Si abbina al cursore Game Controller."
+  },
+  "studioGearOrders": {
+    "loadError": "Your gear orders couldn't load — your made-to-order pieces and proof approvals may be waiting. Check your connection and try again.",
+    "retry": "Try again"
   }
 }

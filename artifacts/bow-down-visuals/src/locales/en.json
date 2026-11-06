@@ -24264,5 +24264,9 @@
     "arcadeGoldName": "Arcade Gold",
     "arcadeGoldTagline": "Cheat-code charcoal, hot gold, ember glow",
     "arcadeGoldDescription": "The cheat-code side of the palace: warm charcoal marble, hot gold, and an ember underglow in the dark — warm paper marble and deep bronze by day. Pairs with the Game Controller cursor."
+  },
+  "studioGearOrders": {
+    "loadError": "Your gear orders couldn't load — your made-to-order pieces and proof approvals may be waiting. Check your connection and try again.",
+    "retry": "Try again"
   }
 }
