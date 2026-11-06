@@ -176,8 +176,8 @@ async function settledCount(table: string): Promise<number> {
   return r.rows[0].n as number;
 }
 
-/* Legacy 800 + deals 2000 + memberships 1500 + shop 900 = 5200. */
-const EXPECTED = 5200;
+/* Legacy 800 + deals 2000 + memberships 1350 (net of the 10% fee) + shop 900 = 5050. */
+const EXPECTED = 5050;
 
 describe("pendingPayoutCents — the widened ledgers (0142)", () => {
   it("counts released deals, paid memberships, and shop sales on top of the legacy ledgers", async () => {

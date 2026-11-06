@@ -16,6 +16,7 @@ import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { recordCreditUsage } from "../../lib/payment-record";
+import { membershipNetSql } from "../../lib/seller-earnings";
 
 const router = Router();
 
@@ -141,7 +142,7 @@ export async function readCreatorState(userId: string): Promise<CreatorState> {
       WHERE user_id = ${userId} AND event_type = 'sale'
     `);
     const members = await db.execute(sql`
-      SELECT COALESCE(SUM(price_cents), 0)::int AS cents
+      SELECT COALESCE(SUM(${membershipNetSql("price_cents")}), 0)::int AS cents
       FROM fan_members
       WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL
     `);

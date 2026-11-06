@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { logger } from "./logger";
 import { saleSplitAdjustments } from "./sale-splits";
@@ -38,11 +38,15 @@ import { saleSplitAdjustments } from "./sale-splits";
  *     ~/workspace/payfix-reports/store-dashboards.md): syncs, then
  *     returns the pending figure + the ledger rows behind it.
  *
- * Fee math is NOT touched: amounts are copied from the splits the rails
- * already recorded (store 5%, beats 15%). Memberships carry no fee-split
- * column in their model, so their payable stays price_cents — exactly
- * as the 0142 Connect settlement has always counted it — with the fee
- * recorded as 0 rather than inventing a split.
+ * Fee math is NOT re-invented: amounts are copied from the splits the
+ * rails already recorded (store 5%, beats 15%). Memberships carry no
+ * fee-split column in their model, so their split is DERIVED from
+ * price_cents at the rail's ratified 10% with the Member Dashboard's
+ * own rounding (see the membership fee split block below). Before the
+ * Nov 5, 2026 fix this module credited memberships GROSS — the
+ * dashboard showed $4.50 net on a $5.00 membership while Earnings
+ * credited the full $5.00 and pending payout read $31.50 vs the true
+ * $31.00 — the exact defect the block below now prevents.
  *
  * Settlement discipline is BULK, mirroring digital_sales/store_orders:
  * creator_payouts rows in active states ('processing' | 'pending' |
@@ -53,6 +57,40 @@ import { saleSplitAdjustments } from "./sale-splits";
  * its released-and-unsettled total alongside instead of duplicating it.
  */
 
+
+/* ── Membership fee split ────────────────────────────────────────────────
+ * The memberships rail charges a 10% platform fee
+ * (MEMBERSHIPS_PLATFORM_FEE_PCT in routes/generate/memberships.ts), and
+ * the Member Dashboard shows creators the net via that module's
+ * netAfterFee: net = round(price × 90%), fee = price − net, so fee +
+ * net always reconciles to the price to the cent. fan_members records
+ * NO split columns, so every earnings / payout read derives the split
+ * from price_cents with exactly that rounding — what a creator is
+ * shown is what they are credited. membershipNetSql / membershipFeeSql
+ * are the SQL twins of the TS helpers: integer half-up rounding —
+ * (price × 90 + 50) / 100 under truncating integer division —
+ * identical to Math.round for price_cents >= 0. */
+export const MEMBERSHIP_FEE_PCT = 10;
+
+export function membershipNetCents(priceCents: number): number {
+  const price = Math.max(0, Math.round(priceCents));
+  return Math.round((price * (100 - MEMBERSHIP_FEE_PCT)) / 100);
+}
+
+export function membershipFeeCents(priceCents: number): number {
+  const price = Math.max(0, Math.round(priceCents));
+  return price - membershipNetCents(price);
+}
+
+/** SQL expression for the creator net of a membership price column. */
+export function membershipNetSql(priceColumn: string): SQL {
+  return sql.raw(`((${priceColumn} * ${100 - MEMBERSHIP_FEE_PCT} + 50) / 100)`);
+}
+
+/** SQL expression for the platform fee of a membership price column. */
+export function membershipFeeSql(priceColumn: string): SQL {
+  return sql.raw(`(${priceColumn} - ((${priceColumn} * ${100 - MEMBERSHIP_FEE_PCT} + 50) / 100))`);
+}
 
 /* ── Ledger sync ─────────────────────────────────────────────────────────
  * One INSERT … SELECT per rail per entry type. Each statement is
@@ -191,13 +229,14 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
 
   /* fan_members — paid memberships (stripe_session_id present = a real
      charge happened, the same paid marker routes/earnings.ts uses).
-     No fee split exists in this model: net = price_cents, fee 0. */
+     No fee split is recorded on the row: gross / fee / net are derived
+     from price_cents at the rail's 10% (membershipNetSql above). */
   await run("membership:accrual", sql`
     INSERT INTO pending_payout_ledger
       (seller_user_id, seller_profile_id, source_kind, source_id, entry_type,
        gross_cents, platform_fee_cents, net_cents, stripe_session_id)
     SELECT fm.user_id, NULL, 'membership', fm.id, 'accrual',
-           fm.price_cents, 0, fm.price_cents, fm.stripe_session_id
+           fm.price_cents, ${membershipFeeSql("fm.price_cents")}, ${membershipNetSql("fm.price_cents")}, fm.stripe_session_id
     FROM fan_members fm
     WHERE fm.user_id = ${userId} AND fm.stripe_session_id IS NOT NULL
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
@@ -207,7 +246,7 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
       (seller_user_id, seller_profile_id, source_kind, source_id, entry_type,
        gross_cents, platform_fee_cents, net_cents, stripe_session_id)
     SELECT fm.user_id, NULL, 'membership', fm.id, 'reversal',
-           fm.price_cents, 0, fm.price_cents, fm.stripe_session_id
+           fm.price_cents, ${membershipFeeSql("fm.price_cents")}, ${membershipNetSql("fm.price_cents")}, fm.stripe_session_id
     FROM fan_members fm
     WHERE fm.user_id = ${userId} AND fm.stripe_session_id IS NOT NULL
       AND fm.status = 'refunded'
@@ -344,8 +383,9 @@ export async function readPendingPayoutForSeller(
 
 /* ── Unified earnings summary ────────────────────────────────────────────
  * The ONE earnings aggregation. Every figure is a seller NET in cents
- * copied from the source rows' own splits — the same amounts the
- * ledger accrues — so the earnings story and the pending-payout story
+ * copied from the source rows' own splits (memberships derive theirs
+ * from price_cents at the rail's 10% — membershipNetSql above) — the
+ * same amounts the ledger accrues — so the earnings story and the pending-payout story
  * can never drift apart: for any completed sale, its net here equals
  * its ledger accrual net there. Refunded sales are excluded everywhere
  * (their money is not earnings; the ledger shows accrual + reversal). */
@@ -439,7 +479,7 @@ export async function sellerBeats(userId: string): Promise<SellerEarningsSummary
 
 export async function sellerMemberships(userId: string): Promise<SellerEarningsSummary["memberships"]> {
   const memb = await db.execute(sql`
-    SELECT COALESCE(SUM(price_cents), 0)::int AS cents, COUNT(*)::int AS n
+    SELECT COALESCE(SUM(${membershipNetSql("price_cents")}), 0)::int AS cents, COUNT(*)::int AS n
     FROM fan_members
     WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL AND status <> 'refunded'
   `);

@@ -144,9 +144,9 @@ describe("#5 earnings statements", () => {
     const r = await realFetch(`${baseUrl}/earnings/statements/2026`);
     const json: any = await r.json();
     expect(json.statement.sources.storeSales.totalCents).toBe(5000);
-    expect(json.statement.sources.memberships.totalCents).toBe(1500);
+    expect(json.statement.sources.memberships.totalCents).toBe(1350); // $15.00 membership net of the 10% platform fee
     expect(json.statement.sources.royalties.totalCents).toBe(1234);
-    expect(json.statement.totalCents).toBe(7734);
+    expect(json.statement.totalCents).toBe(7584);
     expect(json.statement.documentKind).toBe("statement_of_platform_recorded_earnings");
     expect(json.statement.disclaimer).toMatch(/not a filed tax form/);
 
@@ -194,7 +194,7 @@ describe("#5 earnings statements", () => {
       expect(pdfText).toContain(label);
       expect(pdfText).toContain(`${money(s.totalCents)}  (${s.count} records)`.replace(/[()]/g, (m) => `\\${m}`));
     }
-    expect(json.statement.totalCents).toBe(5000 + 1900 + 1500 + 4000 + 1234);
+    expect(json.statement.totalCents).toBe(5000 + 1900 + 1350 + 4000 + 1234);
     expect(pdfText).toContain(money(json.statement.totalCents));
   });
 
@@ -229,9 +229,9 @@ describe("#5 earnings statements", () => {
     const theirs: any = await (await realFetch(`${baseUrl}/earnings/statements/2026`)).json();
     expect(theirs.statement.sources.storeSales.totalCents).toBe(7777);
     expect(theirs.statement.sources.shopSales.totalCents).toBe(1900);
-    expect(theirs.statement.sources.memberships.totalCents).toBe(3333);
+    expect(theirs.statement.sources.memberships.totalCents).toBe(3000); // 3333¢ membership net of the 10% platform fee
     expect(theirs.statement.sources.brandDeals.totalCents).toBe(4444);
     expect(theirs.statement.sources.royalties.totalCents).toBe(999);
-    expect(theirs.statement.totalCents).toBe(7777 + 1900 + 3333 + 4444 + 999);
+    expect(theirs.statement.totalCents).toBe(7777 + 1900 + 3000 + 4444 + 999);
   });
 });

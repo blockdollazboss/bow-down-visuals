@@ -251,11 +251,11 @@ describe("command revenue", () => {
     expect(status).toBe(200);
     expect(body.rails.store.totalCents).toBe(17250); // 12500 orders + 4750 net shop sale
     expect(body.rails.store.count).toBe(3);
-    expect(body.rails.memberships.totalCents).toBe(1500); // verified paid checkouts only
+    expect(body.rails.memberships.totalCents).toBe(1350); // verified paid checkouts only, net of the 10% fee (900 + 450)
     expect(body.rails.brandDeals.totalCents).toBe(3000); // released only
     expect(body.rails.beats.totalCents).toBe(12750); // completed, net of commission
     expect(body.rails.beats.count).toBe(2);
-    expect(body.totalCents).toBe(34500);
+    expect(body.totalCents).toBe(34350);
     expect(body.rails.tips.stageTipsVb).toBe(125); // stage tips on their own line (ruling #28)
     expect(body.rails.tips.stageTipCount).toBe(1);
     expect(body.totalTipsVb).toBe(625); // stream 500 + stage 125, credited only; uncredited 999s stay out
@@ -362,7 +362,7 @@ describe("command brief", () => {
     expect(typeof brief.body.generatedAt).toBe("string");
     /* The digest is this request's real data, panel-shaped. */
     expect(brief.body.digest.audience.followers).toEqual({ total: 3, new7: 2 });
-    expect(brief.body.digest.revenue.totalCents).toBe(34500);
+    expect(brief.body.digest.revenue.totalCents).toBe(34350);
     const pastDue = brief.body.digest.actions.items.find((i: any) => i.key === "pastDueMembers");
     expect(pastDue.count).toBe(2);
     const aud = await get("/command/audience");

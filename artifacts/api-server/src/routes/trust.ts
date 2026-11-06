@@ -18,6 +18,7 @@ import { evictStageRoom, getOrCreateStageRoom, stageRooms, STAGE_PRESENCE_CAP, S
 import { liveChatHub } from "./live-chat";
 import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
 import { PdfBuilder, GOLD, GREY, BLACK, WHITE } from "../lib/pdf";
+import { membershipNetSql } from "../lib/seller-earnings";
 
 /* ─── Stack 10 "Trust, safety & the literal end" ─────────────────────────
    #1 Content ID depth: house-computed spectral-peak fingerprints,
@@ -632,7 +633,7 @@ export async function buildYearStatement(userId: string, year: number) {
     SELECT COALESCE(SUM(amount_cents - platform_fee_cents),0)::int AS cents, COUNT(*)::int AS n FROM shop_events
     WHERE user_id = ${userId} AND event_type = 'sale' AND EXTRACT(YEAR FROM created_at) = ${year}`));
   const memberships = await one(() => sum(sql`
-    SELECT COALESCE(SUM(price_cents),0)::int AS cents, COUNT(*)::int AS n FROM fan_members
+    SELECT COALESCE(SUM(${membershipNetSql("price_cents")}),0)::int AS cents, COUNT(*)::int AS n FROM fan_members
     WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL AND EXTRACT(YEAR FROM created_at) = ${year}`));
   const brandDeals = await one(() => sum(sql`
     SELECT COALESCE(SUM(net_cents),0)::int AS cents, COUNT(*)::int AS n FROM sponsor_payouts

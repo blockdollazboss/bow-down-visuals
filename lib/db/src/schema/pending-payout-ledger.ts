@@ -29,11 +29,14 @@ import { z } from "zod/v4";
  *  - 'beat_license'  beat_licenses 'completed' row (15% commission in
  *                    commission_cents; net = price − commission)
  *  - 'membership'    fan_members paid row (stripe_session_id present).
- *                    The membership model carries NO fee split column —
- *                    the payable amount is price_cents, exactly as the
- *                    0142 Connect settlement has always counted it;
- *                    platform_fee_cents is recorded as 0 rather than
- *                    inventing a split the model does not carry.
+ *                    The membership model carries NO fee split column,
+ *                    so the split is derived from price_cents at the
+ *                    rail's 10% platform fee with the Member
+ *                    Dashboard's rounding (membershipNetSql in
+ *                    lib/seller-earnings) — gross / fee / net recorded
+ *                    on the ledger row exactly as derived. (Before the
+ *                    Nov 5, 2026 fix the payable was price_cents gross
+ *                    with the fee recorded as 0 — an over-credit.)
  *
  * Brand deals are deliberately NOT copied here: sponsor_payouts is
  * already a per-row released-escrow ledger; the unified pending read
