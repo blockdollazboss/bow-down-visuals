@@ -142,6 +142,13 @@ const panelSrc = readFileSync(
   fileURLToPath(new URL("../../components/world/StationPanel.tsx", import.meta.url)),
   "utf8",
 );
+/* Stack-200 hardening C (item 31): PanelBoundary was extracted from
+   StationPanel.tsx into its own module — the pass-through pin below
+   reads it there now. */
+const panelBoundarySrc = readFileSync(
+  fileURLToPath(new URL("../../components/world/panel-boundary.ts", import.meta.url)),
+  "utf8",
+);
 const nativeCardSrc = readFileSync(
   fileURLToPath(new URL("../../components/world/native/NativeCard.tsx", import.meta.url)),
   "utf8",
@@ -1093,15 +1100,19 @@ describe("the ShopStands checkout reachability (stack600 audit)", () => {
 
   it("the station body — and the transfer footer after it — render INSIDE the sheet's scroll region", () => {
     const panelAt = panelSrc.indexOf('data-testid="world-station-panel"');
-    expect(panelSrc.split("{body}").length - 1).toBe(1);
-    const bodyAt = panelSrc.indexOf("{body}");
+    /* Stack-200 hardening C (item 31): the sheet renders {boundedBody}
+       — the same single body node, wrapped in the pass-through
+       PanelBoundary only for custom stations. It still renders
+       exactly once, inside the sheet, before the transfer footer. */
+    expect(panelSrc.split("{boundedBody}").length - 1).toBe(1);
+    const bodyAt = panelSrc.indexOf("{boundedBody}");
     expect(bodyAt).toBeGreaterThan(panelAt);
     const footerAt = panelSrc.indexOf("context={resolution.station.tagline}");
     expect(footerAt).toBeGreaterThan(bodyAt);
   });
 
   it("the PanelBoundary on the body's path is a pass-through (no wrapper, no clip)", () => {
-    expect(panelSrc).toContain("return this.props.children");
+    expect(panelBoundarySrc).toContain("return this.props.children");
   });
 
   it("NativeCard is a pass-through — no overflow, no height cap", () => {

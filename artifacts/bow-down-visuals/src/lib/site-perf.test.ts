@@ -202,7 +202,10 @@ describe("E — /analytics-hub's tab panels ride lazy doors", () => {
   it("each panel tab block renders behind its TabDoor", () => {
     expect(analyticsHub).toContain("function TabDoor(");
     for (const tab of ["intelligence", "contentid", "milestones", "channelAudit", "virality", "fandecoder", "audience"]) {
-      expect(analyticsHub).toContain(`<TabDoor>{hubTab === "${tab}" && (`);
+      /* Stack-200 hardening C (item 36): TabDoor became a Suspense +
+         SectionBoundary pair and gained a per-tab name + the hubTab
+         reset key — still exactly one door per tab block. */
+      expect(analyticsHub).toContain(`<TabDoor name="analytics-tab-${tab.toLowerCase()}" resetKey={hubTab}>{hubTab === "${tab}" && (`);
     }
   });
 
