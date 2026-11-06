@@ -277,7 +277,11 @@ describe("operator knowledge — description coverage (no silent thinning)", () 
     // Last-segment namespace fall-through must never hand a dashboard the
     // creator command-center text: both dashboards carry their OWN meta.
     expect(byPath("/store/dashboard").description).toBe("Your store earnings, orders, products, and discount codes. The Get Paid finale.");
-    expect(byPath("/sponsors/dashboard").description).toBe("Your sponsorship dashboard — track deals, deliverables and earnings on Bow Down Visuals.");
+    // C-21: the sponsor dashboard is the Brand Deals Manage tab now —
+    // its entry resolves through the tab and carries its OWN namespace
+    // meta, never the hub's finder prose.
+    expect(byPath("/brand-deals?tab=manage").description).toBe("Your marketplace sponsor deals in one place — deals you posted, applications you sent, and earnings from released deals.");
+    expect(byPath("/brand-deals?tab=manage").descriptionSource).toContain('en.json "sponsorDashboard.metaDescription"');
   });
 
   it("a deepened feature's facts carry its description to the operator", () => {

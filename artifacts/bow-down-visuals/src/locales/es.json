@@ -2474,11 +2474,12 @@
     "marketplaceLink": "Mercado de patrocinadores",
     "tabs": {
       "finder": "Buscador",
-      "marketplace": "Mercado"
+      "marketplace": "Mercado",
+      "manage": "Gestionar acuerdos",
+      "post": "Publicar un acuerdo"
     },
     "related": {
       "label": "Relacionado:",
-      "sponsorDashboard": "Panel de patrocinador",
       "postDeal": "Publicar un acuerdo"
     }
   },
@@ -5390,7 +5391,7 @@
     "emptyPayoutsTitle": "Sin pagos aún",
     "errorLoadDashboard": "No se pudo cargar tu panel.",
     "escrowLine": "Depósito en garantía: {{amount}} · {{status}}",
-    "eyebrow": "Panel de patrocinios",
+    "eyebrow": "Acuerdos del marketplace",
     "findDeals": "Buscar tratos",
     "loading": "Cargando…",
     "openNow": "{{count}} abiertos ahora",
@@ -5400,7 +5401,8 @@
     "postDeal": "Publicar un trato",
     "tabEarnings": "Ganancias",
     "tabMyApplications": "Mis postulaciones",
-    "tabMyDeals": "Mis tratos"
+    "tabMyDeals": "Mis tratos",
+    "metaDescription": "Tus acuerdos de patrocinio del marketplace en un solo lugar: acuerdos que publicaste, solicitudes que enviaste e ingresos de acuerdos liberados."
   },
   "sponsorDealDetail": {
     "accept": "Aceptar",
@@ -8754,8 +8756,8 @@
     "tabs": {
       "pitchKit": "Kit de presentación"
     },
-    "pipelineTitle": "Pipeline de patrocinios",
-    "pipelineSubtitle": "Sigue cada acuerdo desde la propuesta hasta el pago."
+    "pipelineTitle": "Mi pipeline de contactos — acuerdos propios / fuera de la plataforma",
+    "pipelineSubtitle": "Acuerdos que encontraste tú, dentro o fuera de la plataforma: hazlos avanzar, deja que la IA redacte tus seguimientos y registra la victoria cuando llegue."
   },
   "repurpose": {
     "badge": "Reutilizador de contenido",
@@ -11936,8 +11938,8 @@
       "stageNegotiating": "Negociando",
       "stagePaid": "Pagado",
       "stagePitched": "Presentado",
-      "subtitle": "Lleva cada acuerdo de la propuesta al pago — los borradores de seguimiento se escriben solos.",
-      "title": "Canal de Acuerdos de Patrocinio",
+      "subtitle": "Acuerdos propios / fuera de la plataforma: lleva cada uno de la propuesta al pago; los seguimientos se redactan solos.",
+      "title": "Mi pipeline de contactos",
       "today": "hoy"
     },
     "thumbnailAb": {
@@ -22853,12 +22855,12 @@
     "sbProjectsTitle": "Tus proyectos",
     "sbSponsorActiveMany": "{{count}} active deals · ${{amount}} in play",
     "sbSponsorActiveOne": "{{count}} active deal · ${{amount}} in play",
-    "sbSponsorEmptySub": "Cuando se abre un acuerdo con una marca, su etapa y su valor estarán aquí.",
+    "sbSponsorEmptySub": "Los acuerdos que encontraste tú muestran aquí su etapa y su valor.",
     "sbSponsorEmptyTitle": "Todavía no hay acuerdos de patrocinadores en juego",
     "sbSponsorFallback": "Un patrocinador",
     "sbSponsorNext": "Siguiente en tocar: {{name}}",
     "sbSponsorNextStage": " · {{stage}}",
-    "sbSponsorTitle": "Canal de patrocinadores",
+    "sbSponsorTitle": "Mi pipeline de contactos",
     "sbStatusRefunded": "Reembolsado",
     "sbStatusSaveFailed": "El guardado falló",
     "sbStatusSaved": "Guardado",

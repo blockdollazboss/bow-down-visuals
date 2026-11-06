@@ -2473,11 +2473,12 @@
     "marketplaceLink": "स्पॉन्सर मार्केटप्लेस",
     "tabs": {
       "finder": "फ़ाइंडर",
-      "marketplace": "मार्केटप्लेस"
+      "marketplace": "मार्केटप्लेस",
+      "manage": "डील प्रबंधित करें",
+      "post": "डील पोस्ट करें"
     },
     "related": {
       "label": "संबंधित:",
-      "sponsorDashboard": "Sponsor डैशबोर्ड",
       "postDeal": "एक deal पोस्ट करें"
     }
   },
@@ -5378,7 +5379,7 @@
     "emptyPayoutsTitle": "अभी तक कोई भुगतान नहीं",
     "errorLoadDashboard": "आपका डैशबोर्ड लोड नहीं हो सका.",
     "escrowLine": "एस्क्रो: {{amount}} · {{status}}",
-    "eyebrow": "प्रायोजक डैशबोर्ड",
+    "eyebrow": "मार्केटप्लेस डील",
     "findDeals": "सौदे खोजें",
     "loading": "लोड हो रहा है...",
     "openNow": "{{count}} अभी खुला है",
@@ -5388,7 +5389,8 @@
     "postDeal": "एक सौदा पोस्ट करें",
     "tabEarnings": "कमाई",
     "tabMyApplications": "मेरे आवेदन",
-    "tabMyDeals": "मेरे deals"
+    "tabMyDeals": "मेरे deals",
+    "metaDescription": "आपकी मार्केटप्लेस स्पॉन्सर डील एक ही जगह — आपके द्वारा पोस्ट की गई डील, भेजे गए आवेदन, और जारी डील से हुई कमाई।"
   },
   "sponsorDealDetail": {
     "accept": "स्वीकार करें",
@@ -8682,8 +8684,8 @@
     "tabs": {
       "pitchKit": "पिच किट"
     },
-    "pipelineTitle": "स्पॉन्सर डील पाइपलाइन",
-    "pipelineSubtitle": "हर डील को पिच से भुगतान तक ट्रैक करें।"
+    "pipelineTitle": "मेरी आउटरीच पाइपलाइन — खुद खोजी / ऑफ़-प्लेटफ़ॉर्म डील",
+    "pipelineSubtitle": "वे डील जो आपने खुद खोजीं, प्लेटफ़ॉर्म पर या बाहर — उन्हें आगे बढ़ाएँ, AI से अपने फ़ॉलो-अप लिखवाएँ, और जीत दर्ज करें जब वह मिले।"
   },
   "repurpose": {
     "badge": "कंटेंट रीपर्पसर",
@@ -11001,8 +11003,8 @@
       "stageNegotiating": "बातचीत जारी",
       "stagePaid": "भुगतान किया गया",
       "stagePitched": "पिच किया गया",
-      "subtitle": "हर डील को पिच से भुगतान तक ले जाएं — फ़ॉलो-अप मसौदे खुद लिखे जाते हैं।",
-      "title": "स्पॉन्सर डील पाइपलाइन",
+      "subtitle": "खुद खोजी / ऑफ़-प्लेटफ़ॉर्म डील — हर एक को पिच से भुगतान तक ले जाएँ; फ़ॉलो-अप ड्राफ़्ट खुद लिखे जाते हैं।",
+      "title": "मेरी आउटरीच पाइपलाइन",
       "today": "आज"
     },
     "thumbnailAb": {
@@ -22824,12 +22826,12 @@
     "sbProjectsTitle": "आपके प्रोजेक्ट",
     "sbSponsorActiveMany": "{{count}} active deals · ${{amount}} in play",
     "sbSponsorActiveOne": "{{count}} active deal · ${{amount}} in play",
-    "sbSponsorEmptySub": "जब कोई ब्रांड डील खुलेगी, तो उसका चरण और मूल्य यहाँ दिखेगा।",
+    "sbSponsorEmptySub": "जो डील आपने खुद खोजीं, उनकी अवस्था और मूल्य यहाँ दिखते हैं।",
     "sbSponsorEmptyTitle": "अभी कोई स्पॉन्सर डील चालू नहीं है",
     "sbSponsorFallback": "एक स्पॉन्सर",
     "sbSponsorNext": "अगला संपर्क: {{name}}",
     "sbSponsorNextStage": " · {{stage}}",
-    "sbSponsorTitle": "स्पॉन्सर पाइपलाइन",
+    "sbSponsorTitle": "मेरी आउटरीच पाइपलाइन",
     "sbStatusRefunded": "रिफ़ंड हो गया",
     "sbStatusSaveFailed": "सेव नहीं हो सका",
     "sbStatusSaved": "सेव हो गया",

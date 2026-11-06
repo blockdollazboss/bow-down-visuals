@@ -1,8 +1,9 @@
 /* ─── Sponsor depth seam (stack1400 world parity wave 1, item 5) ────
    The sponsor marketplace at full depth, native in-World, on the
-   sponsors router's own rails — the same endpoints the 2D pages
-   call (pages/sponsors-post.tsx, pages/sponsor-dashboard.tsx,
-   pages/sponsor-deal-detail.tsx):
+   sponsors router's own rails — the same endpoints the 2D surfaces
+   call (the Brand Deals Post a Deal + Manage Deals tabs —
+   components/sponsors/PostDealPanel.tsx + SponsorDashboardPanel.tsx —
+   and pages/sponsor-deal-detail.tsx):
 
      GET  /api/sponsors/can-spend            → { canSpend } readout
      POST /api/sponsors/deals                → post a deal: 500 Visual

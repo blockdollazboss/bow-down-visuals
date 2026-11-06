@@ -1395,7 +1395,7 @@ function OneSheetView({
           </div>
         </a>
         <a
-          href="/sponsorship-outreach"
+          href="/brand-deals?tab=pitch"
           className={`flex items-center gap-3 rounded-2xl border p-4 transition hover:border-primary/40 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
         >
           <Send className="h-6 w-6 shrink-0 text-primary" aria-hidden="true" />

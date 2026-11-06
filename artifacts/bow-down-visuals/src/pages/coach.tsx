@@ -201,7 +201,7 @@ const MORE_COACH_TOOLS: CoachToolGroup[] = [
       { href: "/referrals", labelKey: "coach.tabReferrals", defaultLabel: "Referrals", Icon: Gift },
       { href: "/team", labelKey: "coach.tabTeam", defaultLabel: "Team", Icon: UsersRound },
       { href: "/contracts", labelKey: "coach.tabContracts", defaultLabel: "Contracts", Icon: FileText },
-      { href: "/sponsors/dashboard", labelKey: "coach.tabSponsorDashboard", defaultLabel: "Sponsor Dashboard", Icon: Handshake },
+      { href: "/brand-deals?tab=manage", labelKey: "coach.tabManageDeals", defaultLabel: "Manage Deals", Icon: Handshake },
     ],
   },
   {

@@ -2641,11 +2641,12 @@
     "marketplaceLink": "Sponsor Marketplace",
     "tabs": {
       "finder": "Finder",
-      "marketplace": "Marketplace"
+      "marketplace": "Marketplace",
+      "manage": "Manage deals",
+      "post": "Post a deal"
     },
     "related": {
       "label": "Related:",
-      "sponsorDashboard": "Sponsor dashboard",
       "postDeal": "Post a deal"
     }
   },
@@ -5655,7 +5656,7 @@
     "emptyPayoutsTitle": "No payouts yet",
     "errorLoadDashboard": "Could not load your dashboard.",
     "escrowLine": "Escrow: {{amount}} · {{status}}",
-    "eyebrow": "Sponsor dashboard",
+    "eyebrow": "Marketplace deals",
     "findDeals": "Find deals",
     "loading": "Loading…",
     "openNow": "{{count}} open now",
@@ -5665,7 +5666,8 @@
     "postDeal": "Post a deal",
     "tabEarnings": "Earnings",
     "tabMyApplications": "My applications",
-    "tabMyDeals": "My deals"
+    "tabMyDeals": "My deals",
+    "metaDescription": "Your marketplace sponsor deals in one place — deals you posted, applications you sent, and earnings from released deals."
   },
   "sponsorDealDetail": {
     "accept": "Accept",
@@ -9248,8 +9250,8 @@
     "tabs": {
       "pitchKit": "Pitch kit"
     },
-    "pipelineTitle": "Sponsor Deal Pipeline",
-    "pipelineSubtitle": "Track every deal from pitch to paid."
+    "pipelineTitle": "My Outreach Pipeline — self-found / off-platform deals",
+    "pipelineSubtitle": "Deals you found yourself, on or off the platform — drag them through, let the AI draft your follow-ups, and log the win when it lands."
   },
   "repurpose": {
     "badge": "Content Repurposer",
@@ -13074,8 +13076,8 @@
       "stageNegotiating": "Negotiating",
       "stagePaid": "Paid",
       "stagePitched": "Pitched",
-      "subtitle": "Move every deal from pitch to paid — the follow-up drafts write themselves.",
-      "title": "Sponsor Deal Pipeline",
+      "subtitle": "Self-found / off-platform deals — move every one from pitch to paid; the follow-up drafts write themselves.",
+      "title": "My Outreach Pipeline",
       "today": "today"
     },
     "thumbnailAb": {
@@ -22840,12 +22842,12 @@
     "sbProjectsTitle": "Your projects",
     "sbSponsorActiveMany": "{{count}} active deals · ${{amount}} in play",
     "sbSponsorActiveOne": "{{count}} active deal · ${{amount}} in play",
-    "sbSponsorEmptySub": "When a brand deal opens, its stage and value stand here.",
+    "sbSponsorEmptySub": "Deals you found yourself show their stage and value here.",
     "sbSponsorEmptyTitle": "No sponsor deals in play yet",
     "sbSponsorFallback": "A sponsor",
     "sbSponsorNext": "Next to touch: {{name}}",
     "sbSponsorNextStage": " · {{stage}}",
-    "sbSponsorTitle": "Sponsor pipeline",
+    "sbSponsorTitle": "My outreach pipeline",
     "sbStatusRefunded": "Refunded",
     "sbStatusSaveFailed": "Save failed",
     "sbStatusSaved": "Saved",

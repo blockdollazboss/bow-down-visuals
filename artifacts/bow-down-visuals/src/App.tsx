@@ -197,9 +197,7 @@ const Messages = lazyWithRetry(() => import("@/pages/messages"));
 const Explore = lazyWithRetry(() => import("@/pages/explore"));
 /* ── Orphaned feature pages wired up (site organization) ── */
 const PressPublic = lazyWithRetry(() => import("@/pages/press-public"));
-const SponsorPost = lazyWithRetry(() => import("@/pages/sponsors-post"));
 const SponsorDealDetail = lazyWithRetry(() => import("@/pages/sponsor-deal-detail"));
-const SponsorDashboard = lazyWithRetry(() => import("@/pages/sponsor-dashboard"));
 /* ── Phase 2 de-hosted pages: formerly Coach tabs, now real routes ── */
 const BrandDeals = lazyWithRetry(() => import("@/pages/brand-deals"));
 const Distribute = lazyWithRetry(() => import("@/pages/distribute"));
@@ -688,7 +686,7 @@ function AppShell() {
               Detail pages keep their param routes (/challenge/:slug,
               /albums/:slug, /hashtag/:tag, /groups/:slug, /tips/:handle,
               /c/:slug) — the bare names just needed a front door. */}
-          <Route path="/sponsor-dashboard"><Redirect to="/sponsors/dashboard" /></Route>
+          <Route path="/sponsor-dashboard"><Redirect to="/brand-deals?tab=manage" /></Route>
           <Route path="/tip-page"><Redirect to="/tips" /></Route>
           <Route path="/nfc-card-profile"><Redirect to="/nfc-cards" /></Route>
           <Route path="/group-detail"><Redirect to="/groups" /></Route>
@@ -816,8 +814,14 @@ function AppShell() {
                 <Route path="/ai-audio"><QueryPreservingRedirect to="/audio-studio?tab=aiaudio" /></Route>
                 <Route path="/vocal-removal"><Redirect to="/audio-studio?tab=stems&mode=vocals" /></Route>
                 <Route path="/voiceover"><Redirect to="/audio-studio?tab=voiceover" /></Route>
-                <Route path="/sponsors/post"><ProtectedRoute><SponsorPost /></ProtectedRoute></Route>
-                <Route path="/sponsors/dashboard"><ProtectedRoute><SponsorDashboard /></ProtectedRoute></Route>
+                {/* C-21 one-door consolidation: posting and managing
+                    marketplace deals live inside Brand Deals now — the
+                    old standalone routes redirect to their tabs so old
+                    bookmarks and links land in the right place. The
+                    deal-detail page stays a page (notifications and
+                    Stripe escrow returns carry /sponsors/:id links). */}
+                <Route path="/sponsors/post"><Redirect to="/brand-deals?tab=post" /></Route>
+                <Route path="/sponsors/dashboard"><Redirect to="/brand-deals?tab=manage" /></Route>
                 <Route path="/sponsors/:id"><ProtectedRoute><SponsorDealDetail /></ProtectedRoute></Route>
                 <Route path="/titles"><Redirect to="/hooks?tab=titles" /></Route>
                 <Route path="/community"><CommunityManager /></Route>

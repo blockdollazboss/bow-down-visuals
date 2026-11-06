@@ -281,7 +281,7 @@ export default function SponsorDealDetail() {
   return (
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-4xl px-4 pb-24 pt-28 md:pt-32">
-        <button onClick={() => navigate("/sponsors")}
+        <button onClick={() => navigate("/brand-deals?tab=marketplace")}
           className="inline-flex items-center gap-1.5 text-sm text-white/50 transition hover:text-white">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {t("sponsorDealDetail.backToDeals")}
         </button>
@@ -482,7 +482,7 @@ export default function SponsorDealDetail() {
                         {t("sponsorDealDetail.markDelivered")}
                       </button>
                       <Link
-                        href="/sponsorship-outreach"
+                        href="/brand-deals?tab=pitch"
                         className="inline-flex items-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 px-6 py-3 text-sm font-bold text-primary transition hover:bg-primary/20"
                       >
                         <Mic2 className="h-4 w-4" aria-hidden="true" />

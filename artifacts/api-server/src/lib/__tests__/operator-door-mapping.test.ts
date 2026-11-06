@@ -341,9 +341,11 @@ describe("operator door mapping — every knowledge door against the real route 
     // richest description of a sponsor deal — but the DOOR must skip
     // it: the verified defect was a door to the literal
     // "/sponsors/:id". The door now takes the first CONCRETE entry in
-    // the same ranking (today: Sponsor Post), so door and ranking can
-    // never disagree about which features exist — only templates are
-    // passed over.
+    // the same ranking, so door and ranking can never disagree about
+    // which features exist — only templates are passed over. Since
+    // C-21 (one door: Brand Deals), the first concrete Sponsors entry
+    // is the hub's Marketplace tab: asking about "Sponsors" lands
+    // inside Brand Deals, the only sponsors front door.
     expect(findFeatures("Sponsors", 1)[0]?.id).toBe("sponsors--id");
     const firstConcrete = findFeatures("Sponsors", 8).find(
       (f) => f.path && isConcrete(f.path),
@@ -351,7 +353,7 @@ describe("operator door mapping — every knowledge door against the real route 
     const doors = buildReplyDoors("Sponsors");
     expect(doors.length).toBeGreaterThan(0);
     expect(doors[0]!.path).toBe(firstConcrete.path);
-    expect(doors[0]!.path).toBe("/sponsors/post");
+    expect(doors[0]!.path).toBe("/brand-deals?tab=marketplace");
     expect(doors[0]!.label).toBe(`Open ${firstConcrete.name}`);
   });
 

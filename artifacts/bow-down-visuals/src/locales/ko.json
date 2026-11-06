@@ -2473,11 +2473,12 @@
     "marketplaceLink": "스폰서 마켓플레이스",
     "tabs": {
       "finder": "파인더",
-      "marketplace": "마켓플레이스"
+      "marketplace": "마켓플레이스",
+      "manage": "딜 관리",
+      "post": "딜 게시"
     },
     "related": {
       "label": "관련:",
-      "sponsorDashboard": "스폰서 대시보드",
       "postDeal": "딜 게시하기"
     }
   },
@@ -5378,7 +5379,7 @@
     "emptyPayoutsTitle": "아직 정산 내역이 없습니다",
     "errorLoadDashboard": "대시보드를 로드할 수 없습니다.",
     "escrowLine": "에스크로: {{amount}} · {{status}}",
-    "eyebrow": "스폰서 대시보드",
+    "eyebrow": "마켓플레이스 딜",
     "findDeals": "거래 찾기",
     "loading": "로드 중…",
     "openNow": "현재 {{count}}개 진행 중",
@@ -5388,7 +5389,8 @@
     "postDeal": "거래 등록",
     "tabEarnings": "수익",
     "tabMyApplications": "내 신청서",
-    "tabMyDeals": "내 거래"
+    "tabMyDeals": "내 거래",
+    "metaDescription": "마켓플레이스 스폰서 딜을 한곳에서 — 게시한 딜, 보낸 지원, 릴리스된 딜의 수익."
   },
   "sponsorDealDetail": {
     "accept": "수락",
@@ -8682,8 +8684,8 @@
     "tabs": {
       "pitchKit": "피치 키트"
     },
-    "pipelineTitle": "스폰서 딜 파이프라인",
-    "pipelineSubtitle": "피치부터 결제까지 모든 딜을 추적하세요."
+    "pipelineTitle": "내 아웃리치 파이프라인 — 직접 찾은 / 플랫폼 외 딜",
+    "pipelineSubtitle": "플랫폼 안팎에서 직접 찾은 딜 — 드래그해서 진행하고, 팔로업 초안은 AI가 작성하게 하고, 성사되면 승리를 기록하세요."
   },
   "repurpose": {
     "badge": "콘텐츠 리퍼포저",
@@ -11001,8 +11003,8 @@
       "stageNegotiating": "협상 중",
       "stagePaid": "결제됨",
       "stagePitched": "제안됨",
-      "subtitle": "모든 거래를 제안부터 결제까지 이동시키세요 — 팔로업 초안은 스스로 작성됩니다.",
-      "title": "스폰서 거래 파이프라인",
+      "subtitle": "직접 찾은 / 플랫폼 외 딜 — 피치부터 결제까지 진행하세요. 팔로업 초안은 자동으로 작성됩니다.",
+      "title": "내 아웃리치 파이프라인",
       "today": "오늘"
     },
     "thumbnailAb": {
@@ -22824,12 +22826,12 @@
     "sbProjectsTitle": "당신의 프로젝트",
     "sbSponsorActiveMany": "{{count}} active deals · ${{amount}} in play",
     "sbSponsorActiveOne": "{{count}} active deal · ${{amount}} in play",
-    "sbSponsorEmptySub": "브랜드 거래가 열리면 그 단계와 가치가 여기에 표시됩니다.",
+    "sbSponsorEmptySub": "직접 찾은 딜의 단계와 금액이 여기에 표시됩니다.",
     "sbSponsorEmptyTitle": "아직 진행 중인 스폰서 거래가 없습니다",
     "sbSponsorFallback": "스폰서",
     "sbSponsorNext": "다음으로 연락할 상대: {{name}}",
     "sbSponsorNextStage": " · {{stage}}",
-    "sbSponsorTitle": "스폰서 파이프라인",
+    "sbSponsorTitle": "내 아웃리치 파이프라인",
     "sbStatusRefunded": "환불됨",
     "sbStatusSaveFailed": "저장 실패",
     "sbStatusSaved": "저장됨",

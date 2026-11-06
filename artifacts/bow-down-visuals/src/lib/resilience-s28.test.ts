@@ -70,7 +70,9 @@ describe("#24 referrals: no infinite spinner, own data not waterfall-blocked (A3
 });
 
 describe("#25 sponsor-dashboard: banner never paints fake zeros (A3-F3)", () => {
-  const page = src("../pages/sponsor-dashboard.tsx");
+  /* C-21: the dashboard now lives as the Manage Deals tab panel inside
+     Brand Deals — the banner invariants below pin the panel's source. */
+  const page = src("../components/sponsors/SponsorDashboardPanel.tsx");
   it("totalEarned starts null — there is no 0 to paint before the load lands", () => {
     expect(page).toContain("useState<number | null>(null)");
     expect(page).not.toContain("setTotalEarnedCents] = useState(0)");

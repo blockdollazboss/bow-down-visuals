@@ -489,12 +489,14 @@ describe("QC-200 Q198 — alias config half on this lineage", () => {
       if (e.disposition === "redirect") matrixRedirects.set(e.path, e.redirectTo!);
     }
     // The ledger counted exactly 70 at ecc63098; the table has grown
-    // since (bare front doors added by later stacks). The invariant
-    // Q198 actually asserts is the two-direction zero-mismatch diff —
-    // pinned here at the current count so silent growth/shrinkage
-    // shows up as a diff to review, not a drift nobody notices.
-    expect(appRedirects.size).toBe(73);
-    expect(matrixRedirects.size).toBe(73);
+    // since (bare front doors added by later stacks; +2 in C-21 when
+    // /sponsors/post and /sponsors/dashboard became redirects into
+    // Brand Deals tabs). The invariant Q198 actually asserts is the
+    // two-direction zero-mismatch diff — pinned here at the current
+    // count so silent growth/shrinkage shows up as a diff to review,
+    // not a drift nobody notices.
+    expect(appRedirects.size).toBe(75);
+    expect(matrixRedirects.size).toBe(75);
     expect(appRedirects).toEqual(matrixRedirects);
     // Whole-table reconciliation, catch-all included.
     expect(ROUTE_MATRIX.length).toBe(allRoutes.length + 1);
@@ -503,7 +505,7 @@ describe("QC-200 Q198 — alias config half on this lineage", () => {
 
   it("the seven incident aliases keep their exact targets (Q198 named set)", () => {
     const expected: Record<string, string> = {
-      "/sponsor-dashboard": "/sponsors/dashboard",
+      "/sponsor-dashboard": "/brand-deals?tab=manage",
       "/tip-page": "/tips",
       "/nfc-card-profile": "/nfc-cards",
       "/group-detail": "/groups",
