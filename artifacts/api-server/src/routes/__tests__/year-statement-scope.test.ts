@@ -21,16 +21,18 @@
  *  - the new rails book to the year the money settled and never leak
  *    across creators.
  *
- * JOIN RECONCILIATION (stack1600 join crew): on THIS base (join5) the
- * summary has no shoutout/tipJar readers and counts memberships
- * GROSS, so the totals identity below subtracts the statement-only
- * royalties + the two new rails. When L1 (memberships net-of-10%
- * everywhere) and L2 (summary gains sellerShoutouts/sellerTipJar with
- * the same formulas used here) land, the identity becomes
+ * JOIN RECONCILIATION (stack1600 join crew): on the L9 base (join5)
+ * the summary had no shoutout/tipJar readers and counted memberships
+ * GROSS, so the totals identity subtracted the statement-only
+ * royalties + the two new rails, and the memberships pin was the
+ * gross figure. JOIN7 REPAIR (test expectations only, on the joined
+ * tree where L1 + L2 have landed): the identity is now in its final
+ * form —
  *   statement.totalCents − royalties == summary.totalCents
- * with no change to this file's per-rail assertions: memberships are
- * asserted AGAINST sellerMemberships(), never against a hard-coded
- * gross/net figure.
+ * — the memberships pin is the fee-net figure the joined statement
+ * returns ((1500×90+50)/100 = 1350, the shared L1 derivation), and
+ * shoutouts / tipJar are asserted against the summary's own readers
+ * (sellerShoutouts / sellerTipJar) alongside every other rail.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { randomUUID } from "crypto";
@@ -111,12 +113,14 @@ describe("annual statement source scope (L9)", () => {
     expect(stmt.sources.storeSales).toEqual({ status: "ok", totalCents: 5000, count: 1 });
     expect(stmt.sources.shopSales).toEqual({ status: "ok", totalCents: 1900, count: 1 });
     expect(stmt.sources.beats).toEqual({ status: "ok", totalCents: 1700, count: 1 });
-    expect(stmt.sources.memberships).toEqual({ status: "ok", totalCents: 1500, count: 1 });
+    /* Memberships: fee-net on the joined tree (L1's shared derivation —
+       the $15.00 row counts (1500×90+50)/100 = 1350, never the gross). */
+    expect(stmt.sources.memberships).toEqual({ status: "ok", totalCents: 1350, count: 1 });
     expect(stmt.sources.shoutouts).toEqual({ status: "ok", totalCents: 950, count: 1 });
     expect(stmt.sources.tipJar).toEqual({ status: "ok", totalCents: 500, count: 1 });
     expect(stmt.sources.brandDeals).toEqual({ status: "ok", totalCents: 4000, count: 1 });
     expect(stmt.sources.royalties).toEqual({ status: "ok", totalCents: 1234, count: 1 });
-    expect(stmt.totalCents).toBe(3000 + 5000 + 1900 + 1700 + 1500 + 950 + 500 + 4000 + 1234);
+    expect(stmt.totalCents).toBe(3000 + 5000 + 1900 + 1700 + 1350 + 950 + 500 + 4000 + 1234);
 
     /* The same basket through the unified summary: every shared rail
        must tell the identical story. (All basket rows sit in 2026, so
@@ -128,12 +132,12 @@ describe("annual statement source scope (L9)", () => {
     expect(stmt.sources.beats.totalCents).toBe(summary.beats.totalCents);
     expect(stmt.sources.memberships.totalCents).toBe(summary.memberships.totalCents);
     expect(stmt.sources.brandDeals.totalCents).toBe(summary.brandDeals.totalCents);
-    /* Join5 reconciliation (see header): minus the statement-only
-       royalties and the two rails this base's summary lacks, the
-       totals are the same number. */
-    expect(
-      stmt.totalCents - stmt.sources.royalties.totalCents - stmt.sources.shoutouts.totalCents - stmt.sources.tipJar.totalCents,
-    ).toBe(summary.totalCents);
+    expect(stmt.sources.shoutouts.totalCents).toBe(summary.shoutouts.totalCents);
+    expect(stmt.sources.tipJar.totalCents).toBe(summary.tipJar.totalCents);
+    /* Joined-tree reconciliation (see header): the summary now reads
+       every rail the statement does, so minus the statement-only
+       royalties the totals are the same number. */
+    expect(stmt.totalCents - stmt.sources.royalties.totalCents).toBe(summary.totalCents);
   });
 
   it("books the new rails to the year the money settled — other years and cross-year settlements stay out", async () => {
