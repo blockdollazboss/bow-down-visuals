@@ -203,17 +203,15 @@ export const TIER_PLANS: TierPlanDef[] = [
   {
     tier: "pro",
     name: "Pro",
-    tagline: "Go pro: your own domain, unlimited products, pro analytics.",
+    tagline: "Go pro: pro analytics and 25 boosts a month.",
     priceUsdPerMonth: 12, // ★ APPROVED 2026-10-07
     priceIdEnv: "STRIPE_PRICE_TIER_PRO",
     feeBps: TIER_FEE_BPS.pro,
     aiBoostsPerMonth: TIER_AI_BOOSTS.pro,
     features: [
       { label: "Everything in Free, plus:", detailsUrl: "/creator-pricing#money-math" },
-      { label: "Your own custom domain (you.com, verified)", detailsUrl: "/storefronts" },
       { label: "Flat 5% platform fee — the same honest rate on every tier", detailsUrl: "/creator-pricing#money-math" },
-      { label: "Unlimited products in your shop", detailsUrl: "/storefronts" },
-      { label: "Premium gold-luxury themes", detailsUrl: "/creator-pricing#feature-themes" },
+      { label: "Premium theme packs — 1,000 Visual Bucs each, yours forever (all included with Elite)", detailsUrl: "/creator-pricing#feature-themes" },
       { label: "Pro analytics dashboard (funnels, sources, cohorts)", detailsUrl: "/analytics" },
       { label: "25 AI promotion boosts / month", detailsUrl: "/creator-pricing#feature-boosts" },
     ],
@@ -232,6 +230,7 @@ export const TIER_PLANS: TierPlanDef[] = [
       { label: "Priority placement in discovery", detailsUrl: "/creator-pricing#feature-discovery" },
       { label: "Dedicated support badge + priority support", detailsUrl: "/creator-pricing#feature-support" },
       { label: "100 AI promotion boosts / month", detailsUrl: "/creator-pricing#feature-boosts" },
+      { label: "All premium theme packs included while you're Elite", detailsUrl: "/creator-pricing#feature-themes" },
       { label: "Profile Hosting included — the $9/mo Hosting plan is free while you're Elite", detailsUrl: "/creator-pricing#feature-site" },
     ],
   },

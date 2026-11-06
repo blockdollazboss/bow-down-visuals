@@ -641,7 +641,7 @@ export default function CreatorPricing() {
         <section className="mt-12 space-y-8 text-sm text-white/60">
           <div id="feature-site" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">Your site</h3>
-            <p className="mt-1">Free gets you a subdomain on bowdownvisuals.com. Pro connects your own custom domain with verification — your brand, your URL, same checkout.</p>
+            <p className="mt-1">Free gets you a subdomain on bowdownvisuals.com. Your own custom domain comes with the Hosting plan ($9/mo) — and it's included free while you're Creator Elite. Your brand, your URL, same checkout.</p>
           </div>
           <div id="feature-streaming" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">Streaming</h3>
@@ -649,7 +649,7 @@ export default function CreatorPricing() {
           </div>
           <div id="feature-themes" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">Themes</h3>
-            <p className="mt-1">Basic themes are free forever. Premium gold-luxury themes are a Pro move — they make your site look like money because it is.</p>
+            <p className="mt-1">The two house themes are free forever. Premium theme packs cost 1,000 Visual Bucs each and are yours forever once bought — and every premium pack is included while you're Creator Elite.</p>
           </div>
           <div id="feature-boosts" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">AI promotion boosts</h3>
@@ -669,7 +669,7 @@ export default function CreatorPricing() {
         <section className="mx-auto mt-12 max-w-3xl space-y-4">
           <h2 className="text-center text-2xl font-black">Quick answers</h2>
           {[
-            ["Can I really earn on Free?", "Yes. Free sells with the same flat 5% platform fee as every tier and your full earnings dashboard is always visible. Paid tiers add features — your own domain, unlimited products, pro analytics and more AI promotion boosts."],
+            ["Can I really earn on Free?", "Yes. Free sells with the same flat 5% platform fee as every tier and your full earnings dashboard is always visible. Paid tiers add features — pro analytics and more AI promotion boosts; Elite adds priority placement, every premium theme pack, and Hosting with your own domain included."],
             ["Do paid tiers lower my platform fee?", "No — the platform fee is a flat 5% on every tier, Free included. Paid tiers pay for themselves with their features, not a lower fee."],
             ["What if I cancel?", "You keep your tier until the end of the billing period, then glide back to Free. No lock-in, no penalty — cancel or undo it any time, manage it yourself right here in Settings → Billing."],
             ["Can I gift a membership?", "Yes — use the gift desk on this page. A gift is a one-time payment (not a subscription): it does not auto-renew and no card is charged again. The recipient holds the tier for the gifted period, then glides back to Free unless they subscribe on their own. If they already have a gift running, yours queues up behind it so no paid time is lost."],
