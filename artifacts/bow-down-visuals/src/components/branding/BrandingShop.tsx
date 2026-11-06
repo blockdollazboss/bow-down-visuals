@@ -12,6 +12,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import MerchDropPlanner from "@/components/wave8/MerchDropPlanner";
 import StudioGearShop from "@/components/branding/StudioGearShop";
@@ -34,7 +35,17 @@ import {
    v1 HONESTY CONTRACT: order statuses are only "received" /
    "pending_fulfillment". No shipped/delivered/tracking fiction — the UI says
    "dropship partner integration coming soon". Browsing + ordering is FREE;
-   only the AI brand-kit design costs credits (200 Visual Bucs per set). */
+   only the AI brand-kit design costs credits (200 Visual Bucs per set).
+
+   PAYMENTS (w8): merch orders pay ON this page (owner law 2026-10-26:
+   never leave the site) — both pay paths (the cart drawer's Place
+   order and My Orders' Pay button) ask the checkout rail for its
+   embedded presentation and mount the shared
+   <EmbeddedSessionCheckout> in the flow; a hosted checkout URL is
+   never navigated to from here. Settlement is unchanged: the Stripe
+   webhook marks the order paid and confirms fulfillment from the
+   payment record; completing the embedded form returns to
+   /branding-shop?order=…&paid=1 and this page lands on My Orders. */
 
 type TabKey = "shop" | "studio" | "orders" | "merch";
 
@@ -241,6 +252,12 @@ export default function BrandingShop() {
       return;
     }
     const logoUrl = product === "rug" ? rugLogos["rug"]?.url : undefined;
+    /* Starting a new cart supersedes any minted payment form (the
+       form is bound to a placed order) — that order stays unpaid in
+       My Orders, where its Pay button can mint a fresh form. */
+    setPaySecret(null);
+    setPaySecretOrderId(null);
+    setPaySecretFrom(null);
     setCart((prev) => {
       const idx = prev.findIndex(
         (i) => i.product === product && i.color === s.color && i.size === s.size
@@ -363,29 +380,72 @@ export default function BrandingShop() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [paying, setPaying] = useState<string | null>(null);
 
+  /* The embedded checkout session's clientSecret + the order it pays
+     for + which flow minted it, when the checkout rail answers one —
+     the payment form mounts in that flow (the cart drawer, or the
+     order's own card in My Orders) and the buyer never leaves this
+     page (owner law 2026-10-26: never leave the site). The minted
+     form is bound to the exact order + total it was created for: a
+     fresh pay attempt, a different order, or a new cart clears it,
+     mirroring the World branding stand's paySecret discipline. The
+     origin keeps exactly ONE mount live — the drawer and the orders
+     list are both in the tree, and one session must never mount
+     twice. */
+  const [paySecret, setPaySecret] = useState<string | null>(null);
+  const [paySecretOrderId, setPaySecretOrderId] = useState<string | null>(null);
+  const [paySecretFrom, setPaySecretFrom] = useState<"cart" | "orders" | null>(null);
+
   /** Pay for an existing unpaid order (from My Orders). */
   async function payForOrder(orderId: string) {
     if (!user || paying) return;
     setPaying(orderId);
     setError(null);
+    /* A fresh pay attempt clears any minted form — it is bound to
+       one order + total and is never reused for another order. */
+    setPaySecret(null);
+    setPaySecretOrderId(null);
+    setPaySecretFrom(null);
     try {
       const res = await authed("/api/branding-shop/checkout", {
         method: "POST",
-        body: JSON.stringify({ orderId }),
+        body: JSON.stringify({
+          orderId,
+          /* Embedded first (owner law 2026-10-26: never leave the
+             site): when this device can mount the payment form, ask
+             for the embedded presentation — the rail answers a
+             clientSecret instead of a hosted URL and the buyer pays
+             right here on the order's card, like the shop / beats
+             doors. */
+          uiMode: hasStripePublishableKey() ? "embedded" : undefined,
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        checkoutUrl?: string;
+        clientSecret?: string | null;
         mock?: boolean;
         message?: string;
         error?: string;
       };
       if (!res.ok) throw new Error(apiErrorMessage(data, t("brandingShop.errorCheckoutFailed")));
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      /* The clientSecret branch is the whole flow now: the payment
+         form mounts on the order's card below and the buyer never
+         leaves this page (the full-page redirect to the hosted
+         checkout page is gone — a hosted URL is never navigated to
+         from here). */
+      if (data.clientSecret) {
+        setPaySecret(data.clientSecret);
+        setPaySecretOrderId(orderId);
+        setPaySecretFrom("orders");
         return;
       }
-      /* Demo checkout completed instantly — refresh the list. */
-      await loadOrders();
+      if (data.mock) {
+        /* Demo checkout completed instantly — refresh the list. */
+        await loadOrders();
+        return;
+      }
+      /* No secret and no demo completion: the rail answered a hosted
+         session this page will not navigate to. Nothing was charged;
+         the order stays unpaid and paying can be retried. */
+      throw new Error(t("brandingShop.errorCheckoutFailed"));
     } catch (err) {
       setError(plainErrorText(err, t("brandingShop.errorCheckoutFailed")));
     } finally {
@@ -431,14 +491,26 @@ export default function BrandingShop() {
       }
       const orderId = data.order.id;
       setOrdering(false);
-      /* ── pay for it: Stripe Checkout (live) or instant demo checkout ── */
+      /* ── pay for it: the embedded payment form mounts in this
+         drawer (live) or the demo checkout completes instantly. The
+         buyer never leaves the site (owner law 2026-10-26): when
+         this device can mount the payment form, ask for the
+         embedded presentation — the rail answers a clientSecret
+         instead of a hosted URL. ── */
       setCheckingOut(true);
+      /* A fresh attempt clears any minted form (bound to one order). */
+      setPaySecret(null);
+      setPaySecretOrderId(null);
+      setPaySecretFrom(null);
       const coRes = await authed("/api/branding-shop/checkout", {
         method: "POST",
-        body: JSON.stringify({ orderId }),
+        body: JSON.stringify({
+          orderId,
+          uiMode: hasStripePublishableKey() ? "embedded" : undefined,
+        }),
       });
       const coData = (await coRes.json().catch(() => ({}))) as {
-        checkoutUrl?: string;
+        clientSecret?: string | null;
         mock?: boolean;
         demo?: boolean;
         error?: string;
@@ -447,9 +519,29 @@ export default function BrandingShop() {
       if (!coRes.ok) {
         throw new Error(apiErrorMessage(coData, t("brandingShop.errorCheckoutSaved")));
       }
-      if (coData.checkoutUrl) {
-        window.location.href = coData.checkoutUrl;
+      if (coData.clientSecret) {
+        /* The clientSecret branch is the whole flow now: the payment
+           form mounts in this drawer below and the buyer pays
+           without leaving the page (the full-page redirect to the
+           hosted checkout page is gone — a hosted URL is never
+           navigated to from here). The cart's items now belong to
+           the placed order, so the cart clears (the World branding
+           stand's discipline); closing the form charges nothing —
+           the order stays unpaid in My Orders with its own Pay
+           button. */
+        setPaySecret(coData.clientSecret);
+        setPaySecretOrderId(orderId);
+        setPaySecretFrom("cart");
+        setCart([]);
         return;
+      }
+      if (!coData.mock && !coData.demo) {
+        /* No secret: the rail answered a hosted session this page
+           will not navigate to. Nothing was charged — the order is
+           saved and unpaid, and the message points at My Orders,
+           exactly like a checkout failure after the order was
+           placed. */
+        throw new Error(t("brandingShop.errorCheckoutSaved"));
       }
       setOrderSuccess(apiErrorMessage(coData, t("brandingShop.orderReceived")));
       setCart([]);
@@ -516,7 +608,10 @@ export default function BrandingShop() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  /* After Stripe checkout redirects back (?order=…&paid=1), land on My Orders. */
+  /* Checkout completion returns here (?order=…&paid=1) — the embedded
+     form's return_url names this same landing — so land on My Orders.
+     (Settlement itself happens from the payment record via the Stripe
+     webhook; this only routes the buyer.) */
   useEffect(() => {
     try {
       const q = new URLSearchParams(window.location.search);
@@ -1131,6 +1226,28 @@ export default function BrandingShop() {
                         ? t("brandingShop.providerNotePrintful")
                         : t("brandingShop.providerNoteDemo")}
                     </p>
+                    {paySecret && paySecretFrom === "orders" && paySecretOrderId === o.id && (
+                      /* The on-site payment step for this order (owner
+                         law 2026-10-26: never leave the site): the
+                         SAME <EmbeddedSessionCheckout> panel the
+                         shop / beats doors mount, fed by the checkout
+                         rail's embedded answer to payForOrder.
+                         Completion returns to
+                         /branding-shop?order=…&paid=1 and this page
+                         lands back on My Orders; settlement itself is
+                         the Stripe webhook marking the order paid
+                         from the payment record. Closing the panel
+                         charges nothing — the order stays unpaid. */
+                      <div className="mt-4 space-y-2" data-testid="branding-embedded-checkout">
+                        <EmbeddedSessionCheckout clientSecret={paySecret} />
+                        <button
+                          onClick={() => { setPaySecret(null); setPaySecretOrderId(null); setPaySecretFrom(null); }}
+                          className="text-xs text-white/40 hover:text-white"
+                        >
+                          Close — nothing is charged until you finish paying
+                        </button>
+                      </div>
+                    )}
                   </div>
                   );
                 })}
@@ -1183,6 +1300,27 @@ export default function BrandingShop() {
                     className={`${goldBtn} mt-5 w-full`}
                   >
                     {t("brandingShop.viewOrders")}
+                  </button>
+                </div>
+              ) : paySecret && paySecretFrom === "cart" ? (
+                /* The on-site payment step (owner law 2026-10-26:
+                   never leave the site): the SAME
+                   <EmbeddedSessionCheckout> panel the shop / beats
+                   doors mount, fed by the checkout rail's embedded
+                   answer to placeOrder. Completion returns to
+                   /branding-shop?order=…&paid=1 and this page lands
+                   on My Orders; settlement itself is the Stripe
+                   webhook marking the order paid from the payment
+                   record — nothing here settles on view alone.
+                   Closing the panel charges nothing — the order
+                   stays unpaid in My Orders with its own Pay button. */
+                <div className="space-y-2" data-testid="branding-embedded-checkout">
+                  <EmbeddedSessionCheckout clientSecret={paySecret} />
+                  <button
+                    onClick={() => { setPaySecret(null); setPaySecretOrderId(null); setPaySecretFrom(null); setCartOpen(false); switchTab("orders"); }}
+                    className="text-xs text-white/40 hover:text-white"
+                  >
+                    Close — nothing is charged until you finish paying
                   </button>
                 </div>
               ) : cart.length === 0 ? (
