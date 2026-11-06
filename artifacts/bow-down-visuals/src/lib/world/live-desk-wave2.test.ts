@@ -30,7 +30,7 @@ import {
   normalizeScheduledStreams, scheduleDraftReady, scheduleWhenIso, toLocalInputValue,
   CONTROLLER_WS_PATH, controllerStatusLine, controllerUnavailableNote,
   WATCH_HEARTBEAT_PATH, normalizeWatchStream, watchHeartbeatBody, watchStreamIdFromScreen,
-  GENERATED_CLIPS_PATH, PREMIERES_UPCOMING_PATH, PREMIERE_CREATE_PATH, PREMIERE_CANCEL_PATH,
+  GENERATED_CLIPS_PATH, PREMIERES_UPCOMING_PATH, PREMIERE_CREATE_PATH, PREMIERE_CANCEL_PATH, PREMIERE_PAGE_PATH,
   normalizeFinishedClips, premiereDraftReady, isOwnPremiere,
   LIVE_WAVE2_PROMOTIONS, LIVE_NATIVE_FOLLOW_ONS,
 } from "./live-desk";
@@ -184,6 +184,25 @@ describe("#91 premiere scheduling — SchedulePremiereForm's rails via reachApi"
     expect(deskSrc).toContain("reachApi.createPremiere");
     expect(deskSrc).toContain("reachApi.upcomingPremieres");
     expect(deskSrc).toContain("reachApi.cancelPremiere");
+  });
+
+  it("every upcoming row carries the copy-link door to its premiere page (w200-D4 item 25)", () => {
+    /* The /premiere/:id page existed with OG support but no surface
+       built its link — a fan had no way to reach a scheduled
+       premiere. The upcoming list is where premieres are managed,
+       so the door lives on its rows. */
+    expect(PREMIERE_PAGE_PATH("p 1")).toBe("/premiere/p%201");
+    expect(PREMIERE_PAGE_PATH("550e8400-e29b-41d4-a716-446655440000")).toBe("/premiere/550e8400-e29b-41d4-a716-446655440000");
+    expect(deskSrc).toContain('data-testid="world-live-premiere-copy-link"');
+    expect(deskSrc).toContain("PREMIERE_PAGE_PATH(p.id)");
+    expect(deskSrc).toContain("navigator.clipboard.writeText");
+    /* Labels ride the catalog keys that already exist in all 10
+       catalogs — no new copy was needed. */
+    expect(deskSrc).toContain('t("worldLivePromo.copyLink")');
+    expect(deskSrc).toContain('t("worldLivePromo.copied")');
+    /* …and the address it hands out is a routed page. */
+    const appSrc = read("../../App.tsx");
+    expect(appSrc).toContain('<Route path="/premiere/:id">');
   });
 
   it("the clip picker keeps only finished videos, like the form", () => {

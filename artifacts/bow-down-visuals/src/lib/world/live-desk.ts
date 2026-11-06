@@ -510,6 +510,13 @@ export const PREMIERES_UPCOMING_PATH = "/api/reach/premieres/upcoming";
 export const PREMIERE_CREATE_PATH = "/api/reach/premieres";
 export const PREMIERE_CANCEL_PATH = (id: string) => `/api/reach/premieres/${encodeURIComponent(id)}/cancel`;
 
+/** The premiere's public page on the website — the address the
+ *  upcoming list's copy-link door hands out. Mirrors the
+ *  /premiere/:id route exactly; before this door existed, no
+ *  surface anywhere built the link, so a scheduled premiere's page
+ *  was unreachable to the fans it was scheduled for. */
+export const PREMIERE_PAGE_PATH = (id: string) => `/premiere/${encodeURIComponent(id)}`;
+
 export interface FinishedClipOption {
   id: string;
   title: string;
