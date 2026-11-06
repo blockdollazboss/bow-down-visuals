@@ -4903,6 +4903,7 @@
   "locations": {
     "addLocation": "Ort hinzufügen",
     "errDelete": "Ort konnte nicht gelöscht werden.",
+    "errImageTooLarge": "That photo is over 10 MB \u2014 pick a smaller one.",
     "errLoad": "Orte konnten nicht geladen werden.",
     "errNameFirst": "Benennen Sie den Ort zuerst, dann wählen Sie ein Bild.",
     "errNameUrl": "Geben Sie dem Ort einen Namen und eine Bild-URL.",
@@ -20294,6 +20295,27 @@
     "winnersStageThroneOption": "Throne Hall — Front-Row-Mitglieder und das Haus veranstalten",
     "winnersThemePrefix": "„{{theme}}“ · ",
     "winnersYourWork": "Dein Werk"
+  },
+  "worldVideoStudio": {
+    "title": "Video Studio",
+    "subtitle": "Generate cinematic videos with camera controls",
+    "fromProject": "From your project",
+    "presetsLabel": "One-Click Presets",
+    "modeText": "Text to Video",
+    "modeImage": "Image to Video",
+    "uploadPhoto": "Upload a photo",
+    "promptPlaceholder": "Describe your video\u2026",
+    "cameraLabel": "Camera Movement",
+    "durationLabel": "Duration",
+    "aspectLabel": "Aspect Ratio",
+    "generate": "Generate Video Clip",
+    "generating": "Generating\u2026",
+    "resultsLabel": "Fresh from the studio",
+    "failed": "Generation failed",
+    "emptySuccess": "Generation finished without a clip \u2014 no Visual Bucs were charged.",
+    "timedOut": "Generation timed out \u2014 the clip may still finish in the background.",
+    "errorNotImage": "That file isn\u2019t an image \u2014 choose a photo.",
+    "errorImageTooLarge": "That photo is over 10 MB \u2014 pick a smaller one."
   },
   "worldRepurposeDesk": {
     "title": "Content Repurposer",
