@@ -2269,6 +2269,8 @@
     "playPreview": "Play preview",
     "fromPrice": "from {{price}}",
     "licenseButton": "License",
+    "licensedBadge": "Licensed",
+    "alreadyLicensed": "You already own a license for this beat.",
     "sellTitle": "List a beat — free",
     "sellSubtitle": "Listing is free. The site takes 15% only when you sell.",
     "titleLabel": "Title *",

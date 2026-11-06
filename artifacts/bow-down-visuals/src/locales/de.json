@@ -2132,6 +2132,8 @@
     "keyLabel": "Tonart",
     "keyPlaceholder": "C min",
     "licenseButton": "Lizenzieren",
+    "licensedBadge": "Lizenziert",
+    "alreadyLicensed": "Du besitzt bereits eine Lizenz für diesen Beat.",
     "licenseModalTitle": "„{{title}}“ lizenzieren",
     "licensePricesLabel": "Lizenzpreise (USD)",
     "licenseReserved": "Checkout gestartet — schließe die Zahlung ab, um deine Lizenz zu aktivieren.",

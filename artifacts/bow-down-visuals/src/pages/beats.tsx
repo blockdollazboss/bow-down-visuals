@@ -22,6 +22,10 @@ import {
   type SectionStates,
 } from "@/lib/dashboard-sections";
 import {
+  completedLicenseForBeat,
+  type BuyerBeatLicense,
+} from "@/lib/beats-buyer-licenses";
+import {
   BEAT_LICENSE_FORMATS,
   BEAT_PLAIN_TERMS_COPY,
   defaultTermsForTier,
@@ -92,22 +96,11 @@ interface Beat {
 }
 
 /* A buyer's own license, as GET /api/beats/licenses/mine returns it
-   (the license DTO is camelCase, unlike the dashboard's raw rows).
-   downloadUrl / stemsUrl are present ONLY on completed licenses —
-   stemsUrl only when the sold terms carry a stems format and the
-   producer has stems on file (stack1100 X4). */
-interface BuyerLicense {
-  id: string;
-  beatTitle: string | null;
-  tier: string;
-  templateId?: string | null;
-  terms?: BeatLicenseTerms | null;
-  priceCents: number;
-  status: string;
-  createdAt: string;
-  downloadUrl: string | null;
-  stemsUrl: string | null;
-}
+   (the DTO lives in lib/beats-buyer-licenses — it carries beatId, the
+   join key the browse cards and the license modal use to show a
+   completed license as owned on every load, not just in the
+   dashboard library below). */
+type BuyerLicense = BuyerBeatLicense;
 
 interface License {
   id: string;
@@ -361,6 +354,14 @@ export default function Beats() {
         if (res.ok && data.success && data.downloadUrl) {
           setVerifyDelivery({ url: data.downloadUrl, stemsUrl: data.stemsUrl ?? null });
         }
+        if (res.ok && data.success) {
+          /* The verify call is what completes the license row, and
+             the sign-in fetch may have read it while it was still
+             pending — reload the buyer's licenses so the card and
+             the library carry the owned state from this moment,
+             without waiting for another page load (stack1600 W8). */
+          fetchBuyerLicenses();
+        }
       } catch {
         setVerifyMsg("We couldn't confirm that payment. If you were charged, contact support.");
       }
@@ -398,6 +399,19 @@ export default function Beats() {
       fetchBuyerLicenses();
     }
   }, [tab, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* The buyer's licenses also load on sign-in itself (stack1600 W8):
+     the browse cards and the license modal read them to show a
+     completed license as owned. They used to load ONLY when the
+     dashboard tab opened, so after the hosted checkout returned and
+     the buyer reloaded /beats, nothing on the page they landed on
+     knew about the purchase — the card offered the beat for sale
+     again and the modal showed no owned state, even though the
+     license row was completed server-side. Guests skip the fetch
+     (licenses/mine is an account rail). */
+  useEffect(() => {
+    if (user) fetchBuyerLicenses();
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function togglePlay(beat: Beat) {
     const el = audioRef.current;
@@ -718,6 +732,34 @@ export default function Beats() {
                           </button>
                         )}
                       </div>
+                      {/* Owned state (stack1600 W8): a completed license
+                          badges the card and carries its downloads on
+                          EVERY load — the buyer's licenses load with
+                          sign-in, not just in the dashboard library.
+                          Before this, the card only ever offered the
+                          beat for sale again once the checkout-return
+                          banner was gone. */}
+                      {(() => {
+                        const owned = completedLicenseForBeat(buyerLicenses, beat.id);
+                        if (!owned) return null;
+                        return (
+                          <div className="flex flex-wrap items-center gap-2 mt-3" data-testid="beat-card-owned">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/15 text-green-300 text-xs font-bold">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> {t("beats.licensedBadge")}
+                            </span>
+                            {owned.downloadUrl && (
+                              <a href={owned.downloadUrl} download className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A84C] text-black text-xs font-bold hover:bg-[#DDBB62]">
+                                {t("beats.downloadButton")}
+                              </a>
+                            )}
+                            {owned.stemsUrl && (
+                              <a href={owned.stemsUrl} download className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#C9A84C]/50 text-[#E3C566] text-xs font-bold hover:bg-[#C9A84C]/10">
+                                {t("beats.downloadStemsButton")}
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -974,6 +1016,38 @@ export default function Beats() {
               <h3 className="font-bold text-lg">{t("beats.licenseModalTitle", { title: licenseBeat.title })}</h3>
               <button aria-label="Close" onClick={() => setLicenseBeat(null)} className="text-white/40 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
+            {/* Already-licensed state (stack1600 W8): the modal used
+                to present the purchase shelf as if the buyer owned
+                nothing, even with a completed license on the row.
+                The owned license is named here with its downloads;
+                the shelf below stays live for a buyer who wants a
+                different offer on the same beat. */}
+            {(() => {
+              const owned = completedLicenseForBeat(buyerLicenses, licenseBeat.id);
+              if (!owned) return null;
+              return (
+                <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-3 mb-4" data-testid="beat-modal-owned">
+                  <p className="text-sm font-semibold text-green-200 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" /> {t("beats.alreadyLicensed")}
+                  </p>
+                  <p className="text-xs text-white/50 mt-1">{owned.terms?.name ?? t("beats.licenseRow", { tier: owned.tier })}</p>
+                  {(owned.downloadUrl || owned.stemsUrl) && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {owned.downloadUrl && (
+                        <a href={owned.downloadUrl} download className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A84C] text-black text-xs font-bold hover:bg-[#DDBB62]">
+                          {t("beats.downloadButton")}
+                        </a>
+                      )}
+                      {owned.stemsUrl && (
+                        <a href={owned.stemsUrl} download className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#C9A84C]/50 text-[#E3C566] text-xs font-bold hover:bg-[#C9A84C]/10">
+                          {t("beats.downloadStemsButton")}
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <div className="space-y-2 mb-4 max-h-[60vh] overflow-y-auto pr-1">
               {LICENSE_TIERS.map((tier) => {
                 /* An exclusive sale closes the whole shelf, not just

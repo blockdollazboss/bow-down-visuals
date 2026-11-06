@@ -2133,6 +2133,8 @@
     "playPreview": "Riproduci l'anteprima",
     "fromPrice": "da {{price}}",
     "licenseButton": "Licenza",
+    "licensedBadge": "Con licenza",
+    "alreadyLicensed": "Possiedi già una licenza per questo beat.",
     "sellTitle": "Pubblica un beat — gratis",
     "sellSubtitle": "La pubblicazione è gratis. Il sito trattiene il 15% solo quando vendi.",
     "titleLabel": "Titolo *",
