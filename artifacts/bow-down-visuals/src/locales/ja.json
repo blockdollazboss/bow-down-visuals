@@ -24260,5 +24260,10 @@
   "bookArtist": {
     "loadError": "Bookings couldn't load — bookings may be waiting here. Check your connection and try again.",
     "retry": "Try again"
+  },
+  "subscriptionHistory": {
+    "loading": "Loading your subscription receipts…",
+    "loadError": "Your subscription receipts couldn't load — try again.",
+    "retry": "Try again"
   }
 }
