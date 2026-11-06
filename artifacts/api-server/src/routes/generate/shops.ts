@@ -24,7 +24,7 @@ import { randomUUID, createHash } from "crypto";
 import OpenAI from "openai";
 import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
-import { isAdminEmail } from "../../lib/admin";
+import { isAdminUserId } from "../../lib/admin";
 import { searchTextCondition } from "../../lib/search-match";
 import { logger } from "../../lib/logger";
 import { isUniqueViolation, isUndefinedTable, pgErrorText } from "../../lib/pg-errors";
@@ -346,6 +346,7 @@ import { r2Upload, r2PublicUrl, isR2Configured } from "../../lib/r2-client";
 import { promises as dns } from "dns";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { resolveHostingEntitlement } from "../../lib/profile-website";
 
 const router = Router();
 
@@ -927,7 +928,8 @@ router.get("/shops/my-purchases", requireAuth, async (req, res) => {
    includes "sell at 5%", and the store fee is FLAT 5% for every plan —
    so shop creation is NOT tier-gated. Free creators create a shop and
    sell; the 5% platform fee is the only take. (Custom domains below
-   stay Pro-gated: that is a domain feature, not the right to sell.)
+   ride the Hosting entitlement: that is a domain feature, not the
+   right to sell.)
    Everything after creation (products, AI, analytics) follows its own rules. */
 router.post("/shops", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = createShopSchema.safeParse(req.body ?? {});
@@ -1992,9 +1994,9 @@ router.post("/shops/ai/product-image", requireAuth, publicApiLimiter, async (req
    domains over the SAME shops / shop_products / shop_events tables this
    module's CRUD + AI tools serve. One canonical shop surface: this file.
    The helpers below (STOREFRONT_PLATFORM_FEE_BPS, meetsProTier,
-   requireProTier, issueDomainToken, txtRecordsMatch) keep their names —
-   routes/store.ts, the require-auth plan tests, and this module's own
-   Pro gates import them (via the generate/storefronts.ts shim). */
+   requireShopDomainHosting, issueDomainToken, txtRecordsMatch) keep
+   their names — the require-auth plan tests and other consumers import
+   them (via the generate/storefronts.ts shim). */
 
 /* ── Platform economics — env-overridable without a deploy ─────────────── */
 export const STOREFRONT_PLATFORM_FEE_BPS =
@@ -2002,9 +2004,12 @@ export const STOREFRONT_PLATFORM_FEE_BPS =
 export const PLATFORM_FEE_PCT = STOREFRONT_PLATFORM_FEE_BPS / 100;
 
 /**
- * "Pro or higher" tier gate. Plan names on the pricing page: Creator,
- * Pro Artist, Studio, VIP, MVP. Shops + custom domains require Pro Artist
- * or above — free / Creator plans are redirected to /pricing.
+ * Plan-name vocabulary: does a legacy plan string read as Pro-or-higher?
+ * Plan names on the pricing page: Creator, Pro Artist, Studio, VIP, MVP.
+ * This is now ONLY the req.userPlan parser the require-auth plan suite
+ * pins — it gates nothing on the shop surface (Stack-200 M3b): shop
+ * creation is ungated for every creator, and custom domains ride the
+ * Hosting entitlement below, not a tier.
  */
 export function meetsProTier(plan: string | null | undefined): boolean {
   const p = (plan ?? "").toLowerCase().replace(/[^a-z]/g, "");
@@ -2017,18 +2022,45 @@ export function meetsProTier(plan: string | null | undefined): boolean {
   );
 }
 
-export function requireProTier(req: any, res: any, next: any) {
-  /* Owner exemption (Oct 29, 2026): the owner's account is never
-     plan-gated — shops and custom domains open for an admin on any
-     plan. Members see the exact same gate as before. */
-  if (isAdminEmail(req.userEmail)) return next();
-  if (meetsProTier(req.userPlan)) return next();
-  res.status(403).json({
-    error: "PRO_TIER_REQUIRED",
-    message:
-      "Storefronts require a Pro plan or higher. Upgrade to open your own shop.",
-    upgradeUrl: "/pricing",
-  });
+/* ── Shop custom-domain gate — the Hosting entitlement (Stack-200 M3b) ──
+   Owner's ruled model, the same one Lane M3 put on POST /api/domains:
+   a custom domain rides the Hosting product — an active Hosting
+   subscription ($9/mo) OR Creator Elite (Hosting included) unlocks
+   attaching one. Pro alone does NOT. Admin accounts are exempt
+   (standing ADMIN UNRESTRICTED ruling) through the ONE predicate,
+   isAdminUserId, checked first like every other gate; the entitlement
+   itself is read by the shared resolveHostingEntitlement — no second
+   entitlement logic lives here. The refusal names exactly what
+   unlocks the door — never a bare 403 — and it fires on domain
+   ATTACH, not on shop creation (creation above is ungated). */
+export const SHOP_DOMAIN_HOSTING_MESSAGE =
+  "Your own custom domain rides the Hosting plan — $9/mo on its own, or included free with Creator Elite. Pick up either one and this door opens. 🦈";
+
+export async function requireShopDomainHosting(req: any, res: any, next: any) {
+  let entitled = false;
+  try {
+    if (req.userId && (await isAdminUserId(req.userId))) {
+      entitled = true;
+    } else if (req.userId) {
+      const prof = await db.execute(sql`
+        SELECT id FROM creator_profiles WHERE user_id = ${req.userId} LIMIT 1
+      `);
+      const profileId = (prof.rows[0] as { id?: string } | undefined)?.id;
+      entitled = profileId
+        ? (await resolveHostingEntitlement(profileId, req.userId)).entitled
+        : false;
+    }
+  } catch (err) {
+    /* Fail closed, the resolver's own failure mode: a lookup error
+       reads as not entitled, never as a pass and never a 500. */
+    logger.warn(
+      { err },
+      "[storefronts] domain hosting gate lookup failed — reading as not entitled",
+    );
+    entitled = false;
+  }
+  if (entitled) return next();
+  res.status(403).json({ error: SHOP_DOMAIN_HOSTING_MESSAGE });
 }
 
 /* ── Domain rules ──────────────────────────────────────────────────────────
@@ -3394,12 +3426,13 @@ router.post("/shops/:id/pos/cash-sale", requireAuth, publicApiLimiter, async (re
   });
 });
 
-/* ── POST /api/storefronts/:id/domain — attach a custom domain (Pro+) ────── */
+/* ── POST /api/storefronts/:id/domain — attach a custom domain
+   (Hosting entitlement — requireShopDomainHosting above) ─────────────── */
 const domainSchema = z.object({
   domain: z.string().trim().min(4).max(253),
 });
 
-router.post("/storefronts/:id/domain", requireAuth, publicApiLimiter, requireProTier, async (req, res) => {
+router.post("/storefronts/:id/domain", requireAuth, publicApiLimiter, requireShopDomainHosting, async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const shop = await getOwnedShopFull(id ?? "", req.userId!);
   if (!shop) {
@@ -3481,7 +3514,8 @@ router.post("/storefronts/domain/verify", requireAuth, publicApiLimiter, async (
   res.json({ domain, verified: check.ok, reason: check.reason });
 });
 
-/* ── DELETE /api/storefronts/:id/domain — detach (Pro+ not required) ─────── */
+/* ── DELETE /api/storefronts/:id/domain — detach (never gated: anyone can
+   always take a domain OFF their shop) ──────────────────────────────────── */
 router.delete("/storefronts/:id/domain", requireAuth, async (req, res) => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const shop = await getOwnedShopFull(id ?? "", req.userId!);
