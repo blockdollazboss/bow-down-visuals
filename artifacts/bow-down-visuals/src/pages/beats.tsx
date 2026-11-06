@@ -15,6 +15,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import SoundFitPanel from "@/components/sound-fit/SoundFitPanel";
 import LoopExchangePanel from "@/components/loop-exchange/LoopExchangePanel";
 import { useHubProject } from "@/lib/hub-project";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { BEAT_SELL_PREFILL_PARAMS, parseBeatSellPrefill } from "@/lib/beat-doors";
 import {
   initialSectionStates, markSectionLoading, settleSection,
@@ -49,7 +50,15 @@ const BEATS_SECTION_KEYS: readonly BeatsSectionKey[] = ["browse", "dashboard"];
    License tiers: Basic / Premium / Exclusive. Site takes 15% commission.
    Payments (0132): licensing runs through secure checkout (test mode) at
    the listed tier price; the license activates only when the payment
-   confirms on return (POST /api/beats/licenses/verify).
+   confirms on return (POST /api/beats/licenses/verify). The payment
+   step itself happens ON this page (owner law 2026-10-26: never leave
+   the site): reserveLicense asks the license rail for the embedded
+   presentation and the modal mounts <EmbeddedSessionCheckout> — the
+   same on-site panel the shop / live-shopping doors use. The embedded
+   session's return_url is the rail's success URL, so completion lands
+   back on /beats?session_id=… and the verify effect settles the
+   license from the payment record exactly as before (the webhook
+   settles the same session if the buyer never returns).
    AI tag suggester: 1 credit, analyzes metadata, suggests genre + mood tags. */
 
 interface Beat {
@@ -194,6 +203,13 @@ export default function Beats() {
   const [licenseTemplateId, setLicenseTemplateId] = useState<string | null>(null);
   const [licensing, setLicensing] = useState(false);
   const [licenseMsg, setLicenseMsg] = useState<string | null>(null);
+  /* The embedded checkout session's clientSecret, when the license
+     rail answers one — the payment form mounts in the modal below
+     the Agree & pay button and the buyer never leaves /beats. A
+     changed offer (tier/template) or a fresh modal clears it: the
+     minted form is bound to the exact offer + price it was created
+     for, mirroring the World BeatsDesk's licenseSecret discipline. */
+  const [licenseSecret, setLicenseSecret] = useState<string | null>(null);
   /* The currently chosen offer's stems block (ruling #2): the Agree &
      pay button must not fire for a stems offer with no stems on file,
      exactly as the modal rows below disable it. */
@@ -475,6 +491,7 @@ export default function Beats() {
     if (!user) return;
     setLicensing(true);
     setLicenseMsg(null);
+    setLicenseSecret(null);
     try {
       const res = await fetch(`/api/beats/${licenseBeat.id}/license`, {
         method: "POST",
@@ -482,13 +499,20 @@ export default function Beats() {
         /* Exactly one offer: the chosen custom template, else the tier.
            N11: this tap IS the agreement — the plain words above the
            button are the checkout, and the server stamps
-           terms_accepted_at on the license row for this purchase. */
+           terms_accepted_at on the license row for this purchase.
+           Embedded first (owner law 2026-10-26: never leave the
+           site): when this device can mount the payment form, ask
+           for the embedded presentation — the rail answers a
+           clientSecret instead of a hosted URL and the buyer pays
+           right here in the modal, like the shop / live-shopping
+           doors. */
         body: JSON.stringify({
           ...(licenseTemplateId ? { templateId: licenseTemplateId } : { tier: licenseTier }),
           plainTermsAgreed: true,
+          uiMode: hasStripePublishableKey() ? "embedded" : undefined,
         }),
       });
-      const data = await res.json() as { message?: string; error?: string; checkoutUrl?: string };
+      const data = await res.json() as { message?: string; error?: string; clientSecret?: string | null };
       if (!res.ok) {
         setLicenseMsg(apiErrorMessage(data, t("beats.errorLicenseFailed")));
         setLicensing(false);
@@ -504,8 +528,18 @@ export default function Beats() {
           meta: { beatId: licenseBeat.id, tier: licenseTier, ...(licenseTemplateId ? { templateId: licenseTemplateId } : {}) },
         });
       } catch { /* hub unavailable — non-fatal */ }
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      /* The clientSecret branch is the whole flow now: the payment
+         form mounts in the modal below and the buyer never leaves
+         /beats (the full-page redirect to the hosted checkout page
+         is gone — the store door set this stance: a hosted URL is
+         never navigated to from here). When no secret comes back
+         (embedded not honored in this deployment), the license
+         stays reserved and unpaid and the server's message says
+         so — nothing was charged. */
+      if (data.clientSecret) {
+        setLicenseSecret(data.clientSecret);
+        setLicenseMsg(apiErrorMessage(data, t("beats.licenseReserved")));
+        setLicensing(false);
         return;
       }
       setLicenseMsg(apiErrorMessage(data, t("beats.licenseReserved")));
@@ -677,7 +711,7 @@ export default function Beats() {
                           </span>
                         ) : (
                           <button
-                            onClick={() => { setLicenseBeat(beat); setLicenseTier("basic"); setLicenseTemplateId(null); setLicenseMsg(null); }}
+                            onClick={() => { setLicenseBeat(beat); setLicenseTier("basic"); setLicenseTemplateId(null); setLicenseMsg(null); setLicenseSecret(null); }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A84C] text-black text-sm font-bold hover:bg-[#DDBB62]"
                           >
                             <BadgeDollarSign className="w-4 h-4" /> {t("beats.licenseButton")}
@@ -935,7 +969,7 @@ export default function Beats() {
       {/* License modal */}
       {licenseBeat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setLicenseBeat(null)}>
-          <div className={`w-full max-w-md rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-[#C9A84C]/40 bg-[#171208]"}`} onClick={(e) => e.stopPropagation()}>
+          <div className={`w-full max-w-md max-h-[92vh] overflow-y-auto rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA]" : "border-[#C9A84C]/40 bg-[#171208]"}`} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-4">
               <h3 className="font-bold text-lg">{t("beats.licenseModalTitle", { title: licenseBeat.title })}</h3>
               <button aria-label="Close" onClick={() => setLicenseBeat(null)} className="text-white/40 hover:text-white"><X className="w-5 h-5" /></button>
@@ -959,7 +993,7 @@ export default function Beats() {
                   <button
                     key={tier.key}
                     disabled={soldOut}
-                    onClick={() => { setLicenseTier(tier.key); setLicenseTemplateId(null); }}
+                    onClick={() => { setLicenseTier(tier.key); setLicenseTemplateId(null); setLicenseSecret(null); }}
                     className={`w-full text-left rounded-xl border p-3 transition-colors ${
                       selected ? "border-[#C9A84C]/70 bg-[#C9A84C]/10" : "border-white/10 hover:border-white/25"
                     } ${soldOut ? "opacity-40 cursor-not-allowed" : ""}`}
@@ -989,7 +1023,7 @@ export default function Beats() {
                   <button
                     key={tpl.id}
                     disabled={soldOut}
-                    onClick={() => setLicenseTemplateId(tpl.id)}
+                    onClick={() => { setLicenseTemplateId(tpl.id); setLicenseSecret(null); }}
                     className={`w-full text-left rounded-xl border p-3 transition-colors ${
                       selected ? "border-[#C9A84C]/70 bg-[#C9A84C]/10" : "border-white/10 hover:border-white/25"
                     } ${soldOut ? "opacity-40 cursor-not-allowed" : ""}`}
@@ -1085,6 +1119,22 @@ export default function Beats() {
             </button>
             )}
             <p className="text-[11px] text-white/35 text-center mt-2">{BEAT_PLAIN_TERMS_COPY.agreeHint}</p>
+            {licenseSecret && (
+              /* The on-site payment step (owner law 2026-10-26: never
+                 leave the site): the SAME <EmbeddedSessionCheckout>
+                 panel the shop / live-shopping doors mount, fed by
+                 the license rail's embedded answer. Completion
+                 returns to /beats?session_id=… and the page's verify
+                 effect settles the license from the payment record;
+                 closing the panel charges nothing — the license
+                 stays reserved as pending_payment. */
+              <div className="mt-4 space-y-2" data-testid="beats-embedded-checkout">
+                <EmbeddedSessionCheckout clientSecret={licenseSecret} />
+                <button onClick={() => setLicenseSecret(null)} className="text-xs text-white/40 hover:text-white">
+                  Close — nothing is charged until you finish paying
+                </button>
+              </div>
+            )}
             {licenseBeat && (
               <Link
                 href={`/make-song?audioUrl=${encodeURIComponent(licenseBeat.audio_url || licenseBeat.preview_url || "")}`}
