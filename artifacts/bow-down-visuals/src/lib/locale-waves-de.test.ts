@@ -201,7 +201,7 @@ const W2_LEGIT_IDENTICAL = new Set([
   "brandCalculator.niches.lifestyle",
   "brandCalculator.niches.tech",
   "brandCalculator.platforms.twitch.blurb",
-  "carouselMaker.brandColorsPlaceholder",
+  "carouselMaker.brandColorsPlaceholder", "carouselMaker.tplTimelineName", "carouselMaker.tplTimelineDesc", "carouselMaker.tplProsConsName", "carouselMaker.tplProsConsDesc",
   "carouselMaker.exportBtn",
   "carouselMaker.fontDisplay",
   "carouselMaker.fontSans",

@@ -13547,6 +13547,10 @@
     "tplPriceDesc": "चमकीली रसीद-पट्टी पर पारदर्शी आँकड़े।",
     "tplCourseName": "मिनी कोर्स",
     "tplCourseDesc": "एक पूरा पाठ, स्लाइड दर स्लाइड फ्रेम किया गया।",
+    "tplTimelineName": "Timeline Journey",
+    "tplTimelineDesc": "Dated milestones on one rising road — where you started, where you stand.",
+    "tplProsConsName": "Pros & Cons",
+    "tplProsConsDesc": "One subject, both sides — the case for, the case against, the verdict.",
     "templateLinkMissed": "वह टेम्पलेट लिंक किसी से मेल नहीं खाया — शुरू करने के लिए एक टेम्पलेट चुनें।",
     "brandColorsPlaceholder": "#d4af37, #0a0a0a"
   },

@@ -56,6 +56,17 @@ export const CAROUSEL_TEMPLATES: CarouselTemplate[] = [
   { id: "behind-scenes",    nameKey: "carouselMaker.tplBehindName", descKey: "carouselMaker.tplBehindDesc", bgStyle: "gradient-wash", accent: "#e8c468", numberStyle: "none" },
   { id: "price-breakdown",  nameKey: "carouselMaker.tplPriceName", descKey: "carouselMaker.tplPriceDesc", bgStyle: "bold-band", accent: "#f6d47c", numberStyle: "corner" },
   { id: "mini-course",      nameKey: "carouselMaker.tplCourseName", descKey: "carouselMaker.tplCourseDesc", bgStyle: "framed", accent: "#e8c468", numberStyle: "corner" },
+  /* ── Stack 200 upgrade wave (Lane U2): two maker-native formats with
+     no Library seed — reachable in both pickers like minimal-luxe.
+     timeline-journey is a date-anchored milestone road (dated nodes on
+     a rising wash — not story's narrative arc, not day-in-life's photo
+     diary); pros-cons is a single-subject verdict board (the split
+     painter carries the for/against halves — not vs-battle's two
+     products head-to-head). Compositions stay distinct per the parity
+     pins: gradient-wash/#e8c468/pill and split/#f6d47c/pill are new
+     (bgStyle, accent, numberStyle) tuples in this registry. ── */
+  { id: "timeline-journey", nameKey: "carouselMaker.tplTimelineName", descKey: "carouselMaker.tplTimelineDesc", bgStyle: "gradient-wash", accent: "#e8c468", numberStyle: "pill" },
+  { id: "pros-cons",        nameKey: "carouselMaker.tplProsConsName", descKey: "carouselMaker.tplProsConsDesc", bgStyle: "split", accent: "#f6d47c", numberStyle: "pill" },
 ];
 
 /** Resolve a template reference (a Library deep-link slug like

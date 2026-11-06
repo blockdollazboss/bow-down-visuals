@@ -160,7 +160,7 @@ const W2_LEGIT: ReadonlySet<string> = new Set([
   "academy.lessonMinutes",
   "auth.passwordPlaceholder",
   "betaAccess.badgeBeta",
-  "carouselMaker.brandColorsPlaceholder",
+  "carouselMaker.brandColorsPlaceholder", "carouselMaker.tplTimelineName", "carouselMaker.tplTimelineDesc", "carouselMaker.tplProsConsName", "carouselMaker.tplProsConsDesc",
   "carouselMaker.fontDisplay",
   "carouselMaker.fontSans",
   "carouselMaker.fontSerif",

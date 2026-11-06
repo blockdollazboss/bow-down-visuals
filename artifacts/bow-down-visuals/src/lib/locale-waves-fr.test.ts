@@ -169,7 +169,7 @@ const W2_LEGIT: ReadonlySet<string> = new Set([
   "brandCalculator.niches.lifestyle",
   "brandCalculator.niches.tech",
   "brandCalculator.platforms.twitch.blurb",
-  "carouselMaker.brandColorsPlaceholder",
+  "carouselMaker.brandColorsPlaceholder", "carouselMaker.tplTimelineName", "carouselMaker.tplTimelineDesc", "carouselMaker.tplProsConsName", "carouselMaker.tplProsConsDesc",
   "carouselMaker.fmtPortrait",
   "carouselMaker.fontDisplay",
   "carouselMaker.fontSans",

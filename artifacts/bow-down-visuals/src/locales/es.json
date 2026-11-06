@@ -14360,6 +14360,10 @@
     "tplPriceDesc": "Números transparentes en una banda brillante de recibo.",
     "tplCourseName": "Mini curso",
     "tplCourseDesc": "Una lección completa, enmarcada diapositiva a diapositiva.",
+    "tplTimelineName": "Timeline Journey",
+    "tplTimelineDesc": "Dated milestones on one rising road — where you started, where you stand.",
+    "tplProsConsName": "Pros & Cons",
+    "tplProsConsDesc": "One subject, both sides — the case for, the case against, the verdict.",
     "templateLinkMissed": "Ese enlace de plantilla no coincidió: elige una plantilla para empezar."
   },
   "videoTemplates": {

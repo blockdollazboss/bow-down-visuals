@@ -14428,6 +14428,10 @@
     "tplPriceDesc": "أرقام شفافة على شريط إيصال مشرق.",
     "tplCourseName": "دورة مصغرة",
     "tplCourseDesc": "درس كامل، مؤطر شريحة بعد شريحة.",
+    "tplTimelineName": "Timeline Journey",
+    "tplTimelineDesc": "Dated milestones on one rising road — where you started, where you stand.",
+    "tplProsConsName": "Pros & Cons",
+    "tplProsConsDesc": "One subject, both sides — the case for, the case against, the verdict.",
     "templateLinkMissed": "لم يطابق رابط القالب أي قالب — اختر قالبًا للبدء.",
     "brandColorsPlaceholder": "#d4af37, #0a0a0a"
   },

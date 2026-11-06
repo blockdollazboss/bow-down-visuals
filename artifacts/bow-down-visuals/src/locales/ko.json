@@ -13768,6 +13768,10 @@
     "tplPriceDesc": "밝은 영수증 밴드 위에 투명한 숫자.",
     "tplCourseName": "미니 코스",
     "tplCourseDesc": "수업 전체를 슬라이드마다 액자에 담았습니다.",
+    "tplTimelineName": "Timeline Journey",
+    "tplTimelineDesc": "Dated milestones on one rising road — where you started, where you stand.",
+    "tplProsConsName": "Pros & Cons",
+    "tplProsConsDesc": "One subject, both sides — the case for, the case against, the verdict.",
     "templateLinkMissed": "그 템플릿 링크가 일치하지 않았습니다 — 시작할 템플릿을 골라 주세요."
   },
   "videoTemplates": {

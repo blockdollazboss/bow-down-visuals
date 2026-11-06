@@ -12953,6 +12953,10 @@
     "tplPriceDesc": "Des chiffres transparents sur une bande-reçu éclatante.",
     "tplCourseName": "Mini cours",
     "tplCourseDesc": "Une leçon complète, encadrée diapositive par diapositive.",
+    "tplTimelineName": "Timeline Journey",
+    "tplTimelineDesc": "Dated milestones on one rising road — where you started, where you stand.",
+    "tplProsConsName": "Pros & Cons",
+    "tplProsConsDesc": "One subject, both sides — the case for, the case against, the verdict.",
     "templateLinkMissed": "Ce lien de modèle ne correspond à rien — choisissez un modèle pour commencer."
   },
   "library": {

@@ -223,7 +223,7 @@ const W2_LEGIT = new Set([
   "retentionDoctor.type_tutorial", "retentionDoctor.type_vlog", "retentionDoctor.type_promo",
   "retentionDoctor.platform_tiktok", "retentionDoctor.platform_instagram",
   "retentionDoctor.platform_youtube", "retentionDoctor.platform_x",
-  "carouselMaker.heroTitleB", "carouselMaker.brandTitle", "carouselMaker.brandColorsPlaceholder",
+  "carouselMaker.heroTitleB", "carouselMaker.brandTitle", "carouselMaker.brandColorsPlaceholder", "carouselMaker.tplTimelineName", "carouselMaker.tplTimelineDesc", "carouselMaker.tplProsConsName", "carouselMaker.tplProsConsDesc",
   "carouselMaker.fontSerif", "carouselMaker.fontSans", "carouselMaker.fontDisplay",
   "carouselMaker.tplLuxeName", "retentionDelight.levelUp_title",
   "productPhotoStudio.title", "productPhotoStudio.pastePlaceholder",

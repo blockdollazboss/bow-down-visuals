@@ -134,7 +134,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     // proper-noun / number / format example placeholders
     "academy.nichePlaceholder", "academy.hoursPlaceholder", "auth.emailPlaceholder",
     "auth.passwordPlaceholder", "productPhotoStudio.pastePlaceholder",
-    "carouselMaker.brandColorsPlaceholder",
+    "carouselMaker.brandColorsPlaceholder", "carouselMaker.tplTimelineName", "carouselMaker.tplTimelineDesc", "carouselMaker.tplProsConsName", "carouselMaker.tplProsConsDesc",
     // brand currency / placeholder-only
     "promo-clip.creditBadge", "productPhotoStudio.credits",
     // house mode names (kept in English across the existing ko catalog)

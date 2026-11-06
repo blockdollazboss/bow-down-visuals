@@ -13764,6 +13764,10 @@
     "tplPriceDesc": "明るいレシート帯に透明な数字。",
     "tplCourseName": "ミニコース",
     "tplCourseDesc": "レッスン丸ごとひとつ分、スライドごとに額装。",
+    "tplTimelineName": "Timeline Journey",
+    "tplTimelineDesc": "Dated milestones on one rising road — where you started, where you stand.",
+    "tplProsConsName": "Pros & Cons",
+    "tplProsConsDesc": "One subject, both sides — the case for, the case against, the verdict.",
     "templateLinkMissed": "そのテンプレートリンクは一致しませんでした — 始めるテンプレートを選んでください。"
   },
   "videoTemplates": {

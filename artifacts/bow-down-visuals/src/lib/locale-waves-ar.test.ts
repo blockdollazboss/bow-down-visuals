@@ -166,7 +166,7 @@ const W2_ALLOW = new Set([
   "academy.hoursPlaceholder",
   "auth.emailPlaceholder",
   "auth.passwordPlaceholder",
-  "carouselMaker.brandColorsPlaceholder",
+  "carouselMaker.brandColorsPlaceholder", "carouselMaker.tplTimelineName", "carouselMaker.tplTimelineDesc", "carouselMaker.tplProsConsName", "carouselMaker.tplProsConsDesc",
   "common.visualBucs",
   "home.vaultBodyB",
   "productPhotoStudio.credits",
