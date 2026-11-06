@@ -199,6 +199,13 @@ export function collectionViewState(args: {
   return args.collection.items.length > 0 ? "items" : "empty";
 }
 
+/** The public address of a fan's collection page — the link the
+    owner copies to share the shelf the visibility setting makes
+    public. Mirrors the /collection/:slug route exactly. */
+export function collectionSharePath(slug: string): string {
+  return `/collection/${encodeURIComponent(slug)}`;
+}
+
 export async function fetchPublicCollection(slug: string): Promise<FanCollection> {
   const res = await fetch(`/api/collections/${encodeURIComponent(slug)}`);
   const collection = normalizeFanCollection(await json<unknown>(res));

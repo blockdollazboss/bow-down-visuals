@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useRoute, Link } from "wouter";
-import { Loader2, AlertTriangle, RotateCcw, Lock, ShoppingBag, Music2, Clapperboard, Package } from "lucide-react";
+import { Loader2, AlertTriangle, RotateCcw, Lock, ShoppingBag, Music2, Clapperboard, Package, Link2, Check } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 import {
   fetchPublicCollection,
   fetchMyCollection,
   saveMyCollectionVisibility,
+  collectionSharePath,
   collectionViewState,
   collectionMoney,
   type FanCollection,
@@ -33,6 +34,7 @@ export default function FanCollectionPage() {
   const [retryNonce, setRetryNonce] = useState(0);
   const [isOwner, setIsOwner] = useState(false);
   const [savingVisibility, setSavingVisibility] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +97,21 @@ export default function FanCollectionPage() {
         ? "items"
         : "empty"
       : collectionViewState({ status, collection });
+
+  /* The share door: the owner's own public address for this page,
+     copied in one tap. Before this, no surface anywhere built the
+     /collection/<slug> link — the visibility toggle made a page
+     public that its owner had no way to hand out. */
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${collectionSharePath(slug)}`);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      /* Clipboard unavailable — no fake "copied"; the address bar
+         already shows this page's link. */
+    }
+  };
 
   const flipVisibility = async () => {
     if (!collection) return;
@@ -197,6 +214,20 @@ export default function FanCollectionPage() {
               {collection.visibility === "public" ? <Lock className="h-3.5 w-3.5" /> : <ShoppingBag className="h-3.5 w-3.5" />}
               Make it {collection.visibility === "public" ? "private" : "public"}
             </button>
+            <button
+              type="button"
+              onClick={() => void copyShareLink()}
+              data-testid="collection-copy-share-link"
+              className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/60 px-4 py-1.5 text-xs font-bold text-[#d4af37] transition hover:scale-105"
+            >
+              {copiedLink ? <Check className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
+              {copiedLink ? "Copied" : "Copy share link"}
+            </button>
+            {collection.visibility === "private" && (
+              <p className="w-full text-[11px] text-white/40">
+                The link opens nothing while your collection is private — make it public to share it.
+              </p>
+            )}
           </div>
         )}
 
