@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "680e8ff7afe4c1413d5f7cf64a4162ccc21792f8",
+  "baseCommit": "4f0a9373fef0a9e353b5ee546dc6198f983dbb84",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -22,8 +22,8 @@
     "withDescriptions": 252,
     "withoutDescriptions": 0,
     "serverRouteFiles": 431,
-    "serverEndpoints": 1740,
-    "serverEndpointsVisible": 1079,
+    "serverEndpoints": 1743,
+    "serverEndpointsVisible": 1082,
     "serverFilesClassified": 99
   },
   "packs": [
@@ -6072,7 +6072,10 @@
         "/api/ugc-ads/products",
         "/api/ugc-ads/script",
         "/api/ugc-briefs",
-        "/api/ugc-briefs/:param/:param"
+        "/api/ugc-briefs/:param/:param",
+        "/api/ugc-briefs/:param/fund",
+        "/api/ugc-briefs/:param/verify",
+        "/api/ugc-briefs/escrow/confirm"
       ],
       "prices": [
         {
@@ -21758,8 +21761,8 @@
       },
       {
         "file": "artifacts/api-server/src/routes/ugc-briefs.ts",
-        "endpoints": 7,
-        "visible": 1,
+        "endpoints": 10,
+        "visible": 4,
         "unseen": [
           "/api/ugc-briefs/:id",
           "/api/ugc-briefs/:id/approve",

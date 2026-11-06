@@ -73,6 +73,12 @@ CREATE TABLE shoutout_requests (
 CREATE TABLE tip_jar_tips (
   id uuid PRIMARY KEY, page_user_id uuid NOT NULL, amount_cents integer NOT NULL DEFAULT 0,
   status text NOT NULL DEFAULT 'pending_payment', stripe_session_id text, paid_at timestamptz
+);
+CREATE TABLE ugc_briefs (
+  id uuid PRIMARY KEY, brand_user_id uuid, claimed_by_user_id uuid,
+  escrow_status text NOT NULL DEFAULT 'unfunded', stripe_session_id text,
+  released_amount_cents integer, platform_fee_cents integer,
+  creator_payout_cents integer, released_at timestamptz
 );`;
 
 const realFetch = globalThis.fetch;

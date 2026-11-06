@@ -48,6 +48,13 @@ import { z } from "zod/v4";
  *  - 'tip_jar_tip'   tip_jar_tips 'paid' row (migration 0323). Tips
  *                    carry NO platform fee (owner law: 100% to the
  *                    creator), so net = amount_cents, fee 0.
+ *  - 'ugc_brief'     ugc_briefs row whose escrow RELEASED (C-25,
+ *                    migration 0324). The brief row carries the
+ *                    release stamps (released_amount_cents =
+ *                    the held gross that was split, platform_fee_cents,
+ *                    creator_payout_cents at the rail's 5%), so the
+ *                    sync copies the split the release recorded —
+ *                    gross / fee / net exactly as released.
  *
  * Brand deals are deliberately NOT copied here: sponsor_payouts is
  * already a per-row released-escrow ledger; the unified pending read
@@ -67,6 +74,7 @@ const PENDING_PAYOUT_SOURCE_KINDS = [
   "membership",
   "shoutout_request",
   "tip_jar_tip",
+  "ugc_brief",
 ] as const;
 type PendingPayoutSourceKind = (typeof PENDING_PAYOUT_SOURCE_KINDS)[number];
 
@@ -86,7 +94,7 @@ const pendingPayoutLedgerTable = pgTable("pending_payout_ledger", {
   stripeSessionId:  text("stripe_session_id"),
   createdAt:        timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  check("pending_payout_ledger_source_kind_check", sql`${t.sourceKind} IN ('digital_sale','store_order','shop_event','beat_license','membership','shoutout_request','tip_jar_tip')`),
+  check("pending_payout_ledger_source_kind_check", sql`${t.sourceKind} IN ('digital_sale','store_order','shop_event','beat_license','membership','shoutout_request','tip_jar_tip','ugc_brief')`),
   check("pending_payout_ledger_entry_type_check", sql`${t.entryType} IN ('accrual','reversal')`),
   uniqueIndex("pending_payout_ledger_source_entry_ux").on(t.sourceKind, t.sourceId, t.entryType),
   index("pending_payout_ledger_seller_idx").on(t.sellerUserId, t.createdAt),

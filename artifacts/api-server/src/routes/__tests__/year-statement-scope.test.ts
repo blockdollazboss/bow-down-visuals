@@ -65,6 +65,7 @@ CREATE TABLE sponsor_payouts (id uuid PRIMARY KEY, creator_user_id text NOT NULL
 CREATE TABLE royalty_entries (id uuid PRIMARY KEY, user_id uuid NOT NULL, song_title text NOT NULL, platform text NOT NULL, period_start date NOT NULL, period_end date NOT NULL, gross_amount numeric NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE shoutout_requests (id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, price_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'pending_payment', paid_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE tip_jar_tips (id uuid PRIMARY KEY, page_user_id uuid NOT NULL, amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'pending_payment', paid_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE ugc_briefs (id uuid PRIMARY KEY, brand_user_id uuid, claimed_by_user_id uuid, escrow_status text NOT NULL DEFAULT 'unfunded', stripe_session_id text, released_amount_cents integer, platform_fee_cents integer, creator_payout_cents integer, released_at timestamptz);
 CREATE TABLE sale_split_entries (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), sale_kind text NOT NULL, sale_id uuid NOT NULL, surface text NOT NULL DEFAULT '', product_id uuid, owner_user_id uuid NOT NULL, seller_user_id uuid NOT NULL, seller_profile_id uuid, role text NOT NULL, amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'earned');
 `;
 

@@ -106,7 +106,7 @@ CREATE TABLE pending_payout_ledger (
   net_cents integer NOT NULL DEFAULT 0,
   stripe_session_id text,
   created_at timestamptz NOT NULL DEFAULT now(),
-  CHECK (source_kind IN ('digital_sale','store_order','shop_event','beat_license','membership','shoutout_request','tip_jar_tip')),
+  CHECK (source_kind IN ('digital_sale','store_order','shop_event','beat_license','membership','shoutout_request','tip_jar_tip','ugc_brief')),
   CHECK (entry_type IN ('accrual','reversal'))
 );
 CREATE TABLE shoutout_requests (
@@ -124,6 +124,17 @@ CREATE TABLE tip_jar_tips (
   status text NOT NULL DEFAULT 'pending_payment',
   stripe_session_id text,
   paid_at timestamptz
+);
+CREATE TABLE ugc_briefs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  brand_user_id uuid,
+  claimed_by_user_id uuid,
+  escrow_status text NOT NULL DEFAULT 'unfunded',
+  stripe_session_id text,
+  released_amount_cents integer,
+  platform_fee_cents integer,
+  creator_payout_cents integer,
+  released_at timestamptz
 );
 CREATE UNIQUE INDEX pending_payout_ledger_source_entry_ux
   ON pending_payout_ledger (source_kind, source_id, entry_type);

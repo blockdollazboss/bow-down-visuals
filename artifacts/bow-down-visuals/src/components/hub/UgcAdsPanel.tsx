@@ -4,8 +4,9 @@ import { Link } from "wouter";
 import {
   Clapperboard, Loader2, Sparkles, User, ImageOff, Store, Upload, Share2, Trash2,
   RefreshCw, ClipboardList, Handshake, CheckCircle2, XCircle, RotateCcw, Send, Eye,
-  Pin, PinOff,
+  Pin, PinOff, ShieldCheck,
 } from "lucide-react";
+import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -14,8 +15,11 @@ import {
   UGC_VIDEO_CREDIT_COST,
   UGC_PERSONA_CREDIT_COST,
   UGC_PAYMENT_NOTE,
+  UGC_ESCROW_NOTE,
   briefActionsFor,
   briefStatusLabel,
+  escrowStatusLabel,
+  ugcBriefNetPreview,
   ugcAdStatusLabel,
   ugcAdShareText,
   fetchMyShopProducts,
@@ -31,6 +35,9 @@ import {
   fetchUgcBriefs,
   postUgcBrief,
   briefAction,
+  fundUgcBrief,
+  confirmUgcBriefFunding,
+  verifyUgcBriefFunding,
   fetchUgcAd,
   recordUgcAdShare,
   type UgcAd,
@@ -53,12 +60,16 @@ import {
      artist-image rate). Prices are printed before anything is charged;
      generation charges are refunded by the server on failure.
    - THE BRIEFS BOARD: brands post briefs, creators claim and deliver
-     through the same maker, brands approve. NO money moves through
-     the board — the payment note is stated plainly on the board,
-     because the site pays nobody real money.
+     through the same maker, brands approve. A brief may carry a
+     price (C-25): the brand funds it on-site once claimed, the site
+     holds the payment, and approval releases it to the creator at
+     the rail's 5% fee. A brief with no price stays a free brief —
+     its payment is arranged directly, and the board says so.
    Lists follow the house discipline: loading / failed-with-retry /
    truly-empty are distinct states; nothing here invents an ad, a
    brief, or a price the server didn't send. */
+
+const moneyCents = (cents: number): string => `$${(cents / 100).toFixed(2)}`;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
@@ -111,9 +122,11 @@ export function UgcAdsPanel() {
   const [boardScope, setBoardScope] = useState<"open" | "posted" | "claimed">("open");
   const [briefs, setBriefs] = useState<UgcBrief[]>([]);
   const [briefsState, setBriefsState] = useState<ListState>("loading");
-  const [briefForm, setBriefForm] = useState({ productName: "", details: "", style: "problem-fix" as UgcStyleKey, deadline: "", productUrl: "", productImageUrl: "" });
+  const [briefForm, setBriefForm] = useState({ productName: "", details: "", style: "problem-fix" as UgcStyleKey, deadline: "", productUrl: "", productImageUrl: "", price: "" });
   const [postingBrief, setPostingBrief] = useState(false);
   const [busyBriefId, setBusyBriefId] = useState<string | null>(null);
+  /* The brief whose embedded funding checkout is mounted, if any. */
+  const [fundCheckout, setFundCheckout] = useState<{ briefId: string; clientSecret: string } | null>(null);
   const [deliverPick, setDeliverPick] = useState<Record<string, string>>({});
   const [reviewAd, setReviewAd] = useState<UgcAd | null>(null);
 
@@ -345,6 +358,7 @@ export function UgcAdsPanel() {
     }
     setPostingBrief(true);
     try {
+      const dollars = Number(briefForm.price);
       const brief = await postUgcBrief(await token(), {
         productName: briefForm.productName.trim(),
         details: briefForm.details.trim(),
@@ -352,8 +366,10 @@ export function UgcAdsPanel() {
         deadline: briefForm.deadline ? new Date(`${briefForm.deadline}T23:59:59`).toISOString() : undefined,
         productUrl: briefForm.productUrl.trim() || undefined,
         productImageUrl: briefForm.productImageUrl.trim() || undefined,
+        priceCents:
+          briefForm.price.trim() && Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : undefined,
       });
-      setBriefForm({ productName: "", details: "", style: "problem-fix", deadline: "", productUrl: "", productImageUrl: "" });
+      setBriefForm({ productName: "", details: "", style: "problem-fix", deadline: "", productUrl: "", productImageUrl: "", price: "" });
       setBoardScope("posted");
       setBriefs((prev) => [brief, ...prev]);
       setBriefsState("ready");
@@ -365,7 +381,7 @@ export function UgcAdsPanel() {
     }
   }
 
-  async function runBriefAction(brief: UgcBrief, action: BriefAction) {
+  async function runBriefAction(brief: UgcBrief, action: Exclude<BriefAction, "fund">) {
     setBusyBriefId(brief.id);
     try {
       const body = action === "deliver" ? { adId: deliverPick[brief.id] } : undefined;
@@ -379,7 +395,16 @@ export function UgcAdsPanel() {
         return true;
       }));
       if (action === "deliver") toast({ title: "Delivered", description: "The brand can review your ad now." });
-      if (action === "approve") toast({ title: "Approved", description: "This brief is complete." });
+      if (action === "approve") {
+        if (updated.escrowStatus === "released" && updated.creatorPayoutCents != null) {
+          toast({ title: "Approved — payment released", description: `${moneyCents(updated.creatorPayoutCents)} was released to the creator. This brief is complete.` });
+        } else {
+          toast({ title: "Approved", description: "This brief is complete." });
+        }
+      }
+      if (action === "close" && brief.escrowStatus === "funded" && updated.escrowStatus === "refunded") {
+        toast({ title: "Brief closed", description: "The held payment was refunded to you." });
+      }
     } catch (err) {
       toast({ title: "That didn't land", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
       void loadBriefs();
@@ -387,6 +412,66 @@ export function UgcAdsPanel() {
       setBusyBriefId(null);
     }
   }
+
+  /* ── Escrow funding (C-25): the sponsor rail's flow, on the board ──
+     Sandbox settles through confirm; a clientSecret mounts the
+     embedded checkout right in the card (never leave the site); a
+     hosted checkoutUrl is the legacy fallback only. */
+  async function fundBrief(brief: UgcBrief) {
+    setBusyBriefId(brief.id);
+    setFundCheckout(null);
+    try {
+      const result = await fundUgcBrief(await token(), brief.id, hasStripePublishableKey() ? "embedded" : undefined);
+      if (result.sandbox && result.sessionId) {
+        const updated = await confirmUgcBriefFunding(await token(), brief.id, result.sessionId);
+        setBriefs((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+        toast({ title: "Brief funded", description: "The payment is held safely until you approve the delivery." });
+      } else if (result.clientSecret) {
+        setFundCheckout({ briefId: brief.id, clientSecret: result.clientSecret });
+      } else if (result.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
+      }
+    } catch (err) {
+      toast({ title: "Couldn't start the funding payment", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      void loadBriefs();
+    } finally {
+      setBusyBriefId(null);
+    }
+  }
+
+  async function checkFunding(brief: UgcBrief) {
+    setBusyBriefId(brief.id);
+    try {
+      const { brief: updated } = await verifyUgcBriefFunding(await token(), brief.id);
+      setBriefs((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+      toast({ title: "Brief funded", description: "The payment is held safely until you approve the delivery." });
+    } catch (err) {
+      toast({ title: "Not funded yet", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+    } finally {
+      setBusyBriefId(null);
+    }
+  }
+
+  /* Returning from the funding checkout (?ugcBriefFunded=<id>):
+     settle from the payment record, then show the board's true state. */
+  const fundReturnHandled = useRef(false);
+  useEffect(() => {
+    if (fundReturnHandled.current) return;
+    const fundedId = new URLSearchParams(window.location.search).get("ugcBriefFunded");
+    if (!fundedId || fundedId === "0") return;
+    fundReturnHandled.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    void (async () => {
+      try {
+        const { brief: updated } = await verifyUgcBriefFunding(await token(), fundedId);
+        setBriefs((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+        toast({ title: "Brief funded", description: "The payment is held safely until you approve the delivery." });
+      } catch {
+        /* The board reload shows the true state either way. */
+      }
+      void loadBriefs();
+    })();
+  }, [token, loadBriefs]);
 
   function startAdForBrief(brief: UgcBrief) {
     setMakingForBrief(brief);
@@ -737,7 +822,7 @@ export function UgcAdsPanel() {
           <h3 className="text-base font-bold">Briefs board — brands &amp; creators</h3>
         </div>
         <p className="mt-2 rounded-xl border border-primary/30 bg-primary/[0.07] px-4 py-3 text-sm text-white/70">
-          {UGC_PAYMENT_NOTE} The board handles the work — the brief, the claim, the delivery, the approval — never the money.
+          {UGC_ESCROW_NOTE} For a brief with no price, {UGC_PAYMENT_NOTE.charAt(0).toLowerCase() + UGC_PAYMENT_NOTE.slice(1)}
         </p>
 
         {/* Post a brief */}
@@ -753,6 +838,10 @@ export function UgcAdsPanel() {
             <input aria-label="Product page link (optional)" value={briefForm.productUrl} onChange={(e) => setBriefForm({ ...briefForm, productUrl: e.target.value })} placeholder="Product page link (optional)" maxLength={2048} className={inputClass} />
             <input type="date" value={briefForm.deadline} onChange={(e) => setBriefForm({ ...briefForm, deadline: e.target.value })} className={`${inputClass} [color-scheme:dark]`} aria-label="Deadline (optional)" />
             <input aria-label="Product photo link (optional)" value={briefForm.productImageUrl} onChange={(e) => setBriefForm({ ...briefForm, productImageUrl: e.target.value })} placeholder="Product photo link (optional)" maxLength={2048} className={`${inputClass} sm:col-span-2`} />
+            <input aria-label="Price in dollars (optional)" value={briefForm.price} onChange={(e) => setBriefForm({ ...briefForm, price: e.target.value })} placeholder="Price in dollars (optional) — e.g. 150" inputMode="decimal" className={inputClass} />
+            <p className="self-center text-xs text-white/45">
+              Optional — set a price and the payment is held safely by Bow Down Visuals, released to the creator when you approve the delivery. We keep 5%. Leave blank for a free brief.
+            </p>
           </div>
           <textarea aria-label="What do you want in the ad? The moments it has to hit, what to say, what to never say…"
             value={briefForm.details}
@@ -827,6 +916,30 @@ export function UgcAdsPanel() {
                     </span>
                   </div>
 
+                  {brief.priceCents != null && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-1 font-bold text-white/85">
+                        {moneyCents(brief.priceCents)} brief
+                      </span>
+                      <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-1 font-semibold text-white/70">
+                        {escrowStatusLabel(brief.escrowStatus)}
+                      </span>
+                      {(() => {
+                        const preview = ugcBriefNetPreview(brief);
+                        if (!preview) return null;
+                        if (brief.escrowStatus === "released" && brief.creatorPayoutCents != null) {
+                          return <span className="text-white/50">{moneyCents(brief.creatorPayoutCents)} went to the creator.</span>;
+                        }
+                        if (brief.escrowStatus === "refunded") return null;
+                        return (
+                          <span className="text-white/50">
+                            Creator receives {moneyCents(preview.netCents)} of {moneyCents(brief.priceCents)} (5% platform fee {moneyCents(preview.feeCents)})
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  )}
+
                   {brief.status === "delivered" && brief.brandUserId === user?.id && (
                     <button
                       onClick={() => void reviewDeliveredAd(brief)}
@@ -873,6 +986,11 @@ export function UgcAdsPanel() {
                           <Handshake className="h-3.5 w-3.5" /> Claim this brief
                         </button>
                       )}
+                      {actions.includes("fund") && (
+                        <button onClick={() => void fundBrief(brief)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 px-3 py-1.5 text-xs font-bold text-black transition hover:brightness-110 disabled:opacity-50">
+                          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />} Fund {brief.priceCents != null ? moneyCents(brief.priceCents) : ""}
+                        </button>
+                      )}
                       {actions.includes("deliver") && (
                         <button onClick={() => void runBriefAction(brief, "deliver")} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 px-3 py-1.5 text-xs font-bold text-black transition hover:brightness-110 disabled:opacity-50">
                           <Send className="h-3.5 w-3.5" /> Deliver the ad
@@ -880,7 +998,7 @@ export function UgcAdsPanel() {
                       )}
                       {actions.includes("approve") && (
                         <button onClick={() => void runBriefAction(brief, "approve")} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 px-3 py-1.5 text-xs font-bold text-black transition hover:brightness-110 disabled:opacity-50">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Approve delivery
+                          <CheckCircle2 className="h-3.5 w-3.5" /> {brief.priceCents != null && brief.escrowStatus === "funded" ? `Approve & release ${moneyCents(brief.priceCents)}` : "Approve delivery"}
                         </button>
                       )}
                       {actions.includes("release") && (
@@ -893,6 +1011,28 @@ export function UgcAdsPanel() {
                           <XCircle className="h-3.5 w-3.5" /> Close brief
                         </button>
                       )}
+                    </div>
+                  )}
+
+                  {brief.priceCents != null && brief.escrowStatus === "funding" && brief.brandUserId === user?.id && (
+                    <button
+                      onClick={() => void checkFunding(brief)}
+                      disabled={busy}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-50"
+                    >
+                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Check funding status
+                    </button>
+                  )}
+
+                  {fundCheckout?.briefId === brief.id && (
+                    <div className="mt-3 space-y-2" data-testid="ugc-brief-fund-embedded-checkout">
+                      <p className="text-xs text-white/50">
+                        Finish funding right here — the brief shows as funded the moment the payment lands.
+                      </p>
+                      <EmbeddedSessionCheckout clientSecret={fundCheckout.clientSecret} />
+                      <button onClick={() => setFundCheckout(null)} className="text-xs text-white/40 hover:text-white">
+                        Close — nothing is charged until a payment completes
+                      </button>
                     </div>
                   )}
                 </div>

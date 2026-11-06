@@ -57,6 +57,16 @@ import { saleSplitAdjustments } from "./sale-splits";
  * 5%, per-row round — the dashboard's netAfterFee formula); tips carry
  * no fee at all (100% to the creator), so their fee is honestly 0.
  *
+ * One more rail (C-25, migration 0324): UGC BRIEFS. A priced brief's
+ * escrow release stamps its own split on the brief row
+ * (released_amount_cents = the held gross that was split,
+ * platform_fee_cents / creator_payout_cents at the rail's 5%), so the
+ * sync copies the recorded split exactly — the amounts the creator
+ * was told are the amounts that accrue. Settled truth is the release
+ * stamp itself (escrow_status 'released'); a release later reversed
+ * (escrow_status 'refunded' with release stamps present) accrues AND
+ * reverses, like every other rail.
+ *
  * Settlement discipline is BULK, mirroring digital_sales/store_orders:
  * creator_payouts rows in active states ('processing' | 'pending' |
  * 'paid') are subtracted by the pending read; a 'failed' payout stops
@@ -336,6 +346,40 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
   `);
 
+  /* ugc_briefs — UGC Briefs Board escrow (5% fee, split recorded on
+     the row at release: released_amount_cents is the HELD gross that
+     was split, never the nominal price — a partial refund before
+     approval shrinks the release and these figures with it).
+     claimed_by_user_id is the seller (the creator who did the work).
+     Only a brief that actually RELEASED accrues; a brief refunded
+     before release carries no release stamps and never appears. */
+  await run("ugc_brief:accrual", sql`
+    INSERT INTO pending_payout_ledger
+      (seller_user_id, seller_profile_id, source_kind, source_id, entry_type,
+       gross_cents, platform_fee_cents, net_cents, stripe_session_id)
+    SELECT ub.claimed_by_user_id, NULL, 'ugc_brief', ub.id, 'accrual',
+           ub.released_amount_cents, ub.platform_fee_cents, ub.creator_payout_cents,
+           ub.stripe_session_id
+    FROM ugc_briefs ub
+    WHERE ub.claimed_by_user_id = ${userId}
+      AND ub.escrow_status IN ('released', 'refunded')
+      AND ub.released_amount_cents IS NOT NULL
+    ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
+  `);
+  await run("ugc_brief:reversal", sql`
+    INSERT INTO pending_payout_ledger
+      (seller_user_id, seller_profile_id, source_kind, source_id, entry_type,
+       gross_cents, platform_fee_cents, net_cents, stripe_session_id)
+    SELECT ub.claimed_by_user_id, NULL, 'ugc_brief', ub.id, 'reversal',
+           ub.released_amount_cents, ub.platform_fee_cents, ub.creator_payout_cents,
+           ub.stripe_session_id
+    FROM ugc_briefs ub
+    WHERE ub.claimed_by_user_id = ${userId}
+      AND ub.escrow_status = 'refunded'
+      AND ub.released_amount_cents IS NOT NULL
+    ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
+  `);
+
   const totalInserted = Object.values(inserted).reduce((a, b) => a + b, 0);
   return { inserted, totalInserted };
 }
@@ -505,6 +549,12 @@ interface SellerEarningsSummary {
     count: number;
   };
   tipJar: { totalCents: number; count: number };
+  ugcBriefs: {
+    totalCents: number;
+    grossCents: number;
+    feeCents: number;
+    count: number;
+  };
 }
 
 /* Per-rail readers — the summary composes these, and routes/earnings
@@ -610,6 +660,30 @@ export async function sellerTipJar(userId: string): Promise<SellerEarningsSummar
   return { totalCents: Number(r.cents), count: Number(r.n) };
 }
 
+/* Released UGC briefs (C-25): settled = the escrow release landed
+   (escrow_status 'released'); the figures are the release stamps
+   themselves — net is what the release split, gross is the held
+   amount it split, so the summary net equals the ledger accrual net
+   row for row. A brief refunded after release reads 'refunded' and
+   is excluded here (the ledger shows accrual + reversal). */
+export async function sellerUgcBriefs(userId: string): Promise<SellerEarningsSummary["ugcBriefs"]> {
+  const res = await db.execute(sql`
+    SELECT COALESCE(SUM(creator_payout_cents), 0)::int AS net,
+           COALESCE(SUM(released_amount_cents), 0)::int AS gross,
+           COALESCE(SUM(platform_fee_cents), 0)::int AS fee,
+           COUNT(*)::int AS n
+    FROM ugc_briefs
+    WHERE claimed_by_user_id = ${userId} AND escrow_status = 'released'
+  `);
+  const r = (res.rows as any[])[0] ?? { net: 0, gross: 0, fee: 0, n: 0 };
+  return {
+    totalCents: Number(r.net),
+    grossCents: Number(r.gross),
+    feeCents: Number(r.fee),
+    count: Number(r.n),
+  };
+}
+
 export async function sellerBrandDeals(userId: string): Promise<SellerEarningsSummary["brandDeals"]> {
   const deals = await db.execute(sql`
     SELECT COALESCE(SUM(net_cents), 0)::int AS cents, COUNT(*)::int AS n
@@ -627,18 +701,21 @@ export async function sellerEarningsSummary(userId: string): Promise<SellerEarni
   const brandDeals = await sellerBrandDeals(userId);
   const shoutouts = await sellerShoutouts(userId);
   const tipJar = await sellerTipJar(userId);
+  const ugcBriefs = await sellerUgcBriefs(userId);
   return {
     sellerUserId: userId,
     currency: "USD",
     totalCents:
       storeSales.totalCents + beats.totalCents + memberships.totalCents +
-      brandDeals.totalCents + shoutouts.totalCents + tipJar.totalCents,
+      brandDeals.totalCents + shoutouts.totalCents + tipJar.totalCents +
+      ugcBriefs.totalCents,
     storeSales,
     beats,
     memberships,
     brandDeals,
     shoutouts,
     tipJar,
+    ugcBriefs,
   };
 }
 

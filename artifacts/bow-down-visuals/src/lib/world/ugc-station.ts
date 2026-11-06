@@ -22,8 +22,9 @@
    The charged calls ride the credit confirmation via
    confirmedFetch overrideCost (the registry carries no ugc entry;
    the override IS the desk pattern for that case). The board's
-   honesty law rides along verbatim: the site does not hold or move
-   money for briefs (UGC_PAYMENT_NOTE, the seam's own words). */
+   honesty law rides along verbatim: a FREE brief's money is arranged
+   directly (UGC_PAYMENT_NOTE, the seam's own words); a PRICED
+   brief's payment is held by the site's escrow rail (C-25). */
 
 import {
   normalizeScript,
@@ -168,6 +169,8 @@ export interface UgcBriefFormState {
   deadline: string;
   productUrl: string;
   productImageUrl: string;
+  /** Dollars as typed; blank/absent = a free brief (no escrow rail). */
+  price?: string;
 }
 
 export interface UgcBriefStrings {
@@ -210,7 +213,15 @@ export function buildBriefInput(form: UgcBriefFormState): {
   deadline?: string;
   productUrl?: string;
   productImageUrl?: string;
+  priceCents?: number;
 } {
+  /* The price rides only when the typed dollars parse to a real
+     positive amount — anything else posts a free brief, exactly as
+     before the rail existed. */
+  const priceText = form.price ?? "";
+  const dollars = Number(priceText);
+  const priceCents =
+    priceText.trim() && Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : undefined;
   return {
     productName: form.productName.trim(),
     details: form.details.trim(),
@@ -218,5 +229,6 @@ export function buildBriefInput(form: UgcBriefFormState): {
     deadline: briefDeadlineIso(form.deadline),
     productUrl: form.productUrl.trim() || undefined,
     productImageUrl: form.productImageUrl.trim() || undefined,
+    priceCents,
   };
 }

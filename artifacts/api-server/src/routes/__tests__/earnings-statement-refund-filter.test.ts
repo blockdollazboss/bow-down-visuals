@@ -66,6 +66,14 @@ CREATE TABLE royalty_entries (
   user_id uuid NOT NULL, gross_amount numeric NOT NULL DEFAULT 0,
   period_end timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE ugc_briefs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  brand_user_id uuid, claimed_by_user_id uuid,
+  escrow_status text NOT NULL DEFAULT 'unfunded',
+  stripe_session_id text,
+  released_amount_cents integer, platform_fee_cents integer, creator_payout_cents integer,
+  released_at timestamptz
+);
 `;
 
 beforeEach(() => {
