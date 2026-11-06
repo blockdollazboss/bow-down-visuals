@@ -30,7 +30,7 @@ import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./Native
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
 import { PressReleaseWriter } from "./PressReleaseWriter";
 import { ContractAnalyzer } from "./ContractAnalyzer";
-import { TRANSFER_BUTTON_LABEL } from "@/lib/world/station-panel";
+import { TRANSFER_BUTTON_LABEL, transferButtonLabel } from "@/lib/world/station-panel";
 import { applyBrandKit, fetchBrandKit, saveBrandKit, saveLogoToBrandKit, BRAND_KIT_COLOR_ROLES, type BrandKit } from "@/lib/brand-kit";
 import {
   fetchMyStreamPackAssets,
@@ -306,6 +306,7 @@ const goldBtn =
 
 /** A folded row's own quiet transfer to its bench (new tab). */
 function RowTransfer({ websitePath, isLight }: { websitePath: string; isLight: boolean }) {
+  const { t } = useTranslation();
   return (
     <a
       href={websitePath}
@@ -315,7 +316,7 @@ function RowTransfer({ websitePath, isLight }: { websitePath: string; isLight: b
         isLight ? "text-[#7A5A12] hover:text-[#2a1e07]" : "text-[#e8c86a] hover:text-white"
       }`}
     >
-      {TRANSFER_BUTTON_LABEL}
+      {transferButtonLabel(t, TRANSFER_BUTTON_LABEL)}
     </a>
   );
 }

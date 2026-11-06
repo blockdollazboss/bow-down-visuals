@@ -18661,7 +18661,12 @@
     "subYoureSongwriter": "당신은 이 노래의 송라이터입니다",
     "tryAgain": "다시 시도"
   },
+  "worldStationPanel": {
+    "transferButton": "Open on the website ↗"
+  },
   "worldCommerceStands": {
+    "checkoutTransfer": "Continue to checkout on the website",
+    "contactForQuote": "Contact for quote",
     "brandAddedNote": "{{label}}을(를) 카트에 추가했습니다.",
     "brandCartEmpty": "카트가 비어 있습니다 — 위의 상품이 이 스탠드 선반의 전부입니다.",
     "brandChange": "변경",
@@ -22002,6 +22007,11 @@
     "spEscrowTitle": "에스크로"
   },
   "worldCreatorRooms": {
+    "crownsYearFallback": "The Crowns of {{year}}",
+    "giftProblemNoAmounts": "This gift card has no amounts to pick from yet — the seller hasn't set any.",
+    "giftProblemPickAmount": "Pick an amount first.",
+    "giftProblemPickOffered": "Pick one of the offered amounts.",
+    "giftProblemRecipientEmail": "Add the recipient's email — the gift card is delivered there, not to you.",
     "crownsLoadTitle": "왕관을 불러오지 못했습니다",
     "crownsLoadMessage": "결정된 해는 안전합니다 — 독서등이 살짝 미끄러졌습니다. 다시 시도해 주세요.",
     "crownsReading": "왕관을 읽고 있습니다…",

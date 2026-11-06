@@ -18677,7 +18677,12 @@
     "subYoureSongwriter": "You're a songwriter on this song",
     "tryAgain": "Try again"
   },
+  "worldStationPanel": {
+    "transferButton": "Open on the website ↗"
+  },
   "worldCommerceStands": {
+    "checkoutTransfer": "Continue to checkout on the website",
+    "contactForQuote": "Contact for quote",
     "brandAddedNote": "{{label}} added to your cart.",
     "brandCartEmpty": "Your cart is empty — the goods above are the stand's whole shelf.",
     "brandChange": "Change",
@@ -22018,6 +22023,11 @@
     "spEscrowTitle": "Escrow"
   },
   "worldCreatorRooms": {
+    "crownsYearFallback": "The Crowns of {{year}}",
+    "giftProblemNoAmounts": "This gift card has no amounts to pick from yet — the seller hasn't set any.",
+    "giftProblemPickAmount": "Pick an amount first.",
+    "giftProblemPickOffered": "Pick one of the offered amounts.",
+    "giftProblemRecipientEmail": "Add the recipient's email — the gift card is delivered there, not to you.",
     "crownsLoadTitle": "The crowns wouldn't load",
     "crownsLoadMessage": "The decided years are safe — the reading lamp slipped. Try again.",
     "crownsReading": "Reading the crowns…",

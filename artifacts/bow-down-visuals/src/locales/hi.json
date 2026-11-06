@@ -18661,7 +18661,12 @@
     "subYoureSongwriter": "आप इस गाने के गीतकार हैं",
     "tryAgain": "फिर से कोशिश करें"
   },
+  "worldStationPanel": {
+    "transferButton": "Open on the website ↗"
+  },
   "worldCommerceStands": {
+    "checkoutTransfer": "Continue to checkout on the website",
+    "contactForQuote": "Contact for quote",
     "brandAddedNote": "{{label}} आपकी कार्ट में जोड़ा गया.",
     "brandCartEmpty": "आपकी कार्ट खाली है — ऊपर का सामान ही इस स्टैंड की पूरी शेल्फ है.",
     "brandChange": "बदलें",
@@ -22002,6 +22007,11 @@
     "spEscrowTitle": "एस्क्रो"
   },
   "worldCreatorRooms": {
+    "crownsYearFallback": "The Crowns of {{year}}",
+    "giftProblemNoAmounts": "This gift card has no amounts to pick from yet — the seller hasn't set any.",
+    "giftProblemPickAmount": "Pick an amount first.",
+    "giftProblemPickOffered": "Pick one of the offered amounts.",
+    "giftProblemRecipientEmail": "Add the recipient's email — the gift card is delivered there, not to you.",
     "crownsLoadTitle": "मुकुट लोड नहीं हो सके",
     "crownsLoadMessage": "तय किए गए साल सुरक्षित हैं — पढ़ने वाला लैंप फिसल गया। फिर से कोशिश करें।",
     "crownsReading": "मुकुट पढ़े जा रहे हैं…",

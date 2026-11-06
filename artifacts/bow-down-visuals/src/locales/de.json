@@ -18661,7 +18661,12 @@
     "subYoureSongwriter": "Du bist Songwriter bei diesem Song",
     "tryAgain": "Erneut versuchen"
   },
+  "worldStationPanel": {
+    "transferButton": "Open on the website ↗"
+  },
   "worldCommerceStands": {
+    "checkoutTransfer": "Continue to checkout on the website",
+    "contactForQuote": "Contact for quote",
     "brandAddedNote": "{{label}} wurde in deinen Warenkorb gelegt.",
     "brandCartEmpty": "Dein Warenkorb ist leer — die Waren oben sind das ganze Regal dieses Stands.",
     "brandChange": "Ändern",
@@ -22002,6 +22007,11 @@
     "spEscrowTitle": "Treuhandkonto"
   },
   "worldCreatorRooms": {
+    "crownsYearFallback": "The Crowns of {{year}}",
+    "giftProblemNoAmounts": "This gift card has no amounts to pick from yet — the seller hasn't set any.",
+    "giftProblemPickAmount": "Pick an amount first.",
+    "giftProblemPickOffered": "Pick one of the offered amounts.",
+    "giftProblemRecipientEmail": "Add the recipient's email — the gift card is delivered there, not to you.",
     "crownsLoadTitle": "Die Kronen ließen sich nicht laden",
     "crownsLoadMessage": "Die entschiedenen Jahre sind sicher — die Leselampe ist nur verrutscht. Versuch es noch einmal.",
     "crownsReading": "Die Kronen werden gelesen…",

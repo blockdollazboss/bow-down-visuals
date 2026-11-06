@@ -48,6 +48,31 @@ export const CHECKOUT_TRANSFER_LABEL = "Continue to checkout on the website";
  *  does for the premium die-cut rug. */
 export const CONTACT_FOR_QUOTE_LABEL = "Contact for quote";
 
+/* ─── Locale resolution (Stack 200 Lane E1, item E-3) ──────────────
+   The constants above stay the canonical English labels (the value
+   pins hold them); at render the stands resolve the words through
+   the locale catalogs (worldCommerceStands.checkoutTransfer /
+   contactForQuote) with the constant riding as the defaultValue,
+   so a locale the catalogs haven't reached yet still reads exactly
+   the uniform label. */
+
+export type ShopStandsTranslate = (
+  key: string,
+  opts?: Record<string, unknown>,
+) => string;
+
+export function checkoutTransferLabel(t?: ShopStandsTranslate): string {
+  return t
+    ? t("worldCommerceStands.checkoutTransfer", { defaultValue: CHECKOUT_TRANSFER_LABEL })
+    : CHECKOUT_TRANSFER_LABEL;
+}
+
+export function contactForQuoteLabel(t?: ShopStandsTranslate): string {
+  return t
+    ? t("worldCommerceStands.contactForQuote", { defaultValue: CONTACT_FOR_QUOTE_LABEL })
+    : CONTACT_FOR_QUOTE_LABEL;
+}
+
 /* ─── Marketplace (GET /api/storefronts, /slug/:slug) ────────────── */
 
 export interface HubShopDto {

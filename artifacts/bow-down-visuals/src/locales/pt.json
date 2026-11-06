@@ -18690,7 +18690,12 @@
     "subYoureSongwriter": "Você é compositor desta música",
     "tryAgain": "Tente de novo"
   },
+  "worldStationPanel": {
+    "transferButton": "Open on the website ↗"
+  },
   "worldCommerceStands": {
+    "checkoutTransfer": "Continue to checkout on the website",
+    "contactForQuote": "Contact for quote",
     "brandAddedNote": "{{label}} foi adicionado ao seu carrinho.",
     "brandCartEmpty": "Seu carrinho está vazio — os produtos acima são toda a prateleira da barraca.",
     "brandChange": "Alterar",
@@ -22031,6 +22036,11 @@
     "spEscrowTitle": "Garantia"
   },
   "worldCreatorRooms": {
+    "crownsYearFallback": "The Crowns of {{year}}",
+    "giftProblemNoAmounts": "This gift card has no amounts to pick from yet — the seller hasn't set any.",
+    "giftProblemPickAmount": "Pick an amount first.",
+    "giftProblemPickOffered": "Pick one of the offered amounts.",
+    "giftProblemRecipientEmail": "Add the recipient's email — the gift card is delivered there, not to you.",
     "crownsLoadTitle": "As coroas não puderam ser carregadas",
     "crownsLoadMessage": "Os anos já decididos estão a salvo — a lâmpada de leitura escorregou. Tente de novo.",
     "crownsReading": "Lendo as coroas…",

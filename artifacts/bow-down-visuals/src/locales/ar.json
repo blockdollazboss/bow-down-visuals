@@ -18777,7 +18777,12 @@
     "subYoureSongwriter": "أنت كاتب أغاني في هذه الأغنية",
     "tryAgain": "حاول مرة أخرى"
   },
+  "worldStationPanel": {
+    "transferButton": "Open on the website ↗"
+  },
   "worldCommerceStands": {
+    "checkoutTransfer": "Continue to checkout on the website",
+    "contactForQuote": "Contact for quote",
     "brandAddedNote": "أُضيف {{label}} إلى سلة التسوق الخاصة بك.",
     "brandCartEmpty": "سلة التسوق فارغة — البضائع أعلاه هي كل ما على رف هذا الجناح.",
     "brandChange": "تغيير",
@@ -22118,6 +22123,11 @@
     "spEscrowTitle": "الضمان"
   },
   "worldCreatorRooms": {
+    "crownsYearFallback": "The Crowns of {{year}}",
+    "giftProblemNoAmounts": "This gift card has no amounts to pick from yet — the seller hasn't set any.",
+    "giftProblemPickAmount": "Pick an amount first.",
+    "giftProblemPickOffered": "Pick one of the offered amounts.",
+    "giftProblemRecipientEmail": "Add the recipient's email — the gift card is delivered there, not to you.",
     "crownsLoadTitle": "تعذّر تحميل التيجان",
     "crownsLoadMessage": "السنوات المحسومة آمنة — انزلق مصباح القراءة. حاول مرة أخرى.",
     "crownsReading": "جارٍ قراءة التيجان…",

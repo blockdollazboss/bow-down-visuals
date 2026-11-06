@@ -18657,7 +18657,12 @@
     "subYoureSongwriter": "あなたはこの曲のソングライターです",
     "tryAgain": "もう一度試す"
   },
+  "worldStationPanel": {
+    "transferButton": "Open on the website ↗"
+  },
   "worldCommerceStands": {
+    "checkoutTransfer": "Continue to checkout on the website",
+    "contactForQuote": "Contact for quote",
     "brandAddedNote": "{{label}} をカートに追加しました。",
     "brandCartEmpty": "カートは空です — 上の商品がこのスタンドの棚のすべてです。",
     "brandChange": "変更",
@@ -21998,6 +22003,11 @@
     "spEscrowTitle": "エスクロー"
   },
   "worldCreatorRooms": {
+    "crownsYearFallback": "The Crowns of {{year}}",
+    "giftProblemNoAmounts": "This gift card has no amounts to pick from yet — the seller hasn't set any.",
+    "giftProblemPickAmount": "Pick an amount first.",
+    "giftProblemPickOffered": "Pick one of the offered amounts.",
+    "giftProblemRecipientEmail": "Add the recipient's email — the gift card is delivered there, not to you.",
     "crownsLoadTitle": "王冠を読み込めませんでした",
     "crownsLoadMessage": "決定した年は無事です — 読書灯が少しずれてしまいました。もう一度お試しください。",
     "crownsReading": "王冠を読んでいます…",

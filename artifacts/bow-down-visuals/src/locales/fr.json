@@ -18690,7 +18690,12 @@
     "subYoureSongwriter": "Tu es auteur-compositeur sur cette chanson",
     "tryAgain": "Réessayer"
   },
+  "worldStationPanel": {
+    "transferButton": "Open on the website ↗"
+  },
   "worldCommerceStands": {
+    "checkoutTransfer": "Continue to checkout on the website",
+    "contactForQuote": "Contact for quote",
     "brandAddedNote": "{{label}} ajouté à votre panier.",
     "brandCartEmpty": "Votre panier est vide — les articles ci-dessus constituent toute l'étagère du stand.",
     "brandChange": "Modifier",
@@ -22031,6 +22036,11 @@
     "spEscrowTitle": "Séquestre"
   },
   "worldCreatorRooms": {
+    "crownsYearFallback": "The Crowns of {{year}}",
+    "giftProblemNoAmounts": "This gift card has no amounts to pick from yet — the seller hasn't set any.",
+    "giftProblemPickAmount": "Pick an amount first.",
+    "giftProblemPickOffered": "Pick one of the offered amounts.",
+    "giftProblemRecipientEmail": "Add the recipient's email — the gift card is delivered there, not to you.",
     "crownsLoadTitle": "Les couronnes n'ont pas pu se charger",
     "crownsLoadMessage": "Les années décidées sont en sécurité — la lampe de lecture a glissé. Réessayez.",
     "crownsReading": "Lecture des couronnes…",

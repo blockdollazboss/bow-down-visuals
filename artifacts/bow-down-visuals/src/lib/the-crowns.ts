@@ -148,7 +148,25 @@ function parseAward(raw: unknown): CrownAward | null {
   };
 }
 
-function parseYear(raw: unknown): CrownYear | null {
+/* ─── Locale strings (Stack 200 Lane E1, item E-3) ─────────────────
+   Optional seam for the one display string the parser itself
+   composes: the fallback name of a year the server didn't name.
+   The default is the English literal VERBATIM, so existing callers
+   and tests see byte-identical output; a localized caller passes
+   its catalog's sentence through (the
+   worldCreatorRooms.crownsYearFallback catalog key, built by the
+   Crowns Chamber). A server-sent name always wins over both. */
+
+export interface CrownsParseOptions {
+  /** Fallback display name for an unnamed year. */
+  yearName?: (year: number) => string;
+}
+
+function crownsYearFallback(year: number, opts?: CrownsParseOptions): string {
+  return opts?.yearName ? opts.yearName(year) : `The Crowns of ${year}`;
+}
+
+function parseYear(raw: unknown, opts?: CrownsParseOptions): CrownYear | null {
   if (!isRecord(raw)) return null;
   const year = Math.floor(num(raw["year"]));
   if (!year) return null;
@@ -156,7 +174,7 @@ function parseYear(raw: unknown): CrownYear | null {
   return {
     year,
     crownKey: str(raw["crownKey"], `crowns-${year}`),
-    name: str(raw["name"], `The Crowns of ${year}`),
+    name: str(raw["name"], crownsYearFallback(year, opts)),
     startsAt: str(raw["startsAt"]),
     endsAt: str(raw["endsAt"]),
     decidedAt: str(raw["decidedAt"]),
@@ -165,7 +183,7 @@ function parseYear(raw: unknown): CrownYear | null {
   };
 }
 
-export function parseCrownsRead(payload: unknown): CrownsRead | null {
+export function parseCrownsRead(payload: unknown, opts?: CrownsParseOptions): CrownsRead | null {
   if (!isRecord(payload)) return null;
   const currentRaw = payload["current"];
   if (!isRecord(currentRaw)) return null;
@@ -191,7 +209,7 @@ export function parseCrownsRead(payload: unknown): CrownsRead | null {
 
   const yearsRaw = Array.isArray(payload["years"]) ? payload["years"] : [];
   const years = yearsRaw
-    .map(parseYear)
+    .map((raw) => parseYear(raw, opts))
     .filter((y): y is CrownYear => y !== null)
     .sort((a, b) => b.year - a.year);
 
@@ -200,7 +218,7 @@ export function parseCrownsRead(payload: unknown): CrownsRead | null {
     current: {
       year,
       crownKey: str(currentRaw["crownKey"], `crowns-${year}`),
-      name: str(currentRaw["name"], `The Crowns of ${year}`),
+      name: str(currentRaw["name"], crownsYearFallback(year, opts)),
       startsAt: str(currentRaw["startsAt"]),
       endsAt: str(currentRaw["endsAt"]),
       leaders,
@@ -217,10 +235,10 @@ export function crownsPath(): string {
 
 /** The awards' whole read. Throws on a failed fetch — the
  *  surface shows its honest error + retry, never a fake record. */
-export async function fetchCrownsRead(signal?: AbortSignal): Promise<CrownsRead | null> {
+export async function fetchCrownsRead(signal?: AbortSignal, opts?: CrownsParseOptions): Promise<CrownsRead | null> {
   const res = await fetch(crownsPath(), { signal });
   if (!res.ok) throw new Error(`crowns ${res.status}`);
-  return parseCrownsRead(await res.json());
+  return parseCrownsRead(await res.json(), opts);
 }
 
 /* ─── Display ─────────────────────────────────────────────────────── */

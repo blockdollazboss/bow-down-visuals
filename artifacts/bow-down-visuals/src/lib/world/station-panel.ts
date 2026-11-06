@@ -32,6 +32,25 @@ export function stationGuestBlocked(station: PalaceStation, isGuest: boolean): b
  *  once, trusted everywhere (NATIVE-PLAN §3.0, owner ruling Q3). */
 export const TRANSFER_BUTTON_LABEL = "Open on the website ↗";
 
+/* ─── Locale resolution (Stack 200 Lane E1, item E-3) ──────────────
+   The constant above stays the canonical English label (the value
+   pins hold it); at render the footer resolves the words through
+   the locale catalogs (worldStationPanel.transferButton) with the
+   constant riding as the defaultValue, so a locale the catalogs
+   haven't reached yet still reads exactly the learned label. */
+
+export type StationPanelTranslate = (
+  key: string,
+  opts?: Record<string, unknown>,
+) => string;
+
+export function transferButtonLabel(
+  t?: StationPanelTranslate,
+  fallback: string = TRANSFER_BUTTON_LABEL,
+): string {
+  return t ? t("worldStationPanel.transferButton", { defaultValue: fallback }) : fallback;
+}
+
 /* ─── The standing switch — the OTHER outbound door ─────────────────
    Owner addendum (Oct 17, 14:29 EDT): "vice versa, I should be in
    the VR world and have an option to switch [to] the actual

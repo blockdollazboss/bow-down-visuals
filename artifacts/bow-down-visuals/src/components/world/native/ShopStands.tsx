@@ -26,7 +26,7 @@ import {
   type BrandStyle, type ColorKey, type ProductKey,
 } from "@/lib/branding-shop";
 import {
-  CHECKOUT_TRANSFER_LABEL, CONTACT_FOR_QUOTE_LABEL,
+  checkoutTransferLabel, contactForQuoteLabel,
   activeMembershipTiers, addBrandingCartLine, addToCartLines,
   brandingCartTotalCents, brandingDesignComplete, brandingOrderPayload,
   brandingOrderStatusLabel, brandingShippingComplete, checkoutCompletedInWorld,
@@ -104,7 +104,8 @@ import {
    POSTs its checkout endpoint and opens the hosted payment page
    the server returns in a NEW TAB. The palace tab, the room and
    your place in it never move. The checkout action carries the
-   uniform label for that moment: CHECKOUT_TRANSFER_LABEL.
+   uniform label for that moment: checkoutTransferLabel(t) — the
+   CHECKOUT_TRANSFER_LABEL constant, resolved through the catalogs.
    JOIN2 UPDATE: the Marketplace stand's money moment is embedded
    first (uiMode: "embedded" → the shared EmbeddedSessionCheckout
    mounts in the stand; the server rail landed with this join) —
@@ -562,7 +563,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                 {/* The ONE marked door out of this stand: payment. */}
                 <button type="button" data-testid="world-shop-checkout" onClick={() => void checkout()} disabled={placing} className={`${goldBtn(placing)} w-full`}>
                   {placing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
-                  {CHECKOUT_TRANSFER_LABEL} · {centsToDisplay(total)}
+                  {checkoutTransferLabel(t)} · {centsToDisplay(total)}
                 </button>
                 <p className={`text-[11px] ${muted(isLight)}`}>
                   {t("worldCommerceStands.shopFeeLine", { keep: 100 - feePct, fee: feePct })}
@@ -2492,7 +2493,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
                 )}
                 {p.quoteOnly && (
                   <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#d4af37]/40 bg-[#d4af37]/10 px-3 py-1.5 text-xs font-bold text-[#e8c86a]" data-testid="world-branding-quote-only">
-                    <Gem className="h-3.5 w-3.5" /> {CONTACT_FOR_QUOTE_LABEL}
+                    <Gem className="h-3.5 w-3.5" /> {contactForQuoteLabel(t)}
                   </p>
                 )}
               </NativeCard>
@@ -2611,7 +2612,7 @@ function BrandingShopStand({ isLight, isGuest }: { isLight: boolean; isGuest: bo
               {/* The ONE marked door out of this stand: payment. */}
               <button type="button" data-testid="world-branding-checkout" onClick={() => void checkout()} disabled={placing} className={`${goldBtn(placing)} w-full`}>
                 {placing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingCart className="h-4 w-4" />}
-                {CHECKOUT_TRANSFER_LABEL} · {formatMoney(cartTotal)}
+                {checkoutTransferLabel(t)} · {formatMoney(cartTotal)}
               </button>
               <p className={`text-[11px] ${muted(isLight)}`}>
                 {t("worldCommerceStands.brandCheckoutNote")}
@@ -3845,7 +3846,7 @@ function CrownsStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean 
                         {busy === tier.id + "checkout" ? <Loader2 className="h-4 w-4 animate-spin" /> : recipientId ? <Gift className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
                         {tier.priceCents <= 0
                           ? recipientId ? t("worldCommerceStands.crownsGiftFreeButton") : t("worldCommerceStands.crownsJoinFreeButton")
-                          : recipientId ? t("worldCommerceStands.crownsGiftButton", { label: CHECKOUT_TRANSFER_LABEL }) : CHECKOUT_TRANSFER_LABEL}
+                          : recipientId ? t("worldCommerceStands.crownsGiftButton", { label: checkoutTransferLabel(t) }) : checkoutTransferLabel(t)}
                       </button>
                       {tierOffersTrial(tier) && !recipientId && (
                         <button

@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { useTranslation } from "react-i18next";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { TikTokIcon } from "@/components/ui/tiktok-icon";
 import { FacebookIcon } from "@/components/ui/facebook-icon";
@@ -21,6 +22,7 @@ const PLATFORM_ICONS: Record<string, ComponentType<{ className?: string }>> = {
 };
 
 export default function SocialProofStrip({ figures }: { figures: SocialProofFigureDto[] | undefined }) {
+  const { i18n } = useTranslation();
   const live = liveProofFigures(figures);
   if (live.length === 0) return null;
   return (
@@ -31,13 +33,13 @@ export default function SocialProofStrip({ figures }: { figures: SocialProofFigu
       >
         {live.map((f) => {
           const Icon = PLATFORM_ICONS[f.platform];
-          const updated = proofUpdatedLabel(f.updatedAt);
+          const updated = proofUpdatedLabel(f.updatedAt, i18n.language);
           return (
             <div key={f.key} className="flex items-center gap-2.5" title={f.accountLabel ? `${f.label} — @${f.accountLabel.replace(/^@/, "")}` : f.label}>
               {Icon ? <Icon className="h-5 w-5 shrink-0" /> : null}
               <div className="leading-tight">
                 <div className="text-base font-black tabular-nums">
-                  {formatProofValue(f.value)}
+                  {formatProofValue(f.value, i18n.language)}
                   <span className="ml-1.5 text-xs font-semibold opacity-70">{f.label}</span>
                 </div>
                 {updated && (

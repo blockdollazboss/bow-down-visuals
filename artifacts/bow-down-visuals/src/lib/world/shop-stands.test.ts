@@ -481,7 +481,10 @@ describe("source pins — the stands' wiring (§3.3 endpoints, §3.9 new tab)", 
     expect(standsSrc).toContain("/api/branding-shop/design");
     expect(standsSrc).toContain("/api/branding-shop/orders");
     expect(standsSrc).toContain("/api/branding-shop/checkout");
-    expect(standsSrc).toContain("CONTACT_FOR_QUOTE_LABEL");
+    // Stack 200 E-3: the quote label renders through the keyed seam
+    // (contactForQuoteLabel → worldCommerceStands.contactForQuote,
+    // the CONTACT_FOR_QUOTE_LABEL constant as its default).
+    expect(standsSrc).toContain("contactForQuoteLabel(t)");
   });
 
   it("crowns stand rides the memberships endpoints", () => {
@@ -494,7 +497,11 @@ describe("source pins — the stands' wiring (§3.3 endpoints, §3.9 new tab)", 
   it("checkout opens its hosted page in a NEW TAB only — never a same-tab jump", () => {
     expect(standsSrc).toContain('window.open(url, "_blank", "noopener,noreferrer")');
     expect(standsSrc).not.toContain("window.location.href");
-    expect(standsSrc).toContain("CHECKOUT_TRANSFER_LABEL");
+    // Stack 200 E-3: the checkout door's label renders through the
+    // keyed seam (checkoutTransferLabel →
+    // worldCommerceStands.checkoutTransfer, the
+    // CHECKOUT_TRANSFER_LABEL constant as its default).
+    expect(standsSrc).toContain("checkoutTransferLabel(t)");
   });
 
   it("the host dispatches the three shop stations to the stands, other patterns keep the placeholder", () => {
