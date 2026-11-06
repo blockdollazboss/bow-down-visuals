@@ -10,6 +10,20 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { loginPathWithNext } from "@/lib/auth-next";
+import {
+  normalizeDashboard,
+  normalizeMembers,
+  normalizeMine,
+  normalizeRecovery,
+  normalizeTiers,
+  type Dashboard,
+  type Member,
+  type MyGift,
+  type MyMembership,
+  type RecoveryRow,
+  type Tier,
+} from "@/lib/memberships-data";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
   EmbeddedSessionCheckout,
@@ -24,115 +38,6 @@ import {
    can offer a 7-day free trial and a creator-set annual discount, and
    memberships can be gifted. The AI perk suggester costs 1 credit per
    suggestion (charge-before-generate). */
-
-interface Tier {
-  id: string;
-  creatorUserId?: string;
-  name: string;
-  priceDollars: number;
-  priceCents: number;
-  description: string;
-  perks: string[];
-  isActive: boolean;
-  trialEnabled: boolean;
-  /* Pause offer (#39): members may rest 1–3 months unless off. */
-  pauseEnabled: boolean;
-  annualDiscountPct: number;
-  annualPriceCents: number;
-  annualPriceDollars: number;
-  createdAt: string;
-}
-
-interface TierBreakdown {
-  tierId: string;
-  name: string;
-  activeMembers: number;
-  mrrCents: number;
-}
-
-interface Dashboard {
-  activeMembers: number;
-  pausedMembers: number;
-  pastDueMembers: number;
-  canceledMembers: number;
-  mrrCents: number;
-  mrrDollars: number;
-  netMrrCents: number;
-  churnPct: number;
-  byTier: TierBreakdown[];
-  paymentsLive: boolean;
-}
-
-interface Member {
-  id: string;
-  tierId: string;
-  tierName: string;
-  fanLabel: string;
-  fanUserId: string | null;
-  status: "trialing" | "active" | "past_due" | "canceled" | "expired" | "paused";
-  priceDollars: number;
-  billingPeriod: string;
-  currentPeriodEnd: string | null;
-  trialEndsAt: string | null;
-  isGift: boolean;
-  joinedAt: string;
-  pastDueSince: string | null;
-  accessEndsAt: string | null;
-  pastDueDaysLeft: number | null;
-}
-
-interface MyMembership {
-  id: string;
-  tierName: string | null;
-  creatorUserId: string;
-  status: string;
-  priceDollars: number;
-  billingPeriod: string;
-  currentPeriodEnd: string | null;
-  trialEndsAt: string | null;
-  isGift: boolean;
-  joinedAt: string;
-  /* Dunning (past_due only): when the payment failed + the exact date
-     access pauses if it still hasn't succeeded. */
-  pastDueSince: string | null;
-  accessEndsAt: string | null;
-  pastDueDaysLeft: number | null;
-  /* Pause (#39): when the rest began, the resume date stated before
-     the fan confirmed, the period end after resuming on that date,
-     and whether this tier offers pause at all (creator toggle). */
-  pausedAt: string | null;
-  pauseResumesAt: string | null;
-  pauseNewPeriodEnd: string | null;
-  pauseOffered: boolean | null;
-}
-
-/* Creator Recovery view (GET /memberships/recovery): a past-due (or
-   chased) member plus the recovery picture the server derives from
-   the email claim ledger. */
-interface RecoveryRow {
-  member: Member;
-  recovery: {
-    state: "in_grace" | "recovered" | "access_ended" | "ended_other";
-    pastDueSince: string | null;
-    graceEndsAt: string | null;
-    daysLeft: number | null;
-    stepsSent: number;
-    stepCount: number;
-    lastStepKey: string | null;
-    lastSentAt: string | null;
-  };
-}
-
-interface MyGift {
-  id: string;
-  tierId: string;
-  recipientUserId: string;
-  purchaserUserId: string;
-  amountDollars: number;
-  billingPeriod: string;
-  status: string;
-  createdAt: string;
-}
 
 interface SuggestedTier {
   name: string;
@@ -461,12 +366,19 @@ export default function Memberships() {
          expected shapes explicitly — a failure is that section's load
          error, not an empty fan club, and never discards the sources
          that loaded fine. */
-      const tOk = tR.status === "fulfilled" && tR.value.res.ok && Array.isArray(tR.value.data.tiers);
-      const dOk = dR.status === "fulfilled" && dR.value.res.ok && dR.value.data.activeMembers !== undefined;
-      const mOk = mR.status === "fulfilled" && mR.value.res.ok && Array.isArray(mR.value.data.members);
-      if (tOk) setTiers(tR.value.data.tiers as Tier[]);
-      if (dOk) setDashboard(dR.value.data as unknown as Dashboard);
-      if (mOk) setMembers(mR.value.data.members as Member[]);
+      /* Stack-200 hardening C (item 38): payloads are NORMALIZED at
+         this boundary (lib/memberships-data), never cast — a partial
+         payload degrades to that source's error state below, never
+         a render throw on an unchecked deref. */
+      const tiersNorm = tR.status === "fulfilled" && tR.value.res.ok ? normalizeTiers(tR.value.data.tiers) : null;
+      const dashNorm = dR.status === "fulfilled" && dR.value.res.ok ? normalizeDashboard(dR.value.data) : null;
+      const membersNorm = mR.status === "fulfilled" && mR.value.res.ok ? normalizeMembers(mR.value.data.members) : null;
+      const tOk = tiersNorm !== null;
+      const dOk = dashNorm !== null;
+      const mOk = membersNorm !== null;
+      if (tiersNorm) setTiers(tiersNorm);
+      if (dashNorm) setDashboard(dashNorm);
+      if (membersNorm) setMembers(membersNorm);
       if (!tOk && !dOk && !mOk) {
         setLoadError(true);
       } else {
@@ -493,11 +405,12 @@ export default function Memberships() {
     try {
       const token = await getAccessToken();
       const { res, data } = await api("/memberships/mine", token);
-      if (!res.ok || !Array.isArray(data.memberships)) {
+      const mineNorm = normalizeMine(data);
+      if (!res.ok || !mineNorm) {
         setMineError(true);
         return;
       }
-      setMine(data as unknown as { memberships: MyMembership[]; giftsSent: MyGift[]; giftsReceived: MyGift[] });
+      setMine(mineNorm);
       setMineError(false);
     } catch {
       setMineError(true);
@@ -509,11 +422,12 @@ export default function Memberships() {
     try {
       const token = await getAccessToken();
       const { res, data } = await api("/memberships/recovery", token);
-      if (!res.ok || !Array.isArray(data.members)) {
+      const recoveryNorm = normalizeRecovery(data);
+      if (!res.ok || !recoveryNorm) {
         setRecoveryError(true);
         return;
       }
-      setRecovery(data as unknown as { members: RecoveryRow[]; automationEnabled: boolean; automationProvisioned: boolean });
+      setRecovery(recoveryNorm);
       setRecoveryError(false);
     } catch {
       setRecoveryError(true);
@@ -864,7 +778,7 @@ export default function Memberships() {
         </div>
 
         {creatorParam && creatorParam !== user?.id && (
-          <FanClubJoin creatorUserId={creatorParam} getAccessToken={getAccessToken} signedIn={!!user} />
+          <SectionBoundary name="memberships-fan-club"><FanClubJoin creatorUserId={creatorParam} getAccessToken={getAccessToken} signedIn={!!user} /></SectionBoundary>
         )}
 
         {fanMsg && (
@@ -912,6 +826,7 @@ export default function Memberships() {
             )}
 
             {/* ── Your memberships (fan side) ── */}
+            <SectionBoundary name="memberships-mine">
             {(mineError || mine) && (
               <section>
                 <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
@@ -1094,8 +1009,10 @@ export default function Memberships() {
                 )}
               </section>
             )}
+            </SectionBoundary>
 
             {/* ── Dashboard ── */}
+            <SectionBoundary name="memberships-dashboard">
             {dashboardError && !dashboard && (
               <section>
                 <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
@@ -1147,8 +1064,10 @@ export default function Memberships() {
                 )}
               </section>
             )}
+            </SectionBoundary>
 
             {/* ── Recovery (dunning worklist) ── */}
+            <SectionBoundary name="memberships-recovery">
             {(recoveryError || recovery) && (
               <section>
                 <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
@@ -1210,8 +1129,10 @@ export default function Memberships() {
                 ) : null}
               </section>
             )}
+            </SectionBoundary>
 
             {/* ── Tier builder ── */}
+            <SectionBoundary name="memberships-tier-builder">
             <section>
               <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
                 <Crown className="h-6 w-6 text-primary" /> {editingId ? t("memberships.editTier") : t("memberships.buildTier")}
@@ -1380,8 +1301,10 @@ export default function Memberships() {
                 </div>
               )}
             </section>
+            </SectionBoundary>
 
             {/* ── AI perk suggester ── */}
+            <SectionBoundary name="memberships-suggester">
             <section>
               <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
                 <Sparkles className="h-6 w-6 text-primary" /> {t("memberships.aiSuggesterTitle")}
@@ -1439,8 +1362,10 @@ export default function Memberships() {
                 )}
               </div>
             </section>
+            </SectionBoundary>
 
             {/* ── Members ── */}
+            <SectionBoundary name="memberships-members">
             <section>
               <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
                 <Users className="h-6 w-6 text-primary" /> {t("memberships.membersTitle")}
@@ -1522,6 +1447,7 @@ export default function Memberships() {
                 ) : null}
               </div>
             </section>
+            </SectionBoundary>
           </div>
         )}
       </main>

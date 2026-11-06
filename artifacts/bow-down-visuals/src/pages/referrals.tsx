@@ -7,6 +7,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { QRCodeModal } from "@/components/QRCode";
 import { FanLinksPanel } from "@/components/referrals/FanLinksPanel";
 import { useTranslation } from "react-i18next";
+import {
+  normalizeContestData,
+  normalizeReferralInfo,
+  type ContestData,
+  type ContestWinner,
+  type LeaderboardEntry,
+  type ReferralInfo,
+  type WindowRanks,
+} from "../lib/referrals-data";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── Promoter HQ — the referral program as a job ──────────────────────────
    Each user gets a personal referral link. New user signs up via link and
@@ -18,81 +28,6 @@ import { useTranslation } from "react-i18next";
    - Monthly viral contest: 40,000 VB prize pool, countdown, auto-settled
      winners paid in Visual Bucs, shareable winner announcements.
    - Share kit: pre-written posts + personal link, one click to blast. */
-
-interface ReferralEntry {
-  joinedAt: string;
-  creditsEarned: number;
-  shareExpiresAt: string | null;
-  daysLeft: number;
-  active: boolean;
-}
-
-interface TierInfo {
-  stars: number;
-  title: string;
-  ratePct: number;
-}
-
-interface TierLadderEntry extends TierInfo {
-  minReferrals: number;
-  milestoneBonus: number;
-}
-
-interface WindowRanks {
-  weekly: number | null;
-  monthly: number | null;
-  alltime: number | null;
-}
-
-interface ReferralInfo {
-  code: string;
-  totalReferrals: number;
-  activeReferrals: number;
-  creditsEarned: number;
-  revenueSharePct: number;
-  shareWindowDays: number;
-  refereeReward: number;
-  referrals: ReferralEntry[];
-  tier: TierInfo | null;
-  nextTier: (TierInfo & { minReferrals: number; milestoneBonus: number }) | null;
-  claimedMilestones: number[];
-  tierLadder: TierLadderEntry[];
-  ranks: WindowRanks;
-}
-
-interface LeaderboardEntry {
-  rank: number;
-  name: string;
-  slug: string | null;
-  signups: number;
-  revenue: number;
-  badge: { stars: number; title: string } | null;
-}
-
-interface ContestPrize {
-  rank: number;
-  prizeCredits: number;
-}
-
-interface ContestWinner {
-  rank: number;
-  name: string;
-  slug: string | null;
-  signups: number;
-  prizeCredits: number;
-  badge: { stars: number; title: string } | null;
-}
-
-interface ContestData {
-  period: string;
-  endsAt: string;
-  rules: string[];
-  prizes: ContestPrize[];
-  minSignupsToQualify: number;
-  standings: LeaderboardEntry[];
-  lastWinners: ContestWinner[];
-  lastWinnerPeriod: string | null;
-}
 
 function StarRow({ filled, total = 6 }: { filled: number; total?: number }) {
   return (
@@ -508,7 +443,8 @@ export default function Referrals() {
           try {
             const cres = await fetch("/api/referrals/contest");
             const cdata = await cres.json();
-            if (cres.ok && !cancelled) setContest(cdata);
+            const normalizedContest = normalizeContestData(cdata);
+            if (cres.ok && !cancelled && normalizedContest) setContest(normalizedContest);
           } catch { /* non-fatal — contest is a bonus section */ }
         })();
         const meP = (async () => {
@@ -516,7 +452,9 @@ export default function Referrals() {
           const { res, data } = await authFetch("/api/referrals/me");
           if (cancelled) return;
           if (!res.ok) { setError(apiErrorMessage(data, t("referrals.error.loadFailed"))); return; }
-          setInfo(data);
+          const normalizedInfo = normalizeReferralInfo(data);
+          if (!normalizedInfo) { setError(apiErrorMessage(data, t("referrals.error.loadFailed"))); return; }
+          setInfo(normalizedInfo);
         })();
         await Promise.allSettled([contestP, meP]);
       } catch {
@@ -576,7 +514,11 @@ export default function Referrals() {
         </div>
 
         {/* Contest is public — show it even when logged out */}
-        {contest && <ContestSection contest={contest} mySignupsThisMonth={mySignupsThisMonth} />}
+        {contest && (
+          <SectionBoundary name="referrals-contest">
+            <ContestSection contest={contest} mySignupsThisMonth={mySignupsThisMonth} />
+          </SectionBoundary>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-12">
@@ -601,6 +543,7 @@ export default function Referrals() {
         ) : info && (
           <>
             {/* Rank card — your Promoter standing + window ranks */}
+            <SectionBoundary name="referrals-rank">
             <div className="lux-card p-6 mb-8 text-center relative overflow-hidden">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[120px] bg-primary/10 rounded-full blur-[60px] pointer-events-none" />
               <div className="relative z-10">
@@ -666,8 +609,10 @@ export default function Referrals() {
                 )}
               </div>
             </div>
+            </SectionBoundary>
 
             {/* Stats */}
+            <SectionBoundary name="referrals-stats">
             <div className="grid grid-cols-3 gap-4 mb-8">
               <div className="lux-card p-5 text-center">
                 <Users className="h-5 w-5 text-primary mx-auto mb-2" />
@@ -685,11 +630,13 @@ export default function Referrals() {
                 <p className="text-xs text-white/45 uppercase tracking-widest mt-1">{t("referrals.stats.earned")}</p>
               </div>
             </div>
+            </SectionBoundary>
 
             {/* Leaderboard */}
-            <LeaderboardSection myRanks={info.ranks} />
+            <SectionBoundary name="referrals-leaderboard"><LeaderboardSection myRanks={info.ranks} /></SectionBoundary>
 
             {/* Link */}
+            <SectionBoundary name="referrals-link">
             <div className="lux-card p-5 mb-6">
               <p className="text-xs text-white/45 uppercase tracking-widest mb-3">{t("referrals.link.title")}</p>
               <div className="flex gap-2">
@@ -706,11 +653,13 @@ export default function Referrals() {
                 <QRCodeModal data={referralLink} title="Referral QR Code" />
               </div>
             </div>
+            </SectionBoundary>
 
             {/* Share kit */}
-            <ShareKitSection referralLink={referralLink} reward={info.refereeReward} />
+            <SectionBoundary name="referrals-share-kit"><ShareKitSection referralLink={referralLink} reward={info.refereeReward} /></SectionBoundary>
 
             {/* Share */}
+            <SectionBoundary name="referrals-share">
             <div className="lux-card p-5 mb-6">
               <p className="text-xs text-white/45 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                 <Share2 className="h-3.5 w-3.5" /> {t("referrals.share.title")}
@@ -729,8 +678,10 @@ export default function Referrals() {
                 ))}
               </div>
             </div>
+            </SectionBoundary>
 
             {/* Referral tracker — per-referral detail */}
+            <SectionBoundary name="referrals-tracker">
             <div className="lux-card p-5 mb-6">
               <p className="text-xs text-white/45 uppercase tracking-widest mb-4 flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5" /> {t("referrals.tracker.title")}
@@ -776,8 +727,10 @@ export default function Referrals() {
                 </div>
               )}
             </div>
+            </SectionBoundary>
 
             {/* Rank ladder — the climb */}
+            <SectionBoundary name="referrals-ladder">
             <div className="lux-card p-5 mb-6">
               <p className="text-xs text-white/45 uppercase tracking-widest mb-4 flex items-center gap-1.5">
                 <Star className="h-3.5 w-3.5" /> {t("referrals.ladder.title")}
@@ -832,6 +785,7 @@ export default function Referrals() {
                 })}
               </div>
             </div>
+            </SectionBoundary>
 
             <p className="mt-6 text-center text-xs text-white/35 max-w-md mx-auto">
               {t("referrals.footer", { pct: info.revenueSharePct, days: info.shareWindowDays })}
@@ -841,7 +795,11 @@ export default function Referrals() {
 
         {/* Fan Links (N17) — per-fan share links with proven attribution,
             docked in the share/attribution home; never a standalone page. */}
-        {user && <FanLinksPanel />}
+        {user && (
+          <SectionBoundary name="referrals-fan-links">
+            <FanLinksPanel />
+          </SectionBoundary>
+        )}
       </div>
     </div>
   );
