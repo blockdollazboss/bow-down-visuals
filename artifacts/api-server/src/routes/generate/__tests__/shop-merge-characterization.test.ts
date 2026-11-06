@@ -44,7 +44,28 @@ vi.mock("../../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(() => { throw new Error("no ai in characterization"); }),
 }));
 
-vi.mock("../../../lib/supabase-admin", () => ({ getSupabaseAdmin: vi.fn(() => null) }));
+/* The shops domain gate (Stack-200 M3b) reads admin identity through
+   this seam (lib/admin isAdminUserId: profiles.email by user id). Only
+   ADMIN_USER resolves to the allowlisted email; everyone else is a
+   clean not-found, exactly like a non-admin row in production. */
+const ADMIN_USER = "00000000-0000-4000-8000-0000000000ad";
+const ADMIN_EMAIL = "boss@example.test";
+vi.mock("../../../lib/supabase-admin", () => ({
+  getSupabaseAdmin: () => ({
+    from: (_table: string) => {
+      let wantedId = "";
+      const chain: Record<string, unknown> = {
+        select: () => chain,
+        eq: (_col: string, value: string) => { wantedId = value; return chain; },
+        single: async () => wantedId === ADMIN_USER
+          ? { data: { email: ADMIN_EMAIL }, error: null }
+          : { data: null, error: { message: "profile not found (test stub)" } },
+        maybeSingle: async () => ({ data: null, error: null }),
+      };
+      return chain;
+    },
+  }),
+}));
 
 vi.mock("../../../lib/objectStorage", () => ({
   SHOP_PRODUCTS_BUCKET: "shop-products",
@@ -81,7 +102,7 @@ vi.mock("../../../lib/stripe-checkout", () => ({
   isCheckoutTestMode: vi.fn(() => true),
 }));
 
-import shopsRouter from "../shops";
+import shopsRouter, { SHOP_DOMAIN_HOSTING_MESSAGE } from "../shops";
 import storefrontsRouter from "../storefronts";
 import { createTestDb } from "../../../lib/__tests__/test-db";
 import { sql } from "drizzle-orm";
@@ -113,6 +134,17 @@ CREATE TABLE shop_events (
 , bump_for_product_id uuid);
 CREATE TABLE creator_profiles (
   id uuid PRIMARY KEY, user_id uuid NOT NULL, slug text
+);
+CREATE TABLE creator_hosting (
+  id uuid PRIMARY KEY, profile_id uuid NOT NULL UNIQUE, status text NOT NULL DEFAULT 'active',
+  current_period_end timestamptz
+);
+CREATE TABLE creator_subscriptions (
+  id uuid PRIMARY KEY, profile_id uuid NOT NULL UNIQUE, tier text NOT NULL DEFAULT 'free',
+  status text NOT NULL DEFAULT 'active', current_period_end timestamptz
+);
+CREATE TABLE profiles (
+  id uuid PRIMARY KEY, plan text, plan_tier integer
 );`;
 
 const realFetch = globalThis.fetch;
@@ -211,19 +243,82 @@ describe("storefronts surface over the shared shops tables", () => {
     expect(status).toBe(404);
   });
 
-  it("domain attach is Pro-gated: free plan 403, pro plan issues a TXT token", async () => {
-    const { shopId } = await seedShopWithProduct();
-    testState.userPlan = "creator";
-    const denied = await req("POST", `/storefronts/${shopId}/domain`, { domain: "shop.example.com" });
-    expect(denied.status).toBe(403);
-    expect(denied.json.error).toBe("PRO_TIER_REQUIRED");
+  /* Stack-200 M3b — the old pin ("domain attach is Pro-gated") encoded
+     the contradiction Lane M3 reported: the ruled model is that a
+     custom domain rides the HOSTING entitlement (active $9/mo Hosting
+     subscription OR Creator Elite, admins exempt), exactly like
+     POST /api/domains. The REAL resolveHostingEntitlement runs here
+     against pg-mem — nothing about the entitlement logic is stubbed. */
+  describe("domain attach rides the Hosting entitlement", () => {
+    async function seedCreatorShop(userId: string) {
+      const profileId = randomUUID(); const shopId = randomUUID();
+      await testState.db.execute(sql`INSERT INTO creator_profiles (id, user_id, slug) VALUES (${profileId}, ${userId}, ${"creator-" + profileId.slice(0, 8)})`);
+      await testState.db.execute(sql`INSERT INTO shops (id, user_id, name, handle) VALUES (${shopId}, ${userId}, 'Domain Shop', ${"domain-" + shopId.slice(0, 8)})`);
+      return { profileId, shopId };
+    }
 
-    testState.userPlan = "pro";
-    const ok = await req("POST", `/storefronts/${shopId}/domain`, { domain: "shop.example.com" });
-    expect(ok.status).toBe(200);
-    expect(ok.json.verified).toBe(false);
-    expect(ok.json.verification.type).toBe("TXT");
-    expect(ok.json.verification.host).toBe("bdv-verify.shop.example.com");
+    it("free creator: 403 with the honest Hosting copy, and NO domain is written", async () => {
+      const freeUser = randomUUID();
+      const { shopId } = await seedCreatorShop(freeUser);
+      testState.userId = freeUser;
+      const denied = await req("POST", `/storefronts/${shopId}/domain`, { domain: "shop.example.com" });
+      expect(denied.status).toBe(403);
+      expect(denied.json.error).toBe(SHOP_DOMAIN_HOSTING_MESSAGE);
+      expect(denied.json.error).toContain("$9/mo");
+      expect(denied.json.error).toContain("Creator Elite");
+      const rows = await testState.db.execute(sql`SELECT custom_domain FROM shops WHERE id = ${shopId}`);
+      expect(rows.rows[0].custom_domain).toBeNull();
+    });
+
+    it("Pro-only subscriber: still 403 — Pro is not the domain tier", async () => {
+      const proUser = randomUUID();
+      const { profileId, shopId } = await seedCreatorShop(proUser);
+      await testState.db.execute(sql`INSERT INTO creator_subscriptions (id, profile_id, tier, status) VALUES (${randomUUID()}, ${profileId}, 'pro', 'active')`);
+      testState.userId = proUser;
+      testState.userPlan = "pro";
+      const denied = await req("POST", `/storefronts/${shopId}/domain`, { domain: "shop.example.com" });
+      expect(denied.status).toBe(403);
+      expect(denied.json.error).toBe(SHOP_DOMAIN_HOSTING_MESSAGE);
+      const rows = await testState.db.execute(sql`SELECT custom_domain FROM shops WHERE id = ${shopId}`);
+      expect(rows.rows[0].custom_domain).toBeNull();
+    });
+
+    it("Hosting subscription active: attach succeeds and issues a TXT token", async () => {
+      const hostedUser = randomUUID();
+      const { profileId, shopId } = await seedCreatorShop(hostedUser);
+      await testState.db.execute(sql`INSERT INTO creator_hosting (id, profile_id, status) VALUES (${randomUUID()}, ${profileId}, 'active')`);
+      testState.userId = hostedUser;
+      const ok = await req("POST", `/storefronts/${shopId}/domain`, { domain: "shop.example.com" });
+      expect(ok.status).toBe(200);
+      expect(ok.json.verified).toBe(false);
+      expect(ok.json.verification.type).toBe("TXT");
+      expect(ok.json.verification.host).toBe("bdv-verify.shop.example.com");
+    });
+
+    it("Creator Elite (Hosting included): attach succeeds with no Hosting row", async () => {
+      const eliteUser = randomUUID();
+      const { profileId, shopId } = await seedCreatorShop(eliteUser);
+      await testState.db.execute(sql`INSERT INTO creator_subscriptions (id, profile_id, tier, status) VALUES (${randomUUID()}, ${profileId}, 'elite', 'active')`);
+      testState.userId = eliteUser;
+      const ok = await req("POST", `/storefronts/${shopId}/domain`, { domain: "shop.example.com" });
+      expect(ok.status).toBe(200);
+      expect(ok.json.verified).toBe(false);
+      expect(ok.json.verification.type).toBe("TXT");
+      expect(ok.json.verification.host).toBe("bdv-verify.shop.example.com");
+    });
+
+    it("admin: attach succeeds with no Hosting row and no subscription", async () => {
+      const { shopId } = await seedCreatorShop(ADMIN_USER);
+      process.env["ADMIN_EMAILS"] = ADMIN_EMAIL;
+      try {
+        testState.userId = ADMIN_USER;
+        const ok = await req("POST", `/storefronts/${shopId}/domain`, { domain: "shop.example.com" });
+        expect(ok.status).toBe(200);
+        expect(ok.json.verification.type).toBe("TXT");
+      } finally {
+        delete process.env["ADMIN_EMAILS"];
+      }
+    });
   });
 });
 
