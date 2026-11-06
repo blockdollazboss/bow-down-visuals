@@ -64,6 +64,7 @@ const STATEMENT_SOURCE_LINES: ReadonlyArray<{ key: string; label: string }> = [
   { key: "tipJar", label: "Tip jar tips" },
   { key: "brandDeals", label: "Brand deals" },
   { key: "ugcBriefs", label: "UGC briefs" },
+  { key: "bookings", label: "Performance bookings" },
   { key: "royalties", label: "Royalties (recorded)" },
 ];
 

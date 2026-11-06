@@ -65,6 +65,15 @@ type ShoutoutsSource =
   | (SourceOk & { grossCents: number; feeCents: number })
   | (SourceErr & { grossCents: null; feeCents: null });
 
+/** Released performance bookings (0325): previously invisible here
+    entirely — the release told the artist "You were paid" while the
+    money reached no earnings or payout surface. Now a first-class
+    Earnings source with the rail's 15% platform fee shown. Absent
+    on older payloads → the honest error card, never a fake $0.00. */
+type BookingsSource =
+  | (SourceOk & { grossCents: number; feeCents: number })
+  | (SourceErr & { grossCents: null; feeCents: null });
+
 export interface EarningsResponse {
   currency: string;
   totalCents: number;
@@ -80,6 +89,7 @@ export interface EarningsResponse {
         in-memory jar intents reported under `tips`. */
     shoutouts: ShoutoutsSource;
     tipJar: EarningsSource;
+    bookings: BookingsSource;
     tips: EarningsTips;
   };
 }
@@ -260,6 +270,20 @@ export function normalizeEarningsResponse(payload: unknown): EarningsResponse | 
   const tipJar = moneySource(sources.tipJar);
   if (tipJar.status === "error") degraded = true;
 
+  const rawBookings = sources.bookings;
+  const bookingsBase = moneySource(rawBookings);
+  let bookings: BookingsSource;
+  if (bookingsBase.status === "ok" && isObj(rawBookings)) {
+    bookings = {
+      ...bookingsBase,
+      grossCents: finite(rawBookings.grossCents) ?? bookingsBase.totalCents,
+      feeCents: finite(rawBookings.feeCents) ?? 0,
+    };
+  } else {
+    bookings = { ...errSource(), grossCents: null, feeCents: null };
+    degraded = true;
+  }
+
   const rawTips = sources.tips;
   let tips: EarningsTips;
   if (isObj(rawTips) && rawTips.status === "ok") {
@@ -292,6 +316,6 @@ export function normalizeEarningsResponse(payload: unknown): EarningsResponse | 
     totalCents,
     totalTipsVb: finite(payload.totalTipsVb),
     partial: payload.partial === true || degraded,
-    sources: { storeSales, beats, memberships, brandDeals, shoutouts, tipJar, tips },
+    sources: { storeSales, beats, memberships, brandDeals, shoutouts, tipJar, bookings, tips },
   };
 }
