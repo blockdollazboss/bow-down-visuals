@@ -67,6 +67,18 @@ CREATE TABLE shoutout_requests (id uuid PRIMARY KEY, creator_user_id uuid NOT NU
 CREATE TABLE tip_jar_tips (id uuid PRIMARY KEY, page_user_id uuid NOT NULL, amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'pending_payment', paid_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE ugc_briefs (id uuid PRIMARY KEY, brand_user_id uuid, claimed_by_user_id uuid, escrow_status text NOT NULL DEFAULT 'unfunded', stripe_session_id text, released_amount_cents integer, platform_fee_cents integer, creator_payout_cents integer, released_at timestamptz);
 CREATE TABLE sale_split_entries (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), sale_kind text NOT NULL, sale_id uuid NOT NULL, surface text NOT NULL DEFAULT '', product_id uuid, owner_user_id uuid NOT NULL, seller_user_id uuid NOT NULL, seller_profile_id uuid, role text NOT NULL, amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'earned');
+CREATE TABLE performance_bookings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  artist_user_id text NOT NULL DEFAULT '',
+  fee_cents integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'proposed',
+  escrow_status text NOT NULL DEFAULT 'unfunded',
+  stripe_session_id text,
+  platform_fee_cents integer,
+  artist_payout_cents integer,
+  paid_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 `;
 
 const OWNER = randomUUID(), STRANGER = randomUUID(), PROFILE = randomUUID();
