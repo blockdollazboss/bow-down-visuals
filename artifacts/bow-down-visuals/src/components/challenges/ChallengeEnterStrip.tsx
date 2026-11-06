@@ -42,7 +42,7 @@ function buildEnterUrl(c: LiveChallenge, p: Props): string {
 export default function ChallengeEnterStrip({ videoUrl, title, from, fromLabel, limit = 3 }: Props) {
   const [challenges, setChallenges] = useState<LiveChallenge[] | null>(null);
   /* Honest load failure (Stack-200 D2 A19): a failed read used to
-     collapse into setChallenges([]) and the strip vanished — a failed
+     collapse into an empty list and the strip vanished — a failed
      load was indistinguishable from "no live challenges", right where
      a creator is about to publish. */
   const [loadFailed, setLoadFailed] = useState(false);
