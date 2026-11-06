@@ -1956,6 +1956,15 @@ function ReleaseDetail(props: {
 }) {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
+  /* Split-role words from the catalogs (Stack 200 E-2 — the
+     lib/distribution roleLabel strings table). */
+  const roleStrings = {
+    artist: t("distribution.roleArtist"),
+    producer: t("distribution.roleProducer"),
+    writer: t("distribution.roleWriter"),
+    featured: t("distribution.roleFeatured"),
+    collaborator: t("distribution.roleCollaborator"),
+  };
   const { release, pricing, authFetch, onUpdate, onDelete, onError, onNotice, onOutOfCredits, refreshProfile, vaulted, onVaulted } = props;
   const { addAsset } = useHubProject();
 
@@ -2515,7 +2524,7 @@ function ReleaseDetail(props: {
                   aria-label={`Role for collaborator ${i + 1}`}
                 >
                   {SPLIT_ROLES.map((r) => (
-                    <option key={r} value={r}>{roleLabel(r)}</option>
+                    <option key={r} value={r}>{roleLabel(r, roleStrings)}</option>
                   ))}
                 </select>
                 <div className="relative w-[110px] shrink-0">

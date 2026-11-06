@@ -5,6 +5,9 @@ import { Search, ArrowRight, Crown, Megaphone, Sparkles } from "lucide-react";
 import {
   SITE_FEATURES,
   FEATURE_CATEGORIES,
+  featureCategoryLabel,
+  featureName,
+  featureTagline,
   type FeatureCategory,
 } from "@/data/features";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -95,7 +98,7 @@ export default function Features() {
           </div>
           <div className="flex flex-wrap gap-2">
             {(["all", ...FEATURE_CATEGORIES.map((c) => c.key)] as Filter[]).map((c) => {
-              const label = c === "all" ? "All" : FEATURE_CATEGORIES.find((x) => x.key === c)!.label;
+              const label = c === "all" ? "All" : featureCategoryLabel(FEATURE_CATEGORIES.find((x) => x.key === c)!, t);
               const active = filter === c;
               return (
                 <button
@@ -156,11 +159,11 @@ export default function Features() {
                       </span>
                     </div>
                   </div>
-                  <h3 className="mt-4 text-lg font-bold">{f.name}</h3>
-                  <p className="mt-1.5 flex-1 text-sm leading-relaxed text-white/55">{f.tagline}</p>
+                  <h3 className="mt-4 text-lg font-bold">{featureName(f, t)}</h3>
+                  <p className="mt-1.5 flex-1 text-sm leading-relaxed text-white/55">{featureTagline(f, t)}</p>
                   <div className="mt-5 flex items-center justify-between border-t border-white/[0.07] pt-4">
                     <span className="text-[11px] font-semibold uppercase tracking-widest text-white/35">
-                      {cat.label}
+                      {featureCategoryLabel(cat, t)}
                     </span>
                     <Link href={f.route}>
                       <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary transition group-hover:gap-2.5 cursor-pointer">{t("features.try_it")}<ArrowRight className="h-4 w-4" />

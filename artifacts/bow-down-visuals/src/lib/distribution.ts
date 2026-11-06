@@ -99,13 +99,38 @@ export interface RoyaltySplit {
 /** Canonical collaborator roles for a split agreement (DistroKid parity). */
 export const SPLIT_ROLES = ["artist", "producer", "writer", "featured"] as const;
 
-export function roleLabel(role: string | undefined | null): string {
+/* ─── Locale strings (Stack 200 Lane E1, item E-2) ───────────────────
+   Optional string bundle for the role labels. Defaults are the
+   English literals VERBATIM, so existing callers and tests see
+   byte-identical output; a localized caller passes its catalog's
+   words through (the distribution.* catalog keys). An unrecognized
+   role still reads as the caller's own trimmed word — only the
+   empty-role fallback ("Collaborator") comes from the bundle. */
+
+export interface DistributionRoleStrings {
+  artist: string;
+  producer: string;
+  writer: string;
+  featured: string;
+  collaborator: string;
+}
+
+export const DEFAULT_DISTRIBUTION_ROLE_STRINGS: DistributionRoleStrings = {
+  artist: "Artist",
+  producer: "Producer",
+  writer: "Writer",
+  featured: "Featured",
+  collaborator: "Collaborator",
+};
+
+export function roleLabel(role: string | undefined | null, strings?: Partial<DistributionRoleStrings>): string {
+  const s = { ...DEFAULT_DISTRIBUTION_ROLE_STRINGS, ...strings };
   switch ((role ?? "").toLowerCase()) {
-    case "artist": return "Artist";
-    case "producer": return "Producer";
-    case "writer": return "Writer";
-    case "featured": return "Featured";
-    default: return role?.trim() || "Collaborator";
+    case "artist": return s.artist;
+    case "producer": return s.producer;
+    case "writer": return s.writer;
+    case "featured": return s.featured;
+    default: return role?.trim() || s.collaborator;
   }
 }
 

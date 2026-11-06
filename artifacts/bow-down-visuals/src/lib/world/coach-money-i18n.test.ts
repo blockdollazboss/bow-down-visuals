@@ -27,15 +27,22 @@
  *    interpolation or preserved numerals.
  *
  * Deliberately NOT extracted (family convention): shared-lib copy
- * other surfaces also render — PUBLISHING_COPY and the publishing
- * state / writer status / split validators (lib/publishing-splits,
- * the 2D page's contract too), roleLabel (lib/distribution), the
- * royalties loader's error strings (lib/royalties-load),
- * TRANSFER_BUTTON_LABEL (lib/world/station-panel), the brand-kit
- * color-role enum words and stream-pack theme labels (shared
- * enums), SITE_FEATURES names (src/data/features), and
+ * other surfaces also render — PUBLISHING_COPY (server-owned
+ * money-adjacent copy; it stays the English source everywhere) and
+ * TRANSFER_BUTTON_LABEL (lib/world/station-panel), and
  * payoutSuccessNote's money sentence, which the payout seam
- * composes from the rail's own answer. Rail status/enum tokens
+ * composes from the rail's own answer. Stack 200 Lane E1 (E-2)
+ * later extracted the rest of this list through the catalogs:
+ * the publishing state / writer status / split validators
+ * (lib/publishing-splits strings table, publishingSplits.*
+ * catalog keys), roleLabel (lib/distribution, distribution.*),
+ * the royalties loader's fallback errors (lib/royalties-load,
+ * royalties.load*), the brand-kit color-role words
+ * (brandingKit.colorRole.*), the stream-pack theme names/blurbs
+ * (streamPack.theme.*) and the SITE_FEATURES / category display
+ * words (features.registry.* / features.category.*) — each seam
+ * resolving through the catalogs with its English literal as the
+ * default, so other consumers keep the canonical English. Rail status/enum tokens
  * and rail-verbatim strings (platform labels, verdict enums,
  * claim/payout status words the key-maps don't know) render
  * literally, and server-saved DATA compositions (split-ledger

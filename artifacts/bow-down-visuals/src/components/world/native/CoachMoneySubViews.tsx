@@ -91,6 +91,48 @@ import {
 } from "./CoachPanelBits";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 
+/* ─── Shared-seam string tables (Stack 200 Lane E1, item E-2) ───────
+   The publishing / role / royalties-load seams take optional string
+   tables; these builders read this surface's catalog words for them.
+   PUBLISHING_COPY itself stays the server's English verbatim. */
+type SeamTranslate = (key: string, opts?: Record<string, unknown>) => string;
+
+const publishingStringsFrom = (t: SeamTranslate) => ({
+  stateConfirmed: t("publishingSplits.stateConfirmed"),
+  stateAwaitingConfirmations: t("publishingSplits.stateAwaitingConfirmations"),
+  stateDisputed: t("publishingSplits.stateDisputed"),
+  stateRegistered: t("publishingSplits.stateRegistered"),
+  writerConfirmed: t("publishingSplits.writerConfirmed"),
+  writerDisputed: t("publishingSplits.writerDisputed"),
+  writerPending: t("publishingSplits.writerPending"),
+  writerUnlinked: t("publishingSplits.writerUnlinked"),
+  validationEmpty: t("publishingSplits.validationEmpty"),
+  validationTooMany: t("publishingSplits.validationTooMany"),
+  validationNameRequired: t("publishingSplits.validationNameRequired"),
+  validationShareNotNumber: t("publishingSplits.validationShareNotNumber"),
+  validationShareRange: t("publishingSplits.validationShareRange"),
+  validationShareDecimals: t("publishingSplits.validationShareDecimals"),
+  validationDuplicateAccount: t("publishingSplits.validationDuplicateAccount"),
+  validationTotalMismatch: (total: string) => t("publishingSplits.validationTotalMismatch", { total }),
+});
+
+const roleStringsFrom = (t: SeamTranslate) => ({
+  artist: t("distribution.roleArtist"),
+  producer: t("distribution.roleProducer"),
+  writer: t("distribution.roleWriter"),
+  featured: t("distribution.roleFeatured"),
+  collaborator: t("distribution.roleCollaborator"),
+});
+
+const royaltiesLoadStringsFrom = (t: SeamTranslate) => ({
+  summaryFailed: (status: string) => t("royalties.loadSummaryFailed", { status }),
+  platformsFailed: (status: string) => t("royalties.loadPlatformsFailed", { status }),
+  payoutsFailed: (status: string) => t("royalties.loadPayoutsFailed", { status }),
+  summaryFallback: t("royalties.loadSummaryFallback"),
+  platformsFallback: t("royalties.loadPlatformsFallback"),
+  payoutsFallback: t("royalties.loadPayoutsFallback"),
+});
+
 /* ─── The Money Tracker's sub-views, finished in-world (Ring 4 #6) ──
    The /coach Money Tracker card carries four views; the ledger rode
    first (CoachPanels, parity P3) and these three finish the card on
@@ -175,7 +217,7 @@ function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
             {data.collaboratorTotals.map((c) => (
               <InnerBlock key={c.name.toLowerCase()} isLight={isLight}>
                 <p className={`truncate text-sm font-bold ${strong}`}>{c.name}</p>
-                <p className={`text-xs ${muted}`}>{roleLabel(c.role)}</p>
+                <p className={`text-xs ${muted}`}>{roleLabel(c.role, roleStringsFrom(t))}</p>
                 <p className={`mt-1 text-xl font-black ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{fmtPlanMoney(c.totalCents)}</p>
               </InnerBlock>
             ))}
@@ -202,7 +244,7 @@ function SplitsOverviewBlock({ isLight }: { isLight: boolean }) {
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {r.activeSplits.map((s) => (
                   <span key={s.name} className={chipBtn(isLight, false)}>
-                    <b>{s.name}</b> <span className="font-medium normal-case">{roleLabel(s.role)}</span> {s.sharePct}%
+                    <b>{s.name}</b> <span className="font-medium normal-case">{roleLabel(s.role, roleStringsFrom(t))}</span> {s.sharePct}%
                   </span>
                 ))}
                 <span className={`inline-flex items-center px-1.5 text-[11px] ${muted}`}>
@@ -361,6 +403,7 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
     const writers = publishingWritersFromRows(rows);
     const validation = writerSplitValidationError(
       writers.map((w) => ({ name: w.name, sharePct: w.share_pct })),
+      publishingStringsFrom(t),
     );
     if (!amendId && !songId) {
       setFormError(t("worldCoachMoney.subPickSongFirst"));
@@ -627,7 +670,7 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
                             : isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/60"
                       }`}
                     >
-                      {publishingStateLabel(item.state)}
+                      {publishingStateLabel(item.state, publishingStringsFrom(t))}
                     </span>
                   </div>
                   <p className={`mt-1 text-[11px] ${muted}`}>
@@ -639,7 +682,7 @@ function PublishingRegistryBlock({ isLight }: { isLight: boolean }) {
                       <span key={`${w.name}-${i}`} className={chipBtn(isLight, false)}>
                         <b>{w.name}</b> {w.share_pct}% ·{" "}
                         <span className={w.confirmation_status === "disputed" ? (isLight ? "text-red-700" : "text-red-300") : undefined}>
-                          {writerStatusLabel(w.confirmation_status)}
+                          {writerStatusLabel(w.confirmation_status, publishingStringsFrom(t))}
                         </span>
                       </span>
                     ))}
@@ -1255,7 +1298,7 @@ export function CoachRoyaltiesSection({ isLight }: { isLight: boolean }) {
       const res = await fetch(path, { headers });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       return { res, data };
-    });
+    }, royaltiesLoadStringsFrom(t));
     setSummary(result.summary);
     setSummaryError(result.summaryError);
     setPlatforms(result.platforms);

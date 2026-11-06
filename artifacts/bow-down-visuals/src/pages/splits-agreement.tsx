@@ -1,6 +1,7 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useRoute } from "wouter";
 import { Users, Loader2, AlertTriangle, FileText, CalendarDays } from "lucide-react";
 import { roleLabel } from "@/lib/distribution";
@@ -30,6 +31,16 @@ interface AgreementData {
 
 export default function SplitsAgreement() {
   const isLight = useIsLightTheme();
+  const { t } = useTranslation();
+  /* Split-role words from the catalogs (Stack 200 E-2 — the
+     lib/distribution roleLabel strings table). */
+  const roleStrings = {
+    artist: t("distribution.roleArtist"),
+    producer: t("distribution.roleProducer"),
+    writer: t("distribution.roleWriter"),
+    featured: t("distribution.roleFeatured"),
+    collaborator: t("distribution.roleCollaborator"),
+  };
   const [, params] = useRoute("/splits/:slug");
   const slug = params?.slug ?? "";
 
@@ -103,7 +114,7 @@ export default function SplitsAgreement() {
                   <li key={`${s.name}-${i}`} className="flex items-center justify-between gap-3 px-5 py-4">
                     <div>
                       <p className="font-bold">{s.name}</p>
-                      <p className="text-xs text-white/45">{roleLabel(s.role)}</p>
+                      <p className="text-xs text-white/45">{roleLabel(s.role, roleStrings)}</p>
                     </div>
                     <p className="font-display text-xl font-black text-primary">{s.share}%</p>
                   </li>

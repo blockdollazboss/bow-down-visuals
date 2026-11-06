@@ -313,6 +313,15 @@ function ReleaseFormFields({
 
 function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean; prefill?: ReleasePrefill | null; prefillNonce?: number }) {
   const { t, i18n } = useTranslation();
+  /* Split-role words from the catalogs (Stack 200 E-2 — the
+     lib/distribution roleLabel strings table). */
+  const roleStrings = {
+    artist: t("distribution.roleArtist"),
+    producer: t("distribution.roleProducer"),
+    writer: t("distribution.roleWriter"),
+    featured: t("distribution.roleFeatured"),
+    collaborator: t("distribution.roleCollaborator"),
+  };
   const authHeaders = useReleaseAuthHeaders();
   const { refreshProfile } = useAuth();
 
@@ -1015,9 +1024,9 @@ function ReleaseDeskBody({ isLight, prefill, prefillNonce }: { isLight: boolean;
                 <div key={i} className="flex flex-wrap gap-2">
                   <input aria-label={t("worldScheduleRelease.relPayeeNameAria", { n: i + 1 })} className={inputCls(isLight)} style={{ flex: "1 1 140px", width: "auto" }} value={s.name} placeholder={t("worldScheduleRelease.relPayeeNamePlaceholder")} onChange={(e) => setSplits(splits.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
                   <select aria-label={t("worldScheduleRelease.relPayeeRoleAria", { n: i + 1 })} className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark", width: "auto" }} value={s.role ?? ""} onChange={(e) => setSplits(splits.map((x, j) => (j === i ? { ...x, role: e.target.value || undefined } : x)))}>
-                    <option value="">{roleLabel("")}</option>
+                    <option value="">{roleLabel("", roleStrings)}</option>
                     {SPLIT_ROLES.map((r) => (
-                      <option key={r} value={r}>{roleLabel(r)}</option>
+                      <option key={r} value={r}>{roleLabel(r, roleStrings)}</option>
                     ))}
                   </select>
                   <input aria-label={t("worldScheduleRelease.relPayeeEmailAria", { n: i + 1 })} className={inputCls(isLight)} style={{ flex: "1 1 160px", width: "auto" }} value={s.email ?? ""} placeholder={t("worldScheduleRelease.relPayeeEmailPlaceholder")} onChange={(e) => setSplits(splits.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} />

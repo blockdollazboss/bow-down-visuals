@@ -499,3 +499,44 @@ export function getFeature(key: string): SiteFeature | undefined {
 export function featuresByCategory(category: FeatureCategory): SiteFeature[] {
   return SITE_FEATURES.filter((f) => f.category === category);
 }
+
+/* ─── Display copy (Stack 200 Lane E1, item E-2) ─────────────────────
+   The registry above stays the English source of truth (names,
+   taglines, category labels/blurbs — search also matches against
+   these literals by design). Display resolves through the locale
+   catalogs, keyed by each entry's stable machine key
+   (features.registry.<key>.name/.tagline and
+   features.category.<key>.label/.blurb), whenever the caller hands
+   over its translator; the literal rides as the defaultValue, so
+   an entry the catalogs don't know yet still reads exactly as the
+   registry names it. creditCost is NOT resolved here — it is price
+   display and rides the money rails' own copy. */
+
+export type FeatureTranslate = (
+  key: string,
+  opts?: Record<string, unknown>,
+) => string;
+
+export function featureName(feature: SiteFeature, t?: FeatureTranslate): string {
+  return t
+    ? t(`features.registry.${feature.key}.name`, { defaultValue: feature.name })
+    : feature.name;
+}
+
+export function featureTagline(feature: SiteFeature, t?: FeatureTranslate): string {
+  return t
+    ? t(`features.registry.${feature.key}.tagline`, { defaultValue: feature.tagline })
+    : feature.tagline;
+}
+
+export function featureCategoryLabel(category: FeatureCategoryMeta, t?: FeatureTranslate): string {
+  return t
+    ? t(`features.category.${category.key}.label`, { defaultValue: category.label })
+    : category.label;
+}
+
+export function featureCategoryBlurb(category: FeatureCategoryMeta, t?: FeatureTranslate): string {
+  return t
+    ? t(`features.category.${category.key}.blurb`, { defaultValue: category.blurb })
+    : category.blurb;
+}

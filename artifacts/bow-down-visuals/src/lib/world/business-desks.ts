@@ -356,9 +356,17 @@ export function parseStreamPackGenerate(status: number, data: unknown): StreamPa
 }
 
 /** The display name for a library record's themeId — the same names
- *  the website library shows; an unrecorded theme reads as null. */
-export function streamPackThemeLabel(themeId: string | null): string | null {
-  return STREAM_PACK_THEMES.find((t) => t.key === themeId)?.label ?? null;
+ *  the website library shows; an unrecorded theme reads as null.
+ *  With the caller's translator the name resolves through the locale
+ *  catalogs (streamPack.theme.<id>.name — Stack 200 Lane E1, E-2);
+ *  the mirror label rides as the defaultValue. */
+export function streamPackThemeLabel(
+  themeId: string | null,
+  t?: (key: string, opts?: Record<string, unknown>) => string,
+): string | null {
+  const label = STREAM_PACK_THEMES.find((x) => x.key === themeId)?.label ?? null;
+  if (label === null || !t) return label;
+  return t(`streamPack.theme.${themeId}.name`, { defaultValue: label });
 }
 
 /* ─── Branding Kit Desk: manual field editing (Stack-100 #72) ──────

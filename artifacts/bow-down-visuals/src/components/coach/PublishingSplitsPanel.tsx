@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   BookOpen, Loader2, AlertTriangle, CheckCircle2, Flag, FileText, Pencil, Plus, Trash2, X,
 } from "lucide-react";
@@ -50,7 +51,29 @@ const EMPTY_ROW: WriterRow = { name: "", profileId: "", sharePct: "" };
 
 export default function PublishingSplitsPanel() {
   const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
+  /* The publishing seam's labels + validator words, from the
+     catalogs (Stack 200 E-2 — lib/publishing-splits strings table).
+     PUBLISHING_COPY stays the server's English verbatim by design. */
+  const publishingStrings = {
+    stateConfirmed: t("publishingSplits.stateConfirmed"),
+    stateAwaitingConfirmations: t("publishingSplits.stateAwaitingConfirmations"),
+    stateDisputed: t("publishingSplits.stateDisputed"),
+    stateRegistered: t("publishingSplits.stateRegistered"),
+    writerConfirmed: t("publishingSplits.writerConfirmed"),
+    writerDisputed: t("publishingSplits.writerDisputed"),
+    writerPending: t("publishingSplits.writerPending"),
+    writerUnlinked: t("publishingSplits.writerUnlinked"),
+    validationEmpty: t("publishingSplits.validationEmpty"),
+    validationTooMany: t("publishingSplits.validationTooMany"),
+    validationNameRequired: t("publishingSplits.validationNameRequired"),
+    validationShareNotNumber: t("publishingSplits.validationShareNotNumber"),
+    validationShareRange: t("publishingSplits.validationShareRange"),
+    validationShareDecimals: t("publishingSplits.validationShareDecimals"),
+    validationDuplicateAccount: t("publishingSplits.validationDuplicateAccount"),
+    validationTotalMismatch: (total: string) => t("publishingSplits.validationTotalMismatch", { total }),
+  };
   const [data, setData] = useState<MineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -139,6 +162,7 @@ export default function PublishingSplitsPanel() {
       }));
     const validation = writerSplitValidationError(
       writers.map((w) => ({ name: w.name, sharePct: w.share_pct })),
+      publishingStrings,
     );
     if (!amendId && !songId) {
       setFormError("Pick the song these splits belong to.");
@@ -430,7 +454,7 @@ export default function PublishingSplitsPanel() {
                           : "border-white/15 text-white/60"
                     }`}
                   >
-                    {publishingStateLabel(item.state)}
+                    {publishingStateLabel(item.state, publishingStrings)}
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-white/40">
@@ -447,7 +471,7 @@ export default function PublishingSplitsPanel() {
                       <b className="text-white">{w.name}</b>
                       <span className="font-black text-primary">{w.share_pct}%</span>
                       <span className={w.confirmation_status === "disputed" ? "text-red-300" : "text-white/45"}>
-                        {writerStatusLabel(w.confirmation_status)}
+                        {writerStatusLabel(w.confirmation_status, publishingStrings)}
                       </span>
                     </span>
                   ))}

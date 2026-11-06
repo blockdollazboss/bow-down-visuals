@@ -71,6 +71,38 @@ export function streamPackApplyPath(applied: boolean): string {
   return applied ? "/api/stream-pack/apply" : "/api/stream-pack/unapply";
 }
 
+/* ─── Theme display copy (Stack 200 Lane E1, item E-2) ──────────────
+   The theme catalog itself is server-owned (GET /api/stream-pack/
+   catalog serves each theme's English name + blurb — the canonical
+   source the catalog values mirror). Display resolves through the
+   locale catalogs by theme id (streamPack.theme.<id>.name/.blurb)
+   whenever the caller hands over its translator; the served string
+   rides as the defaultValue, so a theme the catalogs don't know
+   yet still reads exactly as the server named it. */
+
+export type StreamPackTranslate = (
+  key: string,
+  opts?: Record<string, unknown>,
+) => string;
+
+export function streamPackThemeName(
+  theme: { id: string; name: string },
+  t?: StreamPackTranslate,
+): string {
+  return t
+    ? t(`streamPack.theme.${theme.id}.name`, { defaultValue: theme.name })
+    : theme.name;
+}
+
+export function streamPackThemeBlurb(
+  theme: { id: string; blurb: string },
+  t?: StreamPackTranslate,
+): string {
+  return t
+    ? t(`streamPack.theme.${theme.id}.blurb`, { defaultValue: theme.blurb })
+    : theme.blurb;
+}
+
 async function authHeaders(
   getAccessToken: () => Promise<string | null>,
 ): Promise<Record<string, string>> {

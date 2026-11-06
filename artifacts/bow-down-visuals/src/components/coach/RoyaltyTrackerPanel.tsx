@@ -109,7 +109,16 @@ export default function RoyaltyTrackerPanel() {
   async function loadAll() {
     setSummaryLoading(true);
     try {
-      const loaded = await loadRoyaltySources((path) => authed(path, "GET"));
+      const loaded = await loadRoyaltySources((path) => authed(path, "GET"), {
+        /* The loader's fallback words from the catalogs (Stack 200
+           E-2 — lib/royalties-load strings table). */
+        summaryFailed: (status: string) => t("royalties.loadSummaryFailed", { status }),
+        platformsFailed: (status: string) => t("royalties.loadPlatformsFailed", { status }),
+        payoutsFailed: (status: string) => t("royalties.loadPayoutsFailed", { status }),
+        summaryFallback: t("royalties.loadSummaryFallback"),
+        platformsFallback: t("royalties.loadPlatformsFallback"),
+        payoutsFallback: t("royalties.loadPayoutsFallback"),
+      });
       if (loaded.summary) setSummary(loaded.summary);
       setPlatforms(loaded.platforms);
       setPayouts(loaded.payouts);

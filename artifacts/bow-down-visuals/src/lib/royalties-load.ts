@@ -61,20 +61,52 @@ type RoyaltyGetter = (
   path: string,
 ) => Promise<{ res: { ok: boolean; status?: number }; data: Record<string, unknown> }>;
 
-export async function loadRoyaltySources(get: RoyaltyGetter): Promise<RoyaltySources> {
+/* ─── Locale strings (Stack 200 Lane E1, item E-2) ───────────────────
+   Optional string bundle for the per-source load-failure fallbacks.
+   Defaults are the English literals VERBATIM, so existing callers
+   and tests see byte-identical output; a localized caller passes
+   its catalog's words through (the royalties.load* catalog keys).
+   The *Failed entries are functions because the HTTP status is
+   data; the *Fallback entries cover a rejection with no readable
+   error at all. A server-sent error message still wins over both
+   (apiErrorMessage / plainErrorText read the body first). */
+
+export interface RoyaltiesLoadStrings {
+  summaryFailed: (status: string) => string;
+  platformsFailed: (status: string) => string;
+  payoutsFailed: (status: string) => string;
+  summaryFallback: string;
+  platformsFallback: string;
+  payoutsFallback: string;
+}
+
+export const DEFAULT_ROYALTIES_LOAD_STRINGS: RoyaltiesLoadStrings = {
+  summaryFailed: (status: string) => `Couldn't load your royalty summary (${status}).`,
+  platformsFailed: (status: string) => `Couldn't load your platform connections (${status}).`,
+  payoutsFailed: (status: string) => `Couldn't load your payouts (${status}).`,
+  summaryFallback: "Couldn't load your royalty summary.",
+  platformsFallback: "Couldn't load your platform connections.",
+  payoutsFallback: "Couldn't load your payouts.",
+};
+
+export async function loadRoyaltySources(
+  get: RoyaltyGetter,
+  strings?: Partial<RoyaltiesLoadStrings>,
+): Promise<RoyaltySources> {
+  const s0 = { ...DEFAULT_ROYALTIES_LOAD_STRINGS, ...strings };
   const loadSummary = async (): Promise<SummaryData> => {
     const { res, data } = await get("/api/royalties/summary");
-    if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't load your royalty summary (${res.status ?? "error"}).`));
+    if (!res.ok) throw new Error(apiErrorMessage(data, s0.summaryFailed(String(res.status ?? "error"))));
     return data as unknown as SummaryData;
   };
   const loadPlatforms = async (): Promise<PlatformStatus[]> => {
     const { res, data } = await get("/api/royalties/platforms");
-    if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't load your platform connections (${res.status ?? "error"}).`));
+    if (!res.ok) throw new Error(apiErrorMessage(data, s0.platformsFailed(String(res.status ?? "error"))));
     return ((data as { platforms?: PlatformStatus[] }).platforms ?? []) as PlatformStatus[];
   };
   const loadPayouts = async (): Promise<Payout[]> => {
     const { res, data } = await get("/api/royalties/payouts");
-    if (!res.ok) throw new Error(apiErrorMessage(data, `Couldn't load your payouts (${res.status ?? "error"}).`));
+    if (!res.ok) throw new Error(apiErrorMessage(data, s0.payoutsFailed(String(res.status ?? "error"))));
     return ((data as { payouts?: Payout[] }).payouts ?? []) as Payout[];
   };
   const [s, p, pay] = await Promise.allSettled([loadSummary(), loadPlatforms(), loadPayouts()]);
@@ -82,11 +114,11 @@ export async function loadRoyaltySources(get: RoyaltyGetter): Promise<RoyaltySou
     plainErrorText(r.reason, fallback);
   return {
     summary: s.status === "fulfilled" ? s.value : null,
-    summaryError: s.status === "rejected" ? msg(s, "Couldn't load your royalty summary.") : null,
+    summaryError: s.status === "rejected" ? msg(s, s0.summaryFallback) : null,
     platforms: p.status === "fulfilled" ? p.value : [],
-    platformsError: p.status === "rejected" ? msg(p, "Couldn't load your platform connections.") : null,
+    platformsError: p.status === "rejected" ? msg(p, s0.platformsFallback) : null,
     payouts: pay.status === "fulfilled" ? pay.value : [],
-    payoutsError: pay.status === "rejected" ? msg(pay, "Couldn't load your payouts.") : null,
+    payoutsError: pay.status === "rejected" ? msg(pay, s0.payoutsFallback) : null,
   };
 }
 
