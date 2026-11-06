@@ -20,7 +20,7 @@ import {
   type ConnectAccountState,
 } from "../lib/stripe-connect";
 import { saleSplitAdjustments } from "../lib/sale-splits";
-import { readPendingPayoutForSeller } from "../lib/seller-earnings";
+import { readPendingPayoutForSeller, membershipNetSql } from "../lib/seller-earnings";
 
 const router = Router();
 
@@ -78,8 +78,9 @@ function unsettledSql(alias: string) {
  *
  * The 0142 extension ledgers settle PER ROW (settled_payout_id):
  * released brand deals (sponsor_payouts.net_cents), paid memberships
- * (fan_members.price_cents — stripe_session_id present = actually
- * charged, mirroring routes/earnings.ts), and shop sales
+ * NET of the 10% platform fee (derived from fan_members.price_cents —
+ * stripe_session_id present = actually charged, mirroring
+ * routes/earnings.ts), and shop sales
  * (shop_events amount − platform fee, event_type 'sale'). Their keys
  * are the creator's USER id (sponsor_payouts.creator_user_id is the
  * user id as text), resolved here from the profile. */
@@ -99,7 +100,7 @@ export async function pendingPayoutCents(profileId: string): Promise<number> {
             AND ${unsettledSql("sp")}
         ), 0)
       + COALESCE((
-          SELECT SUM(fm.price_cents) FROM fan_members fm
+          SELECT SUM(${membershipNetSql("fm.price_cents")}) FROM fan_members fm
           WHERE fm.user_id = (SELECT user_id FROM creator_profiles WHERE id = ${profileId})
             AND fm.stripe_session_id IS NOT NULL
             AND fm.status <> 'refunded'

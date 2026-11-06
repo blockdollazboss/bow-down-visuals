@@ -18,6 +18,11 @@
  *    (source_kind, source_id, entry_type) + ON CONFLICT DO NOTHING;
  *  - unpaid rows never accrue ('pending_sale' shop lines,
  *    'pending_payment' beat licenses);
+ *  - memberships credit NET of the rail's 10% platform fee, derived
+ *    from price_cents with the Member Dashboard's rounding (Nov 5,
+ *    2026 defect: a $5.00 membership's dashboard showed $4.50 net
+ *    while Earnings credited the full $5.00 — pending read $31.50
+ *    against a true $31.00);
  *  - bulk settlement: an active creator_payouts row subtracts; a
  *    'failed' one does not.
  */
@@ -36,6 +41,8 @@ import {
   syncPendingPayoutLedgerForSeller,
   readPendingPayoutForSeller,
   sellerEarningsSummary,
+  membershipNetCents,
+  membershipFeeCents,
 } from "../seller-earnings";
 import { __resetSaleSplitProbes } from "../sale-splits";
 import { createTestDb } from "./test-db";
@@ -161,7 +168,8 @@ async function seedBasket() {
   await h.db.execute(sql`
     INSERT INTO digital_sales (profile_id, amount_cents, platform_fee_cents, creator_amount_cents, stripe_session_id, status)
     VALUES (${PROFILE}, 2000, 100, 1900, 'cs_digital_1', 'completed')`);
-  /* Paid membership $12.00 (no fee split in the model — net = price). */
+  /* Paid membership $12.00 — no split recorded on the row; the split is
+     derived at the rail's 10%: fee $1.20, creator net $10.80. */
   await h.db.execute(sql`
     INSERT INTO fan_members (user_id, price_cents, stripe_session_id, status)
     VALUES (${SELLER}, 1200, 'cs_memb_1', 'active')`);
@@ -199,7 +207,7 @@ describe("ledger sync — accrual", () => {
     expect(byKind.beat_license).toMatchObject({ entry_type: "accrual", gross_cents: 2999, platform_fee_cents: 450, net_cents: 2549 });
     expect(byKind.store_order).toMatchObject({ entry_type: "accrual", net_cents: 950 });
     expect(byKind.digital_sale).toMatchObject({ entry_type: "accrual", net_cents: 1900 });
-    expect(byKind.membership).toMatchObject({ entry_type: "accrual", net_cents: 1200, platform_fee_cents: 0 });
+    expect(byKind.membership).toMatchObject({ entry_type: "accrual", gross_cents: 1200, platform_fee_cents: 120, net_cents: 1080 });
   });
 
   it("never accrues unpaid rows (pending_sale / pending_payment / manual membership)", async () => {
@@ -226,10 +234,10 @@ describe("pending read — the one figure", () => {
   it("pending = sum of seller nets, beats and shop included (the $0.00 defect)", async () => {
     await seedBasket();
     const read = await readPendingPayoutForSeller(SELLER);
-    /* 475 shop + 2549 beat + 950 order + 1900 digital + 1200 membership + 700 sponsor */
-    expect(read.accruedCents).toBe(475 + 2549 + 950 + 1900 + 1200);
+    /* 475 shop + 2549 beat + 950 order + 1900 digital + 1080 membership (net of 10%) + 700 sponsor */
+    expect(read.accruedCents).toBe(475 + 2549 + 950 + 1900 + 1080);
     expect(read.sponsorReleasedCents).toBe(700);
-    expect(read.pendingCents).toBe(7774);
+    expect(read.pendingCents).toBe(7654);
     expect(read.rows).toHaveLength(5);
   });
 
@@ -241,12 +249,12 @@ describe("pending read — the one figure", () => {
       VALUES (${payoutId}, ${PROFILE}, 1000, 'paid')`);
     let read = await readPendingPayoutForSeller(SELLER);
     expect(read.settledCents).toBe(1000);
-    expect(read.pendingCents).toBe(6774);
+    expect(read.pendingCents).toBe(6654);
 
     await h.db.execute(sql`UPDATE creator_payouts SET status = 'failed' WHERE id = ${payoutId}`);
     read = await readPendingPayoutForSeller(SELLER);
     expect(read.settledCents).toBe(0);
-    expect(read.pendingCents).toBe(7774);
+    expect(read.pendingCents).toBe(7654);
   });
 });
 
@@ -259,7 +267,7 @@ describe("refunds — reverse exactly once", () => {
     const read = await readPendingPayoutForSeller(SELLER);
     expect(read.reversedCents).toBe(475);
     expect(read.reversalCount).toBe(1);
-    expect(read.pendingCents).toBe(7774 - 475);
+    expect(read.pendingCents).toBe(7654 - 475);
 
     /* Replay / re-read: still exactly one reversal. */
     const reread = await readPendingPayoutForSeller(SELLER);
@@ -273,7 +281,7 @@ describe("refunds — reverse exactly once", () => {
     await h.db.execute(sql`UPDATE beat_licenses SET status = 'refunded' WHERE stripe_session_id = 'cs_beat_1'`);
     const read = await readPendingPayoutForSeller(SELLER);
     expect(read.reversedCents).toBe(2549);
-    expect(read.pendingCents).toBe(7774 - 2549);
+    expect(read.pendingCents).toBe(7654 - 2549);
     const rows = await ledgerRows("beat_license");
     expect(rows.map((r) => r.entry_type).sort()).toEqual(["accrual", "reversal"]);
   });
@@ -309,7 +317,7 @@ describe("unified earnings summary — same sale, same story", () => {
     expect(summary.beats.totalCents).toBe(accrualByKind.beat_license);
     expect(summary.memberships.totalCents).toBe(accrualByKind.membership);
     /* Summary total (incl. brand deals) == pending figure, pre-payout. */
-    expect(summary.totalCents).toBe(7774);
+    expect(summary.totalCents).toBe(7654);
     expect(summary.totalCents).toBe(read.pendingCents);
     expect(summary.storeSales.totalCents).toBe(475 + 950 + 1900);
   });
@@ -320,6 +328,95 @@ describe("unified earnings summary — same sale, same story", () => {
     const summary = await sellerEarningsSummary(SELLER);
     expect(summary.beats.totalCents).toBe(0);
     expect(summary.beats.count).toBe(0);
-    expect(summary.totalCents).toBe(7774 - 2549);
+    expect(summary.totalCents).toBe(7654 - 2549);
+  });
+});
+
+describe("membership fee — net of the 10% platform fee (Nov 5, 2026 defect)", () => {
+  it("the split helpers match the Member Dashboard's netAfterFee, to the cent", () => {
+    /* Same amounts the membership-join fee pin proves against
+       netAfterFee in routes/generate/memberships.ts — the dashboard
+       and the payout must round identically, including odd cents. */
+    const cases: Array<[number, number, number]> = [
+      // [price, fee, net]
+      [0, 0, 0],
+      [100, 10, 90],
+      [500, 50, 450], // the $5.00 TEST Membership from the live run
+      [1200, 120, 1080],
+      [999, 100, 899], // net rounds 899.1 → 899, platform keeps 100
+      [105, 10, 95], // net rounds 94.5 → 95 (half up), platform keeps 10
+      [1, 0, 1], // 1¢: net rounds 0.9 → 1, fee 0 — still reconciles
+    ];
+    for (const [price, fee, net] of cases) {
+      expect(membershipFeeCents(price)).toBe(fee);
+      expect(membershipNetCents(price)).toBe(net);
+      expect(membershipFeeCents(price) + membershipNetCents(price)).toBe(price);
+    }
+  });
+
+  it("the Nov 5 live basket: a $5.00 membership credits $4.50 and pending recomputes to $31.00 across sources", async () => {
+    await seedSeller();
+    /* Store sale net $9.50 (the live run's store leg). */
+    await h.db.execute(sql`
+      INSERT INTO store_orders (profile_id, amount_cents, platform_fee_cents, creator_amount_cents, stripe_session_id, status)
+      VALUES (${PROFILE}, 1000, 50, 950, 'cs_live_order', 'completed')`);
+    /* Beat license net $17.00 (the live run's beats leg: $20.00 − 15%). */
+    await h.db.execute(sql`
+      INSERT INTO beat_licenses (producer_id, price_cents, commission_cents, status, stripe_session_id)
+      VALUES (${SELLER}, 2000, 300, 'completed', 'cs_live_beat')`);
+    /* The $5.00 TEST Membership — dashboard showed "$4.50 after 10%
+       platform fee" while Earnings credited the full $5.00. */
+    await h.db.execute(sql`
+      INSERT INTO fan_members (user_id, price_cents, stripe_session_id, status)
+      VALUES (${SELLER}, 500, 'cs_live_memb', 'active')`);
+
+    const read = await readPendingPayoutForSeller(SELLER);
+    const memb = read.rows.find((r) => r.sourceKind === "membership");
+    expect(memb).toMatchObject({ grossCents: 500, platformFeeCents: 50, netCents: 450 });
+    /* 950 store + 1700 beats + 450 membership = 3100 — NOT 3150. */
+    expect(read.accruedCents).toBe(3100);
+    expect(read.pendingCents).toBe(3100);
+
+    const summary = await sellerEarningsSummary(SELLER);
+    expect(summary.memberships).toEqual({ totalCents: 450, count: 1 });
+    expect(summary.totalCents).toBe(3100);
+  });
+
+  it("odd-cent membership prices split in SQL with the dashboard's rounding", async () => {
+    await seedSeller();
+    for (const [i, price] of [105, 999, 1].entries()) {
+      await h.db.execute(sql`
+        INSERT INTO fan_members (user_id, price_cents, stripe_session_id, status)
+        VALUES (${SELLER}, ${price}, ${"cs_odd_" + i}, 'active')`);
+    }
+    await syncPendingPayoutLedgerForSeller(SELLER);
+    const rows = (await ledgerRows("membership"))
+      .map((r) => ({ gross: r.gross_cents, fee: r.platform_fee_cents, net: r.net_cents }))
+      .sort((a, b) => a.gross - b.gross);
+    expect(rows).toEqual([
+      { gross: 1, fee: 0, net: 1 },
+      { gross: 105, fee: 10, net: 95 },
+      { gross: 999, fee: 100, net: 899 },
+    ]);
+    const summary = await sellerEarningsSummary(SELLER);
+    expect(summary.memberships.totalCents).toBe(1 + 95 + 899);
+  });
+
+  it("a refunded membership reverses its NET ($4.50), not its gross", async () => {
+    await seedSeller();
+    await h.db.execute(sql`
+      INSERT INTO fan_members (user_id, price_cents, stripe_session_id, status)
+      VALUES (${SELLER}, 500, 'cs_memb_refund', 'active')`);
+    let read = await readPendingPayoutForSeller(SELLER);
+    expect(read.pendingCents).toBe(450);
+
+    await h.db.execute(sql`UPDATE fan_members SET status = 'refunded' WHERE stripe_session_id = 'cs_memb_refund'`);
+    read = await readPendingPayoutForSeller(SELLER);
+    expect(read.reversedCents).toBe(450);
+    expect(read.reversalCount).toBe(1);
+    expect(read.pendingCents).toBe(0);
+    const rows = await ledgerRows("membership");
+    expect(rows.map((r) => r.entry_type).sort()).toEqual(["accrual", "reversal"]);
+    expect(rows.every((r) => r.net_cents === 450 && r.platform_fee_cents === 50)).toBe(true);
   });
 });

@@ -24,7 +24,9 @@ import { sellerStoreSales, sellerBeats, sellerMemberships, sellerBrandDeals, rea
                   adjusted for co-seller splits (#36)
      beats        beat_licenses 'completed' net (price − 15%
                   commission) — previously Producer-Dashboard-only
-     memberships  fan_members.price_cents for verified paid checkouts
+     memberships  fan_members for verified paid checkouts, NET of the
+                  10% platform fee (derived from price_cents — the
+                  model records no split; see lib/seller-earnings)
                   (stripe_session_id present — Stack 1's paid marker),
                   refunded memberships excluded
      tips         live_stream_tips.amount_vb actually credited to the

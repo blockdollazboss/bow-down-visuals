@@ -139,12 +139,13 @@ describe("GET /earnings", () => {
     expect(json.sources.storeSales.breakdown).toMatchObject({ profileStoreCents: 9000, shopSalesCents: 1800 });
     // beats: the producer's completed license nets price - 15% commission; other producers excluded
     expect(json.sources.beats).toMatchObject({ totalCents: 2549, count: 1, grossCents: 2999, commissionCents: 450 });
-    // memberships: only the paid-checkout row (stripe_session_id set), not the free/manual row, not other users'
-    expect(json.sources.memberships).toMatchObject({ totalCents: 1500, count: 1 });
+    // memberships: only the paid-checkout row (stripe_session_id set), not the free/manual row, not other users';
+    // credited NET of the 10% platform fee: $15.00 → $13.50
+    expect(json.sources.memberships).toMatchObject({ totalCents: 1350, count: 1 });
     // brand deals: released net only
     expect(json.sources.brandDeals).toMatchObject({ totalCents: 8500, count: 1 });
-    // total USD = 10800 + 2549 (beats) + 1500 + 8500; VB tips NOT folded in
-    expect(json.totalCents).toBe(23349);
+    // total USD = 10800 + 2549 (beats) + 1350 (memberships net) + 8500; VB tips NOT folded in
+    expect(json.totalCents).toBe(23199);
     // stream tips: only the credited tip counts
     expect(json.sources.tips.streamTipsVb).toBe(500);
     expect(json.sources.tips.streamTipCount).toBe(1);
