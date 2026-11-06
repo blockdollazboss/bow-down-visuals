@@ -60,8 +60,11 @@ describe("Earnings — every failure surface has a working retry", () => {
     expect(earnings).toContain("onClick={reload}");
   });
 
-  it("all four source cards receive the retry", () => {
-    expect(earnings.match(/onRetry=\{reload\}/g)).toHaveLength(4);
+  it("all six source cards receive the retry", () => {
+    /* Six since 0323 added the Shoutouts + Tip jar cards beside Store
+       sales, Beats, Memberships and Brand deals — every card keeps a
+       working retry, none is a dead end. */
+    expect(earnings.match(/onRetry=\{reload\}/g)).toHaveLength(6);
     const block = blockAfter(earnings, 'data-testid="earnings-source-retry"', 500);
     expect(block).toContain("Try again");
     expect(earnings).toContain("onClick={onRetry}");

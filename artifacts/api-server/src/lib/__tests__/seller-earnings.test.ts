@@ -106,8 +106,24 @@ CREATE TABLE pending_payout_ledger (
   net_cents integer NOT NULL DEFAULT 0,
   stripe_session_id text,
   created_at timestamptz NOT NULL DEFAULT now(),
-  CHECK (source_kind IN ('digital_sale','store_order','shop_event','beat_license','membership')),
+  CHECK (source_kind IN ('digital_sale','store_order','shop_event','beat_license','membership','shoutout_request','tip_jar_tip')),
   CHECK (entry_type IN ('accrual','reversal'))
+);
+CREATE TABLE shoutout_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_user_id uuid NOT NULL,
+  price_cents integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'pending_payment',
+  stripe_session_id text,
+  paid_at timestamptz
+);
+CREATE TABLE tip_jar_tips (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_user_id uuid NOT NULL,
+  amount_cents integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'pending_payment',
+  stripe_session_id text,
+  paid_at timestamptz
 );
 CREATE UNIQUE INDEX pending_payout_ledger_source_entry_ux
   ON pending_payout_ledger (source_kind, source_id, entry_type);
@@ -295,6 +311,156 @@ describe("refunds — reverse exactly once", () => {
     expect(read.accruedCents).toBe(950);
     expect(read.reversedCents).toBe(950);
     expect(read.pendingCents).toBe(0);
+  });
+});
+
+/* The Nov 5 live basket (0323): one settled shoutout + one settled
+   tip — the two sales that reached their own dashboards but never
+   reached Earnings or the pending figure. */
+async function seedShoutoutAndTip() {
+  /* No creator_profiles row needed: both rails key the seller by
+     user id directly (creator_user_id / page_user_id). */
+  /* Paid shoutout $10.00 — flat 5% fee $0.50, creator keeps $9.50. */
+  await h.db.execute(sql`
+    INSERT INTO shoutout_requests (creator_user_id, price_cents, status, stripe_session_id, paid_at)
+    VALUES (${SELLER}, 1000, 'accepted', 'cs_shout_1', now())`);
+  /* Priced but UNPAID request — session exists, paid_at null: never accrues. */
+  await h.db.execute(sql`
+    INSERT INTO shoutout_requests (creator_user_id, price_cents, status, stripe_session_id, paid_at)
+    VALUES (${SELLER}, 2500, 'pending_payment', 'cs_shout_unpaid', NULL)`);
+  /* Free request accepted by hand — no payment exists: never accrues. */
+  await h.db.execute(sql`
+    INSERT INTO shoutout_requests (creator_user_id, price_cents, status, stripe_session_id, paid_at)
+    VALUES (${SELLER}, 0, 'accepted', NULL, NULL)`);
+  /* Paid tip-jar tip $5.00 — NO fee, the full $5.00 is the creator's. */
+  await h.db.execute(sql`
+    INSERT INTO tip_jar_tips (page_user_id, amount_cents, status, stripe_session_id, paid_at)
+    VALUES (${SELLER}, 500, 'paid', 'cs_tip_1', now())`);
+  /* Unpaid tip row — never accrues. */
+  await h.db.execute(sql`
+    INSERT INTO tip_jar_tips (page_user_id, amount_cents, status, stripe_session_id, paid_at)
+    VALUES (${SELLER}, 700, 'pending_payment', 'cs_tip_unpaid', NULL)`);
+  /* Another creator's settled shoutout + tip — never in this seller's numbers. */
+  await h.db.execute(sql`
+    INSERT INTO shoutout_requests (creator_user_id, price_cents, status, stripe_session_id, paid_at)
+    VALUES (${OTHER}, 1000, 'accepted', 'cs_shout_other', now())`);
+  await h.db.execute(sql`
+    INSERT INTO tip_jar_tips (page_user_id, amount_cents, status, stripe_session_id, paid_at)
+    VALUES (${OTHER}, 900, 'paid', 'cs_tip_other', now())`);
+}
+
+describe("shoutouts + tip jar — the missing rails (0323)", () => {
+  it("accrues a settled shoutout at its $9.50 keep and a settled tip at the full $5.00", async () => {
+    await seedShoutoutAndTip();
+    const res = await syncPendingPayoutLedgerForSeller(SELLER);
+    expect(res.totalInserted).toBe(2);
+    expect(res.inserted["shoutout_request:accrual"]).toBe(1);
+    expect(res.inserted["tip_jar_tip:accrual"]).toBe(1);
+
+    const shout = await ledgerRows("shoutout_request");
+    expect(shout).toHaveLength(1);
+    expect(shout[0]).toMatchObject({ entry_type: "accrual", gross_cents: 1000, platform_fee_cents: 50, net_cents: 950 });
+    const tip = await ledgerRows("tip_jar_tip");
+    expect(tip).toHaveLength(1);
+    expect(tip[0]).toMatchObject({ entry_type: "accrual", gross_cents: 500, platform_fee_cents: 0, net_cents: 500 });
+
+    const read = await readPendingPayoutForSeller(SELLER);
+    expect(read.pendingCents).toBe(950 + 500);
+  });
+
+  it("never accrues unpaid shoutouts, free shoutouts, or unpaid tips", async () => {
+    await seedShoutoutAndTip();
+    await syncPendingPayoutLedgerForSeller(SELLER);
+    const rows = await ledgerRows();
+    /* Exactly the two settled sales — the $25.00 unpaid request, the
+       free request, the $7.00 unpaid tip and the other creator's
+       money all stay out. */
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.net_cents === 950 || r.net_cents === 500)).toBe(true);
+  });
+
+  it("duplicate settlement replays can't double-accrue: re-syncs and re-reads insert 0", async () => {
+    await seedShoutoutAndTip();
+    const first = await readPendingPayoutForSeller(SELLER);
+    /* Webhook retries + a racing return-verify settle the SOURCE row
+       once (guarded flip); the sync scans source rows, so replayed
+       settlement events have nothing new to accrue — ever. */
+    const again = await syncPendingPayoutLedgerForSeller(SELLER);
+    expect(again.totalInserted).toBe(0);
+    const second = await readPendingPayoutForSeller(SELLER);
+    expect(second.pendingCents).toBe(first.pendingCents);
+    expect(second.accrualCount).toBe(2);
+    expect(await ledgerRows()).toHaveLength(2);
+  });
+
+  it("the per-row fee rounds like the dashboard's netAfterFee (half-cent rounds up)", async () => {
+    await seedSeller();
+    /* $10.50 × 95% = $9.975 → $9.98 keep, $0.52 fee — the same figure
+       netAfterFee(1050) = Math.round(1050 × 95 / 100) gives in TS. */
+    await h.db.execute(sql`
+      INSERT INTO shoutout_requests (creator_user_id, price_cents, status, stripe_session_id, paid_at)
+      VALUES (${SELLER}, 1050, 'delivered', 'cs_shout_round', now())`);
+    await syncPendingPayoutLedgerForSeller(SELLER);
+    const rows = await ledgerRows("shoutout_request");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ gross_cents: 1050, platform_fee_cents: 52, net_cents: 998 });
+  });
+
+  it("a refunded shoutout accrues + reverses exactly once; pending drops by $9.50 and stays dropped", async () => {
+    await seedShoutoutAndTip();
+    await readPendingPayoutForSeller(SELLER);
+    await h.db.execute(sql`UPDATE shoutout_requests SET status = 'refunded' WHERE stripe_session_id = 'cs_shout_1'`);
+
+    const read = await readPendingPayoutForSeller(SELLER);
+    expect(read.reversedCents).toBe(950);
+    expect(read.reversalCount).toBe(1);
+    expect(read.pendingCents).toBe(500);
+
+    const reread = await readPendingPayoutForSeller(SELLER);
+    expect(reread.reversalCount).toBe(1);
+    expect(reread.pendingCents).toBe(500);
+    const rows = await ledgerRows("shoutout_request");
+    expect(rows.map((r) => r.entry_type).sort()).toEqual(["accrual", "reversal"]);
+  });
+
+  it("a refunded tip accrues + reverses exactly once at the full amount", async () => {
+    await seedShoutoutAndTip();
+    await h.db.execute(sql`UPDATE tip_jar_tips SET status = 'refunded' WHERE stripe_session_id = 'cs_tip_1'`);
+    const read = await readPendingPayoutForSeller(SELLER);
+    expect(read.accruedCents).toBe(950 + 500);
+    expect(read.reversedCents).toBe(500);
+    expect(read.pendingCents).toBe(950);
+    const rows = await ledgerRows("tip_jar_tip");
+    expect(rows.map((r) => r.entry_type).sort()).toEqual(["accrual", "reversal"]);
+  });
+
+  it("summary nets equal the ledger accrual nets; the totals reconcile with the other rails", async () => {
+    await seedBasket();
+    await seedShoutoutAndTip();
+    const summary = await sellerEarningsSummary(SELLER);
+    expect(summary.shoutouts).toEqual({ totalCents: 950, grossCents: 1000, feeCents: 50, count: 1 });
+    expect(summary.tipJar).toEqual({ totalCents: 500, count: 1 });
+
+    const read = await readPendingPayoutForSeller(SELLER);
+    const accrualByKind = Object.fromEntries(
+      read.rows.filter((r) => r.entryType === "accrual").map((r) => [r.sourceKind, r.netCents]),
+    );
+    expect(summary.shoutouts.totalCents).toBe(accrualByKind.shoutout_request);
+    expect(summary.tipJar.totalCents).toBe(accrualByKind.tip_jar_tip);
+    /* Basket 7774 + shoutout 950 + tip 500 — summary and pending agree. */
+    expect(summary.totalCents).toBe(7774 + 950 + 500);
+    expect(summary.totalCents).toBe(read.pendingCents);
+  });
+
+  it("refunded shoutouts and tips leave the summary (their money is not earnings)", async () => {
+    await seedShoutoutAndTip();
+    await h.db.execute(sql`UPDATE shoutout_requests SET status = 'refunded' WHERE stripe_session_id = 'cs_shout_1'`);
+    await h.db.execute(sql`UPDATE tip_jar_tips SET status = 'refunded' WHERE stripe_session_id = 'cs_tip_1'`);
+    const summary = await sellerEarningsSummary(SELLER);
+    expect(summary.shoutouts.totalCents).toBe(0);
+    expect(summary.shoutouts.count).toBe(0);
+    expect(summary.tipJar.totalCents).toBe(0);
+    expect(summary.tipJar.count).toBe(0);
   });
 });
 

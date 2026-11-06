@@ -58,6 +58,13 @@ type BeatsSource =
   | (SourceOk & { grossCents: number; commissionCents: number })
   | (SourceErr & { grossCents: null; commissionCents: null });
 
+/** Paid shoutouts (0323): previously visible only on the shoutout
+    dashboard; now a first-class Earnings source with the flat 5%
+    platform fee shown. */
+type ShoutoutsSource =
+  | (SourceOk & { grossCents: number; feeCents: number })
+  | (SourceErr & { grossCents: null; feeCents: null });
+
 export interface EarningsResponse {
   currency: string;
   totalCents: number;
@@ -68,6 +75,11 @@ export interface EarningsResponse {
     beats: BeatsSource;
     memberships: EarningsSource;
     brandDeals: EarningsSource;
+    /* Paid tip-jar tips (0323): the settled USD tips at full amount —
+        distinct from the VB stream/stage tips and from the unpaid
+        in-memory jar intents reported under `tips`. */
+    shoutouts: ShoutoutsSource;
+    tipJar: EarningsSource;
     tips: EarningsTips;
   };
 }
@@ -231,6 +243,23 @@ export function normalizeEarningsResponse(payload: unknown): EarningsResponse | 
   const brandDeals = moneySource(sources.brandDeals);
   if (brandDeals.status === "error") degraded = true;
 
+  const rawShoutouts = sources.shoutouts;
+  const shoutoutsBase = moneySource(rawShoutouts);
+  let shoutouts: ShoutoutsSource;
+  if (shoutoutsBase.status === "ok" && isObj(rawShoutouts)) {
+    shoutouts = {
+      ...shoutoutsBase,
+      grossCents: finite(rawShoutouts.grossCents) ?? shoutoutsBase.totalCents,
+      feeCents: finite(rawShoutouts.feeCents) ?? 0,
+    };
+  } else {
+    shoutouts = { ...errSource(), grossCents: null, feeCents: null };
+    degraded = true;
+  }
+
+  const tipJar = moneySource(sources.tipJar);
+  if (tipJar.status === "error") degraded = true;
+
   const rawTips = sources.tips;
   let tips: EarningsTips;
   if (isObj(rawTips) && rawTips.status === "ok") {
@@ -263,6 +292,6 @@ export function normalizeEarningsResponse(payload: unknown): EarningsResponse | 
     totalCents,
     totalTipsVb: finite(payload.totalTipsVb),
     partial: payload.partial === true || degraded,
-    sources: { storeSales, beats, memberships, brandDeals, tips },
+    sources: { storeSales, beats, memberships, brandDeals, shoutouts, tipJar, tips },
   };
 }

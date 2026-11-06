@@ -5,6 +5,8 @@
  * totals, partial: true — never a fake 0. Tip units stay separate:
  * stream tips are Visual Bucs (never added to the USD total) and
  * tip-jar intents are pending_payment (never counted as earnings).
+ * Settled money counts in USD (0323): a paid shoutout at its net
+ * keep (flat 5% fee) and a paid tip-jar tip at its full amount.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "crypto";
@@ -63,6 +65,14 @@ CREATE TABLE beat_licenses (
 CREATE TABLE sponsor_payouts (
   id uuid PRIMARY KEY, creator_user_id text NOT NULL, net_cents integer NOT NULL DEFAULT 0,
   status text NOT NULL DEFAULT 'released'
+);
+CREATE TABLE shoutout_requests (
+  id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, price_cents integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'pending_payment', stripe_session_id text, paid_at timestamptz
+);
+CREATE TABLE tip_jar_tips (
+  id uuid PRIMARY KEY, page_user_id uuid NOT NULL, amount_cents integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'pending_payment', stripe_session_id text, paid_at timestamptz
 );`;
 
 const realFetch = globalThis.fetch;
@@ -108,6 +118,8 @@ describe("GET /earnings", () => {
     expect(json.sources.beats).toMatchObject({ status: "ok", totalCents: 0, count: 0 });
     expect(json.sources.memberships).toMatchObject({ status: "ok", totalCents: 0, count: 0 });
     expect(json.sources.brandDeals).toMatchObject({ status: "ok", totalCents: 0, count: 0 });
+    expect(json.sources.shoutouts).toMatchObject({ status: "ok", totalCents: 0, count: 0 });
+    expect(json.sources.tipJar).toMatchObject({ status: "ok", totalCents: 0, count: 0 });
     expect(json.sources.tips).toMatchObject({ status: "ok", streamTipsVb: 0, stageTipsVb: 0, stageTipCount: 0, tipJarPendingCents: 0 });
   });
 
@@ -131,6 +143,13 @@ describe("GET /earnings", () => {
     await db.execute(sql`INSERT INTO beat_licenses (id, producer_id, price_cents, commission_cents, status) VALUES (${randomUUID()}, ${OTHER}, 9999, 1500, 'completed')`);
     await db.execute(sql`INSERT INTO sponsor_payouts (id, creator_user_id, net_cents, status) VALUES (${randomUUID()}, ${USER}, 8500, 'released')`);
     await db.execute(sql`INSERT INTO sponsor_payouts (id, creator_user_id, net_cents, status) VALUES (${randomUUID()}, ${USER}, 1000, 'pending')`);
+    // settled shoutout $10.00 (paid_at set) nets $9.50 at the flat 5% fee; an unpaid one counts nothing
+    await db.execute(sql`INSERT INTO shoutout_requests (id, creator_user_id, price_cents, status, stripe_session_id, paid_at) VALUES (${randomUUID()}, ${USER}, 1000, 'accepted', 'cs_shout_1', now())`);
+    await db.execute(sql`INSERT INTO shoutout_requests (id, creator_user_id, price_cents, status, stripe_session_id, paid_at) VALUES (${randomUUID()}, ${USER}, 2500, 'pending_payment', 'cs_shout_unpaid', NULL)`);
+    await db.execute(sql`INSERT INTO shoutout_requests (id, creator_user_id, price_cents, status, stripe_session_id, paid_at) VALUES (${randomUUID()}, ${OTHER}, 1000, 'accepted', 'cs_shout_other', now())`);
+    // settled tip-jar tip $5.00 counts in full (no fee); a pending_payment row counts nothing
+    await db.execute(sql`INSERT INTO tip_jar_tips (id, page_user_id, amount_cents, status, stripe_session_id, paid_at) VALUES (${randomUUID()}, ${USER}, 500, 'paid', 'cs_tip_1', now())`);
+    await db.execute(sql`INSERT INTO tip_jar_tips (id, page_user_id, amount_cents, status, stripe_session_id, paid_at) VALUES (${randomUUID()}, ${USER}, 700, 'pending_payment', 'cs_tip_unpaid', NULL)`);
 
     const { json } = await get();
     // store: 9000 (completed only) + shop net 1800 = 10800, count 2
@@ -144,8 +163,12 @@ describe("GET /earnings", () => {
     expect(json.sources.memberships).toMatchObject({ totalCents: 1350, count: 1 });
     // brand deals: released net only
     expect(json.sources.brandDeals).toMatchObject({ totalCents: 8500, count: 1 });
-    // total USD = 10800 + 2549 (beats) + 1350 (memberships net) + 8500; VB tips NOT folded in
-    expect(json.totalCents).toBe(23199);
+    // shoutouts: only the settled one, at its $9.50 keep (gross 1000, fee 50)
+    expect(json.sources.shoutouts).toMatchObject({ totalCents: 950, count: 1, grossCents: 1000, feeCents: 50 });
+    // tip jar: only the settled tip, in full
+    expect(json.sources.tipJar).toMatchObject({ totalCents: 500, count: 1 });
+    // total USD = 10800 + 2549 (beats) + 1350 (memberships net) + 8500 + 950 (shoutout) + 500 (tip); VB tips NOT folded in
+    expect(json.totalCents).toBe(24649);
     // stream tips: only the credited tip counts
     expect(json.sources.tips.streamTipsVb).toBe(500);
     expect(json.sources.tips.streamTipCount).toBe(1);
@@ -176,5 +199,14 @@ describe("GET /earnings", () => {
     expect(json.sources.storeSales.status).toBe("ok");
     expect(json.partial).toBe(true);
     expect(json.totalCents).toBe(0); // sum of the sources that DID load (all zero)
+  });
+
+  it("a missing shoutout ledger fails the shoutouts source honestly — null totals, never a fake 0", async () => {
+    freshDb(DDL.replace(/CREATE TABLE shoutout_requests[\s\S]*?\);/, ""));
+    const { status, json } = await get();
+    expect(status).toBe(200);
+    expect(json.sources.shoutouts).toEqual({ status: "error", totalCents: null, count: null, grossCents: null, feeCents: null });
+    expect(json.sources.tipJar.status).toBe("ok");
+    expect(json.partial).toBe(true);
   });
 });

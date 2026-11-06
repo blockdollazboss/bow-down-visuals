@@ -211,8 +211,9 @@ export function centsToDollars(c: number): number {
   return c / 100;
 }
 
-/* Net payout after the platform fee, in cents — for the dashboard's honest
-   "what you'd keep" figure (applies once payments ship). */
+/* Net payout after the platform fee, in cents — the dashboard's honest
+   "what you'd keep" figure, and the per-row formula the pending-payout
+   ledger sync applies to settled shoutouts (lib/seller-earnings.ts). */
 export function netAfterFee(cents: number): number {
   return Math.round((cents * (100 - SHOUTOUT_PLATFORM_FEE_PCT)) / 100);
 }

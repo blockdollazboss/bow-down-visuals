@@ -272,6 +272,18 @@ CREATE TABLE sale_split_entries (
   owner_user_id uuid NOT NULL, seller_user_id uuid NOT NULL, seller_profile_id uuid,
   role text NOT NULL, amount_cents integer NOT NULL DEFAULT 0,
   status text NOT NULL DEFAULT 'earned'
+);
+-- The 0323 shoutout / tip-jar rails reconcile from these tables on every
+-- pending-payout read; they exist here (empty) so the sync runs whole.
+CREATE TABLE shoutout_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_user_id uuid NOT NULL, price_cents integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'pending_payment', stripe_session_id text, paid_at timestamptz
+);
+CREATE TABLE tip_jar_tips (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_user_id uuid NOT NULL, amount_cents integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'pending_payment', stripe_session_id text, paid_at timestamptz
 );`;
 
 const realFetch = globalThis.fetch;
