@@ -7224,7 +7224,9 @@
     "videoRequired": "पहले एक वीडियो अपलोड करें।",
     "voiceFallback": "वॉयस",
     "voiceNote": "हर भाषा में वही वॉयस डब करती है, जिससे आपकी आवाज़ दुनिया भर में एक जैसी रहती है।",
-    "voiceRequired": "पहले एक डबिंग वॉयस चुनें।"
+    "voiceRequired": "पहले एक डबिंग वॉयस चुनें।",
+    "voicesLoadError": "Your voices couldn't load — your cloned voices may be waiting. Check your connection and try again.",
+    "voicesRetry": "Try again"
   },
   "trends": {
     "audienceEstablished": "स्थापित",

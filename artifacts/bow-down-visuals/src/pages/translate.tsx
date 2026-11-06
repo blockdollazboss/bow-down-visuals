@@ -64,6 +64,8 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
   const [selectedLangs, setSelectedLangs] = useState<string[]>(["es"]);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [voicesLoading, setVoicesLoading] = useState(true);
+  const [voicesFailed, setVoicesFailed] = useState(false);
+  const [voicesNonce, setVoicesNonce] = useState(0);
   const [voiceId, setVoiceId] = useState("");
   const [previewing, setPreviewing] = useState<string | null>(null);
 
@@ -103,22 +105,29 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
   useEffect(() => {
     let cancelled = false;
     async function loadVoices() {
+      setVoicesLoading(true);
       try {
         const token = await getAccessToken();
         const res = await fetch("/api/voices", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
+        if (!res.ok) throw new Error("voices load failed");
         const data = (await res.json().catch(() => ({}))) as { voices?: Voice[] };
         if (cancelled) return;
         const list = Array.isArray(data.voices) ? data.voices : [];
         setVoices(list);
+        setVoicesFailed(false);
         /* EVERYTHING-SMART (stack900 K1): open on the creator's own
            cloned vault voice when they have one — the same rule the
            Voiceover desk follows — not whatever the API listed first.
            Dubbing your own video should start from YOUR voice. */
         if (!voiceId) setVoiceId(pickDefaultVoiceId(list, activeArtist?.voice_id));
       } catch {
-        if (!cancelled) setVoices([]);
+        /* Empty-lie fix: a failed load is NOT "no voices available" —
+           keep whatever is already loaded and raise the honest failed
+           state below so the creator can retry instead of being told
+           their cloned voices don't exist. */
+        if (!cancelled) setVoicesFailed(true);
       } finally {
         if (!cancelled) setVoicesLoading(false);
       }
@@ -127,7 +136,7 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
     else setVoicesLoading(false);
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, voicesNonce]);
 
   /* read video duration from metadata */
   useEffect(() => {
@@ -510,9 +519,27 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
               {voicesLoading ? (
                 <div className="flex items-center gap-2 text-sm text-white/50">
                   <Loader2 className="h-4 w-4 animate-spin" />{t("translate.loadingVoices")}</div>
+              ) : voicesFailed && voices.length === 0 ? (
+                <div data-testid="translate-voices-load-error">
+                  <p className="text-sm text-red-300">{t("translate.voicesLoadError")}</p>
+                  <button type="button" onClick={() => setVoicesNonce((n) => n + 1)}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3.5 py-1.5 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+                    {t("translate.voicesRetry")}
+                  </button>
+                </div>
               ) : voices.length === 0 ? (
                 <p className="text-sm text-white/50">{t("translate.noVoices")}</p>
               ) : (
+                <>
+                {voicesFailed && (
+                  <p className="mb-3 flex flex-wrap items-center gap-2 text-sm text-red-300" data-testid="translate-voices-reload-error">
+                    {t("translate.voicesLoadError")}
+                    <button type="button" onClick={() => setVoicesNonce((n) => n + 1)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+                      {t("translate.voicesRetry")}
+                    </button>
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2">
                   {voices.slice(0, 8).map((v) => (
                     <button
@@ -544,6 +571,7 @@ export default function Translate({ embedded }: { embedded?: boolean } = {}) {
                     </button>
                   ))}
                 </div>
+                </>
               )}
               <audio id="translate-voice-preview" className="hidden" />
               <p className="mt-3 text-xs text-white/35">{t("translate.voiceNote")}</p>

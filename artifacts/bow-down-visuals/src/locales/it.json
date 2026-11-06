@@ -7237,7 +7237,9 @@
     "videoRequired": "Prima carica un video.",
     "voiceFallback": "voce",
     "voiceNote": "La stessa voce doppia ogni lingua, mantenendo il tuo sound coerente in tutto il mondo.",
-    "voiceRequired": "Prima scegli una voce di doppiaggio."
+    "voiceRequired": "Prima scegli una voce di doppiaggio.",
+    "voicesLoadError": "Your voices couldn't load — your cloned voices may be waiting. Check your connection and try again.",
+    "voicesRetry": "Try again"
   },
   "trends": {
     "audienceEstablished": "Affermato",

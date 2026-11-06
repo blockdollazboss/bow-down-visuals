@@ -7223,7 +7223,9 @@
     "videoRequired": "先に動画をアップロードしてください。",
     "voiceFallback": "音声",
     "voiceNote": "同じ音声が全言語を吹き替えるので、世界中であなたの声の一貫性が保たれます。",
-    "voiceRequired": "先に吹き替え音声を選んでください。"
+    "voiceRequired": "先に吹き替え音声を選んでください。",
+    "voicesLoadError": "Your voices couldn't load — your cloned voices may be waiting. Check your connection and try again.",
+    "voicesRetry": "Try again"
   },
   "trends": {
     "audienceEstablished": "盤石",

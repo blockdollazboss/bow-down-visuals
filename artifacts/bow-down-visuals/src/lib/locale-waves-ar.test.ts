@@ -290,6 +290,8 @@ const W4_ALLOW = new Set([
   "translate.globalDropReviewLink",
   "translate.globalDropSaveFailed",
   "translate.globalDropRetry",
+  "translate.voicesLoadError",
+  "translate.voicesRetry",
   "vocalPolish.buttonCost",
   "vocalPolish.keyShiftValue",
   "vocalPolish.strengthValue",

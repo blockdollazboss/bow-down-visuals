@@ -7224,7 +7224,9 @@
     "videoRequired": "Lade zuerst ein Video hoch.",
     "voiceFallback": "Stimme",
     "voiceNote": "Dieselbe Stimme synchronisiert jede Sprache und hält deinen Sound weltweit konsistent.",
-    "voiceRequired": "Wähl zuerst eine Synchronstimme."
+    "voiceRequired": "Wähl zuerst eine Synchronstimme.",
+    "voicesLoadError": "Your voices couldn't load — your cloned voices may be waiting. Check your connection and try again.",
+    "voicesRetry": "Try again"
   },
   "trends": {
     "audienceEstablished": "Etabliert",

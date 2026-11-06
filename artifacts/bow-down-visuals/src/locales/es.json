@@ -7237,7 +7237,9 @@
     "videoRequired": "Primero sube un video.",
     "voiceFallback": "voz",
     "voiceNote": "La misma voz dobla todos los idiomas, manteniendo tu sonido consistente en todo el mundo.",
-    "voiceRequired": "Primero elige una voz de doblaje."
+    "voiceRequired": "Primero elige una voz de doblaje.",
+    "voicesLoadError": "Your voices couldn't load — your cloned voices may be waiting. Check your connection and try again.",
+    "voicesRetry": "Try again"
   },
   "trends": {
     "audienceEstablished": "Establecida",

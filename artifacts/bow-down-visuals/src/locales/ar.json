@@ -7276,7 +7276,9 @@
     "videoRequired": "ارفع فيديو أولًا.",
     "voiceFallback": "صوت",
     "voiceNote": "نفس الصوت يدبلج كل اللغات، ليبقى صوتك متسقًا حول العالم.",
-    "voiceRequired": "اختر صوت الدبلجة أولًا."
+    "voiceRequired": "اختر صوت الدبلجة أولًا.",
+    "voicesLoadError": "Your voices couldn't load — your cloned voices may be waiting. Check your connection and try again.",
+    "voicesRetry": "Try again"
   },
   "trends": {
     "audienceEstablished": "راسخ",

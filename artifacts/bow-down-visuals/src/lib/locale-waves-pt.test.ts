@@ -472,6 +472,8 @@ const W4_LEGIT: ReadonlySet<string> = new Set([
   "translate.globalDropReviewLink",
   "translate.globalDropSaveFailed",
   "translate.globalDropRetry",
+  "translate.voicesLoadError",
+  "translate.voicesRetry",
   "vocalPolish.abOriginal",
   "vocalPolish.buttonCost",
   "vocalPolish.keyShiftValue",

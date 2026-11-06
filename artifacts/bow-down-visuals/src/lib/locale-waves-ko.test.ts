@@ -196,6 +196,8 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "translate.globalDropReviewLink",
     "translate.globalDropSaveFailed",
     "translate.globalDropRetry",
+    "translate.voicesLoadError",
+    "translate.voicesRetry",
     "voiceover.creditsEstimate", "scheduler.bestTime.cost", "scheduler.bestTime.bucs",
     "myProjects.visualBucsUsed", "mashup.priceBadge",
     // proper-noun / example placeholders (incl. example lyrics)

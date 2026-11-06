@@ -690,6 +690,8 @@ const W4_LEGIT_IDENTICAL = new Set([
   "translate.globalDropSaveFailed",
   "translate.globalDropRetry",
   "translate.videoDownload",
+  "translate.voicesLoadError",
+  "translate.voicesRetry",
   "vocalPolish.abOriginal",
   "vocalPolish.buttonCost",
   "vocalPolish.keyShiftValue",
