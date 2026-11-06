@@ -170,8 +170,8 @@ describe("statementIsEmpty — the honest empty statement", () => {
 describe("the Earnings page documents panel (source pins)", () => {
   it("renders the shared lines — no raw source keys as labels anymore", () => {
     expect(trustPanelsSrc).toContain("statementLineRows(stmt, stmtStrings)");
-    expect(trustPanelsSrc).toContain("statementLineText(row)");
-    expect(trustPanelsSrc).toContain("statementTotalLabel(stmt.partial)");
+    expect(trustPanelsSrc).toContain("statementLineText(row, stmtStrings)");
+    expect(trustPanelsSrc).toContain("statementTotalLabel(stmt.partial, stmtStrings)");
     expect(trustPanelsSrc).not.toContain("Object.entries(stmt.sources)");
   });
   it("picking another year clears the viewed statement — view and PDF can never point at different years", () => {

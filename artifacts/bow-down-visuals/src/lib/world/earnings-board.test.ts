@@ -471,8 +471,8 @@ describe("the EarningsBoard surface (source pins)", () => {
     expect(boardSrc).toContain("loadBoardStatement(");
     expect(boardSrc).toContain('data-testid="world-earnings-statement-lines"');
     expect(boardSrc).toContain("statementLineRows(stmt, stmtStrings)");
-    expect(boardSrc).toContain("statementLineText(row)");
-    expect(boardSrc).toContain("statementTotalLabel(stmt.partial)");
+    expect(boardSrc).toContain("statementLineText(row, stmtStrings)");
+    expect(boardSrc).toContain("statementTotalLabel(stmt.partial, stmtStrings)");
   });
 
   it("picking another year retires the old year's statement — the view always matches the picker", () => {
