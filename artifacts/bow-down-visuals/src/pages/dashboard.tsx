@@ -28,6 +28,7 @@ import { First100FansCard } from "@/components/First100FansCard";
 import { DailyDropSlate } from "@/components/DailyDropSlate";
 import ContestHubWidget from "@/components/challenges/ContestHubWidget";
 import CommandCenter from "@/components/CommandCenter";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { AwayDigestModal } from "@/components/AwayDigestModal";
 import { balanceComposition } from "@/lib/balance";
 import {
@@ -562,35 +563,36 @@ export default function Dashboard() {
             outside the all-sections-failed gate, on purpose: a total
             core failure must not hide it, and its failure must never
             hide the core. */}
-        <CommandCenter getToken={getAccessToken} isLight={isLight} />
+        <SectionBoundary name="dashboard-command-center"><CommandCenter getToken={getAccessToken} isLight={isLight} /></SectionBoundary>
 
         {/* ── RETENTION: CREATION STREAK + WEEKLY QUESTS (dismissible, toggleable) ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-          <CreationStreakWidget getToken={getAccessToken} onBalanceChange={refreshProfile} />
-          <QuestsWidget getToken={getAccessToken} onBalanceChange={refreshProfile} />
+          <SectionBoundary name="dashboard-streak"><CreationStreakWidget getToken={getAccessToken} onBalanceChange={refreshProfile} /></SectionBoundary>
+          <SectionBoundary name="dashboard-quests"><QuestsWidget getToken={getAccessToken} onBalanceChange={refreshProfile} /></SectionBoundary>
         </div>
 
         {/* ── LIVE FOMO FEED (real anonymized activity; renders nothing when fomo_feed_enabled is off) ── */}
-        <FomoFeed getToken={getAccessToken} />
+        <SectionBoundary name="dashboard-fomo"><FomoFeed getToken={getAccessToken} /></SectionBoundary>
 
         {/* ── MOVE HOME (concierge onboarding; hides when complete) ── */}
-        <MoveHomeCard />
+        <SectionBoundary name="dashboard-move-home"><MoveHomeCard /></SectionBoundary>
 
         {/* ── FIRST 100 FANS (#155 guided path; hides when snoozed/complete) ── */}
-        <First100FansCard />
+        <SectionBoundary name="dashboard-first-100-fans"><First100FansCard /></SectionBoundary>
 
         {/* ── THY DAILY DROP ── */}
-        <DailyDropCard />
+        <SectionBoundary name="dashboard-daily-drop"><DailyDropCard /></SectionBoundary>
 
         {/* ── DROP CATALOGUE — the whole slate under the day's card,
             the same dock the World's Treasury uses: use any template,
             archive the ones you don't want (website parity). ── */}
-        <DailyDropSlate />
+        <SectionBoundary name="dashboard-drop-slate"><DailyDropSlate /></SectionBoundary>
 
         {/* ── WEEKLY CREATOR CONTEST — the addictive heartbeat ── */}
-        <ContestHubWidget />
+        <SectionBoundary name="dashboard-contest-hub"><ContestHubWidget /></SectionBoundary>
 
         {/* ── ACTIVE ARTIST STRIP (compact) ── */}
+        <SectionBoundary name="dashboard-artist-strip">
         {activeArtist ? (() => {
           const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
           return (
@@ -612,6 +614,7 @@ export default function Dashboard() {
             </div>
           );
         })() : null}
+        </SectionBoundary>
 
         {allDashboardSectionsFailed(sectionStates) ? (
           <div className={`rounded-2xl border p-10 text-center ${isLight ? "border-[#C9A84C]/50 bg-[#F7ECD2]" : "border-primary/25 bg-zinc-950"}`}>
@@ -631,6 +634,7 @@ export default function Dashboard() {
         ) : (
           <>
         {/* ── 2. CONTINUE ── */}
+        <SectionBoundary name="dashboard-continue">
         <section>
           <SectionLabel icon={Play} action={
             <Link href="/my-projects"><span className="text-xs font-bold text-primary/80 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.view_all")}<ChevronRight className="h-3 w-3" /></span></Link>
@@ -667,8 +671,10 @@ export default function Dashboard() {
             </div>
           )}
         </section>
+        </SectionBoundary>
 
         {/* ── 3. MONEY PIPELINE ── */}
+        <SectionBoundary name="dashboard-money">
         <section>
           <SectionLabel icon={DollarSign} action={
             <Link href="/coach"><span className="text-xs font-bold text-primary/80 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.money_hub")}<ChevronRight className="h-3 w-3" /></span></Link>
@@ -736,8 +742,10 @@ export default function Dashboard() {
             ))}
           </div>
         </section>
+        </SectionBoundary>
 
         {/* ── 4. AI NEXT MOVE ── */}
+        <SectionBoundary name="dashboard-next-move">
         <section>
           <SectionLabel icon={Sparkles}>{t("dashboard.next_move_title")}</SectionLabel>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -753,8 +761,10 @@ export default function Dashboard() {
             ))}
           </div>
         </section>
+        </SectionBoundary>
 
         {/* ── 5. QUICK CREATE ── */}
+        <SectionBoundary name="dashboard-quick-create">
         <section>
           <SectionLabel icon={Zap}>{t("dashboard.quick_create_title")}</SectionLabel>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -770,8 +780,10 @@ export default function Dashboard() {
             ))}
           </div>
         </section>
+        </SectionBoundary>
 
         {/* ── 6. RECENT ACTIVITY ── */}
+        <SectionBoundary name="dashboard-activity">
         <section>
           <SectionLabel icon={Activity} action={
             <Link href="/credit-history"><span className="text-xs font-bold text-primary/80 hover:text-primary transition-colors flex items-center gap-1">{t("dashboard.view_all")}<ChevronRight className="h-3 w-3" /></span></Link>
@@ -810,11 +822,12 @@ export default function Dashboard() {
             </div>
           )}
         </section>
+        </SectionBoundary>
 
         {/* ── 7. WEEKLY LEADERBOARD + DELIGHT SETTINGS ── */}
-        <LeaderboardWidget />
+        <SectionBoundary name="dashboard-leaderboard"><LeaderboardWidget /></SectionBoundary>
 
-        <ExtensionPromoBanner />
+        <SectionBoundary name="dashboard-extension-promo"><ExtensionPromoBanner /></SectionBoundary>
           </>
         )}
       </div>
