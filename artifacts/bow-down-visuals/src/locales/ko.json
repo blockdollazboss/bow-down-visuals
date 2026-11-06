@@ -24248,5 +24248,10 @@
     "arcadeGoldName": "아케이드 골드",
     "arcadeGoldTagline": "치트 코드 차콜, 뜨거운 금, 잿불 빛",
     "arcadeGoldDescription": "궁전의 치트 코드 쪽: 따뜻한 차콜 대리석, 뜨거운 금, 그리고 어둠 속 잿불 빛 — 낮에는 따뜻한 종이 대리석과 깊은 브론즈. Game Controller 커서와 어울린다."
+  },
+  "offersInbox": {
+    "loading": "Loading offers…",
+    "loadError": "Your offers couldn't load — buyers' offers may be waiting on you. Check your connection and try again.",
+    "retry": "Try again"
   }
 }

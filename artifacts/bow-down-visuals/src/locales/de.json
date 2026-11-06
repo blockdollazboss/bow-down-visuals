@@ -24248,5 +24248,10 @@
     "arcadeGoldName": "Arcade-Gold",
     "arcadeGoldTagline": "Cheat-Code-Anthrazit, heißes Gold, Glutschimmer",
     "arcadeGoldDescription": "Die Cheat-Code-Seite des Palasts: warmer Anthrazit-Marmor, heißes Gold und ein Glutschimmer im Dunkeln — warmes Papier-Marmor und tiefe Bronze bei Tag. Passt zum Cursor Game Controller."
+  },
+  "offersInbox": {
+    "loading": "Loading offers…",
+    "loadError": "Your offers couldn't load — buyers' offers may be waiting on you. Check your connection and try again.",
+    "retry": "Try again"
   }
 }

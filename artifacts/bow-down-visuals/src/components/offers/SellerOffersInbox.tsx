@@ -1,5 +1,6 @@
 import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2, Tag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -32,7 +33,9 @@ export default function SellerOffersInbox({
   className?: string;
 }) {
   const { user, getAccessToken } = useAuth();
+  const { t } = useTranslation();
   const [offers, setOffers] = useState<ProductOffer[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [counterDrafts, setCounterDrafts] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,14 +45,43 @@ export default function SellerOffersInbox({
     try {
       const all = await fetchReceivedOffers(getAccessToken);
       setOffers(all.filter((o) => o.item_kind === itemKind));
+      setLoadFailed(false);
     } catch {
-      setOffers([]);
+      /* Empty-lie fix: a failed load is NOT "no offers" — keep whatever
+         is already on screen and raise the honest failed state below.
+         Money offers must never silently vanish. */
+      setLoadFailed(true);
     }
   }, [user, getAccessToken, itemKind]);
 
   useEffect(() => { void reload(); }, [reload]);
 
-  if (!offers || offers.length === 0) return null;
+  if (loadFailed && (!offers || offers.length === 0)) {
+    return (
+      <section className={`rounded-2xl border border-red-500/30 bg-red-500/[0.04] p-5 ${className}`} data-testid="seller-offers-load-error">
+        <h2 className="flex items-center gap-2 text-base font-black text-amber-100">
+          <Tag className="h-4 w-4 text-amber-400" /> Offers on your products
+        </h2>
+        <p className="mt-2 text-sm text-red-300">{t("offersInbox.loadError")}</p>
+        <button type="button" onClick={() => void reload()}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3.5 py-1.5 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+          {t("offersInbox.retry")}
+        </button>
+      </section>
+    );
+  }
+
+  if (!offers) {
+    return (
+      <section className={`rounded-2xl border border-amber-500/25 p-5 ${className}`} data-testid="seller-offers-loading">
+        <p className="flex items-center gap-2 text-sm text-amber-100/60">
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("offersInbox.loading")}
+        </p>
+      </section>
+    );
+  }
+
+  if (offers.length === 0) return null;
 
   const open = offers.filter(isOpenOffer);
   const settled = offers.filter((o) => !isOpenOffer(o));
@@ -133,6 +165,15 @@ export default function SellerOffersInbox({
         Accept and the buyer checks out at that price through the regular checkout — your net is the agreed price minus the usual flat 5% fee. Nothing is charged until they buy.
       </p>
       {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
+      {loadFailed && (
+        <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-red-300" data-testid="seller-offers-reload-error">
+          {t("offersInbox.loadError")}
+          <button type="button" onClick={() => void reload()}
+            className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+            {t("offersInbox.retry")}
+          </button>
+        </p>
+      )}
       <div className="mt-4 space-y-3">
         {open.map(row)}
         {settled.slice(0, 5).map(row)}

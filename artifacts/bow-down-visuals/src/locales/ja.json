@@ -24244,5 +24244,10 @@
     "arcadeGoldName": "アーケード・ゴールド",
     "arcadeGoldTagline": "チートコードのチャコール、熱い金、残り火の輝き",
     "arcadeGoldDescription": "宮殿のチートコード側：温かなチャコールの大理石、熱い金、そして闇の中の残り火の輝き — 昼には温かな紙の大理石と深いブロンズ。Game Controllerカーソルと組み合わさる。"
+  },
+  "offersInbox": {
+    "loading": "Loading offers…",
+    "loadError": "Your offers couldn't load — buyers' offers may be waiting on you. Check your connection and try again.",
+    "retry": "Try again"
   }
 }

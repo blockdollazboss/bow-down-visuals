@@ -24277,5 +24277,10 @@
     "arcadeGoldName": "Ouro Arcade",
     "arcadeGoldTagline": "Carvão código de trapaça, ouro quente, brilho de brasa",
     "arcadeGoldDescription": "O lado código de trapaça do palácio: mármore carvão quente, ouro quente e um brilho de brasa no escuro — mármore papel quente e bronze profundo de dia. Combina com o cursor Game Controller."
+  },
+  "offersInbox": {
+    "loading": "Loading offers…",
+    "loadError": "Your offers couldn't load — buyers' offers may be waiting on you. Check your connection and try again.",
+    "retry": "Try again"
   }
 }

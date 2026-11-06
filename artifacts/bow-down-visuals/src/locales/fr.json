@@ -24277,5 +24277,10 @@
     "arcadeGoldName": "Or Arcade",
     "arcadeGoldTagline": "Charbon code de triche, or ardent, lueur de braise",
     "arcadeGoldDescription": "Le côté code de triche du palais : marbre charbon chaud, or ardent et une lueur de braise dans le noir — marbre papier chaud et bronze profond le jour. S'accorde avec le curseur Game Controller."
+  },
+  "offersInbox": {
+    "loading": "Loading offers…",
+    "loadError": "Your offers couldn't load — buyers' offers may be waiting on you. Check your connection and try again.",
+    "retry": "Try again"
   }
 }

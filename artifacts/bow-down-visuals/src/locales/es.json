@@ -24277,5 +24277,10 @@
     "arcadeGoldName": "Oro Arcade",
     "arcadeGoldTagline": "Carbón de código de trucos, oro caliente, resplandor de brasa",
     "arcadeGoldDescription": "El lado código de trucos del palacio: mármol carbón cálido, oro caliente y un resplandor de brasa en la oscuridad — mármol papel cálido y bronce profundo de día. Combina con el cursor Game Controller."
+  },
+  "offersInbox": {
+    "loading": "Loading offers…",
+    "loadError": "Your offers couldn't load — buyers' offers may be waiting on you. Check your connection and try again.",
+    "retry": "Try again"
   }
 }

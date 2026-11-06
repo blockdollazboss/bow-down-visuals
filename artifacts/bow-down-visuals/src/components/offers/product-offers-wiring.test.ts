@@ -53,10 +53,12 @@ describe("seller docking", () => {
     expect(myShop).toContain('itemKind="shop_product"');
   });
 
-  it("the inbox acts only through the offers lib and renders nothing when empty", () => {
+  it("the inbox acts only through the offers lib and renders nothing only when confirmed empty", () => {
     expect(inbox).toContain("fetchReceivedOffers");
     expect(inbox).toContain("actOnOffer");
-    expect(inbox).toContain("if (!offers || offers.length === 0) return null;");
+    /* Stack-200 D1: loading and load-failure render honest states;
+       `return null` is now reserved for a confirmed-empty load. */
+    expect(inbox).toContain("if (offers.length === 0) return null;");
   });
 });
 

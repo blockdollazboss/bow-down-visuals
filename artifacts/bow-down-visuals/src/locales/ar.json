@@ -24364,5 +24364,10 @@
     "arcadeGoldName": "ذهب الأركيد",
     "arcadeGoldTagline": "فحم رموز الغش، ذهب ساخن، توهج الجمر",
     "arcadeGoldDescription": "جانب رموز الغش من القصر: رخام فحمي دافئ، وذهب ساخن، وتوهج جمر في الظلام — رخام ورقي دافئ وبرونز عميق نهارًا. يتناسق مع مؤشر Game Controller."
+  },
+  "offersInbox": {
+    "loading": "Loading offers…",
+    "loadError": "Your offers couldn't load — buyers' offers may be waiting on you. Check your connection and try again.",
+    "retry": "Try again"
   }
 }
