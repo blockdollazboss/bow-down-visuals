@@ -540,6 +540,7 @@ const W5_LEGIT: string[] = [
   "analytics.creditsPerRun",
   "analytics.hookLabel",
   "artistVault.creditsCount",
+  "artistVault.sharedWithTeam",
   "artistVault.voiceAdvanced",
   "artistVault.voicePresetNatural",
   "audit.handleLabel",

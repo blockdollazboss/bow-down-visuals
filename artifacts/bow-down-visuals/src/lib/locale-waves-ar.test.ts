@@ -315,6 +315,7 @@ const W5_ALLOW = new Set([
   "myClips.extractAudioCost",
   "analytics.creditsPerRun",
   "artistVault.creditsCount",
+  "artistVault.sharedWithTeam",
   "audit.handlePlaceholder",
   "audit.platformInstagram",
   "audit.platformTikTok",

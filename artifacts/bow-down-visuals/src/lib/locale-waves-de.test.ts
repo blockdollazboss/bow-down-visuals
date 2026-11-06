@@ -716,6 +716,7 @@ describe("de locale wave W4 (Stack-28 appendix)", () => {
 const W5_NAMESPACES = ["scheduler", "myProjects", "mashup", "repurpose", "myClips", "hooks", "mediaDetector", "randomizer", "scriptWriter", "artistVault", "library", "viralityCheck", "streamPack", "trends", "catalogVault", "titles", "email-list", "audit", "interviewPrep", "importPage", "retention", "introsOutros", "generations"];
 const W5_LEGIT_IDENTICAL = new Set([
   "artistVault.creditsCount",
+  "artistVault.sharedWithTeam",
   "artistVault.detailTattoos",
   "artistVault.fieldTattoos",
   "artistVault.identityAngleFront",

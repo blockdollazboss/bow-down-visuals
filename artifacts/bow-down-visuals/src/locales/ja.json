@@ -1815,6 +1815,7 @@
     "unshareTitle": "チームと共有中 — クリックで共有を解除",
     "shareTitle": "チームと共有する",
     "sharedLabel": "共有中",
+    "sharedWithTeam": "Shared with your team",
     "shareLabel": "共有",
     "imageTooLarge": "画像は{{max}}MB以下にしてください。",
     "allowedTypes": "対応形式： JPG、JPEG、PNG、WebP。",

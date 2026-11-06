@@ -1815,6 +1815,7 @@
     "unshareTitle": "टीम के साथ साझा किया गया - साझाकरण हटाने के लिए क्लिक करें",
     "shareTitle": "टीम के साथ साझा करें",
     "sharedLabel": "साझा किया गया",
+    "sharedWithTeam": "Shared with your team",
     "shareLabel": "साझा करें",
     "imageTooLarge": "छवि {{max}}MB के अंतर्गत होनी चाहिए.",
     "allowedTypes": "अनुमत प्रकार: JPG, JPEG, PNG, WebP।",

@@ -1815,6 +1815,7 @@
     "unshareTitle": "팀과 공유 중 — 클릭하여 공유 해제",
     "shareTitle": "팀과 공유",
     "sharedLabel": "공유됨",
+    "sharedWithTeam": "Shared with your team",
     "shareLabel": "공유",
     "imageTooLarge": "이미지는 {{max}}MB 미만이어야 합니다.",
     "allowedTypes": "허용 형식: JPG, JPEG, PNG, WebP.",

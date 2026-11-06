@@ -1791,7 +1791,7 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
   );
 }
 
-function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onShare, isActive }: {
+function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onShare, isActive, isOwner }: {
   vault: ArtistVaultRecord;
   onOpen: () => void;
   onEdit: () => void;
@@ -1800,6 +1800,12 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
   onSetActive: () => void;
   onShare: () => void;
   isActive: boolean;
+  /* False when this vault belongs to a teammate and is only shared with
+     the viewer (GET /artist-vaults returns team-shared vaults too). The
+     manage rail (share/edit/delete) is owner-only server-side, so a
+     non-owner must never be shown controls that can only 404 — use
+     actions (Open / Set Active / Lock Consistency) stay available. */
+  isOwner: boolean;
 }) {
   const { t } = useTranslation();
   const isLight = useIsLightTheme();
@@ -1967,11 +1973,16 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
             <Lock className="h-3.5 w-3.5" /> {t("artistVault.lockConsistency")}
           </button>
 
-          {/* Row actions */}
+          {/* Row actions — Open is a use action (always shown); Edit /
+              Share / Delete are owner-only manage actions. On a vault a
+              teammate shared with the viewer they are replaced by the
+              "Shared with your team" badge — never by dead buttons. */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             {[
               { label: t("artistVault.openButton"), icon: <Eye className="h-3.5 w-3.5" />, fn: onOpen },
-              { label: t("artistVault.editButton"), icon: <Pencil className="h-3.5 w-3.5" />, fn: onEdit },
+              ...(isOwner
+                ? [{ label: t("artistVault.editButton"), icon: <Pencil className="h-3.5 w-3.5" />, fn: onEdit }]
+                : []),
             ].map(({ label, icon, fn }) => (
               <button key={label} onClick={fn} style={{
                 display: "flex", alignItems: "center", gap: 5,
@@ -1982,22 +1993,35 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onSha
                 fontSize: 11, fontWeight: 600, cursor: "pointer",
               }}>{icon} {label}</button>
             ))}
-            <button onClick={onShare} title={vault.team_id ? t("artistVault.unshareTitle") : t("artistVault.shareTitle")} style={{
-              display: "flex", alignItems: "center", gap: 5,
-              padding: "6px 12px", borderRadius: 8,
-              border: vault.team_id ? `1px solid ${G(0.4)}` : isLight ? "1px solid rgba(201,168,76,0.3)" : "1px solid rgba(255,255,255,0.08)",
-              background: vault.team_id ? G(0.1) : isLight ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.03)",
-              color: vault.team_id ? GOLD : isLight ? "#6B5B36" : "rgba(255,255,255,0.55)",
-              fontSize: 11, fontWeight: 600, cursor: "pointer",
-            }}><Users className="h-3.5 w-3.5" /> {vault.team_id ? t("artistVault.sharedLabel") : t("artistVault.shareLabel")}</button>
-            <button aria-label="Delete" onClick={onDelete} style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              padding: "6px 10px", borderRadius: 8,
-              border: isLight ? "1px solid rgba(201,168,76,0.2)" : "1px solid rgba(255,255,255,0.06)",
-              background: "transparent",
-              color: isLight ? "rgba(122,90,18,0.55)" : "rgba(255,255,255,0.3)",
-              cursor: "pointer", marginLeft: "auto",
-            }}><Trash2 className="h-3.5 w-3.5" /></button>
+            {isOwner ? (
+              <button onClick={onShare} title={vault.team_id ? t("artistVault.unshareTitle") : t("artistVault.shareTitle")} style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "6px 12px", borderRadius: 8,
+                border: vault.team_id ? `1px solid ${G(0.4)}` : isLight ? "1px solid rgba(201,168,76,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                background: vault.team_id ? G(0.1) : isLight ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.03)",
+                color: vault.team_id ? GOLD : isLight ? "#6B5B36" : "rgba(255,255,255,0.55)",
+                fontSize: 11, fontWeight: 600, cursor: "pointer",
+              }}><Users className="h-3.5 w-3.5" /> {vault.team_id ? t("artistVault.sharedLabel") : t("artistVault.shareLabel")}</button>
+            ) : (
+              <span style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "6px 12px", borderRadius: 8,
+                border: isLight ? "1px solid rgba(201,168,76,0.45)" : `1px solid ${G(0.4)}`,
+                background: isLight ? "rgba(201,168,76,0.12)" : G(0.1),
+                color: isLight ? "#7A5A12" : GOLD,
+                fontSize: 11, fontWeight: 600,
+              }}><Users className="h-3.5 w-3.5" /> {t("artistVault.sharedWithTeam")}</span>
+            )}
+            {isOwner && (
+              <button aria-label="Delete" onClick={onDelete} style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                padding: "6px 10px", borderRadius: 8,
+                border: isLight ? "1px solid rgba(201,168,76,0.2)" : "1px solid rgba(255,255,255,0.06)",
+                background: "transparent",
+                color: isLight ? "rgba(122,90,18,0.55)" : "rgba(255,255,255,0.3)",
+                cursor: "pointer", marginLeft: "auto",
+              }}><Trash2 className="h-3.5 w-3.5" /></button>
+            )}
           </div>
         </div>
       </div>
@@ -2556,6 +2580,7 @@ export default function ArtistVault() {
                   onSetActive={() => setActiveArtist(vault as unknown as ArtistVault)}
                   onShare={() => shareVault(vault.id)}
                   isActive={activeArtist?.id === vault.id}
+                  isOwner={!user?.id || vault.user_id === user.id}
                 />
               ))}
             </div>

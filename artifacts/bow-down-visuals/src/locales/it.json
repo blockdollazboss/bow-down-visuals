@@ -1815,6 +1815,7 @@
     "unshareTitle": "Condiviso con il team — clicca per annullare la condivisione",
     "shareTitle": "Condividi con il team",
     "sharedLabel": "Condiviso",
+    "sharedWithTeam": "Shared with your team",
     "shareLabel": "Condividi",
     "imageTooLarge": "L'immagine deve essere inferiore a {{max}}MB.",
     "allowedTypes": "Tipi consentiti: JPG, JPEG, PNG, WebP.",

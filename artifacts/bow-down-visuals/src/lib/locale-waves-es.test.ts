@@ -509,6 +509,7 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "artistVault.voicePresetNatural",
   "analytics.creditsPerRun",
   "artistVault.creditsCount",
+  "artistVault.sharedWithTeam",
   "audit.platformInstagram",
   "audit.platformTikTok",
   "audit.platformYouTube",

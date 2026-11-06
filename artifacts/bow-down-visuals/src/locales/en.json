@@ -1833,6 +1833,7 @@
     "unshareTitle": "Shared with team — click to unshare",
     "shareTitle": "Share with team",
     "sharedLabel": "Shared",
+    "sharedWithTeam": "Shared with your team",
     "shareLabel": "Share",
     "imageTooLarge": "Image must be under {{max}}MB.",
     "allowedTypes": "Allowed types: JPG, JPEG, PNG, WebP.",

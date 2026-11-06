@@ -512,6 +512,7 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "analytics.creditsPerRun",
   "analytics.heroTitleStart",
   "artistVault.creditsCount",
+  "artistVault.sharedWithTeam",
   "artistVault.identityAngleCloseUp",
   "artistVault.voicePresetNatural",
   "audit.handleLabel",

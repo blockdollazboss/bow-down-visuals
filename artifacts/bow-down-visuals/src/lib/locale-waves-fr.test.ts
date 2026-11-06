@@ -601,6 +601,7 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "scriptWriter.teleprompterPause",
   "analytics.creditsPerRun",
   "artistVault.creditsCount",
+  "artistVault.sharedWithTeam",
   "artistVault.identityExpressionIntense",
   "audit.platformInstagram",
   "audit.platformTikTok",
