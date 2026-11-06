@@ -235,6 +235,7 @@ const LabelPitchDesk = lazy(() => import("@/components/world/native/LabelPitchDe
 const EmailListDesk = lazy(() => import("@/components/world/native/EmailListDesk").then((m) => ({ default: m.EmailListDesk })));
 const InterviewDesk = lazy(() => import("@/components/world/native/InterviewDesk").then((m) => ({ default: m.InterviewDesk })));
 const TrendsDesk = lazy(() => import("@/components/world/native/TrendsDesk").then((m) => ({ default: m.TrendsDesk })));
+const TrendsRadarDesk = lazy(() => import("@/components/world/native/TrendsRadarDesk").then((m) => ({ default: m.TrendsRadarDesk })));
 
 /* ─── Round-4 doors (world-perf round 4, stack1200) ─────────────
    After round 3 the frame still statically carried every block
@@ -1503,6 +1504,15 @@ export default function StationPanel(props: StationPanelProps) {
                     the watchlist is the page's own local list. */}
                 <DeskDoor isLight={isLight}>
                   <TrendsDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor>
+                {/* Trend Radar (stack200 world parity lane B1):
+                    the real-signal radar itself — counted plays
+                    behind the verified gates on the free
+                    /api/trend-radar rail, with C-30's outside-heat
+                    family when the rail sends it — stacked under
+                    the Predictor it was always the other half of. */}
+                <DeskDoor isLight={isLight}>
+                  <TrendsRadarDesk isLight={isLight} isGuest={isGuest} />
                 </DeskDoor>
               </div>
             ) : (

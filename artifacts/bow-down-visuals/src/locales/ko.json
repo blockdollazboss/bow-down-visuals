@@ -20295,6 +20295,12 @@
     "winnersThemePrefix": "“{{theme}}” · ",
     "winnersYourWork": "내 작품"
   },
+  "worldTrendsRadar": {
+    "title": "Trend Radar",
+    "subtitle": "What's actually rising on Bow Down right now — counted plays, not predictions. The Predictor above calls what's next; this bench shows what's already moving.",
+    "guestNote": "You're visiting as a guest — the radar reads the platform's counted plays for signed-in members, so the bench needs you signed in.",
+    "guestSignIn": "Sign in to see the radar"
+  },
   "worldLivePromo": {
     "tryAgain": "다시 시도",
     "copied": "복사됨",
