@@ -30,7 +30,18 @@ import { stripeTaxSessionFields } from "../lib/stripe-tax";
    configured, checkout honestly refuses rather than faking a charge.
    Standalone entitlement lands in creator_hosting via the Stripe
    webhook (kind "creator_hosting"); Elite inclusion resolves live from
-   the creator's tier (lib/profile-website.ts).   */
+   the creator's tier (lib/profile-website.ts).
+
+   EMBEDDED (Stack-200 wave, money census item 5): checkout is an
+   EMBEDDED Checkout Session (ui_mode "embedded", membership-gifts
+   pattern) — the buyer pays on /creator-pricing and never leaves the
+   site (owner law, 2026-10-26). There is no hosted URL path: the
+   route answers a clientSecret, and completion returns to
+   /creator-pricing?hosting=return&session_id=… where the door
+   re-reads /me. The webhook sync is untouched — an embedded session
+   completes with the same metadata kind, so
+   handleHostingCheckoutCompleted lands the entitlement exactly as
+   before.   */
 
 const router = Router();
 
@@ -274,13 +285,18 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "subscription",
       customer: customerId,
+      /* Embedded (owner law: never leave the site) — the session
+         renders inside /creator-pricing via EmbeddedSessionCheckout
+         and completion returns there with the session id; there is
+         no success_url/cancel_url pair and no hosted URL to send
+         anyone to. */
+      ui_mode: "embedded",
       /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
          is off. Price-ID line: the hosting Product's tax code + the
          Price's tax behavior are set in the Dashboard at activation. */
       ...stripeTaxSessionFields(),
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${baseUrl}/creator-pricing?hosting=success&returnTo=${encodeURIComponent(back)}`,
-      cancel_url: `${baseUrl}/creator-pricing?hosting=cancelled&returnTo=${encodeURIComponent(back)}`,
+      return_url: `${baseUrl}/creator-pricing?hosting=return&session_id={CHECKOUT_SESSION_ID}&returnTo=${encodeURIComponent(back)}`,
       metadata: { kind: "creator_hosting", user_id: req.userId!, profile_id: profile.id },
       subscription_data: { metadata: { kind: "creator_hosting", user_id: req.userId!, profile_id: profile.id } },
     };
@@ -291,8 +307,9 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
       requestParams: sessionParams,
     });
     const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
-    logger.info({ userId: req.userId, sessionId: session.id }, "hosting checkout session created");
-    res.json({ url: session.url, sessionId: session.id });
+    if (!session.client_secret) throw new Error("Embedded checkout session did not return a client secret");
+    logger.info({ userId: req.userId, sessionId: session.id }, "hosting checkout session created (embedded)");
+    res.json({ clientSecret: session.client_secret, sessionId: session.id, uiMode: "embedded" });
   } catch (err) {
     const msg = (err as { message?: string })?.message ?? "unknown";
     logger.error({ err, msg }, "creator-hosting checkout: Stripe session failed");
