@@ -2647,7 +2647,8 @@
     },
     "related": {
       "label": "Related:",
-      "postDeal": "Post a deal"
+      "postDeal": "Post a deal",
+      "brandCalculator": "Brand calculator"
     }
   },
   "brandingKit": {
@@ -3012,7 +3013,10 @@
     "tabCollabs": "Collabs",
     "tabContests": "Contests",
     "tabReferrals": "Referrals",
-    "tabTeam": "Team"
+    "tabTeam": "Team",
+    "tabActionTracker": "Action Tracker",
+    "tabContracts": "Contracts",
+    "tabManageDeals": "Manage Deals"
   },
   "collabs": {
     "accept": "Accept",
@@ -5775,7 +5779,14 @@
     "postFirstDeal": "Post the first deal",
     "signIn": "Sign in",
     "signInPrompt": "Sign in to browse live sponsor deals.",
-    "viewDeal": "View deal"
+    "viewDeal": "View deal",
+    "handoffDealPage": "deal page",
+    "handoffFunded": "{{name}} keeps {{net}} when you release payment after they deliver; the platform fee is {{fee}} ({{pct}}%). Track it in your",
+    "handoffOrOnThe": "or on the",
+    "handoffSelfLink": "Manage Deals tab",
+    "handoffSelfPrefix": "This is your page — sponsorships of you land in your",
+    "managerHandoffNote": "Deals open on their own page — apply, fund escrow, and deliver there. This tab is for browsing and matching.",
+    "openInManager": "Open deal"
   },
   "sponsorsPost": {
     "backToDeals": "Back to deals",

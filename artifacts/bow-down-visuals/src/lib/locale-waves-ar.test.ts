@@ -83,6 +83,7 @@ const W1_ALLOW = new Set([
   "brandDeals.audiences.k1_10k",
   "brandDeals.audiences.k250plus",
   "brandDeals.audiences.k50_250k",
+  "brandDeals.related.brandCalculator",
   "brandDeals.resultsCount",
   "brandingShop.noPaymentNote",
   "distribute.100_visual_bucs",
@@ -128,8 +129,15 @@ const W1_ALLOW = new Set([
   "referrals.tracker.earned",
   "royalties.insights.cost",
   "sponsorDealDetail.followersPlaceholder",
+  "sponsors.handoffDealPage",
+  "sponsors.handoffFunded",
+  "sponsors.handoffOrOnThe",
+  "sponsors.handoffSelfLink",
+  "sponsors.handoffSelfPrefix",
+  "sponsors.managerHandoffNote",
   "sponsors.matchFollowersPlaceholder",
   "sponsors.matchPlatformsPlaceholder",
+  "sponsors.openInManager",
   "sponsorsPost.budgetMaxPlaceholder",
   "sponsorsPost.budgetMinPlaceholder",
   "storefrontBuilder.domainPlaceholder",
@@ -386,6 +394,9 @@ describe("ar-W5 (Stack-28 appendix) link-in-bio/nfc/privacy + promo namespaces f
 
 const W6_NS = ["promote", "coach", "nfcCardProfile", "qrLogin", "notFound", "copyright", "locations", "milestones", "lufs", "presave", "release", "stabilize", "create", "press-public", "captionSuite", "outreach", "press-kit", "videoEditor", "contentIntelligence", "moveHome", "podcast", "hubSpine", "admin", "nav", "cover-art", "videoExport", "analyticsHub", "djSets", "share", "wave9", "brandingKit", "dashboard", "paidSeries", "proFinishing", "review", "tutorials", "wave8"];
 const W6_ALLOW = new Set([
+  "coach.tabActionTracker",
+  "coach.tabContracts",
+  "coach.tabManageDeals",
   "podcast.publish.appleHeading",
   "podcast.publish.spotifyHeading",
   "lufs.formatMp3",

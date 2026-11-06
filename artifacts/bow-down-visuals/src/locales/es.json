@@ -2480,7 +2480,8 @@
     },
     "related": {
       "label": "Relacionado:",
-      "postDeal": "Publicar un acuerdo"
+      "postDeal": "Publicar un acuerdo",
+      "brandCalculator": "Brand calculator"
     }
   },
   "brandingKit": {
@@ -2848,7 +2849,10 @@
     "tabCollabs": "Colaboraciones",
     "tabContests": "Concursos",
     "tabReferrals": "Referidos",
-    "tabTeam": "Equipo"
+    "tabTeam": "Equipo",
+    "tabActionTracker": "Action Tracker",
+    "tabContracts": "Contracts",
+    "tabManageDeals": "Manage Deals"
   },
   "collabs": {
     "accept": "Aceptar",
@@ -5510,7 +5514,14 @@
     "postFirstDeal": "Publicar el primer trato",
     "signIn": "Iniciar sesión",
     "signInPrompt": "Inicia sesión para explorar tratos de patrocinio en vivo.",
-    "viewDeal": "Ver trato"
+    "viewDeal": "Ver trato",
+    "handoffDealPage": "deal page",
+    "handoffFunded": "{{name}} keeps {{net}} when you release payment after they deliver; the platform fee is {{fee}} ({{pct}}%). Track it in your",
+    "handoffOrOnThe": "or on the",
+    "handoffSelfLink": "Manage Deals tab",
+    "handoffSelfPrefix": "This is your page — sponsorships of you land in your",
+    "managerHandoffNote": "Deals open on their own page — apply, fund escrow, and deliver there. This tab is for browsing and matching.",
+    "openInManager": "Open deal"
   },
   "sponsorsPost": {
     "backToDeals": "Volver a los tratos",

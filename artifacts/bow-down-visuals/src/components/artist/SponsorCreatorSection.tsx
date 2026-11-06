@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { loadStripe } from "@stripe/stripe-js/pure";
 import type { Stripe } from "@stripe/stripe-js";
@@ -139,6 +140,7 @@ export default function SponsorCreatorSection({
   slug: string;
   displayName: string;
 }) {
+  const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [quote, setQuote] = useState<SponsorQuote | null>(null);
   const [quoteError, setQuoteError] = useState(false);
@@ -306,8 +308,8 @@ export default function SponsorCreatorSection({
           </p>
         ) : quote.isSelf ? (
           <p className="mt-3 text-sm" style={{ color: "var(--ap-muted)" }}>
-            This is your page — sponsorships of you land in your{" "}
-            <Link href="/brand-deals?tab=manage" className="underline">Manage Deals tab</Link>.
+            {t("sponsors.handoffSelfPrefix")}{" "}
+            <Link href="/brand-deals?tab=manage" className="underline">{t("sponsors.handoffSelfLink")}</Link>.
           </p>
         ) : funded ? (
           <div className="mt-3" data-testid="sponsor-funded">
@@ -316,10 +318,9 @@ export default function SponsorCreatorSection({
               Sponsorship funded — {money(serverSplit?.grossCents ?? amountCents)} is held in escrow.
             </p>
             <p className="mt-1 text-sm" style={{ color: "var(--ap-muted)" }}>
-              {displayName} keeps {money(serverSplit?.netCents)} when you release payment after they deliver;
-              the platform fee is {money(serverSplit?.feeCents)} ({serverSplit?.feePct ?? quote.feePct}%).
-              Track it in your <Link href="/brand-deals?tab=manage" className="underline">Manage Deals tab</Link>
-              {dealId && <> or on the <Link href={`/sponsors/${dealId}`} className="underline">deal page</Link></>}.
+              {t("sponsors.handoffFunded", { name: displayName, net: money(serverSplit?.netCents), fee: money(serverSplit?.feeCents), pct: serverSplit?.feePct ?? quote.feePct })}{" "}
+              <Link href="/brand-deals?tab=manage" className="underline">{t("sponsors.handoffSelfLink")}</Link>
+              {dealId && <> {t("sponsors.handoffOrOnThe")} <Link href={`/sponsors/${dealId}`} className="underline">{t("sponsors.handoffDealPage")}</Link></>}.
             </p>
           </div>
         ) : clientSecret && dealId ? (

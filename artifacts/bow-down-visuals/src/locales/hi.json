@@ -2479,7 +2479,8 @@
     },
     "related": {
       "label": "संबंधित:",
-      "postDeal": "एक deal पोस्ट करें"
+      "postDeal": "एक deal पोस्ट करें",
+      "brandCalculator": "Brand calculator"
     }
   },
   "brandingKit": {
@@ -2844,7 +2845,10 @@
     "tabCollabs": "कोलैब",
     "tabContests": "प्रतियोगिताएँ",
     "tabReferrals": "रेफ़रल",
-    "tabTeam": "टीम"
+    "tabTeam": "टीम",
+    "tabActionTracker": "Action Tracker",
+    "tabContracts": "Contracts",
+    "tabManageDeals": "Manage Deals"
   },
   "collabs": {
     "accept": "स्वीकार करें",
@@ -5498,7 +5502,14 @@
     "postFirstDeal": "पहली डील पोस्ट करें",
     "signIn": "साइन इन",
     "signInPrompt": "लाइव स्पॉन्सर डील्स ब्राउज़ करने के लिए साइन इन करें।",
-    "viewDeal": "डील देखें"
+    "viewDeal": "डील देखें",
+    "handoffDealPage": "deal page",
+    "handoffFunded": "{{name}} keeps {{net}} when you release payment after they deliver; the platform fee is {{fee}} ({{pct}}%). Track it in your",
+    "handoffOrOnThe": "or on the",
+    "handoffSelfLink": "Manage Deals tab",
+    "handoffSelfPrefix": "This is your page — sponsorships of you land in your",
+    "managerHandoffNote": "Deals open on their own page — apply, fund escrow, and deliver there. This tab is for browsing and matching.",
+    "openInManager": "Open deal"
   },
   "sponsorsPost": {
     "backToDeals": "Deals पर वापस",

@@ -2479,7 +2479,8 @@
     },
     "related": {
       "label": "関連：",
-      "postDeal": "案件を投稿"
+      "postDeal": "案件を投稿",
+      "brandCalculator": "Brand calculator"
     }
   },
   "brandingKit": {
@@ -2844,7 +2845,10 @@
     "tabCollabs": "コラボ",
     "tabContests": "コンテスト",
     "tabReferrals": "紹介",
-    "tabTeam": "チーム"
+    "tabTeam": "チーム",
+    "tabActionTracker": "Action Tracker",
+    "tabContracts": "Contracts",
+    "tabManageDeals": "Manage Deals"
   },
   "collabs": {
     "accept": "承認",
@@ -5498,7 +5502,14 @@
     "postFirstDeal": "最初の案件を投稿",
     "signIn": "サインイン",
     "signInPrompt": "進行中のスポンサー案件を閲覧するにはサインインしてください。",
-    "viewDeal": "案件を見る"
+    "viewDeal": "案件を見る",
+    "handoffDealPage": "deal page",
+    "handoffFunded": "{{name}} keeps {{net}} when you release payment after they deliver; the platform fee is {{fee}} ({{pct}}%). Track it in your",
+    "handoffOrOnThe": "or on the",
+    "handoffSelfLink": "Manage Deals tab",
+    "handoffSelfPrefix": "This is your page — sponsorships of you land in your",
+    "managerHandoffNote": "Deals open on their own page — apply, fund escrow, and deliver there. This tab is for browsing and matching.",
+    "openInManager": "Open deal"
   },
   "sponsorsPost": {
     "backToDeals": "案件一覧に戻る",

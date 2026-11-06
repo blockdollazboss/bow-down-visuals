@@ -52,6 +52,7 @@ const W1_LEGIT_IDENTICAL = new Set([
   "brandDeals.niches.gaming",
   "brandDeals.niches.lifestyle",
   "brandDeals.niches.tech",
+  "brandDeals.related.brandCalculator",
   "brandDeals.resultsCount",
   "brandDeals.tabs.finder",
   "brandDeals.titleAccent",
@@ -332,8 +333,15 @@ const W2_LEGIT_IDENTICAL = new Set([
   "splitScreen.title",
   "sponsorDealDetail.escrowStatusLabel",
   "sponsorDealDetail.followersPlaceholder",
+  "sponsors.handoffDealPage",
+  "sponsors.handoffFunded",
+  "sponsors.handoffOrOnThe",
+  "sponsors.handoffSelfLink",
+  "sponsors.handoffSelfPrefix",
+  "sponsors.managerHandoffNote",
   "sponsors.matchFollowersPlaceholder",
   "sponsors.matchPlatformsPlaceholder",
+  "sponsors.openInManager",
   "sponsorsPost.budgetMaxPlaceholder",
   "sponsorsPost.budgetMinPlaceholder",
   "sponsorsPost.deadlineLabel",
@@ -869,6 +877,9 @@ describe("de locale wave W5 (Stack-28 appendix)", () => {
 
 const W6_NAMESPACES: string[] = ["chooseArtist", "analytics", "setlist", "content-calendar", "hub", "linkInBio", "weekly_contest", "tour", "community", "shows", "discord-bot", "collabs", "team", "gamers", "contests", "extension", "commentReplies", "shoutouts", "goLive", "nfcCards", "privacy", "promote", "coach", "nfcCardProfile", "qrLogin", "notFound", "websiteBuilder", "copyright", "contact", "locations", "milestones"];
 const W6_LEGIT_IDENTICAL = new Set([
+  "coach.tabActionTracker",
+  "coach.tabContracts",
+  "coach.tabManageDeals",
   "linkInBio.public.title",
   "linkInBio.links.title",
   "linkInBio.theme.onyxMinimal",

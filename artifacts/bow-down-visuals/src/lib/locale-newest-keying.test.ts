@@ -221,3 +221,46 @@ describe("D6 · earnings keying (items 48–49)", () => {
     expect(read("../components/world/native/boards/EarningsBoard.tsx")).toContain("statementStringsFrom(t)");
   });
 });
+
+/* ── Items 46+47+52 — the C-21 keys + sponsor handoff sentences ─── */
+
+describe("D6 · C-21 keying (items 46–47, 52)", () => {
+  it("the three defaultValue-only C-21 keys now exist in all 10 catalogs", () => {
+    expectKeyEverywhere("brandDeals.related.brandCalculator");
+    expect(EN["brandDeals.related.brandCalculator"]).toBe("Brand calculator");
+    /* Money-adjacent (escrow funding) — verbatim everywhere. */
+    expectVerbatimEverywhere("sponsors.managerHandoffNote");
+    expect(EN["sponsors.managerHandoffNote"]).toBe(
+      "Deals open on their own page — apply, fund escrow, and deliver there. This tab is for browsing and matching.",
+    );
+    expectKeyEverywhere("sponsors.openInManager");
+    expect(EN["sponsors.openInManager"]).toBe("Open deal");
+  });
+
+  it("the Coach door labels exist in all 10 catalogs", () => {
+    expectKeyEverywhere("coach.tabManageDeals");
+    expect(EN["coach.tabManageDeals"]).toBe("Manage Deals");
+    expectKeyEverywhere("coach.tabActionTracker");
+    expect(EN["coach.tabActionTracker"]).toBe("Action Tracker");
+    expectKeyEverywhere("coach.tabContracts");
+    expect(EN["coach.tabContracts"]).toBe("Contracts");
+  });
+
+  it("the sponsor handoff sentences are keyed (money sentence verbatim everywhere)", () => {
+    for (const k of [
+      "sponsors.handoffSelfPrefix",
+      "sponsors.handoffSelfLink",
+      "sponsors.handoffFunded",
+      "sponsors.handoffOrOnThe",
+      "sponsors.handoffDealPage",
+    ]) {
+      expectVerbatimEverywhere(k);
+    }
+    const src = read("../components/artist/SponsorCreatorSection.tsx");
+    expect(src).toContain("useTranslation");
+    expect(src).toContain('t("sponsors.handoffSelfPrefix")');
+    expect(src).toContain('t("sponsors.handoffFunded"');
+    expect(src).not.toContain("This is your page — sponsorships of you land in your");
+    expect(src).not.toContain("when you release payment after they deliver");
+  });
+});

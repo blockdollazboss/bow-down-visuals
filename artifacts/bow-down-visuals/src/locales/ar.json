@@ -2477,7 +2477,8 @@
     "marketplaceLink": "سوق الرعاة",
     "related": {
       "label": "ذات صلة:",
-      "postDeal": "نشر صفقة"
+      "postDeal": "نشر صفقة",
+      "brandCalculator": "Brand calculator"
     },
     "tabs": {
       "finder": "الباحث",
@@ -2860,7 +2861,10 @@
     "tabCollabs": "التعاونات",
     "tabContests": "المسابقات",
     "tabReferrals": "الإحالات",
-    "tabTeam": "الفريق"
+    "tabTeam": "الفريق",
+    "tabActionTracker": "Action Tracker",
+    "tabContracts": "Contracts",
+    "tabManageDeals": "Manage Deals"
   },
   "collabs": {
     "accept": "قبول",
@@ -5546,7 +5550,14 @@
     "postFirstDeal": "انشر أول صفقة",
     "signIn": "تسجيل الدخول",
     "signInPrompt": "سجّل الدخول لتصفح صفقات الرعاية المباشرة.",
-    "viewDeal": "عرض الصفقة"
+    "viewDeal": "عرض الصفقة",
+    "handoffDealPage": "deal page",
+    "handoffFunded": "{{name}} keeps {{net}} when you release payment after they deliver; the platform fee is {{fee}} ({{pct}}%). Track it in your",
+    "handoffOrOnThe": "or on the",
+    "handoffSelfLink": "Manage Deals tab",
+    "handoffSelfPrefix": "This is your page — sponsorships of you land in your",
+    "managerHandoffNote": "Deals open on their own page — apply, fund escrow, and deliver there. This tab is for browsing and matching.",
+    "openInManager": "Open deal"
   },
   "sponsorsPost": {
     "backToDeals": "عودة إلى الصفقات",

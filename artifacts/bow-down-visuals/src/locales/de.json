@@ -2473,7 +2473,8 @@
     "marketplaceLink": "Sponsoren-Marktplatz",
     "related": {
       "label": "Verwandt:",
-      "postDeal": "Einen Deal posten"
+      "postDeal": "Einen Deal posten",
+      "brandCalculator": "Brand calculator"
     },
     "tabs": {
       "finder": "Finder",
@@ -2844,7 +2845,10 @@
     "tabCollabs": "Collabs",
     "tabContests": "Wettbewerbe",
     "tabReferrals": "Empfehlungen",
-    "tabTeam": "Team"
+    "tabTeam": "Team",
+    "tabActionTracker": "Action Tracker",
+    "tabContracts": "Contracts",
+    "tabManageDeals": "Manage Deals"
   },
   "collabs": {
     "accept": "Annehmen",
@@ -5498,7 +5502,14 @@
     "postFirstDeal": "Ersten Deal posten",
     "signIn": "Anmelden",
     "signInPrompt": "Melden Sie sich an, um Live-Sponsor-Deals zu stöbern.",
-    "viewDeal": "Deal ansehen"
+    "viewDeal": "Deal ansehen",
+    "handoffDealPage": "deal page",
+    "handoffFunded": "{{name}} keeps {{net}} when you release payment after they deliver; the platform fee is {{fee}} ({{pct}}%). Track it in your",
+    "handoffOrOnThe": "or on the",
+    "handoffSelfLink": "Manage Deals tab",
+    "handoffSelfPrefix": "This is your page — sponsorships of you land in your",
+    "managerHandoffNote": "Deals open on their own page — apply, fund escrow, and deliver there. This tab is for browsing and matching.",
+    "openInManager": "Open deal"
   },
   "sponsorsPost": {
     "backToDeals": "Zurück zu Deals",

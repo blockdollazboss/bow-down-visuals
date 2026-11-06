@@ -2479,7 +2479,8 @@
     },
     "related": {
       "label": "관련:",
-      "postDeal": "딜 게시하기"
+      "postDeal": "딜 게시하기",
+      "brandCalculator": "Brand calculator"
     }
   },
   "brandingKit": {
@@ -2844,7 +2845,10 @@
     "tabCollabs": "콜라보",
     "tabContests": "콘테스트",
     "tabReferrals": "추천",
-    "tabTeam": "팀"
+    "tabTeam": "팀",
+    "tabActionTracker": "Action Tracker",
+    "tabContracts": "Contracts",
+    "tabManageDeals": "Manage Deals"
   },
   "collabs": {
     "accept": "수락",
@@ -5498,7 +5502,14 @@
     "postFirstDeal": "첫 거래 게시",
     "signIn": "로그인",
     "signInPrompt": "로그인하고 실시간 스폰서 거래를 둘러보세요.",
-    "viewDeal": "거래 보기"
+    "viewDeal": "거래 보기",
+    "handoffDealPage": "deal page",
+    "handoffFunded": "{{name}} keeps {{net}} when you release payment after they deliver; the platform fee is {{fee}} ({{pct}}%). Track it in your",
+    "handoffOrOnThe": "or on the",
+    "handoffSelfLink": "Manage Deals tab",
+    "handoffSelfPrefix": "This is your page — sponsorships of you land in your",
+    "managerHandoffNote": "Deals open on their own page — apply, fund escrow, and deliver there. This tab is for browsing and matching.",
+    "openInManager": "Open deal"
   },
   "sponsorsPost": {
     "backToDeals": "딜 목록으로 돌아가기",
