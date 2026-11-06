@@ -24252,5 +24252,9 @@
   "priorityDmBuy": {
     "loadError": "The priority DM option couldn't load — check your connection and try again.",
     "retry": "Try again"
+  },
+  "webhookDeliveries": {
+    "loadError": "Delivery history couldn't load — deliveries may have happened that you can't see right now. Try again.",
+    "retry": "Try again"
   }
 }
