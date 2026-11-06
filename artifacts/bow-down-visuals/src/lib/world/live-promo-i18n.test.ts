@@ -117,6 +117,20 @@ const MONEY_KEYS = [
   "ugcRefundedSuffix",
   "ugcScriptFreeNote",
   "ugcTipLine",
+  /* C-25 — the briefs escrow rail's money lines: the fee/hold/release
+     facts, the fund + approve-release charge labels, the refund and
+     held-state facts, and the World → website money-door honesty
+     line. English verbatim in every catalog, like the rest. */
+  "ugcApproveRelease",
+  "ugcBoardNoteFree",
+  "ugcBoardNotePaid",
+  "ugcBriefPriceHelp",
+  "ugcClosedRefundNote",
+  "ugcCreatorReceives",
+  "ugcEscrowRefunded",
+  "ugcFundBrief",
+  "ugcFundOnWebsite",
+  "ugcFundedNote",
 ];
 
 const tokensOf = (value: string): string[] =>
@@ -136,7 +150,7 @@ describe("Live/Promo extraction (unit 44)", () => {
   });
 
   it("the namespace holds the family's full extracted key set", () => {
-    expect(enKeys.length).toBe(533);
+    expect(enKeys.length).toBe(549);
   });
 
   it("every catalog key is referenced by a component or seam (no orphans, no remainder)", () => {
@@ -214,7 +228,7 @@ describe("Live/Promo catalog parity (unit 44)", () => {
   });
 
   it("MONEY LAW: every money line is the English source verbatim in all 10 catalogs", () => {
-    expect(MONEY_KEYS.length).toBe(27);
+    expect(MONEY_KEYS.length).toBe(37);
     for (const key of MONEY_KEYS) {
       expect(enNs[key], `en missing money key ${key}`).toBeDefined();
       for (const loc of LOCALES) {

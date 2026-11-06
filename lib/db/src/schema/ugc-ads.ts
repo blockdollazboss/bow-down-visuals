@@ -18,10 +18,19 @@ import { pgTable, uuid, text, integer, boolean, jsonb, timestamp, index } from "
      board, and the brand approves/closes it. Status walks
      open → claimed → delivered → approved (brand may close an
      open/claimed brief; a claimer may release a claim back to open).
-     THERE IS NO PAYMENT RAIL in v1 by law: the site pays nobody real
-     money, so briefs carry no price, fee, escrow, or Visual Bucs —
-     payment is arranged between brand and creator directly, and the
-     API + UI say so plainly.
+     v1 carried NO PAYMENT RAIL by law: the site pays nobody real
+     money, so briefs carried no price and payment was arranged
+     between brand and creator directly. Owner ruling Nov 5, 2026
+     (C-25) replaced that for PAID briefs: a brief MAY carry a price,
+     and a priced brief rides an on-site escrow rail cloned from the
+     sponsor-deal escrow — the brand funds at claim (embedded
+     checkout, never off-site), the money is held, approval releases
+     it at the ruled 5% platform fee, closing a funded brief refunds
+     what is still held. Marketplace rails move real money
+     buyer→creator with the platform as intermediary (the shops /
+     sponsors / bookings precedent); the site still pays nobody its
+     OWN money. A brief with no price is a free brief and behaves
+     exactly as v1 did, off-site note and all (migration 0324).
    Owner-scoping everywhere: a foreign ad/brief reads as 404, never
    as forbidden-but-real. The single read exception is deliberate: the
    brand that a brief was delivered to may READ the delivered ad
@@ -55,6 +64,23 @@ export const ugcBriefsTable = pgTable("ugc_briefs", {
   status:           text("status").notNull().default("open"),
   claimedByUserId:  uuid("claimed_by_user_id"),
   deliveredAdId:    uuid("delivered_ad_id"),
+  /* ── Escrow rail (C-25, migration 0324) — all NULL on a free brief.
+     price_cents is the agreed price the brand set at post time; the
+     brand funds it at claim. escrow_status walks the sponsor-deal
+     vocabulary: unfunded | funding | funded | released | refunded.
+     platform_fee_cents / creator_payout_cents carry the NOMINAL 5%
+     split stamped when the money lands and are overwritten at
+     release with the split of what was actually HELD (a partial
+     refund shrinks the release, never the record of it);
+     released_amount_cents + released_at stamp that release. */
+  priceCents:            integer("price_cents"),
+  escrowStatus:          text("escrow_status").notNull().default("unfunded"),
+  stripeSessionId:       text("stripe_session_id"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  platformFeeCents:      integer("platform_fee_cents"),
+  creatorPayoutCents:    integer("creator_payout_cents"),
+  releasedAmountCents:   integer("released_amount_cents"),
+  releasedAt:            timestamp("released_at", { withTimezone: true }),
   createdAt:        timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt:        timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [

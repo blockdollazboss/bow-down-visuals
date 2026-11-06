@@ -16,8 +16,8 @@
  *      then the per-rail grant rows keyed on the session id —
  *      fan_members, beat_licenses, digital_sales, shop_events,
  *      store_orders, live_shop_sales, tip_jar_tips, shoutout_requests,
- *      sponsor_deals, performance_bookings — the same id every rail's
- *      verify path keys on.
+ *      sponsor_deals, performance_bookings, ugc_briefs — the same id
+ *      every rail's verify path keys on.
  *
  * Discipline, mirroring the grant side (payment-record.ts):
  *   - Insert-first claiming on payment_reversals (UNIQUE charge id)
@@ -223,6 +223,11 @@ async function identifyRail(
     if (booking) return booking;
   }
 
+  if (meta["ugc_brief_id"]) {
+    const brief = await identifyUgcBrief(String(meta["ugc_brief_id"]), sid);
+    if (brief) return brief;
+  }
+
   const probes: Array<() => Promise<IdentifiedRail | null>> = [
     async () => {
       const r = await db.execute(sql`
@@ -365,6 +370,7 @@ async function identifyRail(
         details: { requestId: String(row["id"]), requestStatus: String(row["status"]) },
       };
     },
+    async () => identifyUgcBrief(null, sid),
     async () => identifySponsorDeal(null, sid),
   ];
 
@@ -462,6 +468,75 @@ async function identifyPerformanceBooking(
     sessionId,
     grantedCredits: 0,
     details: { bookingId: id, escrowStatus: String(row["escrow_status"]), bookingStatus: String(row["status"]) },
+  };
+}
+
+/**
+ * UGC brief escrow identification (C-25). The Briefs Board rail
+ * funds through Checkout sessions carrying ugc_brief_id metadata, so
+ * before this probe a refunded brief charge parked as 'unidentified'
+ * while the brief kept reading escrow_status='funded' — approvable
+ * against money Stripe had already returned (the same hole closed
+ * for sponsor deals and performance bookings). Shape mirrors
+ * identifyPerformanceBooking: a RELEASED brief (release stamps
+ * present — the creator side accrued from them) is manual review;
+ * otherwise the auto rail flips the escrow to 'refunded' on a full
+ * reversal. The probe is guarded the same way: a database migration
+ * 0324 hasn't reached degrades to unidentified (manual review),
+ * never a throw.
+ */
+async function identifyUgcBrief(
+  briefId: string | null,
+  sessionId: string,
+): Promise<IdentifiedRail | null> {
+  let row: Row | undefined;
+  try {
+    const r = briefId
+      ? await db.execute(sql`
+          SELECT id, escrow_status, status, brand_user_id, claimed_by_user_id, released_amount_cents
+          FROM ugc_briefs WHERE id = ${briefId} LIMIT 1
+        `)
+      : await db.execute(sql`
+          SELECT id, escrow_status, status, brand_user_id, claimed_by_user_id, released_amount_cents
+          FROM ugc_briefs WHERE stripe_session_id = ${sessionId} LIMIT 1
+        `);
+    row = firstRow(r);
+  } catch (err) {
+    logger.error(
+      { err, briefId, sessionId },
+      "payment reversal: ugc_briefs probe failed — treating the charge as unidentified (manual review)",
+    );
+    return null;
+  }
+  if (!row) return null;
+  const id = String(row["id"]);
+  if (row["released_amount_cents"] != null || String(row["escrow_status"]) === "released") {
+    return {
+      rail: "ugc_brief",
+      userId: (row["brand_user_id"] as string | null) ?? null,
+      sessionId,
+      grantedCredits: 0,
+      manual:
+        "UGC brief escrow already released to the creator — the creator side may already be settled; a human reconciles.",
+      details: {
+        briefId: id,
+        escrowStatus: String(row["escrow_status"]),
+        briefStatus: String(row["status"]),
+        claimerUserId: (row["claimed_by_user_id"] as string | null) ?? null,
+      },
+    };
+  }
+  return {
+    rail: "ugc_brief",
+    userId: (row["brand_user_id"] as string | null) ?? null,
+    sessionId,
+    grantedCredits: 0,
+    details: {
+      briefId: id,
+      escrowStatus: String(row["escrow_status"]),
+      briefStatus: String(row["status"]),
+      claimerUserId: (row["claimed_by_user_id"] as string | null) ?? null,
+    },
   };
 }
 
@@ -856,6 +931,34 @@ async function reverseEntitlement(ident: IdentifiedRail): Promise<{ entitlement:
           await notifyPerformanceEscrowReversed(bookingId);
         } catch (err) {
           logger.error({ err, bookingId }, "[reversals] performance escrow-reversed tell failed (reversal stands)");
+        }
+      }
+      return { entitlement: s.rows.length > 0, seller: s.rows.length > 0 };
+    }
+    case "ugc_brief": {
+      /* Funded but never released (released briefs are manual-review
+         at identification): flip the escrow to 'refunded' — the same
+         state the briefs rail's own close-on-funded path writes — so
+         it can never be released against refunded money. The brief's
+         lifecycle status is deliberately untouched: a refund is not
+         a close. Partial refunds never reach here (entitlements
+         reverse only on a full reversal), and escrowHeldCents is
+         what shrinks a later release after one. */
+      const briefId = String(ident.details["briefId"] ?? "");
+      if (!briefId) return { entitlement: false, seller: false };
+      const s = await db.execute(sql`
+        UPDATE ugc_briefs SET escrow_status = 'refunded', updated_at = NOW()
+        WHERE id = ${briefId} AND escrow_status = 'funded'
+        RETURNING id
+      `);
+      if (s.rows.length > 0) {
+        /* The flip landed — the creator working against that escrow
+           hears it emptied. Guarded like the sibling cases. */
+        try {
+          const { notifyUgcBriefEscrowReversed } = await import("../routes/ugc-briefs");
+          await notifyUgcBriefEscrowReversed(briefId);
+        } catch (err) {
+          logger.error({ err, briefId }, "[reversals] UGC brief escrow-reversed tell failed (reversal stands)");
         }
       }
       return { entitlement: s.rows.length > 0, seller: s.rows.length > 0 };

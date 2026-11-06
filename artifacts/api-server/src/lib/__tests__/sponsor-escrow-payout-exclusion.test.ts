@@ -133,6 +133,19 @@ CREATE TABLE tip_jar_tips (
   page_user_id uuid NOT NULL, amount_cents integer NOT NULL DEFAULT 0,
   status text NOT NULL DEFAULT 'pending_payment', stripe_session_id text, paid_at timestamptz
 );
+-- The 0324 UGC-brief rail reconciles from this table on every pending-payout
+-- read; it exists here (empty) so the sync runs whole.
+CREATE TABLE ugc_briefs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  brand_user_id uuid,
+  claimed_by_user_id uuid,
+  escrow_status text NOT NULL DEFAULT 'unfunded',
+  stripe_session_id text,
+  released_amount_cents integer,
+  platform_fee_cents integer,
+  creator_payout_cents integer,
+  released_at timestamptz
+);
 `;
 
 beforeEach(async () => {

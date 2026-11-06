@@ -408,6 +408,17 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         }
         return;
       }
+      if (s.metadata?.ugc_brief_id) {
+        try {
+          const { freeUgcBriefFundingForSession } = await import("../routes/ugc-briefs");
+          const freed = await freeUgcBriefFundingForSession(s.metadata.ugc_brief_id, s.id);
+          res.status(200).json({ received: true, kind: "ugc_brief_escrow", expired: true, freed });
+        } catch (expiredErr) {
+          logger.error({ err: expiredErr, sessionId: s.id }, "Stripe webhook: UGC brief escrow expiry release failed");
+          res.status(500).json({ error: "UGC brief escrow expiry release failed, retry later" });
+        }
+        return;
+      }
       /* An abandoned Marketplace checkout: label its pending lines
          expired — they never become sales (0144). */
       if (s.metadata?.type === "marketplace_shop_purchase") {
@@ -709,6 +720,37 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
       logger.error({ err, msg, bookingId }, "Stripe webhook: performance escrow funding failed");
       // P0-7 twin: 500 so Stripe retries — 200 would silently drop a paid escrow.
       res.status(500).json({ error: `Performance escrow funding failed: ${msg}` });
+    }
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── UGC BRIEF ESCROW (C-25) ───────────────────────────────────────
+  // Brands fund priced UGC briefs through Checkout with
+  // metadata.ugc_brief_id set. Same ownership shape as sponsor escrow:
+  // this path owns the money; it never touches credits. Idempotency
+  // is handled inside markUgcBriefFunded.
+  if (session.metadata?.ugc_brief_id) {
+    const briefId = session.metadata.ugc_brief_id;
+    logger.info({ briefId, sessionId: session.id }, "Stripe webhook: UGC brief escrow payment verified");
+    try {
+      const { markUgcBriefFunded } = await import("../routes/ugc-briefs");
+      const result = await markUgcBriefFunded(
+        briefId,
+        session.id,
+        typeof session.payment_intent === "string" ? session.payment_intent : null,
+      );
+      if (!result.ok) {
+        logger.warn({ briefId, reason: result.reason }, "Stripe webhook: UGC brief escrow funding not applied");
+        res.status(200).json({ received: true, warning: `UGC brief escrow not applied: ${result.reason}` });
+        return;
+      }
+      res.status(200).json({ received: true, success: true, escrow: "funded" });
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? "unknown";
+      logger.error({ err, msg, briefId }, "Stripe webhook: UGC brief escrow funding failed");
+      // P0-7 twin: 500 so Stripe retries — 200 would silently drop a paid escrow.
+      res.status(500).json({ error: `UGC brief escrow funding failed: ${msg}` });
     }
     return;
   }

@@ -63,6 +63,7 @@ const STATEMENT_SOURCE_LINES: ReadonlyArray<{ key: string; label: string }> = [
   { key: "shoutouts", label: "Shoutouts" },
   { key: "tipJar", label: "Tip jar tips" },
   { key: "brandDeals", label: "Brand deals" },
+  { key: "ugcBriefs", label: "UGC briefs" },
   { key: "royalties", label: "Royalties (recorded)" },
 ];
 
@@ -76,7 +77,7 @@ interface StatementLineRow {
 
 /** The statement's lines in the PDF's order, with the PDF's labels.
  *  A canonical source the payload doesn't carry is skipped (the
- *  builder always sends all nine; a short payload degrades to the
+ *  builder always sends all ten; a short payload degrades to the
  *  lines it has, never to invented rows). */
 export function statementLineRows(stmt: EarningsStatement): StatementLineRow[] {
   const rows: StatementLineRow[] = [];

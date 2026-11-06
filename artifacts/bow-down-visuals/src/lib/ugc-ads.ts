@@ -16,14 +16,22 @@ import { apiErrorMessage } from "./api-error";
      who may claim / release / deliver / approve / close is the
      server's lifecycle; the panel only renders what this seam allows
      and the server re-checks every action anyway.
-   - NO PAYMENT RAIL: briefs carry no money. The payment note below is
-     the same plain language the server puts on every brief DTO. */
+   - MONEY (C-25): a brief MAY carry a price. A priced brief rides
+     the on-site escrow rail — the brand funds at claim, approval
+     releases at the rail's 5% fee. The money fields exist only on
+     priced briefs; a free brief's shape (and the payment note below,
+     the same plain language the server puts on every free brief's
+     DTO) is unchanged. */
 
 export const UGC_VIDEO_CREDIT_COST = 400;
 export const UGC_PERSONA_CREDIT_COST = 100;
 
 export const UGC_PAYMENT_NOTE =
   "Bow Down Visuals doesn't hold or move money for briefs — payment is arranged between the brand and the creator directly.";
+
+/** The note a PRICED brief carries (mirrors the server string). */
+export const UGC_ESCROW_NOTE =
+  "Bow Down Visuals holds this brief's payment safely and releases it to the creator when the brand approves the delivery.";
 
 export const UGC_STYLES = [
   { key: "unboxing", label: "Unboxing", blurb: "First reaction, product reveal" },
@@ -89,6 +97,15 @@ export interface UgcBrief {
   claimedByUserId: string | null;
   deliveredAdId: string | null;
   paymentNote: string;
+  /* Escrow rail (C-25) — present ONLY on a priced brief; every field
+     is null on a free brief. */
+  priceCents: number | null;
+  escrowStatus: string | null;
+  feeBps: number | null;
+  platformFeeCents: number | null;
+  creatorPayoutCents: number | null;
+  releasedAmountCents: number | null;
+  releasedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -113,6 +130,10 @@ function strOrNull(v: unknown): string | null {
 
 function num(v: unknown): number {
   return typeof v === "number" && Number.isFinite(v) ? v : 0;
+}
+
+function numOrNull(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
 export function normalizeScript(raw: unknown): UgcScript | null {
@@ -193,6 +214,13 @@ export function normalizeUgcBrief(raw: unknown): UgcBrief | null {
     claimedByUserId: strOrNull(raw.claimedByUserId),
     deliveredAdId: strOrNull(raw.deliveredAdId),
     paymentNote: str(raw.paymentNote) || UGC_PAYMENT_NOTE,
+    priceCents: numOrNull(raw.priceCents),
+    escrowStatus: strOrNull(raw.escrowStatus),
+    feeBps: numOrNull(raw.feeBps),
+    platformFeeCents: numOrNull(raw.platformFeeCents),
+    creatorPayoutCents: numOrNull(raw.creatorPayoutCents),
+    releasedAmountCents: numOrNull(raw.releasedAmountCents),
+    releasedAt: strOrNull(raw.releasedAt),
     createdAt: str(raw.createdAt),
     updatedAt: str(raw.updatedAt),
   };
@@ -251,7 +279,7 @@ export function briefStatusLabel(status: string): string {
   }
 }
 
-export type BriefAction = "claim" | "release" | "deliver" | "approve" | "close";
+export type BriefAction = "claim" | "release" | "deliver" | "approve" | "close" | "fund";
 
 /** The actions the board offers THIS caller on THIS brief — the same
     lifecycle the server enforces; the server re-checks regardless. */
@@ -261,10 +289,44 @@ export function briefActionsFor(brief: UgcBrief, userId: string | null): BriefAc
   const isBrand = brief.brandUserId === userId;
   const isClaimer = brief.claimedByUserId === userId;
   if (brief.status === "open" && !isBrand) actions.push("claim");
+  /* Fund at claim: a priced brief whose creator is on it and whose
+     escrow hasn't landed yet offers its brand the fund door — from
+     'unfunded' (start) and from 'funding' (resume / start over). */
+  if (
+    isBrand &&
+    brief.priceCents != null &&
+    (brief.status === "claimed" || brief.status === "delivered") &&
+    (brief.escrowStatus === "unfunded" || brief.escrowStatus === "funding")
+  ) {
+    actions.push("fund");
+  }
   if (brief.status === "claimed" && isClaimer) actions.push("release", "deliver");
   if (brief.status === "delivered" && isBrand) actions.push("approve");
   if ((brief.status === "open" || brief.status === "claimed") && isBrand) actions.push("close");
   return actions;
+}
+
+/** The escrow state in plain words (hub panel copy; the World
+    station carries the same words through its catalogs). */
+export function escrowStatusLabel(escrowStatus: string | null): string {
+  switch (escrowStatus) {
+    case "unfunded": return "Not funded";
+    case "funding": return "Funding started";
+    case "funded": return "Funded — held safely";
+    case "released": return "Released to the creator";
+    case "refunded": return "Refunded";
+    default: return escrowStatus ?? "";
+  }
+}
+
+/** The split a priced brief will release at its current price, with
+    the server's rounding (fee = round(gross × bps / 10000)) — shown
+    before anyone commits, never invented: feeBps rides the brief
+    DTO from the server (500 = 5% unless the server says otherwise). */
+export function ugcBriefNetPreview(brief: UgcBrief): { feeCents: number; netCents: number } | null {
+  if (brief.priceCents == null) return null;
+  const feeCents = Math.round((brief.priceCents * (brief.feeBps ?? 500)) / 10000);
+  return { feeCents, netCents: brief.priceCents - feeCents };
 }
 
 /** The pin action this ad offers, if any (migration 0178): only a
@@ -401,7 +463,7 @@ export async function fetchUgcBriefs(
 
 export async function postUgcBrief(
   token: string | null,
-  input: { productName: string; details: string; style: string; deadline?: string; productUrl?: string; productImageUrl?: string },
+  input: { productName: string; details: string; style: string; deadline?: string; productUrl?: string; productImageUrl?: string; priceCents?: number },
 ): Promise<UgcBrief> {
   const { status, data } = await api<any>(token, "POST", "/api/ugc-briefs", input);
   const brief = status === 201 ? normalizeUgcBrief((data as any)?.brief) : null;
@@ -412,13 +474,75 @@ export async function postUgcBrief(
 export async function briefAction(
   token: string | null,
   briefId: string,
-  action: BriefAction,
+  action: Exclude<BriefAction, "fund">,
   body?: unknown,
 ): Promise<UgcBrief> {
   const { status, data } = await api<any>(token, "POST", `/api/ugc-briefs/${briefId}/${action}`, body ?? {});
   const brief = status === 200 ? normalizeUgcBrief((data as any)?.brief) : null;
   if (!brief) throw new Error(apiErrorMessage(data, "That didn't land — refresh the board and try again."));
   return brief;
+}
+
+/* ── Escrow funding client (C-25) ───────────────────────────────────
+   The fund call starts (or resumes) the brand's funding checkout.
+   Three shapes come back: sandbox (confirm settles it), embedded
+   (clientSecret mounts <EmbeddedSessionCheckout> on the board — the
+   buyer never leaves the site), or a hosted checkoutUrl (the legacy
+   fallback the sponsor rail keeps). */
+
+export interface UgcBriefFundResult {
+  sandbox: boolean;
+  sessionId: string | null;
+  amountCents: number | null;
+  checkoutUrl: string | null;
+  clientSecret: string | null;
+  uiMode: string | null;
+}
+
+export function normalizeUgcBriefFundResult(raw: unknown): UgcBriefFundResult | null {
+  if (!isRecord(raw)) return null;
+  return {
+    sandbox: raw.sandbox === true,
+    sessionId: strOrNull(raw.sessionId),
+    amountCents: numOrNull(raw.amountCents),
+    checkoutUrl: strOrNull(raw.checkoutUrl),
+    clientSecret: strOrNull(raw.clientSecret),
+    uiMode: strOrNull(raw.uiMode),
+  };
+}
+
+export async function fundUgcBrief(
+  token: string | null,
+  briefId: string,
+  uiMode?: "embedded" | "hosted",
+): Promise<UgcBriefFundResult> {
+  const { status, data } = await api<any>(token, "POST", `/api/ugc-briefs/${briefId}/fund`, uiMode ? { uiMode } : {});
+  const result = status === 200 ? normalizeUgcBriefFundResult(data) : null;
+  if (!result) throw new Error(apiErrorMessage(data, "Could not start the funding payment — try again."));
+  return result;
+}
+
+/** Sandbox settle (no Stripe keys configured server-side). */
+export async function confirmUgcBriefFunding(
+  token: string | null,
+  briefId: string,
+  sessionId: string,
+): Promise<UgcBrief> {
+  const { status, data } = await api<any>(token, "POST", "/api/ugc-briefs/escrow/confirm", { briefId, sessionId });
+  const brief = status === 200 ? normalizeUgcBrief((data as any)?.brief) : null;
+  if (!brief) throw new Error(apiErrorMessage(data, "Could not confirm that funding — try again."));
+  return brief;
+}
+
+/** Settle from the payment record after an embedded/hosted return. */
+export async function verifyUgcBriefFunding(
+  token: string | null,
+  briefId: string,
+): Promise<{ brief: UgcBrief; duplicate: boolean }> {
+  const { status, data } = await api<any>(token, "POST", `/api/ugc-briefs/${briefId}/verify`, {});
+  const brief = status === 200 ? normalizeUgcBrief((data as any)?.brief) : null;
+  if (!brief) throw new Error(apiErrorMessage(data, "Could not verify that funding — try again."));
+  return { brief, duplicate: (data as any)?.duplicate === true };
 }
 
 export async function fetchUgcAd(token: string | null, adId: string): Promise<UgcAd> {

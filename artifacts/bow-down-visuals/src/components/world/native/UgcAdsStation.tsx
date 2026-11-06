@@ -3,8 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CheckCircle2, Clapperboard, ClipboardList, Eye, Handshake, Loader2, Pin, PinOff,
-  RotateCcw, Send, Share2, Sparkles, Trash2, User, XCircle,
+  RotateCcw, Send, Share2, ShieldCheck, Sparkles, Trash2, User, XCircle,
 } from "lucide-react";
+import { hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { NativeCard } from "./NativeCard";
@@ -28,6 +29,9 @@ import {
   pinUgcAd,
   postUgcBrief,
   briefAction,
+  fundUgcBrief,
+  confirmUgcBriefFunding,
+  ugcBriefNetPreview,
   recordUgcAdShare,
   ugcAdShareText,
   ugcAdStatusLabel,
@@ -68,8 +72,10 @@ const SCOPE_LABEL_KEYS: Record<string, string> = {
    style, a face (persona 100 VB / own photo / none), a script (Turbo
    writes it free, or yours), film the ad (400 VB, refunded on
    failure), pin the finished ad to its product, and work the briefs
-   board (post / claim / deliver / approve — with the board's own
-   honesty note: the site does not hold or move money for briefs).
+   board (post / claim / deliver / approve — a FREE brief's money is
+   arranged directly, per the board's honesty note; a PRICED brief
+   rides the site's escrow rail, C-25: fund at claim, approval
+   releases at 5%).
    The two charged calls (persona, generate) ride the credit
    confirmation with the seam's prices as overrides — the registry
    carries no ugc entry, and the price is printed on the button
@@ -120,7 +126,20 @@ const EMPTY_BRIEF_FORM: UgcBriefFormState = {
   deadline: "",
   productUrl: "",
   productImageUrl: "",
+  price: "",
 };
+
+/** Catalog keys for a brief's escrow state — the words ride the
+ *  worldLivePromo catalog like the rest of the board's copy. */
+const ESCROW_LABEL_KEYS: Record<string, string> = {
+  unfunded: "worldLivePromo.ugcEscrowUnfunded",
+  funding: "worldLivePromo.ugcEscrowFunding",
+  funded: "worldLivePromo.ugcEscrowFunded",
+  released: "worldLivePromo.ugcEscrowReleased",
+  refunded: "worldLivePromo.ugcEscrowRefunded",
+};
+
+const money = (cents: number): string => `$${(cents / 100).toFixed(2)}`;
 
 export function UgcAdsStation({ isLight }: { isLight: boolean }) {
   const { t, i18n } = useTranslation();
@@ -153,6 +172,9 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
   const [deliverPick, setDeliverPick] = useState<Record<string, string>>({});
   const [reviewAd, setReviewAd] = useState<UgcAd | null>(null);
   const [boardNote, setBoardNote] = useState<string | null>(null);
+  /* The brief whose funding continues on the website (the World's
+     sanctioned click-out at the money moment), if any. */
+  const [fundDoorBriefId, setFundDoorBriefId] = useState<string | null>(null);
 
   const set = (patch: Partial<UgcMakerState>) => setMaker((m) => ({ ...m, ...patch }));
 
@@ -398,7 +420,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
     }
   };
 
-  const runBriefAction = async (brief: UgcBrief, action: BriefAction) => {
+  const runBriefAction = async (brief: UgcBrief, action: Exclude<BriefAction, "fund">) => {
     if (action === "deliver" && !deliverPick[brief.id]) {
       setBoardNote(t("worldLivePromo.ugcDeliverPickFirst"));
       return;
@@ -414,6 +436,35 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       );
       if (action === "deliver") setBoardNote(t("worldLivePromo.ugcDeliveredNote"));
       if (action === "approve") setBoardNote(t("worldLivePromo.ugcApprovedNote"));
+      if (action === "close" && brief.escrowStatus === "funded" && updated.escrowStatus === "refunded") {
+        setBoardNote(t("worldLivePromo.ugcClosedRefundNote"));
+      }
+    } catch (err) {
+      setBoardNote(plainErrorText(err, t("worldLivePromo.ugcBriefActionFailed")));
+      void loadBriefs();
+    } finally {
+      setBusyBriefId(null);
+    }
+  };
+
+  /* Escrow funding (C-25), the same lib client the website board
+     uses: sandbox settles in-world through confirm; a real payment
+     form never renders inside the World — the card moment is the
+     sanctioned explicit click out to the website board. */
+  const fundBrief = async (brief: UgcBrief) => {
+    setBusyBriefId(brief.id);
+    setBoardNote(null);
+    setFundDoorBriefId(null);
+    try {
+      const result = await fundUgcBrief(await token(), brief.id, hasStripePublishableKey() ? "embedded" : undefined);
+      if (result.sandbox && result.sessionId) {
+        const updated = await confirmUgcBriefFunding(await token(), brief.id, result.sessionId);
+        setBriefs((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+        setBoardNote(t("worldLivePromo.ugcFundedNote"));
+      } else {
+        setFundDoorBriefId(brief.id);
+        setBoardNote(t("worldLivePromo.ugcFundOnWebsite"));
+      }
     } catch (err) {
       setBoardNote(plainErrorText(err, t("worldLivePromo.ugcBriefActionFailed")));
       void loadBriefs();
@@ -668,7 +719,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
             <ClipboardList className="h-4 w-4 text-[#d4af37]" /> {t("worldLivePromo.ugcBriefsTitle")}
           </p>
           <p className={`rounded-xl border px-3 py-2 text-xs ${isLight ? "border-[#C9A84C]/50 text-[#6B5B36]" : "border-[#d4af37]/30 text-white/70"}`} data-testid="world-ugc-payment-note">
-            {UGC_PAYMENT_NOTE} {t("worldLivePromo.ugcBoardNoteSuffix")}
+            {t("worldLivePromo.ugcBoardNotePaid")} {t("worldLivePromo.ugcBoardNoteFree")}
           </p>
 
           <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-ugc-brief-form">
@@ -683,6 +734,8 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
               <input aria-label={t("worldLivePromo.ugcBriefUrlAria")} className={inputCls(isLight)} placeholder={t("worldLivePromo.ugcBriefUrlPlaceholder")} value={briefForm.productUrl} onChange={(e) => setBriefForm({ ...briefForm, productUrl: e.target.value })} maxLength={2048} />
               <input aria-label={t("worldLivePromo.ugcBriefDeadlineAria")} type="date" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={briefForm.deadline} onChange={(e) => setBriefForm({ ...briefForm, deadline: e.target.value })} />
               <input aria-label={t("worldLivePromo.ugcBriefPhotoAria")} className={`${inputCls(isLight)} sm:col-span-2`} placeholder={t("worldLivePromo.ugcBriefPhotoPlaceholder")} value={briefForm.productImageUrl} onChange={(e) => setBriefForm({ ...briefForm, productImageUrl: e.target.value })} maxLength={2048} />
+              <input aria-label={t("worldLivePromo.ugcBriefPriceAria")} data-testid="world-ugc-brief-price" className={inputCls(isLight)} placeholder={t("worldLivePromo.ugcBriefPricePlaceholder")} value={briefForm.price ?? ""} onChange={(e) => setBriefForm({ ...briefForm, price: e.target.value })} inputMode="decimal" />
+              <p className={`self-center text-[11px] ${muted}`}>{t("worldLivePromo.ugcBriefPriceHelp")}</p>
             </div>
             <textarea aria-label={t("worldLivePromo.ugcBriefDetailsAria")} className={`${inputCls(isLight)} mt-2`} rows={3} placeholder={t("worldLivePromo.ugcBriefDetailsPlaceholder")} value={briefForm.details} onChange={(e) => setBriefForm({ ...briefForm, details: e.target.value })} maxLength={2000} />
             <button type="button" data-testid="world-ugc-brief-post" onClick={() => void submitBrief()} disabled={postingBrief} className={`${goldBtn} mt-2`}>
@@ -736,6 +789,25 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
                       <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${muted}`}>{briefStatusLabel(brief.status)}</span>
                     </div>
 
+                    {brief.priceCents != null ? (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span className={`rounded-full border px-2 py-0.5 font-bold ${muted}`}>{money(brief.priceCents)}</span>
+                        <span className={`rounded-full border px-2 py-0.5 font-semibold ${muted}`}>
+                          {t(ESCROW_LABEL_KEYS[brief.escrowStatus ?? ""] ?? "worldLivePromo.ugcEscrowUnfunded")}
+                        </span>
+                        {(() => {
+                          const preview = ugcBriefNetPreview(brief);
+                          if (!preview || brief.escrowStatus === "released" || brief.escrowStatus === "refunded") return null;
+                          return (
+                            <span className={muted}>
+                              {t("worldLivePromo.ugcCreatorReceives", { net: money(preview.netCents), gross: money(brief.priceCents), fee: money(preview.feeCents) })}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    ) : null}
+                    <p className={`mt-1 text-[11px] ${muted}`}>{brief.paymentNote || UGC_PAYMENT_NOTE}</p>
+
                     {brief.status === "delivered" && brief.brandUserId === user?.id ? (
                       <button type="button" data-testid="world-ugc-brief-review" onClick={() => void reviewDeliveredAd(brief)} disabled={busy} className={`${chipBtn(isLight, false)} mt-2`}>
                         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} {t("worldLivePromo.ugcReviewAd")}
@@ -776,6 +848,11 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
                             <Handshake className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcClaimBrief")}
                           </button>
                         ) : null}
+                        {actions.includes("fund") ? (
+                          <button type="button" data-testid="world-ugc-brief-fund" onClick={() => void fundBrief(brief)} disabled={busy} className={chipBtn(isLight, true)}>
+                            <ShieldCheck className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcFundBrief", { amount: money(brief.priceCents ?? 0) })}
+                          </button>
+                        ) : null}
                         {actions.includes("deliver") ? (
                           <button type="button" data-testid="world-ugc-brief-deliver" onClick={() => void runBriefAction(brief, "deliver")} disabled={busy} className={chipBtn(isLight, true)}>
                             <Send className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcDeliverAd")}
@@ -783,7 +860,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
                         ) : null}
                         {actions.includes("approve") ? (
                           <button type="button" data-testid="world-ugc-brief-approve" onClick={() => void runBriefAction(brief, "approve")} disabled={busy} className={chipBtn(isLight, true)}>
-                            <CheckCircle2 className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcApproveDelivery")}
+                            <CheckCircle2 className="h-3.5 w-3.5" /> {brief.priceCents != null && brief.escrowStatus === "funded" ? t("worldLivePromo.ugcApproveRelease", { amount: money(brief.priceCents) }) : t("worldLivePromo.ugcApproveDelivery")}
                           </button>
                         ) : null}
                         {actions.includes("release") ? (
@@ -797,6 +874,14 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
                           </button>
                         ) : null}
                       </div>
+                    ) : null}
+
+                    {fundDoorBriefId === brief.id ? (
+                      <p className="mt-2">
+                        <a href="/promote" data-testid="world-ugc-brief-fund-door" className={chipBtn(isLight, true)}>
+                          <ShieldCheck className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcFundDoor")}
+                        </a>
+                      </p>
                     ) : null}
                   </div>
                 );
