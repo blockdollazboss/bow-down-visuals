@@ -4037,7 +4037,10 @@
     "noDateSet": "日付未設定",
     "cancelStreamAria": "{{title}}をキャンセル",
     "recentStreams": "最近の配信",
-    "watchVod": "VODを見る"
+    "watchVod": "VODを見る",
+    "streamsLoading": "Loading your schedule…",
+    "streamsLoadError": "Your stream schedule couldn't load — you may already have streams booked. Check your connection and try again before scheduling another.",
+    "streamsRetry": "Try again"
   },
   "guides": {
     "pageTitle": "ガイド＆サービス — Bow Down Visuals",

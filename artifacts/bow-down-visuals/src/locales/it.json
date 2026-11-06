@@ -4044,7 +4044,10 @@
     "noDateSet": "Nessuna data impostata",
     "cancelStreamAria": "Annulla {{title}}",
     "recentStreams": "Stream recenti",
-    "watchVod": "Guarda il VOD"
+    "watchVod": "Guarda il VOD",
+    "streamsLoading": "Loading your schedule…",
+    "streamsLoadError": "Your stream schedule couldn't load — you may already have streams booked. Check your connection and try again before scheduling another.",
+    "streamsRetry": "Try again"
   },
   "guides": {
     "academy": {

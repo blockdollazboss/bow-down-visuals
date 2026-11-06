@@ -85,6 +85,11 @@ function GoLiveMain() {
   const { toast } = useToast();
   const [status, setStatus] = useState<DiscordStatus | null>(null);
   const [streams, setStreams] = useState<Stream[]>([]);
+  /* Streams load state (mirrors broadcast.tsx's channelsState): the
+     schedule used to have NO loading/error state at all — the "No
+     streams scheduled yet" panel rendered during load AND on failure,
+     so a creator with scheduled streams could double-schedule. */
+  const [streamsState, setStreamsState] = useState<"loading" | "ready" | "error">("loading");
   const [title, setTitle] = useState("");
   const [game, setGame] = useState("");
   const [vodUrl, setVodUrl] = useState("");
@@ -121,10 +126,16 @@ function GoLiveMain() {
       }
     };
     const loadStreams = async () => {
-      const stRes = await fetch("/api/discord/streams", { headers });
-      if (stRes.ok) {
+      try {
+        const stRes = await fetch("/api/discord/streams", { headers });
+        if (!stRes.ok) throw new Error("streams load failed");
         const d = await stRes.json();
         setStreams(d.streams ?? []);
+        setStreamsState("ready");
+      } catch {
+        /* Empty-lie fix: a failed load is NOT "no streams scheduled" —
+           keep whatever is on screen and raise the honest error state. */
+        setStreamsState("error");
       }
     };
     await Promise.allSettled([loadStatus(), loadStreams()]);
@@ -400,9 +411,30 @@ function GoLiveMain() {
             {t("goLive.scheduleButton")}
           </Button>
 
-          {upcoming.length > 0 ? (
+          {streamsState === "loading" ? (
+            <div className="flex items-center gap-2 pt-2 text-sm text-white/50" data-testid="go-live-streams-loading">
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("goLive.streamsLoading")}
+            </div>
+          ) : streamsState === "error" && upcoming.length === 0 ? (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/[0.04] px-4 py-6 text-center" data-testid="go-live-streams-load-error">
+              <p className="text-sm text-red-300">{t("goLive.streamsLoadError")}</p>
+              <button type="button" onClick={() => void load()}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3.5 py-1.5 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+                {t("goLive.streamsRetry")}
+              </button>
+            </div>
+          ) : upcoming.length > 0 ? (
             <div className="space-y-2 pt-2">
               <p className="text-xs font-bold text-white/50 uppercase tracking-wider">{t("goLive.upcoming")}</p>
+              {streamsState === "error" && (
+                <p className="flex flex-wrap items-center gap-2 text-sm text-red-300" data-testid="go-live-streams-reload-error">
+                  {t("goLive.streamsLoadError")}
+                  <button type="button" onClick={() => void load()}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+                    {t("goLive.streamsRetry")}
+                  </button>
+                </p>
+              )}
               {upcoming.map((s) => (
                 <div key={s.id} className="flex items-center justify-between rounded-xl border border-amber-400/20 bg-amber-400/[0.04] px-4 py-3 transition hover:border-amber-400/40">
                   <div className="min-w-0">

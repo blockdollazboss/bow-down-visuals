@@ -4037,7 +4037,10 @@
     "watchVod": "VOD ansehen",
     "webhookHelpAfter": " und fügen Sie die Webhook-URL Ihres Channels ein. Dauert 30 Sekunden.",
     "webhookHelpBefore": "Gehen Sie zu ",
-    "webhookHelpLink": "Einstellungen → Discord"
+    "webhookHelpLink": "Einstellungen → Discord",
+    "streamsLoading": "Loading your schedule…",
+    "streamsLoadError": "Your stream schedule couldn't load — you may already have streams booked. Check your connection and try again before scheduling another.",
+    "streamsRetry": "Try again"
   },
   "guides": {
     "academy": {

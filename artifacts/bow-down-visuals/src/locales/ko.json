@@ -4037,7 +4037,10 @@
     "noDateSet": "날짜 미정",
     "cancelStreamAria": "{{title}} 취소",
     "recentStreams": "최근 스트림",
-    "watchVod": "VOD 보기"
+    "watchVod": "VOD 보기",
+    "streamsLoading": "Loading your schedule…",
+    "streamsLoadError": "Your stream schedule couldn't load — you may already have streams booked. Check your connection and try again before scheduling another.",
+    "streamsRetry": "Try again"
   },
   "guides": {
     "pageTitle": "가이드 & 서비스 — Bow Down Visuals",

@@ -4037,7 +4037,10 @@
     "noDateSet": "कोई तिथि निर्धारित नहीं",
     "cancelStreamAria": "{{title}} रद्द करें",
     "recentStreams": "हाल की स्ट्रीम",
-    "watchVod": "वीओडी देखें"
+    "watchVod": "वीओडी देखें",
+    "streamsLoading": "Loading your schedule…",
+    "streamsLoadError": "Your stream schedule couldn't load — you may already have streams booked. Check your connection and try again before scheduling another.",
+    "streamsRetry": "Try again"
   },
   "guides": {
     "academy": {

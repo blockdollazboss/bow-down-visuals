@@ -4065,7 +4065,10 @@
     "noDateSet": "لم يُحدد تاريخ",
     "cancelStreamAria": "إلغاء {{title}}",
     "recentStreams": "البثوث الأخيرة",
-    "watchVod": "مشاهدة VOD"
+    "watchVod": "مشاهدة VOD",
+    "streamsLoading": "Loading your schedule…",
+    "streamsLoadError": "Your stream schedule couldn't load — you may already have streams booked. Check your connection and try again before scheduling another.",
+    "streamsRetry": "Try again"
   },
   "guides": {
     "pageTitle": "الأدلة والخدمات — Bow Down Visuals",

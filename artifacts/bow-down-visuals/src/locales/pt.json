@@ -4044,7 +4044,10 @@
     "noDateSet": "Sem data definida",
     "cancelStreamAria": "Cancelar {{title}}",
     "recentStreams": "Streams recentes",
-    "watchVod": "Assistir VOD"
+    "watchVod": "Assistir VOD",
+    "streamsLoading": "Loading your schedule…",
+    "streamsLoadError": "Your stream schedule couldn't load — you may already have streams booked. Check your connection and try again before scheduling another.",
+    "streamsRetry": "Try again"
   },
   "guides": {
     "pageTitle": "Guias e Serviços — Bow Down Visuals",
