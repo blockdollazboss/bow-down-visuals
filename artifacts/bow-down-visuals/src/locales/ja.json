@@ -13494,7 +13494,9 @@
     "item_level_up": "クリエイターがレベルアップしました",
     "item_publish": "誰かが投稿を公開しました",
     "item_lip_sync": "誰かがリップシンクを開始しました",
-    "item_generic": "Bow Down Visualsで何かが起こりました"
+    "item_generic": "Bow Down Visualsで何かが起こりました",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "planPublic": {
     "badge": "コンテンツプラン",

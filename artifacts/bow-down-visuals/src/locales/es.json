@@ -14090,7 +14090,9 @@
     "item_level_up": "Un creador acaba de subir de nivel",
     "item_publish": "Alguien acaba de publicar un post",
     "item_lip_sync": "Alguien empezó una sincronización de labios",
-    "item_generic": "Algo acaba de pasar en Bow Down Visuals"
+    "item_generic": "Algo acaba de pasar en Bow Down Visuals",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "planPublic": {
     "badge": "Plan de contenido",

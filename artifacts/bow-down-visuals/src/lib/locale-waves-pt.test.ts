@@ -173,6 +173,8 @@ const W2_NAMESPACES = ["sponsorDealDetail", "sponsors", "sponsorsPost", "retenti
 const W2_LEGIT: ReadonlySet<string> = new Set([
   "academy.catBranding",
   "academy.coachRole",
+  "fomoFeed.load_error",
+  "fomoFeed.load_retry",
   "academy.heroTitleAccent",
   "academy.heroTitleStart",
   "academy.hoursPlaceholder",

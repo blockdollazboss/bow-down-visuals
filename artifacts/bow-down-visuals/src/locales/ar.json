@@ -14186,7 +14186,9 @@
     "item_level_up": "ارتقى منشئ بالمستوى للتو",
     "item_publish": "نشر شخص منشوراً للتو",
     "item_lip_sync": "بدأ شخص مزامنة شفاه",
-    "item_generic": "حدث شيء للتو على Bow Down Visuals"
+    "item_generic": "حدث شيء للتو على Bow Down Visuals",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "planPublic": {
     "badge": "خطة المحتوى",

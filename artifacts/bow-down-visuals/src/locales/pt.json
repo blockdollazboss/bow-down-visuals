@@ -13520,7 +13520,9 @@
     "item_shark_drop": "Alguém resgatou um shark drop",
     "just_now": "agora mesmo",
     "minutes_ago": "{{count}}min atrás",
-    "title": "Atividade ao Vivo"
+    "title": "Atividade ao Vivo",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "planPublic": {
     "backHome": "Voltar ao Bow Down Visuals",

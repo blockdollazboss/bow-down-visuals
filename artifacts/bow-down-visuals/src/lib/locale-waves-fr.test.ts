@@ -159,6 +159,8 @@ const W2_NAMESPACES = ["academy", "auth", "betaAccess", "brandCalculator", "caro
 const W2_LEGIT: ReadonlySet<string> = new Set([
   "academy.catProduction",
   "academy.coachRole",
+  "fomoFeed.load_error",
+  "fomoFeed.load_retry",
   "academy.hoursPlaceholder",
   "academy.lessonMinutes",
   "academy.nicheLabel",

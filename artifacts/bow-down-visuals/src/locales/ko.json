@@ -13317,7 +13317,9 @@
     "item_level_up": "크리에이터가 방금 레벨업했습니다",
     "item_publish": "누군가 방금 게시물을 올렸습니다",
     "item_lip_sync": "누군가 립싱크를 시작했습니다",
-    "item_generic": "Bow Down Visuals에서 방금 무언가 일어났습니다"
+    "item_generic": "Bow Down Visuals에서 방금 무언가 일어났습니다",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "planPublic": {
     "badge": "콘텐츠 플랜",

@@ -13053,7 +13053,9 @@
     "item_level_up": "Un créateur vient de monter de niveau",
     "item_publish": "Quelqu'un vient de publier un post",
     "item_lip_sync": "Quelqu'un a lancé un lip-sync",
-    "item_generic": "Quelque chose vient de se passer sur Bow Down Visuals"
+    "item_generic": "Quelque chose vient de se passer sur Bow Down Visuals",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "retention": {
     "streak_title": "Série de création",

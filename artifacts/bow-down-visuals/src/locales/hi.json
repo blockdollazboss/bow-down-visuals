@@ -13896,7 +13896,9 @@
     "item_level_up": "एक creator ने अभी लेवल अप किया",
     "item_publish": "किसी ने अभी एक पोस्ट प्रकाशित की",
     "item_lip_sync": "किसी ने एक lip-sync शुरू किया",
-    "item_generic": "Bow Down Visuals पर अभी कुछ हुआ"
+    "item_generic": "Bow Down Visuals पर अभी कुछ हुआ",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "planPublic": {
     "badge": "कंटेंट योजना",

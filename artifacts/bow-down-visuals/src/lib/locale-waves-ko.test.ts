@@ -132,7 +132,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "home.manifestoTitleA", "home.manifestoTitleB", "home.extTitleA",
     "common.visualBucs",
     // proper-noun / number / format example placeholders
-    "academy.nichePlaceholder", "academy.hoursPlaceholder", "auth.emailPlaceholder",
+    "academy.nichePlaceholder", "academy.hoursPlaceholder", "fomoFeed.load_error", "fomoFeed.load_retry", "auth.emailPlaceholder",
     "auth.passwordPlaceholder", "productPhotoStudio.pastePlaceholder",
     "carouselMaker.brandColorsPlaceholder",
     // brand currency / placeholder-only

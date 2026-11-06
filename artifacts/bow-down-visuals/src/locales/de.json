@@ -13978,7 +13978,9 @@
     "item_shark_drop": "Jemand hat einen Shark Drop eingefordert",
     "just_now": "gerade eben",
     "minutes_ago": "vor {{count}} Min.",
-    "title": "Live-Aktivität"
+    "title": "Live-Aktivität",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "invite": {
     "alreadyJoined": "Schon auf der Warteliste?",

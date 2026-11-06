@@ -13840,7 +13840,9 @@
     "item_shark_drop": "Qualcuno ha riscattato uno shark drop",
     "just_now": "proprio ora",
     "minutes_ago": "{{count}}m fa",
-    "title": "Attività in diretta"
+    "title": "Attività in diretta",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "productPhotoStudio": {
     "changePhoto": "Usa una foto diversa",

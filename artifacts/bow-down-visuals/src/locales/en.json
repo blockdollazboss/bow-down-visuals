@@ -13759,7 +13759,9 @@
     "item_level_up": "A creator just leveled up",
     "item_publish": "Someone just published a post",
     "item_lip_sync": "Someone started a lip-sync",
-    "item_generic": "Something just happened on Bow Down Visuals"
+    "item_generic": "Something just happened on Bow Down Visuals",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "retention": {
     "streak_title": "Creation Streak",

@@ -235,7 +235,7 @@ const W2_LEGIT = new Set([
   "common.beta", "common.premium", "common.visualBucs",
   "home.demo.hiphop.label", "home.demo.rnb.label", "home.demo.pop.label",
   "home.extTitleA", "home.faqKicker", "home.vaultBodyB", "home.academyKicker",
-  "academy.pageTitle", "academy.hoursPlaceholder", "academy.lessonMinutes", "academy.coachRole",
+  "academy.pageTitle", "academy.hoursPlaceholder", "academy.lessonMinutes", "academy.coachRole", "fomoFeed.load_error", "fomoFeed.load_retry",
   "betaAccess.emailLabel", "betaAccess.creatorRapper", "betaAccess.creatorContentCreator",
   "betaAccess.badgeBeta",
   "brandCalculator.niches.fitness", "brandCalculator.niches.gaming",

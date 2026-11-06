@@ -164,6 +164,8 @@ const W2_NS = [
 ];
 const W2_ALLOW = new Set([
   "academy.hoursPlaceholder",
+  "fomoFeed.load_error",
+  "fomoFeed.load_retry",
   "auth.emailPlaceholder",
   "auth.passwordPlaceholder",
   "carouselMaker.brandColorsPlaceholder",

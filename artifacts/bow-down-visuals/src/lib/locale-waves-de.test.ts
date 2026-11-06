@@ -183,6 +183,8 @@ const W2_NAMESPACES = ["distribute", "labelPitch", "brandCalculator", "playlistP
 const W2_LEGIT_IDENTICAL = new Set([
   "academy.catBranding",
   "academy.coachRole",
+  "fomoFeed.load_error",
+  "fomoFeed.load_retry",
   "academy.hoursPlaceholder",
   "academy.pageTitle",
   "auth.passwordPlaceholder",
