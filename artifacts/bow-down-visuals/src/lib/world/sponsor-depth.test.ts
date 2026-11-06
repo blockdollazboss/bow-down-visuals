@@ -104,7 +104,9 @@ describe("rails + prices", () => {
     const costs = read("../credit-costs.ts");
     expect(costs).toContain('"/api/sponsors/deals": { cost: 500, feature: "Sponsor Deals" }');
     expect(costs).toContain('"/api/sponsors/pitch": { cost: 100, feature: "Sponsor Pitch" }');
-    const postPage = read("../../pages/sponsors-post.tsx");
+    /* C-21: the posting form lives in the Brand Deals Post a Deal tab
+       panel now — the 500 pin follows the form. */
+    const postPage = read("../../components/sponsors/PostDealPanel.tsx");
     expect(postPage).toContain("const POST_COST = 500;");
   });
 

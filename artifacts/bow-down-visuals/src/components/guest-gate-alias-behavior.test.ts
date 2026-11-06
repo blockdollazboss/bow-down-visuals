@@ -28,7 +28,7 @@ import { resolveGateVerdict } from "@/lib/guest-gate-verdict";
 const REDIRECTS = ROUTE_MATRIX.filter((e) => e.disposition === "redirect" && e.redirectTo);
 
 const LANE_A_SEVEN: Record<string, string> = {
-  "/sponsor-dashboard": "/sponsors/dashboard",
+  "/sponsor-dashboard": "/brand-deals?tab=manage",
   "/tip-page": "/tips",
   "/nfc-card-profile": "/nfc-cards",
   "/group-detail": "/groups",

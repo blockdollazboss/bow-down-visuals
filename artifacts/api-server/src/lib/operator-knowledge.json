@@ -1,18 +1,18 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "fb1f8fa2efea09dde421dcdccbe6f05b5b7a4c22",
+  "baseCommit": "680e8ff7afe4c1413d5f7cf64a4162ccc21792f8",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-04",
+  "generatedAt": "2026-11-06",
   "counts": {
     "routesInApp": 245,
-    "pageFiles": 179,
+    "pageFiles": 177,
     "features": 252,
-    "excludedRoutes": 74,
+    "excludedRoutes": 76,
     "excludedPageFiles": 26,
     "pricedActions": 258,
     "routeFileEndpoints": 0,
@@ -4439,6 +4439,8 @@
         "/api/outreach",
         "/api/referrals/apply",
         "/api/sponsor-read",
+        "/api/sponsors/can-spend",
+        "/api/sponsors/dashboard",
         "/api/sponsors/deals",
         "/api/sponsors/match",
         "/api/sponsors/pipeline/deals",
@@ -4505,6 +4507,94 @@
       "nextSteps": []
     },
     {
+      "id": "tab-sponsor-dashboard",
+      "name": "Sponsor Dashboard",
+      "nameSource": "legacy route slug (App.tsx redirect)",
+      "path": "/brand-deals?tab=manage",
+      "stage": "money",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/brand-deals.tsx",
+      "component": "BrandDeals",
+      "endpoints": [
+        "/api/admin/import-artists",
+        "/api/admin/status",
+        "/api/artist-vaults",
+        "/api/brand-deals",
+        "/api/brand-deals/outreach",
+        "/api/credits/claim-trial",
+        "/api/dev/add-credits",
+        "/api/drafts",
+        "/api/generate-invoice",
+        "/api/invoices",
+        "/api/invoices/:param",
+        "/api/invoices/:param/pdf",
+        "/api/outreach",
+        "/api/referrals/apply",
+        "/api/sponsor-read",
+        "/api/sponsors/can-spend",
+        "/api/sponsors/dashboard",
+        "/api/sponsors/deals",
+        "/api/sponsors/match",
+        "/api/sponsors/pipeline/deals",
+        "/api/sponsors/pipeline/deals/:param",
+        "/api/sponsors/pipeline/deals/:param/mark-paid",
+        "/api/sponsors/pipeline/followup"
+      ],
+      "prices": [
+        {
+          "feature": "Brand Deal Finder",
+          "vb": 200,
+          "endpoint": "/api/brand-deals",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Brand Outreach Draft",
+          "vb": 100,
+          "endpoint": "/api/brand-deals/outreach",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Generate Invoice",
+          "vb": 50,
+          "endpoint": "/api/generate-invoice",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Outreach",
+          "vb": 200,
+          "endpoint": "/api/outreach",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Sponsor Read",
+          "vb": 100,
+          "endpoint": "/api/sponsor-read",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Sponsor Deals",
+          "vb": 500,
+          "endpoint": "/api/sponsors/deals",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Sponsor Match",
+          "vb": 100,
+          "endpoint": "/api/sponsors/match",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Sponsor Follow-up Draft",
+          "vb": 50,
+          "endpoint": "/api/sponsors/pipeline/followup",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "nextSteps": [],
+      "description": "Your marketplace sponsor deals in one place — deals you posted, applications you sent, and earnings from released deals.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"sponsorDashboard.metaDescription\""
+    },
+    {
       "id": "tab-sponsors",
       "name": "Sponsors",
       "nameSource": "legacy route slug (App.tsx redirect)",
@@ -4529,6 +4619,8 @@
         "/api/outreach",
         "/api/referrals/apply",
         "/api/sponsor-read",
+        "/api/sponsors/can-spend",
+        "/api/sponsors/dashboard",
         "/api/sponsors/deals",
         "/api/sponsors/match",
         "/api/sponsors/pipeline/deals",
@@ -4615,6 +4707,8 @@
         "/api/outreach",
         "/api/referrals/apply",
         "/api/sponsor-read",
+        "/api/sponsors/can-spend",
+        "/api/sponsors/dashboard",
         "/api/sponsors/deals",
         "/api/sponsors/match",
         "/api/sponsors/pipeline/deals",
@@ -4675,6 +4769,94 @@
       "nextSteps": [],
       "description": "Brands pay creators who fit. Describe your lane — the scout hunts down sponsorship, affiliate, and ambassador opportunities matched to your niche and audience, with a pitch draft for every brand.",
       "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"brandDeals.subtitle\""
+    },
+    {
+      "id": "tab-sponsors-post",
+      "name": "Post",
+      "nameSource": "legacy route slug (App.tsx redirect)",
+      "path": "/brand-deals?tab=post",
+      "stage": "money",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/brand-deals.tsx",
+      "component": "BrandDeals",
+      "endpoints": [
+        "/api/admin/import-artists",
+        "/api/admin/status",
+        "/api/artist-vaults",
+        "/api/brand-deals",
+        "/api/brand-deals/outreach",
+        "/api/credits/claim-trial",
+        "/api/dev/add-credits",
+        "/api/drafts",
+        "/api/generate-invoice",
+        "/api/invoices",
+        "/api/invoices/:param",
+        "/api/invoices/:param/pdf",
+        "/api/outreach",
+        "/api/referrals/apply",
+        "/api/sponsor-read",
+        "/api/sponsors/can-spend",
+        "/api/sponsors/dashboard",
+        "/api/sponsors/deals",
+        "/api/sponsors/match",
+        "/api/sponsors/pipeline/deals",
+        "/api/sponsors/pipeline/deals/:param",
+        "/api/sponsors/pipeline/deals/:param/mark-paid",
+        "/api/sponsors/pipeline/followup"
+      ],
+      "prices": [
+        {
+          "feature": "Brand Deal Finder",
+          "vb": 200,
+          "endpoint": "/api/brand-deals",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Brand Outreach Draft",
+          "vb": 100,
+          "endpoint": "/api/brand-deals/outreach",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Generate Invoice",
+          "vb": 50,
+          "endpoint": "/api/generate-invoice",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Outreach",
+          "vb": 200,
+          "endpoint": "/api/outreach",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Sponsor Read",
+          "vb": 100,
+          "endpoint": "/api/sponsor-read",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Sponsor Deals",
+          "vb": 500,
+          "endpoint": "/api/sponsors/deals",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Sponsor Match",
+          "vb": 100,
+          "endpoint": "/api/sponsors/match",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Sponsor Follow-up Draft",
+          "vb": 50,
+          "endpoint": "/api/sponsors/pipeline/followup",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "nextSteps": [],
+      "description": "Your deal goes live in the marketplace instantly. Creators apply with pitches — you accept the best one, fund the escrow, and release payment on delivery.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"sponsorsPost.pageSubtitle\""
     },
     {
       "id": "branding-kit",
@@ -12571,57 +12753,6 @@
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/sponsor-deal-detail.tsx usePageTitle meta description"
     },
     {
-      "id": "sponsors-dashboard",
-      "name": "Sponsor Dashboard",
-      "nameSource": "App.tsx component name",
-      "path": "/sponsors/dashboard",
-      "stage": "studio",
-      "access": "members",
-      "pageFile": "artifacts/bow-down-visuals/src/pages/sponsor-dashboard.tsx",
-      "component": "SponsorDashboard",
-      "endpoints": [
-        "/api/admin/import-artists",
-        "/api/admin/status",
-        "/api/credits/claim-trial",
-        "/api/referrals/apply",
-        "/api/sponsors/dashboard"
-      ],
-      "prices": [],
-      "nextSteps": [],
-      "description": "Your sponsorship dashboard — track deals, deliverables and earnings on Bow Down Visuals.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/pages/sponsor-dashboard.tsx usePageTitle meta description"
-    },
-    {
-      "id": "sponsors-post",
-      "name": "Sponsor Post",
-      "nameSource": "App.tsx component name",
-      "path": "/sponsors/post",
-      "stage": "studio",
-      "access": "members",
-      "pageFile": "artifacts/bow-down-visuals/src/pages/sponsors-post.tsx",
-      "component": "SponsorPost",
-      "endpoints": [
-        "/api/admin/import-artists",
-        "/api/admin/status",
-        "/api/credits/claim-trial",
-        "/api/dev/add-credits",
-        "/api/referrals/apply",
-        "/api/sponsors/can-spend",
-        "/api/sponsors/deals"
-      ],
-      "prices": [
-        {
-          "feature": "Sponsor Deals",
-          "vb": 500,
-          "endpoint": "/api/sponsors/deals",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        }
-      ],
-      "nextSteps": [],
-      "description": "Your deal goes live in the marketplace instantly. Creators apply with pitches — you accept the best one, fund the escrow, and release payment on delivery.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"sponsorsPost.pageSubtitle\""
-    },
-    {
       "id": "store-buy--kind--id",
       "name": "Store Buy",
       "nameSource": "App.tsx component name",
@@ -17536,7 +17667,7 @@
     {
       "kind": "route",
       "key": "/sponsor-dashboard",
-      "reason": "Redirect to /sponsors/dashboard — the target carries the knowledge entry."
+      "reason": "Redirect to /brand-deals?tab=manage — the target carries the knowledge entry."
     },
     {
       "kind": "route",
@@ -17817,6 +17948,16 @@
       "kind": "route",
       "key": "/voiceover",
       "reason": "Redirect to /audio-studio?tab=voiceover — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/sponsors/post",
+      "reason": "Redirect to /brand-deals?tab=post — the target carries the knowledge entry."
+    },
+    {
+      "kind": "route",
+      "key": "/sponsors/dashboard",
+      "reason": "Redirect to /brand-deals?tab=manage — the target carries the knowledge entry."
     },
     {
       "kind": "route",

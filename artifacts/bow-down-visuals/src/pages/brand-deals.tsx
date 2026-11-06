@@ -20,6 +20,8 @@ import { formatBudgetRange, daysLeftLabel } from "@/lib/sponsors";
 import SponsorReadPanel from "@/components/outreach/SponsorReadPanel";
 import InvoiceGeneratorPanel from "@/components/outreach/InvoiceGeneratorPanel";
 import SponsorPipeline from "@/components/wave8/SponsorPipeline";
+import { SponsorDashboardPanel } from "@/components/sponsors/SponsorDashboardPanel";
+import { PostDealPanel } from "@/components/sponsors/PostDealPanel";
 
 /* ─── Thy Cheat Code's Sponsors Hub (ONE canonical file) ───────────────────
    Find Deals: AI matches creators with brand partnership opportunities —
@@ -32,8 +34,12 @@ import SponsorPipeline from "@/components/wave8/SponsorPipeline";
    (Pitched → Negotiating → Closed → Paid) + free outreach tracker.
    Marketplace (absorbed from /sponsors): browse posted deals
    (GET /api/sponsors/deals) + AI deal matcher (POST /api/sponsors/match).
-   The wider cluster stays SEPARATE — linked from the Related row, never
-   merged: /sponsors/dashboard, /sponsors/post, /sponsors/:id. */
+   Manage Deals + Post a Deal (C-21 one-door consolidation, owner ruling
+   Nov 5 2026): Brand Deals is the ONLY sponsors front door — the former
+   Sponsor Dashboard is the Manage Deals tab and the former post page is
+   the Post a Deal tab; /sponsors/dashboard and /sponsors/post redirect
+   here. Only the deal-detail page stays a page: /sponsors/:id (its links
+   ride in notifications and Stripe escrow returns). */
 
 type DealTypeKey = "sponsored-post" | "affiliate" | "ambassadorship" | "product-gifting" | "usage-licensing";
 
@@ -123,7 +129,7 @@ function fitBar(score: number): string {
   return "from-white/40 to-white/20";
 }
 
-export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" | "pitch" | "marketplace" }) {
+export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" | "pitch" | "marketplace" | "manage" | "post" }) {
   usePageTitle("Brand Deals", "Find brand partnerships, sponsorships, and deals matched to your audience — plus AI pitch drafts and outreach tracking.");
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
@@ -131,10 +137,12 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
   const { confirmedFetch } = useConfirmedApi();
 
   /* ── Sponsors hub: Find Deals · Pitch Kit (pipeline lives inside it) ·
-     Marketplace. ?tab= deep-links (finder/pitch/marketplace); the
-     /sponsorship-outreach alias redirects here with ?tab=pitch, and ?bio=
-     from the press kit still lands on the Pitch Kit tab. */
-  type MainTab = "finder" | "pitch" | "marketplace";
+     Marketplace · Manage Deals · Post a Deal. ?tab= deep-links
+     (finder/pitch/marketplace/manage/post); the /sponsorship-outreach
+     alias redirects here with ?tab=pitch, the retired /sponsors/dashboard
+     and /sponsors/post routes redirect here with ?tab=manage / ?tab=post,
+     and ?bio= from the press kit still lands on the Pitch Kit tab. */
+  type MainTab = "finder" | "pitch" | "marketplace" | "manage" | "post";
   const [mainTab, setMainTab] = useState<MainTab>(() => {
     if (initialTab) return initialTab;
     try {
@@ -143,6 +151,8 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
       if (forced === "pitch" || forced === "finder") return forced;
       if (forced === "pipeline") return "pitch"; // Wave 8 pipeline merged into the Pitch Kit tab
       if (forced === "marketplace") return "marketplace";
+      if (forced === "manage") return "manage";
+      if (forced === "post") return "post";
       if (window.location.pathname.startsWith("/sponsorship-outreach")) return "pitch";
       if (q.get("bio")) return "pitch";
     } catch { /* non-browser — default to finder */ }
@@ -372,6 +382,8 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
               { key: "finder", label: t("brandDeals.tabs.finder", { defaultValue: "Find deals" }), icon: Search },
               { key: "pitch", label: t("outreach.tabs.pitchKit", { defaultValue: "Pitch kit" }), icon: Mail },
               { key: "marketplace", label: t("brandDeals.tabs.marketplace", { defaultValue: "Marketplace" }), icon: Briefcase },
+              { key: "manage", label: t("brandDeals.tabs.manage", { defaultValue: "Manage deals" }), icon: LayoutDashboard },
+              { key: "post", label: t("brandDeals.tabs.post", { defaultValue: "Post a deal" }), icon: PlusCircle },
             ] as { key: MainTab; label: string; icon: LucideIcon }[]
           ).map((tb) => {
             const Icon = tb.icon;
@@ -393,16 +405,17 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
           })}
         </div>
 
-        {/* Related — the wider sponsor cluster (separate pages, linked not merged) */}
+        {/* Related — the deal tabs live in the tab bar above (C-21: one
+            door); only the calculator remains a separate page here. */}
         <p className="relative mt-4 text-center text-xs text-white/40">
           {t("brandDeals.related.label", { defaultValue: "Related:" })}{" "}
-          <Link href="/sponsors/dashboard" className="font-semibold text-primary hover:underline">
-            {t("brandDeals.related.sponsorDashboard", { defaultValue: "Sponsor dashboard" })}
-          </Link>
+          <button onClick={() => setMainTab("manage")} className="font-semibold text-primary hover:underline">
+            {t("brandDeals.tabs.manage", { defaultValue: "Manage deals" })}
+          </button>
           {" · "}
-          <Link href="/sponsors/post" className="font-semibold text-primary hover:underline">
+          <button onClick={() => setMainTab("post")} className="font-semibold text-primary hover:underline">
             {t("brandDeals.related.postDeal", { defaultValue: "Post a deal" })}
-          </Link>
+          </button>
           {" · "}
           <Link href="/brand-calculator" className="font-semibold text-primary hover:underline">
             {t("brandDeals.related.brandCalculator", { defaultValue: "Brand calculator" })}
@@ -754,7 +767,26 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
         {/* ── MARKETPLACE TAB — absorbed from /sponsors ── */}
         {mainTab === "marketplace" && (
           <div className="relative mt-4">
-            <MarketplaceTab />
+            <MarketplaceTab onManage={() => setMainTab("manage")} onPost={() => setMainTab("post")} />
+          </div>
+        )}
+
+        {/* ── MANAGE DEALS TAB — the former /sponsors/dashboard, folded in
+            (C-21). My posted deals · my applications · my earnings. ── */}
+        {mainTab === "manage" && (
+          <div className="relative mt-4">
+            <SponsorDashboardPanel
+              onPostDeal={() => setMainTab("post")}
+              onBrowseDeals={() => setMainTab("marketplace")}
+            />
+          </div>
+        )}
+
+        {/* ── POST A DEAL TAB — the former /sponsors/post, folded in
+            (C-21). The posting flow itself is unchanged. ── */}
+        {mainTab === "post" && (
+          <div className="relative mt-4">
+            <PostDealPanel onBack={() => setMainTab("marketplace")} />
           </div>
         )}
       </main>
@@ -1212,10 +1244,10 @@ function PipelineTab() {
     <div>
       <div className="text-center">
         <h2 className="font-display text-2xl font-black tracking-tight md:text-3xl">
-          {t("outreach.pipelineTitle", { defaultValue: "Sponsor Deal Pipeline" })}
+          {t("outreach.pipelineTitle", { defaultValue: "My Outreach Pipeline — self-found / off-platform deals" })}
         </h2>
         <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-white/55">
-          {t("outreach.pipelineSubtitle", { defaultValue: "Every deal from first pitch to paid — drag them through, let the AI draft your follow-ups, and log the win when it lands." })}
+          {t("outreach.pipelineSubtitle", { defaultValue: "Deals you found yourself, on or off the platform — drag them through, let the AI draft your follow-ups, and log the win when it lands." })}
         </p>
       </div>
 
@@ -1289,7 +1321,7 @@ function PipelineTab() {
    creators apply with a pitch — Bow Down Visuals takes 15% of every
    released deal.
    Money rules: browsing is free (pure UI); the AI deal matcher is 100 credits;
-   posting a deal lives on /sponsors/post (500 credits).
+   posting a deal lives on the hub's Post a Deal tab (500 credits).
    Endpoints: GET /api/sponsors/deals, POST /api/sponsors/match. */
 
 interface MarketplaceDeal {
@@ -1320,7 +1352,7 @@ const MATCHER_COST = 100;
 const marketplaceSectionLabel =
   "mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40";
 
-function MarketplaceTab() {
+function MarketplaceTab({ onManage, onPost }: { onManage: () => void; onPost: () => void }) {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
@@ -1426,19 +1458,20 @@ function MarketplaceTab() {
           {t("sponsors.pageSubtitle")}
         </p>
         <div className="mt-4 flex justify-center gap-2">
-          <Link href="/sponsors/dashboard"
+          <button onClick={onManage}
             className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold text-white/80 transition hover:border-primary/50 hover:text-white">
-            <LayoutDashboard className="h-4 w-4" aria-hidden="true" /> {t("sponsors.myDashboard")}
-          </Link>
-          <Link href="/sponsors/post"
+            <LayoutDashboard className="h-4 w-4" aria-hidden="true" /> {t("brandDeals.tabs.manage", { defaultValue: "Manage deals" })}
+          </button>
+          <button onClick={onPost}
             className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-4 py-2.5 text-sm font-black text-black shadow-[0_4px_24px_rgba(212,175,55,0.35)] transition hover:scale-[1.03]">
             <PlusCircle className="h-4 w-4" aria-hidden="true" /> {t("sponsors.postDeal")}
-          </Link>
+          </button>
         </div>
-        {/* Phase 3 lane labeling: this tab browses + matches; deal management
-            (apply, escrow, delivery) lives in the Sponsor Manager. */}
+        {/* Phase 3 lane labeling: this tab browses + matches; the deal's
+            own page (apply, escrow, delivery) is one click into the deal,
+            and your posted/applied/earned view is the Manage Deals tab. */}
         <p className="mx-auto mt-3 max-w-xl text-xs text-white/40">
-          {t("sponsors.managerHandoffNote", { defaultValue: "Deals open in the Sponsor Manager — apply, fund escrow, and deliver there. This tab is for browsing and matching." })}
+          {t("sponsors.managerHandoffNote", { defaultValue: "Deals open on their own page — apply, fund escrow, and deliver there. This tab is for browsing and matching." })}
         </p>
       </div>
 
@@ -1476,10 +1509,10 @@ function MarketplaceTab() {
               {deals.length === 0 ? t("sponsors.emptyNoDealsHint") : t("sponsors.emptyNoMatchHint")}
             </p>
             {deals.length === 0 && (
-              <Link href="/sponsors/post"
+              <button onClick={onPost}
                 className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 font-black text-black transition hover:brightness-110">
                 <Megaphone className="h-4 w-4" aria-hidden="true" /> {t("sponsors.postFirstDeal")}
-              </Link>
+              </button>
             )}
           </div>
         ) : (
@@ -1507,7 +1540,7 @@ function MarketplaceTab() {
                     {daysLeftLabel(d.deadline)}
                   </p>
                   <span className="inline-flex items-center gap-1 font-bold text-primary opacity-0 transition group-hover:opacity-100">
-                    {t("sponsors.openInManager", { defaultValue: "Open in Sponsor Manager" })} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t("sponsors.openInManager", { defaultValue: "Open deal" })} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </span>
                 </div>
               </Link>

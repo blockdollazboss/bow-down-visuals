@@ -2471,12 +2471,13 @@
     "marketplaceLink": "Sponsoren-Marktplatz",
     "related": {
       "label": "Verwandt:",
-      "postDeal": "Einen Deal posten",
-      "sponsorDashboard": "Sponsoren-Dashboard"
+      "postDeal": "Einen Deal posten"
     },
     "tabs": {
       "finder": "Finder",
-      "marketplace": "Marktplatz"
+      "marketplace": "Marktplatz",
+      "manage": "Deals verwalten",
+      "post": "Deal posten"
     }
   },
   "brandingKit": {
@@ -5376,7 +5377,7 @@
     "emptyPayoutsTitle": "Noch keine Auszahlungen",
     "errorLoadDashboard": "Ihr Dashboard konnte nicht geladen werden.",
     "escrowLine": "Treuhand: {{amount}} · {{status}}",
-    "eyebrow": "Sponsor-Dashboard",
+    "eyebrow": "Marktplatz-Deals",
     "findDeals": "Deals finden",
     "loading": "Wird geladen…",
     "openNow": "{{count}} jetzt offen",
@@ -5386,7 +5387,8 @@
     "postDeal": "Deal posten",
     "tabEarnings": "Einnahmen",
     "tabMyApplications": "Meine Bewerbungen",
-    "tabMyDeals": "Meine Deals"
+    "tabMyDeals": "Meine Deals",
+    "metaDescription": "Deine Marktplatz-Sponsor-Deals an einem Ort — Deals, die du gepostet hast, Bewerbungen, die du gesendet hast, und Einnahmen aus freigegebenen Deals."
   },
   "sponsorDealDetail": {
     "accept": "Annehmen",
@@ -8739,8 +8741,8 @@
     "tabs": {
       "pitchKit": "Pitch-Kit"
     },
-    "pipelineTitle": "Sponsor-Deal-Pipeline",
-    "pipelineSubtitle": "Verfolge jeden Deal vom Pitch bis zur Zahlung."
+    "pipelineTitle": "Meine Outreach-Pipeline — selbst gefundene / externe Deals",
+    "pipelineSubtitle": "Deals, die du selbst gefunden hast, auf oder außerhalb der Plattform — zieh sie durch, lass die KI deine Follow-ups entwerfen und protokolliere den Erfolg, wenn er landet."
   },
   "repurpose": {
     "badge": "Content Repurposer",
@@ -11911,8 +11913,8 @@
       "stageNegotiating": "In Verhandlung",
       "stagePaid": "Bezahlt",
       "stagePitched": "Gepitcht",
-      "subtitle": "Bringe jeden Deal vom Pitch bis zur Bezahlung — die Follow-up-Entwürfe schreiben sich von selbst.",
-      "title": "Sponsor-Deal-Pipeline",
+      "subtitle": "Selbst gefundene / externe Deals — bring jeden vom Pitch bis zur Zahlung; die Follow-up-Entwürfe schreiben sich von selbst.",
+      "title": "Meine Outreach-Pipeline",
       "today": "heute"
     },
     "thumbnailAb": {
@@ -22822,12 +22824,12 @@
     "sbProjectsTitle": "Deine Projekte",
     "sbSponsorActiveMany": "{{count}} active deals · ${{amount}} in play",
     "sbSponsorActiveOne": "{{count}} active deal · ${{amount}} in play",
-    "sbSponsorEmptySub": "Wenn ein Brand Deal öffnet, stehen seine Phase und sein Wert hier.",
+    "sbSponsorEmptySub": "Deals, die du selbst gefunden hast, zeigen hier ihre Phase und ihren Wert.",
     "sbSponsorEmptyTitle": "Noch keine Sponsor-Deals im Spiel",
     "sbSponsorFallback": "Ein Sponsor",
     "sbSponsorNext": "Als Nächstes kontaktieren: {{name}}",
     "sbSponsorNextStage": " · {{stage}}",
-    "sbSponsorTitle": "Sponsor-Pipeline",
+    "sbSponsorTitle": "Meine Outreach-Pipeline",
     "sbStatusRefunded": "Erstattet",
     "sbStatusSaveFailed": "Speichern fehlgeschlagen",
     "sbStatusSaved": "Gespeichert",

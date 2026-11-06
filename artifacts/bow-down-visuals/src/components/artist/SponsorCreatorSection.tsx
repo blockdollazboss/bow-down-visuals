@@ -307,7 +307,7 @@ export default function SponsorCreatorSection({
         ) : quote.isSelf ? (
           <p className="mt-3 text-sm" style={{ color: "var(--ap-muted)" }}>
             This is your page — sponsorships of you land in your{" "}
-            <Link href="/sponsors/dashboard" className="underline">sponsor dashboard</Link>.
+            <Link href="/brand-deals?tab=manage" className="underline">Manage Deals tab</Link>.
           </p>
         ) : funded ? (
           <div className="mt-3" data-testid="sponsor-funded">
@@ -318,7 +318,7 @@ export default function SponsorCreatorSection({
             <p className="mt-1 text-sm" style={{ color: "var(--ap-muted)" }}>
               {displayName} keeps {money(serverSplit?.netCents)} when you release payment after they deliver;
               the platform fee is {money(serverSplit?.feeCents)} ({serverSplit?.feePct ?? quote.feePct}%).
-              Track it in your <Link href="/sponsors/dashboard" className="underline">sponsor dashboard</Link>
+              Track it in your <Link href="/brand-deals?tab=manage" className="underline">Manage Deals tab</Link>
               {dealId && <> or on the <Link href={`/sponsors/${dealId}`} className="underline">deal page</Link></>}.
             </p>
           </div>

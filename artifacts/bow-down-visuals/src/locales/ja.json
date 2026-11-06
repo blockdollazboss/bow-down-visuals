@@ -2471,11 +2471,12 @@
     "marketplaceLink": "スポンサーマーケットプレイス",
     "tabs": {
       "finder": "ファインダー",
-      "marketplace": "マーケットプレイス"
+      "marketplace": "マーケットプレイス",
+      "manage": "案件を管理",
+      "post": "案件を投稿"
     },
     "related": {
       "label": "関連：",
-      "sponsorDashboard": "スポンサーダッシュボード",
       "postDeal": "案件を投稿"
     }
   },
@@ -5376,7 +5377,7 @@
     "emptyPayoutsTitle": "まだ支払いはありません",
     "errorLoadDashboard": "ダッシュボードを読み込めませんでした。",
     "escrowLine": "エスクロー: {{amount}} · {{status}}",
-    "eyebrow": "スポンサーダッシュボード",
+    "eyebrow": "マーケットプレイス案件",
     "findDeals": "案件を探す",
     "loading": "読み込み中…",
     "openNow": "現在募集中 {{count}} 件",
@@ -5386,7 +5387,8 @@
     "postDeal": "案件を投稿",
     "tabEarnings": "収益",
     "tabMyApplications": "自分の応募",
-    "tabMyDeals": "自分の案件"
+    "tabMyDeals": "自分の案件",
+    "metaDescription": "マーケットプレイスのスポンサー案件を一か所に — 投稿した案件、送った応募、リリース済み案件の収益。"
   },
   "sponsorDealDetail": {
     "accept": "承認",
@@ -8679,8 +8681,8 @@
     "tabs": {
       "pitchKit": "ピッチキット"
     },
-    "pipelineTitle": "スポンサー案件パイプライン",
-    "pipelineSubtitle": "ピッチから入金まで、すべての案件を追跡。"
+    "pipelineTitle": "私のアウトリーチ・パイプライン — 自分で見つけた / プラットフォーム外の案件",
+    "pipelineSubtitle": "プラットフォーム内外で自分で見つけた案件 — ドラッグして進め、フォローアップはAIに下書きさせ、決まったら勝利を記録しましょう。"
   },
   "repurpose": {
     "badge": "コンテンツリパーパサー",
@@ -10996,8 +10998,8 @@
       "stageNegotiating": "交渉中",
       "stagePaid": "支払い済み",
       "stagePitched": "提案済み",
-      "subtitle": "すべての案件を提案から支払いまで進めましょう — フォローアップの下書きは自動で書かれます。",
-      "title": "スポンサー案件パイプライン",
+      "subtitle": "自分で見つけた / プラットフォーム外の案件 — ピッチから支払いまで進めましょう。フォローアップの下書きは自動で書かれます。",
+      "title": "私のアウトリーチ・パイプライン",
       "today": "今日"
     },
     "thumbnailAb": {
@@ -22818,12 +22820,12 @@
     "sbProjectsTitle": "あなたのプロジェクト",
     "sbSponsorActiveMany": "{{count}} active deals · ${{amount}} in play",
     "sbSponsorActiveOne": "{{count}} active deal · ${{amount}} in play",
-    "sbSponsorEmptySub": "ブランド案件が開くと、そのステージと価値がここに立ちます。",
+    "sbSponsorEmptySub": "自分で見つけた案件のステージと金額がここに表示されます。",
     "sbSponsorEmptyTitle": "まだ進行中のスポンサー案件はありません",
     "sbSponsorFallback": "スポンサー",
     "sbSponsorNext": "次に触れる相手：{{name}}",
     "sbSponsorNextStage": " · {{stage}}",
-    "sbSponsorTitle": "スポンサーパイプライン",
+    "sbSponsorTitle": "私のアウトリーチ・パイプライン",
     "sbStatusRefunded": "返金済み",
     "sbStatusSaveFailed": "保存に失敗しました",
     "sbStatusSaved": "保存済み",

@@ -2472,12 +2472,13 @@
     "marketplaceLink": "Mercado de Patrocinadores",
     "related": {
       "label": "Relacionado:",
-      "postDeal": "Publicar uma oferta",
-      "sponsorDashboard": "Painel do patrocinador"
+      "postDeal": "Publicar uma oferta"
     },
     "tabs": {
       "finder": "Buscador",
-      "marketplace": "Mercado"
+      "marketplace": "Mercado",
+      "manage": "Gerenciar acordos",
+      "post": "Publicar um acordo"
     }
   },
   "brandingKit": {
@@ -5388,7 +5389,7 @@
     "emptyPayoutsTitle": "Nenhum pagamento ainda",
     "errorLoadDashboard": "Não foi possível carregar seu painel.",
     "escrowLine": "Caução: {{amount}} · {{status}}",
-    "eyebrow": "Painel do patrocinador",
+    "eyebrow": "Acordos do marketplace",
     "findDeals": "Encontrar acordos",
     "loading": "Carregando…",
     "openNow": "{{count}} abertos agora",
@@ -5398,7 +5399,8 @@
     "postDeal": "Publicar um acordo",
     "tabEarnings": "Ganhos",
     "tabMyApplications": "Minhas candidaturas",
-    "tabMyDeals": "Meus acordos"
+    "tabMyDeals": "Meus acordos",
+    "metaDescription": "Seus acordos de patrocínio do marketplace em um só lugar — acordos que você publicou, candidaturas que enviou e ganhos de acordos liberados."
   },
   "sponsorDealDetail": {
     "accept": "Aceitar",
@@ -8693,8 +8695,8 @@
     "tabs": {
       "pitchKit": "Kit de pitch"
     },
-    "pipelineTitle": "Pipeline de acordos de patrocínio",
-    "pipelineSubtitle": "Acompanhe cada acordo do pitch ao pagamento."
+    "pipelineTitle": "Meu pipeline de prospecção — acordos próprios / fora da plataforma",
+    "pipelineSubtitle": "Acordos que você mesmo encontrou, dentro ou fora da plataforma — arraste-os adiante, deixe a IA redigir seus follow-ups e registre a vitória quando ela chegar."
   },
   "repurpose": {
     "badge": "Reaproveitador de conteúdo",
@@ -11019,8 +11021,8 @@
       "stageNegotiating": "Negociando",
       "stagePaid": "Pago",
       "stagePitched": "Apresentado",
-      "subtitle": "Mova cada acordo da apresentação ao pagamento — os rascunhos de follow-up se escrevem sozinhos.",
-      "title": "Pipeline de Acordos de Patrocínio",
+      "subtitle": "Acordos próprios / fora da plataforma — leve cada um do pitch ao pagamento; os follow-ups se escrevem sozinhos.",
+      "title": "Meu pipeline de prospecção",
       "today": "hoje"
     },
     "thumbnailAb": {
@@ -22851,12 +22853,12 @@
     "sbProjectsTitle": "Seus projetos",
     "sbSponsorActiveMany": "{{count}} active deals · ${{amount}} in play",
     "sbSponsorActiveOne": "{{count}} active deal · ${{amount}} in play",
-    "sbSponsorEmptySub": "Quando um acordo com uma marca abrir, seu estágio e valor ficarão aqui.",
+    "sbSponsorEmptySub": "Os acordos que você mesmo encontrou mostram aqui sua etapa e seu valor.",
     "sbSponsorEmptyTitle": "Ainda não há acordos de patrocinadores em jogo",
     "sbSponsorFallback": "Um patrocinador",
     "sbSponsorNext": "Próximo a tocar: {{name}}",
     "sbSponsorNextStage": " · {{stage}}",
-    "sbSponsorTitle": "Pipeline de patrocinadores",
+    "sbSponsorTitle": "Meu pipeline de prospecção",
     "sbStatusRefunded": "Reembolsado",
     "sbStatusSaveFailed": "Falha ao salvar",
     "sbStatusSaved": "Salvo",

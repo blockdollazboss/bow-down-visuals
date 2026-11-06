@@ -2472,12 +2472,13 @@
     "marketplaceLink": "Marketplace degli sponsor",
     "related": {
       "label": "Correlati:",
-      "postDeal": "Pubblica un'offerta",
-      "sponsorDashboard": "Dashboard sponsor"
+      "postDeal": "Pubblica un'offerta"
     },
     "tabs": {
       "finder": "Ricerca",
-      "marketplace": "Marketplace"
+      "marketplace": "Marketplace",
+      "manage": "Gestisci accordi",
+      "post": "Pubblica un accordo"
     }
   },
   "brandingKit": {
@@ -5388,7 +5389,7 @@
     "emptyPayoutsTitle": "Ancora nessun pagamento",
     "errorLoadDashboard": "Impossibile caricare la tua dashboard.",
     "escrowLine": "Garanzia: {{amount}} · {{status}}",
-    "eyebrow": "Dashboard sponsor",
+    "eyebrow": "Accordi del marketplace",
     "findDeals": "Trova deal",
     "loading": "Caricamento…",
     "openNow": "{{count}} aperti ora",
@@ -5398,7 +5399,8 @@
     "postDeal": "Pubblica un deal",
     "tabEarnings": "Guadagni",
     "tabMyApplications": "Le mie candidature",
-    "tabMyDeals": "I miei deal"
+    "tabMyDeals": "I miei deal",
+    "metaDescription": "I tuoi accordi di sponsorizzazione del marketplace in un unico posto — accordi pubblicati, candidature inviate e guadagni da accordi rilasciati."
   },
   "sponsorDealDetail": {
     "accept": "Accetta",
@@ -8693,8 +8695,8 @@
     "tabs": {
       "pitchKit": "Kit di pitch"
     },
-    "pipelineTitle": "Pipeline degli accordi sponsor",
-    "pipelineSubtitle": "Monitora ogni accordo dal pitch al pagamento."
+    "pipelineTitle": "La mia pipeline di outreach — accordi trovati da me / fuori piattaforma",
+    "pipelineSubtitle": "Accordi che hai trovato tu, sulla piattaforma o fuori — falli avanzare, lascia che l'IA rediga i tuoi follow-up e registra la vittoria quando arriva."
   },
   "repurpose": {
     "badge": "Ripropositore di contenuti",
@@ -11019,8 +11021,8 @@
       "stageNegotiating": "In trattativa",
       "stagePaid": "Pagato",
       "stagePitched": "Proposto",
-      "subtitle": "Sposta ogni accordo dalla proposta al pagamento — le bozze di follow-up si scrivono da sole.",
-      "title": "Pipeline degli Accordi Sponsor",
+      "subtitle": "Accordi trovati da te / fuori piattaforma — porta ognuno dal pitch al pagamento; i follow-up si scrivono da soli.",
+      "title": "La mia pipeline di outreach",
       "today": "oggi"
     },
     "thumbnailAb": {
@@ -22851,12 +22853,12 @@
     "sbProjectsTitle": "I tuoi progetti",
     "sbSponsorActiveMany": "{{count}} active deals · ${{amount}} in play",
     "sbSponsorActiveOne": "{{count}} active deal · ${{amount}} in play",
-    "sbSponsorEmptySub": "Quando un accordo con un marchio si apre, la sua fase e il suo valore stanno qui.",
+    "sbSponsorEmptySub": "Gli accordi che hai trovato tu mostrano qui la loro fase e il loro valore.",
     "sbSponsorEmptyTitle": "Nessun accordo sponsor in gioco ancora",
     "sbSponsorFallback": "Uno sponsor",
     "sbSponsorNext": "Prossimo da toccare: {{name}}",
     "sbSponsorNextStage": " · {{stage}}",
-    "sbSponsorTitle": "Pipeline degli sponsor",
+    "sbSponsorTitle": "La mia pipeline di outreach",
     "sbStatusRefunded": "Rimborsato",
     "sbStatusSaveFailed": "Salvataggio fallito",
     "sbStatusSaved": "Salvato",

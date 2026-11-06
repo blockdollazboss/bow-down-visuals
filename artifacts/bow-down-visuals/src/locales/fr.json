@@ -2578,11 +2578,12 @@
     "marketplaceLink": "Marketplace des sponsors",
     "tabs": {
       "finder": "Dénicheur",
-      "marketplace": "Marketplace"
+      "marketplace": "Marketplace",
+      "manage": "Gérer les deals",
+      "post": "Publier un deal"
     },
     "related": {
       "label": "Associé :",
-      "sponsorDashboard": "Tableau de bord sponsor",
       "postDeal": "Publier un accord"
     }
   },
@@ -5546,7 +5547,7 @@
     "emptyPayoutsTitle": "Aucun paiement pour l'instant",
     "errorLoadDashboard": "Impossible de charger ton tableau de bord.",
     "escrowLine": "Séquestre : {{amount}} · {{status}}",
-    "eyebrow": "Tableau de bord sponsor",
+    "eyebrow": "Deals du marketplace",
     "findDeals": "Trouver des deals",
     "loading": "Chargement…",
     "openNow": "{{count}} ouverts actuellement",
@@ -5556,7 +5557,8 @@
     "postDeal": "Publier un deal",
     "tabEarnings": "Gains",
     "tabMyApplications": "Mes candidatures",
-    "tabMyDeals": "Mes deals"
+    "tabMyDeals": "Mes deals",
+    "metaDescription": "Vos deals de sponsoring du marketplace au même endroit — deals publiés, candidatures envoyées et revenus des deals libérés."
   },
   "sponsorDealDetail": {
     "accept": "Accepter",
@@ -9044,8 +9046,8 @@
     "tabs": {
       "pitchKit": "Kit de pitch"
     },
-    "pipelineTitle": "Pipeline des deals sponsors",
-    "pipelineSubtitle": "Suis chaque deal du pitch au paiement."
+    "pipelineTitle": "Mon pipeline de prospection — deals trouvés par moi / hors plateforme",
+    "pipelineSubtitle": "Les deals que vous avez trouvés vous-même, sur la plateforme ou en dehors — faites-les avancer, laissez l'IA rédiger vos relances et consignez la victoire quand elle arrive."
   },
   "repurpose": {
     "badge": "Réutilisateur de contenu",
@@ -12407,8 +12409,8 @@
       "stageNegotiating": "En négociation",
       "stagePaid": "Payé",
       "stagePitched": "Pitché",
-      "subtitle": "Faites passer chaque accord du pitch au paiement — les brouillons de suivi s'écrivent tout seuls.",
-      "title": "Pipeline d'Accords de Sponsoring",
+      "subtitle": "Deals trouvés par vous / hors plateforme — menez chacun du pitch au paiement ; les relances s'écrivent toutes seules.",
+      "title": "Mon pipeline de prospection",
       "today": "aujourd'hui"
     },
     "thumbnailAb": {
@@ -22851,12 +22853,12 @@
     "sbProjectsTitle": "Vos projets",
     "sbSponsorActiveMany": "{{count}} active deals · ${{amount}} in play",
     "sbSponsorActiveOne": "{{count}} active deal · ${{amount}} in play",
-    "sbSponsorEmptySub": "Quand un accord de marque s’ouvre, son étape et sa valeur se tiennent ici.",
+    "sbSponsorEmptySub": "Les deals que vous avez trouvés vous-même affichent ici leur étape et leur valeur.",
     "sbSponsorEmptyTitle": "Aucun accord sponsor en jeu pour le moment",
     "sbSponsorFallback": "Un sponsor",
     "sbSponsorNext": "Prochain à toucher : {{name}}",
     "sbSponsorNextStage": " · {{stage}}",
-    "sbSponsorTitle": "Pipeline des sponsors",
+    "sbSponsorTitle": "Mon pipeline de prospection",
     "sbStatusRefunded": "Remboursé",
     "sbStatusSaveFailed": "Échec de l’enregistrement",
     "sbStatusSaved": "Enregistré",

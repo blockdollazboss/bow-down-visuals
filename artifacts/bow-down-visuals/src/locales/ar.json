@@ -2475,12 +2475,13 @@
     "marketplaceLink": "سوق الرعاة",
     "related": {
       "label": "ذات صلة:",
-      "postDeal": "نشر صفقة",
-      "sponsorDashboard": "لوحة الراعي"
+      "postDeal": "نشر صفقة"
     },
     "tabs": {
       "finder": "الباحث",
-      "marketplace": "السوق"
+      "marketplace": "السوق",
+      "manage": "إدارة الصفقات",
+      "post": "نشر صفقة"
     }
   },
   "brandingKit": {
@@ -5424,7 +5425,7 @@
     "emptyPayoutsTitle": "لا مدفوعات بعد",
     "errorLoadDashboard": "تعذّر تحميل لوحتك.",
     "escrowLine": "الضمان: {{amount}} · {{status}}",
-    "eyebrow": "لوحة الرعايات",
+    "eyebrow": "صفقات السوق",
     "findDeals": "ابحث عن صفقات",
     "loading": "جارٍ التحميل…",
     "openNow": "{{count}} مفتوحة الآن",
@@ -5434,7 +5435,8 @@
     "postDeal": "انشر صفقة",
     "tabEarnings": "الأرباح",
     "tabMyApplications": "طلباتي",
-    "tabMyDeals": "صفقاتي"
+    "tabMyDeals": "صفقاتي",
+    "metaDescription": "صفقات الرعاية الخاصة بك في السوق في مكان واحد — الصفقات التي نشرتها، والطلبات التي أرسلتها، والأرباح من الصفقات المُفرج عنها."
   },
   "sponsorDealDetail": {
     "accept": "قبول",
@@ -8791,8 +8793,8 @@
     "tabs": {
       "pitchKit": "حزمة العرض"
     },
-    "pipelineTitle": "مسار صفقات الرعاية",
-    "pipelineSubtitle": "تتبع كل صفقة من العرض حتى الدفع."
+    "pipelineTitle": "مسار التواصل الخاص بي — صفقات وجدتها بنفسك / خارج المنصة",
+    "pipelineSubtitle": "صفقات وجدتها بنفسك، على المنصة أو خارجها — اسحبها للأمام، ودع الذكاء الاصطناعي يصيغ متابعاتك، وسجّل الفوز عند تحقيقه."
   },
   "repurpose": {
     "badge": "معيد استخدام المحتوى",
@@ -12003,8 +12005,8 @@
       "stageNegotiating": "قيد التفاوض",
       "stagePaid": "مدفوعة",
       "stagePitched": "تم التقديم",
-      "subtitle": "انقل كل صفقة من التقديم إلى الدفع — مسودات المتابعة تكتب نفسها بنفسها.",
-      "title": "خط أنابيب صفقات الرعاة",
+      "subtitle": "صفقات وجدتها بنفسك / خارج المنصة — انقل كل واحدة من العرض إلى الدفع؛ مسودات المتابعة تُكتب من تلقاء نفسها.",
+      "title": "مسار التواصل الخاص بي",
       "today": "اليوم"
     },
     "thumbnailAb": {
@@ -22938,12 +22940,12 @@
     "sbProjectsTitle": "مشاريعك",
     "sbSponsorActiveMany": "{{count}} active deals · ${{amount}} in play",
     "sbSponsorActiveOne": "{{count}} active deal · ${{amount}} in play",
-    "sbSponsorEmptySub": "عندما تُفتح صفقة علامة تجارية، تظهر مرحلتها وقيمتها هنا.",
+    "sbSponsorEmptySub": "الصفقات التي وجدتها بنفسك تظهر هنا مرحلتها وقيمتها.",
     "sbSponsorEmptyTitle": "لا توجد صفقات رعاة قيد التنفيذ بعد",
     "sbSponsorFallback": "راعٍ",
     "sbSponsorNext": "التالي للمتابعة: {{name}}",
     "sbSponsorNextStage": " · {{stage}}",
-    "sbSponsorTitle": "مسار الرعاة",
+    "sbSponsorTitle": "مسار التواصل الخاص بي",
     "sbStatusRefunded": "تم الاسترداد",
     "sbStatusSaveFailed": "فشل الحفظ",
     "sbStatusSaved": "تم الحفظ",
