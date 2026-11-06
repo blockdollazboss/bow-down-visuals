@@ -97,6 +97,15 @@ export const TRENDING_PRESETS: TrendingPreset[] = [
     trendScore: 74,
     platform: ["tiktok", "reels", "shorts"],
   },
+  {
+    slug: "speed-ramp-surge",
+    name: "Speed Ramp Surge",
+    description: "Real-time speed, then a violent ramp — your character surges forward and freezes mid-motion at peak power. The charge-up shot everyone's stitching.",
+    category: "Motion",
+    remixParams: { remix: "speed-ramp-surge" },
+    trendScore: 83,
+    platform: ["tiktok", "reels", "shorts"],
+  },
   /* ─── Style ─── */
   {
     slug: "gold-luxury-grade",
@@ -213,6 +222,15 @@ export const TRENDING_PRESETS: TrendingPreset[] = [
     category: "Effect",
     remixParams: { remix: "particle-burst" },
     trendScore: 72,
+    platform: ["tiktok", "reels", "shorts"],
+  },
+  {
+    slug: "ink-splash-reveal",
+    name: "Ink Splash Reveal",
+    description: "Black ink splashes across the frame and wipes away to reveal your character underneath. A mask reveal with comic-book teeth.",
+    category: "Effect",
+    remixParams: { remix: "ink-splash-reveal" },
+    trendScore: 68,
     platform: ["tiktok", "reels", "shorts"],
   },
 ];
