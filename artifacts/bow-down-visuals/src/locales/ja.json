@@ -24258,5 +24258,9 @@
   "webhookDeliveries": {
     "loadError": "Delivery history couldn't load — deliveries may have happened that you can't see right now. Try again.",
     "retry": "Try again"
+  },
+  "composerTiers": {
+    "loadError": "Your fan tiers couldn't load — your members-only audience can't be set until they do.",
+    "retry": "Try again"
   }
 }

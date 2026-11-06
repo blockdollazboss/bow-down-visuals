@@ -1,5 +1,6 @@
 import { plainErrorText } from "../../lib/api-error";
 import { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ImagePlus, Link2, Music2, ShoppingBag, CalendarDays, Sparkles, Plus, X, BarChart3, Globe, Users, Heart, Crown, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
@@ -29,6 +30,7 @@ export function Composer({
   placeholder?: string;
 }) {
   const { getAccessToken } = useAuth();
+  const { t } = useTranslation();
   const isLight = useIsLightTheme();
   const kingTheme = useKingArtTheme();
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -45,6 +47,7 @@ export function Composer({
      the Members audience is picked (GET /api/memberships/tiers). */
   const [minTierId, setMinTierId] = useState<string | null>(null);
   const [myTiers, setMyTiers] = useState<Array<{ id: string; name: string }> | null>(null);
+  const [tiersFailed, setTiersFailed] = useState(false);
   /* Content warnings (Wave 4 #40): MY labels for this post — the
      creator's honesty tool. Labelled media renders covered until a
      fan taps to reveal it. Only the author can ever set these. */
@@ -81,8 +84,13 @@ export function Composer({
         { method: "GET" },
       );
       setMyTiers((data.tiers ?? []).filter((t) => t.isActive !== false).map((t) => ({ id: t.id, name: t.name })));
+      setTiersFailed(false);
     } catch {
-      setMyTiers([]);
+      /* Empty-lie fix: a failed tiers load is NOT "no fan tiers" —
+         leave myTiers null (unloaded) and raise the failed flag so the
+         members audience row shows an honest error + retry instead of
+         telling a creator with paid tiers to go create one. */
+      setTiersFailed(true);
     }
   }
 
@@ -445,7 +453,17 @@ export function Composer({
           <div className="flex w-full items-center gap-2 text-xs text-neutral-400">
             <Crown className="h-4 w-4 shrink-0 text-[#d4af37]" />
             {myTiers === null ? (
-              <span>Loading your tiers…</span>
+              tiersFailed ? (
+                <span className="flex flex-wrap items-center gap-2 text-red-300" data-testid="composer-tiers-load-error">
+                  {t("composerTiers.loadError")}
+                  <button type="button" onClick={() => void loadMyTiers()}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+                    {t("composerTiers.retry")}
+                  </button>
+                </span>
+              ) : (
+                <span>Loading your tiers…</span>
+              )
             ) : myTiers.length === 0 ? (
               <span>No fan tiers yet — create one under Memberships. Until then, only you can read members posts.</span>
             ) : (
