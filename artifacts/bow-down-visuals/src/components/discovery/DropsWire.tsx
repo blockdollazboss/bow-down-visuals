@@ -197,6 +197,7 @@ export function DropsWire() {
                     <TrackRow
                       track={{ ...item, artwork_url: item.thumb }}
                       linkPath={item.kind === "video" ? `/watch/${item.id}` : `/track/${item.id}`}
+                      kind={item.kind}
                     />
                   </div>
                 </div>
