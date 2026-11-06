@@ -67,6 +67,21 @@ import { saleSplitAdjustments } from "./sale-splits";
  * (escrow_status 'refunded' with release stamps present) accrues AND
  * reverses, like every other rail.
  *
+ * And the last escrow rail (stack200 M1, migration 0325):
+ * PERFORMANCE BOOKINGS. Gate #5 live-proved the shape ($250 funded →
+ * $37.50 fee / $212.50 artist at the rail's 15%) and the release flip
+ * stamps that split on the booking row (platform_fee_cents /
+ * artist_payout_cents) while telling the artist "You were paid" —
+ * but no earnings surface read the stamps, so the net was stranded.
+ * The booking row records no held-gross column: the gross that was
+ * split is fee + payout by construction (performanceFeeSplit), which
+ * is exactly what a partial-refund-shrunk release split. Settled
+ * truth is the release stamp itself (escrow_status 'released' with
+ * stamps present); a funded booking refunded before release carries
+ * no stamps and never appears; a release later marked refunded
+ * (escrow_status 'refunded' with stamps present) accrues AND
+ * reverses, like every other rail.
+ *
  * Settlement discipline is BULK, mirroring digital_sales/store_orders:
  * creator_payouts rows in active states ('processing' | 'pending' |
  * 'paid') are subtracted by the pending read; a 'failed' payout stops
@@ -380,6 +395,45 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
   `);
 
+  /* performance_bookings — Book the Artist escrow (15% fee, split
+     recorded on the row at release: platform_fee_cents /
+     artist_payout_cents; the held gross that was split is their sum
+     — the release splits what was still held after any partial
+     refund, never the agreed fee). artist_user_id is the seller
+     (a TEXT column on this rail, so it is matched against the user
+     id as text; the WHERE already pins the row to this seller, so
+     the ledger's seller column takes the user id itself). Only a
+     booking that actually RELEASED accrues; a booking refunded
+     before release carries no release stamps and never appears. */
+  await run("performance_booking:accrual", sql`
+    INSERT INTO pending_payout_ledger
+      (seller_user_id, seller_profile_id, source_kind, source_id, entry_type,
+       gross_cents, platform_fee_cents, net_cents, stripe_session_id)
+    SELECT ${userId}, NULL, 'performance_booking', pb.id, 'accrual',
+           pb.platform_fee_cents + pb.artist_payout_cents, pb.platform_fee_cents, pb.artist_payout_cents,
+           pb.stripe_session_id
+    FROM performance_bookings pb
+    WHERE pb.artist_user_id = ${userId}::text
+      AND pb.escrow_status IN ('released', 'refunded')
+      AND pb.artist_payout_cents IS NOT NULL
+      AND pb.platform_fee_cents IS NOT NULL
+    ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
+  `);
+  await run("performance_booking:reversal", sql`
+    INSERT INTO pending_payout_ledger
+      (seller_user_id, seller_profile_id, source_kind, source_id, entry_type,
+       gross_cents, platform_fee_cents, net_cents, stripe_session_id)
+    SELECT ${userId}, NULL, 'performance_booking', pb.id, 'reversal',
+           pb.platform_fee_cents + pb.artist_payout_cents, pb.platform_fee_cents, pb.artist_payout_cents,
+           pb.stripe_session_id
+    FROM performance_bookings pb
+    WHERE pb.artist_user_id = ${userId}::text
+      AND pb.escrow_status = 'refunded'
+      AND pb.artist_payout_cents IS NOT NULL
+      AND pb.platform_fee_cents IS NOT NULL
+    ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
+  `);
+
   const totalInserted = Object.values(inserted).reduce((a, b) => a + b, 0);
   return { inserted, totalInserted };
 }
@@ -555,6 +609,12 @@ interface SellerEarningsSummary {
     feeCents: number;
     count: number;
   };
+  bookings: {
+    totalCents: number;
+    grossCents: number;
+    feeCents: number;
+    count: number;
+  };
 }
 
 /* Per-rail readers — the summary composes these, and routes/earnings
@@ -684,6 +744,36 @@ export async function sellerUgcBriefs(userId: string): Promise<SellerEarningsSum
   };
 }
 
+/* Released performance bookings (stack200 M1): settled = the escrow
+   release landed (escrow_status 'released' with its split stamps);
+   the figures are the release stamps themselves — net is the artist
+   payout the release split, fee is the platform's 15%, and gross is
+   the held amount the release split (fee + payout, the row records
+   no separate held-gross column), so the summary net equals the
+   ledger accrual net row for row. A booking refunded after release
+   reads 'refunded' and is excluded here (the ledger shows accrual +
+   reversal); a booking refunded before release never carried
+   stamps and never counted. artist_user_id is a text column on this
+   rail, matched as text. */
+export async function sellerBookings(userId: string): Promise<SellerEarningsSummary["bookings"]> {
+  const res = await db.execute(sql`
+    SELECT COALESCE(SUM(artist_payout_cents), 0)::int AS net,
+           COALESCE(SUM(platform_fee_cents + artist_payout_cents), 0)::int AS gross,
+           COALESCE(SUM(platform_fee_cents), 0)::int AS fee,
+           COUNT(*)::int AS n
+    FROM performance_bookings
+    WHERE artist_user_id = ${userId}::text AND escrow_status = 'released'
+      AND artist_payout_cents IS NOT NULL AND platform_fee_cents IS NOT NULL
+  `);
+  const r = (res.rows as any[])[0] ?? { net: 0, gross: 0, fee: 0, n: 0 };
+  return {
+    totalCents: Number(r.net),
+    grossCents: Number(r.gross),
+    feeCents: Number(r.fee),
+    count: Number(r.n),
+  };
+}
+
 export async function sellerBrandDeals(userId: string): Promise<SellerEarningsSummary["brandDeals"]> {
   const deals = await db.execute(sql`
     SELECT COALESCE(SUM(net_cents), 0)::int AS cents, COUNT(*)::int AS n
@@ -702,13 +792,14 @@ export async function sellerEarningsSummary(userId: string): Promise<SellerEarni
   const shoutouts = await sellerShoutouts(userId);
   const tipJar = await sellerTipJar(userId);
   const ugcBriefs = await sellerUgcBriefs(userId);
+  const bookings = await sellerBookings(userId);
   return {
     sellerUserId: userId,
     currency: "USD",
     totalCents:
       storeSales.totalCents + beats.totalCents + memberships.totalCents +
       brandDeals.totalCents + shoutouts.totalCents + tipJar.totalCents +
-      ugcBriefs.totalCents,
+      ugcBriefs.totalCents + bookings.totalCents,
     storeSales,
     beats,
     memberships,
@@ -716,6 +807,7 @@ export async function sellerEarningsSummary(userId: string): Promise<SellerEarni
     shoutouts,
     tipJar,
     ugcBriefs,
+    bookings,
   };
 }
 
