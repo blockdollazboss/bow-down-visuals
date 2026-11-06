@@ -5512,7 +5512,9 @@
     "winsPlaceholder": "مثال: مليوني مشاهدة على آخر إصدار، افتتحت لـ…",
     "writingPitch": "جارٍ الكتابة…",
     "yourDeal": "صفقتك",
-    "writeSponsorRead": "كتابة قراءة الراعي"
+    "writeSponsorRead": "كتابة قراءة الراعي",
+    "applicationsLoadError": "Applications couldn't load — the count above is the real number; the list just didn't come through.",
+    "retryLoad": "Try again"
   },
   "sponsors": {
     "emptyNoDeals": "لا توجد صفقات نشطة بعد",

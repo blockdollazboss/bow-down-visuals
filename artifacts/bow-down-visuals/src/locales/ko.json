@@ -5464,7 +5464,9 @@
     "winsPlaceholder": "예: 지난 발매 200만 조회, 오프닝 공연…",
     "writingPitch": "작성 중…",
     "yourDeal": "내 거래",
-    "writeSponsorRead": "스폰서 멘트 작성하기"
+    "writeSponsorRead": "스폰서 멘트 작성하기",
+    "applicationsLoadError": "Applications couldn't load — the count above is the real number; the list just didn't come through.",
+    "retryLoad": "Try again"
   },
   "sponsors": {
     "emptyNoDeals": "활성 거래가 아직 없습니다",

@@ -120,6 +120,7 @@ export default function SponsorDealDetail() {
   // brand
   const [applications, setApplications] = useState<Application[]>([]);
   const [appsLoading, setAppsLoading] = useState(false);
+  const [appsError, setAppsError] = useState(false);
   const [agreedDollars, setAgreedDollars] = useState("");
   const [reviewingId, setReviewingId] = useState<string | null>(null);
 
@@ -150,10 +151,18 @@ export default function SponsorDealDetail() {
 
   async function loadApplications(id: string) {
     setAppsLoading(true);
+    setAppsError(false);
     try {
       const res = await fetch(`/api/sponsors/deals/${id}/applications`, { headers: await authHeaders() });
       const data = (await res.json().catch(() => ({}))) as { applications?: Application[] };
-      if (res.ok) setApplications(Array.isArray(data.applications) ? data.applications : []);
+      if (!res.ok) throw new Error("applications load failed");
+      setApplications(Array.isArray(data.applications) ? data.applications : []);
+    } catch {
+      /* Empty-lie fix: a failed load must NOT fall through to the
+         "No applications yet" copy under a heading that counts the
+         real applications. Keep any loaded rows; raise the error
+         state with a retry instead. */
+      setAppsError(true);
     } finally {
       setAppsLoading(false);
     }
@@ -501,10 +510,27 @@ export default function SponsorDealDetail() {
                   <Users className="h-5 w-5 text-primary" aria-hidden="true" />
                   {t("sponsorDealDetail.applicationsTitle", { count: deal.applicationCount })}
                 </h2>
+                {appsError && !appsLoading && applications.length > 0 && (
+                  <p className="mt-4 flex flex-wrap items-center gap-2 text-sm text-red-300" data-testid="deal-applications-reload-error">
+                    <span role="alert">{t("sponsorDealDetail.applicationsLoadError")}</span>
+                    <button type="button" onClick={() => void loadApplications(dealId)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-1 text-xs text-white/70 transition hover:text-white">
+                      {t("sponsorDealDetail.retryLoad")}
+                    </button>
+                  </p>
+                )}
                 {appsLoading ? (
                   <p className="mt-4 flex items-center gap-2 text-sm text-white/40">
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {t("sponsorDealDetail.loadingShort")}
                   </p>
+                ) : appsError && applications.length === 0 ? (
+                  <div className="mt-4" data-testid="deal-applications-load-error">
+                    <p role="alert" className="text-sm text-red-300">{t("sponsorDealDetail.applicationsLoadError")}</p>
+                    <button type="button" onClick={() => void loadApplications(dealId)}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2 text-sm text-white/70 transition hover:text-white">
+                      {t("sponsorDealDetail.retryLoad")}
+                    </button>
+                  </div>
                 ) : applications.length === 0 ? (
                   <p className="mt-4 text-sm text-white/50">{t("sponsorDealDetail.noApplications")}</p>
                 ) : (

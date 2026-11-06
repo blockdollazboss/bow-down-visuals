@@ -5476,7 +5476,9 @@
     "winsPlaceholder": "es. 2M di visualizzazioni sul mio ultimo drop, ho aperto per…",
     "writingPitch": "Scrittura…",
     "yourDeal": "Il tuo deal",
-    "writeSponsorRead": "Scrivi la lettura dello sponsor"
+    "writeSponsorRead": "Scrivi la lettura dello sponsor",
+    "applicationsLoadError": "Applications couldn't load — the count above is the real number; the list just didn't come through.",
+    "retryLoad": "Try again"
   },
   "sponsors": {
     "emptyNoDeals": "Nessun deal attivo per ora",

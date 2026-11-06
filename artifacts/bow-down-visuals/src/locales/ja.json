@@ -5464,7 +5464,9 @@
     "winsPlaceholder": "例：前回のドロップで200万再生、オープニングアクトとして出演…",
     "writingPitch": "執筆中…",
     "yourDeal": "あなたの案件",
-    "writeSponsorRead": "スポンサーリードを書く"
+    "writeSponsorRead": "スポンサーリードを書く",
+    "applicationsLoadError": "Applications couldn't load — the count above is the real number; the list just didn't come through.",
+    "retryLoad": "Try again"
   },
   "sponsors": {
     "emptyNoDeals": "進行中の案件はまだありません",

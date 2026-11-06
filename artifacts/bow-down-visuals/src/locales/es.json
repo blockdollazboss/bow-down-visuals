@@ -5476,7 +5476,9 @@
     "winsPlaceholder": "p. ej. 2M de vistas en mi último lanzamiento, abrí para…",
     "writingPitch": "Escribiendo…",
     "yourDeal": "Tu trato",
-    "writeSponsorRead": "Escribir la mención del patrocinador"
+    "writeSponsorRead": "Escribir la mención del patrocinador",
+    "applicationsLoadError": "Applications couldn't load — the count above is the real number; the list just didn't come through.",
+    "retryLoad": "Try again"
   },
   "sponsors": {
     "emptyNoDeals": "Sin tratos activos aún",

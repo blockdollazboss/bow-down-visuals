@@ -236,7 +236,7 @@ const W2_LEGIT: ReadonlySet<string> = new Set([
   "splitScreen.cellN",
   "sponsorDashboard.applicationDealLine",
   "sponsorDashboard.pageTitleAccent",
-  "sponsorDealDetail.followersPlaceholder",
+  "sponsorDealDetail.applicationsLoadError", "sponsorDealDetail.followersPlaceholder", "sponsorDealDetail.retryLoad",
   "sponsors.matchFollowersPlaceholder",
   "sponsors.matchPlatformsPlaceholder",
   "sponsorsPost.budgetMaxLabel",

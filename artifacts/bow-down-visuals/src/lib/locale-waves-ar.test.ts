@@ -127,7 +127,7 @@ const W1_ALLOW = new Set([
   "referrals.titleSuffix",
   "referrals.tracker.earned",
   "royalties.insights.cost",
-  "sponsorDealDetail.followersPlaceholder",
+  "sponsorDealDetail.applicationsLoadError", "sponsorDealDetail.followersPlaceholder", "sponsorDealDetail.retryLoad",
   "sponsors.matchFollowersPlaceholder",
   "sponsors.matchPlatformsPlaceholder",
   "sponsorsPost.budgetMaxPlaceholder",

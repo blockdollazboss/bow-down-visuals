@@ -5464,7 +5464,9 @@
     "winsPlaceholder": "जैसे: मेरे पिछले ड्रॉप पर 2M व्यूज़, इनके लिए ओपन किया…",
     "writingPitch": "लिखा जा रहा है…",
     "yourDeal": "आपकी डील",
-    "writeSponsorRead": "Sponsor read लिखें"
+    "writeSponsorRead": "Sponsor read लिखें",
+    "applicationsLoadError": "Applications couldn't load — the count above is the real number; the list just didn't come through.",
+    "retryLoad": "Try again"
   },
   "sponsors": {
     "emptyNoDeals": "अभी तक कोई सक्रिय डील नहीं",

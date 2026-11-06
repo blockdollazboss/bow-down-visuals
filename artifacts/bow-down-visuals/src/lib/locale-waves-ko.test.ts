@@ -104,7 +104,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "storefrontBuilder.domainPlaceholder", "storefrontBuilder.handlePlaceholder",
     "storefrontBuilder.shopPreviewHandle", "sponsors.matchFollowersPlaceholder",
     "sponsors.matchPlatformsPlaceholder", "sponsorsPost.budgetMaxPlaceholder",
-    "sponsorsPost.budgetMinPlaceholder", "sponsorDealDetail.followersPlaceholder",
+    "sponsorsPost.budgetMinPlaceholder", "sponsorDealDetail.applicationsLoadError", "sponsorDealDetail.followersPlaceholder", "sponsorDealDetail.retryLoad",
     "distribute.midnight_frequencies", "distribute.shark_king",
     "distribute.us_xxx_26_00001", "distribute.luxury_gold_and_black_album_cove",
     "distribute.dark_luxury_trap_anthem_heavy_80",
