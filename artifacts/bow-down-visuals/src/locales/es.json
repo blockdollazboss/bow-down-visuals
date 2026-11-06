@@ -20324,6 +20324,11 @@
     "winnersThemePrefix": "“{{theme}}” · ",
     "winnersYourWork": "Tu obra"
   },
+  "worldRepurposeDesk": {
+    "title": "Content Repurposer",
+    "fromProject": "From your project",
+    "outOfBucs": "You\u2019re out of Visual Bucs for the Repurpose pack. Top up at the Treasury\u2019s Visual Buc Packs desk and run it again."
+  },
   "worldRemixDesk": {
     "title": "Remix Trends",
     "subtitle": "Trending motions and styles. Tap Remix to apply one to your project in Visual Vibes — the editor opens right here in the palace.",

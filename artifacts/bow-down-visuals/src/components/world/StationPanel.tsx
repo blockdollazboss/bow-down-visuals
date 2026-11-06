@@ -208,6 +208,7 @@ const TourDesk = lazy(() => import("@/components/world/native/TourDesk").then((m
 const PublishDesk = lazy(() => import("@/components/world/native/PublishDesk").then((m) => ({ default: m.PublishDesk })));
 const TemplatesDesk = lazy(() => import("@/components/world/native/TemplatesDesk").then((m) => ({ default: m.TemplatesDesk })));
 const RemixDesk = lazy(() => import("@/components/world/native/RemixDesk").then((m) => ({ default: m.RemixDesk })));
+const RepurposeDesk = lazy(() => import("@/components/world/native/RepurposeDesk").then((m) => ({ default: m.RepurposeDesk })));
 const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
 const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m) => ({ default: m.TeamDesk })));
 const TeamSeatsDesk = lazy(() => import("@/components/world/native/TeamSeatsDesk").then((m) => ({ default: m.TeamSeatsDesk })));
@@ -1349,6 +1350,18 @@ export default function StationPanel(props: StationPanelProps) {
                     library. */}
                 <DeskDoor isLight={isLight}>
                   <PublishDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Repurpose (stack200 world parity lane B1,
+                    census item 4): the Content Pack mode of the
+                    repurpose page as a native desk — analyze a
+                    project video / upload / URL on the
+                    /api/repurpose rails, watch the pack build,
+                    and finished clips + thumbnails flow into the
+                    hub project — stacked at the board right
+                    after Publish, where a finished video's next
+                    step lives. */}
+                <DeskDoor isLight={isLight}>
+                  <RepurposeDesk isLight={isLight} />
                 </DeskDoor>
                 {/* Templates (Stack-100 wave 4, item 27 / desk
                     #100): one browse desk for all four template
