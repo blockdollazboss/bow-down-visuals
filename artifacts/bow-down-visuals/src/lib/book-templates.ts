@@ -420,6 +420,132 @@ export const BOOK_TEMPLATES: BookTemplate[] = [
       },
     ],
   },
+  {
+    id: "workbook",
+    name: "Learn by Doing",
+    genre: "Workbook",
+    blurb: "An interactive workbook — every lesson paired with exercises and a check-your-work chapter.",
+    audience: "For teachers, coaches, and creators whose readers learn by doing.",
+    chapters: [
+      {
+        title: "How This Workbook Works",
+        kind: "front",
+        guidance:
+          "Set the contract with your reader: every lesson comes in three beats — learn it, practise it, check it. Say what they'll need (a pen, twenty honest minutes), and promise them this book works only if they write in it.",
+      },
+      {
+        title: "Lesson One — The First Idea",
+        kind: "chapter",
+        guidance:
+          "Teach the first concept the gentle way: one idea only, in plain words, with a fully worked example they can follow line by line. Resist adding the second idea — it has its own lesson.",
+      },
+      {
+        title: "Exercises — Your First Reps",
+        kind: "chapter",
+        guidance:
+          "Practice for lesson one, graded easy to hard: two warm-ups, three working problems, one stretch. Leave real writing space after each — white space is part of the teaching.",
+      },
+      {
+        title: "Check Your Work — Lesson One",
+        kind: "chapter",
+        guidance:
+          "Answers for the first exercises, with the reasoning shown — not just the result. Where a wrong answer is common, name what it usually means and which page to revisit.",
+      },
+      {
+        title: "Lesson Two — Standing on Lesson One",
+        kind: "chapter",
+        guidance:
+          "The second concept, taught entirely on top of the first: show the connection out loud, reuse lesson one's worked example, and extend it one careful step further.",
+      },
+      {
+        title: "Exercises — Mixed Practice",
+        kind: "chapter",
+        guidance:
+          "Practice that mixes both lessons without labelling which is which — the reader has to recognise the tool, not just use it. Keep the easy-to-hard ladder and the writing space.",
+      },
+      {
+        title: "Check Your Work — Lesson Two",
+        kind: "chapter",
+        guidance:
+          "Answers and reasoning for the mixed set. End this section with three questions readers ask themselves honestly — a self-check that tells them whether to move on or loop back.",
+      },
+      {
+        title: "The Final Project",
+        kind: "chapter",
+        guidance:
+          "One bigger piece of work that uses everything in the book, broken into milestones. Tell them what done looks like, how long to give it, and how to judge their own result kindly.",
+      },
+      {
+        title: "Complete Answer Key",
+        kind: "back",
+        guidance:
+          "Every exercise answer in one place, in book order, for readers who like to check at the end instead of along the way. Keep the explanations with the answers — the key is a teacher too.",
+      },
+      {
+        title: "About the Author",
+        kind: "back",
+        guidance:
+          "Three to five sentences in the third person: who you are, what you teach, and where readers can find your courses, videos, or next workbook.",
+      },
+    ],
+  },
+  {
+    id: "lyric-book",
+    name: "Words & Pictures",
+    genre: "Lyric Book",
+    blurb: "Your record as a book — full lyrics, photo plates, and the story behind the songs.",
+    audience: "For recording artists giving fans the whole world of an album.",
+    chapters: [
+      {
+        title: "A Note From the Artist",
+        kind: "front",
+        guidance:
+          "One page in your own voice: what this record means to you and why these songs deserved a book. Fans keep lyric books forever — write the note you'd want found in twenty years.",
+      },
+      {
+        title: "Song One — The Opener",
+        kind: "chapter",
+        guidance:
+          "The full lyrics of the opening song, exactly as recorded — every ad-lib and repeat as sung. Note the writers under the title, and leave the facing page for a photo plate from the sessions.",
+      },
+      {
+        title: "Song Two — Lyrics & Plate",
+        kind: "chapter",
+        guidance:
+          "The second song's complete lyrics, with its writing credits. Pair it with one strong photo — stage, studio, or the road — and a line of caption saying where and when.",
+      },
+      {
+        title: "Song Three — Lyrics & Plate",
+        kind: "chapter",
+        guidance:
+          "The third song, same treatment: lyrics as recorded, credits beneath the title, a plate opposite. Duplicate this chapter for every remaining song on the record — the rhythm of the book is song, picture, song.",
+      },
+      {
+        title: "The Photo Plates",
+        kind: "chapter",
+        guidance:
+          "A run of full-page photographs with no lyrics at all: the studio days, the stage nights, the faces behind the record. Sequence them the way the album flows — quiet, loud, quiet.",
+      },
+      {
+        title: "Liner Notes — The Story of This Record",
+        kind: "chapter",
+        guidance:
+          "The chapter fans read first and collectors treasure: where the record was made, who played on it, the song that almost didn't make it, and the night it all came together. Tell it like a story, not a press release.",
+      },
+      {
+        title: "Credits",
+        kind: "back",
+        guidance:
+          "Every name, completely: songwriters, musicians, producers, engineers, mixers, photographers, designers. Check spellings twice — a credits page is a promise, and people keep it.",
+      },
+      {
+        title: "About the Artist",
+        kind: "back",
+        guidance:
+          "Three to five sentences in the third person: who you are, the records before this one, and where fans can hear more and find you on tour.",
+      },
+    ],
+  },
 ];
 
 export function bookTemplateById(id: string): BookTemplate | undefined {
