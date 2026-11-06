@@ -2175,6 +2175,9 @@
     "advancedBadge": "AVANCÉ",
     "sequencerTooltip": "Le Step Sequencer est un outil en mode avancé",
     "presetHouse": "House",
+    "presetRnB": "R&B",
+    "presetJerseyClub": "Jersey Club",
+    "presetLofi": "Lo-Fi",
     "trackCrash": "Crash"
   },
   "beats": {

@@ -2100,6 +2100,9 @@
     "advancedBadge": "AVANZADO",
     "sequencerTooltip": "El Secuenciador de Pasos es una herramienta de modo Avanzado",
     "presetHouse": "House",
+    "presetRnB": "R&B",
+    "presetJerseyClub": "Jersey Club",
+    "presetLofi": "Lo-Fi",
     "trackCrash": "Crash"
   },
   "beats": {

@@ -2100,6 +2100,9 @@
     "advancedBadge": "고급",
     "sequencerTooltip": "스텝 시퀀서는 고급 모드 도구입니다",
     "presetHouse": "하우스",
+    "presetRnB": "R&B",
+    "presetJerseyClub": "Jersey Club",
+    "presetLofi": "Lo-Fi",
     "trackCrash": "크래시"
   },
   "beats": {

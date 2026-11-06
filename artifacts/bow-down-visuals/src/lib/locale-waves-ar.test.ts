@@ -256,7 +256,7 @@ const W4_NS = [
 ];
 const W4_ALLOW = new Set([
   "beatMaker.bpmLabel",
-  "beatMaker.bpmValue",
+  "beatMaker.bpmValue", "beatMaker.presetRnB", "beatMaker.presetJerseyClub", "beatMaker.presetLofi",
   "beatMaker.titlePlaceholder",
   "beatMaker.track808",
   "beats.bpmLabel",

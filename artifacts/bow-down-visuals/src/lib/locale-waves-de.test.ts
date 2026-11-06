@@ -568,7 +568,7 @@ const W4_LEGIT_IDENTICAL = new Set([
   "beatMaker.presetAfrobeats",
   "beatMaker.presetBoomBap",
   "beatMaker.presetDrill",
-  "beatMaker.presetHouse",
+  "beatMaker.presetHouse", "beatMaker.presetRnB", "beatMaker.presetJerseyClub", "beatMaker.presetLofi",
   "beatMaker.presetTrap",
   "beatMaker.swingValue",
   "beatMaker.title",

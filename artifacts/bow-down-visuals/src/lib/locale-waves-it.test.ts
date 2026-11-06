@@ -399,7 +399,7 @@ const W4_LEGIT = new Set([
   "beatMaker.presetAfrobeats",
   "beatMaker.presetBoomBap",
   "beatMaker.presetDrill",
-  "beatMaker.presetHouse",
+  "beatMaker.presetHouse", "beatMaker.presetRnB", "beatMaker.presetJerseyClub", "beatMaker.presetLofi",
   "beatMaker.presetTrap",
   "beatMaker.stepSequencerTab",
   "beatMaker.stop",

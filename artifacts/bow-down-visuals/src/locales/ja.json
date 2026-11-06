@@ -2100,6 +2100,9 @@
     "advancedBadge": "上級",
     "sequencerTooltip": "ステップシーケンサーはAdvancedモードのツールです",
     "presetHouse": "ハウス",
+    "presetRnB": "R&B",
+    "presetJerseyClub": "Jersey Club",
+    "presetLofi": "Lo-Fi",
     "trackCrash": "クラッシュ"
   },
   "beats": {
