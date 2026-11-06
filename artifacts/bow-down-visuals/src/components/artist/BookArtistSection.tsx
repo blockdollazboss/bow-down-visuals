@@ -1,5 +1,6 @@
 import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { CalendarPlus, ShieldCheck, Loader2, ScrollText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,7 +44,9 @@ const inputCls = "mt-1 w-full border px-3 py-2 text-sm outline-none";
 
 export default function BookArtistSection({ profile }: { profile: CreatorProfile }) {
   const { user, getAccessToken } = useAuth();
+  const { t } = useTranslation();
   const [bookings, setBookings] = useState<PerformanceBookingDto[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -59,8 +62,13 @@ export default function BookArtistSection({ profile }: { profile: CreatorProfile
     try {
       const all = await fetchMyPerformanceBookings(getAccessToken);
       setBookings(all.filter((b) => b.profileId === profile.id));
+      setLoadFailed(false);
     } catch {
-      setBookings([]);
+      /* Empty-lie fix: a failed load is NOT "no bookings" — keep the
+         current state (null on first load, the loaded list on a failed
+         refresh) and raise the honest failed state below. Escrow
+         bookings must never be hidden behind the empty copy. */
+      setLoadFailed(true);
     }
   }, [user, getAccessToken, profile.id]);
 
@@ -279,12 +287,23 @@ export default function BookArtistSection({ profile }: { profile: CreatorProfile
           </form>
         )}
 
-        {user && bookings === null && (
+        {user && bookings === null && !loadFailed && (
           <p className="mt-4 flex items-center gap-2 text-sm" style={{ color: "var(--ap-muted)" }}>
             <Loader2 className="h-4 w-4 animate-spin" /> Loading bookings…
           </p>
         )}
-        {user && bookings !== null && bookings.length === 0 && (
+        {user && loadFailed && (
+          <div className="mt-4 border border-red-500/50 bg-red-500/10 px-3 py-2" data-testid="book-artist-load-error"
+            style={{ borderRadius: "var(--ap-radius)" }}>
+            <p role="alert" className="text-sm text-red-600 dark:text-red-300">{t("bookArtist.loadError")}</p>
+            <button type="button" onClick={() => void refresh()}
+              className="mt-2 border px-3 py-1.5 text-sm font-semibold transition hover:scale-[1.02]"
+              style={{ borderColor: "var(--ap-accent)", color: "var(--ap-text)", borderRadius: "var(--ap-radius)" }}>
+              {t("bookArtist.retry")}
+            </button>
+          </div>
+        )}
+        {user && bookings !== null && bookings.length === 0 && !loadFailed && (
           <p className="mt-4 text-sm" style={{ color: "var(--ap-muted)" }}>
             {isOwner
               ? "No show bookings yet. When a promoter books you from this page, their offer lands here for your answer."

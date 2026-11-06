@@ -24274,5 +24274,9 @@
     "settingsLoading": "Loading your priority DM settings…",
     "settingsLoadError": "Your priority DM settings couldn't load, so nothing here is guessed — your real settings are unchanged and nothing can be saved until they load. Try again.",
     "retry": "Try again"
+  },
+  "bookArtist": {
+    "loadError": "Bookings couldn't load — bookings may be waiting here. Check your connection and try again.",
+    "retry": "Try again"
   }
 }
