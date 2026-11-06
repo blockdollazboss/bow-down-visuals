@@ -873,7 +873,10 @@ router.get("/shoutouts/revenue", requireAuth, publicApiLimiter, async (req, res)
     netCents: netAfterFee(grossCents),
     netDollars: centsToDollars(netAfterFee(grossCents)),
     platformFeePct: SHOUTOUT_PLATFORM_FEE_PCT,
-    paymentsLive: true,
+    /* Derived from the configured rail like the creators list — never a
+       literal: a hardcoded true claims payments are live even when no
+       Stripe key is configured and checkout honestly 503s. */
+    paymentsLive: paymentsConfigured(),
   });
 });
 
