@@ -11,7 +11,7 @@
  * The vocabulary is small and closed (mirrored FE-side in
  * artifacts/bow-down-visuals/src/lib/shop-design.ts — the pins in the
  * shop-look starter tests keep the two lists identical):
- *   layout_style: 'showcase' | 'gallery' | 'list'
+ *   layout_style: 'showcase' | 'gallery' | 'list' | 'hero'
  *   font_style:   'house' | 'royal' | 'classic'
  * The defaults ARE the pre-0320 rendering — 'showcase' is the banner
  * band + three-across card grid the storefront has always rendered,
@@ -27,7 +27,7 @@
  * vocabulary before any mutation.
  */
 
-export const SHOP_LAYOUT_STYLES = ["showcase", "gallery", "list"] as const;
+export const SHOP_LAYOUT_STYLES = ["showcase", "gallery", "list", "hero"] as const;
 export const SHOP_FONT_STYLES = ["house", "royal", "classic"] as const;
 
 export type ShopLayoutStyle = (typeof SHOP_LAYOUT_STYLES)[number];

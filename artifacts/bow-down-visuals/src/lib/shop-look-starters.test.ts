@@ -113,4 +113,24 @@ describe("the storefront renders from the settings", () => {
   it("the list layout — and only it — puts the product's story on the card", () => {
     expect(storefrontPage).toContain('layoutSpec.id === "list" && p.description');
   });
+
+  it("the hero layout features the first product full-bleed and rails the rest (stack200 U3)", () => {
+    expect(storefrontPage).toContain('layoutSpec.id === "hero"');
+    expect(storefrontPage).toContain("heroCard(products[0]!)");
+    expect(storefrontPage).toContain("products.slice(1).map((p) => productCard(p))");
+    /* The non-hero path still renders the whole catalog in the
+       spec's grid — untouched shops render exactly as before. */
+    expect(storefrontPage).toContain("products.map((p) => productCard(p))");
+  });
+});
+
+describe("single-drop-hero — the hero look starter (stack200 U3)", () => {
+  it("pairs the hero layout with the royal voice, and only those two fields move", () => {
+    const hero = shopLookStarterById("single-drop-hero");
+    expect(hero).toBeDefined();
+    expect(hero!.settings).toEqual({ layout_style: "hero", font_style: "royal" });
+    expect(shopLookPatch(hero!)).toEqual({ layout_style: "hero", font_style: "royal" });
+    expect(isLookStarterApplied({ layout_style: "hero", font_style: "royal" }, hero!)).toBe(true);
+    expect(isLookStarterApplied({ layout_style: "hero", font_style: "house" }, hero!)).toBe(false);
+  });
 });

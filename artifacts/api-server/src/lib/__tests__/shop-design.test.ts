@@ -24,7 +24,7 @@ import {
 
 describe("shop design vocabulary", () => {
   it("is exactly the closed layout + font lists", () => {
-    expect(SHOP_LAYOUT_STYLES).toEqual(["showcase", "gallery", "list"]);
+    expect(SHOP_LAYOUT_STYLES).toEqual(["showcase", "gallery", "list", "hero"]);
     expect(SHOP_FONT_STYLES).toEqual(["house", "royal", "classic"]);
   });
 

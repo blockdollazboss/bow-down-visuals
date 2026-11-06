@@ -228,6 +228,13 @@ export const SHOP_LOOK_STARTERS: ShopLookStarter[] = [
     bestFor: "Limited runs, commissions, and short menus.",
     settings: { layout_style: "list", font_style: "royal" },
   },
+  {
+    id: "single-drop-hero",
+    name: "Single Drop Hero",
+    blurb: "One hero product full-bleed with its story up top, the rest of the drop in a rail below — headlines set in the ceremonial serif.",
+    bestFor: "Single-drop shops, limited releases, and one-big-thing launches.",
+    settings: { layout_style: "hero", font_style: "royal" },
+  },
 ];
 
 export function shopLookStarterById(id: string): ShopLookStarter | undefined {
