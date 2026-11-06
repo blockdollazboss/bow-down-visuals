@@ -22,6 +22,7 @@ import {
   WALLPAPERS_PACK10_REGISTRY_COST,
   WALLPAPERS_SCREENSAVER_COST,
   WALLPAPERS_SCREENSAVER_REGISTRY_COST,
+  WALLPAPERS_WEBSITE_PATH,
   WALLPAPER_GENERATE_COST,
   WALLPAPER_PACK_OF_10_COUNT,
   WALLPAPER_PRESETS,
@@ -79,13 +80,26 @@ const BRAND: WallpaperBrandInputs = {
 const CLEAN: WallpaperBrandInputs = { branded: false, logoUrl: null, brandName: null, aiDisclosure: false };
 
 describe("station wiring", () => {
-  it("the station exists, native create pattern, members-only, /wallpapers path", () => {
+  it("the station exists, native create pattern, members-only, branding-kit wallpapers path", () => {
     const station = STATION_BY_ID.get(WALLPAPERS_DESK_STATION_ID);
     expect(station).toBeDefined();
     expect(station!.panel).toEqual({ kind: "native", pattern: "create" });
     expect(station!.membersOnly).toBe(true);
-    expect(station!.websitePath).toBe("/wallpapers");
+    expect(station!.websitePath).toBe("/branding-kit?tab=wallpapers");
     expect(isCreateDeskId(WALLPAPERS_DESK_STATION_ID)).toBe(true);
+  });
+
+  it("the transfer-footer href resolves to a real route (no bare /wallpapers 404)", () => {
+    const station = STATION_BY_ID.get(WALLPAPERS_DESK_STATION_ID);
+    /* The desk lib's mirror constant and the station registry agree. */
+    expect(WALLPAPERS_WEBSITE_PATH).toBe("/branding-kit?tab=wallpapers");
+    expect(station!.websitePath).toBe(WALLPAPERS_WEBSITE_PATH);
+    /* The href's path part is a routed path in App.tsx, and its tab
+       value is one the branding-kit page actually renders. */
+    const appSource = readFileSync(new URL("../../App.tsx", import.meta.url), "utf8");
+    expect(appSource).toContain('<Route path="/branding-kit">');
+    const brandingKitSource = readFileSync(new URL("../../pages/branding-kit.tsx", import.meta.url), "utf8");
+    expect(brandingKitSource).toContain('q === "wallpapers"');
   });
 });
 
