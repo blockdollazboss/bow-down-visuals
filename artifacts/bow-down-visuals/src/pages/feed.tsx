@@ -11,6 +11,7 @@ import { PostCard } from "@/components/social/PostCard";
 import { DropsWire } from "@/components/discovery/DropsWire";
 import { SocialRetentionRail } from "@/components/social/SocialRetentionRail";
 import CloseFriendsPanel from "@/components/reach/CloseFriendsPanel";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── /home — the creator feed ─────────────────────────────────────────────
    Your timeline, no algorithm overlords 🦈 — chronological by default,
@@ -83,13 +84,19 @@ export default function FeedPage() {
     return () => obs.disconnect();
   }, [hasMore, loadingMore, loading, mode, load]);
 
+  /* Per-post isolation (Stack-200 hardening C, census item 41): one
+     malformed post whose PostCard throws degrades to a contained
+     placeholder — the timeline, the rails and the composer survive.
+     Before this, the throw reached the App-level RouteErrorBoundary
+     and replaced the whole page. */
   const renderPost = (p: FeedPost) => (
-    <PostCard
-      key={p.id}
-      post={p}
-      onDeleted={(id) => setPosts((prev) => prev.filter((x) => x.id !== id))}
-      onReposted={() => load(true, mode)}
-    />
+    <SectionBoundary key={p.id} name={`post-${p.id}`} variant="compact" label="post">
+      <PostCard
+        post={p}
+        onDeleted={(id) => setPosts((prev) => prev.filter((x) => x.id !== id))}
+        onReposted={() => load(true, mode)}
+      />
+    </SectionBoundary>
   );
 
   return (
@@ -138,18 +145,24 @@ export default function FeedPage() {
       </p>
 
       {view === "drops" ? (
-        <DropsWire />
+        <SectionBoundary name="drops-wire">
+          <DropsWire />
+        </SectionBoundary>
       ) : (
         <div className="xl:grid xl:grid-cols-[minmax(0,680px)_minmax(280px,320px)] xl:items-start xl:gap-6">
           {/* Main column — intro block + first posts (the rail interleaves
               after these on smaller screens, sits right at xl). */}
           <div className="min-w-0">
             <div className="mb-5">
-              <StoriesRail />
+              <SectionBoundary name="stories-rail" variant="compact">
+                <StoriesRail />
+              </SectionBoundary>
             </div>
 
             <div className="mb-5">
-              <Composer onPosted={(p) => setPosts((prev) => [p, ...prev])} />
+              <SectionBoundary name="composer" variant="compact" label="composer">
+                <Composer onPosted={(p) => setPosts((prev) => [p, ...prev])} />
+              </SectionBoundary>
             </div>
 
             <div className="mb-4 flex items-center gap-3 text-sm">
@@ -199,8 +212,12 @@ export default function FeedPage() {
               interleaved after the first posts below xl. Unmounts with the
               timeline view, which stops the activity feed's polling. */}
           <div className="mt-6 space-y-4 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:mt-0">
-            <SocialRetentionRail getToken={getAccessToken} />
-            <CloseFriendsPanel />
+            <SectionBoundary name="retention-rail" variant="compact">
+              <SocialRetentionRail getToken={getAccessToken} />
+            </SectionBoundary>
+            <SectionBoundary name="close-friends" variant="compact">
+              <CloseFriendsPanel />
+            </SectionBoundary>
           </div>
 
           {/* The rest of the timeline */}
