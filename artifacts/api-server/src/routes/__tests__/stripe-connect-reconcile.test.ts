@@ -164,7 +164,19 @@ const DDL = `
     net_cents integer NOT NULL DEFAULT 0, stripe_session_id text,
     created_at timestamptz NOT NULL DEFAULT now()
   );
-  CREATE UNIQUE INDEX pending_payout_ledger_source_entry_ux ON pending_payout_ledger (source_kind, source_id, entry_type);
+  CREATE TABLE performance_bookings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  artist_user_id text NOT NULL DEFAULT '',
+  fee_cents integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'proposed',
+  escrow_status text NOT NULL DEFAULT 'unfunded',
+  stripe_session_id text,
+  platform_fee_cents integer,
+  artist_payout_cents integer,
+  paid_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX pending_payout_ledger_source_entry_ux ON pending_payout_ledger (source_kind, source_id, entry_type);
   -- The 0323 shoutout / tip-jar rails reconcile from these tables on every
   -- pending-payout read; they exist here (empty) so the sync runs whole.
   CREATE TABLE shoutout_requests (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), creator_user_id uuid NOT NULL, price_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'pending_payment', stripe_session_id text, paid_at timestamptz);
