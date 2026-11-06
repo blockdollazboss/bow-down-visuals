@@ -23,6 +23,7 @@ const good = {
     brandDeals: { status: "ok", totalCents: 1000, count: 1 },
     shoutouts: { status: "ok", totalCents: 950, count: 1, grossCents: 1000, feeCents: 50 },
     tipJar: { status: "ok", totalCents: 500, count: 1 },
+    bookings: { status: "ok", totalCents: 21250, count: 1, grossCents: 25000, feeCents: 3750 },
     tips: { status: "ok", streamTipsVb: 300, streamTipCount: 3, stageTipsVb: 120, stageTipCount: 2, tipJarPendingCents: 0, tipJarPendingCount: 0, tipJarStatus: "open" },
   },
 };
@@ -100,6 +101,21 @@ describe("normalizeEarningsResponse", () => {
     const legacy = normalizeEarningsResponse({ ...good, sources: { ...good.sources, shoutouts: undefined, tipJar: undefined } });
     expect(legacy?.sources.shoutouts.status).toBe("error");
     expect(legacy?.sources.tipJar.status).toBe("error");
+    expect(legacy?.partial).toBe(true);
+  });
+  it("released performance bookings ride their own source (0325: the escrow rail Earnings never showed)", () => {
+    const d = normalizeEarningsResponse(good);
+    expect(d?.sources.bookings.status).toBe("ok");
+    if (d?.sources.bookings.status === "ok") {
+      /* The Gate #5 live figures: a $250.00 booking at the 15% fee. */
+      expect(d.sources.bookings.totalCents).toBe(21250);
+      expect(d.sources.bookings.grossCents).toBe(25000);
+      expect(d.sources.bookings.feeCents).toBe(3750);
+    }
+    /* A payload from before this source existed degrades the card to
+       its error state — never a fabricated $0.00. */
+    const legacy = normalizeEarningsResponse({ ...good, sources: { ...good.sources, bookings: undefined } });
+    expect(legacy?.sources.bookings.status).toBe("error");
     expect(legacy?.partial).toBe(true);
   });
 });
@@ -245,6 +261,7 @@ describe("loadEarnings", () => {
         brandDeals: { status: "ok", totalCents: 0, count: 0 },
         shoutouts: { status: "ok", totalCents: 0, count: 0, grossCents: 0, feeCents: 0 },
         tipJar: { status: "ok", totalCents: 0, count: 0 },
+        bookings: { status: "ok", totalCents: 0, count: 0, grossCents: 0, feeCents: 0 },
         tips: { status: "ok", streamTipsVb: 0, streamTipCount: 0, tipJarPendingCents: 0, tipJarPendingCount: 0, tipJarStatus: "pending_payment" },
       },
     };
