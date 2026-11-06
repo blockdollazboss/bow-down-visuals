@@ -732,7 +732,11 @@ function AppShell() {
           <Route path="/join/:handle"><Join /></Route>
           <Route path="/guides"><Redirect to="/academy?tab=guides" /></Route>
           <Route path="/clip-maker"><Redirect to="/video-editor?tab=repurpose" /></Route>
-          <Route path="/branding-shop"><Redirect to="/branding-kit?tab=shop" /></Route>
+          {/* Query-preserving: Stripe's branding-shop return lands here
+              carrying ?order=…&paid=1, and BrandingShop needs that query
+              to land the buyer on My Orders with the payment-received
+              banner — wouter's <Redirect> would drop it. */}
+          <Route path="/branding-shop"><QueryPreservingRedirect to="/branding-kit?tab=shop" /></Route>
           {/* Public NFC smart-card profile (tap/QR destination) */}
           <Route path="/c/:slug"><NfcCardProfile /></Route>
           {/* Public link-in-bio page (no login) — viral fan surface */}
