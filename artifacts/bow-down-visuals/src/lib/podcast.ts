@@ -192,7 +192,10 @@ export type PodcastTemplateId =
   | "news-roundup"
   | "story-episode"
   | "panel-discussion"
-  | "listener-qa";
+  | "listener-qa"
+  | "deep-dive-explainer"
+  | "audio-diary"
+  | "review-desk";
 
 export interface PodcastEpisodeTemplate {
   id: PodcastTemplateId;
@@ -762,6 +765,315 @@ export const PODCAST_EPISODE_TEMPLATES: PodcastEpisodeTemplate[] = [
           {
             speaker: "HOST",
             line: "That's your questions answered. Send the next round to [where to send them], follow the show, and I'll see you in the next episode.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "deep-dive-explainer",
+    name: "Deep-Dive Explainer",
+    tagline: "One topic, taken all the way down",
+    description:
+      "Switches to Script mode with a solo host and seeds the script with an eight-segment explainer structure — a cold-open question, three chapters that go deeper each time, a myth check and a recap. Title, description, voice and music bed stay yours.",
+    mode: "script",
+    format: "single",
+    speakers: [],
+    segments: [
+      {
+        kind: "hook",
+        title: "The Big Question",
+        guidance:
+          "Open with the one question this episode answers — the version of it people actually ask, in their words.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Why does [the topic] actually work the way it does? Today we go all the way down — no shortcuts.",
+          },
+        ],
+      },
+      {
+        kind: "intro",
+        title: "Intro",
+        guidance:
+          "Name the show and the promise: one topic, fully explained, in plain words.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Welcome to [show name], I'm [your name] — and today we're explaining [the topic] from the ground up.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Chapter One — The Ground Floor",
+        guidance:
+          "Start with what everyone can see: the basics, the vocabulary, the simple version that's actually true.",
+        minutes: 6,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Chapter one: the ground floor. At its simplest, [the topic] is [the simple true version].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Chapter Two — How It Really Works",
+        guidance:
+          "Go one level deeper: the mechanism. Use one concrete example and follow it all the way through.",
+        minutes: 7,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Chapter two: how it really works. Follow this example — [the example] — and watch what happens step by step.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Chapter Three — The Deep Water",
+        guidance:
+          "The part most explainers skip: the edge cases, the trade-offs, and what the experts argue about.",
+        minutes: 6,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Chapter three: the deep water. Here's where it gets interesting — [the complication most people never hear about].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Myth Check",
+        guidance:
+          "Take the most repeated claim about this topic and test it honestly — keep what's true, correct what isn't.",
+        minutes: 4,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Myth check. You've probably heard that [the common claim]. Here's what's actually true: [the correction].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Recap",
+        guidance:
+          "Rebuild the whole explanation in under two minutes — if a listener remembers nothing else, they remember this.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "So, the whole thing in one breath: [the one-paragraph version of the explanation].",
+          },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "Outro",
+        guidance:
+          "Close with the question the episode opened with — answered — and invite the next topic suggestion.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "That's [the topic], all the way down. What should we take apart next? Send it in, follow the show, and I'll see you in the next deep dive.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "audio-diary",
+    name: "Audio Diary",
+    tagline: "A few honest minutes, on a rhythm",
+    description:
+      "Switches to Script mode with a solo host and seeds the script with a six-segment diary structure — today's moment, the lesson inside it, and tomorrow's intention, built to run daily or weekly. Title, description, voice and music bed stay yours.",
+    mode: "script",
+    format: "single",
+    speakers: [],
+    segments: [
+      {
+        kind: "intro",
+        title: "Opening the Diary",
+        guidance:
+          "Date the entry out loud and say where you're recording from — the diary feeling lives in those small specifics.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Dear diary — it's [today's date], I'm [where you are], and here's today's entry.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Today's Moment",
+        guidance:
+          "Tell the one moment from today that stuck — small is fine. Tell it like it happened, in order.",
+        minutes: 3,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Today, the moment that stuck was [the moment] — here's exactly how it went.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "What It Taught Me",
+        guidance:
+          "Pull the one lesson out of the moment. One is enough — the diary is a rhythm, not a lecture.",
+        minutes: 3,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "What it taught me: [the lesson]. I didn't see it that way this morning.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Honest Part",
+        guidance:
+          "Say the part you'd usually leave out — the doubt, the mess, the unfinished bit. That's why listeners come back.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "The honest part? [The thing you're still figuring out]. It's not wrapped up, and that's where it stands.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Tomorrow's Intention",
+        guidance:
+          "Set one small intention for tomorrow — small enough that future-you can actually keep it.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Tomorrow's intention is simple: [the one small intention]. That's the whole list.",
+          },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "Closing the Diary",
+        guidance:
+          "Close the entry the same way every time — a diary needs a ritual ending listeners can count on.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "That's today's entry. Same time [tomorrow / next week] — until then, [your sign-off].",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "review-desk",
+    name: "Review Desk",
+    tagline: "Test it properly, then give the verdict",
+    description:
+      "Switches to Script mode with a solo host and seeds the script with a seven-segment review structure — first impressions, a real deep test, a scored verdict, and who it's actually for. Title, description, voice and music bed stay yours.",
+    mode: "script",
+    format: "single",
+    speakers: [],
+    segments: [
+      {
+        kind: "hook",
+        title: "The Verdict Tease",
+        guidance:
+          "Tease the verdict without giving it away — the one surprise from testing that decides everything.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "I tested [the thing] properly — and one thing surprised me enough to change the whole verdict.",
+          },
+        ],
+      },
+      {
+        kind: "intro",
+        title: "What's on the Desk",
+        guidance:
+          "Name what's being reviewed, what it costs, and exactly how you tested it — the method is what makes a verdict believable.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Welcome to the Review Desk. Today: [the thing], which costs [the price] — and I tested it by [how you tested it].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "First Impressions",
+        guidance:
+          "The out-of-the-box truth: what it feels like in the first hour, before habit smooths the edges.",
+        minutes: 4,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "First impressions: [what stood out first] — and the first annoyance showed up fast: [the annoyance].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Deep Test",
+        guidance:
+          "The real work: push it on the jobs it promises to do, and note exactly where it holds and where it breaks.",
+        minutes: 8,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Now the deep test. I put it through [the main job it promises] — here's where it held up, and here's where it broke: [the findings].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Scorecard",
+        guidance:
+          "Score the same categories every review, out loud, with one line of why for each — consistency is what makes scores comparable.",
+        minutes: 3,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "The scorecard: [category one] — [score] out of ten, because [the reason]. [Category two] — [score], because [the reason].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Who It's For",
+        guidance:
+          "Say plainly who should buy it, who should skip it, and what they should get instead.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "So who is this for? If you're [the right buyer], it's a yes. If you're [the wrong buyer], skip it — get [the alternative] instead.",
+          },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "Outro",
+        guidance:
+          "Land the verdict in one sentence, then tell listeners what lands on the desk next.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Final verdict: [the one-sentence verdict]. Next on the desk: [the next thing]. Follow the show so you don't miss it.",
           },
         ],
       },
