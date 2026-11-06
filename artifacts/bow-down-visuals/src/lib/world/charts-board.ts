@@ -701,9 +701,12 @@ export function brandOutreachErrorMessage(payload: unknown, status: number, stri
    The brief half of the tab's outreach: posting a brief on the
    Promote board, in-world, on the site's own brief rail —
    POST /api/ugc-briefs, the exact endpoint the Promote page posts
-   to. A brief carries NO charge (v1 briefs move no money — the
-   UGC_PAYMENT_NOTE rides the panel, as it rides the board) and
-   answers 201 { brief }. The builder mirrors the route's create
+   to. A brief posted here carries no price and no charge — priced
+   briefs exist since C-25 and ride the site's escrow rail, so the
+   panel's footer carries the combined conditional money note
+   (UGC_BRIEFS_MONEY_NOTE: escrow truth for a priced brief, the
+   off-site note for a brief with no price), as the board header
+   does — and it answers 201 { brief }. The builder mirrors the route's create
    schema: a product name, at least ten characters of "what you
    want", a style from the UGC style list, and optional http(s)
    product link / deadline. Anything else returns null — the form

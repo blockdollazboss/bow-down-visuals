@@ -14,8 +14,7 @@ import {
   UGC_STYLES,
   UGC_VIDEO_CREDIT_COST,
   UGC_PERSONA_CREDIT_COST,
-  UGC_PAYMENT_NOTE,
-  UGC_ESCROW_NOTE,
+  UGC_BRIEFS_MONEY_NOTE,
   briefActionsFor,
   briefStatusLabel,
   escrowStatusLabel,
@@ -822,7 +821,7 @@ export function UgcAdsPanel() {
           <h3 className="text-base font-bold">Briefs board — brands &amp; creators</h3>
         </div>
         <p className="mt-2 rounded-xl border border-primary/30 bg-primary/[0.07] px-4 py-3 text-sm text-white/70">
-          {UGC_ESCROW_NOTE} For a brief with no price, {UGC_PAYMENT_NOTE.charAt(0).toLowerCase() + UGC_PAYMENT_NOTE.slice(1)}
+          {UGC_BRIEFS_MONEY_NOTE}
         </p>
 
         {/* Post a brief */}

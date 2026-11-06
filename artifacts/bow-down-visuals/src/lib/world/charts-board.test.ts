@@ -432,10 +432,14 @@ describe("the ChartsBoard surface (source pins)", () => {
     expect(outreachPanelSrc).toContain("BRAND_OUTREACH_COST_VB");
     expect(outreachPanelSrc).toContain('t("worldBoards.boDraftPitchButton", { cost: BRAND_OUTREACH_COST_VB })');
     expect(boards.boDraftPitchButton).toContain("Draft my pitch");
-    /* The honesty law rides along: the same plain no-money
-       statement the briefs board carries, imported from the one
-       seam — and exactly one quiet website footer, never more. */
-    expect(outreachPanelSrc).toContain("UGC_PAYMENT_NOTE");
+    /* The honesty law rides along: the same conditional money
+       statement the briefs board carries (escrow truth for a
+       priced brief, the off-site note for a brief with no price —
+       never the blanket free-brief note alone, C-25 follow-up),
+       imported from the one seam — and exactly one quiet website
+       footer, never more. */
+    expect(outreachPanelSrc).toContain("UGC_BRIEFS_MONEY_NOTE");
+    expect(outreachPanelSrc).not.toContain("UGC_PAYMENT_NOTE");
     expect(outreachPanelSrc).toContain('from "@/lib/ugc-ads"');
     expect(outreachPanelSrc).toContain('data-testid="world-charts-brands-website"');
     expect(outreachPanelSrc).toContain('href="/brand-deals"');

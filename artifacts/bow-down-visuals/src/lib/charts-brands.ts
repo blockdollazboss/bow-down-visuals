@@ -14,8 +14,10 @@
      scouting information, not an absence);
    - outreach rides rails that already exist (the doors below); the
      tab builds no messaging or payment system of its own, and the
-     briefs board's no-money note (lib/ugc-ads UGC_PAYMENT_NOTE)
-     travels with the doors. */
+     briefs board's conditional money note (lib/ugc-ads
+     UGC_BRIEFS_MONEY_NOTE — escrow truth for a priced brief, the
+     off-site note for a brief with no price) travels with the
+     doors. */
 
 import type { CreatorLite } from "@/components/discovery/cards";
 

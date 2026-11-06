@@ -12,19 +12,29 @@
  * - the net preview splits with the server's rounding at the brief's
  *   own feeBps (odd cents: $100.01 at 500 bps → 500 fee / 9501 net);
  * - escrow states read in plain words;
- * - the fund result normalizes defensively.
+ * - the fund result normalizes defensively;
+ * - the money NOTE is conditional on the brief's priced state
+ *   (C-25 follow-up): priced → escrow note, free → off-site note —
+ *   per brief via ugcBriefMoneyNote, and on the general surfaces
+ *   (board header, /charts, World outreach) via the combined
+ *   UGC_BRIEFS_MONEY_NOTE, whose brand name is never lowercased.
  */
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
+  UGC_BRIEFS_MONEY_NOTE,
   UGC_ESCROW_NOTE,
   UGC_PAYMENT_NOTE,
   briefActionsFor,
   escrowStatusLabel,
   normalizeUgcBrief,
   normalizeUgcBriefFundResult,
+  ugcBriefMoneyNote,
   ugcBriefNetPreview,
   type UgcBrief,
 } from "./ugc-ads";
+
+const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
 const BRAND = "brand-1";
 const CREATOR = "creator-1";
@@ -146,6 +156,47 @@ describe("ugcBriefNetPreview + escrowStatusLabel", () => {
     expect(escrowStatusLabel("released")).toBe("Released to the creator");
     expect(escrowStatusLabel("refunded")).toBe("Refunded");
     expect(escrowStatusLabel(null)).toBe("");
+  });
+});
+
+describe("the money note — conditional on the brief's priced state (C-25 follow-up)", () => {
+  it("priced → the escrow note; free → the off-site note", () => {
+    expect(ugcBriefMoneyNote({ priceCents: 10001 })).toBe(UGC_ESCROW_NOTE);
+    expect(ugcBriefMoneyNote({ priceCents: null })).toBe(UGC_PAYMENT_NOTE);
+    expect(ugcBriefMoneyNote({})).toBe(UGC_PAYMENT_NOTE);
+    expect(ugcBriefMoneyNote({ priceCents: undefined })).toBe(UGC_PAYMENT_NOTE);
+  });
+
+  it("a brief that arrives without a note falls back through the same conditional", () => {
+    expect(normalizeUgcBrief({ ...RAW_PRICED, paymentNote: "" })!.paymentNote).toBe(UGC_ESCROW_NOTE);
+    expect(normalizeUgcBrief({ ...RAW_FREE, paymentNote: "" })!.paymentNote).toBe(UGC_PAYMENT_NOTE);
+  });
+
+  it("the combined general note carries BOTH branches, brand name correctly cased", () => {
+    expect(UGC_BRIEFS_MONEY_NOTE).toBe(
+      "Bow Down Visuals holds this brief's payment safely and releases it to the creator when the brand approves the delivery. " +
+        "For a brief with no price, Bow Down Visuals doesn't hold or move money for briefs — payment is arranged between the brand and the creator directly.",
+    );
+    expect(UGC_BRIEFS_MONEY_NOTE.startsWith(UGC_ESCROW_NOTE)).toBe(true);
+    expect(UGC_BRIEFS_MONEY_NOTE.endsWith(UGC_PAYMENT_NOTE)).toBe(true);
+    expect(UGC_BRIEFS_MONEY_NOTE).toContain("For a brief with no price, Bow Down Visuals");
+    /* The casing defect: the brand name is never lowercase. */
+    expect(UGC_BRIEFS_MONEY_NOTE).not.toContain("bow Down Visuals");
+  });
+
+  it("the general surfaces render the combined note — the blanket note stands alone nowhere", () => {
+    const surfaces: Array<[string, string]> = [
+      ["the briefs board header", read("../components/hub/UgcAdsPanel.tsx")],
+      ["the /charts For Brands tab", read("../pages/discovery/charts.tsx")],
+      ["the World outreach panel", read("../components/world/native/boards/BrandOutreachPanel.tsx")],
+    ];
+    for (const [name, src] of surfaces) {
+      expect(src, name).toContain("UGC_BRIEFS_MONEY_NOTE");
+      expect(src, name).not.toContain("UGC_PAYMENT_NOTE");
+      expect(src, name).not.toContain("bow Down");
+    }
+    /* The board header no longer lowercases the seam note inline. */
+    expect(read("../components/hub/UgcAdsPanel.tsx")).not.toContain("charAt(0).toLowerCase()");
   });
 });
 
