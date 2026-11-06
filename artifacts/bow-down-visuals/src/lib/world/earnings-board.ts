@@ -47,14 +47,16 @@ import {
   statementLineRows,
   statementLineText,
   statementMoney,
+  statementStringsFrom,
   statementTotalLabel,
   type EarningsStatement,
+  type StatementStrings,
 } from "../earnings-statement";
 
 export { normalizeEarningsResponse, EarningsLoadCancelled };
 export type { EarningsResponse };
-export { statementIsEmpty, statementLineRows, statementLineText, statementMoney, statementTotalLabel };
-export type { EarningsStatement };
+export { statementIsEmpty, statementLineRows, statementLineText, statementMoney, statementStringsFrom, statementTotalLabel };
+export type { EarningsStatement, StatementStrings };
 
 /* ─── Localizable seam strings ────────────────────────────────────────
    Every user-visible literal this seam produces rides an OPTIONAL

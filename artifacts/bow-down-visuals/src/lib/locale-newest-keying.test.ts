@@ -25,6 +25,14 @@ import {
   ugcAdStatusLabel,
   ugcBriefMoneyNote,
 } from "./ugc-ads";
+import {
+  statementLineRows,
+  statementLineText,
+  statementMoney,
+  statementStringsFrom,
+  statementTotalLabel,
+  type EarningsStatement,
+} from "./earnings-statement";
 
 type Catalog = Record<string, unknown>;
 const LOCALES = ["en", "es", "fr", "pt", "de", "it", "hi", "ar", "ja", "ko"] as const;
@@ -148,5 +156,68 @@ describe("D6 · briefs board keying (items 44–45)", () => {
     const src = read("../components/world/native/UgcAdsStation.tsx");
     expect(src).toContain("ugcAdStatusLabel(ad.status, adStatusLabels)");
     expect(src).toContain("briefStatusLabel(brief.status, briefStatusLabels)");
+  });
+});
+
+/* ── Items 48+49 — Earnings page cards + the year statement ─────── */
+
+const EARNINGS_KEYS = Object.keys(EN).filter((k) => k.startsWith("earnings."));
+
+describe("D6 · earnings keying (items 48–49)", () => {
+  it("the earnings namespace exists in all 10 catalogs, English-verbatim (money labels)", () => {
+    expect(EARNINGS_KEYS.length).toBe(26);
+    for (const k of EARNINGS_KEYS) expectVerbatimEverywhere(k);
+  });
+
+  it("the statement seam: no bundle is byte-identical to the PDF's English", () => {
+    const stmt: EarningsStatement = {
+      sources: {
+        shoutouts: { status: "ok", totalCents: 950, count: 2 },
+        tipJar: { status: "ok", totalCents: 500, count: 1 },
+        ugcBriefs: { status: "error", totalCents: null, count: 0 },
+      },
+      totalCents: 1450,
+      partial: true,
+    };
+    const rows = statementLineRows(stmt);
+    expect(rows.map((r) => r.label)).toEqual(["Shoutouts", "Tip jar tips", "UGC briefs"]);
+    expect(statementLineText(rows[0])).toBe("$9.50 · 2 records");
+    expect(statementLineText(rows[2])).toBe("couldn't load");
+    expect(statementTotalLabel(true)).toBe("Total of the sources that loaded");
+    expect(statementTotalLabel(false)).toBe("Total");
+    expect(statementMoney(null)).toBe("couldn't load");
+    expect(statementMoney(1450)).toBe("$14.50");
+  });
+
+  it("the statement seam: a catalog bundle threads labels, line text and totals", () => {
+    const strings = statementStringsFrom((k) => EN[k] as string);
+    const stmt: EarningsStatement = {
+      sources: { shoutouts: { status: "ok", totalCents: 950, count: 2 } },
+      totalCents: 950,
+      partial: false,
+    };
+    const rows = statementLineRows(stmt, strings);
+    expect(rows[0].label).toBe("Shoutouts");
+    expect(statementLineText(rows[0], strings)).toBe("$9.50 · 2 records");
+    expect(statementTotalLabel(false, strings)).toBe("Total");
+    /* A bundle really is a bundle: custom words win. */
+    const custom = { labels: { shoutouts: "SH-X" }, couldntLoad: "CL-X", lineTemplate: "{{money}}!", total: "T-X", totalPartial: "TP-X" };
+    expect(statementLineRows(stmt, custom)[0].label).toBe("SH-X");
+    expect(statementLineText(rows[0], custom)).toBe("$9.50!");
+    expect(statementTotalLabel(true, custom)).toBe("TP-X");
+    expect(statementMoney(null, "CL-X")).toBe("CL-X");
+  });
+
+  it("the Earnings page + both statement viewers resolve through the keys", () => {
+    const page = read("../pages/earnings.tsx");
+    expect(page).toContain('t("earnings.title")');
+    expect(page).toContain('t("earnings.shoutoutsTitle")');
+    expect(page).toContain('t("earnings.shoutoutsDetail"');
+    expect(page).toContain('t("earnings.tipJarTitle")');
+    expect(page).toContain('t("earnings.tipJarDetail")');
+    expect(page).toContain("earnings.ledgerShoutout");
+    expect(page).toContain("earnings.ledgerTipJarTip");
+    expect(read("../components/trust/TrustPanels.tsx")).toContain("statementStringsFrom");
+    expect(read("../components/world/native/boards/EarningsBoard.tsx")).toContain("statementStringsFrom(t)");
   });
 });

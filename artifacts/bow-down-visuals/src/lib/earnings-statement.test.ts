@@ -169,7 +169,7 @@ describe("statementIsEmpty — the honest empty statement", () => {
 
 describe("the Earnings page documents panel (source pins)", () => {
   it("renders the shared lines — no raw source keys as labels anymore", () => {
-    expect(trustPanelsSrc).toContain("statementLineRows(stmt)");
+    expect(trustPanelsSrc).toContain("statementLineRows(stmt, stmtStrings)");
     expect(trustPanelsSrc).toContain("statementLineText(row)");
     expect(trustPanelsSrc).toContain("statementTotalLabel(stmt.partial)");
     expect(trustPanelsSrc).not.toContain("Object.entries(stmt.sources)");

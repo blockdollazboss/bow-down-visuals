@@ -24312,5 +24312,33 @@
     "unpinnedTitle": "Unpinned",
     "wentToCreator": "{{amount}} went to the creator.",
     "makerScriptNeeded": "The ad needs a script — write one above or let Turbo write it."
+  },
+  "earnings": {
+    "ledgerBeatLicense": "Beat license",
+    "ledgerDigitalSale": "Digital sale",
+    "ledgerMembership": "Membership",
+    "ledgerShopEvent": "Shop sale",
+    "ledgerShoutout": "Shoutout",
+    "ledgerStoreOrder": "Store order",
+    "ledgerTipJarTip": "Tip jar tip",
+    "shoutoutsDetail": "gross {{gross}} · platform fee {{fee}} (5%)",
+    "shoutoutsTitle": "Shoutouts",
+    "stmtBeats": "Beat licenses",
+    "stmtBrandDeals": "Brand deals",
+    "stmtCouldntLoad": "couldn't load",
+    "stmtDigitalSales": "Digital sales",
+    "stmtLine": "{{money}} · {{count}} records",
+    "stmtMemberships": "Memberships",
+    "stmtRoyalties": "Royalties (recorded)",
+    "stmtShopSales": "Shop sales",
+    "stmtShoutouts": "Shoutouts",
+    "stmtStoreSales": "Store sales",
+    "stmtTipJar": "Tip jar tips",
+    "stmtTotal": "Total",
+    "stmtTotalPartial": "Total of the sources that loaded",
+    "stmtUgcBriefs": "UGC briefs",
+    "tipJarDetail": "tips arrive in full — no platform fee",
+    "tipJarTitle": "Tip jar tips",
+    "title": "Earnings"
   }
 }
