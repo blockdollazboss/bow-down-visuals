@@ -359,7 +359,9 @@ describe("stripe webhook — beat license producer tell (BEATS-SETTLE)", () => {
     const res = await deliver(beatEvent("paid"));
     expect(res.statusCode).toBe(200);
     expect(h.licenses[0]?.status).toBe("completed");
-    expect(h.tells).toHaveLength(1);
+    /* The buyer tell (stack1600 L6) rides the same landing; the
+       producer's own count is what this test pins. */
+    expect(h.tells.filter((t) => t.kind === "beat_sale")).toHaveLength(1);
     expect(h.tells[0]).toMatchObject({
       userId: PRODUCER_ID,
       category: "money",
@@ -376,12 +378,14 @@ describe("stripe webhook — beat license producer tell (BEATS-SETTLE)", () => {
     await deliver(beatEvent("paid"));
     await deliver(beatEvent("paid"));
     expect(h.licenses[0]?.status).toBe("completed");
-    expect(h.tells).toHaveLength(1);
+    expect(h.tells.filter((t) => t.kind === "beat_sale")).toHaveLength(1);
+    expect(h.tells.filter((t) => t.kind === "beat_license")).toHaveLength(1);
   });
 
   it("the verify door after a webhook settle does not tell twice", async () => {
     await deliver(beatEvent("paid"));
-    expect(h.tells).toHaveLength(1);
+    expect(h.tells.filter((t) => t.kind === "beat_sale")).toHaveLength(1);
+    expect(h.tells.filter((t) => t.kind === "beat_license")).toHaveLength(1);
     const { settleBeatLicenseSession } = await import("../../routes/generate/beats");
     const session: any = {
       id: SESSION_ID,
@@ -397,7 +401,8 @@ describe("stripe webhook — beat license producer tell (BEATS-SETTLE)", () => {
     const result = await settleBeatLicenseSession(session, { buyerUserId: BUYER_ID });
     expect(result.httpStatus).toBe(200);
     expect(result.body).toMatchObject({ success: true, duplicate: true });
-    expect(h.tells).toHaveLength(1);
+    expect(h.tells.filter((t) => t.kind === "beat_sale")).toHaveLength(1);
+    expect(h.tells.filter((t) => t.kind === "beat_license")).toHaveLength(1);
   });
 
   it("an unpaid session tells nothing", async () => {
@@ -411,5 +416,47 @@ describe("stripe webhook — beat license producer tell (BEATS-SETTLE)", () => {
     await deliver(beatEvent("paid"));
     expect(h.refunds).toHaveLength(1);
     expect(h.tells).toHaveLength(0);
+  });
+});
+
+describe("stripe webhook — beat license buyer tell (stack1600 L6)", () => {
+  /* The buyer half of the sale finale: until now a closed-tab
+     buyer had no way to learn the license landed — the producer
+     was told, the buyer's Notifications stayed empty (found live
+     in the Nov 5 two-account run). The tell hangs off the shared
+     settle's completion-flip win, so the webhook door tells the
+     buyer exactly like the verify door does. */
+  it("a closed-tab paid settle tells the buyer exactly once, naming the beat and tier", async () => {
+    const res = await deliver(beatEvent("paid"));
+    expect(res.statusCode).toBe(200);
+    expect(h.licenses[0]?.status).toBe("completed");
+    const buyerTells = h.tells.filter((t) => t.kind === "beat_license");
+    expect(buyerTells).toHaveLength(1);
+    expect(buyerTells[0]).toMatchObject({
+      userId: BUYER_ID,
+      category: "money",
+      kind: "beat_license",
+      title: "Your beat license is active 👑",
+      link: "/beats",
+    });
+    expect(buyerTells[0]?.body).toContain("Midnight Loops (premium)");
+    expect(buyerTells[0]?.body).toContain("Your licenses");
+    expect(h.claims.has("sale:beat-license-buyer:" + LICENSE_ID)).toBe(true);
+    /* The producer tell is untouched by the addition. */
+    expect(h.tells.filter((t) => t.kind === "beat_sale")).toHaveLength(1);
+    expect(h.claims.has("sale:beat-license:" + LICENSE_ID)).toBe(true);
+  });
+
+  it("a replayed delivery does not tell the buyer twice", async () => {
+    await deliver(beatEvent("paid"));
+    await deliver(beatEvent("paid"));
+    expect(h.licenses[0]?.status).toBe("completed");
+    expect(h.tells.filter((t) => t.kind === "beat_license")).toHaveLength(1);
+  });
+
+  it("an unpaid session tells the buyer nothing", async () => {
+    await deliver(beatEvent("unpaid"));
+    expect(h.licenses[0]?.status).toBe("pending_payment");
+    expect(h.tells.filter((t) => t.kind === "beat_license")).toHaveLength(0);
   });
 });

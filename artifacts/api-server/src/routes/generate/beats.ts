@@ -1323,8 +1323,12 @@ export async function settleBeatLicenseSession(
        only the winner reaches this line (the loser answered
        duplicate above), so the producer tell fires here, inside
        the shared settle, whichever door carried the payment home.
-       The helper never throws. */
+       The helper never throws. The buyer tell rides the same win
+       (stack1600 L6): the buyer who paid and left before the
+       return-verify learns from the same landing that their
+       license is active, whichever door carried the payment. */
     await notifyBeatSaleSafely(updated, beat.title);
+    await notifyBeatBuyerSafely(updated, beat.title, delivery.undeliverable);
     return {
       httpStatus: 200,
       body: {
@@ -1394,6 +1398,60 @@ async function notifyBeatSaleSafely(license: {
     });
   } catch (err) {
     logger.warn({ err, licenseId: license.id }, "[beats] producer sale tell failed (sale stands)");
+  }
+}
+
+/* The buyer tell (stack1600 L6) — the other half of the sale
+   finale. Until now only the producer was told (above); the buyer
+   got no bell and no push, so a buyer who paid and left before
+   the return-verify never learned their license was active or
+   where its download lives (the Nov 5 two-account run found the
+   buyer's Notifications empty after a settled purchase). Same
+   claim-first shape as the producer tell: the claim (jobType
+   "sale", jobId `beat-license-buyer:<id>` — its own key, never
+   the producer's) lands on the unique (job_type, job_id) key,
+   and only its winner fires the door. The two exactly-once gates
+   stack: this helper is called only from the settle's
+   completion-flip win, which exactly one door (verify or
+   webhook) can reach per license, and the claim would still
+   stop a second call. Copy names the beat + tier in plain words
+   and points at the buyer's shelf — "Your licenses" on the Beat
+   Marketplace page, the same /beats the payment-reversals buyer
+   link uses for beat licenses. When the file is still
+   undelivered the license completes as awaiting delivery, and
+   the copy says so honestly instead of promising a download
+   that is not there yet. Best-effort: a tell failure never
+   fails the buyer's completion. */
+async function notifyBeatBuyerSafely(license: {
+  id: string;
+  buyer_id: string;
+  tier: string;
+}, beatTitle: string, awaitingDelivery: boolean): Promise<void> {
+  const title = "Your beat license is active 👑";
+  const message = awaitingDelivery
+    ? `${beatTitle} (${license.tier}) is yours. The producer still needs to deliver the file — it will land in Your licenses on the Beat Marketplace page, and if it never arrives you'll be refunded in full automatically.`
+    : `${beatTitle} (${license.tier}) is yours. Download it from Your licenses on the Beat Marketplace page.`;
+  try {
+    const claimed = await createJobNotification({
+      jobType: "sale",
+      jobId: `beat-license-buyer:${license.id}`,
+      userId: license.buyer_id,
+      projectId: null,
+      status: "completed",
+      title,
+      message,
+    });
+    if (!claimed) return; // a twin request already claimed the tell
+    await notifyUserEvent({
+      userId: license.buyer_id,
+      category: "money",
+      kind: "beat_license",
+      title,
+      body: message,
+      link: "/beats",
+    });
+  } catch (err) {
+    logger.warn({ err, licenseId: license.id }, "[beats] buyer license tell failed (license stands)");
   }
 }
 

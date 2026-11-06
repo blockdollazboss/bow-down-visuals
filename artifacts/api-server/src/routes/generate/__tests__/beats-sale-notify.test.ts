@@ -13,6 +13,12 @@
  * net (price − the row's own commission), and still lands the bell
  * when the producer's "money" push category is off (the door's
  * contract: a preference silences the ping, never the record).
+ *
+ * stack1600 L6 adds the buyer half: the same completion tells the
+ * BUYER exactly once — through the verify door, through the
+ * webhook door (the shared settle called the way stripe-webhook.ts
+ * calls it), and through both doors racing — naming the beat and
+ * tier and pointing at "Your licenses", where the download lives.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "crypto";
@@ -201,7 +207,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 import { beatsTable, beatLicensesTable, notificationsTable, pushNotificationPrefsTable } from "@workspace/db";
-import router from "../beats";
+import router, { settleBeatLicenseSession } from "../beats";
 import { __setJobNotificationsDb } from "../../../lib/job-notifications";
 
 const PRODUCER = randomUUID();
@@ -279,8 +285,8 @@ async function call(method: string, path: string, body?: unknown, headers: Recor
   return { status: res.status, data: (await res.json().catch(() => ({}))) as any };
 }
 
-async function buyAndVerify() {
-  const beat = seedBeat();
+async function buyLicense(beatOverrides: Record<string, any> = {}) {
+  const beat = seedBeat(beatOverrides);
   const start = await call("POST", `/beats/${beat.id}/license`, { tier: "premium" });
   expect(start.status).toBe(201);
   const licenseId = start.data.license.id as string;
@@ -291,10 +297,19 @@ async function buyAndVerify() {
     amount_total: 9999,
     metadata: { purchase_kind: "beat_license", license_id: licenseId, beat_id: beat.id, buyer_user_id: BUYER, tier: "premium" },
   };
+  return { beat, licenseId, sessionId };
+}
+
+async function buyAndVerify(beatOverrides: Record<string, any> = {}) {
+  const { beat, licenseId, sessionId } = await buyLicense(beatOverrides);
   const v = await call("POST", "/beats/licenses/verify", { sessionId });
   expect(v.status).toBe(200);
   expect(v.data.success).toBe(true);
   return { beat, licenseId, sessionId };
+}
+
+function bellsFor(userId: string) {
+  return storeFor(notificationsTable).filter((n) => (n["userId"] ?? n["user_id"]) === userId);
 }
 
 describe("beat license sale — the producer hears it", () => {
@@ -316,7 +331,9 @@ describe("beat license sale — the producer hears it", () => {
     /* A duplicate verify completes nothing new and tells nothing new. */
     const v2 = await call("POST", "/beats/licenses/verify", { sessionId });
     expect(v2.data.duplicate).toBe(true);
-    expect(h.claims.size).toBe(1);
+    /* Two claims exist by now — the producer's and the buyer's
+       (stack1600 L6) — and the duplicate verify added neither. */
+    expect(h.claims.size).toBe(2);
     expect(storeFor(notificationsTable).filter((n) => (n["userId"] ?? n["user_id"]) === PRODUCER)).toHaveLength(1);
   });
 
@@ -334,5 +351,88 @@ describe("beat license sale — the producer hears it", () => {
     const bells = storeFor(notificationsTable).filter((n) => (n["userId"] ?? n["user_id"]) === PRODUCER);
     expect(bells).toHaveLength(1);
     expect(bells[0]!["kind"]).toBe("beat_sale");
+  });
+});
+
+describe("beat license sale — the buyer hears it (stack1600 L6)", () => {
+  it("completion tells the buyer exactly once, naming the beat and tier and where the download lives", async () => {
+    const { licenseId, sessionId } = await buyAndVerify();
+
+    const claim = h.claims.get(`sale:beat-license-buyer:${licenseId}`);
+    expect(claim).toBeDefined();
+    expect(claim!["user_id"]).toBe(BUYER);
+
+    const bells = bellsFor(BUYER);
+    expect(bells).toHaveLength(1);
+    expect(bells[0]!["kind"]).toBe("beat_license");
+    expect(bells[0]!["title"]).toBe("Your beat license is active 👑");
+    expect(bells[0]!["body"]).toContain("Midnight Loop");
+    expect(bells[0]!["body"]).toContain("(premium)");
+    expect(bells[0]!["body"]).toContain("Your licenses");
+    expect(bells[0]!["link"]).toBe("/beats");
+
+    /* A duplicate verify completes nothing new and tells nothing new. */
+    const v2 = await call("POST", "/beats/licenses/verify", { sessionId });
+    expect(v2.data.duplicate).toBe(true);
+    expect(bellsFor(BUYER)).toHaveLength(1);
+    expect(h.claims.size).toBe(2);
+  });
+
+  it("the webhook door tells the buyer too — and a later verify stays silent", async () => {
+    const { licenseId, sessionId } = await buyLicense();
+    /* The webhook door is exactly this call with the session
+       metadata's buyer (stripe-webhook.ts, purchase_kind
+       "beat_license") — no browser return involved. */
+    const settled = await settleBeatLicenseSession(h.session, { buyerUserId: BUYER });
+    expect(settled.httpStatus).toBe(200);
+    expect(bellsFor(BUYER)).toHaveLength(1);
+    expect(bellsFor(BUYER)[0]!["kind"]).toBe("beat_license");
+    expect(h.claims.get(`sale:beat-license-buyer:${licenseId}`)).toBeDefined();
+
+    const v = await call("POST", "/beats/licenses/verify", { sessionId });
+    expect(v.data.duplicate).toBe(true);
+    expect(bellsFor(BUYER)).toHaveLength(1);
+    expect(bellsFor(PRODUCER)).toHaveLength(1);
+  });
+
+  it("verify and webhook racing settle — and tell — exactly once", async () => {
+    const { sessionId } = await buyLicense();
+    const [settled] = await Promise.all([
+      settleBeatLicenseSession(h.session, { buyerUserId: BUYER }),
+      call("POST", "/beats/licenses/verify", { sessionId }),
+    ]);
+    expect(settled.httpStatus).toBe(200);
+    expect(bellsFor(BUYER)).toHaveLength(1);
+    expect(bellsFor(PRODUCER)).toHaveLength(1);
+    expect(h.claims.size).toBe(2);
+  });
+
+  it("the bell still lands when the buyer's money push category is off", async () => {
+    storeFor(pushNotificationPrefsTable).push({
+      user_id: BUYER,
+      money_enabled: false,
+      messages_enabled: true,
+      live_enabled: true,
+      mentions_enabled: true,
+      social_enabled: false,
+      updated_at: new Date(),
+    });
+    await buyAndVerify();
+    const bells = bellsFor(BUYER);
+    expect(bells).toHaveLength(1);
+    expect(bells[0]!["kind"]).toBe("beat_license");
+  });
+
+  it("an awaiting-delivery completion tells the buyer honestly — no download promised yet", async () => {
+    const { sessionId } = await buyLicense({ audio_url: null, audio_path: null });
+    const v = await call("POST", "/beats/licenses/verify", { sessionId });
+    expect(v.status).toBe(200);
+    expect(v.data.success).toBe(true);
+    expect(v.data.deliveryState).toBe("awaiting_delivery");
+    const bells = bellsFor(BUYER);
+    expect(bells).toHaveLength(1);
+    expect(bells[0]!["body"]).toContain("still needs to deliver");
+    expect(bells[0]!["body"]).toContain("Your licenses");
+    expect(bells[0]!["body"]).not.toContain("Download it from");
   });
 });
