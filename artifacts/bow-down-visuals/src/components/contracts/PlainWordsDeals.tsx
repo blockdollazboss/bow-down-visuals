@@ -1,6 +1,7 @@
 import { apiErrorMessage } from "../../lib/api-error";
 import { matchesQuery } from "../../lib/search-match";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CheckCircle2, FileSignature, Handshake, Loader2, PenLine, Undo2, XCircle,
 } from "lucide-react";
@@ -54,6 +55,7 @@ const KIND_OPTIONS: Array<{ key: PlainDealItemKind; label: string }> = [
 ];
 
 export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
+  const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [deals, setDeals] = useState<PlainDealItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,6 +71,7 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
   const [partnerId, setPartnerId] = useState("");
   const [kind, setKind] = useState<PlainDealItemKind>("general");
   const [itemOptions, setItemOptions] = useState<ItemOption[]>([]);
+  const [itemOptionsFailed, setItemOptionsFailed] = useState(false);
   const [itemId, setItemId] = useState("");
   const [title, setTitle] = useState("");
   const [myDoes, setMyDoes] = useState("");
@@ -157,43 +160,60 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
   }, [user]);
 
   /* Item picker: only MY items can carry a deal's split. */
-  useEffect(() => {
-    (async () => {
-      setItemId("");
-      if (!user || kind === "general") {
-        setItemOptions([]);
-        return;
-      }
-      try {
-        if (kind === "release") {
-          const { res, data } = await authed("/api/distribution/releases");
-          if (!res.ok) return;
-          const rows = (data.releases as Array<{ id: string; title: string }>) ?? [];
-          setItemOptions(rows.map((r) => ({ id: r.id, title: r.title })));
-        } else if (kind === "store_product") {
-          const me = await authed("/api/creator-profiles/me");
-          const profile = (me.data.profile ?? me.data) as { id?: string };
-          if (!profile?.id) return;
-          const { res, data } = await authed(`/api/storefront/products?profileId=${encodeURIComponent(profile.id)}`);
-          if (!res.ok) return;
-          const rows = (data.products as Array<{ id: string; title: string }>) ?? [];
-          setItemOptions(rows.map((r) => ({ id: r.id, title: r.title })));
-        } else {
-          const shopsRes = await authed("/api/shops");
-          const shops = (shopsRes.data.shops as Array<{ id: string; name?: string }>) ?? [];
-          const all: ItemOption[] = [];
-          for (const shop of shops) {
-            const { res, data } = await authed(`/api/shops/${shop.id}/products`);
-            if (!res.ok) continue;
-            const rows = (data.products as Array<{ id: string; name: string }>) ?? [];
-            for (const r of rows) all.push({ id: r.id, title: r.name });
-          }
-          setItemOptions(all);
+  async function loadItemOptions() {
+    setItemId("");
+    if (!user || kind === "general") {
+      setItemOptions([]);
+      setItemOptionsFailed(false);
+      return;
+    }
+    try {
+      let next: ItemOption[];
+      if (kind === "release") {
+        const { res, data } = await authed("/api/distribution/releases");
+        if (!res.ok) throw new Error("items load failed");
+        const rows = (data.releases as Array<{ id: string; title: string }>) ?? [];
+        next = rows.map((r) => ({ id: r.id, title: r.title }));
+      } else if (kind === "store_product") {
+        const me = await authed("/api/creator-profiles/me");
+        if (!me.res.ok) throw new Error("items load failed");
+        const profile = (me.data.profile ?? me.data) as { id?: string };
+        if (!profile?.id) {
+          /* a confirmed ok answer with no creator profile is a genuine
+             "no store items" — not a load failure */
+          setItemOptions([]);
+          setItemOptionsFailed(false);
+          return;
         }
-      } catch {
-        setItemOptions([]);
+        const { res, data } = await authed(`/api/storefront/products?profileId=${encodeURIComponent(profile.id)}`);
+        if (!res.ok) throw new Error("items load failed");
+        const rows = (data.products as Array<{ id: string; title: string }>) ?? [];
+        next = rows.map((r) => ({ id: r.id, title: r.title }));
+      } else {
+        const shopsRes = await authed("/api/shops");
+        if (!shopsRes.res.ok) throw new Error("items load failed");
+        const shops = (shopsRes.data.shops as Array<{ id: string; name?: string }>) ?? [];
+        const all: ItemOption[] = [];
+        for (const shop of shops) {
+          const { res, data } = await authed(`/api/shops/${shop.id}/products`);
+          if (!res.ok) continue;
+          const rows = (data.products as Array<{ id: string; name: string }>) ?? [];
+          for (const r of rows) all.push({ id: r.id, title: r.name });
+        }
+        next = all;
       }
-    })();
+      setItemOptions(next);
+      setItemOptionsFailed(false);
+    } catch {
+      /* Empty-lie fix: a failed load is NOT "no items found" — keep the
+         picker out of its empty lie and raise the honest failed state
+         with a retry. */
+      setItemOptionsFailed(true);
+    }
+  }
+
+  useEffect(() => {
+    void loadItemOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, user]);
 
@@ -400,12 +420,22 @@ export function PlainWordsDeals({ isLight }: { isLight: boolean }) {
             {kind !== "general" && (
               <div className="mb-4">
                 <label className={labelClass}>Pick the item — its money follows this split once you both sign</label>
-                <select aria-label="Pick the item — its money follows this split once you both sign" value={itemId} onChange={(e) => setItemId(e.target.value)} className={inputClass}>
-                  <option value="">{itemOptions.length === 0 ? "No items found yet" : "Pick one…"}</option>
-                  {itemOptions.map((o) => (
-                    <option key={o.id} value={o.id}>{o.title}</option>
-                  ))}
-                </select>
+                {itemOptionsFailed ? (
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-red-300" data-testid="plain-deals-items-load-error">
+                    {t("plainDealsItems.loadError")}
+                    <button type="button" onClick={() => void loadItemOptions()}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+                      {t("plainDealsItems.retry")}
+                    </button>
+                  </p>
+                ) : (
+                  <select aria-label="Pick the item — its money follows this split once you both sign" value={itemId} onChange={(e) => setItemId(e.target.value)} className={inputClass}>
+                    <option value="">{itemOptions.length === 0 ? "No items found yet" : "Pick one…"}</option>
+                    {itemOptions.map((o) => (
+                      <option key={o.id} value={o.id}>{o.title}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             )}
 

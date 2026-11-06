@@ -24285,5 +24285,9 @@
   "composerTiers": {
     "loadError": "Your fan tiers couldn't load — your members-only audience can't be set until they do.",
     "retry": "Try again"
+  },
+  "plainDealsItems": {
+    "loadError": "Your items couldn't load — check your connection and try again.",
+    "retry": "Try again"
   }
 }
