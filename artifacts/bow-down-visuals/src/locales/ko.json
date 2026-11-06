@@ -15000,7 +15000,9 @@
     "tabHum": "흥얼거리기",
     "modeSimple": "Turbo",
     "modeCustom": "Advanced",
-    "bpmUnknown": "—"
+    "bpmUnknown": "—",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "weekly_contest": {
     "aria": "주간 크리에이터 콘테스트",

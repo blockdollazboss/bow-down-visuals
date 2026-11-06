@@ -668,6 +668,8 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "linkInBio.tipJar.placeholder",
   "mashup.balanceLabel",
   "mashup.bpmUnknown",
+  "mashup.songsLoadError",
+  "mashup.songsRetry",
   "mashup.modeSimple",
   "mashup.priceBadge",
   "mashup.styleCrossfade",

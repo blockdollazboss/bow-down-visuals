@@ -15431,7 +15431,9 @@
     "uploading": "جارٍ الرفع…",
     "working": "جارٍ العمل…",
     "bpmUnknown": "—",
-    "modeSimple": "Turbo"
+    "modeSimple": "Turbo",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "weekly_contest": {
     "aria": "مسابقة المبدعين الأسبوعية",

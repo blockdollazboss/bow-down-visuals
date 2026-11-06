@@ -581,6 +581,8 @@ const W5_LEGIT: string[] = [
   "library.headingA",
   "mashup.balanceLabel",
   "mashup.bpmUnknown",
+  "mashup.songsLoadError",
+  "mashup.songsRetry",
   "mashup.modeSimple",
   "mashup.priceBadge",
   "mashup.styleCrossfade",

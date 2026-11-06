@@ -773,6 +773,8 @@ const W5_LEGIT_IDENTICAL = new Set([
   "library.tabTemplates",
   "mashup.balanceLabel",
   "mashup.bpmUnknown",
+  "mashup.songsLoadError",
+  "mashup.songsRetry",
   "mashup.modeSimple",
   "mashup.priceBadge",
   "mashup.songA",

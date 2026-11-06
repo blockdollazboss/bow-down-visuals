@@ -15370,7 +15370,9 @@
     "copied": "Kopiert!",
     "shareText": "Schau dir mein Mashup an",
     "coverArtist": "Song-Mashup",
-    "tabHum": "Summen"
+    "tabHum": "Summen",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "weekly_contest": {
     "aria": "Wöchentlicher Creator-Wettbewerb",

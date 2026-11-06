@@ -7042,7 +7042,9 @@
     "copied": "Copied!",
     "shareText": "Check out my mashup",
     "coverArtist": "Song Mashup",
-    "tabHum": "Hum It"
+    "tabHum": "Hum It",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "djSets": {
     "tab": "DJ Sets",

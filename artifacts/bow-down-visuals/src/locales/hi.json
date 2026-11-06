@@ -15041,7 +15041,9 @@
     "copied": "कॉपी हो गया!",
     "shareText": "मेरा मैशअप देखें",
     "coverArtist": "सॉन्ग मैशअप",
-    "tabHum": "गुनगुनाएँ"
+    "tabHum": "गुनगुनाएँ",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "mediaDetector": {
     "badge": "AI मीडिया डिटेक्टर",

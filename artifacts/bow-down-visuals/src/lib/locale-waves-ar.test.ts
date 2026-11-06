@@ -265,6 +265,8 @@ const W4_ALLOW = new Set([
   "beats.titlePlaceholder",
   "makeSong.priceBadge",
   "mashup.bpmUnknown",
+  "mashup.songsLoadError",
+  "mashup.songsRetry",
   "mashup.modeSimple",
   "mashup.priceBadge",
   "myProjects.visualBucsUsed",

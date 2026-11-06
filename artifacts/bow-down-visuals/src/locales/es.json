@@ -15403,7 +15403,9 @@
     "copied": "¡Copiado!",
     "shareText": "Mira mi mashup",
     "coverArtist": "Mashup de canciones",
-    "tabHum": "Tararear"
+    "tabHum": "Tararear",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "linkInBio": {
     "tab": "Enlace en la bio",

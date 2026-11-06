@@ -15403,7 +15403,9 @@
     "copied": "Copié !",
     "shareText": "Découvrez mon mashup",
     "coverArtist": "Mashup de chansons",
-    "tabHum": "Fredonner"
+    "tabHum": "Fredonner",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "linkInBio": {
     "tab": "Lien en bio",

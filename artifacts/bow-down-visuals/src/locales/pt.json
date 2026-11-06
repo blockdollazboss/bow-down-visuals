@@ -15063,7 +15063,9 @@
     "copied": "Copiado!",
     "shareText": "Confira meu mashup",
     "coverArtist": "Mashup de músicas",
-    "tabHum": "Cantarolar"
+    "tabHum": "Cantarolar",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "mediaDetector": {
     "badge": "Detector de Mídia IA",

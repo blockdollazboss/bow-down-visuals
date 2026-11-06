@@ -15037,7 +15037,9 @@
     "copied": "コピーしました！",
     "shareText": "私のマッシュアップをチェック",
     "coverArtist": "ソングマッシュアップ",
-    "tabHum": "鼻歌"
+    "tabHum": "鼻歌",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "mediaDetector": {
     "badge": "AIメディア検出",

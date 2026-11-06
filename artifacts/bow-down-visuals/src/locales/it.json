@@ -15034,7 +15034,9 @@
     "copied": "Copiato!",
     "shareText": "Ascolta il mio mashup",
     "coverArtist": "Mashup di canzoni",
-    "tabHum": "Canticchia"
+    "tabHum": "Canticchia",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "mediaDetector": {
     "badge": "Rilevatore media IA",
