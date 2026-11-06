@@ -236,6 +236,30 @@ export const VIDEO_TEMPLATE_METAS: VideoTemplateMeta[] = [
     category: "Music",
     outcome: "Full-song lyric videos, framed",
   },
+  {
+    key: "unboxing-reveal",
+    name: "Unboxing Reveal",
+    tagline: "Sealed box to hero shot, beat by beat",
+    description:
+      "A timed unboxing in four beats: the sealed box, the first peel, the reveal moment, then a slow hero hold with your call to action stamped on. First impressions, engineered.",
+    aspect: "9:16",
+    durationLabel: "~7s",
+    slotCount: 4,
+    category: "Reveal",
+    outcome: "First impressions that sell the second look",
+  },
+  {
+    key: "countdown-teaser",
+    name: "Countdown Teaser",
+    tagline: "5, 4, 3, 2, 1 — then the drop",
+    description:
+      "Five teaser frames under a hard countdown, each number landing bigger than the last, ending on the drop card with the date stamped big. Anticipation, engineered.",
+    aspect: "9:16",
+    durationLabel: "~5s",
+    slotCount: 6,
+    category: "Promo",
+    outcome: "Drops your crowd counts down to",
+  },
 ];
 
 export const VIDEO_TEMPLATE_CATEGORIES = [

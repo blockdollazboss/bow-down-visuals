@@ -35,10 +35,12 @@ const EXPECTED_KEYS = [
   "tutorial-steps",
   "podcast-clip-vertical",
   "lyric-video-landscape",
+  "unboxing-reveal",
+  "countdown-teaser",
 ];
 
 describe("video template display metas", () => {
-  it("mirrors the full server library (18 templates)", () => {
+  it("mirrors the full server library (20 templates)", () => {
     expect(VIDEO_TEMPLATE_METAS.length).toBeGreaterThanOrEqual(16);
     expect(VIDEO_TEMPLATE_METAS.map((t) => t.key)).toEqual(EXPECTED_KEYS);
   });
