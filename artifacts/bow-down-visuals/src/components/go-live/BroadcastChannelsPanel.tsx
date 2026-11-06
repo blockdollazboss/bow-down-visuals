@@ -1,0 +1,207 @@
+import { plainErrorText } from "../../lib/api-error";
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "wouter";
+import { Loader2, Megaphone } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { reachApi } from "@/lib/reach-api";
+import { SchedulePremiereForm } from "@/pages/premiere";
+
+/* ── Broadcast channels + premieres (Stack 9 #8/#2), docked ───────────
+   A broadcast channel is one-to-many: only the creator posts, members
+   read. Open to every creator from level one — no follower-count
+   gate. The inbox shows posts from every channel you've joined.
+
+   This panel is the surface's home since Stack 200 Lane C item 2:
+   it lived on a standalone /broadcast page that the findability wave
+   had already redirected to /go-live, leaving the whole feature
+   built, tested and unreachable. The body below is that page's body,
+   moved verbatim (per-source settle states included) into the Go
+   Live Broadcast tab beside BroadcastStudio — its workflow home in
+   the CREATE flow. The /broadcast → /go-live redirect stays, so old
+   links land on the hub that now actually hosts the surface. */
+
+interface ChannelRow {
+  id: string;
+  name: string;
+  description: string;
+  profileId: string;
+  memberCount: number;
+  isMember: boolean;
+  isOwner: boolean;
+  creator: { slug: string; displayName: string } | null;
+}
+
+export default function BroadcastChannelsPanel() {
+  const { user, getAccessToken } = useAuth();
+  const [channels, setChannels] = useState<ChannelRow[]>([]);
+  const [inbox, setInbox] = useState<Array<{ id: string; channelName: string; body: string; createdAt: string | null; creator: { displayName: string } | null }>>([]);
+  /* Per-source states (Stack-28 #26 / A3-F4, dashboard-sections
+     pattern): channels and inbox settle independently — one failing
+     source must never blank the other or hide the create form. */
+  const [channelsState, setChannelsState] = useState<"loading" | "ready" | "error">("loading");
+  const [inboxState, setInboxState] = useState<"loading" | "ready" | "error">("loading");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [note, setNote] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  const loadChannels = useCallback(async () => {
+    setChannelsState("loading");
+    try {
+      const ch = await reachApi.broadcastChannels(getAccessToken);
+      setChannels(ch.channels as ChannelRow[]);
+      setChannelsState("ready");
+    } catch {
+      setChannelsState("error");
+    }
+  }, [getAccessToken]);
+
+  const loadInbox = useCallback(async () => {
+    setInboxState("loading");
+    try {
+      const ib = await reachApi.broadcastInbox(getAccessToken);
+      setInbox(ib.posts);
+      setInboxState("ready");
+    } catch {
+      setInboxState("error");
+    }
+  }, [getAccessToken]);
+
+  const loadData = useCallback(async () => {
+    await Promise.allSettled([loadChannels(), loadInbox()]);
+  }, [loadChannels, loadInbox]);
+
+  useEffect(() => {
+    if (user) void loadData();
+    else { setChannelsState("ready"); setInboxState("ready"); }
+  }, [user, loadData]);
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 p-6 text-center text-white">
+        <Megaphone className="h-10 w-10 text-[#C9A84C]/60" />
+        <p className="font-bold">Sign in to use broadcast channels.</p>
+        <Link href="/login" className="text-sm text-[#e8c86a] underline">Sign in</Link>
+      </div>
+    );
+  }
+  const mine = channels.find((c) => c.isOwner);
+
+  return (
+    <section className="mx-auto w-full max-w-5xl space-y-8 px-4 py-8 md:px-8" aria-label="Broadcast channels and premieres">
+      <div>
+        <h2 className="flex items-center gap-2 text-2xl font-black tracking-tight"><Megaphone className="h-6 w-6 text-[#e8c86a]" /> Broadcast</h2>
+        <p className="mt-1 text-sm text-white/50">Your one-to-many channel: you post, your people read. Open to every creator from day one.</p>
+      </div>
+
+      {channelsState === "loading" && (
+        <div className="flex items-center gap-2 text-sm text-white/40">
+          <Loader2 className="h-4 w-4 animate-spin text-amber-400" /> Loading your channels…
+        </div>
+      )}
+
+      {channelsState === "error" && (
+        <div className="rounded-2xl border border-red-900 bg-red-950/30 p-5 text-sm text-red-300" data-testid="broadcast-channels-error">
+          Your channels couldn't load. <button type="button" onClick={() => void loadChannels()} className="font-bold underline">Try again</button>
+        </div>
+      )}
+
+      {/* The create form keys off the channels source only — and
+          stays reachable even when that source failed (the server
+          answers the create honestly); an inbox failure can never
+          hide it (Stack-28 #26). */}
+      {!mine && channelsState !== "loading" && (
+        <form
+          className="rounded-2xl border border-white/10 bg-[#0d0d0d] p-5"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setNote(null);
+            try {
+              await reachApi.createBroadcastChannel(getAccessToken, name.trim(), description.trim());
+              setName("");
+              setDescription("");
+              await loadData();
+            } catch (err) {
+              setNote(plainErrorText(err, "Your channel couldn't be opened."));
+            }
+          }}
+        >
+          <h2 className="font-black">Open your broadcast channel</h2>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <input aria-label="Channel name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Channel name" className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none" />
+            <input aria-label="What is it about? (optional)" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is it about? (optional)" className="rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none" />
+          </div>
+          <button type="submit" disabled={!name.trim()} className="mt-3 rounded-full bg-[#e8c86a] px-5 py-2 text-sm font-bold text-black transition enabled:hover:scale-[1.02] disabled:opacity-50">Open channel</button>
+          {note && <p className="mt-2 text-sm text-red-300">{note}</p>}
+        </form>
+      )}
+
+      {channels.length > 0 && (
+        <section>
+          <h2 className="text-sm font-black uppercase tracking-wider text-white/60">Channels</h2>
+          <ul className="mt-3 space-y-3">
+            {channels.map((c) => (
+              <li key={c.id} className="rounded-2xl border border-white/10 bg-[#0d0d0d] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-bold">{c.name}</p>
+                    <p className="text-xs text-white/40">
+                      by {c.creator?.displayName ?? "Creator"} · {c.memberCount} member{c.memberCount === 1 ? "" : "s"}
+                      {c.description ? ` · ${c.description}` : ""}
+                    </p>
+                  </div>
+                  {!c.isOwner &&
+                    (c.isMember ? (
+                      <button type="button" onClick={async () => { await reachApi.leaveBroadcast(getAccessToken, c.id).catch(() => undefined); void loadData(); }} className="rounded-full border border-white/20 px-4 py-1.5 text-xs font-bold text-white/70">Leave</button>
+                    ) : (
+                      <button type="button" onClick={async () => { await reachApi.joinBroadcast(getAccessToken, c.id).catch(() => undefined); void loadData(); }} className="rounded-full bg-[#e8c86a] px-4 py-1.5 text-xs font-bold text-black">Join</button>
+                    ))}
+                </div>
+                {c.isOwner && (
+                  <form
+                    className="mt-3 flex gap-2"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const body = (drafts[c.id] ?? "").trim();
+                      if (!body) return;
+                      await reachApi.postBroadcast(getAccessToken, c.id, body).catch(() => undefined);
+                      setDrafts((d) => ({ ...d, [c.id]: "" }));
+                      void loadData();
+                    }}
+                  >
+                    <input aria-label="Broadcast something to your members…" value={drafts[c.id] ?? ""} onChange={(e) => setDrafts((d) => ({ ...d, [c.id]: e.target.value }))} placeholder="Broadcast something to your members…" className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black px-3 py-2 text-sm focus:border-[#e8c86a] focus:outline-none" />
+                    <button type="submit" className="rounded-full bg-[#e8c86a] px-4 py-2 text-xs font-bold text-black">Post</button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section>
+        <h2 className="text-sm font-black uppercase tracking-wider text-white/60">Your broadcast inbox</h2>
+        {inboxState === "error" ? (
+          <div className="mt-3 rounded-2xl border border-red-900 bg-red-950/30 p-5 text-sm text-red-300" data-testid="broadcast-inbox-error">
+            Your inbox couldn't load. <button type="button" onClick={() => void loadInbox()} className="font-bold underline">Try again</button>
+          </div>
+        ) : inboxState === "loading" ? (
+          <p className="mt-3 inline-flex items-center gap-2 text-sm text-white/40"><Loader2 className="h-4 w-4 animate-spin text-amber-400" /> Loading your inbox…</p>
+        ) : inbox.length === 0 ? (
+          <p className="mt-3 rounded-2xl border border-white/10 bg-[#0d0d0d] p-5 text-sm text-white/40">Nothing here yet — join a channel above and its posts land in this inbox.</p>
+        ) : (
+          <ul className="mt-3 space-y-3">
+            {inbox.map((p) => (
+              <li key={p.id} className="rounded-2xl border border-white/10 bg-[#0d0d0d] p-4">
+                <p className="text-xs text-[#e8c86a]">{p.channelName}{p.creator ? ` · ${p.creator.displayName}` : ""}{p.createdAt ? ` · ${new Date(p.createdAt).toLocaleString()}` : ""}</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-white/85">{p.body}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <SchedulePremiereForm />
+    </section>
+  );
+}

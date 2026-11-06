@@ -68,6 +68,7 @@ function LiveTabFallback() {
   );
 }
 import BroadcastStudio from "@/components/go-live/BroadcastStudio";
+import BroadcastChannelsPanel from "@/components/go-live/BroadcastChannelsPanel";
 import { SongRequestDesk } from "@/components/live/SongRequests";
 import GuestPanel from "@/components/go-live/GuestPanel";
 import LiveBattlesPanel from "@/components/live/LiveBattlesPanel";
@@ -575,7 +576,7 @@ export default function GoLive() {
       </div>
       <div id="golive-panel" role="tabpanel" aria-labelledby={`golive-tab-${tab}`} tabIndex={0}>
         <Suspense fallback={<LiveTabFallback />}>
-          {tab === "broadcast" ? <><BroadcastStudio /><SongRequestDesk /><GuestPanel /><LiveBattlesPanel showMine /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+          {tab === "broadcast" ? <><BroadcastStudio /><BroadcastChannelsPanel /><SongRequestDesk /><GuestPanel /><LiveBattlesPanel showMine /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
         </Suspense>
       </div>
       <div className="mt-6"><StageRooms /></div>

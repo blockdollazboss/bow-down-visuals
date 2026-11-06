@@ -89,7 +89,12 @@ describe("#25 sponsor-dashboard: banner never paints fake zeros (A3-F3)", () => 
 });
 
 describe("#26 broadcast: channels and inbox settle independently (A3-F4)", () => {
-  const page = src("../pages/broadcast.tsx");
+  /* The surface moved, the law didn't: Stack 200 Lane C item 2 docked
+     the broadcast page's body into Go Live's Broadcast tab as
+     BroadcastChannelsPanel (the standalone /broadcast page is retired;
+     its route redirects to /go-live). These pins now read the panel —
+     same strings, same settle order, new home. */
+  const page = src("../components/go-live/BroadcastChannelsPanel.tsx");
   it("no coupled Promise.all and no single page loadState remain", () => {
     expect(page).not.toContain("Promise.all([reachApi.broadcastChannels");
     expect(page).not.toContain("loadState");

@@ -250,6 +250,10 @@ describe("G — /go-live's off-console tabs ride lazy doors", () => {
 
   it("the broadcast console stack — rendered together — stays static", () => {
     expect(goLive).toContain('import BroadcastStudio from "@/components/go-live/BroadcastStudio";');
-    expect(goLive).toContain("<BroadcastStudio /><SongRequestDesk /><GuestPanel /><LiveBattlesPanel showMine />");
+    /* Stack 200 Lane C item 2: BroadcastChannelsPanel joined the static
+       stack when the orphaned broadcast surface docked here — still a
+       static import rendered with the console, never a lazy door. */
+    expect(goLive).toContain('import BroadcastChannelsPanel from "@/components/go-live/BroadcastChannelsPanel";');
+    expect(goLive).toContain("<BroadcastStudio /><BroadcastChannelsPanel /><SongRequestDesk /><GuestPanel /><LiveBattlesPanel showMine />");
   });
 });
