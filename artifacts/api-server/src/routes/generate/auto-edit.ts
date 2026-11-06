@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { freeAiLimiter } from "../../lib/rate-limit";
 import { z } from "zod";
-import { getTextModel } from "../../lib/ai-clients";
+import { getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 
 const router = Router();
 
@@ -164,6 +164,7 @@ Rules:
 
   try {
     const response = await openai.chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       messages: [
         {

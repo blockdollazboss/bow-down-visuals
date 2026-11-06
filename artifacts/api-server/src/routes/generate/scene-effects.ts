@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -102,6 +102,7 @@ async function aiPolish(
   try {
     const client = getOpenAI();
     const completion = await client.chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       messages: [
         {

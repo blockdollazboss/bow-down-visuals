@@ -6,7 +6,7 @@ import { join } from "path";
 import { transcribeAudioTimed } from "../../lib/transcription";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
-import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 
 const router = Router();
 
@@ -100,6 +100,7 @@ async function findQuotes(
     `\nReturn exactly 5 moments in chronological order.`;
 
   const completion = await getOpenAI().chat.completions.create({
+    ...LOW_REASONING_PARAMS,
     model: getTextModel(),
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },

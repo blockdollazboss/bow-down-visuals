@@ -5,7 +5,7 @@ import { promisify } from "util";
 import { writeFile, readFile, unlink, mkdtemp } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { freeAiLimiter } from "../../lib/rate-limit";
 import {
@@ -103,6 +103,7 @@ router.post("/generate/alt-text", requireAuth, freeAiLimiter, async (req, res) =
     const dataUrl = await imageToDataUrl({ url: imageUrl, dataUrl: imageDataUrl });
 
     const completion = await getOpenAI().chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       messages: [
         { role: "system", content: ALT_TEXT_SYSTEM_PROMPT },

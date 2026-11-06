@@ -3,7 +3,7 @@ import { z } from "zod";
 import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { db, beatsTable, beatLicensesTable, beatLicenseTemplatesTable, creatorProfilesTable } from "@workspace/db";
 import { effectiveSearchTokens, searchTextCondition } from "../../lib/search-match";
-import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
 import { shouldCountView, viewKey } from "../../lib/view-counting";
@@ -686,6 +686,7 @@ router.post("/beats/:id/ai-tags", requireAuth, async (req, res) => {
 
   try {
     const completion = await getOpenAI().chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       messages: [
         {

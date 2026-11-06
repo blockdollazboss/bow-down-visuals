@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import OpenAI from "openai";
-import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -186,6 +186,7 @@ router.post("/title-studio", requireAuth, publicApiLimiter, async (req, res) => 
       : "";
 
     const completion = await getOpenAI().chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       messages: [
         { role: "system", content: buildTitleStudioPrompt(platform, tone) },

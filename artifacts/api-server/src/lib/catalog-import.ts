@@ -53,7 +53,7 @@ import {
 } from "./social-catalog";
 import { r2Upload, r2PublicUrl } from "./r2-client";
 import { transcribeAudioTimed, type TimedTranscription } from "./transcription";
-import { getOpenAI, getTextModel } from "./ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "./ai-clients";
 import { logger } from "./logger";
 import type { ServerLocale } from "./server-i18n";
 import { catalogImportCopyFor } from "./catalog-import-i18n";
@@ -135,6 +135,7 @@ async function defaultAiText(input: {
   try {
     const client = getOpenAI();
     const completion = await client.chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       response_format: { type: "json_object" },
       messages: [

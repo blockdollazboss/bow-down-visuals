@@ -11,7 +11,7 @@ import {
   LIVE_SHOPPING_FEE_BPS,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
-import { getOpenAI, getTextModel } from "../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../lib/ai-clients";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
@@ -1028,6 +1028,7 @@ router.post(
     const sellingPoints = parsed.data.selling_points?.trim();
     try {
       const completion = await getOpenAI().chat.completions.create({
+        ...LOW_REASONING_PARAMS,
         model: getTextModel(),
         messages: [
           {

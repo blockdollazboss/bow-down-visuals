@@ -53,6 +53,7 @@ vi.mock("../../lib/credits", () => ({
 
 vi.mock("../../lib/ai-clients", () => ({
   getTextModel: () => "gpt-6-sol",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
   getOpenAI: () => ({
     chat: {
       completions: {
@@ -177,6 +178,11 @@ describe("POST /api/promo-generator", () => {
     expect(testState.lastCompletionArgs.model).toBe("gpt-6-sol");
     expect(testState.lastCompletionArgs.max_completion_tokens).toBeGreaterThan(0);
     expect(testState.lastCompletionArgs).not.toHaveProperty("max_tokens");
+  });
+
+  it("carries the C-48 safety pin: reasoning_effort low on this trivial route", async () => {
+    await post(validBody);
+    expect(testState.lastCompletionArgs.reasoning_effort).toBe("low");
   });
 
   it("refunds the credit and returns 502 when the provider fails", async () => {

@@ -7,7 +7,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
 import { isTicketed, canEnterStream, ticketDoorInfo, countActiveTickets } from "../lib/live-tickets";
-import { getOpenAI, getTextModel } from "../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../lib/ai-clients";
 import { effectiveStatus } from "./live-chat";
 import {
   TARGET_LANGUAGES,
@@ -92,6 +92,7 @@ export function __resetCaptionViewerTracking(): void {
 const railCaptionTranslator: CaptionTranslator = async (text, targetCode) => {
   const completion = await getOpenAI().chat.completions.create(
     {
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       max_completion_tokens: 200,
       messages: [

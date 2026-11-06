@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod/v4";
 import { eq, and, desc } from "drizzle-orm";
 import { db, pressKitsTable, artistVaultsTable, pressKitHandleSchema, pressKitReleaseSchema, pressKitLayoutSchema } from "@workspace/db";
-import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { publicApiLimiter } from "../../lib/rate-limit";
@@ -153,6 +153,7 @@ async function writeArtistBio(args: {
       : "(no achievements listed — write aspirationally but honestly, no fabricated awards)";
 
   const completion = await getOpenAI().chat.completions.create({
+    ...LOW_REASONING_PARAMS,
     model: getTextModel(),
     messages: [
       {

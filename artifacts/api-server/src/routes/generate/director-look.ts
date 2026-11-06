@@ -1,7 +1,7 @@
 import { Router } from "express";
 import OpenAI from "openai";
 import { z } from "zod";
-import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { freeAiLimiter } from "../../lib/rate-limit";
 import {
@@ -125,6 +125,7 @@ router.post("/director-look", requireAuth, freeAiLimiter, async (req, res) => {
 
   try {
     const completion = await getOpenAI().chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       messages: [
         { role: "system", content: systemPrompt },

@@ -3,7 +3,7 @@ import { z } from "zod";
 import OpenAI from "openai";
 import multer from "multer";
 import { randomUUID } from "crypto";
-import { getOpenAI, getTextModel } from "../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
@@ -444,6 +444,7 @@ router.post("/bio", requireAuth, publicApiLimiter, async (req, res) => {
 
   try {
     const completion = await getOpenAI().chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       messages: [
         {

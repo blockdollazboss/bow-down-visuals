@@ -5,7 +5,7 @@ import OpenAI from "openai";
 import { eq, and, desc } from "drizzle-orm";
 import { db, shoutoutSettingsTable, shoutoutRequestsTable } from "@workspace/db";
 import type { ShoutoutRequestStatus } from "@workspace/db";
-import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -920,6 +920,7 @@ router.post("/shoutouts/ai-message", requireAuth, publicApiLimiter, async (req, 
 
   try {
     const completion = await getOpenAI().chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       messages: [
         {

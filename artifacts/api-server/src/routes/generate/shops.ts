@@ -22,7 +22,7 @@ import multer from "multer";
 import { z } from "zod";
 import { randomUUID, createHash } from "crypto";
 import OpenAI from "openai";
-import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { isAdminEmail } from "../../lib/admin";
 import { searchTextCondition } from "../../lib/search-match";
@@ -1778,6 +1778,7 @@ router.post("/shops/ai/shop-description", requireAuth, publicApiLimiter, async (
   try {
     const { shopName, tagline, niche, products } = parsed.data;
     const completion = await getOpenAI().chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       messages: [
         {
@@ -1856,6 +1857,7 @@ router.post("/shops/ai/product-description", requireAuth, publicApiLimiter, asyn
       bold: "loud, hype, streetwear-drop energy",
     };
     const completion = await getOpenAI().chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       messages: [
         {

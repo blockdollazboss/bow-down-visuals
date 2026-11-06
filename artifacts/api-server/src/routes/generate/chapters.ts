@@ -8,7 +8,7 @@ import { join } from "path";
 import { transcribeAudioTimed } from "../../lib/transcription";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
-import { getOpenAI, getTextModel } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -166,6 +166,7 @@ async function titleChapters(
     chapters.map((c) => `${c.n}. Starts at ${c.at} — transcript: "${c.transcript}"`).join("\n");
 
   const completion = await getOpenAI().chat.completions.create({
+    ...LOW_REASONING_PARAMS,
     model: getTextModel(),
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },

@@ -33,7 +33,7 @@ import {
   type Attachment,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
-import { getOpenAI, getTextModel } from "../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../lib/ai-clients";
 import { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey, getCreditBalance, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { notifyUserEvent, type UserEventInput } from "../lib/push-events";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
@@ -3302,6 +3302,7 @@ router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, r
     }
     const openai = getOpenAI();
     const completion = await openai.chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       max_tokens: 220,
       messages: [

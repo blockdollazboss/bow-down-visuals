@@ -92,6 +92,7 @@ const aiState = vi.hoisted(() => ({
 vi.mock("../../lib/ai-clients", () => ({
   getOpenAI: () => ({ chat: { completions: { create: aiState.create } } }),
   getTextModel: () => "gpt-6-sol-test",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("../../lib/rate-limit", () => ({

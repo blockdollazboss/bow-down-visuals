@@ -49,7 +49,7 @@ import {
 } from "@workspace/db";
 import { ensureKingsWelcome } from "./kings-welcome";
 import { maybeGrantPendingReferralWelcome } from "./referral-welcome";
-import { getOpenAI, getTextModel } from "./ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "./ai-clients";
 import { logger } from "./logger";
 import { fillServerTemplate, type ServerLocale } from "./server-i18n";
 import { moveHomeCopyFor, type MoveHomeCopy } from "./move-home-i18n";
@@ -450,6 +450,7 @@ export const aiCopyPolish: CopyPolish = async (drafts, ctx) => {
       captions: (drafts.launch_posts?.posts ?? []).map((p) => ({ platform: p.platform, caption: p.caption })),
     };
     const completion = await client.chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       response_format: { type: "json_object" },
       messages: [

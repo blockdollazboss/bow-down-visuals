@@ -5,7 +5,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { db, discordWebhooksTable, discordStreamsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
-import { getOpenAI, getTextModel } from "../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
@@ -389,6 +389,7 @@ router.post("/discord/ai-announcement", requireAuth, publicApiLimiter, async (re
     const toneLine = tone?.trim() ? ` Tone: "${tone.trim()}".` : "";
 
     const completion = await getOpenAI().chat.completions.create({
+      ...LOW_REASONING_PARAMS,
       model: getTextModel(),
       messages: [
         {

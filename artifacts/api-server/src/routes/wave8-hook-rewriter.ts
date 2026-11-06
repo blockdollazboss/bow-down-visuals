@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import OpenAI from "openai";
-import { getOpenAI, getTextModel } from "../lib/ai-clients";
+import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
@@ -91,6 +91,7 @@ router.post("/wave8/hook-rewriter/rewrite", requireAuth, publicApiLimiter, async
        refund and fail. */
     for (let attempt = 0; attempt < 2 && !variants; attempt++) {
       const completion = await getOpenAI().chat.completions.create({
+        ...LOW_REASONING_PARAMS,
         model: getTextModel(),
         messages: [
           {
