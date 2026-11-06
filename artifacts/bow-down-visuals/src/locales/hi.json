@@ -17514,7 +17514,9 @@
     "yourRemix": "आपका रीमिक्स",
     "yourSongsHeading": "आपके गाने — प्रकाशित या नहीं",
     "yourTracksHeading": "आपके ट्रैक",
-    "yoursSectionLabel": "आपका"
+    "yoursSectionLabel": "आपका",
+    "shelfLoadErrorLine": "This shelf couldn't load — what you have is safe, it just didn't come through.",
+    "shelfRetryBtn": "Try again"
   },
   "worldCoachMoney": {
     "bcAvgViews": "औसत व्यूज़",

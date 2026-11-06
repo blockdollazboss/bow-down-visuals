@@ -17630,7 +17630,9 @@
     "yourRemix": "ريمكسك",
     "yourSongsHeading": "أغانيك — منشورة أم لا",
     "yourTracksHeading": "مقطوعاتك",
-    "yoursSectionLabel": "لك"
+    "yoursSectionLabel": "لك",
+    "shelfLoadErrorLine": "This shelf couldn't load — what you have is safe, it just didn't come through.",
+    "shelfRetryBtn": "Try again"
   },
   "worldCoachMoney": {
     "bcAvgViews": "متوسط المشاهدات",

@@ -258,6 +258,11 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
   const [queuedId, setQueuedId] = useState<string | null>(null);
   const [pickerFor, setPickerFor] = useState<PickerTarget | null>(null);
   const [playlists, setPlaylists] = useState<ShelfPlaylistSummary[] | null>(null);
+  /* Per-shelf honest failure flags (Stack-200 D2 A15): the purchases
+     shelf already had one (`failed`); the side shelves used to collapse
+     a failed load into setX([]) — "No playlists yet" on a read error. */
+  const [playlistsFailed, setPlaylistsFailed] = useState(false);
+  const [myMusicFailed, setMyMusicFailed] = useState(false);
   const [newListTitle, setNewListTitle] = useState("");
   const [creatingList, setCreatingList] = useState(false);
   const [myMusic, setMyMusic] = useState<MyMusicTrack[] | null>(null);
@@ -281,18 +286,31 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
       setFailed(true);
     }
     /* The side shelves degrade independently — a playlist or
-       my-music hiccup never takes the bought shelf down with it. */
+       my-music hiccup never takes the bought shelf down with it.
+       Degrading is not lying, though: a failed side-shelf read raises
+       its failed flag (loaded entries survive a failed reload) instead
+       of dressing up as an empty shelf. */
     try {
       const mine = await fetchMyPlaylists(await authHeaders());
-      setPlaylists(mine === null ? [] : parseShelfPlaylists({ playlists: mine }));
+      if (mine === null) {
+        setPlaylists((cur) => cur ?? []);
+        setPlaylistsFailed(true);
+      } else {
+        setPlaylists(parseShelfPlaylists({ playlists: mine }));
+        setPlaylistsFailed(false);
+      }
     } catch {
-      setPlaylists([]);
+      setPlaylists((cur) => cur ?? []);
+      setPlaylistsFailed(true);
     }
     try {
       const res = await fetch("/api/world/my-music", { headers: await authHeaders() });
-      setMyMusic(res.ok ? parseMyMusic(await res.json().catch(() => ({}))) : []);
+      if (!res.ok) throw new Error("my-music");
+      setMyMusic(parseMyMusic(await res.json().catch(() => ({}))));
+      setMyMusicFailed(false);
     } catch {
-      setMyMusic([]);
+      setMyMusic((cur) => cur ?? []);
+      setMyMusicFailed(true);
     }
   }, [authHeaders]);
 
@@ -534,13 +552,31 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
      away at the Booth, never hidden behind owning one already.
      The block rides both returns (the bare-shelf empty state and
      the full shelf) so the build path never disappears. */
+  const shelfRetryLine = (testid: string) => (
+    <p className={`flex flex-wrap items-center gap-2 px-1 pt-1 text-xs ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid={testid}>
+      {t("worldAudioDesk.shelfLoadErrorLine")}
+      <button type="button" onClick={() => setTick((n) => n + 1)} className={chipBtn}>
+        {t("worldAudioDesk.shelfRetryBtn")}
+      </button>
+    </p>
+  );
+  const myMusicFailedBlock = myMusicFailed && (
+    <>
+      <p className={sectionTitle}>{t("worldAudioDesk.yourSongsHeading")}</p>
+      {shelfRetryLine("world-shelf-mymusic-load-error")}
+    </>
+  );
+
   const playlistsBlock = playlists !== null && (
     <>
       <p className={sectionTitle}>{t("worldAudioDesk.yourPlaylistsHeading")}</p>
+      {playlistsFailed && shelfRetryLine("world-shelf-playlists-load-error")}
       {playlists.length === 0 ? (
-        <p className={`px-1 pt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-          {t("worldAudioDesk.noPlaylistsYetBooth")}
-        </p>
+        playlistsFailed ? null : (
+          <p className={`px-1 pt-1 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+            {t("worldAudioDesk.noPlaylistsYetBooth")}
+          </p>
+        )
       ) : (
         <NativeShelf>
           {playlists.map((pl) => (
@@ -595,7 +631,7 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
     </>
   );
 
-  if (allEmpty && playlists !== null && myMusic !== null) {
+  if (allEmpty && !playlistsFailed && !myMusicFailed && playlists !== null && myMusic !== null) {
     return (
       <div>
         <NativeEmptyState
@@ -764,6 +800,8 @@ export function ListeningBooth({ isLight, shelfPlayer, onJukeboxAdd }: Listening
       )}
 
       {playlistsBlock}
+
+      {myMusicFailedBlock}
 
       {(myMusic ?? []).length > 0 && (
         <>

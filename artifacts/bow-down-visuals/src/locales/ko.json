@@ -17514,7 +17514,9 @@
     "yourRemix": "내 리믹스",
     "yourSongsHeading": "내 곡 — 게시 여부와 상관없이",
     "yourTracksHeading": "내 트랙",
-    "yoursSectionLabel": "내 것"
+    "yoursSectionLabel": "내 것",
+    "shelfLoadErrorLine": "This shelf couldn't load — what you have is safe, it just didn't come through.",
+    "shelfRetryBtn": "Try again"
   },
   "worldCoachMoney": {
     "bcAvgViews": "평균 조회수",
