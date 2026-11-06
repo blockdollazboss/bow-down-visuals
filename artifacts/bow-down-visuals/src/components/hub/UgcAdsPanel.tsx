@@ -1,5 +1,6 @@
 import { plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   Clapperboard, Loader2, Sparkles, User, ImageOff, Store, Upload, Share2, Trash2,
@@ -14,7 +15,6 @@ import {
   UGC_STYLES,
   UGC_VIDEO_CREDIT_COST,
   UGC_PERSONA_CREDIT_COST,
-  UGC_BRIEFS_MONEY_NOTE,
   briefActionsFor,
   briefStatusLabel,
   escrowStatusLabel,
@@ -85,6 +85,33 @@ export function UgcAdsPanel() {
   const isLight = useIsLightTheme();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
+  /* Locale wiring (Stack-200 D6): this panel renders through the same
+     worldLivePromo.ugc* catalog keys its World twin (UgcAdsStation)
+     uses; panel-only strings live under ugcAds.*. The lib label
+     helpers take the catalog-resolved bundles below — money-adjacent
+     values (escrow labels, the money note) are the English source
+     verbatim in every catalog. */
+  const { t } = useTranslation();
+  const escrowLabels = {
+    unfunded: t("worldLivePromo.ugcEscrowUnfunded"),
+    funding: t("worldLivePromo.ugcEscrowFunding"),
+    funded: t("worldLivePromo.ugcEscrowFunded"),
+    released: t("worldLivePromo.ugcEscrowReleased"),
+    refunded: t("worldLivePromo.ugcEscrowRefunded"),
+  };
+  const briefStatusLabels = {
+    open: t("worldLivePromo.ugcBriefStatusOpen"),
+    claimed: t("worldLivePromo.ugcBriefStatusClaimed"),
+    delivered: t("worldLivePromo.ugcBriefStatusDelivered"),
+    approved: t("worldLivePromo.ugcBriefStatusApproved"),
+    closed: t("worldLivePromo.ugcBriefStatusClosed"),
+  };
+  const adStatusLabels = {
+    draft: t("worldLivePromo.ugcAdStatusDraft"),
+    generating: t("worldLivePromo.ugcAdStatusGenerating"),
+    ready: t("worldLivePromo.ugcAdStatusReady"),
+    failed: t("worldLivePromo.ugcAdStatusFailedRefunded"),
+  };
 
   /* ── Maker state ── */
   const [productSource, setProductSource] = useState<"shop" | "upload">("shop");
@@ -181,7 +208,7 @@ export function UgcAdsPanel() {
 
   async function writeScriptWithTurbo() {
     if (!currentProductName) {
-      setMakerError("Pick or name the product first — Turbo writes about the product.");
+      setMakerError(t("worldLivePromo.ugcScriptFirst"));
       return;
     }
     setScriptBusy(true);
@@ -196,7 +223,7 @@ export function UgcAdsPanel() {
       setScriptLines(script.lines.join("\n"));
       setCta(script.cta);
     } catch (err) {
-      setMakerError(plainErrorText(err, "The script didn't come through — try again."));
+      setMakerError(plainErrorText(err, t("worldLivePromo.ugcScriptFailed")));
     } finally {
       setScriptBusy(false);
     }
@@ -204,7 +231,7 @@ export function UgcAdsPanel() {
 
   async function makePersona() {
     if (personaDescription.trim().length < 10) {
-      setMakerError("Describe the creator in a sentence or two first.");
+      setMakerError(t("worldLivePromo.ugcPersonaDescFirst"));
       return;
     }
     setPersonaBusy(true);
@@ -220,7 +247,7 @@ export function UgcAdsPanel() {
       /* A failed attempt was refunded — the retry must be a NEW intent
          (fresh idempotency key), never a replay of the refunded one. */
       personaKeyRef.current = "";
-      setMakerError(plainErrorText(err, "The persona didn't come through — try again."));
+      setMakerError(plainErrorText(err, t("worldLivePromo.ugcPersonaFailed")));
     } finally {
       setPersonaBusy(false);
     }
@@ -230,19 +257,19 @@ export function UgcAdsPanel() {
   async function generateAd() {
     const script = scriptFromForm();
     if (!script) {
-      setMakerError("The ad needs a script — write one above or let Turbo write it.");
+      setMakerError(t("ugcAds.makerScriptNeeded"));
       return;
     }
     if (productSource === "shop" && !shopProductId) {
-      setMakerError("Pick one of your shop products first.");
+      setMakerError(t("worldLivePromo.ugcMakerPickProduct"));
       return;
     }
     if (productSource === "upload" && !productName.trim()) {
-      setMakerError("Name the product this ad is for.");
+      setMakerError(t("worldLivePromo.ugcMakerNameProduct"));
       return;
     }
     if (faceMode === "persona" && !personaUrl) {
-      setMakerError("Generate the persona first — or switch the face to your own photo / no face.");
+      setMakerError(t("worldLivePromo.ugcMakerPersonaFirst"));
       return;
     }
     setGenerating(true);
@@ -267,9 +294,9 @@ export function UgcAdsPanel() {
       setAds((prev) => [ready, ...prev.filter((a) => a.id !== ready.id)]);
       setAdsState("ready");
       refreshProfile();
-      toast({ title: "Your UGC ad is ready", description: `${ready.productName} — saved to your ads and your clip library.` });
+      toast({ title: t("ugcAds.adReadyTitle"), description: t("ugcAds.adReadyDesc", { name: ready.productName }) });
     } catch (err) {
-      setMakerError(plainErrorText(err, "Generation failed — any charge was refunded."));
+      setMakerError(plainErrorText(err, t("worldLivePromo.ugcGenerationFailed")));
       void loadAds();
     } finally {
       setGenerating(false);
@@ -284,7 +311,7 @@ export function UgcAdsPanel() {
       if (latestAd?.id === ready.id) setLatestAd(ready);
       refreshProfile();
     } catch (err) {
-      toast({ title: "Generation failed", description: plainErrorText(err, "Any charge was refunded."), variant: "destructive" });
+      toast({ title: t("ugcAds.generationFailedTitle"), description: plainErrorText(err, t("ugcAds.refundedNote")), variant: "destructive" });
       void loadAds();
     } finally {
       setBusyAdId(null);
@@ -306,13 +333,13 @@ export function UgcAdsPanel() {
       if (latestAd?.id === saved.id) setLatestAd(saved);
       void loadProducts();
       toast({
-        title: action === "pin" ? "Pinned to your product" : "Unpinned",
+        title: action === "pin" ? t("ugcAds.pinnedTitle") : t("ugcAds.unpinnedTitle"),
         description: action === "pin"
-          ? `${ad.productName} — buyers see this ad on the product now.`
-          : `${ad.productName} — the ad no longer shows on the product.`,
+          ? t("ugcAds.pinnedDesc", { name: ad.productName })
+          : t("ugcAds.unpinnedDesc", { name: ad.productName }),
       });
     } catch (err) {
-      toast({ title: action === "pin" ? "Couldn't pin that ad" : "Couldn't unpin that ad", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: action === "pin" ? t("ugcAds.pinFailed") : t("ugcAds.unpinFailed"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
     } finally {
       setBusyAdId(null);
     }
@@ -326,7 +353,7 @@ export function UgcAdsPanel() {
       if (latestAd?.id === ad.id) setLatestAd(null);
       setConfirmDeleteId(null);
     } catch (err) {
-      toast({ title: "Couldn't delete that ad", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: t("ugcAds.adDeleteFailed"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
     } finally {
       setBusyAdId(null);
     }
@@ -337,12 +364,12 @@ export function UgcAdsPanel() {
     const text = ugcAdShareText(ad);
     try {
       if (navigator.share) {
-        await navigator.share({ title: `${ad.productName} — UGC ad`, text, url: ad.videoUrl });
+        await navigator.share({ title: t("worldLivePromo.ugcShareTitle", { name: ad.productName }), text, url: ad.videoUrl });
         void recordUgcAdShare(await token(), ad.id, "native");
       } else {
         await navigator.clipboard.writeText(`${text}\n${ad.videoUrl}`);
         void recordUgcAdShare(await token(), ad.id, "copy");
-        toast({ title: "Link copied", description: "Your ad's link is on the clipboard." });
+        toast({ title: t("ugcAds.linkCopiedTitle"), description: t("worldLivePromo.ugcClipboardNote") });
       }
     } catch {
       /* a dismissed share sheet tracks nothing and says nothing */
@@ -352,7 +379,7 @@ export function UgcAdsPanel() {
   /* ── Brief actions ── */
   async function submitBrief() {
     if (!briefForm.productName.trim() || briefForm.details.trim().length < 10) {
-      toast({ title: "The brief needs a product and a real description", variant: "destructive" });
+      toast({ title: t("ugcAds.briefNeedsBoth"), variant: "destructive" });
       return;
     }
     setPostingBrief(true);
@@ -372,9 +399,9 @@ export function UgcAdsPanel() {
       setBoardScope("posted");
       setBriefs((prev) => [brief, ...prev]);
       setBriefsState("ready");
-      toast({ title: "Brief posted", description: "It's on the board — creators can claim it now." });
+      toast({ title: t("ugcAds.briefPostedTitle"), description: t("ugcAds.briefPostedDesc") });
     } catch (err) {
-      toast({ title: "Couldn't post that brief", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: t("ugcAds.briefPostFailed"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
     } finally {
       setPostingBrief(false);
     }
@@ -385,7 +412,7 @@ export function UgcAdsPanel() {
     try {
       const body = action === "deliver" ? { adId: deliverPick[brief.id] } : undefined;
       if (action === "deliver" && !body?.adId) {
-        toast({ title: "Pick one of your finished ads to deliver", variant: "destructive" });
+        toast({ title: t("ugcAds.deliverPickFirst"), variant: "destructive" });
         return;
       }
       const updated = await briefAction(await token(), brief.id, action, body);
@@ -393,19 +420,19 @@ export function UgcAdsPanel() {
         if (boardScope === "open") return b.status === "open";
         return true;
       }));
-      if (action === "deliver") toast({ title: "Delivered", description: "The brand can review your ad now." });
+      if (action === "deliver") toast({ title: t("ugcAds.deliveredTitle"), description: t("ugcAds.deliveredDesc") });
       if (action === "approve") {
         if (updated.escrowStatus === "released" && updated.creatorPayoutCents != null) {
-          toast({ title: "Approved — payment released", description: `${moneyCents(updated.creatorPayoutCents)} was released to the creator. This brief is complete.` });
+          toast({ title: t("ugcAds.approveReleasedTitle"), description: t("ugcAds.approveReleasedDesc", { amount: moneyCents(updated.creatorPayoutCents) }) });
         } else {
-          toast({ title: "Approved", description: "This brief is complete." });
+          toast({ title: t("ugcAds.approveTitle"), description: t("ugcAds.approveCompleteDesc") });
         }
       }
       if (action === "close" && brief.escrowStatus === "funded" && updated.escrowStatus === "refunded") {
-        toast({ title: "Brief closed", description: "The held payment was refunded to you." });
+        toast({ title: t("ugcAds.closedRefundTitle"), description: t("ugcAds.closedRefundDesc") });
       }
     } catch (err) {
-      toast({ title: "That didn't land", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: t("ugcAds.actionFailedTitle"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
       void loadBriefs();
     } finally {
       setBusyBriefId(null);
@@ -424,14 +451,14 @@ export function UgcAdsPanel() {
       if (result.sandbox && result.sessionId) {
         const updated = await confirmUgcBriefFunding(await token(), brief.id, result.sessionId);
         setBriefs((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
-        toast({ title: "Brief funded", description: "The payment is held safely until you approve the delivery." });
+        toast({ title: t("ugcAds.fundedTitle"), description: t("ugcAds.fundedDesc") });
       } else if (result.clientSecret) {
         setFundCheckout({ briefId: brief.id, clientSecret: result.clientSecret });
       } else if (result.checkoutUrl) {
         window.location.href = result.checkoutUrl;
       }
     } catch (err) {
-      toast({ title: "Couldn't start the funding payment", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: t("ugcAds.fundStartFailed"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
       void loadBriefs();
     } finally {
       setBusyBriefId(null);
@@ -443,9 +470,9 @@ export function UgcAdsPanel() {
     try {
       const { brief: updated } = await verifyUgcBriefFunding(await token(), brief.id);
       setBriefs((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
-      toast({ title: "Brief funded", description: "The payment is held safely until you approve the delivery." });
+      toast({ title: t("ugcAds.fundedTitle"), description: t("ugcAds.fundedDesc") });
     } catch (err) {
-      toast({ title: "Not funded yet", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: t("ugcAds.notFundedYetTitle"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
     } finally {
       setBusyBriefId(null);
     }
@@ -464,7 +491,7 @@ export function UgcAdsPanel() {
       try {
         const { brief: updated } = await verifyUgcBriefFunding(await token(), fundedId);
         setBriefs((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
-        toast({ title: "Brief funded", description: "The payment is held safely until you approve the delivery." });
+        toast({ title: t("ugcAds.fundedTitle"), description: t("ugcAds.fundedDesc") });
       } catch {
         /* The board reload shows the true state either way. */
       }
@@ -487,7 +514,7 @@ export function UgcAdsPanel() {
     try {
       setReviewAd(await fetchUgcAd(await token(), brief.deliveredAdId));
     } catch {
-      toast({ title: "Couldn't load the delivered ad", variant: "destructive" });
+      toast({ title: t("ugcAds.reviewLoadFailed"), variant: "destructive" });
     } finally {
       setBusyBriefId(null);
     }
@@ -502,13 +529,13 @@ export function UgcAdsPanel() {
     return (
       <div className={`rounded-2xl border p-6 md:p-8 text-center ${shell}`}>
         <Clapperboard className="mx-auto h-8 w-8 text-primary" />
-        <h2 className="mt-3 text-xl font-bold">UGC Product Ads</h2>
+        <h2 className="mt-3 text-xl font-bold">{t("worldLivePromo.ugcTitle")}</h2>
         <p className="mx-auto mt-2 max-w-md text-sm text-white/60">
-          Make creator-style video ads for your products — or post a brief and let a creator make one for you.
+          {t("ugcAds.signedOutBlurb")}
         </p>
         <Link href="/login">
           <span className="mt-4 inline-block cursor-pointer rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-6 py-2.5 text-sm font-bold text-black transition hover:brightness-110">
-            Sign in to make ads
+            {t("ugcAds.signInToMakeAds")}
           </span>
         </Link>
       </div>
@@ -522,11 +549,9 @@ export function UgcAdsPanel() {
           <Clapperboard className="h-5 w-5 text-primary" />
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-bold">UGC Product Ads</h2>
+          <h2 className="text-xl font-bold">{t("worldLivePromo.ugcTitle")}</h2>
           <p className="mt-1 text-sm text-white/55">
-            A real creator-style video ad for a product — selfie energy, a script with a hook, your branding kit applied.
-            Video generation is {UGC_VIDEO_CREDIT_COST} Visual Bucs (the promo-clip price); a generated persona face is {UGC_PERSONA_CREDIT_COST}.
-            Brands: post a brief below and a creator makes the ad for you.
+            {t("ugcAds.intro", { videoCost: UGC_VIDEO_CREDIT_COST, personaCost: UGC_PERSONA_CREDIT_COST })}
           </p>
         </div>
       </div>
@@ -537,40 +562,40 @@ export function UgcAdsPanel() {
           <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">
             <Handshake className="h-4 w-4 shrink-0 text-primary" />
             <span className="flex-1">
-              You're making this ad for a brief: <strong>{makingForBrief.productName}</strong> — “{makingForBrief.details}”
+              {t("ugcAds.forBriefPrefix")} <strong>{makingForBrief.productName}</strong> {t("worldLivePromo.ugcForBriefSuffix", { details: makingForBrief.details })}
             </span>
             <button onClick={() => setMakingForBrief(null)} className="font-semibold text-white/60 transition hover:text-white">
-              Not for this brief
+              {t("worldLivePromo.ugcNotForBrief")}
             </button>
           </div>
         )}
 
-        <label className={labelClass}>1 · The product</label>
+        <label className={labelClass}>{t("worldLivePromo.ugcStepProduct")}</label>
         <div className="mt-2 flex flex-wrap gap-2">
           <button onClick={() => setProductSource("shop")} className={pill(productSource === "shop")}>
-            <span className="inline-flex items-center gap-1.5"><Store className="h-4 w-4" /> From my shop</span>
+            <span className="inline-flex items-center gap-1.5"><Store className="h-4 w-4" /> {t("worldLivePromo.ugcSourceShop")}</span>
           </button>
           <button onClick={() => setProductSource("upload")} className={pill(productSource === "upload")}>
-            <span className="inline-flex items-center gap-1.5"><Upload className="h-4 w-4" /> Upload a product</span>
+            <span className="inline-flex items-center gap-1.5"><Upload className="h-4 w-4" /> {t("worldLivePromo.ugcSourceUpload")}</span>
           </button>
         </div>
 
         {productSource === "shop" ? (
           <div className="mt-3">
             {productsState === "loading" && (
-              <p className="inline-flex items-center gap-2 text-sm text-white/50"><Loader2 className="h-4 w-4 animate-spin" /> Loading your shop products…</p>
+              <p className="inline-flex items-center gap-2 text-sm text-white/50"><Loader2 className="h-4 w-4 animate-spin" /> {t("worldLivePromo.ugcProductsLoading")}</p>
             )}
             {productsState === "failed" && (
               <p className="text-sm text-red-200">
-                Couldn't load your shop products.{" "}
+                {t("worldLivePromo.ugcProductsFailed")}{" "}
                 <button onClick={() => void loadProducts()} className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
-                  <RefreshCw className="h-3.5 w-3.5" /> Retry
+                  <RefreshCw className="h-3.5 w-3.5" /> {t("common.retry")}
                 </button>
               </p>
             )}
             {productsState === "ready" && products.length === 0 && (
               <p className="text-sm text-white/50">
-                No products in your shop yet — add one in <Link href="/my-shop" className="font-semibold text-primary hover:underline">My Shop</Link>, or switch to “Upload a product”.
+                {t("ugcAds.noProductsPrefix")} <Link href="/my-shop" className="font-semibold text-primary hover:underline">{t("ugcAds.myShopLink")}</Link>{t("ugcAds.noProductsSuffix")}
               </p>
             )}
             {productsState === "ready" && products.length > 0 && (
@@ -597,20 +622,20 @@ export function UgcAdsPanel() {
           </div>
         ) : (
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input aria-label="Product name *" value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="Product name *" maxLength={120} className={inputClass} />
-            <input aria-label="Price in dollars (optional)" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} placeholder="Price in dollars (optional)" inputMode="decimal" className={inputClass} />
-            <input aria-label="Product photo link (https://…)" value={productImageUrl} onChange={(e) => setProductImageUrl(e.target.value)} placeholder="Product photo link (https://…)" maxLength={2048} className={`${inputClass} sm:col-span-2`} />
+            <input aria-label={t("worldLivePromo.ugcProductNamePlaceholder")} value={productName} onChange={(e) => setProductName(e.target.value)} placeholder={t("worldLivePromo.ugcProductNamePlaceholder")} maxLength={120} className={inputClass} />
+            <input aria-label={t("worldLivePromo.ugcProductPriceAria")} value={productPrice} onChange={(e) => setProductPrice(e.target.value)} placeholder={t("worldLivePromo.ugcProductPricePlaceholder")} inputMode="decimal" className={inputClass} />
+            <input aria-label={t("worldLivePromo.ugcProductPhotoPlaceholder")} value={productImageUrl} onChange={(e) => setProductImageUrl(e.target.value)} placeholder={t("worldLivePromo.ugcProductPhotoPlaceholder")} maxLength={2048} className={`${inputClass} sm:col-span-2`} />
           </div>
         )}
-        <input aria-label="One line on what makes it worth buying (optional)"
+        <input aria-label={t("worldLivePromo.ugcBlurbPlaceholder")}
           value={productBlurb}
           onChange={(e) => setProductBlurb(e.target.value)}
-          placeholder="One line on what makes it worth buying (optional)"
+          placeholder={t("worldLivePromo.ugcBlurbPlaceholder")}
           maxLength={600}
           className={`${inputClass} mt-3`}
         />
 
-        <label className={`${labelClass} mt-7 block`}>2 · The style</label>
+        <label className={`${labelClass} mt-7 block`}>{t("worldLivePromo.ugcStepStyle")}</label>
         <div className="mt-2 grid grid-cols-2 gap-2 lg:grid-cols-4">
           {UGC_STYLES.map((s) => (
             <button key={s.key} onClick={() => setStyle(s.key)} className={pill(style === s.key)}>
@@ -620,19 +645,19 @@ export function UgcAdsPanel() {
           ))}
         </div>
 
-        <label className={`${labelClass} mt-7 block`}>3 · The face</label>
+        <label className={`${labelClass} mt-7 block`}>{t("worldLivePromo.ugcStepFace")}</label>
         <div className="mt-2 flex flex-wrap gap-2">
-          <button onClick={() => setFaceMode("persona")} className={pill(faceMode === "persona")}>Generated creator persona</button>
-          <button onClick={() => setFaceMode("photo")} className={pill(faceMode === "photo")}>My own photo</button>
-          <button onClick={() => setFaceMode("none")} className={pill(faceMode === "none")}>No face — product only</button>
+          <button onClick={() => setFaceMode("persona")} className={pill(faceMode === "persona")}>{t("worldLivePromo.ugcFacePersona")}</button>
+          <button onClick={() => setFaceMode("photo")} className={pill(faceMode === "photo")}>{t("worldLivePromo.ugcFacePhoto")}</button>
+          <button onClick={() => setFaceMode("none")} className={pill(faceMode === "none")}>{t("worldLivePromo.ugcFaceNone")}</button>
         </div>
         {faceMode === "persona" && (
           <div className="mt-3">
             <div className="flex flex-col gap-3 sm:flex-row">
-              <input aria-label="3 · The face"
+              <input aria-label={t("worldLivePromo.ugcStepFace")}
                 value={personaDescription}
                 onChange={(e) => { setPersonaDescription(e.target.value); personaKeyRef.current = ""; }}
-                placeholder="Describe the creator — e.g. “a 30-year-old barber in Chicago, locs, warm laugh”"
+                placeholder={t("worldLivePromo.ugcPersonaDescPlaceholder")}
                 maxLength={400}
                 className={`${inputClass} flex-1`}
               />
@@ -642,28 +667,28 @@ export function UgcAdsPanel() {
                 className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/15 px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/25 disabled:opacity-50"
               >
                 {personaBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <User className="h-4 w-4" />}
-                {personaUrl ? "Regenerate" : "Generate"} persona · {UGC_PERSONA_CREDIT_COST} VB
+                {personaUrl ? t("worldLivePromo.ugcPersonaRegenerate", { cost: UGC_PERSONA_CREDIT_COST }) : t("worldLivePromo.ugcPersonaGenerate", { cost: UGC_PERSONA_CREDIT_COST })}
               </button>
             </div>
             {personaUrl && (
               <div className="mt-3 flex items-center gap-3">
-                <img src={personaUrl} alt="Your generated creator persona" className="h-24 w-16 rounded-xl object-cover" />
-                <p className="text-sm text-white/55">This is the face your ad is filmed with. Businesses: this is your creator — no real person needed.</p>
+                <img src={personaUrl} alt={t("worldLivePromo.ugcPersonaAlt")} className="h-24 w-16 rounded-xl object-cover" />
+                <p className="text-sm text-white/55">{t("worldLivePromo.ugcPersonaExplainer")}</p>
               </div>
             )}
           </div>
         )}
         {faceMode === "photo" && (
-          <input aria-label="Link to your photo or character image (https://…) — your vault photos work"
+          <input aria-label={t("worldLivePromo.ugcPhotoPlaceholder")}
             value={facePhotoUrl}
             onChange={(e) => setFacePhotoUrl(e.target.value)}
-            placeholder="Link to your photo or character image (https://…) — your vault photos work"
+            placeholder={t("worldLivePromo.ugcPhotoPlaceholder")}
             maxLength={2048}
             className={`${inputClass} mt-3`}
           />
         )}
 
-        <label className={`${labelClass} mt-7 block`}>4 · The script</label>
+        <label className={`${labelClass} mt-7 block`}>{t("worldLivePromo.ugcStepScript")}</label>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <button
             onClick={() => void writeScriptWithTurbo()}
@@ -671,20 +696,20 @@ export function UgcAdsPanel() {
             className="inline-flex items-center gap-2 rounded-xl border border-primary/50 bg-primary/15 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary/25 disabled:opacity-50"
           >
             {scriptBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Write it with Turbo
+            {t("worldLivePromo.ugcScriptTurbo")}
           </button>
-          <span className="text-xs text-white/40">Free — the script rides inside the ad. Or write your own below.</span>
+          <span className="text-xs text-white/40">{t("worldLivePromo.ugcScriptFreeNote")}</span>
         </div>
-        <input aria-label="4 · The script" value={hook} onChange={(e) => setHook(e.target.value)} placeholder="Hook — the first line, made to stop the scroll" maxLength={200} className={`${inputClass} mt-3`} />
-        <textarea aria-label={"Spoken lines — one per line\nSay what a real creator would say…"}
+        <input aria-label={t("worldLivePromo.ugcStepScript")} value={hook} onChange={(e) => setHook(e.target.value)} placeholder={t("worldLivePromo.ugcHookPlaceholder")} maxLength={200} className={`${inputClass} mt-3`} />
+        <textarea aria-label={t("worldLivePromo.ugcLinesPlaceholder")}
           value={scriptLines}
           onChange={(e) => setScriptLines(e.target.value)}
-          placeholder={"Spoken lines — one per line\nSay what a real creator would say…"}
+          placeholder={t("worldLivePromo.ugcLinesPlaceholder")}
           rows={4}
           maxLength={1400}
           className={`${inputClass} mt-3 resize-none`}
         />
-        <input aria-label="Call to action — e.g. “Link's in my shop”" value={cta} onChange={(e) => setCta(e.target.value)} placeholder="Call to action — e.g. “Link's in my shop”" maxLength={200} className={`${inputClass} mt-3`} />
+        <input aria-label={t("worldLivePromo.ugcCtaPlaceholder")} value={cta} onChange={(e) => setCta(e.target.value)} placeholder={t("worldLivePromo.ugcCtaPlaceholder")} maxLength={200} className={`${inputClass} mt-3`} />
 
         {makerError && (
           <div className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{makerError}</div>
@@ -696,14 +721,13 @@ export function UgcAdsPanel() {
           className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-6 py-3.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
         >
           {generating ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Filming your ad — this takes a minute…</>
+            <><Loader2 className="h-4 w-4 animate-spin" /> {t("worldLivePromo.ugcFilming")}</>
           ) : (
-            <><Clapperboard className="h-4 w-4" /> Generate my UGC ad · {UGC_VIDEO_CREDIT_COST} Visual Bucs</>
+            <><Clapperboard className="h-4 w-4" /> {t("worldLivePromo.ugcGenerateAd", { cost: UGC_VIDEO_CREDIT_COST })}</>
           )}
         </button>
         <p className="mt-2 text-center text-xs text-white/40">
-          Vertical 9:16 for TikTok, Reels, and Shorts. Captions from your script are burned in, and your branding kit is applied.
-          If a generation fails, the {UGC_VIDEO_CREDIT_COST} Visual Bucs are refunded automatically.
+          {t("ugcAds.formatNote", { cost: UGC_VIDEO_CREDIT_COST })}
         </p>
 
         {latestAd?.status === "ready" && latestAd.videoUrl && (
@@ -713,20 +737,20 @@ export function UgcAdsPanel() {
 
       {/* ── MY ADS ────────────────────────────────────────────────── */}
       <div className="mt-10">
-        <h3 className="text-base font-bold">My UGC ads</h3>
+        <h3 className="text-base font-bold">{t("worldLivePromo.ugcMyAds")}</h3>
         {adsState === "loading" && (
-          <p className="mt-3 inline-flex items-center gap-2 text-sm text-white/50"><Loader2 className="h-4 w-4 animate-spin" /> Loading your ads…</p>
+          <p className="mt-3 inline-flex items-center gap-2 text-sm text-white/50"><Loader2 className="h-4 w-4 animate-spin" /> {t("worldLivePromo.ugcAdsLoading")}</p>
         )}
         {adsState === "failed" && (
           <p className="mt-3 text-sm text-red-200">
-            Couldn't load your ads.{" "}
+            {t("worldLivePromo.ugcAdsFailed")}{" "}
             <button onClick={() => void loadAds()} className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
-              <RefreshCw className="h-3.5 w-3.5" /> Retry
+              <RefreshCw className="h-3.5 w-3.5" /> {t("common.retry")}
             </button>
           </p>
         )}
         {adsState === "ready" && ads.length === 0 && (
-          <p className="mt-3 text-sm text-white/50">No UGC ads yet — your first one is made above.</p>
+          <p className="mt-3 text-sm text-white/50">{t("worldLivePromo.ugcNoAds")}</p>
         )}
         {adsState === "ready" && ads.length > 0 && (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -740,19 +764,19 @@ export function UgcAdsPanel() {
                     </p>
                   </div>
                   <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-bold ${ad.status === "ready" ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : ad.status === "failed" ? "border-red-400/40 bg-red-400/10 text-red-300" : "border-primary/40 bg-primary/10 text-primary"}`}>
-                    {ugcAdStatusLabel(ad.status)}
+                    {ugcAdStatusLabel(ad.status, adStatusLabels)}
                   </span>
                 </div>
                 {ad.status === "ready" && ad.videoUrl && (
                   <video src={ad.videoUrl} controls playsInline className="mt-3 aspect-[9/16] max-h-72 w-full rounded-lg bg-black object-contain" />
                 )}
                 {ad.status === "failed" && ad.lastError && (
-                  <p className="mt-3 text-xs text-red-200/80">{ad.lastError} Your Visual Bucs were refunded.</p>
+                  <p className="mt-3 text-xs text-red-200/80">{ad.lastError} {t("worldLivePromo.ugcRefundedSuffix")}</p>
                 )}
                 {ad.pinnedProductId && (
                   <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
                     <Pin className="h-3.5 w-3.5" />
-                    Pinned to {products.find((p) => p.id === ad.pinnedProductId)?.name ?? ad.productName} — buyers see this ad on the product.
+                    {t("worldLivePromo.ugcPinnedLine", { name: products.find((p) => p.id === ad.pinnedProductId)?.name ?? ad.productName })}
                   </p>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -763,7 +787,7 @@ export function UgcAdsPanel() {
                       className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 px-3 py-1.5 text-xs font-bold text-black transition hover:brightness-110 disabled:opacity-50"
                     >
                       {busyAdId === ad.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clapperboard className="h-3.5 w-3.5" />}
-                      Generate · {UGC_VIDEO_CREDIT_COST} VB
+                      {t("worldLivePromo.ugcAdGenerate", { cost: UGC_VIDEO_CREDIT_COST })}
                     </button>
                   )}
                   {ad.status === "ready" && ad.videoUrl && (
@@ -771,7 +795,7 @@ export function UgcAdsPanel() {
                       onClick={() => void shareAd(ad)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white"
                     >
-                      <Share2 className="h-3.5 w-3.5" /> Share
+                      <Share2 className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcShare")}
                     </button>
                   )}
                   {pinActionFor(ad) === "pin" && (
@@ -780,7 +804,7 @@ export function UgcAdsPanel() {
                       disabled={busyAdId === ad.id}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-primary/50 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/20 disabled:opacity-50"
                     >
-                      {busyAdId === ad.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pin className="h-3.5 w-3.5" />} Pin to product
+                      {busyAdId === ad.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pin className="h-3.5 w-3.5" />} {t("worldLivePromo.ugcPinToProduct")}
                     </button>
                   )}
                   {pinActionFor(ad) === "unpin" && (
@@ -789,22 +813,22 @@ export function UgcAdsPanel() {
                       disabled={busyAdId === ad.id}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-50"
                     >
-                      {busyAdId === ad.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PinOff className="h-3.5 w-3.5" />} Unpin
+                      {busyAdId === ad.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PinOff className="h-3.5 w-3.5" />} {t("worldLivePromo.ugcUnpin")}
                     </button>
                   )}
                   {confirmDeleteId === ad.id ? (
                     <>
                       <button onClick={() => void removeAd(ad)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/50 bg-red-500/15 px-3 py-1.5 text-xs font-bold text-red-200">
-                        <Trash2 className="h-3.5 w-3.5" /> Confirm delete
+                        <Trash2 className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcConfirmDelete")}
                       </button>
-                      <button onClick={() => setConfirmDeleteId(null)} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-white/50 hover:text-white">Keep</button>
+                      <button onClick={() => setConfirmDeleteId(null)} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-white/50 hover:text-white">{t("worldLivePromo.ugcKeep")}</button>
                     </>
                   ) : (
                     <button
                       onClick={() => setConfirmDeleteId(ad.id)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-white/45 transition hover:border-red-400/40 hover:text-red-200"
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                      <Trash2 className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcDelete")}
                     </button>
                   )}
                 </div>
@@ -818,34 +842,34 @@ export function UgcAdsPanel() {
       <div className="mt-12 border-t border-white/10 pt-8">
         <div className="flex items-center gap-2.5">
           <ClipboardList className="h-5 w-5 text-primary" />
-          <h3 className="text-base font-bold">Briefs board — brands &amp; creators</h3>
+          <h3 className="text-base font-bold">{t("worldLivePromo.ugcBriefsTitle")}</h3>
         </div>
         <p className="mt-2 rounded-xl border border-primary/30 bg-primary/[0.07] px-4 py-3 text-sm text-white/70">
-          {UGC_BRIEFS_MONEY_NOTE}
+          {t("worldLivePromo.ugcBriefsMoneyNote")}
         </p>
 
         {/* Post a brief */}
         <div className="mt-5 rounded-xl border border-white/10 bg-black/40 p-4">
-          <p className="text-sm font-bold">Post a brief (for brands &amp; businesses)</p>
+          <p className="text-sm font-bold">{t("worldLivePromo.ugcBriefFormTitle")}</p>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input aria-label="Product name *" value={briefForm.productName} onChange={(e) => setBriefForm({ ...briefForm, productName: e.target.value })} placeholder="Product name *" maxLength={120} className={inputClass} />
-            <select aria-label="Ad style" value={briefForm.style} onChange={(e) => setBriefForm({ ...briefForm, style: e.target.value as UgcStyleKey })} className={`${inputClass} cursor-pointer appearance-none`}>
+            <input aria-label={t("worldLivePromo.ugcProductNamePlaceholder")} value={briefForm.productName} onChange={(e) => setBriefForm({ ...briefForm, productName: e.target.value })} placeholder={t("worldLivePromo.ugcProductNamePlaceholder")} maxLength={120} className={inputClass} />
+            <select aria-label={t("ugcAds.adStyleAria")} value={briefForm.style} onChange={(e) => setBriefForm({ ...briefForm, style: e.target.value as UgcStyleKey })} className={`${inputClass} cursor-pointer appearance-none`}>
               {UGC_STYLES.map((s) => (
                 <option key={s.key} value={s.key} className="bg-black">{s.label}</option>
               ))}
             </select>
-            <input aria-label="Product page link (optional)" value={briefForm.productUrl} onChange={(e) => setBriefForm({ ...briefForm, productUrl: e.target.value })} placeholder="Product page link (optional)" maxLength={2048} className={inputClass} />
-            <input type="date" value={briefForm.deadline} onChange={(e) => setBriefForm({ ...briefForm, deadline: e.target.value })} className={`${inputClass} [color-scheme:dark]`} aria-label="Deadline (optional)" />
-            <input aria-label="Product photo link (optional)" value={briefForm.productImageUrl} onChange={(e) => setBriefForm({ ...briefForm, productImageUrl: e.target.value })} placeholder="Product photo link (optional)" maxLength={2048} className={`${inputClass} sm:col-span-2`} />
-            <input aria-label="Price in dollars (optional)" value={briefForm.price} onChange={(e) => setBriefForm({ ...briefForm, price: e.target.value })} placeholder="Price in dollars (optional) — e.g. 150" inputMode="decimal" className={inputClass} />
+            <input aria-label={t("worldLivePromo.ugcBriefUrlPlaceholder")} value={briefForm.productUrl} onChange={(e) => setBriefForm({ ...briefForm, productUrl: e.target.value })} placeholder={t("worldLivePromo.ugcBriefUrlPlaceholder")} maxLength={2048} className={inputClass} />
+            <input type="date" value={briefForm.deadline} onChange={(e) => setBriefForm({ ...briefForm, deadline: e.target.value })} className={`${inputClass} [color-scheme:dark]`} aria-label={t("ugcAds.deadlineAria")} />
+            <input aria-label={t("worldLivePromo.ugcBriefPhotoPlaceholder")} value={briefForm.productImageUrl} onChange={(e) => setBriefForm({ ...briefForm, productImageUrl: e.target.value })} placeholder={t("worldLivePromo.ugcBriefPhotoPlaceholder")} maxLength={2048} className={`${inputClass} sm:col-span-2`} />
+            <input aria-label={t("worldLivePromo.ugcBriefPriceAria")} value={briefForm.price} onChange={(e) => setBriefForm({ ...briefForm, price: e.target.value })} placeholder={t("worldLivePromo.ugcBriefPricePlaceholder")} inputMode="decimal" className={inputClass} />
             <p className="self-center text-xs text-white/45">
-              Optional — set a price and the payment is held safely by Bow Down Visuals, released to the creator when you approve the delivery. We keep 5%. Leave blank for a free brief.
+              {t("worldLivePromo.ugcBriefPriceHelp")}
             </p>
           </div>
-          <textarea aria-label="What do you want in the ad? The moments it has to hit, what to say, what to never say…"
+          <textarea aria-label={t("worldLivePromo.ugcBriefDetailsPlaceholder")}
             value={briefForm.details}
             onChange={(e) => setBriefForm({ ...briefForm, details: e.target.value })}
-            placeholder="What do you want in the ad? The moments it has to hit, what to say, what to never say…"
+            placeholder={t("worldLivePromo.ugcBriefDetailsPlaceholder")}
             rows={3}
             maxLength={2000}
             className={`${inputClass} mt-3 resize-none`}
@@ -855,7 +879,7 @@ export function UgcAdsPanel() {
             disabled={postingBrief}
             className="mt-3 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
           >
-            {postingBrief ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Post the brief
+            {postingBrief ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {t("worldLivePromo.ugcPostBrief")}
           </button>
         </div>
 
@@ -863,9 +887,9 @@ export function UgcAdsPanel() {
         <div className="mt-6 flex flex-wrap gap-2">
           {(
             [
-              { key: "open", label: "Open briefs" },
-              { key: "posted", label: "Briefs I posted" },
-              { key: "claimed", label: "Briefs I claimed" },
+              { key: "open", label: t("worldLivePromo.ugcScopeOpen") },
+              { key: "posted", label: t("worldLivePromo.ugcScopePosted") },
+              { key: "claimed", label: t("worldLivePromo.ugcScopeClaimed") },
             ] as const
           ).map((s) => (
             <button key={s.key} onClick={() => setBoardScope(s.key)} className={pill(boardScope === s.key)}>{s.label}</button>
@@ -873,21 +897,21 @@ export function UgcAdsPanel() {
         </div>
 
         {briefsState === "loading" && (
-          <p className="mt-4 inline-flex items-center gap-2 text-sm text-white/50"><Loader2 className="h-4 w-4 animate-spin" /> Loading the board…</p>
+          <p className="mt-4 inline-flex items-center gap-2 text-sm text-white/50"><Loader2 className="h-4 w-4 animate-spin" /> {t("worldLivePromo.ugcBoardLoading")}</p>
         )}
         {briefsState === "failed" && (
           <p className="mt-4 text-sm text-red-200">
-            Couldn't load the board.{" "}
+            {t("worldLivePromo.ugcBoardFailed")}{" "}
             <button onClick={() => void loadBriefs()} className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
-              <RefreshCw className="h-3.5 w-3.5" /> Retry
+              <RefreshCw className="h-3.5 w-3.5" /> {t("common.retry")}
             </button>
           </p>
         )}
         {briefsState === "ready" && briefs.length === 0 && (
           <p className="mt-4 text-sm text-white/50">
-            {boardScope === "open" && "No open briefs right now — post one above, or check back soon."}
-            {boardScope === "posted" && "You haven't posted a brief yet — the form above is yours."}
-            {boardScope === "claimed" && "You haven't claimed a brief yet — the open board is waiting."}
+            {boardScope === "open" && t("worldLivePromo.ugcNoOpenBriefs")}
+            {boardScope === "posted" && t("worldLivePromo.ugcNoPostedBriefs")}
+            {boardScope === "claimed" && t("worldLivePromo.ugcNoClaimedBriefs")}
           </p>
         )}
         {briefsState === "ready" && briefs.length > 0 && (
@@ -905,34 +929,34 @@ export function UgcAdsPanel() {
                         <p className="mt-0.5 text-sm text-white/60">{brief.details}</p>
                         <p className="mt-1 text-xs text-white/40">
                           {UGC_STYLES.find((s) => s.key === brief.style)?.label ?? brief.style}
-                          {brief.deadline ? ` · needed by ${new Date(brief.deadline).toLocaleDateString()}` : ""}
-                          {brief.productUrl ? <> · <a href={brief.productUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">product page</a></> : null}
+                          {brief.deadline ? t("worldLivePromo.ugcNeededBy", { date: new Date(brief.deadline).toLocaleDateString() }) : ""}
+                          {brief.productUrl ? <> · <a href={brief.productUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">{t("ugcAds.productPageLink")}</a></> : null}
                         </p>
                       </div>
                     </div>
                     <span className="shrink-0 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
-                      {briefStatusLabel(brief.status)}
+                      {briefStatusLabel(brief.status, briefStatusLabels)}
                     </span>
                   </div>
 
                   {brief.priceCents != null && (
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                       <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-1 font-bold text-white/85">
-                        {moneyCents(brief.priceCents)} brief
+                        {t("ugcAds.priceChip", { amount: moneyCents(brief.priceCents) })}
                       </span>
                       <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-1 font-semibold text-white/70">
-                        {escrowStatusLabel(brief.escrowStatus)}
+                        {escrowStatusLabel(brief.escrowStatus, escrowLabels)}
                       </span>
                       {(() => {
                         const preview = ugcBriefNetPreview(brief);
                         if (!preview) return null;
                         if (brief.escrowStatus === "released" && brief.creatorPayoutCents != null) {
-                          return <span className="text-white/50">{moneyCents(brief.creatorPayoutCents)} went to the creator.</span>;
+                          return <span className="text-white/50">{t("ugcAds.wentToCreator", { amount: moneyCents(brief.creatorPayoutCents) })}</span>;
                         }
                         if (brief.escrowStatus === "refunded") return null;
                         return (
                           <span className="text-white/50">
-                            Creator receives {moneyCents(preview.netCents)} of {moneyCents(brief.priceCents)} (5% platform fee {moneyCents(preview.feeCents)})
+                            {t("worldLivePromo.ugcCreatorReceives", { net: moneyCents(preview.netCents), gross: moneyCents(brief.priceCents), fee: moneyCents(preview.feeCents) })}
                           </span>
                         );
                       })()}
@@ -945,35 +969,35 @@ export function UgcAdsPanel() {
                       disabled={busy}
                       className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-50"
                     >
-                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} Review the delivered ad
+                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} {t("worldLivePromo.ugcReviewAd")}
                     </button>
                   )}
                   {reviewAd && brief.deliveredAdId === reviewAd.id && (
                     <div className="mt-3">
                       <video src={reviewAd.videoUrl ?? undefined} controls playsInline className="aspect-[9/16] max-h-80 w-full rounded-lg bg-black object-contain" />
                       {reviewAd.captions.length > 0 && (
-                        <p className="mt-2 text-xs text-white/45">Captions: {reviewAd.captions.join(" · ")}</p>
+                        <p className="mt-2 text-xs text-white/45">{t("worldLivePromo.ugcCaptionsLine", { list: reviewAd.captions.join(" · ") })}</p>
                       )}
                     </div>
                   )}
 
                   {actions.includes("deliver") && (
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <select aria-label="Finished ad to deliver"
+                      <select aria-label={t("ugcAds.deliverPickAria")}
                         value={deliverPick[brief.id] ?? ""}
                         onChange={(e) => setDeliverPick({ ...deliverPick, [brief.id]: e.target.value })}
                         className="min-w-44 flex-1 cursor-pointer appearance-none rounded-lg border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-primary/60"
                       >
-                        <option value="" className="bg-black">Pick one of your finished ads…</option>
+                        <option value="" className="bg-black">{t("worldLivePromo.ugcDeliverPickPlaceholder")}</option>
                         {myReadyAds.map((a) => (
-                          <option key={a.id} value={a.id} className="bg-black">{a.productName} — {new Date(a.createdAt).toLocaleDateString()}</option>
+                          <option key={a.id} value={a.id} className="bg-black">{t("worldLivePromo.ugcDeliverOption", { name: a.productName, date: new Date(a.createdAt).toLocaleDateString() })}</option>
                         ))}
                       </select>
                       <button
                         onClick={() => startAdForBrief(brief)}
                         className="rounded-lg border border-primary/50 bg-primary/15 px-3 py-2 text-xs font-bold text-white transition hover:bg-primary/25"
                       >
-                        Make the ad for this brief
+                        {t("worldLivePromo.ugcMakeForBrief")}
                       </button>
                     </div>
                   )}
@@ -982,32 +1006,32 @@ export function UgcAdsPanel() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       {actions.includes("claim") && (
                         <button onClick={() => void runBriefAction(brief, "claim")} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 px-3 py-1.5 text-xs font-bold text-black transition hover:brightness-110 disabled:opacity-50">
-                          <Handshake className="h-3.5 w-3.5" /> Claim this brief
+                          <Handshake className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcClaimBrief")}
                         </button>
                       )}
                       {actions.includes("fund") && (
                         <button onClick={() => void fundBrief(brief)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 px-3 py-1.5 text-xs font-bold text-black transition hover:brightness-110 disabled:opacity-50">
-                          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />} Fund {brief.priceCents != null ? moneyCents(brief.priceCents) : ""}
+                          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />} {t("worldLivePromo.ugcFundBrief", { amount: brief.priceCents != null ? moneyCents(brief.priceCents) : "" })}
                         </button>
                       )}
                       {actions.includes("deliver") && (
                         <button onClick={() => void runBriefAction(brief, "deliver")} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 px-3 py-1.5 text-xs font-bold text-black transition hover:brightness-110 disabled:opacity-50">
-                          <Send className="h-3.5 w-3.5" /> Deliver the ad
+                          <Send className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcDeliverAd")}
                         </button>
                       )}
                       {actions.includes("approve") && (
                         <button onClick={() => void runBriefAction(brief, "approve")} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 px-3 py-1.5 text-xs font-bold text-black transition hover:brightness-110 disabled:opacity-50">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> {brief.priceCents != null && brief.escrowStatus === "funded" ? `Approve & release ${moneyCents(brief.priceCents)}` : "Approve delivery"}
+                          <CheckCircle2 className="h-3.5 w-3.5" /> {brief.priceCents != null && brief.escrowStatus === "funded" ? t("worldLivePromo.ugcApproveRelease", { amount: moneyCents(brief.priceCents) }) : t("worldLivePromo.ugcApproveDelivery")}
                         </button>
                       )}
                       {actions.includes("release") && (
                         <button onClick={() => void runBriefAction(brief, "release")} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:text-white disabled:opacity-50">
-                          <RotateCcw className="h-3.5 w-3.5" /> Release
+                          <RotateCcw className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcRelease")}
                         </button>
                       )}
                       {actions.includes("close") && (
                         <button onClick={() => void runBriefAction(brief, "close")} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:border-red-400/40 hover:text-red-200 disabled:opacity-50">
-                          <XCircle className="h-3.5 w-3.5" /> Close brief
+                          <XCircle className="h-3.5 w-3.5" /> {t("worldLivePromo.ugcCloseBrief")}
                         </button>
                       )}
                     </div>
@@ -1019,18 +1043,18 @@ export function UgcAdsPanel() {
                       disabled={busy}
                       className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-50"
                     >
-                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Check funding status
+                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} {t("ugcAds.checkFundingStatus")}
                     </button>
                   )}
 
                   {fundCheckout?.briefId === brief.id && (
                     <div className="mt-3 space-y-2" data-testid="ugc-brief-fund-embedded-checkout">
                       <p className="text-xs text-white/50">
-                        Finish funding right here — the brief shows as funded the moment the payment lands.
+                        {t("ugcAds.fundingPanelNote")}
                       </p>
                       <EmbeddedSessionCheckout clientSecret={fundCheckout.clientSecret} />
                       <button onClick={() => setFundCheckout(null)} className="text-xs text-white/40 hover:text-white">
-                        Close — nothing is charged until a payment completes
+                        {t("ugcAds.fundingPanelClose")}
                       </button>
                     </div>
                   )}
@@ -1045,10 +1069,11 @@ export function UgcAdsPanel() {
 }
 
 function AdResult({ ad, onShare }: { ad: UgcAd; onShare: () => void }) {
+  const { t } = useTranslation();
   return (
     <div className="mt-6 rounded-xl border border-emerald-400/30 bg-emerald-400/[0.05] p-4">
       <p className="inline-flex items-center gap-2 text-sm font-bold text-emerald-300">
-        <CheckCircle2 className="h-4 w-4" /> Your ad is ready — {ad.productName}
+        <CheckCircle2 className="h-4 w-4" /> {t("worldLivePromo.ugcAdReady", { name: ad.productName })}
       </p>
       <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-[180px_1fr]">
         <video src={ad.videoUrl ?? undefined} controls playsInline className="aspect-[9/16] w-full rounded-lg bg-black object-contain" />
@@ -1056,19 +1081,19 @@ function AdResult({ ad, onShare }: { ad: UgcAd; onShare: () => void }) {
           {ad.brand && (ad.brand.brandName || ad.brand.logoUrl) && (
             <p className="flex items-center gap-2">
               {ad.brand.logoUrl && <img src={ad.brand.logoUrl} alt="" className="h-6 w-6 rounded object-contain" />}
-              Branding kit applied{ad.brand.brandName ? ` — ${ad.brand.brandName}` : ""}
+              {t("ugcAds.brandingKitApplied")}{ad.brand.brandName ? ` — ${ad.brand.brandName}` : ""}
               {ad.brand.primaryColor ? <span className="inline-block h-3.5 w-3.5 rounded-full border border-white/25" style={{ background: ad.brand.primaryColor }} /> : null}
             </p>
           )}
           <p className="mt-2">
-            Captions: {ad.captionsBurned ? "burned into the video" : "saved with the ad"} — {ad.captions.join(" · ")}
+            {ad.captionsBurned ? t("ugcAds.captionsBurned", { list: ad.captions.join(" · ") }) : t("ugcAds.captionsSaved", { list: ad.captions.join(" · ") })}
           </p>
-          <p className="mt-2">It's saved in your ads above and in your clip library.</p>
+          <p className="mt-2">{t("ugcAds.adSavedNote")}</p>
           <button
             onClick={onShare}
             className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/75 transition hover:border-primary/50 hover:text-white"
           >
-            <Share2 className="h-3.5 w-3.5" /> Share it
+            <Share2 className="h-3.5 w-3.5" /> {t("ugcAds.shareIt")}
           </button>
         </div>
       </div>

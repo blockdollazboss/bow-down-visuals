@@ -191,7 +191,12 @@ describe("the money note — conditional on the brief's priced state (C-25 follo
       ["the World outreach panel", read("../components/world/native/boards/BrandOutreachPanel.tsx")],
     ];
     for (const [name, src] of surfaces) {
-      expect(src, name).toContain("UGC_BRIEFS_MONEY_NOTE");
+      /* Stack-200 D6: surfaces render the combined note through the
+         catalog key worldLivePromo.ugcBriefsMoneyNote, whose en value
+         IS this combined note verbatim (pinned in
+         locale-newest-keying.test.ts) — the blanket note still stands
+         alone nowhere. */
+      expect(src, name).toContain("worldLivePromo.ugcBriefsMoneyNote");
       expect(src, name).not.toContain("UGC_PAYMENT_NOTE");
       expect(src, name).not.toContain("bow Down");
     }

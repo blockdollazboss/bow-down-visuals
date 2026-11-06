@@ -82,9 +82,13 @@ describe("the /charts For Brands tab (source pins)", () => {
     expect(chartsPageSrc).toContain('data-testid="brand-takeover-loading"');
   });
 
-  it("carries the briefs board's conditional money note, imported from the one seam", () => {
-    expect(chartsPageSrc).toContain("UGC_BRIEFS_MONEY_NOTE");
-    expect(chartsPageSrc).toContain('from "@/lib/ugc-ads"');
+  it("carries the briefs board's conditional money note, from the one catalog key", () => {
+    /* Stack-200 D6: the note resolves through the catalog key whose
+       en value is the seam's combined note verbatim (pinned equal in
+       locale-newest-keying.test.ts) — the words still come from one
+       source, never an inline copy on this page. */
+    expect(chartsPageSrc).toContain("worldLivePromo.ugcBriefsMoneyNote");
+    expect(chartsPageSrc).not.toContain("UGC_BRIEFS_MONEY_NOTE");
     /* The blanket free-brief note must NOT stand alone on this
        surface (C-25 follow-up): priced briefs ride the escrow rail,
        so the off-site words reach this page only inside the

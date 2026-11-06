@@ -19,7 +19,7 @@ import {
   type ChartsBoardStrings,
   type UgcBriefResult,
 } from "@/lib/world/charts-board";
-import { UGC_BRIEFS_MONEY_NOTE, UGC_STYLES } from "@/lib/ugc-ads";
+import { UGC_STYLES } from "@/lib/ugc-ads";
 import { copyText } from "@/lib/streaming";
 
 /* ─── BrandOutreachPanel — the For Brands tab's outreach, in-world ──
@@ -465,7 +465,7 @@ export function BrandOutreachPanel({ isLight }: { isLight: boolean }) {
       </div>
 
       <div className="space-y-1.5">
-        <p className={`text-xs ${muted}`}>{UGC_BRIEFS_MONEY_NOTE}</p>
+        <p className={`text-xs ${muted}`}>{t("worldLivePromo.ugcBriefsMoneyNote")}</p>
         <p className={`text-xs ${muted}`}>
           {t("worldBoards.boPreferPages")}{" "}
           <Link
