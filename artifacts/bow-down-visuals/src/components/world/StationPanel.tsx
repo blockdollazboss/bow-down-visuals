@@ -209,6 +209,7 @@ const PublishDesk = lazy(() => import("@/components/world/native/PublishDesk").t
 const TemplatesDesk = lazy(() => import("@/components/world/native/TemplatesDesk").then((m) => ({ default: m.TemplatesDesk })));
 const RemixDesk = lazy(() => import("@/components/world/native/RemixDesk").then((m) => ({ default: m.RemixDesk })));
 const RepurposeDesk = lazy(() => import("@/components/world/native/RepurposeDesk").then((m) => ({ default: m.RepurposeDesk })));
+const VideoStudioDesk = lazy(() => import("@/components/world/native/VideoStudioDesk").then((m) => ({ default: m.VideoStudioDesk })));
 const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
 const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m) => ({ default: m.TeamDesk })));
 const TeamSeatsDesk = lazy(() => import("@/components/world/native/TeamSeatsDesk").then((m) => ({ default: m.TeamSeatsDesk })));
@@ -1362,6 +1363,16 @@ export default function StationPanel(props: StationPanelProps) {
                     step lives. */}
                 <DeskDoor isLight={isLight}>
                   <RepurposeDesk isLight={isLight} />
+                </DeskDoor>
+                {/* Video Studio (stack200 world parity lane B1,
+                    census item 5): the video-studio hub surface —
+                    camera-movement picker, one-click presets,
+                    text/image modes and the hub spine (project
+                    picks in, finished clips into the project) on
+                    the gen4.5 runway-clip rail — stacked at the
+                    board with the other project desks. */}
+                <DeskDoor isLight={isLight}>
+                  <VideoStudioDesk isLight={isLight} />
                 </DeskDoor>
                 {/* Templates (Stack-100 wave 4, item 27 / desk
                     #100): one browse desk for all four template
