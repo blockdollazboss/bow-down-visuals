@@ -7292,6 +7292,11 @@
       "pace": "{{current}} Plays in 24 Std. · {{velocity}}x sein übliches Tempo",
       "coldStart": "Brandneu — {{current}} Plays in seinen ersten 24 Stunden",
       "honestNote": "Jede Zahl oben ist ein gezählter Play aus den letzten 24 Stunden, verglichen mit den eigenen vorangegangenen 7 Tagen desselben Elements. Wenn eine Lane kurz aussieht, ist das das ehrliche Bild — die Latte sinkt nie, um die Seite zu füllen.",
+      "outsideTitle": "Draußen wird's heiß",
+      "outsideSubtitle": "Die beliebtesten Musikvideos auf YouTube gerade jetzt — Hitze von außerhalb von Bow Down, damit du hier der Erste mit dem bist, was da draußen schon läuft.",
+      "outsideBadge": "YouTube",
+      "outsideViews": "{{count}} Aufrufe auf YouTube",
+      "outsideNote": "Diese Zahlen stammen von YouTube selbst. Diese Spur vermischt sich nie mit den gezählten Bow-Down-Plays oben, und nichts hier ist eine Bow-Down-Play-Zahl.",
       "format": {
         "short": "Kurzclips",
         "duet": "Duette",

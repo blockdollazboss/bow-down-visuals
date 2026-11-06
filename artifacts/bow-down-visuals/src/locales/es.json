@@ -7305,6 +7305,11 @@
       "pace": "{{current}} reproducciones en 24 h · {{velocity}}x su ritmo habitual",
       "coldStart": "Totalmente nuevo — {{current}} reproducciones en sus primeras 24 horas",
       "honestNote": "Cada número de arriba es una reproducción contada de las últimas 24 horas, comparada con los 7 días anteriores del mismo elemento. Si un carril se ve corto, esa es la imagen honesta: el listón nunca baja para llenar la página.",
+      "outsideTitle": "Lo que está pegando fuera",
+      "outsideSubtitle": "Los videos musicales más populares de YouTube ahora mismo — calor de fuera de Bow Down, para que llegues primero aquí con lo que ya se mueve allá fuera.",
+      "outsideBadge": "YouTube",
+      "outsideViews": "{{count}} vistas en YouTube",
+      "outsideNote": "Estas cifras son de YouTube. Este carril nunca se mezcla con las reproducciones contadas de Bow Down de arriba, y nada de esto es un conteo de reproducciones de Bow Down.",
       "format": {
         "short": "Cortos",
         "duet": "Dúos",

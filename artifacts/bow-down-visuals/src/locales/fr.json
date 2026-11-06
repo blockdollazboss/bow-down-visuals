@@ -7463,6 +7463,11 @@
       "pace": "{{current}} écoutes en 24 h · {{velocity}}x son rythme habituel",
       "coldStart": "Tout nouveau — {{current}} écoutes dans ses premières 24 heures",
       "honestNote": "Chaque chiffre ci-dessus est une écoute comptée des dernières 24 heures, comparée aux 7 jours précédents du même élément. Si une voie semble courte, c'est l'image honnête — la barre ne descend jamais pour remplir la page.",
+      "outsideTitle": "Ça chauffe dehors",
+      "outsideSubtitle": "Les clips musicaux les plus populaires sur YouTube en ce moment — la chaleur venue d'ailleurs que Bow Down, pour être le premier ici avec ce qui bouge déjà là-bas.",
+      "outsideBadge": "YouTube",
+      "outsideViews": "{{count}} vues sur YouTube",
+      "outsideNote": "Ces chiffres sont ceux de YouTube. Cette voie ne se mélange jamais aux lectures comptées de Bow Down ci-dessus, et rien ici n'est un nombre de lectures Bow Down.",
       "format": {
         "short": "Vidéos courtes",
         "duet": "Duos",

@@ -361,6 +361,7 @@ const W5_ALLOW = new Set([
   "titles.platformInstagram",
   "titles.platformTikTok",
   "titles.platformYouTube",
+  "trends.radar.outsideBadge",
   "trends.platformInstagram",
   "trends.platformTiktok",
   "trends.platformYoutube",

@@ -626,6 +626,7 @@ const W5_LEGIT: string[] = [
   "trends.nicheFitness",
   "trends.nicheGaming",
   "trends.nicheTech",
+  "trends.radar.outsideBadge",
   "trends.platformInstagram",
   "trends.platformTiktok",
   "trends.platformYoutube",

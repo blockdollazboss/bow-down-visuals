@@ -11,6 +11,7 @@ import { publicApiLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { buildRadarFeed, radarHeadline, buildTrendFeed, type RadarSignalInput } from "../lib/trend-radar";
+import { getOutsideHeat } from "../lib/youtube-heat";
 
 /* ─── Trend Radar (#178) ───────────────────────────────────────────────────
    GET /api/trend-radar/feed — the radar: REAL on-site signals only.
@@ -128,7 +129,15 @@ router.get("/trend-radar/feed", publicApiLimiter, async (_req: Request, res: Res
    The AI trend-predictor keeps its own surface; it is NOT a source
    for this feed. (Sibling of the public /trend-radar/feed above:
    that one is the results-wall radar; this one is the authed daily
-   feed the Trends page reads.) */
+   feed the Trends page reads.)
+
+   C-30 added ONE additive block to this response: `outsideHeat` —
+   YouTube's current most-popular music chart (lib/youtube-heat),
+   carried as its own labeled family with YouTube's own numbers. It
+   is never blended into the families above, never passes through
+   their verified-count gates, and is null whenever the YouTube key
+   is unconfigured or the chart is unreachable — the internal feed
+   below is built and answered exactly as it was before C-30. */
 
 router.get("/trend-radar", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const genre =
@@ -136,7 +145,11 @@ router.get("/trend-radar", requireAuth, publicApiLimiter, async (req: Request, r
       ? req.query.genre.trim().slice(0, 60)
       : undefined;
   try {
-    res.json(await buildTrendFeed({ genre }));
+    const feed = await buildTrendFeed({ genre });
+    /* Fail-closed by construction: getOutsideHeat never throws, and
+       the catch keeps even a freak failure from touching the rail. */
+    const outsideHeat = await getOutsideHeat().catch(() => null);
+    res.json({ ...feed, outsideHeat });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[trend-radar] feed failed");
     res.status(500).json({ error: "Could not build the trend feed" });

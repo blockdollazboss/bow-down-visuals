@@ -7292,6 +7292,11 @@
       "pace": "24시간 동안 {{current}}회 재생 · 평소 속도의 {{velocity}}배",
       "coldStart": "완전 신상 — 첫 24시간에 {{current}}회 재생",
       "honestNote": "위 숫자는 모두 지난 24시간 동안 센 재생을 같은 항목의 지난 7일과 비교한 것입니다. 레인이 짧아 보인다면 그게 정직한 그림입니다 — 페이지를 채우려고 기준이 낮아지는 일은 결코 없습니다.",
+      "outsideTitle": "밖에서도 뜨겁습니다",
+      "outsideSubtitle": "지금 YouTube에서 가장 인기 있는 뮤직비디오 — Bow Down 밖의 열기. 저쪽에서 이미 움직이는 것을 이곳에서 가장 먼저 잡을 수 있도록.",
+      "outsideBadge": "YouTube",
+      "outsideViews": "YouTube 조회수 {{count}}회",
+      "outsideNote": "이 숫자는 YouTube 자체의 숫자입니다. 이 레인은 위의 Bow Down 재생 수와 절대 섞이지 않으며, 여기 있는 어떤 것도 Bow Down 재생 수가 아닙니다.",
       "format": {
         "short": "쇼츠",
         "duet": "듀엣",
