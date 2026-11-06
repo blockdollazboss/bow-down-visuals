@@ -24289,5 +24289,9 @@
   "plainDealsItems": {
     "loadError": "Your items couldn't load — check your connection and try again.",
     "retry": "Try again"
+  },
+  "threadCalls": {
+    "loadError": "Call history in this thread couldn't load — past calls may be missing from the timeline.",
+    "retry": "Try again"
   }
 }
