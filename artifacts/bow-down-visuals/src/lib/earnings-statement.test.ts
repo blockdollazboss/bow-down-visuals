@@ -75,6 +75,46 @@ describe("statementLineRows — the PDF's lines, shared by both in-page viewers"
     ]);
   });
 
+  it("carries all nine lines in the PDF's order when the builder sends the full source scope (L9)", () => {
+    const full = statementFromPayload({
+      sources: {
+        storeSales: { status: "ok", totalCents: 5000, count: 1 },
+        digitalSales: { status: "ok", totalCents: 3000, count: 1 },
+        shopSales: { status: "ok", totalCents: 1900, count: 1 },
+        beats: { status: "ok", totalCents: 1700, count: 1 },
+        memberships: { status: "ok", totalCents: 1500, count: 1 },
+        shoutouts: { status: "ok", totalCents: 950, count: 1 },
+        tipJar: { status: "ok", totalCents: 500, count: 1 },
+        brandDeals: { status: "ok", totalCents: 4000, count: 1 },
+        royalties: { status: "ok", totalCents: 1234, count: 1 },
+      },
+      totalCents: 19784,
+      partial: false,
+    })!;
+    expect(statementLineRows(full).map((r) => r.key)).toEqual([
+      "storeSales",
+      "digitalSales",
+      "shopSales",
+      "beats",
+      "memberships",
+      "shoutouts",
+      "tipJar",
+      "brandDeals",
+      "royalties",
+    ]);
+    expect(statementLineRows(full).map((r) => r.label)).toEqual([
+      "Store sales",
+      "Digital sales",
+      "Shop sales",
+      "Beat licenses",
+      "Memberships",
+      "Shoutouts",
+      "Tip jar tips",
+      "Brand deals",
+      "Royalties (recorded)",
+    ]);
+  });
+
   it("line text is the shared format; an errored source says couldn't load, never $0.00", () => {
     const rows = statementLineRows(stmt);
     expect(statementLineText(rows[0]!)).toBe("$50.00 · 2 records");

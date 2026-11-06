@@ -36,6 +36,10 @@ CREATE TABLE hub_projects (id uuid PRIMARY KEY, user_id uuid NOT NULL, name text
 CREATE TABLE project_drafts (id uuid PRIMARY KEY, user_id uuid NOT NULL, workflow_type text NOT NULL, title text, draft_data jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE sponsor_payouts (id uuid PRIMARY KEY, creator_user_id text NOT NULL, net_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'released', created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE royalty_entries (id uuid PRIMARY KEY, user_id uuid NOT NULL, song_title text NOT NULL, platform text NOT NULL, period_start date NOT NULL, period_end date NOT NULL, gross_amount numeric NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE digital_sales (id uuid PRIMARY KEY, profile_id uuid NOT NULL, amount_cents integer NOT NULL DEFAULT 0, platform_fee_cents integer NOT NULL DEFAULT 0, creator_amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'completed', created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE beat_licenses (id uuid PRIMARY KEY, producer_id uuid NOT NULL, price_cents integer NOT NULL DEFAULT 0, commission_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'pending_payment', created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE shoutout_requests (id uuid PRIMARY KEY, creator_user_id uuid NOT NULL, price_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'pending_payment', paid_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE tip_jar_tips (id uuid PRIMARY KEY, page_user_id uuid NOT NULL, amount_cents integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'pending_payment', paid_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE songs (id uuid PRIMARY KEY, user_id uuid NOT NULL, title text NOT NULL, audio_url text NOT NULL, source text NOT NULL DEFAULT 'upload', duration_sec text, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE generated_clips (id uuid PRIMARY KEY, user_id uuid NOT NULL, title text, video_url text, thumbnail_url text, status text NOT NULL DEFAULT 'completed', created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE distribution_releases (id uuid PRIMARY KEY, user_id uuid NOT NULL, title text NOT NULL, artist_name text NOT NULL, status text NOT NULL DEFAULT 'draft', audio_url text, artwork_url text, platforms jsonb, metadata jsonb, created_at timestamptz NOT NULL DEFAULT now());
@@ -183,8 +187,12 @@ describe("#5 earnings statements", () => {
     const money = (c: number) => `$${(c / 100).toFixed(2)}`;
     const lines: Array<[string, string]> = [
       ["Store sales", "storeSales"],
+      ["Digital sales", "digitalSales"],
       ["Shop sales", "shopSales"],
+      ["Beat licenses", "beats"],
       ["Memberships", "memberships"],
+      ["Shoutouts", "shoutouts"],
+      ["Tip jar tips", "tipJar"],
       ["Brand deals", "brandDeals"],
       ["Royalties", "royalties"],
     ];

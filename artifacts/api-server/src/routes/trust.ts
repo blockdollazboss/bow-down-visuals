@@ -621,6 +621,19 @@ export { evaluateAutomod };
 interface YearSource { status: "ok" | "error"; totalCents: number | null; count: number | null }
 const errYear = (): YearSource => ({ status: "error", totalCents: null, count: null });
 
+/* Source scope: the SAME settled-earnings rails the unified earnings
+ * summary counts (lib/seller-earnings) — digital sales, store orders,
+ * shop events, beat licenses, memberships, shoutouts, tip jar, brand
+ * deals — plus royalties, which are recorded platform earnings that
+ * never route through the seller payout rails. Every figure is the
+ * amount the summary counts for that rail, net wherever the rail is
+ * fee-bearing: splits already recorded on the rows (digital / store /
+ * shop), beats net of commission, shoutouts net of the flat 5% fee
+ * (per-row (price×95+50)/100, the summary's formula), tips at the
+ * full amount (no fee). Settled rows only — refunded rows
+ * are excluded wherever the summary excludes them. Shoutouts and tips
+ * are booked to the year the money settled (paid_at): a shoutout
+ * request can sit unpaid long after it was created. */
 export async function buildYearStatement(userId: string, year: number) {
   const one = async (fn: () => Promise<YearSource>): Promise<YearSource> => { try { return await fn(); } catch (err) { logger.error({ err }, "[trust] statement source failed"); return errYear(); } };
   const sum = async (q: ReturnType<typeof sql>) => { const r = await db.execute(q); const row = (r.rows as any[])[0] ?? { cents: 0, n: 0 }; return { status: "ok" as const, totalCents: Number(row.cents), count: Number(row.n) }; };
@@ -628,12 +641,25 @@ export async function buildYearStatement(userId: string, year: number) {
     SELECT COALESCE(SUM(o.creator_amount_cents),0)::int AS cents, COUNT(*)::int AS n FROM store_orders o
     JOIN creator_profiles cp ON cp.id = o.profile_id
     WHERE cp.user_id = ${userId} AND o.status = 'completed' AND EXTRACT(YEAR FROM o.created_at) = ${year}`));
+  const digitalSales = await one(() => sum(sql`
+    SELECT COALESCE(SUM(ds.creator_amount_cents),0)::int AS cents, COUNT(*)::int AS n FROM digital_sales ds
+    JOIN creator_profiles cp ON cp.id = ds.profile_id
+    WHERE cp.user_id = ${userId} AND ds.status = 'completed' AND EXTRACT(YEAR FROM ds.created_at) = ${year}`));
   const shopSales = await one(() => sum(sql`
     SELECT COALESCE(SUM(amount_cents - platform_fee_cents),0)::int AS cents, COUNT(*)::int AS n FROM shop_events
     WHERE user_id = ${userId} AND event_type = 'sale' AND EXTRACT(YEAR FROM created_at) = ${year}`));
+  const beats = await one(() => sum(sql`
+    SELECT COALESCE(SUM(price_cents - commission_cents),0)::int AS cents, COUNT(*)::int AS n FROM beat_licenses
+    WHERE producer_id = ${userId} AND status = 'completed' AND EXTRACT(YEAR FROM created_at) = ${year}`));
   const memberships = await one(() => sum(sql`
     SELECT COALESCE(SUM(price_cents),0)::int AS cents, COUNT(*)::int AS n FROM fan_members
-    WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL AND EXTRACT(YEAR FROM created_at) = ${year}`));
+    WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL AND status <> 'refunded' AND EXTRACT(YEAR FROM created_at) = ${year}`));
+  const shoutouts = await one(() => sum(sql`
+    SELECT COALESCE(SUM((price_cents * 95 + 50) / 100),0)::int AS cents, COUNT(*)::int AS n FROM shoutout_requests
+    WHERE creator_user_id = ${userId} AND paid_at IS NOT NULL AND status <> 'refunded' AND EXTRACT(YEAR FROM paid_at) = ${year}`));
+  const tipJar = await one(() => sum(sql`
+    SELECT COALESCE(SUM(amount_cents),0)::int AS cents, COUNT(*)::int AS n FROM tip_jar_tips
+    WHERE page_user_id = ${userId} AND status = 'paid' AND EXTRACT(YEAR FROM paid_at) = ${year}`));
   const brandDeals = await one(() => sum(sql`
     SELECT COALESCE(SUM(net_cents),0)::int AS cents, COUNT(*)::int AS n FROM sponsor_payouts
     WHERE creator_user_id = ${userId} AND status = 'released' AND EXTRACT(YEAR FROM created_at) = ${year}`));
@@ -642,7 +668,7 @@ export async function buildYearStatement(userId: string, year: number) {
     const row = (r.rows as any[])[0] ?? { cents: 0, n: 0 };
     return { status: "ok" as const, totalCents: Number(row.cents), count: Number(row.n) };
   });
-  const sources = { storeSales, shopSales, memberships, brandDeals, royalties };
+  const sources = { storeSales, digitalSales, shopSales, beats, memberships, shoutouts, tipJar, brandDeals, royalties };
   const partial = Object.values(sources).some((s) => s.status === "error");
   const totalCents = Object.values(sources).reduce((acc, s) => acc + (s.totalCents ?? 0), 0);
   return {
@@ -674,7 +700,7 @@ router.get("/earnings/statements/:year/pdf", requireAuth, async (req, res) => {
     let y = 130;
     page.text(48, y, "What this is", { size: 12, bold: true }); y += 20;
     page.text(48, y, stmt.disclaimer, { size: 9, color: GREY, maxWidth: 500 }); y += 48;
-    const lines: Array<[string, YearSource]> = [["Store sales", stmt.sources.storeSales], ["Shop sales", stmt.sources.shopSales], ["Memberships", stmt.sources.memberships], ["Brand deals", stmt.sources.brandDeals], ["Royalties (recorded)", stmt.sources.royalties]];
+    const lines: Array<[string, YearSource]> = [["Store sales", stmt.sources.storeSales], ["Digital sales", stmt.sources.digitalSales], ["Shop sales", stmt.sources.shopSales], ["Beat licenses", stmt.sources.beats], ["Memberships", stmt.sources.memberships], ["Shoutouts", stmt.sources.shoutouts], ["Tip jar tips", stmt.sources.tipJar], ["Brand deals", stmt.sources.brandDeals], ["Royalties (recorded)", stmt.sources.royalties]];
     for (const [label, s] of lines) {
       page.text(48, y, label, { size: 11 });
       page.text(564, y, s.status === "error" ? "could not load" : `${money(s.totalCents)}  (${s.count} records)`, { size: 11, align: "right" });
