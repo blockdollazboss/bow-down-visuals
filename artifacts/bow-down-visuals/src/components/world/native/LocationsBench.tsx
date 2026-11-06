@@ -55,7 +55,7 @@ export function LocationsBench({ isLight }: { isLight: boolean }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(LOCATIONS_PATH, { headers: authHeaders(), credentials: "include" });
+      const res = await fetch(LOCATIONS_PATH, { headers: await authHeaders(), credentials: "include" });
       if (!res.ok) throw new Error("load");
       const parsed = locationsOf(await res.json().catch(() => null));
       if (parsed === null) throw new Error("load");
@@ -83,7 +83,7 @@ export function LocationsBench({ isLight }: { isLight: boolean }) {
     try {
       const res = await fetch(LOCATIONS_PATH, {
         method: "POST",
-        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(body),
       });
@@ -116,7 +116,7 @@ export function LocationsBench({ isLight }: { isLight: boolean }) {
       fd.append("image", file);
       const res = await fetch(LOCATIONS_UPLOAD_PATH, {
         method: "POST",
-        headers: authHeaders(),
+        headers: await authHeaders(),
         credentials: "include",
         body: fd,
       });
@@ -137,7 +137,7 @@ export function LocationsBench({ isLight }: { isLight: boolean }) {
     try {
       const res = await fetch(locationPath(id), {
         method: "DELETE",
-        headers: authHeaders(),
+        headers: await authHeaders(),
         credentials: "include",
       });
       if (!res.ok) throw new Error("delete");

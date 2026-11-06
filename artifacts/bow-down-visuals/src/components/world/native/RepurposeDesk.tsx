@@ -37,7 +37,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useHubProject, type HubAsset } from "@/lib/hub-project";
-import { useConfirmedApi } from "@/lib/world/confirmed-api";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
 import {
   REPURPOSE_ANALYZE_PATH,
@@ -149,7 +149,7 @@ export function RepurposeDesk({ isLight }: { isLight: boolean }) {
       if (!id) return null;
       try {
         const res = await fetch(repurposeJobPath(id), {
-          headers: authHeaders(),
+          headers: await authHeaders(),
           credentials: "include",
         });
         if (!res.ok) return null;

@@ -27,7 +27,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { apiErrorMessage, plainErrorText } from "@/lib/api-error";
 import { useHubProject, type HubAsset } from "@/lib/hub-project";
 import { r2UploadFile } from "@/lib/r2-storage";
-import { useConfirmedApi } from "@/lib/world/confirmed-api";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { videoClipCost } from "@/lib/world/create-desks";
 import {
   CAMERA_MOVEMENTS,
@@ -184,7 +184,7 @@ export function VideoStudioDesk({ isLight }: { isLight: boolean }) {
         await new Promise((r) => setTimeout(r, VIDEO_STUDIO_POLL_MS));
         if (!mountedRef.current) return;
         const pollRes = await fetch(videoStudioTaskPath(submit.taskId), {
-          headers: authHeaders(),
+          headers: await authHeaders(),
           credentials: "include",
         });
         const verdict = interpretStudioPoll(await pollRes.json().catch(() => ({})));
