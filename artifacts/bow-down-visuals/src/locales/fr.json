@@ -4933,7 +4933,7 @@
     "tabOverlay": "Overlay live",
     "tabProducts": "Produits",
     "testAlertBadge": "alerte test",
-    "testAlertsNote": "Alertes de test uniquement — aucun vrai paiement avant la sortie du paiement plateforme.",
+    "testAlertsNote": "Test alerts only — firing one never charges anyone. Real purchases go through the pinned product's Buy button, which checks out right here on the platform (test mode).",
     "testDataBadge": "Données de test",
     "testSales": "ventes test",
     "testSalesCount": "{{count}} ventes test",

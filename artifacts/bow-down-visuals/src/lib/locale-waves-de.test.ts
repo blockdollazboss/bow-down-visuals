@@ -78,6 +78,7 @@ const W1_LEGIT_IDENTICAL = new Set([
   "liveShopping.liveBadge",
   "liveShopping.streamsLabel",
   "liveShopping.tabDashboard",
+  "liveShopping.testAlertsNote",
   "liveShopping.thStream",
   "llcGuide.businessNameOptional",
   "llcGuide.cheatCodeLabel",

@@ -4766,7 +4766,7 @@
     "tabOverlay": "लाइव ओवरले",
     "tabProducts": "प्रोडक्ट",
     "testAlertBadge": "टेस्ट अलर्ट",
-    "testAlertsNote": "सिर्फ़ टेस्ट अलर्ट — प्लेटफ़ॉर्म चेकआउट आने तक कोई असली पेमेंट नहीं।",
+    "testAlertsNote": "Test alerts only — firing one never charges anyone. Real purchases go through the pinned product's Buy button, which checks out right here on the platform (test mode).",
     "testDataBadge": "टेस्ट डेटा",
     "testSales": "टेस्ट बिक्री",
     "testSalesCount": "{{count}} टेस्ट बिक्री",

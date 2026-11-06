@@ -77,6 +77,7 @@ const W1_LEGIT: ReadonlySet<string> = new Set([
   "labelPitch.genres.rock",
   "labelPitch.labelOneSheet",
   "liveShopping.crossLinkEnd",
+  "liveShopping.testAlertsNote",
   "llcGuide.cheatCodeLabel",
   "llcGuide.creatorPodcaster",
   "llcGuide.creatorStreamer",

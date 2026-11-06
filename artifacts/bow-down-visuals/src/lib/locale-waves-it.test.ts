@@ -139,6 +139,7 @@ const W1_LEGIT = new Set([
   "liveShopping.crossLinkEnd",
   "liveShopping.liveBadge",
   "liveShopping.tabDashboard",
+  "liveShopping.testAlertsNote",
   "llcGuide.cheatCodeLabel",
   "llcGuide.creatorDesigner",
   "llcGuide.creatorPodcaster",

@@ -98,6 +98,7 @@ const W1_LEGIT: ReadonlySet<string> = new Set([
   "liveShopping.badge",
   "liveShopping.crossLinkEnd",
   "liveShopping.streamsLabel",
+  "liveShopping.testAlertsNote",
   "liveShopping.thStream",
   "llcGuide.cheatCodeLabel",
   "llcGuide.creatorDesigner",

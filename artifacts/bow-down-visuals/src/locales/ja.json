@@ -4766,7 +4766,7 @@
     "tabOverlay": "ライブオーバーレイ",
     "tabProducts": "商品",
     "testAlertBadge": "テストアラート",
-    "testAlertsNote": "テストアラートのみ——プラットフォームのチェックアウトが公開されるまで実際の支払いはありません。",
+    "testAlertsNote": "Test alerts only — firing one never charges anyone. Real purchases go through the pinned product's Buy button, which checks out right here on the platform (test mode).",
     "testDataBadge": "テストデータ",
     "testSales": "テスト売上",
     "testSalesCount": "{{count}}件のテスト売上",
