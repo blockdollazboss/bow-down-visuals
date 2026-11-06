@@ -13,7 +13,9 @@ import { usePageTitle } from "@/hooks/use-page-title";
  * source with no data reads $0.00; a source that failed to load shows
  * an error state (never a fake zero). Stream tips are Visual Bucs and
  * tip-jar intents are pending payment — both shown in their own units,
- * never folded into the USD total.
+ * never folded into the USD total. Paid shoutouts and SETTLED tip-jar
+ * tips are USD sources of their own (0323) — the jar's paid tips ride
+ * the "Tip jar tips" card, not the pending-intent line.
  */
 
 /* Response types + the partial-payload guard live in
@@ -94,6 +96,8 @@ const LEDGER_KIND_LABEL: Record<string, string> = {
   shop_event: "Shop sale",
   beat_license: "Beat license",
   membership: "Membership",
+  shoutout_request: "Shoutout",
+  tip_jar_tip: "Tip jar tip",
 };
 
 function PendingPayoutCard({ getToken }: { getToken: () => Promise<string | null> }) {
@@ -346,6 +350,22 @@ export default function Earnings() {
         />
         <SourceCard title="Memberships" source={sources.memberships} onRetry={reload} />
         <SourceCard title="Brand deals (escrow released)" source={sources.brandDeals} onRetry={reload} />
+        <SourceCard
+          onRetry={reload}
+          title="Shoutouts"
+          source={sources.shoutouts}
+          detail={
+            sources.shoutouts.status === "ok"
+              ? `gross ${usd(sources.shoutouts.grossCents)} · platform fee ${usd(sources.shoutouts.feeCents)} (5%)`
+              : undefined
+          }
+        />
+        <SourceCard
+          onRetry={reload}
+          title="Tip jar tips"
+          source={sources.tipJar}
+          detail="tips arrive in full — no platform fee"
+        />
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="text-sm text-muted-foreground">Tips</div>
           {sources.tips.status === "error" ? (

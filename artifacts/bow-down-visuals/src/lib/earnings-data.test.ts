@@ -21,6 +21,8 @@ const good = {
     beats: { status: "ok", totalCents: 2549, count: 1, grossCents: 2999, commissionCents: 450 },
     memberships: { status: "ok", totalCents: 1200, count: 2 },
     brandDeals: { status: "ok", totalCents: 1000, count: 1 },
+    shoutouts: { status: "ok", totalCents: 950, count: 1, grossCents: 1000, feeCents: 50 },
+    tipJar: { status: "ok", totalCents: 500, count: 1 },
     tips: { status: "ok", streamTipsVb: 300, streamTipCount: 3, stageTipsVb: 120, stageTipCount: 2, tipJarPendingCents: 0, tipJarPendingCount: 0, tipJarStatus: "open" },
   },
 };
@@ -81,6 +83,23 @@ describe("normalizeEarningsResponse", () => {
        card to its error state — never a fabricated $0. */
     const legacy = normalizeEarningsResponse({ ...good, sources: { ...good.sources, beats: undefined } });
     expect(legacy?.sources.beats.status).toBe("error");
+    expect(legacy?.partial).toBe(true);
+  });
+  it("shoutout + tip-jar income ride their own sources (0323: the two settled rails Earnings never showed)", () => {
+    const d = normalizeEarningsResponse(good);
+    expect(d?.sources.shoutouts.status).toBe("ok");
+    if (d?.sources.shoutouts.status === "ok") {
+      /* The Nov 5 live figures: a $10.00 shoutout at the flat 5% fee. */
+      expect(d.sources.shoutouts.totalCents).toBe(950);
+      expect(d.sources.shoutouts.grossCents).toBe(1000);
+      expect(d.sources.shoutouts.feeCents).toBe(50);
+    }
+    expect(d?.sources.tipJar).toMatchObject({ status: "ok", totalCents: 500, count: 1 });
+    /* A payload from before these sources existed degrades those two
+       cards to their error states — never fabricated $0s. */
+    const legacy = normalizeEarningsResponse({ ...good, sources: { ...good.sources, shoutouts: undefined, tipJar: undefined } });
+    expect(legacy?.sources.shoutouts.status).toBe("error");
+    expect(legacy?.sources.tipJar.status).toBe("error");
     expect(legacy?.partial).toBe(true);
   });
 });
@@ -224,6 +243,8 @@ describe("loadEarnings", () => {
         beats: { status: "ok", totalCents: 0, count: 0, grossCents: 0, commissionCents: 0 },
         memberships: { status: "ok", totalCents: 0, count: 0 },
         brandDeals: { status: "ok", totalCents: 0, count: 0 },
+        shoutouts: { status: "ok", totalCents: 0, count: 0, grossCents: 0, feeCents: 0 },
+        tipJar: { status: "ok", totalCents: 0, count: 0 },
         tips: { status: "ok", streamTipsVb: 0, streamTipCount: 0, tipJarPendingCents: 0, tipJarPendingCount: 0, tipJarStatus: "pending_payment" },
       },
     };

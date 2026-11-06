@@ -14,9 +14,11 @@ import { useTranslation } from "react-i18next";
 
 /* ─── Fan Shoutouts ─────────────────────────────────────────────────────────
    Creators sell personalized video shoutouts to fans.
-   v1 honesty contract: setup + request tracking are real. Payment processing
-   is "coming soon" — requests land as "pending_payment", no money moves,
-   and nothing is ever reported as paid. The UI says so plainly everywhere. */
+   Honesty contract: setup + request tracking are real, and payments
+   are real too — a priced request is paid through secure checkout on
+   this page (test mode until launch), settles exactly once, and only
+   a confirmed payment is ever reported as paid. The UI says so
+   plainly everywhere. */
 
 interface Creator {
   id: string;

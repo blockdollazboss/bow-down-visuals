@@ -34,6 +34,17 @@ import { z } from "zod/v4";
  *                    0142 Connect settlement has always counted it;
  *                    platform_fee_cents is recorded as 0 rather than
  *                    inventing a split the model does not carry.
+ *  - 'shoutout_request' shoutout_requests row whose payment settled
+ *                    (paid_at set by the guarded settle flip; migration
+ *                    0323). The request row carries no fee-split column,
+ *                    so the sync applies the rail's own split rule —
+ *                    the flat 5% platform fee (owner ruling 2026-10-27):
+ *                    net = round(price_cents × 95 / 100), the same
+ *                    per-row figure routes/generate/shoutouts.ts
+ *                    netAfterFee shows on the creator dashboard.
+ *  - 'tip_jar_tip'   tip_jar_tips 'paid' row (migration 0323). Tips
+ *                    carry NO platform fee (owner law: 100% to the
+ *                    creator), so net = amount_cents, fee 0.
  *
  * Brand deals are deliberately NOT copied here: sponsor_payouts is
  * already a per-row released-escrow ledger; the unified pending read
@@ -51,6 +62,8 @@ const PENDING_PAYOUT_SOURCE_KINDS = [
   "shop_event",
   "beat_license",
   "membership",
+  "shoutout_request",
+  "tip_jar_tip",
 ] as const;
 type PendingPayoutSourceKind = (typeof PENDING_PAYOUT_SOURCE_KINDS)[number];
 
@@ -70,7 +83,7 @@ const pendingPayoutLedgerTable = pgTable("pending_payout_ledger", {
   stripeSessionId:  text("stripe_session_id"),
   createdAt:        timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  check("pending_payout_ledger_source_kind_check", sql`${t.sourceKind} IN ('digital_sale','store_order','shop_event','beat_license','membership')`),
+  check("pending_payout_ledger_source_kind_check", sql`${t.sourceKind} IN ('digital_sale','store_order','shop_event','beat_license','membership','shoutout_request','tip_jar_tip')`),
   check("pending_payout_ledger_entry_type_check", sql`${t.entryType} IN ('accrual','reversal')`),
   uniqueIndex("pending_payout_ledger_source_entry_ux").on(t.sourceKind, t.sourceId, t.entryType),
   index("pending_payout_ledger_seller_idx").on(t.sellerUserId, t.createdAt),

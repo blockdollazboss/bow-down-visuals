@@ -1,13 +1,17 @@
 import { pgTable, uuid, text, timestamp, integer, uniqueIndex, index } from "drizzle-orm/pg-core";
 
 /* Fan Shoutouts: creators sell personalized video shoutouts to fans.
-   v1 honesty contract: setup + request tracking are real. Actual payment
-   processing is "coming soon" — requests are recorded with status
-   "pending_payment" and no money moves until payment integration ships.
-   The UI and API never fake a transaction (status is never "paid" or
-   "completed" in v1). A 10% platform fee is recorded as intent only.
-   See migrations/0020_fan_shoutouts.sql — the schema here must stay in
-   sync with it so boot-time `drizzle-kit push` matches the migration. */
+   Honesty contract: setup + request tracking are real, and payment
+   processing is real (0142): a priced request gets a Stripe Checkout
+   session and the guarded settle flip records paid_at exactly once
+   when the charge settles. The UI and API never fake a transaction —
+   an unpaid request stays "pending_payment" and is never reported as
+   paid. The platform fee is the flat 5% law (owner ruling 2026-10-27;
+   the v1 10% constant is retired). Paid shoutouts accrue to the
+   creator's Earnings + pending payout via lib/seller-earnings.ts
+   (migration 0323). See migrations/0020_fan_shoutouts.sql — the schema
+   here must stay in sync with it so boot-time `drizzle-kit push`
+   matches the migration. */
 
 export const shoutoutSettingsTable = pgTable(
   "shoutout_settings",
@@ -34,11 +38,11 @@ export const shoutoutSettingsTable = pgTable(
 );
 
 
-/* Request lifecycle in v1:
+/* Request lifecycle:
    pending_payment → accepted → in_progress → delivered
                                  ↘ declined
-   "pending_payment" is the only money-adjacent state and it is honest:
-   no charge has happened (payments coming soon). */
+   "pending_payment" means no charge has settled yet; the settle flip
+   (paid_at set) is what moves a priced request to "accepted". */
 export type ShoutoutRequestStatus =
   | "pending_payment"
   | "accepted"

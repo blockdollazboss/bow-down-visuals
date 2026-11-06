@@ -44,6 +44,15 @@ import { saleSplitAdjustments } from "./sale-splits";
  * as the 0142 Connect settlement has always counted it — with the fee
  * recorded as 0 rather than inventing a split.
  *
+ * Two rails joined later (migration 0323, Nov 5 live proof): paid
+ * SHOUTOUTS and paid TIP-JAR TIPS settled for real but had no rail here
+ * at all — a $10.00 shoutout's $9.50 keep showed on the shoutout
+ * dashboard yet never reached Earnings or the pending figure, and a
+ * $5.00 tip updated the jar totals only. Shoutouts carry no fee-split
+ * column either, so the sync applies the rail's own split rule (flat
+ * 5%, per-row round — the dashboard's netAfterFee formula); tips carry
+ * no fee at all (100% to the creator), so their fee is honestly 0.
+ *
  * Settlement discipline is BULK, mirroring digital_sales/store_orders:
  * creator_payouts rows in active states ('processing' | 'pending' |
  * 'paid') are subtracted by the pending read; a 'failed' payout stops
@@ -214,6 +223,80 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
   `);
 
+  /* shoutout_requests — fan shoutouts (flat 5% platform fee, owner
+     ruling 2026-10-27). Settled truth is paid_at: the guarded settle
+     flip (routes/generate/shoutouts.ts markShoutoutPaid, run by the
+     Stripe webhook AND the fan's return-verify) writes it exactly
+     once, so a request with paid_at set is money that really moved —
+     whatever lifecycle status it has since reached (accepted /
+     in_progress / delivered / refunded). The request row carries no
+     fee-split column, so the split applied is the rail's own rule —
+     the same per-row figure the creator dashboard's "what you'd
+     keep" uses (netAfterFee: round(price × 95 / 100); written here
+     in integer arithmetic as (price × 95 + 50) / 100 — the identical
+     round-half-up for non-negative prices — and fee = price − net,
+     so gross always reconciles). Live-proven missing before
+     migration 0323: a settled $10.00 shoutout (net $9.50) never
+     reached Earnings or this ledger. */
+  await run("shoutout_request:accrual", sql`
+    INSERT INTO pending_payout_ledger
+      (seller_user_id, seller_profile_id, source_kind, source_id, entry_type,
+       gross_cents, platform_fee_cents, net_cents, stripe_session_id)
+    SELECT sr.creator_user_id, NULL, 'shoutout_request', sr.id, 'accrual',
+           sr.price_cents,
+           sr.price_cents - ((sr.price_cents * 95 + 50) / 100),
+           ((sr.price_cents * 95 + 50) / 100),
+           sr.stripe_session_id
+    FROM shoutout_requests sr
+    WHERE sr.creator_user_id = ${userId} AND sr.paid_at IS NOT NULL
+    ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
+  `);
+  await run("shoutout_request:reversal", sql`
+    INSERT INTO pending_payout_ledger
+      (seller_user_id, seller_profile_id, source_kind, source_id, entry_type,
+       gross_cents, platform_fee_cents, net_cents, stripe_session_id)
+    SELECT sr.creator_user_id, NULL, 'shoutout_request', sr.id, 'reversal',
+           sr.price_cents,
+           sr.price_cents - ((sr.price_cents * 95 + 50) / 100),
+           ((sr.price_cents * 95 + 50) / 100),
+           sr.stripe_session_id
+    FROM shoutout_requests sr
+    WHERE sr.creator_user_id = ${userId} AND sr.paid_at IS NOT NULL
+      AND sr.status = 'refunded'
+    ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
+  `);
+
+  /* tip_jar_tips — paid tip-jar tips (NO platform fee: tips go 100%
+     to the creator, so net = amount_cents, fee recorded as 0).
+     Settled truth is the durable row's status: 'paid' is written
+     exactly once by the guarded settle flip (settleTipBySessionId /
+     verify); the reversal engine flips a refunded or charged-back
+     tip to 'refunded'. The in-memory tip INTENTS are a different,
+     unpaid record (real checkouts never write intents) and never
+     accrue. Live-proven missing before migration 0323: a settled
+     $5.00 tip updated the jar totals but never reached Earnings or
+     this ledger. */
+  await run("tip_jar_tip:accrual", sql`
+    INSERT INTO pending_payout_ledger
+      (seller_user_id, seller_profile_id, source_kind, source_id, entry_type,
+       gross_cents, platform_fee_cents, net_cents, stripe_session_id)
+    SELECT t.page_user_id, NULL, 'tip_jar_tip', t.id, 'accrual',
+           t.amount_cents, 0, t.amount_cents, t.stripe_session_id
+    FROM tip_jar_tips t
+    WHERE t.page_user_id = ${userId} AND t.status IN ('paid', 'refunded')
+    ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
+  `);
+  await run("tip_jar_tip:reversal", sql`
+    INSERT INTO pending_payout_ledger
+      (seller_user_id, seller_profile_id, source_kind, source_id, entry_type,
+       gross_cents, platform_fee_cents, net_cents, stripe_session_id)
+    SELECT t.page_user_id, NULL, 'tip_jar_tip', t.id, 'reversal',
+           t.amount_cents, 0, t.amount_cents, t.stripe_session_id
+    FROM tip_jar_tips t
+    WHERE t.page_user_id = ${userId} AND t.status = 'refunded'
+    ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
+  `);
+
   const totalInserted = Object.values(inserted).reduce((a, b) => a + b, 0);
   return { inserted, totalInserted };
 }
@@ -375,6 +458,13 @@ interface SellerEarningsSummary {
   };
   memberships: { totalCents: number; count: number };
   brandDeals: { totalCents: number; count: number };
+  shoutouts: {
+    totalCents: number;
+    grossCents: number;
+    feeCents: number;
+    count: number;
+  };
+  tipJar: { totalCents: number; count: number };
 }
 
 /* Per-rail readers — the summary composes these, and routes/earnings
@@ -447,6 +537,39 @@ export async function sellerMemberships(userId: string): Promise<SellerEarningsS
   return { totalCents: Number(m.cents), count: Number(m.n) };
 }
 
+/* Paid shoutouts: settled = paid_at set (the settle flip's record),
+   refunded excluded (their money is not earnings — the ledger shows
+   accrual + reversal). Net is summed PER ROW with the rail's flat-5%
+   formula, so the summary net equals the ledger accrual net row for
+   row; fee = gross − net by construction. */
+export async function sellerShoutouts(userId: string): Promise<SellerEarningsSummary["shoutouts"]> {
+  const res = await db.execute(sql`
+    SELECT COALESCE(SUM((price_cents * 95 + 50) / 100), 0)::int AS net,
+           COALESCE(SUM(price_cents), 0)::int AS gross,
+           COUNT(*)::int AS n
+    FROM shoutout_requests
+    WHERE creator_user_id = ${userId} AND paid_at IS NOT NULL AND status <> 'refunded'
+  `);
+  const r = (res.rows as any[])[0] ?? { net: 0, gross: 0, n: 0 };
+  const grossCents = Number(r.gross);
+  const totalCents = Number(r.net);
+  return { totalCents, grossCents, feeCents: grossCents - totalCents, count: Number(r.n) };
+}
+
+/* Paid tip-jar tips: the durable settled rows (status 'paid'), full
+   amount — tips carry no platform fee. 'refunded' rows are excluded
+   here and reversed in the ledger; 'pending_payment' rows are not
+   earnings (no charge settled). */
+export async function sellerTipJar(userId: string): Promise<SellerEarningsSummary["tipJar"]> {
+  const res = await db.execute(sql`
+    SELECT COALESCE(SUM(amount_cents), 0)::int AS cents, COUNT(*)::int AS n
+    FROM tip_jar_tips
+    WHERE page_user_id = ${userId} AND status = 'paid'
+  `);
+  const r = (res.rows as any[])[0] ?? { cents: 0, n: 0 };
+  return { totalCents: Number(r.cents), count: Number(r.n) };
+}
+
 export async function sellerBrandDeals(userId: string): Promise<SellerEarningsSummary["brandDeals"]> {
   const deals = await db.execute(sql`
     SELECT COALESCE(SUM(net_cents), 0)::int AS cents, COUNT(*)::int AS n
@@ -462,14 +585,20 @@ export async function sellerEarningsSummary(userId: string): Promise<SellerEarni
   const beats = await sellerBeats(userId);
   const memberships = await sellerMemberships(userId);
   const brandDeals = await sellerBrandDeals(userId);
+  const shoutouts = await sellerShoutouts(userId);
+  const tipJar = await sellerTipJar(userId);
   return {
     sellerUserId: userId,
     currency: "USD",
-    totalCents: storeSales.totalCents + beats.totalCents + memberships.totalCents + brandDeals.totalCents,
+    totalCents:
+      storeSales.totalCents + beats.totalCents + memberships.totalCents +
+      brandDeals.totalCents + shoutouts.totalCents + tipJar.totalCents,
     storeSales,
     beats,
     memberships,
     brandDeals,
+    shoutouts,
+    tipJar,
   };
 }
 

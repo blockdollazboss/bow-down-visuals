@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { tipJarPendingForUser } from "./generate/tip-jar";
-import { sellerStoreSales, sellerBeats, sellerMemberships, sellerBrandDeals, readPendingPayoutForSeller } from "../lib/seller-earnings";
+import { sellerStoreSales, sellerBeats, sellerMemberships, sellerBrandDeals, sellerShoutouts, sellerTipJar, readPendingPayoutForSeller } from "../lib/seller-earnings";
 
 /* ─── Unified earnings (Stack 8 #5; payfix store-dashboards) ─────────────
    ONE money picture per creator, read-only over the existing ledgers —
@@ -39,6 +39,16 @@ import { sellerStoreSales, sellerBeats, sellerMemberships, sellerBrandDeals, rea
                   as pending, never as earnings
      brandDeals   sponsor_payouts.net_cents (escrow released, 15% fee
                   already taken) for this creator
+     shoutouts    shoutout_requests whose payment settled (paid_at
+                  set by the settle flip), net of the flat 5% fee at
+                  the rail's per-row formula — the same $9.50-on-$10
+                  the shoutout dashboard shows (0323: this source did
+                  not exist; settled shoutouts were invisible here)
+     tipJar       tip_jar_tips rows at status 'paid' — the durable
+                  settled tips, FULL amount (tips carry no fee). The
+                  in-memory tip intents under `tips` stay reported as
+                  pending only: real checkouts never write intents,
+                  so the two records never double-count (0323)
 
    The pending-payout figure + its ledger rows live at
    GET /api/earnings/pending-payout (readPendingPayoutForSeller in
@@ -111,6 +121,22 @@ export async function brandDeals(userId: string) {
   return { status: "ok" as const, totalCents: d.totalCents, count: d.count };
 }
 
+export async function shoutouts(userId: string) {
+  const s = await sellerShoutouts(userId);
+  return {
+    status: "ok" as const,
+    totalCents: s.totalCents,
+    count: s.count,
+    grossCents: s.grossCents,
+    feeCents: s.feeCents,
+  };
+}
+
+export async function tipJar(userId: string) {
+  const t = await sellerTipJar(userId);
+  return { status: "ok" as const, totalCents: t.totalCents, count: t.count };
+}
+
 export async function tips(userId: string) {
   const r = await db.execute(sql`
     SELECT COALESCE(SUM(amount_vb), 0)::int AS vb, COUNT(*)::int AS n
@@ -160,6 +186,8 @@ router.get("/earnings", requireAuth, async (req, res) => {
   const beat = await settle("beats", () => beats(userId));
   const memb = await settle("memberships", () => memberships(userId));
   const deals = await settle("brandDeals", () => brandDeals(userId));
+  const shout = await settle("shoutouts", () => shoutouts(userId));
+  const jar = await settle("tipJar", () => tipJar(userId));
   const tip = await settle("tips", () => tips(userId));
 
   const sources = {
@@ -167,15 +195,18 @@ router.get("/earnings", requireAuth, async (req, res) => {
     beats: beat ?? { ...errSource(), grossCents: null, commissionCents: null },
     memberships: memb ?? errSource(),
     brandDeals: deals ?? errSource(),
+    shoutouts: shout ?? { ...errSource(), grossCents: null, feeCents: null },
+    tipJar: jar ?? errSource(),
     tips: tip ?? {
       status: "error" as const, streamTipsVb: null, streamTipCount: null,
       stageTipsVb: null, stageTipCount: null,
       tipJarPendingCents: null, tipJarPendingCount: null, tipJarStatus: "pending_payment" as const,
     },
   };
-  const partial = !store || !beat || !memb || !deals || !tip;
+  const partial = !store || !beat || !memb || !deals || !shout || !jar || !tip;
   const totalCents =
-    (store?.totalCents ?? 0) + (beat?.totalCents ?? 0) + (memb?.totalCents ?? 0) + (deals?.totalCents ?? 0);
+    (store?.totalCents ?? 0) + (beat?.totalCents ?? 0) + (memb?.totalCents ?? 0) + (deals?.totalCents ?? 0) +
+    (shout?.totalCents ?? 0) + (jar?.totalCents ?? 0);
 
   res.json({
     userId,
