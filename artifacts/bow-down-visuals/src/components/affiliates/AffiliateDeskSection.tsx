@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  normalizeAffiliateCodes,
+  normalizeAffiliateDesk,
+  normalizeAffiliateOffers,
+  type AffiliateCode,
+  type AffiliateDesk,
+  type AffiliateOffer,
+} from "@/lib/affiliate-desk-data";
 
 /**
  * Affiliate program section of the money desk (/earnings) — #16.
@@ -21,21 +29,9 @@ import { useAuth } from "@/contexts/AuthContext";
 const usd = (cents: number) =>
   `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-interface DeskTotals { salesCount: number; owedCents: number; paidCents: number }
-interface Desk {
-  asSeller: { affiliates: Array<{ affiliateUserId: string; code: string; salesCount: number; grossCents: number; owedCents: number; paidCents: number }>; totals: DeskTotals };
-  asAffiliate: { products: Array<{ surface: string; productId: string | null; productTitle: string; salesCount: number; owedCents: number; paidCents: number }>; totals: DeskTotals };
-  recentSales: Array<{ id: string; productTitle: string; commissionCents: number; commissionPct: string; status: string; mine: string; createdAt: string }>;
-  note: string;
-}
-interface MyCode {
-  id: string; code: string; surface: string; productTitle: string;
-  shareLink: string; isActive: boolean; salesCount: number; owedCents: number; paidCents: number;
-}
-interface Offer {
-  surface: string; productId: string; title: string; price: string;
-  sellerName: string; commissionPct: string; productPath: string;
-}
+type Desk = AffiliateDesk;
+type MyCode = AffiliateCode;
+type Offer = AffiliateOffer;
 
 export default function AffiliateDeskSection() {
   const { getAccessToken } = useAuth();
@@ -56,9 +52,11 @@ export default function AffiliateDeskSection() {
       fetch("/api/affiliates/offers", { headers }),
     ]);
     if (!d.ok) throw new Error("desk failed");
-    setDesk((await d.json()) as Desk);
-    if (c.ok) setCodes(((await c.json()) as { codes: MyCode[] }).codes);
-    if (o.ok) setOffers(((await o.json()) as { offers: Offer[] }).offers);
+    const desk = normalizeAffiliateDesk(await d.json());
+    if (!desk) throw new Error("desk payload malformed");
+    setDesk(desk);
+    if (c.ok) setCodes(normalizeAffiliateCodes(await c.json()));
+    if (o.ok) setOffers(normalizeAffiliateOffers(await o.json()));
   }, [getAccessToken]);
 
   useEffect(() => {
