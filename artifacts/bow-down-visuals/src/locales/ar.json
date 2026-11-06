@@ -2939,7 +2939,10 @@
     "whyItWorks": "لماذا ينجح",
     "youBadge": "أنت",
     "brandDealsLink": "صفقات العلامات",
-    "collabExplainer": "شراكات من مبدع إلى مبدع — اعثر على متعاونين، لا رعاة. تطارد أموال العلامات بدلًا من ذلك؟ راجع "
+    "collabExplainer": "شراكات من مبدع إلى مبدع — اعثر على متعاونين، لا رعاة. تطارد أموال العلامات بدلًا من ذلك؟ راجع ",
+    "myProfileLoadError": "Your saved collab profile couldn't load.",
+    "myProfileLoadErrorBody": "This form is showing blanks, not your saved profile — saving now would overwrite it. Check your connection and try loading it again.",
+    "myProfileRetry": "Try again"
   },
   "commentReplies": {
     "batchSubline": "{{date}} — «{{preview}}…»",

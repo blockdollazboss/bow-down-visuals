@@ -144,6 +144,15 @@ export default function CollabFinder() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
   const [hasProfile, setHasProfile] = useState(false);
+  /* My-profile load failures are NOT "you never made a profile" — the
+     load used to fail silently into the blank editor, indistinguishable
+     from a first-timer, and saving from the blank form POSTs over the
+     real profile. Mirrors the browse/inbox error states on this page:
+     myProfileLoadedRef guards it — once the profile (or a confirmed
+     no-profile answer) has loaded, a later failed reload must not
+     raise the banner over a form already holding real data. */
+  const [myProfileLoadError, setMyProfileLoadError] = useState(false);
+  const myProfileLoadedRef = useRef(false);
 
   /* ── match ── */
   const [matchTarget, setMatchTarget] = useState("");
@@ -201,24 +210,33 @@ export default function CollabFinder() {
   }
 
   async function loadMyProfile() {
-    const { res, data } = await authed("/api/collabs/profile/me");
-    if (res.ok && data.profile) {
-      const p = data.profile as {
-        displayName: string; niche: string;
-        platforms: { platform: string; followers: number }[];
-        collabInterests: string; bio: string; isPublic: boolean;
-      };
-      setDisplayName(p.displayName);
-      setNiche(p.niche);
-      setPlatformRows(
-        p.platforms.length > 0
-          ? p.platforms.map((e) => ({ platform: e.platform, followers: String(e.followers) }))
-          : [{ platform: "tiktok", followers: "" }],
-      );
-      setCollabInterests(p.collabInterests);
-      setBio(p.bio);
-      setIsPublic(p.isPublic);
-      setHasProfile(true);
+    setMyProfileLoadError(false);
+    try {
+      const { res, data } = await authed("/api/collabs/profile/me");
+      if (!res.ok) throw new Error("my profile load failed");
+      if (data.profile) {
+        const p = data.profile as {
+          displayName: string; niche: string;
+          platforms: { platform: string; followers: number }[];
+          collabInterests: string; bio: string; isPublic: boolean;
+        };
+        setDisplayName(p.displayName);
+        setNiche(p.niche);
+        setPlatformRows(
+          p.platforms.length > 0
+            ? p.platforms.map((e) => ({ platform: e.platform, followers: String(e.followers) }))
+            : [{ platform: "tiktok", followers: "" }],
+        );
+        setCollabInterests(p.collabInterests);
+        setBio(p.bio);
+        setIsPublic(p.isPublic);
+        setHasProfile(true);
+      }
+      /* an ok answer with no profile is a confirmed first-timer — a
+         successful load either way, so the outcome is now explicit */
+      myProfileLoadedRef.current = true;
+    } catch {
+      if (!myProfileLoadedRef.current) setMyProfileLoadError(true);
     }
   }
 
@@ -531,6 +549,23 @@ export default function CollabFinder() {
           <section className="mx-auto max-w-2xl">
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
               <h2 className="mb-5 text-xl font-extrabold">{t("collabs.profileTitle")} <span className="ml-2 rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">{t("collabs.freeBadge")}</span></h2>
+              {myProfileLoadError && (
+                <div className="mb-5 rounded-xl border border-red-500/30 bg-red-500/[0.04] p-4" data-testid="collabs-my-profile-load-error">
+                  <p className="flex items-center gap-2 text-sm font-bold text-red-300">
+                    <AlertTriangle className="h-4 w-4" /> {t("collabs.myProfileLoadError")}
+                  </p>
+                  <p className={`mt-1 text-sm ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
+                    {t("collabs.myProfileLoadErrorBody")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void loadMyProfile()}
+                    className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-bold text-black hover:brightness-110"
+                  >
+                    <RotateCcw className="h-4 w-4" /> {t("collabs.myProfileRetry")}
+                  </button>
+                </div>
+              )}
               <div className="space-y-4">
                 <div>
                   <label className={labelClass}>{t("collabs.displayNameLabel")}</label>

@@ -2919,7 +2919,10 @@
     "whyItWorks": "Warum es funktioniert",
     "youBadge": "DU",
     "brandDealsLink": "Marken-Deals",
-    "collabExplainer": "Creator-zu-Creator-Partnerschaften — finde Kollaborateure, keine Sponsoren. Jagst du stattdessen Markengeld? Siehe "
+    "collabExplainer": "Creator-zu-Creator-Partnerschaften — finde Kollaborateure, keine Sponsoren. Jagst du stattdessen Markengeld? Siehe ",
+    "myProfileLoadError": "Your saved collab profile couldn't load.",
+    "myProfileLoadErrorBody": "This form is showing blanks, not your saved profile — saving now would overwrite it. Check your connection and try loading it again.",
+    "myProfileRetry": "Try again"
   },
   "commentReplies": {
     "batchSubline": "{{date}} — „{{preview}}…“",

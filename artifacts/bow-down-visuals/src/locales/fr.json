@@ -3030,7 +3030,10 @@
     "whyItWorks": "Pourquoi ça marche",
     "youBadge": "TOI",
     "brandDealsLink": "Offres de marques",
-    "collabExplainer": "Partenariats de créateur à créateur — trouvez des collaborateurs, pas des sponsors. Vous chassez l'argent des marques plutôt ? Voyez "
+    "collabExplainer": "Partenariats de créateur à créateur — trouvez des collaborateurs, pas des sponsors. Vous chassez l'argent des marques plutôt ? Voyez ",
+    "myProfileLoadError": "Your saved collab profile couldn't load.",
+    "myProfileLoadErrorBody": "This form is showing blanks, not your saved profile — saving now would overwrite it. Check your connection and try loading it again.",
+    "myProfileRetry": "Try again"
   },
   "commentReplies": {
     "batchSubline": "{{date}} — « {{preview}}… »",

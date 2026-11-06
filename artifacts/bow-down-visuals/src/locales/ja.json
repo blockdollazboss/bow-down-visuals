@@ -2919,7 +2919,10 @@
     "whyItWorks": "なぜ上手くいくか",
     "youBadge": "あなた",
     "brandDealsLink": "ブランド案件",
-    "collabExplainer": "クリエイター同士のパートナーシップ — スポンサーではなく協力者を見つけましょう。ブランドのお金を追うなら、こちらをご覧ください "
+    "collabExplainer": "クリエイター同士のパートナーシップ — スポンサーではなく協力者を見つけましょう。ブランドのお金を追うなら、こちらをご覧ください ",
+    "myProfileLoadError": "Your saved collab profile couldn't load.",
+    "myProfileLoadErrorBody": "This form is showing blanks, not your saved profile — saving now would overwrite it. Check your connection and try loading it again.",
+    "myProfileRetry": "Try again"
   },
   "commentReplies": {
     "batchSubline": "{{date}} — 「{{preview}}…」",

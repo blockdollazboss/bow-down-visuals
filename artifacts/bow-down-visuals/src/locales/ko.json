@@ -2919,7 +2919,10 @@
     "whyItWorks": "잘 맞는 이유",
     "youBadge": "나",
     "brandDealsLink": "브랜드 딜",
-    "collabExplainer": "크리에이터 간 파트너십 — 스폰서가 아닌 협력자를 찾으세요. 대신 브랜드 돈을 쫓고 싶다면 다음을 보세요 "
+    "collabExplainer": "크리에이터 간 파트너십 — 스폰서가 아닌 협력자를 찾으세요. 대신 브랜드 돈을 쫓고 싶다면 다음을 보세요 ",
+    "myProfileLoadError": "Your saved collab profile couldn't load.",
+    "myProfileLoadErrorBody": "This form is showing blanks, not your saved profile — saving now would overwrite it. Check your connection and try loading it again.",
+    "myProfileRetry": "Try again"
   },
   "commentReplies": {
     "batchSubline": "{{date}} — “{{preview}}…”",

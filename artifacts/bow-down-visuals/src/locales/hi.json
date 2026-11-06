@@ -2919,7 +2919,10 @@
     "whyItWorks": "यह क्यों काम करेगा",
     "youBadge": "आप",
     "brandDealsLink": "ब्रांड डील",
-    "collabExplainer": "क्रिएटर-टू-क्रिएटर साझेदारियाँ — सहयोगी खोजें, स्पॉन्सर नहीं। इसके बजाय ब्रांड का पैसा चाहिए? देखें "
+    "collabExplainer": "क्रिएटर-टू-क्रिएटर साझेदारियाँ — सहयोगी खोजें, स्पॉन्सर नहीं। इसके बजाय ब्रांड का पैसा चाहिए? देखें ",
+    "myProfileLoadError": "Your saved collab profile couldn't load.",
+    "myProfileLoadErrorBody": "This form is showing blanks, not your saved profile — saving now would overwrite it. Check your connection and try loading it again.",
+    "myProfileRetry": "Try again"
   },
   "commentReplies": {
     "batchSubline": "{{date}} — “{{preview}}…”",

@@ -3087,7 +3087,10 @@
     "whyItWorks": "Why it works",
     "youBadge": "YOU",
     "brandDealsLink": "Brand Deals",
-    "collabExplainer": "Creator-to-creator partnerships — find collaborators, not sponsors. Chasing brand money instead? See "
+    "collabExplainer": "Creator-to-creator partnerships — find collaborators, not sponsors. Chasing brand money instead? See ",
+    "myProfileLoadError": "Your saved collab profile couldn't load.",
+    "myProfileLoadErrorBody": "This form is showing blanks, not your saved profile — saving now would overwrite it. Check your connection and try loading it again.",
+    "myProfileRetry": "Try again"
   },
   "commentReplies": {
     "batchSubline": "{{date}} — “{{preview}}…”",

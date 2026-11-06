@@ -2924,7 +2924,10 @@
     "whyItWorks": "Por Que Funciona",
     "youBadge": "VOCÊ",
     "brandDealsLink": "Parcerias com marcas",
-    "collabExplainer": "Parcerias de criador para criador — encontre colaboradores, não patrocinadores. Prefere o dinheiro das marcas? Veja "
+    "collabExplainer": "Parcerias de criador para criador — encontre colaboradores, não patrocinadores. Prefere o dinheiro das marcas? Veja ",
+    "myProfileLoadError": "Your saved collab profile couldn't load.",
+    "myProfileLoadErrorBody": "This form is showing blanks, not your saved profile — saving now would overwrite it. Check your connection and try loading it again.",
+    "myProfileRetry": "Try again"
   },
   "commentReplies": {
     "batchSubline": "{{date}} — “{{preview}}…”",
