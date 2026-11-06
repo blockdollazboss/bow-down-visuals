@@ -497,6 +497,8 @@ const W6_ALLOW = new Set([
   "wave8.splits.royaltyAmountPlaceholder",
   "wave9.cameraMovePlanner.buildCost",
   "wave9.characterDirector.planCost",
+  "wave9.characterDirector.vaultsLoadError",
+  "wave9.characterDirector.vaultsRetry",
 ]);
 
 describe("ar-W6 (Stack-28 appendix) milestones/lufs/presave/stabilize/create + promote/coach/release namespaces fully translated", () => {

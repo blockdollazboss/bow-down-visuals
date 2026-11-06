@@ -11322,7 +11322,9 @@
       "shotsHeading": "ショットリスト",
       "shotsWord": "ショット",
       "subtitle": "キャラクターをキャストし、すべてのショットを計画して、Scene Studioへ送信しましょう。",
-      "title": "キャラクターディレクター"
+      "title": "キャラクターディレクター",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "プロンプトを作成（{{cost}} VB）",

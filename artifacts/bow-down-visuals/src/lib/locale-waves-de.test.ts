@@ -1293,6 +1293,8 @@ const W7_LEGIT_IDENTICAL = new Set([
   "wave9.cameraMovePlanner.designerTitle",
   "wave9.cameraMovePlanner.moves.orbit",
   "wave9.characterDirector.planCost",
+  "wave9.characterDirector.vaultsLoadError",
+  "wave9.characterDirector.vaultsRetry",
   "wave9.directEdit.clipFallback",
   "wave9.directEdit.clipLabel",
   "wave9.remix.master",

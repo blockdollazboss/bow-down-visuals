@@ -995,6 +995,8 @@ const W7_LEGIT: string[] = [
   "wave9.cameraMovePlanner.buildCost",
   "wave9.characterDirector.castSelected",
   "wave9.characterDirector.planCost",
+  "wave9.characterDirector.vaultsLoadError",
+  "wave9.characterDirector.vaultsRetry",
   "wave9.directEdit.clipFallback",
   "wave9.directEdit.clipLabel",
   "wave9.remix.master",

@@ -11345,7 +11345,9 @@
       "shotsHeading": "Lista de cenas",
       "shotsWord": "cenas",
       "subtitle": "Escale seus personagens, planeje cada cena e envie para o Scene Studio.",
-      "title": "Diretor de personagens"
+      "title": "Diretor de personagens",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "Montar prompt ({{cost}} VB)",

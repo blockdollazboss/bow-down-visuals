@@ -11345,7 +11345,9 @@
       "shotsHeading": "Elenco inquadrature",
       "shotsWord": "inquadrature",
       "subtitle": "Assegna i tuoi personaggi, pianifica ogni inquadratura, poi invia tutto a Scene Studio.",
-      "title": "Regista dei personaggi"
+      "title": "Regista dei personaggi",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "Costruisci il prompt ({{cost}} VB)",

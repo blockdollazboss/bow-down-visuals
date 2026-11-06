@@ -12260,7 +12260,9 @@
       "shotsHeading": "Lista de tomas",
       "shotsWord": "tomas",
       "subtitle": "Elige a tus personajes, planifica cada toma y envíalo a Scene Studio.",
-      "title": "Director de personajes"
+      "title": "Director de personajes",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "Crear prompt ({{cost}} VB)",

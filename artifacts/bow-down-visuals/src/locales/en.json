@@ -13420,7 +13420,9 @@
       "shotsHeading": "Shot list",
       "shotsWord": "shots",
       "subtitle": "Cast your characters, plan every shot, then send it to Scene Studio.",
-      "title": "Character Director"
+      "title": "Character Director",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "Build prompt ({{cost}} VB)",

@@ -12329,7 +12329,9 @@
       "shotsHeading": "قائمة اللقطات",
       "shotsWord": "لقطات",
       "subtitle": "اختر شخصياتك، وخطط لكل لقطة، ثم أرسلها إلى Scene Studio.",
-      "title": "مخرج الشخصيات"
+      "title": "مخرج الشخصيات",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "بناء الموجه ({{cost}} VB)",

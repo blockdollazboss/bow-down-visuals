@@ -12733,7 +12733,9 @@
       "shotsHeading": "Liste des plans",
       "shotsWord": "plans",
       "subtitle": "Distribuez vos personnages, planifiez chaque plan, puis envoyez le tout à Scene Studio.",
-      "title": "Réalisateur de personnages"
+      "title": "Réalisateur de personnages",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "Créer le prompt ({{cost}} VB)",

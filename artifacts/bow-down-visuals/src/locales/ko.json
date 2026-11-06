@@ -11325,7 +11325,9 @@
       "shotsHeading": "샷 목록",
       "shotsWord": "샷",
       "subtitle": "캐릭터를 캐스팅하고, 모든 샷을 계획한 뒤, Scene Studio로 보내세요.",
-      "title": "캐릭터 디렉터"
+      "title": "캐릭터 디렉터",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "프롬프트 만들기 ({{cost}} VB)",

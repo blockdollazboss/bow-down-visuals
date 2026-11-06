@@ -824,6 +824,8 @@ const W6_LEGIT = new Set([
   "wave9.cameraMovePlanner.buildCost",
   "wave9.cameraMovePlanner.intensity.natural",
   "wave9.characterDirector.planCost",
+  "wave9.characterDirector.vaultsLoadError",
+  "wave9.characterDirector.vaultsRetry",
   "wave9.directEdit.clipFallback",
   "wave9.directEdit.clipLabel",
 ]);

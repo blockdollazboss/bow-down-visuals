@@ -12237,7 +12237,9 @@
       "shotsHeading": "Einstellungsliste",
       "shotsWord": "Einstellungen",
       "subtitle": "Besetze deine Figuren, plane jede Einstellung und sende alles an Scene Studio.",
-      "title": "Figuren-Regisseur"
+      "title": "Figuren-Regisseur",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "Prompt bauen ({{cost}} VB)",

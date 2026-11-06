@@ -11325,7 +11325,9 @@
       "shotsHeading": "शॉट सूची",
       "shotsWord": "शॉट",
       "subtitle": "अपने किरदार कास्ट करें, हर शॉट की योजना बनाएँ, फिर उसे Scene Studio को भेजें।",
-      "title": "किरदार निर्देशक"
+      "title": "किरदार निर्देशक",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "प्रॉम्प्ट बनाएँ ({{cost}} VB)",
