@@ -128,13 +128,15 @@ export function newestEditorProjectId(projects: ReadonlyArray<EditorProjectRow>)
   return bestId;
 }
 
-/** A Library preset seed for the step-through: the editor query
- *  param the preset's 2D deep link carries, plus the preset slug.
+/** A preset seed for the step-through: the editor query param
+ *  the preset's 2D deep link carries, plus the preset slug.
  *  The editor applies it through its own param reader — the same
- *  reader the 2D "Use" link lands on (video-editor reads fx /
- *  textstyle / transition on load). */
+ *  reader the 2D link lands on (video-editor reads fx /
+ *  textstyle / transition on load, and ?remix= through its
+ *  Trending Remix deep-link reader — the Remix desk's fallback
+ *  param, stack200 lane B1). */
 export interface EditorPresetSeed {
-  param: "fx" | "textstyle" | "transition";
+  param: "fx" | "textstyle" | "transition" | "remix";
   slug: string;
 }
 

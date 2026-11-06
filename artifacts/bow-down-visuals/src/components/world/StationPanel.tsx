@@ -207,6 +207,7 @@ const SetlistDesk = lazy(() => import("@/components/world/native/SetlistDesk").t
 const TourDesk = lazy(() => import("@/components/world/native/TourDesk").then((m) => ({ default: m.TourDesk })));
 const PublishDesk = lazy(() => import("@/components/world/native/PublishDesk").then((m) => ({ default: m.PublishDesk })));
 const TemplatesDesk = lazy(() => import("@/components/world/native/TemplatesDesk").then((m) => ({ default: m.TemplatesDesk })));
+const RemixDesk = lazy(() => import("@/components/world/native/RemixDesk").then((m) => ({ default: m.RemixDesk })));
 const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
 const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m) => ({ default: m.TeamDesk })));
 const TeamSeatsDesk = lazy(() => import("@/components/world/native/TeamSeatsDesk").then((m) => ({ default: m.TeamSeatsDesk })));
@@ -320,7 +321,7 @@ function StepThroughEditor({
   preset,
 }: {
   projectId: string | null;
-  preset?: { param: "fx" | "textstyle" | "transition"; slug: string } | null;
+  preset?: { param: "fx" | "textstyle" | "transition" | "remix"; slug: string } | null;
 }) {
   const search = editorStepthroughSearch(projectId, preset ?? null);
   const loc = useMemo(
@@ -984,12 +985,16 @@ export default function StationPanel(props: StationPanelProps) {
     /* A library-preset payload addressed to this station (the
        Library desk's "Use") seeds the editor with the picked look —
        parsed defensively for THIS station id; anything else opens
-       the editor exactly as blank as it always has. */
+       the editor exactly as blank as it always has. A remix-preset
+       payload (the Remix desk's "Remix", stack200 lane B1) seeds
+       the editor's own ?remix= deep link the same way. */
     const stepPayload = parsePanelPayloadFor(station.id, target.payload ?? null);
     const presetSeed =
       stepPayload?.kind === "library-preset"
         ? { param: stepPayload.param, slug: stepPayload.slug }
-        : null;
+        : stepPayload?.kind === "remix-preset"
+          ? { param: "remix" as const, slug: stepPayload.slug }
+          : null;
     return (
       <div className="fixed inset-0 z-[70] flex flex-col bg-black" data-testid="world-station-stepthrough">
         <div
@@ -1356,6 +1361,17 @@ export default function StationPanel(props: StationPanelProps) {
                     in the Create Wing. */}
                 <DeskDoor isLight={isLight}>
                   <TemplatesDesk isLight={isLight} onOpenStation={props.onOpenStation} />
+                </DeskDoor>
+                {/* Remix Trends (stack200 world parity lane B1,
+                    census item 2): the Trending Remix Feed's own
+                    catalog — category filter, trend-score order,
+                    and a Remix tap that hands the preset through
+                    the panel payload to the Visual Vibes editor
+                    step-through with the preset's own deep-link
+                    param — stacked at the My Studio board beside
+                    the Library and Templates handoff desks. */}
+                <DeskDoor isLight={isLight}>
+                  <RemixDesk isLight={isLight} onOpenStation={props.onOpenStation} />
                 </DeskDoor>
                 {/* Catalog Import (stack1500 parity wave #3):
                     bring your catalog home — scan, fetch,

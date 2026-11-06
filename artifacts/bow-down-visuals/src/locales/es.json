@@ -20324,6 +20324,12 @@
     "winnersThemePrefix": "“{{theme}}” · ",
     "winnersYourWork": "Tu obra"
   },
+  "worldRemixDesk": {
+    "title": "Remix Trends",
+    "subtitle": "Trending motions and styles. Tap Remix to apply one to your project in Visual Vibes — the editor opens right here in the palace.",
+    "remix": "Remix",
+    "empty": "No presets in this category yet."
+  },
   "worldTrendsRadar": {
     "title": "Trend Radar",
     "subtitle": "What's actually rising on Bow Down right now — counted plays, not predictions. The Predictor above calls what's next; this bench shows what's already moving.",
