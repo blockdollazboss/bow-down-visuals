@@ -24,6 +24,8 @@ vi.mock("../../../lib/objectStorage", () => ({
 
 vi.mock("../../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
+
 }));
 
 vi.mock("child_process", () => ({

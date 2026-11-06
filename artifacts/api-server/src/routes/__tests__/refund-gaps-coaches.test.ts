@@ -61,6 +61,7 @@ vi.mock("../../lib/ai-clients", () => ({
     },
   }),
   getTextModel: () => "test-model",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("openai", () => {

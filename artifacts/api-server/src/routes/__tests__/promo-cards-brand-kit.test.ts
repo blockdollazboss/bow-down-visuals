@@ -107,6 +107,8 @@ vi.mock("../../lib/ai-clients", () => ({
       },
     },
   }),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
+
 }));
 
 vi.mock("../../lib/objectStorage", () => ({

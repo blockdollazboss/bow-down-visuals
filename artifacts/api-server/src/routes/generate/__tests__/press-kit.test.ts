@@ -18,6 +18,7 @@ vi.mock("../../../lib/credits", () => ({
 vi.mock("../../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(),
   getTextModel: vi.fn(() => "gpt-6-sol"),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("@workspace/db", () => ({

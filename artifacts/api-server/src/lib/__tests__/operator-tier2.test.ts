@@ -74,6 +74,7 @@ vi.mock("../../lib/ai-clients", () => ({
     throw new Error("no model in operator-tier2 tests");
   },
   getTextModel: () => "test-model",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("../../lib/credits", () => {

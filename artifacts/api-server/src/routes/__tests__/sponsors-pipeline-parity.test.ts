@@ -137,6 +137,7 @@ vi.mock("../../lib/credits", () => ({
 vi.mock("../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(() => { throw new Error("no ai in characterization"); }),
   getTextModel: vi.fn(() => "gpt-6-sol"),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 import sponsorsRouter from "../generate/sponsors";

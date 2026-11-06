@@ -47,6 +47,8 @@ vi.mock("../../lib/ai-clients", () => ({
       generate: async () => ({ data: [{ b64_json: "aGVsbG8=" }] }),
     },
   }),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
+
 }));
 
 vi.mock("../../lib/objectStorage", () => ({

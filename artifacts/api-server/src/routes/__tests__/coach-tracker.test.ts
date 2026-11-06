@@ -41,6 +41,7 @@ vi.mock("../../lib/ai-clients", () => ({
     chat: { completions: { create: async () => ({ choices: [{ message: { content: "{}" } }] }) } },
   }),
   getTextModel: () => "test-model",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("../../lib/credits", () => ({

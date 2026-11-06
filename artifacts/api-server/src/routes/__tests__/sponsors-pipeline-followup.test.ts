@@ -178,6 +178,7 @@ vi.mock("../../lib/ai-clients", () => ({
     };
   }),
   getTextModel: vi.fn(() => "gpt-6-sol"),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 import sponsorsRouter from "../generate/sponsors";

@@ -155,6 +155,7 @@ vi.mock("../../../lib/credits", () => ({
 vi.mock("../../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(),
   getTextModel: vi.fn(() => "test-model"),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("../../../lib/objectStorage", () => ({

@@ -524,6 +524,7 @@ vi.mock("../../../lib/ai-clients", () => ({
     throw new Error("no ai in email engagement tests");
   }),
   getTextModel: vi.fn(() => "gpt-6-sol"),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("../../../lib/rate-limit", () => ({

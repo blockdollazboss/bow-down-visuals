@@ -31,6 +31,7 @@ vi.mock("../../lib/ai-clients", () => ({
     images: { generate: async () => ({ data: [] }) },
   }),
   getTextModel: () => "test-model",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("../../lib/credits", () => ({

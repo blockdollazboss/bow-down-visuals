@@ -212,6 +212,8 @@ vi.mock("../../lib/credits", () => ({
 
 vi.mock("../../lib/ai-clients", () => ({
   getOpenAI: () => ({ images: { generate: vi.fn(async () => ({ data: [] })) } }),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
+
 }));
 
 vi.mock("../../lib/objectStorage", () => ({

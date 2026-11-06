@@ -30,6 +30,7 @@ vi.mock("../../middlewares/require-auth", () => ({
 
 vi.mock("../../lib/ai-clients", () => ({
   getTextModel: () => "test-vision-model",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
   getOpenAI: () => {
     if (ai.mode === "down") {
       throw new Error("OPENAI_API_KEY is not configured — this AI feature is unavailable.");

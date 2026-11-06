@@ -32,6 +32,8 @@ vi.mock("../../../lib/supabase-admin", () => ({
 
 vi.mock("../../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
+
 }));
 
 import {

@@ -117,6 +117,7 @@ vi.mock("../../../lib/credits", () => ({
 vi.mock("../../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(),
   getTextModel: vi.fn(() => "gpt-test"),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("../../../lib/mirrorMedia", () => ({

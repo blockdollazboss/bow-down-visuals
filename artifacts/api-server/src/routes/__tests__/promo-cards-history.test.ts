@@ -42,6 +42,8 @@ vi.mock("../../lib/ai-clients", () => ({
   getOpenAI: () => {
     throw new Error("no provider in route tests");
   },
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
+
 }));
 
 vi.mock("../../lib/objectStorage", () => ({

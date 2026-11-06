@@ -36,6 +36,7 @@ vi.mock("../../lib/credits", () => ({
 }));
 vi.mock("../../lib/ai-clients", () => ({
   getTextModel: () => "gpt-6-sol",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
   getOpenAI: () => ({ chat: { completions: { create: async () => { throw new Error("not used"); } } } }),
 }));
 vi.mock("../../lib/mirrorMedia", () => ({ mirrorExternalMediaUrl: vi.fn(async (v: string) => v), mirrorProjectScenes: vi.fn(async (v: unknown) => v) }));

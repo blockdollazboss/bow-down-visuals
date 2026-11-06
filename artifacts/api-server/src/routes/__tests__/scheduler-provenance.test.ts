@@ -129,6 +129,7 @@ vi.mock("../../lib/credits", () => ({
 vi.mock("../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(() => { throw new Error("no ai in provenance tests"); }),
   getTextModel: vi.fn(() => "gpt-6-sol"),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("../../lib/job-poller", () => ({ requestPollerTick: vi.fn() }));

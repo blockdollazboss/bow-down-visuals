@@ -39,6 +39,7 @@ vi.mock("../../lib/credits", () => ({
 }));
 vi.mock("../../lib/ai-clients", () => ({
   getTextModel: () => "test-model",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 import { BIO_COST, generateBiosForUser } from "../generate/bio-generator";

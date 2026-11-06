@@ -53,6 +53,7 @@ vi.mock("../../../lib/credits", () => ({
 
 vi.mock("../../../lib/ai-clients", () => ({
   getTextModel: vi.fn(() => "gpt-6-sol"),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
   getOpenAI: vi.fn(() => { throw new Error("no ai in shop discount tests"); }),
 }));
 

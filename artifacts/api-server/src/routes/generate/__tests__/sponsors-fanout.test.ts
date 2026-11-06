@@ -46,6 +46,7 @@ vi.mock("../../../lib/ai-clients", () => ({
     chat: { completions: { create: async () => ({ choices: [{ message: { content: "{}" } }] }) } },
   }),
   getTextModel: () => "gpt-6-sol-test",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 import router, {

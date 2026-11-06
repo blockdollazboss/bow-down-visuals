@@ -80,6 +80,8 @@ vi.mock("../../lib/ai-clients", () => ({
     },
   }),
   getPlainTranscribeModel: () => "gpt-transcribe",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
+
 }));
 
 import transcribeRouter from "../transcribe";

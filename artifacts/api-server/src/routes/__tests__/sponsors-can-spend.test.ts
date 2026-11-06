@@ -66,6 +66,7 @@ vi.mock("../../lib/credits", () => {
 vi.mock("../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(() => { throw new Error("no ai in can-spend tests"); }),
   getTextModel: vi.fn(() => "gpt-6-sol"),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 import sponsorsRouter, { SPONSOR_SPENDING_PAUSED_MESSAGE } from "../generate/sponsors";

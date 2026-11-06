@@ -43,6 +43,8 @@ vi.mock("../../lib/ai-clients", () => ({ getOpenAI: () => null, getTextModel: ()
 vi.mock("../../lib/live-ws", () => ({
   verifyAccessToken: (t: string) =>
     typeof t === "string" && t.startsWith("tok-") ? { userId: t.slice(4) } : null,
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
+
 }));
 vi.mock("../../lib/credits", () => ({
   chargeCredits: async () => ({ charged: 0 }),

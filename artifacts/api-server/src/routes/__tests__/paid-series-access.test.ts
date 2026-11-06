@@ -134,6 +134,7 @@ vi.mock("../../lib/ai-clients", () => ({
     };
   },
   getTextModel: () => "gpt-test",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("@workspace/db", async (importOriginal) => {

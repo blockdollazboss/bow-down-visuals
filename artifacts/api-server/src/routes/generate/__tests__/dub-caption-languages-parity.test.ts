@@ -23,6 +23,7 @@ vi.mock("../../../lib/objectStorage", () => ({
 vi.mock("../../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(),
   getTextModel: () => "gpt-6-sol",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("../../../lib/transcription", () => ({

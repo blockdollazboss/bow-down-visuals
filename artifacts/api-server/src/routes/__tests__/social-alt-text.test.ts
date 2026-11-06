@@ -32,6 +32,7 @@ vi.mock("../../middlewares/require-auth", () => ({
 vi.mock("../../lib/ai-clients", () => ({
   getOpenAI: () => { throw new Error("no AI in route tests"); },
   getTextModel: () => "test-model",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 vi.mock("../../lib/credits", () => ({

@@ -61,6 +61,7 @@ const FIXTURE_SITE = JSON.stringify({
 
 vi.mock("../../lib/ai-clients", () => ({
   getTextModel: () => "gpt-test",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
   getOpenAI: () => ({
     chat: {
       completions: {

@@ -31,6 +31,7 @@ vi.mock("../../../lib/objectStorage", () => ({
 vi.mock("../../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(),
   getTextModel: vi.fn(() => "gpt-6-sol"),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
 import { getOpenAI } from "../../../lib/ai-clients";

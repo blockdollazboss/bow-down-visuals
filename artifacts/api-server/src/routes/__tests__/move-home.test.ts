@@ -34,6 +34,7 @@ vi.mock("../../lib/ai-clients", () => ({
   /* No AI in tests: the polish rail throws, assembled drafts must stand. */
   getOpenAI: () => { throw new Error("no ai in tests"); },
   getTextModel: () => "test-model",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
   getPlainTranscribeModel: () => "test-model",
 }));
 

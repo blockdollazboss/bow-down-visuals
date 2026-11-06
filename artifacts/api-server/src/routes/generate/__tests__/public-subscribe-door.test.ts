@@ -128,6 +128,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
 vi.mock("../../../lib/ai-clients", () => ({
   getOpenAI: vi.fn(() => { throw new Error("no ai in public-subscribe-door tests"); }),
   getTextModel: vi.fn(() => "gpt-6-sol"),
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 vi.mock("../../../lib/rate-limit", () => ({ publicApiLimiter: (_req: any, _res: any, next: any) => next() }));
 vi.mock("../../../lib/logger", () => ({ logger: { error: () => {}, warn: () => {}, info: () => {} } }));

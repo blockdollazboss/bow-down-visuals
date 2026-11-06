@@ -40,6 +40,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 vi.mock("../../lib/ai-clients", () => ({
   getTextModel: () => "test-model",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
   getOpenAI: () => {
     if (aiState.mode === "down") throw new Error("OPENAI_API_KEY is not configured");
     return {

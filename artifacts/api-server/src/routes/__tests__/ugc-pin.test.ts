@@ -71,6 +71,7 @@ vi.mock("../../lib/credits", () => {
 
 vi.mock("../../lib/ai-clients", () => ({
   getTextModel: () => "test-model",
+  LOW_REASONING_PARAMS: { reasoning_effort: "low" },
   getOpenAI: () => ({
     chat: { completions: { create: async () => ({ choices: [{ message: { content: "{}" } }] }) } },
     images: { generate: async () => ({ data: [{ b64_json: Buffer.from("x").toString("base64") }] }) },
