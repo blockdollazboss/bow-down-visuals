@@ -27,6 +27,7 @@ import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import { StoryboardBench } from "./StoryboardBench";
 import { StoryboardPlanner } from "./StoryboardPlanner";
 import { VideoTemplateBench } from "./VideoTemplateBench";
+import { LocationsBench } from "./LocationsBench";
 import { SongHumBench, SongInspoBench, SongMashupBench } from "./SongDeskTabs";
 import type { ShelfPlayerController } from "./ShelfPlayer";
 import { ThumbnailBenches } from "./ThumbnailBenches";
@@ -1455,6 +1456,13 @@ export function VideoDesk(props: CreateDeskProps) {
           apply on /api/video-template, stacked under the
           storyboard pair like its Create Wing neighbours. */}
       <VideoTemplateBench isLight={isLight} panelPayload={props.panelPayload ?? null} />
+      {/* Locations bench (stack200 world parity lane B1, census
+          item 3): the saved-places surface from pages/locations
+          — the same free /api/locations rails the page and the
+          editor's Locations tab share — as a native bench under
+          the template bench, so places are managed in the room
+          instead of only inside the editor step-through. */}
+      <LocationsBench isLight={isLight} />
     </div>
   );
 }
