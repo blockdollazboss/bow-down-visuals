@@ -86,6 +86,14 @@ export const SERVER_PACKS: ServerPack[] = [
       light: { background: "40 38% 96%", foreground: "30 26% 10%", primary: "40 82% 46%" },
     },
   },
+  {
+    id: "crimson-marble", name: "Crimson Marble", tier: "premium", cursor: "diamond",
+    deviceArt: { dark: "/wallpapers/theme-packs/crimson-marble-dark.webp", light: "/wallpapers/theme-packs/crimson-marble-light.webp" },
+    colors: {
+      dark: { background: "355 32% 4%", foreground: "25 30% 95%", primary: "43 95% 54%" },
+      light: { background: "18 48% 97%", foreground: "350 35% 10%", primary: "38 82% 46%" },
+    },
+  },
 ];
 
 export function serverPackById(id: string): ServerPack | undefined {
@@ -248,6 +256,8 @@ export const KIT_ART_SITE_PATHS: Record<string, string> = {
   "pack-ground-kings-set-light": "/wallpapers/theme-packs/kings-set-light.webp",
   "pack-ground-arcade-gold-dark": "/wallpapers/theme-packs/arcade-gold-dark.webp",
   "pack-ground-arcade-gold-light": "/wallpapers/theme-packs/arcade-gold-light.webp",
+  "pack-ground-crimson-marble-dark": "/wallpapers/theme-packs/crimson-marble-dark.webp",
+  "pack-ground-crimson-marble-light": "/wallpapers/theme-packs/crimson-marble-light.webp",
   "kings-set-throne-phone": "/wallpapers/kings-set-throne-phone.webp",
   "kings-set-plaza-phone": "/wallpapers/kings-set-plaza-phone.webp",
   "kings-set-stage-desktop": "/wallpapers/kings-set-stage-desktop.webp",

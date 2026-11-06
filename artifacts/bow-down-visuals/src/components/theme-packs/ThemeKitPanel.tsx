@@ -516,6 +516,7 @@ export function CreatorPacksSection() {
               <option value="golden-hour">Golden Hour</option>
               <option value="kings-set">The King's Set</option>
               <option value="arcade-gold">Arcade Gold</option>
+              <option value="crimson-marble">Crimson Marble</option>
             </select>
           </label>
           <label className="flex flex-col gap-1 text-[11px] font-semibold">

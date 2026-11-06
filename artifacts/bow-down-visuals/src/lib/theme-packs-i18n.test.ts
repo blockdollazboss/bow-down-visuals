@@ -15,8 +15,9 @@ import { THEME_PACKS, THEME_PACK_COPY_KEYS, themePackCopy } from "./theme-packs"
 /* ─── Stack 100 locale unit 53 — the theme-pack registry copy
    speaks through the catalogs (worldThemePacks).
 
-   SCOPE (manifest [D20]): src/lib/theme-packs.ts — all 5 packs
-   (golden-marble, shark-tank, golden-hour, kings-set, arcade-gold)
+   SCOPE (manifest [D20]): src/lib/theme-packs.ts — all 6 packs
+   (golden-marble, shark-tank, golden-hour, kings-set, arcade-gold,
+   crimson-marble — the sixth added by Stack-200 U4)
    carried name/tagline/description as English literals with zero
    i18n references. The registry now carries the copy's catalog KEY
    REFERENCES (THEME_PACK_COPY_KEYS) and one resolver
@@ -44,7 +45,7 @@ import { THEME_PACKS, THEME_PACK_COPY_KEYS, themePackCopy } from "./theme-packs"
      mirrors only the two premium ids + the price); creator packs
      in CreatorPacksSection are user data, never catalogued.
 
-   MONEY LAW: none of the 15 fields states a price, fee or amount —
+   MONEY LAW: none of the 18 fields states a price, fee or amount —
    verified by scan (the only digit in the whole family is the "8"
    of the "8-Bit Shark" cursor name in sharkTankDescription, a
    proper name kept verbatim in every catalog). The price lives
@@ -113,8 +114,8 @@ describe("unit 53 — theme-pack registry copy resolves through the catalog", ()
     expect(Object.keys(THEME_PACK_COPY_KEYS).sort()).toEqual(THEME_PACKS.map((p) => p.id).sort());
   });
 
-  it("the en namespace carries the full copy set (15 keys = 5 packs × 3 fields)", () => {
-    expect(Object.keys(EN)).toHaveLength(15);
+  it("the en namespace carries the full copy set (18 keys = 6 packs × 3 fields)", () => {
+    expect(Object.keys(EN)).toHaveLength(18);
   });
 
   it("en catalog values ARE the registry literals, verbatim, pack for pack", () => {

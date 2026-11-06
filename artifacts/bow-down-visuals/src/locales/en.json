@@ -24263,6 +24263,9 @@
     "kingsSetDescription": "Built on the approved King's Set: the blackest marble and the brightest gold leaf in the dark, the brightest ivory and deepest antique bronze by day. Pairs with the King's Crown cursor.",
     "arcadeGoldName": "Arcade Gold",
     "arcadeGoldTagline": "Cheat-code charcoal, hot gold, ember glow",
-    "arcadeGoldDescription": "The cheat-code side of the palace: warm charcoal marble, hot gold, and an ember underglow in the dark — warm paper marble and deep bronze by day. Pairs with the Game Controller cursor."
+    "arcadeGoldDescription": "The cheat-code side of the palace: warm charcoal marble, hot gold, and an ember underglow in the dark — warm paper marble and deep bronze by day. Pairs with the Game Controller cursor.",
+    "crimsonMarbleName": "Crimson Marble",
+    "crimsonMarbleTagline": "Crimson-veined marble, antique gold",
+    "crimsonMarbleDescription": "The palace cut in red stone: crimson-veined black marble and antique gold in the dark — blush ivory marble and deep crimson by day. Pairs with the Diamond cursor."
   }
 }

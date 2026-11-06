@@ -24247,6 +24247,9 @@
     "kingsSetDescription": "승인된 King's Set을 바탕으로 제작: 어둠 속에서는 가장 검은 대리석과 가장 밝은 금박, 낮에는 가장 밝은 상아와 가장 깊은 앤티크 브론즈. King's Crown 커서와 어울린다.",
     "arcadeGoldName": "아케이드 골드",
     "arcadeGoldTagline": "치트 코드 차콜, 뜨거운 금, 잿불 빛",
-    "arcadeGoldDescription": "궁전의 치트 코드 쪽: 따뜻한 차콜 대리석, 뜨거운 금, 그리고 어둠 속 잿불 빛 — 낮에는 따뜻한 종이 대리석과 깊은 브론즈. Game Controller 커서와 어울린다."
+    "arcadeGoldDescription": "궁전의 치트 코드 쪽: 따뜻한 차콜 대리석, 뜨거운 금, 그리고 어둠 속 잿불 빛 — 낮에는 따뜻한 종이 대리석과 깊은 브론즈. Game Controller 커서와 어울린다.",
+    "crimsonMarbleName": "Crimson Marble",
+    "crimsonMarbleTagline": "Crimson-veined marble, antique gold",
+    "crimsonMarbleDescription": "The palace cut in red stone: crimson-veined black marble and antique gold in the dark — blush ivory marble and deep crimson by day. Pairs with the Diamond cursor."
   }
 }

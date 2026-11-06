@@ -24243,6 +24243,9 @@
     "kingsSetDescription": "承認済みのKing's Setに基づいて構築：闇の中では最も黒い大理石と最も明るい金箔、昼には最も明るい象牙と最も深いアンティークブロンズ。King's Crownカーソルと組み合わさる。",
     "arcadeGoldName": "アーケード・ゴールド",
     "arcadeGoldTagline": "チートコードのチャコール、熱い金、残り火の輝き",
-    "arcadeGoldDescription": "宮殿のチートコード側：温かなチャコールの大理石、熱い金、そして闇の中の残り火の輝き — 昼には温かな紙の大理石と深いブロンズ。Game Controllerカーソルと組み合わさる。"
+    "arcadeGoldDescription": "宮殿のチートコード側：温かなチャコールの大理石、熱い金、そして闇の中の残り火の輝き — 昼には温かな紙の大理石と深いブロンズ。Game Controllerカーソルと組み合わさる。",
+    "crimsonMarbleName": "Crimson Marble",
+    "crimsonMarbleTagline": "Crimson-veined marble, antique gold",
+    "crimsonMarbleDescription": "The palace cut in red stone: crimson-veined black marble and antique gold in the dark — blush ivory marble and deep crimson by day. Pairs with the Diamond cursor."
   }
 }

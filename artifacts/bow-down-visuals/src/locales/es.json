@@ -24276,6 +24276,9 @@
     "kingsSetDescription": "Construido sobre el aprobado King's Set: el mármol más negro y la hoja de oro más brillante en la oscuridad, el marfil más brillante y el bronce antiguo más profundo de día. Combina con el cursor King's Crown.",
     "arcadeGoldName": "Oro Arcade",
     "arcadeGoldTagline": "Carbón de código de trucos, oro caliente, resplandor de brasa",
-    "arcadeGoldDescription": "El lado código de trucos del palacio: mármol carbón cálido, oro caliente y un resplandor de brasa en la oscuridad — mármol papel cálido y bronce profundo de día. Combina con el cursor Game Controller."
+    "arcadeGoldDescription": "El lado código de trucos del palacio: mármol carbón cálido, oro caliente y un resplandor de brasa en la oscuridad — mármol papel cálido y bronce profundo de día. Combina con el cursor Game Controller.",
+    "crimsonMarbleName": "Crimson Marble",
+    "crimsonMarbleTagline": "Crimson-veined marble, antique gold",
+    "crimsonMarbleDescription": "The palace cut in red stone: crimson-veined black marble and antique gold in the dark — blush ivory marble and deep crimson by day. Pairs with the Diamond cursor."
   }
 }

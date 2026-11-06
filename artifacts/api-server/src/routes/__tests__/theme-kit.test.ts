@@ -5,7 +5,7 @@
  * stubbed over raw SQL with the same active/trialing rule.
  *
  * Pins:
- *  - manifests: 5 packs × 12 components, sound-sync note present.
+ *  - manifests: 6 packs × 12 components, sound-sync note present.
  *  - downloads: included pack → real .themepack (MSCF magic + .theme
  *    inside) and a full zip (PK magic); premium locked → 403; owned → 200.
  *  - sound sync: the themepack carries the LIBRARY wav bytes under the
@@ -309,10 +309,10 @@ beforeEach(async () => {
 });
 
 describe("manifests", () => {
-  it("lists five packs × twelve components with the sound-sync note", async () => {
+  it("lists six packs × twelve components with the sound-sync note", async () => {
     const r = await call("GET", "/theme-packs/kit/manifests");
     expect(r.status).toBe(200);
-    expect(r.json.packs).toHaveLength(5);
+    expect(r.json.packs).toHaveLength(6);
     for (const p of r.json.packs) {
       expect(p.components).toHaveLength(12);
       expect(p.sounds.source).toBe("site-sound-library");

@@ -22,7 +22,7 @@
  *     logo path + Cinzel/Manrope pairing; Chrome manifest colors come
  *     from the pack; the Windows theme text points sounds at the
  *     library manifest names.
- *  7. Server mirror: the API kit builder knows the same five packs,
+ *  7. Server mirror: the API kit builder knows the same six packs,
  *     the same sound roles, the same designed icon names, and
  *     contains no per-pack wav data.
  */
@@ -59,8 +59,21 @@ const PUBLIC_DIR = new URL("../../public/", import.meta.url);
 const publicFile = (sitePath: string): URL => new URL(sitePath.replace(/^\//, ""), PUBLIC_DIR);
 const sha256 = (buf: Buffer): string => createHash("sha256").update(buf).digest("hex");
 
+/* Packs whose owner-approved DESIGNED emblem set (50 icons × 2 modes)
+   has been raised into the kit asset manifest. crimson-marble
+   (Stack-200 U4) ships its registry entry, grounds, per-device
+   renders and app icons now; its designed emblem set is raised by
+   the same owner-approved art program that produced the other five
+   sets (theme-pack-art/MANIFEST.md, Oct 25 2026) — until it lands,
+   the server kit builder declares the gap inside the bundle itself
+   (ICONS-MISSING.txt) rather than substituting art. The designed-set
+   assertions below scope to this list so the gap stays VISIBLE
+   here: adding crimson-marble to this list without its 100 files
+   fails the manifest pins immediately. */
+const DESIGNED_SET_PACKS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold"];
+
 describe("kit manifest — 12 components × every pack × light+dark", () => {
-  it("covers all five packs with all twelve components in both modes", () => {
+  it("covers all six packs with all twelve components in both modes", () => {
     const manifests = allKitManifests();
     expect(manifests.map((m) => m.packId)).toEqual(THEME_PACKS.map((p) => p.id));
     for (const m of manifests) {
@@ -180,20 +193,21 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
     expect(DESIGNED_ICON_NAMES).not.toContain("crown");
   });
 
-  // Explicit 30s budget: this test sha256-hashes 540 files (~16 MB) and
+  // Explicit 30s budget: this test sha256-hashes 548 files (~16 MB) and
   // runs at ~2.5s on a calm box — over half of vitest's 5s default — so
   // under multi-lane contention it used to TIME OUT and read as an asset
   // regression (stack600 reconciliation: the assets and manifest were
   // never wrong; the budget was). Assertions are unchanged.
-  it("kit-vs-manifest: all 500 designed files + 10 app icons exist with the pinned hashes", () => {
+  it("kit-vs-manifest: all 500 designed files + 12 app icons exist with the pinned hashes", () => {
     const assets = JSON.parse(
       readFileSync(publicFile("/theme-packs/kit-assets-manifest.json"), "utf8"),
     ) as {
       icons: Array<{ pack: string; icon: string; mode: string; path: string; sourceAsset: string; sha256: string }>;
       deviceWallpapers: Array<{ pack: string; mode: string; device: string; width: number; height: number; path: string; sha256: string }>;
     };
-    // 500 icons + 10 app icons ride the same entries list.
-    expect(assets.icons).toHaveLength(510);
+    // 500 designed icons (5 raised sets) + 12 app icons (all 6 packs)
+    // ride the same entries list.
+    expect(assets.icons).toHaveLength(512);
     const seen = new Set<string>();
     for (const e of assets.icons) {
       seen.add(`${e.pack}|${e.icon}|${e.mode}`);
@@ -205,6 +219,7 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
     for (const pack of THEME_PACKS) {
       for (const mode of ["light", "dark"] as const) {
         expect(seen.has(`${pack.id}|app-icon|${mode}`), `${pack.id} app ${mode}`).toBe(true);
+        if (!DESIGNED_SET_PACKS.includes(pack.id)) continue;
         for (const icon of DESIGNED_ICON_NAMES) {
           expect(seen.has(`${pack.id}|${icon}|${mode}`), `${pack.id}/${icon}/${mode}`).toBe(true);
           expect(designedIconPath(pack.id, icon, mode)).toBe(`/theme-packs/icons/${pack.id}/${icon}-${mode}.webp`);
@@ -212,7 +227,7 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
       }
     }
     // Per-device wallpapers: every pack × mode × device, pinned sizes.
-    expect(assets.deviceWallpapers).toHaveLength(30);
+    expect(assets.deviceWallpapers).toHaveLength(36);
     for (const w of assets.deviceWallpapers) {
       const url = publicFile(w.path);
       expect(existsSync(url), w.path).toBe(true);
@@ -223,16 +238,16 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
     }
   }, 30000);
 
-  it("the same icon is a DIFFERENT designed file in every pack (no shared set)", () => {
+  it("the same icon is a DIFFERENT designed file in every raised pack (no shared set)", () => {
     const assets = JSON.parse(
       readFileSync(publicFile("/theme-packs/kit-assets-manifest.json"), "utf8"),
     ) as { icons: Array<{ pack: string; icon: string; mode: string; sha256: string }> };
     for (const icon of DESIGNED_ICON_NAMES) {
       for (const mode of ["light", "dark"] as const) {
-        const hashes = THEME_PACKS.map(
-          (p) => assets.icons.find((e) => e.pack === p.id && e.icon === icon && e.mode === mode)!.sha256,
+        const hashes = DESIGNED_SET_PACKS.map(
+          (id) => assets.icons.find((e) => e.pack === id && e.icon === icon && e.mode === mode)!.sha256,
         );
-        expect(new Set(hashes).size, `${icon}/${mode}`).toBe(THEME_PACKS.length);
+        expect(new Set(hashes).size, `${icon}/${mode}`).toBe(DESIGNED_SET_PACKS.length);
       }
     }
   });
@@ -412,7 +427,7 @@ describe("server mirror parity", () => {
     "utf8",
   );
 
-  it("knows the same five packs and the same six library roles", () => {
+  it("knows the same six packs and the same six library roles", () => {
     for (const p of THEME_PACKS) expect(serverBuild).toContain(`id: "${p.id}"`);
     for (const role of ["notification", "message", "success", "error", "royal-sting", "ringtone"]) {
       expect(serverBuild).toContain(`"${role}"`);
