@@ -22,7 +22,7 @@ import {
 } from "./locations-desk";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
-const route = read("../../../api-server/src/routes/locations.ts");
+const route = read("../../../../api-server/src/routes/locations.ts");
 
 describe("paths — the page's own rails", () => {
   it("list, upload and delete paths match the route file", () => {
