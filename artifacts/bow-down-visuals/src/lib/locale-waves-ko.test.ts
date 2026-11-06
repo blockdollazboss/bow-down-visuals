@@ -115,6 +115,9 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "playlistPitch.copyDmLabel",
     // money copy — English verbatim in every catalog, never translated
     "brandingShop.noPaymentNote",
+    // Stack-200 M3: the storefront plan note became money copy (flat 5%
+    // fee, no tier claim) — English source verbatim in every catalog.
+    "storefronts.planNote",
     // numeric ranges alone
     "brandDeals.audiences.k10_50k", "brandDeals.audiences.k1_10k",
     "brandDeals.audiences.k250plus", "brandDeals.audiences.k50_250k",

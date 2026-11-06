@@ -122,6 +122,7 @@ const W1_LEGIT: ReadonlySet<string> = new Set([
   "sponsorsPost.budgetMinPlaceholder",
   "storefrontBuilder.handlePlaceholder",
   "storefrontBuilder.step3Cost",
+  "storefronts.planNote",
   "syncPitch.madeWith",
   "syncPitch.no",
   "syncPitch.statBpm",
