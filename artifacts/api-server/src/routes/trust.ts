@@ -637,7 +637,12 @@ const errYear = (): YearSource => ({ status: "error", totalCents: null, count: n
  * request can sit unpaid long after it was created. UGC briefs
  * (C-25) count their RELEASE stamps — the held split at the rail's
  * 5% — booked to the year the escrow released (released_at): a brief
- * can sit claimed or delivered long before its money moves. */
+ * can sit claimed or delivered long before its money moves.
+ * Performance bookings (stack200 M1, migration 0325) count their
+ * release stamps the same way — the artist payout of the held split
+ * at the rail's 15% — booked to the year the escrow released: on
+ * this rail the release flip itself stamps paid_at, so paid_at IS
+ * the release moment. */
 export async function buildYearStatement(userId: string, year: number) {
   const one = async (fn: () => Promise<YearSource>): Promise<YearSource> => { try { return await fn(); } catch (err) { logger.error({ err }, "[trust] statement source failed"); return errYear(); } };
   const sum = async (q: ReturnType<typeof sql>) => { const r = await db.execute(q); const row = (r.rows as any[])[0] ?? { cents: 0, n: 0 }; return { status: "ok" as const, totalCents: Number(row.cents), count: Number(row.n) }; };
@@ -670,12 +675,15 @@ export async function buildYearStatement(userId: string, year: number) {
   const ugcBriefs = await one(() => sum(sql`
     SELECT COALESCE(SUM(creator_payout_cents),0)::int AS cents, COUNT(*)::int AS n FROM ugc_briefs
     WHERE claimed_by_user_id = ${userId} AND escrow_status = 'released' AND EXTRACT(YEAR FROM released_at) = ${year}`));
+  const bookings = await one(() => sum(sql`
+    SELECT COALESCE(SUM(artist_payout_cents),0)::int AS cents, COUNT(*)::int AS n FROM performance_bookings
+    WHERE artist_user_id = ${userId} AND escrow_status = 'released' AND artist_payout_cents IS NOT NULL AND EXTRACT(YEAR FROM paid_at) = ${year}`));
   const royalties = await one(async () => {
     const r = await db.execute(sql`SELECT COALESCE(SUM(gross_amount * 100),0)::int AS cents, COUNT(*)::int AS n FROM royalty_entries WHERE user_id = ${userId} AND EXTRACT(YEAR FROM period_end) = ${year}`);
     const row = (r.rows as any[])[0] ?? { cents: 0, n: 0 };
     return { status: "ok" as const, totalCents: Number(row.cents), count: Number(row.n) };
   });
-  const sources = { storeSales, digitalSales, shopSales, beats, memberships, shoutouts, tipJar, brandDeals, ugcBriefs, royalties };
+  const sources = { storeSales, digitalSales, shopSales, beats, memberships, shoutouts, tipJar, brandDeals, ugcBriefs, bookings, royalties };
   const partial = Object.values(sources).some((s) => s.status === "error");
   const totalCents = Object.values(sources).reduce((acc, s) => acc + (s.totalCents ?? 0), 0);
   return {
@@ -707,7 +715,7 @@ router.get("/earnings/statements/:year/pdf", requireAuth, async (req, res) => {
     let y = 130;
     page.text(48, y, "What this is", { size: 12, bold: true }); y += 20;
     page.text(48, y, stmt.disclaimer, { size: 9, color: GREY, maxWidth: 500 }); y += 48;
-    const lines: Array<[string, YearSource]> = [["Store sales", stmt.sources.storeSales], ["Digital sales", stmt.sources.digitalSales], ["Shop sales", stmt.sources.shopSales], ["Beat licenses", stmt.sources.beats], ["Memberships", stmt.sources.memberships], ["Shoutouts", stmt.sources.shoutouts], ["Tip jar tips", stmt.sources.tipJar], ["Brand deals", stmt.sources.brandDeals], ["UGC briefs", stmt.sources.ugcBriefs], ["Royalties (recorded)", stmt.sources.royalties]];
+    const lines: Array<[string, YearSource]> = [["Store sales", stmt.sources.storeSales], ["Digital sales", stmt.sources.digitalSales], ["Shop sales", stmt.sources.shopSales], ["Beat licenses", stmt.sources.beats], ["Memberships", stmt.sources.memberships], ["Shoutouts", stmt.sources.shoutouts], ["Tip jar tips", stmt.sources.tipJar], ["Brand deals", stmt.sources.brandDeals], ["UGC briefs", stmt.sources.ugcBriefs], ["Performance bookings", stmt.sources.bookings], ["Royalties (recorded)", stmt.sources.royalties]];
     for (const [label, s] of lines) {
       page.text(48, y, label, { size: 11 });
       page.text(564, y, s.status === "error" ? "could not load" : `${money(s.totalCents)}  (${s.count} records)`, { size: 11, align: "right" });

@@ -15,7 +15,10 @@ import { usePageTitle } from "@/hooks/use-page-title";
  * tip-jar intents are pending payment — both shown in their own units,
  * never folded into the USD total. Paid shoutouts and SETTLED tip-jar
  * tips are USD sources of their own (0323) — the jar's paid tips ride
- * the "Tip jar tips" card, not the pending-intent line.
+ * the "Tip jar tips" card, not the pending-intent line. RELEASED
+ * performance bookings are a USD source of their own too (0325) —
+ * before that rail existed, a released booking's artist pay reached
+ * no card on this page (or any payout surface) at all.
  */
 
 /* Response types + the partial-payload guard live in
@@ -365,6 +368,16 @@ export default function Earnings() {
           title="Tip jar tips"
           source={sources.tipJar}
           detail="tips arrive in full — no platform fee"
+        />
+        <SourceCard
+          onRetry={reload}
+          title="Performance bookings (escrow released)"
+          source={sources.bookings}
+          detail={
+            sources.bookings.status === "ok"
+              ? `gross ${usd(sources.bookings.grossCents)} · platform fee ${usd(sources.bookings.feeCents)} (15%)`
+              : undefined
+          }
         />
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="text-sm text-muted-foreground">Tips</div>

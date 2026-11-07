@@ -55,6 +55,18 @@ import { z } from "zod/v4";
  *                    creator_payout_cents at the rail's 5%), so the
  *                    sync copies the split the release recorded —
  *                    gross / fee / net exactly as released.
+ *  - 'performance_booking' performance_bookings row whose escrow
+ *                    RELEASED (stack200 M1, migration 0325). The
+ *                    release flip stamps the split on the booking row
+ *                    (platform_fee_cents / artist_payout_cents at the
+ *                    rail's 15%); the held gross that was split is
+ *                    fee + payout (a partial refund before release
+ *                    shrinks the release, never the agreed fee), so
+ *                    the sync copies the split the release recorded —
+ *                    gross / fee / net exactly as released. Before
+ *                    this kind existed, a released booking's artist
+ *                    net was stranded: the artist was told "You were
+ *                    paid" yet the money reached no payout surface.
  *
  * Brand deals are deliberately NOT copied here: sponsor_payouts is
  * already a per-row released-escrow ledger; the unified pending read
@@ -75,6 +87,7 @@ const PENDING_PAYOUT_SOURCE_KINDS = [
   "shoutout_request",
   "tip_jar_tip",
   "ugc_brief",
+  "performance_booking",
 ] as const;
 type PendingPayoutSourceKind = (typeof PENDING_PAYOUT_SOURCE_KINDS)[number];
 
@@ -94,7 +107,7 @@ const pendingPayoutLedgerTable = pgTable("pending_payout_ledger", {
   stripeSessionId:  text("stripe_session_id"),
   createdAt:        timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  check("pending_payout_ledger_source_kind_check", sql`${t.sourceKind} IN ('digital_sale','store_order','shop_event','beat_license','membership','shoutout_request','tip_jar_tip','ugc_brief')`),
+  check("pending_payout_ledger_source_kind_check", sql`${t.sourceKind} IN ('digital_sale','store_order','shop_event','beat_license','membership','shoutout_request','tip_jar_tip','ugc_brief','performance_booking')`),
   check("pending_payout_ledger_entry_type_check", sql`${t.entryType} IN ('accrual','reversal')`),
   uniqueIndex("pending_payout_ledger_source_entry_ux").on(t.sourceKind, t.sourceId, t.entryType),
   index("pending_payout_ledger_seller_idx").on(t.sellerUserId, t.createdAt),
