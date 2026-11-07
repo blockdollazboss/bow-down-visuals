@@ -1,21 +1,21 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "4f0a9373fef0a9e353b5ee546dc6198f983dbb84",
+  "baseCommit": "fe425427b9d9d4f820c5e4ab39514a5ac90789ff",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-06",
+  "generatedAt": "2026-11-07",
   "counts": {
     "routesInApp": 245,
-    "pageFiles": 177,
+    "pageFiles": 175,
     "features": 252,
     "excludedRoutes": 76,
-    "excludedPageFiles": 26,
+    "excludedPageFiles": 24,
     "pricedActions": 258,
-    "routeFileEndpoints": 0,
+    "routeFileEndpoints": 17,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
@@ -23,8 +23,8 @@
     "withoutDescriptions": 0,
     "serverRouteFiles": 431,
     "serverEndpoints": 1743,
-    "serverEndpointsVisible": 1082,
-    "serverFilesClassified": 99
+    "serverEndpointsVisible": 1091,
+    "serverFilesClassified": 98
   },
   "packs": [
     {
@@ -6060,37 +6060,11 @@
         "/api/playlists",
         "/api/playlists/mine",
         "/api/referrals/me",
-        "/api/shares",
         "/api/spotlight/inquire",
         "/api/spotlight/offer",
-        "/api/store/token",
-        "/api/ugc-ads",
-        "/api/ugc-ads/:param",
-        "/api/ugc-ads/:param/generate",
-        "/api/ugc-ads/:param/pin",
-        "/api/ugc-ads/persona",
-        "/api/ugc-ads/products",
-        "/api/ugc-ads/script",
-        "/api/ugc-briefs",
-        "/api/ugc-briefs/:param/:param",
-        "/api/ugc-briefs/:param/fund",
-        "/api/ugc-briefs/:param/verify",
-        "/api/ugc-briefs/escrow/confirm"
+        "/api/store/token"
       ],
-      "prices": [
-        {
-          "feature": "UGC Video",
-          "vb": 400,
-          "endpoint": "/api/ugc-ads/:id/generate",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        },
-        {
-          "feature": "UGC Persona",
-          "vb": 100,
-          "endpoint": "/api/ugc-ads/persona",
-          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
-        }
-      ],
+      "prices": [],
       "nextSteps": [],
       "description": "The hottest tracks, videos, and creators on Bow Down Visuals right now.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/discovery/charts.tsx usePageTitle meta description"
@@ -7129,6 +7103,23 @@
         "/api/projects/:param",
         "/api/storefront/products",
         "/api/transcribe",
+        "/api/ugc-ads",
+        "/api/ugc-ads/:param",
+        "/api/ugc-ads/:param/generate",
+        "/api/ugc-ads/:param/pin",
+        "/api/ugc-ads/persona",
+        "/api/ugc-ads/products",
+        "/api/ugc-ads/script",
+        "/api/ugc-briefs",
+        "/api/ugc-briefs/:param",
+        "/api/ugc-briefs/:param/approve",
+        "/api/ugc-briefs/:param/claim",
+        "/api/ugc-briefs/:param/close",
+        "/api/ugc-briefs/:param/deliver",
+        "/api/ugc-briefs/:param/fund",
+        "/api/ugc-briefs/:param/release",
+        "/api/ugc-briefs/:param/verify",
+        "/api/ugc-briefs/escrow/confirm",
         "/api/upload-clip",
         "/api/wallpapers/pack-download",
         "/api/wallpapers/pack-of-10",
@@ -7213,6 +7204,18 @@
           "feature": "Transcribe Audio",
           "vb": 100,
           "endpoint": "/api/transcribe",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "UGC Video",
+          "vb": 400,
+          "endpoint": "/api/ugc-ads/:param/generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "UGC Persona",
+          "vb": 100,
+          "endpoint": "/api/ugc-ads/persona",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
@@ -7902,6 +7905,9 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/creator-hosting/checkout",
+        "/api/creator-hosting/me",
+        "/api/creator-hosting/plan",
         "/api/creator-tiers/change",
         "/api/creator-tiers/history",
         "/api/creator-tiers/me",
@@ -18024,11 +18030,6 @@
     },
     {
       "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/broadcast.tsx",
-      "reason": "Legacy standalone page — route /broadcast now redirects to /go-live; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/caption-styler.tsx",
       "reason": "Legacy standalone page — route /caption-styler now redirects to /hooks?tab=styler; the live feature is covered by the target's knowledge entry."
     },
@@ -18146,11 +18147,6 @@
       "kind": "pageFile",
       "key": "artifacts/bow-down-visuals/src/pages/upscale.tsx",
       "reason": "Legacy standalone page — route /upscale now redirects to /video-editor?tab=upscale; the live feature is covered by the target's knowledge entry."
-    },
-    {
-      "kind": "pageFile",
-      "key": "artifacts/bow-down-visuals/src/pages/video-studio.tsx",
-      "reason": "Legacy standalone page — route /video-studio now redirects to /video-editor; the live feature is covered by the target's knowledge entry."
     }
   ],
   "serverSurface": {
@@ -21150,16 +21146,8 @@
       {
         "file": "artifacts/api-server/src/routes/profile-hosting.ts",
         "endpoints": 3,
-        "visible": 0,
-        "unseen": [
-          "/api/creator-hosting/checkout",
-          "/api/creator-hosting/me",
-          "/api/creator-hosting/plan"
-        ],
-        "classification": {
-          "surface": "money",
-          "reason": "Profile-hosting plan rails (plan / me / checkout) — the $9/mo hosting plan (included with Creator Elite) on the creator-tiers chassis; its checkout rides the embedded rail, so no feature entry carries these endpoints."
-        }
+        "visible": 3,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/profile-website.ts",
@@ -21762,15 +21750,8 @@
       {
         "file": "artifacts/api-server/src/routes/ugc-briefs.ts",
         "endpoints": 10,
-        "visible": 4,
-        "unseen": [
-          "/api/ugc-briefs/:id",
-          "/api/ugc-briefs/:id/approve",
-          "/api/ugc-briefs/:id/claim",
-          "/api/ugc-briefs/:id/close",
-          "/api/ugc-briefs/:id/deliver",
-          "/api/ugc-briefs/:id/release"
-        ]
+        "visible": 10,
+        "unseen": []
       },
       {
         "file": "artifacts/api-server/src/routes/upg-fans.ts",

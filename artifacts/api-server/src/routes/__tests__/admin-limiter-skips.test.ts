@@ -53,7 +53,9 @@ describe("domains createLimiter — owner exemption wiring", () => {
   });
 
   it("the skip comes from the ONE admin module", () => {
-    expect(src).toContain('import { skipIfAdmin } from "../lib/admin";');
+    /* Stack-200 M3: the hosting gate added isAdminUserId to the same
+       import — the skip still comes from the ONE admin module. */
+    expect(src).toContain('import { isAdminUserId, skipIfAdmin } from "../lib/admin";');
   });
 
   it("the mount runs requireAuth before the limiter (identity first)", () => {

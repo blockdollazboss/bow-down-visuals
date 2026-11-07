@@ -1472,8 +1472,37 @@ const FEATURE_ENDPOINT_LINKS = [
     (stack200/remove-expdoctor — a dev diagnostic that shipped by
     mistake; owner's removal ruling). The mechanism stays: the next
     endpoint family whose calling surface sits past the page scan
-    gets an entry here instead of a hand list. */
-const ROUTE_FILE_FEATURE_LINKS = [];
+    gets an entry here instead of a hand list.
+
+    STACK-200 JOIN12: that next family arrived — twice over.
+    routes/ugc-ads.ts (the UGC Product Ads rail: persona + video
+    generation, script, products, pin) and routes/ugc-briefs.ts
+    (the UGC Briefs Board rail, incl. the C-25 escrow fund/verify/
+    confirm steps) are called by the Hub's UgcAdsPanel and the
+    World's UgcAdsStation / BrandOutreachPanel through the shared
+    lib/ugc-ads.ts seam — two hops past the page scan. Both
+    families were visible only incidentally, through the /charts
+    page's import of the seam's money-note constant; when
+    Stack-200 D6 keyed that note through the catalogs (hardening
+    items 44–45) the import left the page and both families went
+    invisible. The entries below attach them to the Hub feature —
+    the panel's home surface. */
+const ROUTE_FILE_FEATURE_LINKS = [
+  {
+    routeFile: "routes/ugc-ads.ts",
+    routeImport: "./ugc-ads",
+    routerVar: "ugcAdsRouter",
+    pathPrefix: "/ugc-ads",
+    attachToFeatureIds: ["tab-hub"],
+  },
+  {
+    routeFile: "routes/ugc-briefs.ts",
+    routeImport: "./ugc-briefs",
+    routerVar: "ugcBriefsRouter",
+    pathPrefix: "/ugc-briefs",
+    attachToFeatureIds: ["tab-hub"],
+  },
+];
 
 /** ─── Server-family classifications (stack800 lane 9 — board #36) ────────
     The server-surface census (buildServerSurface, below) derives every
@@ -1893,10 +1922,11 @@ const SERVER_FAMILY_CLASSIFICATIONS = {
     surface: "money",
     reason: "Song-credits rails (credits / history / sheet) — the credit-sheet record behind song surfaces; no page of its own.",
   },
-  "artifacts/api-server/src/routes/profile-hosting.ts": {
-    surface: "money",
-    reason: "Profile-hosting plan rails (plan / me / checkout) — the $9/mo hosting plan (included with Creator Elite) on the creator-tiers chassis; its checkout rides the embedded rail, so no feature entry carries these endpoints.",
-  },
+  /* Profile-hosting's classification stood here until Stack-200
+     M4 built the hosting door (census item A5): the family is now
+     partly feature-visible through the door's surface, so the
+     entry was removed at JOIN12 — a classification on a visible
+     family is stale and generation throws on it. */
   /* Store rails. */
   "artifacts/api-server/src/routes/feature-verse.ts": {
     surface: "store",
@@ -2850,7 +2880,10 @@ function main() {
        the route file no longer serves (a stale free-price entry for
        a dead diagnostic step is still stale knowledge). */
     for (const key of creditCosts.keys()) {
-      if (key.startsWith(`/api${link.pathPrefix}`) && !family.includes(key)) {
+      /* Param names differ between the registry and the route file
+         (":id" vs the harvest's normalized ":param") — compare in
+         the normalized form, the same doctrine as priceFor below. */
+      if (key.startsWith(`/api${link.pathPrefix}`) && !family.includes(normParams(key))) {
         throw new Error(`route-file harvest: CREDIT_COSTS names ${key} but ${fileLabel} no longer serves it — remove the stale registry entry or restore the route`);
       }
     }
@@ -2866,7 +2899,10 @@ function main() {
       entry.prices = [...entry.prices];
       for (const ep of family) {
         if (!entry.endpoints.includes(ep)) entry.endpoints.push(ep);
-        const registry = creditCosts.get(ep);
+        /* priceFor (normalized longest-prefix), not a raw map get:
+           the family's paths are ":param"-normalized while the
+           registry names its own params (":id"). */
+        const registry = priceFor(ep, creditCosts);
         if (registry && !entry.prices.some((p) => p.endpoint === ep)) {
           entry.prices.push({
             feature: registry.feature,
