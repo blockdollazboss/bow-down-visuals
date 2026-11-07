@@ -2177,6 +2177,9 @@
     "presetBoomBap": "Boom Bap",
     "presetAfrobeats": "Afrobeats",
     "presetHouse": "House",
+    "presetRnB": "R&B",
+    "presetJerseyClub": "Jersey Club",
+    "presetLofi": "Lo-Fi",
     "randomize": "Randomize",
     "clear": "Clear",
     "trackKick": "Kick",
@@ -13968,6 +13971,10 @@
     "tplPriceDesc": "Transparent numbers on a bright receipt band.",
     "tplCourseName": "Mini Course",
     "tplCourseDesc": "A full lesson, framed slide by slide.",
+    "tplTimelineName": "Timeline Journey",
+    "tplTimelineDesc": "Dated milestones on one rising road — where you started, where you stand.",
+    "tplProsConsName": "Pros & Cons",
+    "tplProsConsDesc": "One subject, both sides — the case for, the case against, the verdict.",
     "templateLinkMissed": "That template link didn't match — pick a template to start."
   },
   "library": {

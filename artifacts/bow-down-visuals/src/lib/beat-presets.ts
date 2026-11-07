@@ -55,7 +55,9 @@ export interface BeatPreset {
   melody?: BeatMelodyLanes;
 }
 
-export type BeatPresetId = "trap" | "drill" | "boombap" | "afrobeats" | "house";
+export type BeatPresetId =
+  | "trap" | "drill" | "boombap" | "afrobeats" | "house"
+  | "rnb" | "jersey-club" | "lofi";
 
 /** The starting patterns, in picker order. */
 export const BEAT_PRESETS: Record<BeatPresetId, BeatPreset> = {
@@ -161,6 +163,92 @@ export const BEAT_PRESETS: Record<BeatPresetId, BeatPreset> = {
       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     ],
     bass: [36,null,null,null,36,null,null,null,36,null,null,null,39,null,38,null],
+  },
+  /* ── Stack 200 upgrade wave (Lane U2): the three BEAT_GENRES that
+     shipped with no starting pattern — r&b, jersey-club and lofi were
+     pickable AI genres with nothing to load in the sequencer. Each
+     pattern below is written in this registry's own format (9 rows ×
+     16 steps, bass in the C1..B2 808 range, melody seeds in the
+     roll's step shape). Picking one is still a free local edit. ── */
+  rnb: {
+    nameKey: "beatMaker.presetRnB", fallback: "R&B", bpm: 92,
+    /* Slow and swung: off-grid closed hats, an accented backbeat, a
+       kick that leans late (steps 7 and 10), chord stabs in the keys
+       lane over a warm pad — the slow-jam starting point. */
+    grid: [
+      [1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0],
+      [0,0,0,0,2,0,0,0,0,0,0,0,2,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [1,0,1,1,0,1,1,0,1,0,1,1,0,1,0,1],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
+      [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+      [0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0],
+      [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [29,null,null,null,null,null,null,null,32,null,null,null,27,null,null,null],
+    melody: {
+      keys: [
+        { id: "seed-rnb-keys-1", pitch: 65, startStep: 0, lengthSteps: 1, velocity: 80 },
+        { id: "seed-rnb-keys-2", pitch: 68, startStep: 4, lengthSteps: 1, velocity: 75 },
+        { id: "seed-rnb-keys-3", pitch: 72, startStep: 8, lengthSteps: 1, velocity: 80 },
+        { id: "seed-rnb-keys-4", pitch: 67, startStep: 12, lengthSteps: 1, velocity: 75 },
+      ],
+      pluck: [],
+      pad: [
+        { id: "seed-rnb-pad-1", pitch: 53, startStep: 0, lengthSteps: 8, velocity: 60 },
+        { id: "seed-rnb-pad-2", pitch: 51, startStep: 8, lengthSteps: 8, velocity: 60 },
+      ],
+    },
+  },
+  "jersey-club": {
+    nameKey: "beatMaker.presetJerseyClub", fallback: "Jersey Club", bpm: 140,
+    /* Kick-driven: the kick pulses every three steps (the dotted
+       triplet bounce the genre rides), claps stack on the backbeat,
+       closed hats run near-16ths and the perc ticks mark the
+       off-beats. No melody seed — the pattern is the instrument. */
+    grid: [
+      [2,0,0,2,0,0,2,0,2,0,0,2,0,0,2,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+      [1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
+      [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+      [0,0,0,1,0,0,1,0,0,0,0,1,0,0,1,0],
+      [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [31,null,null,31,null,null,31,null,31,null,null,31,null,null,31,null],
+  },
+  lofi: {
+    nameKey: "beatMaker.presetLofi", fallback: "Lo-Fi", bpm: 82,
+    /* Dusty and low: lazy kick placement, a ghost snare sneaking in
+       on step 15, dense swung closed hats, no crash (dust, not
+       sparkle) and a jazzy minor-7th keys seed over a soft pad. */
+    grid: [
+      [1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0],
+      [0,0,0,0,2,0,0,0,0,0,0,0,2,0,0,1],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,0],
+      [0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [36,null,null,null,null,null,null,null,34,null,null,39,null,null,null,null],
+    melody: {
+      keys: [
+        { id: "seed-lofi-keys-1", pitch: 60, startStep: 0, lengthSteps: 2, velocity: 70 },
+        { id: "seed-lofi-keys-2", pitch: 63, startStep: 3, lengthSteps: 1, velocity: 65 },
+        { id: "seed-lofi-keys-3", pitch: 58, startStep: 8, lengthSteps: 2, velocity: 68 },
+      ],
+      pluck: [],
+      pad: [
+        { id: "seed-lofi-pad-1", pitch: 48, startStep: 0, lengthSteps: 8, velocity: 55 },
+        { id: "seed-lofi-pad-2", pitch: 46, startStep: 8, lengthSteps: 8, velocity: 55 },
+      ],
+    },
   },
 };
 

@@ -117,6 +117,38 @@ describe("photo develop presets — real parameters, real ranges", () => {
   });
 });
 
+describe("photo develop presets — Stack 200 U2: the cool grade and the neutral mono", () => {
+  it("the shelf carries 8 looks, the two new ones included", () => {
+    expect(PHOTO_DEVELOP_PRESETS).toHaveLength(8);
+    expect(photoDevelopPresetById("teal-shadow")).not.toBeNull();
+    expect(photoDevelopPresetById("silver-noir")).not.toBeNull();
+  });
+
+  it("teal-shadow is the registry's cool grade — the coldest temperature on the shelf", () => {
+    const teal = photoDevelopPresetById("teal-shadow")!;
+    expect(teal.develop.temperature).toBeLessThan(0);
+    for (const p of PHOTO_DEVELOP_PRESETS) {
+      if (p.id !== "teal-shadow") {
+        expect(teal.develop.temperature, `${p.id} is colder`).toBeLessThan(p.develop.temperature);
+      }
+    }
+    /* a shadow grade, not a daylight one: it darkens, never lifts */
+    expect(teal.develop.exposure).toBeLessThan(0);
+    expect(teal.develop.lightness).toBeLessThan(0);
+  });
+
+  it("silver-noir is the NEUTRAL mono: fully desaturated, zero temperature, harder crush than Black & Gold", () => {
+    const silver = photoDevelopPresetById("silver-noir")!;
+    const gold = photoDevelopPresetById("black-gold-mono")!;
+    expect(silver.develop.saturation).toBe(-100);
+    /* the gold tone is Black & Gold Mono's whole identity — silver has none */
+    expect(silver.develop.temperature).toBe(0);
+    expect(gold.develop.temperature).toBeGreaterThan(0);
+    expect(silver.develop.contrast).toBeGreaterThan(gold.develop.contrast);
+    expect(silver.develop).not.toEqual(gold.develop);
+  });
+});
+
 describe("photo develop presets — applying lands exactly the recipe", () => {
   it("developFromPreset returns the preset's parameter set, untouched", () => {
     for (const p of PHOTO_DEVELOP_PRESETS) {

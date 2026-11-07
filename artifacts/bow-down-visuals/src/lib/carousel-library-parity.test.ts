@@ -19,9 +19,10 @@
  *    the maker can say so out loud (templateLinkMissed toast) instead
  *    of substituting in silence;
  *  - every template in the registry is reachable: seed-resolved, or
- *    the one maker-native extra (minimal-luxe), and both pickers (the
- *    maker gallery and the World Carousel Desk) render the whole
- *    registry from CAROUSEL_TEMPLATES;
+ *    one of the named maker-native extras (minimal-luxe, plus the
+ *    Stack 200 U2 formats timeline-journey / pros-cons), and both
+ *    pickers (the maker gallery and the World Carousel Desk) render
+ *    the whole registry from CAROUSEL_TEMPLATES;
  *  - every template is complete: a real painter, a distinct
  *    composition, and name/desc keys present in all 10 catalogs.
  */
@@ -110,16 +111,30 @@ describe("resolution is exact — the fuzzy fallback is dead", () => {
 });
 
 describe("every template is reachable and complete", () => {
-  it("the registry is the 8 originals + the 13 Library completions", () => {
-    expect(CAROUSEL_TEMPLATES).toHaveLength(21);
-    expect(new Set(CAROUSEL_TEMPLATES.map((t) => t.id)).size).toBe(21);
+  it("the registry is the 8 originals + the 13 Library completions + the 2 Stack 200 U2 formats", () => {
+    expect(CAROUSEL_TEMPLATES).toHaveLength(23);
+    expect(new Set(CAROUSEL_TEMPLATES.map((t) => t.id)).size).toBe(23);
     expect(CAROUSEL_TEMPLATES[0]!.id).toBe("bold-statement"); // default unchanged
   });
 
-  it("every template is seed-reachable, except the one maker-native extra", () => {
+  it("every template is seed-reachable, except the maker-native extras", () => {
     const seeded = new Set(CAROUSEL_SEEDS.map((s) => stripPrefix(s.slug)));
     const unseeded = CAROUSEL_TEMPLATES.map((t) => t.id).filter((id) => !seeded.has(id));
-    expect(unseeded).toEqual(["minimal-luxe"]);
+    /* minimal-luxe was the original maker-native extra; timeline-journey
+       and pros-cons (Stack 200 Lane U2) are maker-native the same way —
+       no Library seed, but both pickers render the whole registry, so
+       nothing here is hidden. */
+    expect(unseeded).toEqual(["minimal-luxe", "timeline-journey", "pros-cons"]);
+  });
+
+  it("the two Stack 200 U2 formats resolve exactly, bare and prefixed", () => {
+    expect(resolveCarouselTemplate("timeline-journey")!.id).toBe("timeline-journey");
+    expect(resolveCarouselTemplate("carousel-timeline-journey")!.id).toBe("timeline-journey");
+    expect(resolveCarouselTemplate("pros-cons")!.id).toBe("pros-cons");
+    expect(resolveCarouselTemplate("carousel-pros-cons")!.id).toBe("pros-cons");
+    /* near-misses stay misses — the exact-resolution contract holds */
+    expect(resolveCarouselTemplate("carousel-timeline")).toBeNull();
+    expect(resolveCarouselTemplate("carousel-pros")).toBeNull();
   });
 
   it("both pickers render the whole registry — nothing is maker-only by hiding", () => {

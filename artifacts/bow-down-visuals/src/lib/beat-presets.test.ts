@@ -1088,9 +1088,12 @@ describe("beat preset registry — note-for-note the originals", () => {
     expect(new Set(BEAT_GENRES).size).toBe(BEAT_GENRES.length);
   });
 
-  it("carries exactly the 5 original presets, in picker order", () => {
-    expect(BEAT_PRESET_IDS).toEqual(["trap", "drill", "boombap", "afrobeats", "house"]);
-    expect(Object.keys(BEAT_PRESETS)).toEqual(Object.keys(FIXTURE_PRESETS));
+  it("carries the 5 originals first, in picker order, then the Stack 200 U2 additions", () => {
+    expect(BEAT_PRESET_IDS).toEqual([
+      "trap", "drill", "boombap", "afrobeats", "house",
+      "rnb", "jersey-club", "lofi",
+    ]);
+    expect(Object.keys(BEAT_PRESETS).slice(0, 5)).toEqual(Object.keys(FIXTURE_PRESETS));
   });
 
   it.each(Object.keys(FIXTURE_PRESETS))(
@@ -1106,6 +1109,12 @@ describe("beat preset registry — note-for-note the originals", () => {
     expect(BEAT_PRESETS.drill.melody).toBeUndefined();
     expect(BEAT_PRESETS.afrobeats.melody).toBeUndefined();
     expect(BEAT_PRESETS.house.melody).toBeUndefined();
+  });
+
+  it("the U2 additions seed melody where the genre wants one (rnb + lofi; jersey-club none)", () => {
+    expect(BEAT_PRESETS.rnb.melody).toBeDefined();
+    expect(BEAT_PRESETS.lofi.melody).toBeDefined();
+    expect(BEAT_PRESETS["jersey-club"].melody).toBeUndefined();
   });
 });
 
@@ -1150,18 +1159,23 @@ describe("beat preset registry — playback shape invariants", () => {
         }
       }
     }
-    expect(ids.size).toBe(13);
+    /* 13 original seed notes + rnb's 6 (4 keys + 2 pad) + lofi's 5
+       (3 keys + 2 pad); jersey-club carries no seed. */
+    expect(ids.size).toBe(24);
   });
 
-  it("labels and tempos are the originals", () => {
+  it("labels and tempos: the originals, then the U2 additions in picker order", () => {
     expect(Object.values(BEAT_PRESETS).map((p) => p.nameKey)).toEqual([
       "beatMaker.presetTrap",
       "beatMaker.presetDrill",
       "beatMaker.presetBoomBap",
       "beatMaker.presetAfrobeats",
       "beatMaker.presetHouse",
+      "beatMaker.presetRnB",
+      "beatMaker.presetJerseyClub",
+      "beatMaker.presetLofi",
     ]);
-    expect(Object.values(BEAT_PRESETS).map((p) => p.bpm)).toEqual([140, 142, 92, 102, 124]);
+    expect(Object.values(BEAT_PRESETS).map((p) => p.bpm)).toEqual([140, 142, 92, 102, 124, 92, 140, 82]);
     for (const p of Object.values(BEAT_PRESETS)) expect(p.fallback.length).toBeGreaterThan(0);
   });
 
@@ -1200,5 +1214,39 @@ describe("beat preset registry — the page consumes it, the data left the page"
     expect(page).toContain("Object.entries(BEAT_PRESETS).map(([key, p])");
     // the AI genre chips render the registry list
     expect(page).toContain("BEAT_GENRES.map((g)");
+  });
+});
+
+describe("beat preset registry — Stack 200 U2: the pattern-less genres get patterns", () => {
+  /* BEAT_GENRES named r&b, jersey-club and lofi from the start, but the
+     registry carried no pattern for any of them — a creator picked the
+     genre and had nothing to load. These pins hold the closure. */
+  it("every formerly pattern-less genre now resolves to a real preset", () => {
+    expect(BEAT_GENRES).toContain("r&b");
+    expect(BEAT_GENRES).toContain("jersey-club");
+    expect(BEAT_GENRES).toContain("lofi");
+    expect(beatPresetById("rnb")).toBe(BEAT_PRESETS.rnb);
+    expect(beatPresetById("jersey-club")).toBe(BEAT_PRESETS["jersey-club"]);
+    expect(beatPresetById("lofi")).toBe(BEAT_PRESETS.lofi);
+  });
+
+  it("the new tempos sit in each genre's real range", () => {
+    expect(BEAT_PRESETS.rnb.bpm).toBeGreaterThanOrEqual(85);
+    expect(BEAT_PRESETS.rnb.bpm).toBeLessThanOrEqual(100);
+    expect(BEAT_PRESETS["jersey-club"].bpm).toBeGreaterThanOrEqual(130);
+    expect(BEAT_PRESETS["jersey-club"].bpm).toBeLessThanOrEqual(150);
+    expect(BEAT_PRESETS.lofi.bpm).toBeGreaterThanOrEqual(75);
+    expect(BEAT_PRESETS.lofi.bpm).toBeLessThanOrEqual(90);
+  });
+
+  it("jersey-club's signature is its dotted-triplet kick pulse (every 3 steps)", () => {
+    const kick = BEAT_PRESETS["jersey-club"].grid[0]!;
+    for (const step of [0, 3, 6, 8, 11, 14]) expect(kick[step]).toBeGreaterThan(0);
+  });
+
+  it("the new fallbacks are the genre names the picker shows", () => {
+    expect(BEAT_PRESETS.rnb.fallback).toBe("R&B");
+    expect(BEAT_PRESETS["jersey-club"].fallback).toBe("Jersey Club");
+    expect(BEAT_PRESETS.lofi.fallback).toBe("Lo-Fi");
   });
 });

@@ -2111,7 +2111,10 @@
     "soundNotLoadedShort": "not loaded",
     "soundPickerAria": "{{label}} sound",
     "soundSaved": "Saved sound",
-    "soundSessionOnlyShort": "this session only"
+    "soundSessionOnlyShort": "this session only",
+    "presetRnB": "R&B",
+    "presetJerseyClub": "Jersey Club",
+    "presetLofi": "Lo-Fi"
   },
   "beats": {
     "errorTitleUrlRequired": "제목과 오디오 URL은 필수입니다.",
@@ -5170,7 +5173,7 @@
   "locations": {
     "addLocation": "장소 추가하기",
     "errDelete": "장소를 삭제하지 못했습니다.",
-    "errImageTooLarge": "That photo is over 10 MB \u2014 pick a smaller one.",
+    "errImageTooLarge": "That photo is over 10 MB — pick a smaller one.",
     "errLoad": "장소를 불러오지 못했습니다.",
     "errNameFirst": "먼저 장소 이름을 정한 뒤 이미지를 선택하세요.",
     "errNameUrl": "장소에 이름과 이미지 URL을 지정하세요.",
@@ -14092,7 +14095,11 @@
     "tplPriceDesc": "밝은 영수증 밴드 위에 투명한 숫자.",
     "tplCourseName": "미니 코스",
     "tplCourseDesc": "수업 전체를 슬라이드마다 액자에 담았습니다.",
-    "templateLinkMissed": "그 템플릿 링크가 일치하지 않았습니다 — 시작할 템플릿을 골라 주세요."
+    "templateLinkMissed": "그 템플릿 링크가 일치하지 않았습니다 — 시작할 템플릿을 골라 주세요.",
+    "tplTimelineName": "Timeline Journey",
+    "tplTimelineDesc": "Dated milestones on one rising road — where you started, where you stand.",
+    "tplProsConsName": "Pros & Cons",
+    "tplProsConsDesc": "One subject, both sides — the case for, the case against, the verdict."
   },
   "videoTemplates": {
     "applyCta": "템플릿 적용 · {{price}} Visual Bucs",
@@ -20644,23 +20651,23 @@
     "modeText": "Text to Video",
     "modeImage": "Image to Video",
     "uploadPhoto": "Upload a photo",
-    "promptPlaceholder": "Describe your video\u2026",
+    "promptPlaceholder": "Describe your video…",
     "cameraLabel": "Camera Movement",
     "durationLabel": "Duration",
     "aspectLabel": "Aspect Ratio",
     "generate": "Generate Video Clip",
-    "generating": "Generating\u2026",
+    "generating": "Generating…",
     "resultsLabel": "Fresh from the studio",
     "failed": "Generation failed",
-    "emptySuccess": "Generation finished without a clip \u2014 no Visual Bucs were charged.",
-    "timedOut": "Generation timed out \u2014 the clip may still finish in the background.",
-    "errorNotImage": "That file isn\u2019t an image \u2014 choose a photo.",
-    "errorImageTooLarge": "That photo is over 10 MB \u2014 pick a smaller one."
+    "emptySuccess": "Generation finished without a clip — no Visual Bucs were charged.",
+    "timedOut": "Generation timed out — the clip may still finish in the background.",
+    "errorNotImage": "That file isn’t an image — choose a photo.",
+    "errorImageTooLarge": "That photo is over 10 MB — pick a smaller one."
   },
   "worldRepurposeDesk": {
     "title": "Content Repurposer",
     "fromProject": "From your project",
-    "outOfBucs": "You\u2019re out of Visual Bucs for the Repurpose pack. Top up at the Treasury\u2019s Visual Buc Packs desk and run it again."
+    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again."
   },
   "worldRemixDesk": {
     "title": "Remix Trends",

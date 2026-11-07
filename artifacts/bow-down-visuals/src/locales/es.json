@@ -2111,7 +2111,10 @@
     "soundNotLoadedShort": "not loaded",
     "soundPickerAria": "{{label}} sound",
     "soundSaved": "Saved sound",
-    "soundSessionOnlyShort": "this session only"
+    "soundSessionOnlyShort": "this session only",
+    "presetRnB": "R&B",
+    "presetJerseyClub": "Jersey Club",
+    "presetLofi": "Lo-Fi"
   },
   "beats": {
     "errorTitleUrlRequired": "Título y URL de audio son requeridos.",
@@ -5179,7 +5182,7 @@
   "locations": {
     "addLocation": "Agregar una ubicación",
     "errDelete": "No se pudo eliminar la ubicación.",
-    "errImageTooLarge": "That photo is over 10 MB \u2014 pick a smaller one.",
+    "errImageTooLarge": "That photo is over 10 MB — pick a smaller one.",
     "errLoad": "No se pudieron cargar las ubicaciones.",
     "errNameFirst": "Nombra primero la ubicación y luego elige una imagen.",
     "errNameUrl": "Dale un nombre a la ubicación y una URL de imagen.",
@@ -14684,7 +14687,11 @@
     "tplPriceDesc": "Números transparentes en una banda brillante de recibo.",
     "tplCourseName": "Mini curso",
     "tplCourseDesc": "Una lección completa, enmarcada diapositiva a diapositiva.",
-    "templateLinkMissed": "Ese enlace de plantilla no coincidió: elige una plantilla para empezar."
+    "templateLinkMissed": "Ese enlace de plantilla no coincidió: elige una plantilla para empezar.",
+    "tplTimelineName": "Timeline Journey",
+    "tplTimelineDesc": "Dated milestones on one rising road — where you started, where you stand.",
+    "tplProsConsName": "Pros & Cons",
+    "tplProsConsDesc": "One subject, both sides — the case for, the case against, the verdict."
   },
   "videoTemplates": {
     "applyCta": "Aplicar plantilla · {{price}} Visual Bucs",
@@ -20673,23 +20680,23 @@
     "modeText": "Text to Video",
     "modeImage": "Image to Video",
     "uploadPhoto": "Upload a photo",
-    "promptPlaceholder": "Describe your video\u2026",
+    "promptPlaceholder": "Describe your video…",
     "cameraLabel": "Camera Movement",
     "durationLabel": "Duration",
     "aspectLabel": "Aspect Ratio",
     "generate": "Generate Video Clip",
-    "generating": "Generating\u2026",
+    "generating": "Generating…",
     "resultsLabel": "Fresh from the studio",
     "failed": "Generation failed",
-    "emptySuccess": "Generation finished without a clip \u2014 no Visual Bucs were charged.",
-    "timedOut": "Generation timed out \u2014 the clip may still finish in the background.",
-    "errorNotImage": "That file isn\u2019t an image \u2014 choose a photo.",
-    "errorImageTooLarge": "That photo is over 10 MB \u2014 pick a smaller one."
+    "emptySuccess": "Generation finished without a clip — no Visual Bucs were charged.",
+    "timedOut": "Generation timed out — the clip may still finish in the background.",
+    "errorNotImage": "That file isn’t an image — choose a photo.",
+    "errorImageTooLarge": "That photo is over 10 MB — pick a smaller one."
   },
   "worldRepurposeDesk": {
     "title": "Content Repurposer",
     "fromProject": "From your project",
-    "outOfBucs": "You\u2019re out of Visual Bucs for the Repurpose pack. Top up at the Treasury\u2019s Visual Buc Packs desk and run it again."
+    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again."
   },
   "worldRemixDesk": {
     "title": "Remix Trends",

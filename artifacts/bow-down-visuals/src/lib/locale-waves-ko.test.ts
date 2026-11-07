@@ -151,7 +151,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     // proper-noun / number / format example placeholders
     "academy.nichePlaceholder", "academy.hoursPlaceholder", "fomoFeed.load_error", "fomoFeed.load_retry", "auth.emailPlaceholder",
     "auth.passwordPlaceholder", "productPhotoStudio.pastePlaceholder",
-    "carouselMaker.brandColorsPlaceholder",
+    "carouselMaker.brandColorsPlaceholder", "carouselMaker.tplTimelineName", "carouselMaker.tplTimelineDesc", "carouselMaker.tplProsConsName", "carouselMaker.tplProsConsDesc",
     // brand currency / placeholder-only
     "promo-clip.creditBadge", "productPhotoStudio.credits",
     // house mode names (kept in English across the existing ko catalog)
@@ -320,7 +320,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "voiceover.creditsEstimate", "scheduler.bestTime.cost", "scheduler.bestTime.bucs",
     "myProjects.visualBucsUsed", "mashup.priceBadge",
     // proper-noun / example placeholders (incl. example lyrics)
-    "beatMaker.titlePlaceholder", "beatMaker.bpmValue", "beats.titlePlaceholder",
+    "beatMaker.titlePlaceholder", "beatMaker.bpmValue", "beatMaker.presetRnB", "beatMaker.presetJerseyClub", "beatMaker.presetLofi", "beats.titlePlaceholder",
     "beats.keyPlaceholder", "beats.moodTagsPlaceholder", "lyricVideo.lyricsPlaceholder",
     // brand fragment / house mode names / punctuation
     "beatMaker.soundBankComing",

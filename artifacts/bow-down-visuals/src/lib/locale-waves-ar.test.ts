@@ -186,7 +186,7 @@ const W2_ALLOW = new Set([
   "fomoFeed.load_retry",
   "auth.emailPlaceholder",
   "auth.passwordPlaceholder",
-  "carouselMaker.brandColorsPlaceholder",
+  "carouselMaker.brandColorsPlaceholder", "carouselMaker.tplTimelineName", "carouselMaker.tplTimelineDesc", "carouselMaker.tplProsConsName", "carouselMaker.tplProsConsDesc",
   "common.visualBucs",
   "home.vaultBodyB",
   "productPhotoStudio.credits",
@@ -379,6 +379,9 @@ const W4_NS = [
 const W4_ALLOW = new Set([
   "beatMaker.bpmLabel",
   "beatMaker.bpmValue",
+  "beatMaker.presetJerseyClub",
+  "beatMaker.presetLofi",
+  "beatMaker.presetRnB",
   "beatMaker.soundBankComing",
   "beatMaker.soundGroupBank",
   "beatMaker.soundGroupBuiltIn",

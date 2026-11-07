@@ -41,12 +41,31 @@ function functionBody(src: string, name: string): string {
 }
 
 describe("song preset registry — exists and is organised", () => {
-  it("carries 18 presets: 6 by genre, 6 by mood & vibe, 6 by structure", () => {
-    expect(SONG_PRESETS).toHaveLength(18);
+  it("carries 21 presets: 8 by genre, 6 by mood & vibe, 7 by structure", () => {
+    expect(SONG_PRESETS).toHaveLength(21);
     expect(SONG_PRESET_GROUPS.map((g) => g.id)).toEqual(["genre", "mood", "structure"]);
+    const counts: Record<SongPresetGroup, number> = { genre: 8, mood: 6, structure: 7 };
     for (const group of SONG_PRESET_GROUPS) {
-      expect(songPresetsByGroup(group.id as SongPresetGroup)).toHaveLength(6);
+      expect(songPresetsByGroup(group.id as SongPresetGroup)).toHaveLength(counts[group.id as SongPresetGroup]);
     }
+  });
+
+  it("the Stack 200 U2 presets set exactly the form values their labels name", () => {
+    /* Gospel + Country were always real genre-select values with no
+       preset reaching for them; build-and-drop is the dance structure
+       the structure group lacked. */
+    const gospel = getSongPreset("gospel-choir")!;
+    expect(gospel.group).toBe("genre");
+    expect(gospel.form.genre).toBe("Gospel");
+    const country = getSongPreset("country-story")!;
+    expect(country.group).toBe("genre");
+    expect(country.form.genre).toBe("Country");
+    const drop = getSongPreset("build-and-drop")!;
+    expect(drop.group).toBe("structure");
+    expect(drop.form.specialInstructions).toContain("Structure:");
+    expect(drop.form.specialInstructions!.toLowerCase()).toContain("drop");
+    expect(drop.form.genre).toBeUndefined();
+    expect(drop.form.songLength).toBeUndefined();
   });
 
   it("ids and labels are unique; every preset has an emoji and a Simple prompt", () => {
