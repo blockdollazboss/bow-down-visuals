@@ -116,7 +116,7 @@ const W1_LEGIT: ReadonlySet<string> = new Set([
   "referrals.tracker.earned",
   "royalties.insights.cost",
   "shop.totalLabel",
-  "sponsorDealDetail.followersPlaceholder",
+  "sponsorDealDetail.applicationsLoadError", "sponsorDealDetail.followersPlaceholder", "sponsorDealDetail.retryLoad",
   "sponsors.matchFollowersPlaceholder",
   "sponsors.matchPlatformsPlaceholder",
   "sponsorsPost.budgetMaxPlaceholder",

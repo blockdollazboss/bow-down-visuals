@@ -1,5 +1,6 @@
 import { plainErrorText } from "../lib/api-error";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Zap, Save } from "lucide-react";
 import { goldButton, ghostButton } from "@/lib/community-ui";
 import {
@@ -38,20 +39,31 @@ interface MySettings {
 }
 
 export function PriorityDmSettingsCard({ api, onNotice }: { api: Api; onNotice: (msg: string) => void }) {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<MySettings | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [windowHours, setWindowHours] = useState(48);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoadError(false);
     api.get("/api/priority-dms/my-settings").then(
       (d) => {
         const s = d as MySettings;
         setSettings(s);
         setWindowHours(s.reply_window_hours || 48);
       },
-      () => setSettings({ platform_enabled: false, opted_in: false, min_price_vb: null, price_vb: 100, reply_window_hours: 48 }),
+      /* Empty-lie fix (the fabricated variant): a failed load must
+         NEVER invent a settings object. The old handler seeded a
+         fabricated all-off / opted-out settings object — telling the
+         creator priority DMs were off platform-wide and they were
+         opted out, with a live save form sitting on the invented
+         state. Now failure shows an error and no form at all. */
+      () => setLoadError(true),
     );
   }, [api]);
+
+  useEffect(() => { load(); }, [load]);
 
   async function save(optedIn: boolean) {
     setSaving(true);
@@ -71,7 +83,30 @@ export function PriorityDmSettingsCard({ api, onNotice }: { api: Api; onNotice: 
 
   const priceVb = settings?.price_vb ?? 100;
 
-  if (!settings) return null;
+  if (loadError) {
+    return (
+      <div className="rounded-xl border border-red-500/30 bg-red-500/[0.04] p-3" data-testid="priority-dm-settings-error">
+        <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.15em] text-[#e8c86a]">
+          <Zap className="h-3.5 w-3.5" /> Priority DMs
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-red-300">{t("priorityDm.settingsLoadError")}</p>
+        <button type="button" onClick={load} className={`${ghostButton} mt-3`} data-testid="priority-dm-settings-retry">
+          {t("priorityDm.retry")}
+        </button>
+      </div>
+    );
+  }
+
+  if (!settings) {
+    return (
+      <div className="rounded-xl border border-white/10 bg-black/40 p-3" data-testid="priority-dm-settings-loading">
+        <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.15em] text-[#e8c86a]">
+          <Zap className="h-3.5 w-3.5" /> Priority DMs
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-white/50">{t("priorityDm.settingsLoading")}</p>
+      </div>
+    );
+  }
   return (
     <div className="rounded-xl border border-white/10 bg-black/40 p-3" data-testid="priority-dm-settings">
       <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.15em] text-[#e8c86a]">

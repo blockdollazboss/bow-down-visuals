@@ -5464,7 +5464,9 @@
     "winsPlaceholder": "예: 지난 발매 200만 조회, 오프닝 공연…",
     "writingPitch": "작성 중…",
     "yourDeal": "내 거래",
-    "writeSponsorRead": "스폰서 멘트 작성하기"
+    "writeSponsorRead": "스폰서 멘트 작성하기",
+    "applicationsLoadError": "Applications couldn't load — the count above is the real number; the list just didn't come through.",
+    "retryLoad": "Try again"
   },
   "sponsors": {
     "emptyNoDeals": "활성 거래가 아직 없습니다",
@@ -5738,7 +5740,7 @@
     "heroTitleAccent": "스토어프론트",
     "openYourShop": "내 숍 열기",
     "pageTitle": "크리에이터 스토어프론트",
-    "planNote": "Every creator can open a shop \u00b7 5% platform fee on sales",
+    "planNote": "Every creator can open a shop · 5% platform fee on sales",
     "productPlural": "상품",
     "productSingular": "상품",
     "searchPlaceholder": "숍, 크리에이터, 분위기 검색…",
@@ -24251,23 +24253,42 @@
   },
   "profileHosting": {
     "heading": "Profile Hosting",
-    "tagline": "Your page is your website \u2014 on your own domain, with clean branding, hosted by us.",
+    "tagline": "Your page is your website — on your own domain, with clean branding, hosted by us.",
     "pricePerMonth": "${{price}}/month",
-    "includedWithEliteNote": "Included with Creator Elite \u2014 Elite members get Hosting free while subscribed, with no separate charge.",
-    "eliteActive": "Hosting is on for your page \u2014 it's included with your Creator Elite plan.",
+    "includedWithEliteNote": "Included with Creator Elite — Elite members get Hosting free while subscribed, with no separate charge.",
+    "eliteActive": "Hosting is on for your page — it's included with your Creator Elite plan.",
     "adminActive": "Hosting is on for your page.",
     "hostingActive": "Hosting is active on your page.",
     "activeUntil": "Your current period runs to {{date}}.",
-    "renewsNote": "Renews monthly. Manage or cancel any time in Settings \u2192 Billing.",
-    "buyButton": "Get Hosting \u2014 ${{price}}/month",
-    "openingCheckout": "Opening checkout\u2026",
+    "renewsNote": "Renews monthly. Manage or cancel any time in Settings → Billing.",
+    "buyButton": "Get Hosting — ${{price}}/month",
+    "openingCheckout": "Opening checkout…",
     "checkoutDidntStart": "Checkout didn't start. Try again in a minute.",
-    "notSwitchedOn": "Hosting checkout isn't switched on yet \u2014 the price is set, but there's nothing to pay today.",
-    "noProfile": "Create your creator profile first \u2014 Hosting runs your page.",
-    "signInPrompt": "Sign in to get Hosting for your page \u2192",
-    "loadFailed": "Couldn't load your hosting state \u2014 tap to retry.",
-    "switchingOn": "Payment received \u2014 your Hosting is switching on. This page refreshes itself as soon as it's live.",
-    "cancelCheckout": "Cancel \u2014 no charge",
-    "siteAnchorNote": "Hosting takes it further: your profile page becomes your whole website, on your own domain with clean branding \u2014 ${{price}}/month standalone, or included with Creator Elite."
+    "notSwitchedOn": "Hosting checkout isn't switched on yet — the price is set, but there's nothing to pay today.",
+    "noProfile": "Create your creator profile first — Hosting runs your page.",
+    "signInPrompt": "Sign in to get Hosting for your page →",
+    "loadFailed": "Couldn't load your hosting state — tap to retry.",
+    "switchingOn": "Payment received — your Hosting is switching on. This page refreshes itself as soon as it's live.",
+    "cancelCheckout": "Cancel — no charge",
+    "siteAnchorNote": "Hosting takes it further: your profile page becomes your whole website, on your own domain with clean branding — ${{price}}/month standalone, or included with Creator Elite."
+  },
+  "offersInbox": {
+    "loading": "Loading offers…",
+    "loadError": "Your offers couldn't load — buyers' offers may be waiting on you. Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "priorityDm": {
+    "settingsLoading": "Loading your priority DM settings…",
+    "settingsLoadError": "Your priority DM settings couldn't load, so nothing here is guessed — your real settings are unchanged and nothing can be saved until they load. Try again.",
+    "retry": "Try again"
+  },
+  "bookArtist": {
+    "loadError": "Bookings couldn't load — bookings may be waiting here. Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "subscriptionHistory": {
+    "loading": "Loading your subscription receipts…",
+    "loadError": "Your subscription receipts couldn't load — try again.",
+    "retry": "Try again"
   }
 }

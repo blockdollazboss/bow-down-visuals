@@ -33,10 +33,13 @@ describe("PriorityDmPanel platform-price copy", () => {
   });
 
   it("pins the displayed fallback price to the rail price (100)", () => {
-    /* The card falls back to 100 when settings carry no price, and the
-       error-path settings seed 100 too — both must stay the rail's
-       platform price (PRIORITY_DM_PRICE_VB / priorityDmPriceVb). */
+    /* The card falls back to 100 when loaded settings carry no price —
+       that fallback must stay the rail's platform price
+       (PRIORITY_DM_PRICE_VB / priorityDmPriceVb). (Stack-200 D1: the
+       old error-path settings seed that also carried price_vb: 100 was
+       the fabricated-state defect and is gone — a failed load now
+       shows an error, never invented settings.) */
     expect(panel).toContain("settings?.price_vb ?? 100");
-    expect(panel).toContain("price_vb: 100");
+    expect(panel).not.toContain("platform_enabled: false, opted_in: false");
   });
 });

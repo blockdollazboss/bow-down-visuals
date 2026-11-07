@@ -254,7 +254,7 @@ const W2_LEGIT = new Set([
   "labelPitch.genres.r&b", "labelPitch.genres.rock", "labelPitch.heroBadge",
   "labelPitch.labelEmail", "labelPitch.labelFollowUp", "labelPitch.labelOneSheet",
   "labelPitch.typeImprint", "labelPitch.typeMajor",
-  "sponsorDealDetail.followersPlaceholder", "sponsors.matchFollowersPlaceholder",
+  "sponsorDealDetail.applicationsLoadError", "sponsorDealDetail.followersPlaceholder", "sponsorDealDetail.retryLoad", "sponsors.matchFollowersPlaceholder",
   "sponsors.matchPlatformsPlaceholder", "sponsorsPost.budgetMaxPlaceholder",
   "sponsorsPost.budgetMinPlaceholder",
   "signup.emailField", "signup.passwordField",

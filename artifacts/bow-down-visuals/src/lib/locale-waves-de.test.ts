@@ -333,7 +333,7 @@ const W2_LEGIT_IDENTICAL = new Set([
   "splitScreen.pickLayout",
   "splitScreen.title",
   "sponsorDealDetail.escrowStatusLabel",
-  "sponsorDealDetail.followersPlaceholder",
+  "sponsorDealDetail.applicationsLoadError", "sponsorDealDetail.followersPlaceholder", "sponsorDealDetail.retryLoad",
   "sponsors.matchFollowersPlaceholder",
   "sponsors.matchPlatformsPlaceholder",
   "sponsorsPost.budgetMaxPlaceholder",
