@@ -10,7 +10,7 @@ import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./Native
 import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { centsToDisplay } from "@/lib/shops";
 import { formatDropLocal } from "@/lib/product-drop";
-import { CHECKOUT_TRANSFER_LABEL, hostedCheckoutUrl } from "@/lib/world/shop-stands";
+import { checkoutTransferLabel, hostedCheckoutUrl } from "@/lib/world/shop-stands";
 import {
   buildDropSchedulePayload, buildSeriesCreatePayload,
   buildSeriesPreviewPatch, buildSeriesPricePatch, dropLocalInputValue, dropScheduleProblem,
@@ -406,7 +406,7 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
                 {!embedded && (
                   <button type="button" data-testid="world-series-unlock-start" onClick={() => void startUnlock()} disabled={unlockBusy} className={goldBtn(unlockBusy)}>
                     {unlockBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    {CHECKOUT_TRANSFER_LABEL} · {centsToDisplay(unlockItem.priceCents)}
+                    {checkoutTransferLabel(t)} · {centsToDisplay(unlockItem.priceCents)}
                   </button>
                 )}
               </div>

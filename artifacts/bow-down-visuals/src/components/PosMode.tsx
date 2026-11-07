@@ -54,7 +54,7 @@ const ghostBtn =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/[0.07] hover:text-white disabled:opacity-50 disabled:pointer-events-none";
 
 export default function PosMode({ shop, products, authed }: PosModeProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [phase, setPhase] = useState<"building" | "awaiting" | "paid" | "cashDone">("building");
@@ -263,7 +263,7 @@ export default function PosMode({ shop, products, authed }: PosModeProps) {
           <p className="mt-2 text-sm text-white/50">
             {pay
               ? t("myShop.pos.paidDetail", {
-                  defaultValue: `The customer paid ${centsToDisplay(pay.grossCents)}. The 5% platform fee (${centsToDisplay(pay.feeCents)}) came out of your cut, same as an online sale — you receive ${centsToDisplay(pay.netCents)}. It shows in your shop sales like any other order.`,
+                  defaultValue: `The customer paid ${centsToDisplay(pay.grossCents, i18n.language)}. The 5% platform fee (${centsToDisplay(pay.feeCents, i18n.language)}) came out of your cut, same as an online sale — you receive ${centsToDisplay(pay.netCents, i18n.language)}. It shows in your shop sales like any other order.`,
                 })
               : t("myShop.pos.paidFreeDetail", {
                   defaultValue: "No payment was needed for these items, and none was taken. The sale is recorded in your shop sales.",
@@ -283,7 +283,7 @@ export default function PosMode({ shop, products, authed }: PosModeProps) {
           </h3>
           <p className="mt-2 text-sm text-white/50">
             {t("myShop.pos.cashDetail", {
-              defaultValue: `${centsToDisplay(cashTotal)} is logged in your Money Tracker as in-person cash. No platform fee on cash — the money is already in your hand. You can edit or remove the entry any time in the Money Tracker.`,
+              defaultValue: `${centsToDisplay(cashTotal, i18n.language)} is logged in your Money Tracker as in-person cash. No platform fee on cash — the money is already in your hand. You can edit or remove the entry any time in the Money Tracker.`,
             })}
           </p>
           <button className={`${goldBtn} mt-5`} onClick={resetSale}>
@@ -303,7 +303,7 @@ export default function PosMode({ shop, products, authed }: PosModeProps) {
             </h3>
             <p className="mt-1 text-sm text-white/50">
               {t("myShop.pos.awaitingDetail", {
-                defaultValue: `${pay.itemCount} item${pay.itemCount === 1 ? "" : "s"} — ${centsToDisplay(pay.grossCents)} total. The 5% platform fee (${centsToDisplay(pay.feeCents)}) comes out of your cut; you receive ${centsToDisplay(pay.netCents)}. This screen updates on its own when the payment lands.`,
+                defaultValue: `${pay.itemCount} item${pay.itemCount === 1 ? "" : "s"} — ${centsToDisplay(pay.grossCents, i18n.language)} total. The 5% platform fee (${centsToDisplay(pay.feeCents, i18n.language)}) comes out of your cut; you receive ${centsToDisplay(pay.netCents, i18n.language)}. This screen updates on its own when the payment lands.`,
               })}
             </p>
             <div className="mt-3 flex items-center gap-2 text-sm text-amber-200">
@@ -376,7 +376,7 @@ export default function PosMode({ shop, products, authed }: PosModeProps) {
                           </div>
                         )}
                         <div className="mt-2 line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug">{p.name}</div>
-                        <div className="text-sm font-bold text-amber-300">{centsToDisplay(p.price_cents)}</div>
+                        <div className="text-sm font-bold text-amber-300">{centsToDisplay(p.price_cents, i18n.language)}</div>
                       </button>
                       {qty > 0 && (
                         <div className="mt-2 flex items-center justify-between rounded-xl bg-black/40 px-1 py-1">
@@ -416,13 +416,13 @@ export default function PosMode({ shop, products, authed }: PosModeProps) {
                       {lines.map((l) => (
                         <li key={l.product.id} className="flex items-center justify-between text-sm">
                           <span className="text-white/75">{l.product.name} <span className="text-white/40">×{l.qty}</span></span>
-                          <span className="font-semibold">{centsToDisplay(l.gross)}</span>
+                          <span className="font-semibold">{centsToDisplay(l.gross, i18n.language)}</span>
                         </li>
                       ))}
                     </ul>
                     <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
                       <span className="font-bold">{t("myShop.pos.total", { defaultValue: "Total" })}</span>
-                      <span className="text-lg font-bold text-amber-300">{centsToDisplay(totalCents)}</span>
+                      <span className="text-lg font-bold text-amber-300">{centsToDisplay(totalCents, i18n.language)}</span>
                     </div>
                     <p className="mt-2 text-xs text-white/40">
                       {t("myShop.pos.feeNote", {
@@ -438,7 +438,7 @@ export default function PosMode({ shop, products, authed }: PosModeProps) {
                       <button className={ghostBtn} onClick={recordCash} disabled={busy !== null}>
                         {busy === "cash" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Banknote className="w-4 h-4" />}
                         {t("myShop.pos.recordCash", {
-                          defaultValue: `Record ${centsToDisplay(totalCents)} cash sale`,
+                          defaultValue: `Record ${centsToDisplay(totalCents, i18n.language)} cash sale`,
                         })}
                       </button>
                       <button className={ghostBtn} onClick={() => setCart({})} disabled={busy !== null}>

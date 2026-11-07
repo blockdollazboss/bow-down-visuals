@@ -67,31 +67,86 @@ export function publishingSheetPath(id: string): string {
   return `/api/publishing-splits/${encodeURIComponent(id)}/sheet`;
 }
 
-export function publishingStateLabel(state: string): string {
+/* ─── Locale strings (Stack 200 Lane E1, item E-2) ───────────────────
+   Optional string bundle for the display words this seam speaks —
+   the state / writer-status labels and the split validator's
+   messages. Defaults are the English literals VERBATIM, so existing
+   callers and tests see byte-identical output; a localized caller
+   passes its catalog's words through (the publishingSplits.*
+   catalog keys). PUBLISHING_COPY above is NOT part of this bundle:
+   it is server-owned copy, sentence-identical to the API's
+   PUBLISHING_COPY, and stays English by the money-copy rule. */
+
+export interface PublishingSplitsStrings {
+  stateConfirmed: string;
+  stateAwaitingConfirmations: string;
+  stateDisputed: string;
+  stateRegistered: string;
+  writerConfirmed: string;
+  writerDisputed: string;
+  writerPending: string;
+  writerUnlinked: string;
+  validationEmpty: string;
+  validationTooMany: string;
+  validationNameRequired: string;
+  validationShareNotNumber: string;
+  validationShareRange: string;
+  validationShareDecimals: string;
+  validationDuplicateAccount: string;
+  /** The total-mismatch message — a function because the total is data. */
+  validationTotalMismatch: (total: string) => string;
+}
+
+export const DEFAULT_PUBLISHING_SPLITS_STRINGS: PublishingSplitsStrings = {
+  stateConfirmed: "All writers confirmed",
+  stateAwaitingConfirmations: "Awaiting writer confirmations",
+  stateDisputed: "Disputed — flagged for review (shares unchanged)",
+  stateRegistered: "Registered",
+  writerConfirmed: "Confirmed",
+  writerDisputed: "Disputed",
+  writerPending: "Awaiting confirmation",
+  writerUnlinked: "Not on Bow Down Visuals",
+  validationEmpty: "Add at least one songwriter.",
+  validationTooMany: "A song can list at most 20 songwriters.",
+  validationNameRequired: "Each songwriter needs a name.",
+  validationShareNotNumber: "Each songwriter's share must be a number.",
+  validationShareRange: "Each songwriter's share must be more than 0% and no more than 100%.",
+  validationShareDecimals: "Shares can have at most two decimal places.",
+  validationDuplicateAccount: "The same account can't be listed twice on one song — combine their shares into one entry.",
+  validationTotalMismatch: (total: string) => `Songwriter shares must total 100% — yours total ${total}%.`,
+};
+
+function publishingStrings(strings?: Partial<PublishingSplitsStrings>): PublishingSplitsStrings {
+  return { ...DEFAULT_PUBLISHING_SPLITS_STRINGS, ...strings };
+}
+
+export function publishingStateLabel(state: string, strings?: Partial<PublishingSplitsStrings>): string {
+  const s = publishingStrings(strings);
   switch (state) {
     case "confirmed":
-      return "All writers confirmed";
+      return s.stateConfirmed;
     case "awaiting_confirmations":
-      return "Awaiting writer confirmations";
+      return s.stateAwaitingConfirmations;
     case "disputed":
-      return "Disputed — flagged for review (shares unchanged)";
+      return s.stateDisputed;
     case "registered":
-      return "Registered";
+      return s.stateRegistered;
     default:
       return state;
   }
 }
 
-export function writerStatusLabel(status: string): string {
+export function writerStatusLabel(status: string, strings?: Partial<PublishingSplitsStrings>): string {
+  const s = publishingStrings(strings);
   switch (status) {
     case "confirmed":
-      return "Confirmed";
+      return s.writerConfirmed;
     case "disputed":
-      return "Disputed";
+      return s.writerDisputed;
     case "pending":
-      return "Awaiting confirmation";
+      return s.writerPending;
     case "unlinked":
-      return "Not on Bow Down Visuals";
+      return s.writerUnlinked;
     default:
       return status;
   }
@@ -105,22 +160,24 @@ export function writerStatusLabel(status: string): string {
  *  identical rule — displays equal rails. */
 export function writerSplitValidationError(
   writers: Array<{ name: string; userId?: string | null; sharePct: number }>,
+  strings?: Partial<PublishingSplitsStrings>,
 ): string | null {
-  if (writers.length === 0) return "Add at least one songwriter.";
-  if (writers.length > 20) return "A song can list at most 20 songwriters.";
+  const s = publishingStrings(strings);
+  if (writers.length === 0) return s.validationEmpty;
+  if (writers.length > 20) return s.validationTooMany;
   const seen = new Set<string>();
   for (const w of writers) {
-    if (!w.name || w.name.trim() === "") return "Each songwriter needs a name.";
-    if (typeof w.sharePct !== "number" || !Number.isFinite(w.sharePct)) return "Each songwriter's share must be a number.";
-    if (w.sharePct <= 0 || w.sharePct > 100) return "Each songwriter's share must be more than 0% and no more than 100%.";
-    if (Math.abs(w.sharePct * 100 - Math.round(w.sharePct * 100)) > 1e-9) return "Shares can have at most two decimal places.";
+    if (!w.name || w.name.trim() === "") return s.validationNameRequired;
+    if (typeof w.sharePct !== "number" || !Number.isFinite(w.sharePct)) return s.validationShareNotNumber;
+    if (w.sharePct <= 0 || w.sharePct > 100) return s.validationShareRange;
+    if (Math.abs(w.sharePct * 100 - Math.round(w.sharePct * 100)) > 1e-9) return s.validationShareDecimals;
     if (w.userId) {
-      if (seen.has(w.userId)) return "The same account can't be listed twice on one song — combine their shares into one entry.";
+      if (seen.has(w.userId)) return s.validationDuplicateAccount;
       seen.add(w.userId);
     }
   }
   const total = writers.reduce((sum, w) => sum + w.sharePct, 0);
-  if (Math.abs(total - 100) > 0.01) return `Songwriter shares must total 100% — yours total ${total.toFixed(2)}%.`;
+  if (Math.abs(total - 100) > 0.01) return s.validationTotalMismatch(total.toFixed(2));
   return null;
 }
 

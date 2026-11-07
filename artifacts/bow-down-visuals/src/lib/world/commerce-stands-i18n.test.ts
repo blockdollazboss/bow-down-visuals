@@ -24,10 +24,16 @@
  *  - formatting: dates/numbers/currency in the family format with
  *    i18n.language — no hard-coded "en-US", no bare toLocale*() calls.
  *
+ * Stack 200 Lane E1 item E-3 extracted the two seam constants that
+ * used to sit on the not-extracted list: CHECKOUT_TRANSFER_LABEL /
+ * CONTACT_FOR_QUOTE_LABEL now resolve through this namespace
+ * (checkoutTransfer / contactForQuote, referenced from the
+ * shop-stands seam resolvers, constants riding as defaults; the
+ * non-English values are the English source verbatim, UNREVIEWED).
+ *
  * Deliberately NOT extracted (documented in the unit report): rail
  * status/enum humanizers (smartCardOrderStatusLabel,
- * brandingOrderStatusLabel) and the shared CHECKOUT_TRANSFER_LABEL /
- * CONTACT_FOR_QUOTE_LABEL seam constants; shared lib catalog data
+ * brandingOrderStatusLabel); shared lib catalog data
  * (branding-shop products, shop-starters looks, nfc-cards styles,
  * merch seam labels ride as i18next defaultValue fallbacks); jewelry
  * guide/estimate content the rail itself provides; the money-desks
@@ -219,7 +225,9 @@ describe("Commerce stands extraction (unit 41)", () => {
   });
 
   it("the namespace holds the family's full extracted key set", () => {
-    expect(enKeys.length).toBe(872);
+    // 872 at unit 41; +2 for Stack 200 E-3 (checkoutTransfer,
+    // contactForQuote — the shop-stands seam constants, extracted).
+    expect(enKeys.length).toBe(874);
   });
 
   it("every catalog key is referenced by a component or seam (no orphans, no remainder)", () => {

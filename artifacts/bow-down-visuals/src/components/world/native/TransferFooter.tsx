@@ -1,4 +1,5 @@
-import { TRANSFER_BUTTON_LABEL } from "@/lib/world/station-panel";
+import { useTranslation } from "react-i18next";
+import { TRANSFER_BUTTON_LABEL, transferButtonLabel } from "@/lib/world/station-panel";
 
 /* ─── TransferFooter — the one quiet door out (NATIVE-PLAN §3.0) ────
    Every native panel's frame ends with this exact row: the
@@ -21,6 +22,7 @@ export interface TransferFooterProps {
 }
 
 export function TransferFooter({ context, websitePath, isLight }: TransferFooterProps) {
+  const { t } = useTranslation();
   return (
     <div
       data-testid="world-native-transfer-footer"
@@ -46,7 +48,7 @@ export function TransferFooter({ context, websitePath, isLight }: TransferFooter
             : "text-[#e8c86a] hover:border-[#d4af37] hover:text-white"
         }`}
       >
-        {TRANSFER_BUTTON_LABEL}
+        {transferButtonLabel(t, TRANSFER_BUTTON_LABEL)}
       </a>
     </div>
   );

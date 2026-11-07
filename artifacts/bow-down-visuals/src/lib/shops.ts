@@ -28,9 +28,17 @@ export function storefrontFeeCents(grossCents: number): number {
   return Math.round((gross * STOREFRONT_PLATFORM_FEE_BPS) / 10_000);
 }
 
-/** Format integer cents as a display price, e.g. 1999 → "$19.99". */
-export function centsToDisplay(cents: number): string {
+/** Format integer cents as a display price, e.g. 1999 → "$19.99".
+ *  With a locale (Stack 200 Lane E1, item E-3) the amount formats
+ *  through Intl's USD currency formatter for that locale — grouping
+ *  and symbol placement follow the reader's language. Without one
+ *  the legacy literal format rides byte-identical, as the pins
+ *  hold it; callers in a localized surface pass i18n.language. */
+export function centsToDisplay(cents: number, locale?: string): string {
   const safe = Math.max(0, Math.round(cents));
+  if (locale) {
+    return new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }).format(safe / 100);
+  }
   return `$${(safe / 100).toFixed(2)}`;
 }
 

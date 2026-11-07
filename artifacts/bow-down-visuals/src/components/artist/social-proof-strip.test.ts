@@ -60,8 +60,10 @@ describe("SocialProofStrip wiring (source pins)", () => {
     expect(src).toContain("if (live.length === 0) return null;");
   });
   it("renders counts through the exact formatter and dates through the label helper", () => {
-    expect(src).toContain("formatProofValue(f.value)");
-    expect(src).toContain("proofUpdatedLabel(f.updatedAt)");
+    // Stack 200 E-3: the strip passes its ACTIVE locale — the World
+    // desk always did; the 2D strip used to fall back to en-US.
+    expect(src).toContain("formatProofValue(f.value, i18n.language)");
+    expect(src).toContain("proofUpdatedLabel(f.updatedAt, i18n.language)");
     expect(src).toContain("Updated {updated}");
   });
   it("is mounted on the public profile under the masthead badges", () => {

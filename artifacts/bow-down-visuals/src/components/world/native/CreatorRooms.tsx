@@ -73,7 +73,7 @@ import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/c
 import { useUserMode } from "@/contexts/UserModeContext";
 import { centsToDisplay, type CartLine } from "@/lib/shops";
 import {
-  CHECKOUT_TRANSFER_LABEL,
+  checkoutTransferLabel,
   addToCartLines,
   checkoutCompletedInWorld,
   detailedMarketCart,
@@ -1555,7 +1555,15 @@ function openCheckoutTab(url: string) {
 }
 
 function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDetail; isLight: boolean; isGuest: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  /* The gift form's problem sentences, from the catalogs (Stack 200
+     E-3 — the lib/world/gift-cards strings table). */
+  const giftFormStrings = {
+    noAmounts: t("worldCreatorRooms.giftProblemNoAmounts"),
+    pickAmount: t("worldCreatorRooms.giftProblemPickAmount"),
+    pickOffered: t("worldCreatorRooms.giftProblemPickOffered"),
+    recipientEmail: t("worldCreatorRooms.giftProblemRecipientEmail"),
+  };
   const { getAccessToken } = useAuth();
   const authHeaders = async (): Promise<Record<string, string>> => {
     const token = await getAccessToken().catch(() => null);
@@ -1696,7 +1704,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
       setNote(t("worldCreatorRooms.storeGuestNote"));
       return;
     }
-    const problem = giftCardFormProblem(giftForm, giftItem.giftCardDenominationsCents);
+    const problem = giftCardFormProblem(giftForm, giftItem.giftCardDenominationsCents, giftFormStrings);
     if (problem) {
       setGiftError(problem);
       return;
@@ -2005,7 +2013,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                         className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
                       >
                         {busyId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShoppingBag className="h-3.5 w-3.5" />}
-                        {CHECKOUT_TRANSFER_LABEL}
+                        {checkoutTransferLabel(t)}
                       </button>
                     </>
                   ) : rail === "storefront" ? (
@@ -2023,7 +2031,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                         className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-black transition hover:scale-105 disabled:opacity-50"
                       >
                         {busyId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShoppingBag className="h-3.5 w-3.5" />}
-                        {CHECKOUT_TRANSFER_LABEL}
+                        {checkoutTransferLabel(t)}
                       </button>
                     </>
                   ) : rail === "gift" ? (
@@ -2087,7 +2095,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                             : "border-white/15 text-white/75"
                       }`}
                     >
-                      {centsToDisplay(d)}
+                      {centsToDisplay(d, i18n.language)}
                     </button>
                   );
                 })}
@@ -2127,9 +2135,9 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
                 >
                   {giftBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />}
-                  {CHECKOUT_TRANSFER_LABEL}
+                  {checkoutTransferLabel(t)}
                   {giftCardFormAmount(giftForm, giftItem.giftCardDenominationsCents) !== null &&
-                    ` · ${centsToDisplay(giftCardFormAmount(giftForm, giftItem.giftCardDenominationsCents)!)}`}
+                    ` · ${centsToDisplay(giftCardFormAmount(giftForm, giftItem.giftCardDenominationsCents)!, i18n.language)}`}
                 </button>
               )}
               {giftEmbedded && (
@@ -2159,7 +2167,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                         ? t("worldCreatorRooms.giftIssuedDuplicate")
                         : giftIssued.card
                           ? t("worldCreatorRooms.giftIssuedFor", {
-                              amount: centsToDisplay(giftIssued.card.initialCents),
+                              amount: centsToDisplay(giftIssued.card.initialCents, i18n.language),
                               store: giftIssued.card.storeName ?? t("worldCreatorRooms.giftStoreFallback", { name: detail.displayName }),
                               email: giftIssued.card.recipientEmail || t("worldCreatorRooms.giftRecipientFallback"),
                             })
@@ -2206,7 +2214,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
               {detailed.map((l) => (
                 <div key={l.productId} className="flex flex-wrap items-center gap-2 py-1.5">
                   <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{l.product.name}</span>
-                  <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(l.product.price_cents * l.qty)}</span>
+                  <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(l.product.price_cents * l.qty, i18n.language)}</span>
                   <span className="inline-flex items-center gap-1.5">
                     <button type="button" aria-label={t("worldCreatorRooms.storeOneLess")} onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty - 1))} className={chipCls}><Minus className="h-3 w-3" /></button>
                     <span className="w-5 text-center text-sm font-bold">{l.qty}</span>
@@ -2219,7 +2227,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                 <div className="mt-2 space-y-2 border-t border-[#d4af37]/25 pt-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className={mutedCls}>{t("worldCreatorRooms.cartTotal")}</span>
-                    <span className="text-lg font-black">{centsToDisplay(total)}</span>
+                    <span className="text-lg font-black">{centsToDisplay(total, i18n.language)}</span>
                   </div>
                   <input
                     value={buyerEmail}
@@ -2232,7 +2240,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                   {orderError && <p className="text-xs font-semibold text-red-400">{orderError}</p>}
                   <button type="button" data-testid="world-room-store-checkout" onClick={() => void checkoutCart()} disabled={placing} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target">
                     {placing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
-                    {CHECKOUT_TRANSFER_LABEL} · {centsToDisplay(total)}
+                    {checkoutTransferLabel(t)} · {centsToDisplay(total, i18n.language)}
                   </button>
                   <p className={`text-[11px] ${mutedCls}`}>
                     {t("worldCreatorRooms.storeFeeLine")}
@@ -2258,7 +2266,7 @@ function CreatorStorePanel({ detail, isLight, isGuest }: { detail: CreatorRoomDe
                   <p className={`flex items-start gap-2 text-xs font-bold ${isLight ? "text-[#4a6b1f]" : "text-emerald-300"}`}>
                     <Check className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>
-                      {t("worldCreatorRooms.storePaidLine", { amount: centsToDisplay(paidOrder.gross_cents) })}
+                      {t("worldCreatorRooms.storePaidLine", { amount: centsToDisplay(paidOrder.gross_cents, i18n.language) })}
                       {paidOrder.lines.length > 0 && <>{t("worldCreatorRooms.storePaidYoursSuffix", { items: paidOrder.lines.map((l) => l.productName ?? t("worldCreatorRooms.storePaidItemFallback")).join(", ") })}</>}
                     </span>
                   </p>

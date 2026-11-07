@@ -29,7 +29,9 @@ export function CrownsChamber({ isLight }: { isLight: boolean }) {
   useEffect(() => {
     let cancelled = false;
     setFailed(false);
-    fetchCrownsRead()
+    fetchCrownsRead(undefined, {
+      yearName: (year) => t("worldCreatorRooms.crownsYearFallback", { year }),
+    })
       .then((data) => {
         if (!cancelled) {
           if (data) setRead(data);

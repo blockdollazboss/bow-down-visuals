@@ -54,6 +54,48 @@ interface BrandKitPatch {
  *  resolve by (apply-to-theme, the UGC snapshot's primary color). */
 export const BRAND_KIT_COLOR_ROLES = ["primary", "secondary", "accent", "neutral", "background"] as const;
 
+/* ─── Locale strings (Stack 200 Lane E1, item E-2) ───────────────────
+   Optional string bundle for the color-role display labels. The
+   roles themselves are machine keys (they ride payloads and the
+   generator's vocabulary); only their DISPLAY words localize.
+   Defaults are the English display words VERBATIM — the panel used
+   to render the raw key with CSS `capitalize`, which reads exactly
+   as these — so existing callers see identical output; a localized
+   caller passes its catalog's words through (the
+   brandingKit.colorRole.* catalog keys). An unknown role still
+   reads as the key itself. */
+
+export interface BrandKitColorRoleStrings {
+  primary: string;
+  secondary: string;
+  accent: string;
+  neutral: string;
+  background: string;
+}
+
+export const DEFAULT_BRAND_KIT_COLOR_ROLE_STRINGS: BrandKitColorRoleStrings = {
+  primary: "Primary",
+  secondary: "Secondary",
+  accent: "Accent",
+  neutral: "Neutral",
+  background: "Background",
+};
+
+export function brandKitColorRoleLabel(
+  role: string,
+  strings?: Partial<BrandKitColorRoleStrings>,
+): string {
+  const s = { ...DEFAULT_BRAND_KIT_COLOR_ROLE_STRINGS, ...strings };
+  switch (role) {
+    case "primary": return s.primary;
+    case "secondary": return s.secondary;
+    case "accent": return s.accent;
+    case "neutral": return s.neutral;
+    case "background": return s.background;
+    default: return role;
+  }
+}
+
 interface GenerateBrandKitResult {
   /** Raw generated kit, as the endpoint has always returned it. */
   kit: {

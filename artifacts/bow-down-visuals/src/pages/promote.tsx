@@ -9,7 +9,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
-import { SITE_FEATURES } from "@/data/features";
+import { SITE_FEATURES, featureName, featureTagline } from "@/data/features";
 import { SocialKitPanel } from "@/components/hub/SocialKitPanel";
 import { PromoCardsPanel } from "@/components/hub/PromoCardsPanel";
 import { UgcAdsPanel } from "@/components/hub/UgcAdsPanel";
@@ -329,7 +329,7 @@ export default function Promote() {
             >
               {SITE_FEATURES.map((f) => (
                 <option key={f.key} value={f.key} className="bg-black">
-                  {f.name} — {f.tagline}
+                  {featureName(f, t)} — {featureTagline(f, t)}
                 </option>
               ))}
             </select>
@@ -419,7 +419,7 @@ export default function Promote() {
           <div id="promo-results" className="mt-8">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold">
-                {t("promote.results.titlePrefix")} <span className="text-primary">{feature.name}</span>
+                {t("promote.results.titlePrefix")} <span className="text-primary">{featureName(feature, t)}</span>
               </h2>
               <button
                 onClick={generate}

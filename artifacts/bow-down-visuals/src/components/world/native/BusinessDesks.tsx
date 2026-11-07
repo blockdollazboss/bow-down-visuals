@@ -30,7 +30,7 @@ import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./Native
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
 import { PressReleaseWriter } from "./PressReleaseWriter";
 import { ContractAnalyzer } from "./ContractAnalyzer";
-import { TRANSFER_BUTTON_LABEL } from "@/lib/world/station-panel";
+import { TRANSFER_BUTTON_LABEL, transferButtonLabel } from "@/lib/world/station-panel";
 import { applyBrandKit, fetchBrandKit, saveBrandKit, saveLogoToBrandKit, BRAND_KIT_COLOR_ROLES, type BrandKit } from "@/lib/brand-kit";
 import {
   fetchMyStreamPackAssets,
@@ -38,7 +38,7 @@ import {
   type StreamPackAssetRecord,
 } from "@/lib/stream-pack";
 import { slugifyHandle, movePressKitLayoutEntry, setPressKitSectionVisible, type PressKitSectionKey } from "@/lib/press-kit";
-import { SITE_FEATURES } from "@/data/features";
+import { SITE_FEATURES, featureName } from "@/data/features";
 import {
   BRAND_KIT_GENERATE_COST_VISUAL_BUCS,
   buildBrandKitGeneratePayload,
@@ -306,6 +306,7 @@ const goldBtn =
 
 /** A folded row's own quiet transfer to its bench (new tab). */
 function RowTransfer({ websitePath, isLight }: { websitePath: string; isLight: boolean }) {
+  const { t } = useTranslation();
   return (
     <a
       href={websitePath}
@@ -315,7 +316,7 @@ function RowTransfer({ websitePath, isLight }: { websitePath: string; isLight: b
         isLight ? "text-[#7A5A12] hover:text-[#2a1e07]" : "text-[#e8c86a] hover:text-white"
       }`}
     >
-      {TRANSFER_BUTTON_LABEL}
+      {transferButtonLabel(t, TRANSFER_BUTTON_LABEL)}
     </a>
   );
 }
@@ -1384,7 +1385,7 @@ export function BrandingKitDesk({ isLight, isGuest }: { isLight: boolean; isGues
             ) : (
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {(spLibrary ?? []).map((asset) => {
-                  const themeName = streamPackThemeLabel(asset.themeId);
+                  const themeName = streamPackThemeLabel(asset.themeId, t);
                   return (
                     <div
                       key={asset.id}
@@ -2618,7 +2619,7 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
         <div className="mb-3 flex flex-wrap gap-2">
           <select aria-label={t("worldCoachMoney.bizWhatToPromoteAria")} className={selectCls(isLight)} value={featureKey} onChange={(e) => setFeatureKey(e.target.value)}>
             {SITE_FEATURES.map((f) => (
-              <option key={f.key} value={f.key}>{f.name}</option>
+              <option key={f.key} value={f.key}>{featureName(f, t)}</option>
             ))}
           </select>
           <select aria-label={t("worldCoachMoney.bizPromoFormatAria")} className={selectCls(isLight)} value={contentType} onChange={(e) => setContentType(e.target.value)}>

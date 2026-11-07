@@ -37,12 +37,13 @@
  * sides — they ride the lock-reason template as tokens); the
  * office-hours default session title "Office hours" (stored
  * DATA — the booked event's title on the palace calendar); the
- * crowns seam's `The Crowns of ${year}` fallback name (a
- * server-data fallback for an unnamed year); the shared
- * CHECKOUT_TRANSFER_LABEL (shop-stands seam, owned by the
- * commerce unit's follow-on list); the gift-cards seam's
- * giftCardFormProblem strings (shared-lib literals — a
- * shared-lib locale follow-on); the profile slug placeholder
+ * crowns seam's `The Crowns of ${year}` fallback name, the shared
+ * CHECKOUT_TRANSFER_LABEL and the gift-cards seam's
+ * giftCardFormProblem strings (all three extracted by Stack 200
+ * Lane E1 item E-3: worldCreatorRooms.crownsYearFallback threaded
+ * through the crowns parser, worldCommerceStands.checkoutTransfer
+ * via the shop-stands seam, worldCreatorRooms.giftProblem* via
+ * the gift-cards strings table); the profile slug placeholder
  * "your-handle" (a pure handle SHAPE, not copy); rail/enum
  * tokens, server-formatted prices and rail-provided words
  * (coverage summaries, pick reasons, storeName, code notes) —
@@ -137,7 +138,9 @@ describe("Creator Rooms extraction (unit 48)", () => {
   });
 
   it("the namespace holds the family's full extracted key set", () => {
-    expect(enKeys.length).toBe(325);
+    // 325 at unit 48; +5 for Stack 200 E-3 (crownsYearFallback +
+    // the four giftProblem* sentences, extracted).
+    expect(enKeys.length).toBe(330);
   });
 
   it("every catalog key is referenced by a component or seam (no orphans, no remainder)", () => {

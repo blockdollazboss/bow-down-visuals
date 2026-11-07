@@ -51,6 +51,27 @@ export function giftCardFormAmount(
   return denominations && denominations.length > 0 ? denominations[0]! : null;
 }
 
+/* ─── Locale strings (Stack 200 Lane E1, item E-3) ─────────────────
+   Optional string bundle for the form-problem sentences. Defaults
+   are the English literals VERBATIM, so existing callers and tests
+   see byte-identical output; a localized caller passes its
+   catalog's words through (the worldCreatorRooms.giftProblem*
+   catalog keys, built by the Creator Rooms store). */
+
+export interface GiftCardFormStrings {
+  noAmounts: string;
+  pickAmount: string;
+  pickOffered: string;
+  recipientEmail: string;
+}
+
+export const DEFAULT_GIFT_CARD_FORM_STRINGS: GiftCardFormStrings = {
+  noAmounts: "This gift card has no amounts to pick from yet — the seller hasn't set any.",
+  pickAmount: "Pick an amount first.",
+  pickOffered: "Pick one of the offered amounts.",
+  recipientEmail: "Add the recipient's email — the gift card is delivered there, not to you.",
+};
+
 /** The form's problem, in the product page's own words where the
  *  page has them — or null when the buy can start. The rail
  *  re-validates everything (recipient email shape, the amount
@@ -58,15 +79,17 @@ export function giftCardFormAmount(
 export function giftCardFormProblem(
   form: GiftCardFormState,
   denominations: number[] | null,
+  strings?: Partial<GiftCardFormStrings>,
 ): string | null {
+  const s = { ...DEFAULT_GIFT_CARD_FORM_STRINGS, ...strings };
   if (!denominations || denominations.length === 0) {
-    return "This gift card has no amounts to pick from yet — the seller hasn't set any.";
+    return s.noAmounts;
   }
   const amount = giftCardFormAmount(form, denominations);
-  if (amount === null) return "Pick an amount first.";
-  if (!denominations.includes(amount)) return "Pick one of the offered amounts.";
+  if (amount === null) return s.pickAmount;
+  if (!denominations.includes(amount)) return s.pickOffered;
   if (!form.recipientEmail.trim()) {
-    return "Add the recipient's email — the gift card is delivered there, not to you.";
+    return s.recipientEmail;
   }
   return null;
 }

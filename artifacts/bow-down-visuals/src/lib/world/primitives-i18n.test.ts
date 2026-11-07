@@ -89,8 +89,13 @@ describe("unit 51 extraction (worldPrimitives)", () => {
     }
   });
 
-  it("TransferFooter still rides the shared TRANSFER_BUTTON_LABEL seam (not extracted)", () => {
+  it("TransferFooter rides the shared transfer seam, key-resolved since Stack 200 E-3", () => {
+    // The footer renders transferButtonLabel(t, TRANSFER_BUTTON_LABEL):
+    // the shared constant stays the default while the words resolve
+    // through worldStationPanel.transferButton. The label is NOT a
+    // worldPrimitives key — it belongs to the station-panel seam.
     expect(sources.TransferFooter).toContain("TRANSFER_BUTTON_LABEL");
+    expect(sources.TransferFooter).toContain("transferButtonLabel(t");
     expect(sources.TransferFooter).not.toContain("worldPrimitives");
   });
 

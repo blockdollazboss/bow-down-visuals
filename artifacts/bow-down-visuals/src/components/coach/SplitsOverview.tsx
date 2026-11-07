@@ -1,6 +1,7 @@
 import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   Users, Loader2, AlertTriangle, Disc3, PiggyBank, Link2, CheckCircle2,
@@ -71,7 +72,17 @@ function fmtMoney(cents: number): string {
 
 export default function SplitsOverview() {
   const isLight = useIsLightTheme();
+  const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
+  /* Split-role words from the catalogs (Stack 200 E-2 — the
+     lib/distribution roleLabel strings table). */
+  const roleStrings = {
+    artist: t("distribution.roleArtist"),
+    producer: t("distribution.roleProducer"),
+    writer: t("distribution.roleWriter"),
+    featured: t("distribution.roleFeatured"),
+    collaborator: t("distribution.roleCollaborator"),
+  };
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -156,7 +167,7 @@ export default function SplitsOverview() {
             {data.collaboratorTotals.map((c) => (
               <div key={c.name.toLowerCase()} className="rounded-2xl border border-white/10 bg-black/40 p-4">
                 <p className="truncate font-bold text-white">{c.name}</p>
-                <p className="text-xs text-white/45">{roleLabel(c.role)}</p>
+                <p className="text-xs text-white/45">{roleLabel(c.role, roleStrings)}</p>
                 <p className="mt-2 font-display text-2xl font-black text-primary">{fmtMoney(c.totalCents)}</p>
               </div>
             ))}
@@ -193,7 +204,7 @@ export default function SplitsOverview() {
                   className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3 py-1.5 text-xs text-white/70"
                 >
                   <b className="text-white">{s.name}</b>
-                  <span className="text-white/45">{roleLabel(s.role)}</span>
+                  <span className="text-white/45">{roleLabel(s.role, roleStrings)}</span>
                   <span className="font-black text-primary">{s.sharePct}%</span>
                 </span>
               ))}

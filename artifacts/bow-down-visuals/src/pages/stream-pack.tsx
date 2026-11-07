@@ -11,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   fetchMyStreamPackAssets,
   setStreamPackAssetApplied,
+  streamPackThemeBlurb,
+  streamPackThemeName,
   type StreamPackAssetRecord,
 } from "@/lib/stream-pack";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -338,8 +340,8 @@ export function StreamPackTool() {
                       />
                     ))}
                   </span>
-                  <p className="font-bold text-white text-sm">{theme.name}</p>
-                  <p className="text-xs text-white/40 mt-0.5">{theme.blurb}</p>
+                  <p className="font-bold text-white text-sm">{streamPackThemeName(theme, t)}</p>
+                  <p className="text-xs text-white/40 mt-0.5">{streamPackThemeBlurb(theme, t)}</p>
                 </button>
               ))}
             </div>
@@ -433,7 +435,7 @@ export function StreamPackTool() {
           <div className="mt-10">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-black text-white">
-                {t("streamPack.yourPack")} {activeTheme ? <span className="text-white/40 font-semibold">· {activeTheme.name}</span> : null}
+                {t("streamPack.yourPack")} {activeTheme ? <span className="text-white/40 font-semibold">· {streamPackThemeName(activeTheme, t)}</span> : null}
               </h2>
               <button
                 onClick={downloadAll}
@@ -518,7 +520,8 @@ export function StreamPackTool() {
             {library !== null && library.length > 0 && (
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {library.map((asset) => {
-                  const themeName = themes.find((th) => th.id === asset.themeId)?.name;
+                  const themeFound = themes.find((th) => th.id === asset.themeId);
+                  const themeName = themeFound ? streamPackThemeName(themeFound, t) : undefined;
                   return (
                     <div key={asset.id} className={`overflow-hidden rounded-2xl border ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                       <img src={asset.url} alt={asset.label} className="aspect-video w-full object-cover bg-black" loading="lazy" />

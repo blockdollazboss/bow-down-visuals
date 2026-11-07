@@ -9,6 +9,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import {
   applyBrandKit,
   BRAND_KIT_COLOR_ROLES,
+  brandKitColorRoleLabel,
   BrandKitRequestError,
   fetchBrandKit,
   generateBrandKit,
@@ -34,6 +35,15 @@ const labelCls = "mb-1.5 block text-[11px] font-black uppercase tracking-widest 
 
 export function BrandKitPanel() {
   const { t } = useTranslation();
+  /* Color-role display words from the catalogs (Stack 200 E-2 — the
+     roles themselves stay machine keys on the record). */
+  const brandKitRoleStrings = {
+    primary: t("brandingKit.colorRole.primary"),
+    secondary: t("brandingKit.colorRole.secondary"),
+    accent: t("brandingKit.colorRole.accent"),
+    neutral: t("brandingKit.colorRole.neutral"),
+    background: t("brandingKit.colorRole.background"),
+  };
   const { getAccessToken } = useAuth();
 
   const [kit, setKit] = useState<BrandKit | null>(null);
@@ -432,7 +442,7 @@ export function BrandKitPanel() {
                   onChange={(e) => setRoleAt(i, e.target.value)}
                 >
                   {BRAND_KIT_COLOR_ROLES.map((r) => (
-                    <option key={r} value={r} className="bg-zinc-900 capitalize">{r}</option>
+                    <option key={r} value={r} className="bg-zinc-900">{brandKitColorRoleLabel(r, brandKitRoleStrings)}</option>
                   ))}
                 </select>
                 <button

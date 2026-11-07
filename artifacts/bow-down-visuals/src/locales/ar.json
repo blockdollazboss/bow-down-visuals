@@ -1863,6 +1863,7 @@
     "shareUpdateFailed": "تعذّر تحديث المشاركة.",
     "deleteFailed": "تعذر حذف ذلك الفنان — حاول مرة أخرى.",
     "sharedLabel": "مشارَك",
+    "sharedWithTeam": "Shared with your team",
     "smoothingLoop": "تنعيم وصلة التكرار…",
     "songPickerHint": "اختر أغنية — يُفصل غناؤها ويُستنسخ في الصوت المثبّت ({{credits}} Visual Bucs). الأفضل مع غناء رئيسي واضح؛ المؤثرات الثقيلة أو الغناء المدفون قد يفشل.",
     "cloneHint": "ارفع تسجيلات — يُستنسخ الصوت فيها في الصوت المثبّت ({{credits}} Visual Bucs). الأفضل مع غناء أو كلام واضح؛ ضوضاء الخلفية أو الموسيقى خلف الصوت تُستنسخ بشكل سيئ.",
@@ -2504,6 +2505,13 @@
     }
   },
   "brandingKit": {
+    "colorRole": {
+      "primary": "Primary",
+      "secondary": "Secondary",
+      "accent": "Accent",
+      "neutral": "Neutral",
+      "background": "Background"
+    },
     "eyebrow": "الهوية التجارية",
     "pageTitle": "عدة العلامة التجارية",
     "subtitle": "كل ما تحتاجه قناتك لتبدو فاخرة — شعارات، وفواصل فيديو، وحزمة بث كاملة، كلها مولّدة بهوية واحدة متطابقة.",
@@ -3965,7 +3973,240 @@
     "please_enter_your_name_and_a_val": "أدخل اسمك وبريداً إلكترونياً صالحاً.",
     "couldn_t_reach_the_site_try_agai": "تعذّر الوصول إلى الموقع. حاول مجدداً بعد قليل."
   },
+  "publishingSplits": {
+    "stateConfirmed": "All writers confirmed",
+    "stateAwaitingConfirmations": "Awaiting writer confirmations",
+    "stateDisputed": "Disputed — flagged for review (shares unchanged)",
+    "stateRegistered": "Registered",
+    "writerConfirmed": "Confirmed",
+    "writerDisputed": "Disputed",
+    "writerPending": "Awaiting confirmation",
+    "writerUnlinked": "Not on Bow Down Visuals",
+    "validationEmpty": "Add at least one songwriter.",
+    "validationTooMany": "A song can list at most 20 songwriters.",
+    "validationNameRequired": "Each songwriter needs a name.",
+    "validationShareNotNumber": "Each songwriter's share must be a number.",
+    "validationShareRange": "Each songwriter's share must be more than 0% and no more than 100%.",
+    "validationShareDecimals": "Shares can have at most two decimal places.",
+    "validationDuplicateAccount": "The same account can't be listed twice on one song — combine their shares into one entry.",
+    "validationTotalMismatch": "Songwriter shares must total 100% — yours total {{total}}%."
+  },
+  "distribution": {
+    "roleArtist": "Artist",
+    "roleProducer": "Producer",
+    "roleWriter": "Writer",
+    "roleFeatured": "Featured",
+    "roleCollaborator": "Collaborator"
+  },
   "features": {
+    "registry": {
+      "creation-hub": {
+        "name": "Creation Hub",
+        "tagline": "Guided workflows — one project, every tool, nothing lost"
+      },
+      "video-generator": {
+        "name": "AI Video Generator",
+        "tagline": "Cinematic AI video scenes"
+      },
+      "lip-sync": {
+        "name": "AI Lip Sync",
+        "tagline": "Perfect mouth-synced vocals on any clip"
+      },
+      "music-maker": {
+        "name": "Music Maker",
+        "tagline": "Full original songs with vocals in minutes"
+      },
+      "audio-studio": {
+        "name": "Audio Studio",
+        "tagline": "Clean up, split stems, master & polish any track"
+      },
+      "video-editor": {
+        "name": "Visual Vibes",
+        "tagline": "Pro timeline editor with transitions & effects"
+      },
+      "thumbnail-maker": {
+        "name": "Thumbnail Maker",
+        "tagline": "Click-magnet thumbnails that get the click"
+      },
+      "hook-studio": {
+        "name": "Hook Studio",
+        "tagline": "First-3-second hooks that stop the scroll"
+      },
+      "randomizer": {
+        "name": "Content Randomizer",
+        "tagline": "Never run out of content ideas again"
+      },
+      "beats-marketplace": {
+        "name": "Beats Marketplace",
+        "tagline": "Buy and sell beats, leases & exclusives"
+      },
+      "video-translator": {
+        "name": "Video Translator",
+        "tagline": "Dub your videos into any language"
+      },
+      "thumbnail-duels": {
+        "name": "Thumbnail Duels",
+        "tagline": "Two thumbnails enter — your fans pick the winner"
+      },
+      "branding-kit": {
+        "name": "Branding Kit",
+        "tagline": "Your whole identity — logos, intros, stream packs & shop"
+      },
+      "logo-maker": {
+        "name": "Logo Maker",
+        "tagline": "A brand mark worthy of your name"
+      },
+      "intros-outros": {
+        "name": "Intros & Outros",
+        "tagline": "Signature openers and closers for your videos"
+      },
+      "stream-packs": {
+        "name": "Stream Packs",
+        "tagline": "Overlays, alerts & panels for your stream"
+      },
+      "promo-clips": {
+        "name": "Promo Clips",
+        "tagline": "Scroll-stopping promo clips from your music"
+      },
+      "virality-check": {
+        "name": "Virality Pre-flight",
+        "tagline": "An honest 0–100 readiness scorecard for your post"
+      },
+      "content-calendar": {
+        "name": "Content Calendar",
+        "tagline": "A month of content planned in minutes"
+      },
+      "discord-live": {
+        "name": "Discord Go Live",
+        "tagline": "Hype your Discord stream like a premiere"
+      },
+      "refer-earn": {
+        "name": "Refer & Earn",
+        "tagline": "Earn 25% of what creators you bring in spend — in Visual Bucs"
+      },
+      "show-finder": {
+        "name": "Show Finder",
+        "tagline": "Gigs and performance opportunities matched to you"
+      },
+      "green-screen": {
+        "name": "Green Screen",
+        "tagline": "Swap your live background with the Behind Me engine"
+      },
+      "widgets-desk": {
+        "name": "Widgets Desk",
+        "tagline": "Widgets and embeds for your other pages"
+      },
+      "stream-overlays": {
+        "name": "Stream Overlays",
+        "tagline": "Live alert, goal & now playing overlays for your stream"
+      },
+      "drop-day-kit": {
+        "name": "Drop Day Kit",
+        "tagline": "Everything your release day needs, in one kit"
+      },
+      "social-feed": {
+        "name": "Creator Feed",
+        "tagline": "New drops from the creators you follow"
+      },
+      "explore": {
+        "name": "Explore",
+        "tagline": "Find creators, sounds & trends worth riding"
+      },
+      "groups": {
+        "name": "Groups",
+        "tagline": "Communities for your niche & your fans"
+      },
+      "contests": {
+        "name": "Creator Contests",
+        "tagline": "Compete, climb the board, land in the Winners' Circle"
+      },
+      "comment-replies": {
+        "name": "Comment Replies",
+        "tagline": "AI replies that turn comments into fans"
+      },
+      "money-coach": {
+        "name": "Monetization Coach",
+        "tagline": "Your money plan: eligibility, RPMs, next moves"
+      },
+      "brand-deals": {
+        "name": "Brand Deals",
+        "tagline": "Find sponsors & send pitch kits that land deals"
+      },
+      "distribute": {
+        "name": "Distribute",
+        "tagline": "Put your music on every streaming platform"
+      },
+      "tips": {
+        "name": "Tips",
+        "tagline": "Your tip page — fans support you right from your profile"
+      },
+      "memberships": {
+        "name": "Memberships",
+        "tagline": "Paid fan memberships with member-only perks"
+      },
+      "storefronts": {
+        "name": "Storefronts",
+        "tagline": "Your own shop front for music & digital products"
+      },
+      "my-shop": {
+        "name": "My Shop",
+        "tagline": "Sell your products, music & merch in one shop"
+      },
+      "creator-academy": {
+        "name": "Creator Academy",
+        "tagline": "Courses that turn talent into a career"
+      },
+      "copyright": {
+        "name": "Copyright Assistant",
+        "tagline": "Protect your music the right way"
+      },
+      "llc-guide": {
+        "name": "LLC Guide",
+        "tagline": "Form your LLC without the lawyer bill"
+      },
+      "earnings": {
+        "name": "Earnings",
+        "tagline": "See what you've earned and what's ready to pay out"
+      },
+      "artist-vault": {
+        "name": "Creator Vault",
+        "tagline": "Your face, voice & brand assets in one vault"
+      },
+      "voice-lock": {
+        "name": "Artist Voice Lock",
+        "tagline": "Lock your AI voice across every song"
+      },
+      "photo-shoot": {
+        "name": "Artist Photo Shoot",
+        "tagline": "Pro artist photos in any style or location"
+      }
+    },
+    "category": {
+      "create": {
+        "label": "Create",
+        "blurb": "Make music, videos, images & brand assets"
+      },
+      "branding": {
+        "label": "Branding",
+        "blurb": "Logos, pages & a look that sells"
+      },
+      "promote": {
+        "label": "Promote",
+        "blurb": "Hooks, clips, calendars & stream hype"
+      },
+      "social": {
+        "label": "Social",
+        "blurb": "Feed, groups & your crowd"
+      },
+      "business": {
+        "label": "Business",
+        "blurb": "Get paid, protected & formalized"
+      },
+      "studio": {
+        "label": "My Studio",
+        "blurb": "Your projects, vault & library"
+      }
+    },
     "cheat_code": "الشفرة السرية",
     "every_ai_tool_a_creator_needs_ma": "كل أداة ذكاء اصطناعي يحتاجها المبدع — اصنع الموسيقى، صوّر الفيديو،\n            اكتب الخطافات، أدر الأعمال. خزنة واحدة، نظام Visual Bucs واحد،\n            صفر أعذار.",
     "get_visual_bucs": "احصل على Visual Bucs",
@@ -5831,6 +6072,32 @@
     "domainsLink": "ربط نطاق مخصص ←"
   },
   "streamPack": {
+    "theme": {
+      "gold-luxury": {
+        "name": "Gold Luxury",
+        "blurb": "Black & gold. The Bow Down Visuals signature."
+      },
+      "neon-cyber": {
+        "name": "Neon Cyber",
+        "blurb": "Cyan & magenta glow on dark."
+      },
+      "crimson-royal": {
+        "name": "Crimson Royal",
+        "blurb": "Deep red & gold. Bold and commanding."
+      },
+      "emerald-empire": {
+        "name": "Emerald Empire",
+        "blurb": "Rich green & gold. Fresh but premium."
+      },
+      "violet-noir": {
+        "name": "Violet Noir",
+        "blurb": "Purple haze on black. Mysterious."
+      },
+      "arctic-frost": {
+        "name": "Arctic Frost",
+        "blurb": "Ice blue & white. Clean and sharp."
+      }
+    },
     "allOn": "الكل مفعّل",
     "assetsTitle": "الأصول في هذه الحزمة ({{count}} محدد · {{cost}} Visual Bucs)",
     "back": "رجوع",
@@ -8952,6 +9219,12 @@
     "download": "تنزيل"
   },
   "royalties": {
+    "loadSummaryFailed": "Couldn't load your royalty summary ({{status}}).",
+    "loadPlatformsFailed": "Couldn't load your platform connections ({{status}}).",
+    "loadPayoutsFailed": "Couldn't load your payouts ({{status}}).",
+    "loadSummaryFallback": "Couldn't load your royalty summary.",
+    "loadPlatformsFallback": "Couldn't load your platform connections.",
+    "loadPayoutsFallback": "Couldn't load your payouts.",
     "eyebrow": "متتبع العوائد",
     "titlePrefix": "كل بث. كل منصة.",
     "titleSuffix": "لوحة واحدة.",
@@ -18560,7 +18833,12 @@
     "subYoureSongwriter": "أنت كاتب أغاني في هذه الأغنية",
     "tryAgain": "حاول مرة أخرى"
   },
+  "worldStationPanel": {
+    "transferButton": "Open on the website ↗"
+  },
   "worldCommerceStands": {
+    "checkoutTransfer": "Continue to checkout on the website",
+    "contactForQuote": "Contact for quote",
     "brandAddedNote": "أُضيف {{label}} إلى سلة التسوق الخاصة بك.",
     "brandCartEmpty": "سلة التسوق فارغة — البضائع أعلاه هي كل ما على رف هذا الجناح.",
     "brandChange": "تغيير",
@@ -21913,6 +22191,11 @@
     "spEscrowTitle": "الضمان"
   },
   "worldCreatorRooms": {
+    "crownsYearFallback": "The Crowns of {{year}}",
+    "giftProblemNoAmounts": "This gift card has no amounts to pick from yet — the seller hasn't set any.",
+    "giftProblemPickAmount": "Pick an amount first.",
+    "giftProblemPickOffered": "Pick one of the offered amounts.",
+    "giftProblemRecipientEmail": "Add the recipient's email — the gift card is delivered there, not to you.",
     "crownsLoadTitle": "تعذّر تحميل التيجان",
     "crownsLoadMessage": "السنوات المحسومة آمنة — انزلق مصباح القراءة. حاول مرة أخرى.",
     "crownsReading": "جارٍ قراءة التيجان…",

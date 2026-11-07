@@ -1815,6 +1815,7 @@
     "unshareTitle": "टीम के साथ साझा किया गया - साझाकरण हटाने के लिए क्लिक करें",
     "shareTitle": "टीम के साथ साझा करें",
     "sharedLabel": "साझा किया गया",
+    "sharedWithTeam": "Shared with your team",
     "shareLabel": "साझा करें",
     "imageTooLarge": "छवि {{max}}MB के अंतर्गत होनी चाहिए.",
     "allowedTypes": "अनुमत प्रकार: JPG, JPEG, PNG, WebP।",
@@ -2500,6 +2501,13 @@
     }
   },
   "brandingKit": {
+    "colorRole": {
+      "primary": "Primary",
+      "secondary": "Secondary",
+      "accent": "Accent",
+      "neutral": "Neutral",
+      "background": "Background"
+    },
     "eyebrow": "ब्रांड आइडेंटिटी",
     "pageTitle": "ब्रांडिंग किट",
     "subtitle": "आपके चैनल को प्रीमियम दिखने के लिए सब कुछ — लोगो, वीडियो स्टिंग्स और पूरा स्ट्रीम बंडल, एक ही मैचिंग आइडेंटिटी में जेनरेट।",
@@ -3937,7 +3945,240 @@
     "you_re_on_the_list": "आप सूची में हैं।",
     "your_name": "आपका नाम"
   },
+  "publishingSplits": {
+    "stateConfirmed": "All writers confirmed",
+    "stateAwaitingConfirmations": "Awaiting writer confirmations",
+    "stateDisputed": "Disputed — flagged for review (shares unchanged)",
+    "stateRegistered": "Registered",
+    "writerConfirmed": "Confirmed",
+    "writerDisputed": "Disputed",
+    "writerPending": "Awaiting confirmation",
+    "writerUnlinked": "Not on Bow Down Visuals",
+    "validationEmpty": "Add at least one songwriter.",
+    "validationTooMany": "A song can list at most 20 songwriters.",
+    "validationNameRequired": "Each songwriter needs a name.",
+    "validationShareNotNumber": "Each songwriter's share must be a number.",
+    "validationShareRange": "Each songwriter's share must be more than 0% and no more than 100%.",
+    "validationShareDecimals": "Shares can have at most two decimal places.",
+    "validationDuplicateAccount": "The same account can't be listed twice on one song — combine their shares into one entry.",
+    "validationTotalMismatch": "Songwriter shares must total 100% — yours total {{total}}%."
+  },
+  "distribution": {
+    "roleArtist": "Artist",
+    "roleProducer": "Producer",
+    "roleWriter": "Writer",
+    "roleFeatured": "Featured",
+    "roleCollaborator": "Collaborator"
+  },
   "features": {
+    "registry": {
+      "creation-hub": {
+        "name": "Creation Hub",
+        "tagline": "Guided workflows — one project, every tool, nothing lost"
+      },
+      "video-generator": {
+        "name": "AI Video Generator",
+        "tagline": "Cinematic AI video scenes"
+      },
+      "lip-sync": {
+        "name": "AI Lip Sync",
+        "tagline": "Perfect mouth-synced vocals on any clip"
+      },
+      "music-maker": {
+        "name": "Music Maker",
+        "tagline": "Full original songs with vocals in minutes"
+      },
+      "audio-studio": {
+        "name": "Audio Studio",
+        "tagline": "Clean up, split stems, master & polish any track"
+      },
+      "video-editor": {
+        "name": "Visual Vibes",
+        "tagline": "Pro timeline editor with transitions & effects"
+      },
+      "thumbnail-maker": {
+        "name": "Thumbnail Maker",
+        "tagline": "Click-magnet thumbnails that get the click"
+      },
+      "hook-studio": {
+        "name": "Hook Studio",
+        "tagline": "First-3-second hooks that stop the scroll"
+      },
+      "randomizer": {
+        "name": "Content Randomizer",
+        "tagline": "Never run out of content ideas again"
+      },
+      "beats-marketplace": {
+        "name": "Beats Marketplace",
+        "tagline": "Buy and sell beats, leases & exclusives"
+      },
+      "video-translator": {
+        "name": "Video Translator",
+        "tagline": "Dub your videos into any language"
+      },
+      "thumbnail-duels": {
+        "name": "Thumbnail Duels",
+        "tagline": "Two thumbnails enter — your fans pick the winner"
+      },
+      "branding-kit": {
+        "name": "Branding Kit",
+        "tagline": "Your whole identity — logos, intros, stream packs & shop"
+      },
+      "logo-maker": {
+        "name": "Logo Maker",
+        "tagline": "A brand mark worthy of your name"
+      },
+      "intros-outros": {
+        "name": "Intros & Outros",
+        "tagline": "Signature openers and closers for your videos"
+      },
+      "stream-packs": {
+        "name": "Stream Packs",
+        "tagline": "Overlays, alerts & panels for your stream"
+      },
+      "promo-clips": {
+        "name": "Promo Clips",
+        "tagline": "Scroll-stopping promo clips from your music"
+      },
+      "virality-check": {
+        "name": "Virality Pre-flight",
+        "tagline": "An honest 0–100 readiness scorecard for your post"
+      },
+      "content-calendar": {
+        "name": "Content Calendar",
+        "tagline": "A month of content planned in minutes"
+      },
+      "discord-live": {
+        "name": "Discord Go Live",
+        "tagline": "Hype your Discord stream like a premiere"
+      },
+      "refer-earn": {
+        "name": "Refer & Earn",
+        "tagline": "Earn 25% of what creators you bring in spend — in Visual Bucs"
+      },
+      "show-finder": {
+        "name": "Show Finder",
+        "tagline": "Gigs and performance opportunities matched to you"
+      },
+      "green-screen": {
+        "name": "Green Screen",
+        "tagline": "Swap your live background with the Behind Me engine"
+      },
+      "widgets-desk": {
+        "name": "Widgets Desk",
+        "tagline": "Widgets and embeds for your other pages"
+      },
+      "stream-overlays": {
+        "name": "Stream Overlays",
+        "tagline": "Live alert, goal & now playing overlays for your stream"
+      },
+      "drop-day-kit": {
+        "name": "Drop Day Kit",
+        "tagline": "Everything your release day needs, in one kit"
+      },
+      "social-feed": {
+        "name": "Creator Feed",
+        "tagline": "New drops from the creators you follow"
+      },
+      "explore": {
+        "name": "Explore",
+        "tagline": "Find creators, sounds & trends worth riding"
+      },
+      "groups": {
+        "name": "Groups",
+        "tagline": "Communities for your niche & your fans"
+      },
+      "contests": {
+        "name": "Creator Contests",
+        "tagline": "Compete, climb the board, land in the Winners' Circle"
+      },
+      "comment-replies": {
+        "name": "Comment Replies",
+        "tagline": "AI replies that turn comments into fans"
+      },
+      "money-coach": {
+        "name": "Monetization Coach",
+        "tagline": "Your money plan: eligibility, RPMs, next moves"
+      },
+      "brand-deals": {
+        "name": "Brand Deals",
+        "tagline": "Find sponsors & send pitch kits that land deals"
+      },
+      "distribute": {
+        "name": "Distribute",
+        "tagline": "Put your music on every streaming platform"
+      },
+      "tips": {
+        "name": "Tips",
+        "tagline": "Your tip page — fans support you right from your profile"
+      },
+      "memberships": {
+        "name": "Memberships",
+        "tagline": "Paid fan memberships with member-only perks"
+      },
+      "storefronts": {
+        "name": "Storefronts",
+        "tagline": "Your own shop front for music & digital products"
+      },
+      "my-shop": {
+        "name": "My Shop",
+        "tagline": "Sell your products, music & merch in one shop"
+      },
+      "creator-academy": {
+        "name": "Creator Academy",
+        "tagline": "Courses that turn talent into a career"
+      },
+      "copyright": {
+        "name": "Copyright Assistant",
+        "tagline": "Protect your music the right way"
+      },
+      "llc-guide": {
+        "name": "LLC Guide",
+        "tagline": "Form your LLC without the lawyer bill"
+      },
+      "earnings": {
+        "name": "Earnings",
+        "tagline": "See what you've earned and what's ready to pay out"
+      },
+      "artist-vault": {
+        "name": "Creator Vault",
+        "tagline": "Your face, voice & brand assets in one vault"
+      },
+      "voice-lock": {
+        "name": "Artist Voice Lock",
+        "tagline": "Lock your AI voice across every song"
+      },
+      "photo-shoot": {
+        "name": "Artist Photo Shoot",
+        "tagline": "Pro artist photos in any style or location"
+      }
+    },
+    "category": {
+      "create": {
+        "label": "Create",
+        "blurb": "Make music, videos, images & brand assets"
+      },
+      "branding": {
+        "label": "Branding",
+        "blurb": "Logos, pages & a look that sells"
+      },
+      "promote": {
+        "label": "Promote",
+        "blurb": "Hooks, clips, calendars & stream hype"
+      },
+      "social": {
+        "label": "Social",
+        "blurb": "Feed, groups & your crowd"
+      },
+      "business": {
+        "label": "Business",
+        "blurb": "Get paid, protected & formalized"
+      },
+      "studio": {
+        "label": "My Studio",
+        "blurb": "Your projects, vault & library"
+      }
+    },
     "search_features_try_thumbnail_vo": "फीचर्स खोजें — 'thumbnail', 'voice', 'money' आज़माएं…",
     "the_arsenal": "द आर्सेनल",
     "cheat_code": "चीट कोड",
@@ -5783,6 +6024,32 @@
     "domainsLink": "कस्टम डोमेन कनेक्ट करें →"
   },
   "streamPack": {
+    "theme": {
+      "gold-luxury": {
+        "name": "Gold Luxury",
+        "blurb": "Black & gold. The Bow Down Visuals signature."
+      },
+      "neon-cyber": {
+        "name": "Neon Cyber",
+        "blurb": "Cyan & magenta glow on dark."
+      },
+      "crimson-royal": {
+        "name": "Crimson Royal",
+        "blurb": "Deep red & gold. Bold and commanding."
+      },
+      "emerald-empire": {
+        "name": "Emerald Empire",
+        "blurb": "Rich green & gold. Fresh but premium."
+      },
+      "violet-noir": {
+        "name": "Violet Noir",
+        "blurb": "Purple haze on black. Mysterious."
+      },
+      "arctic-frost": {
+        "name": "Arctic Frost",
+        "blurb": "Ice blue & white. Clean and sharp."
+      }
+    },
     "allOn": "सब चालू",
     "assetsTitle": "इस पैक में एसेट्स ({{count}} चुने गए · {{cost}} Visual Bucs)",
     "back": "पीछे",
@@ -8841,6 +9108,12 @@
     "download": "डाउनलोड करें"
   },
   "royalties": {
+    "loadSummaryFailed": "Couldn't load your royalty summary ({{status}}).",
+    "loadPlatformsFailed": "Couldn't load your platform connections ({{status}}).",
+    "loadPayoutsFailed": "Couldn't load your payouts ({{status}}).",
+    "loadSummaryFallback": "Couldn't load your royalty summary.",
+    "loadPlatformsFallback": "Couldn't load your platform connections.",
+    "loadPayoutsFallback": "Couldn't load your payouts.",
     "eyebrow": "रॉयल्टी ट्रैकर",
     "titlePrefix": "हर stream। हर प्लेटफ़ॉर्म।",
     "titleSuffix": "एक डैशबोर्ड।",
@@ -18444,7 +18717,12 @@
     "subYoureSongwriter": "आप इस गाने के गीतकार हैं",
     "tryAgain": "फिर से कोशिश करें"
   },
+  "worldStationPanel": {
+    "transferButton": "Open on the website ↗"
+  },
   "worldCommerceStands": {
+    "checkoutTransfer": "Continue to checkout on the website",
+    "contactForQuote": "Contact for quote",
     "brandAddedNote": "{{label}} आपकी कार्ट में जोड़ा गया.",
     "brandCartEmpty": "आपकी कार्ट खाली है — ऊपर का सामान ही इस स्टैंड की पूरी शेल्फ है.",
     "brandChange": "बदलें",
@@ -21797,6 +22075,11 @@
     "spEscrowTitle": "एस्क्रो"
   },
   "worldCreatorRooms": {
+    "crownsYearFallback": "The Crowns of {{year}}",
+    "giftProblemNoAmounts": "This gift card has no amounts to pick from yet — the seller hasn't set any.",
+    "giftProblemPickAmount": "Pick an amount first.",
+    "giftProblemPickOffered": "Pick one of the offered amounts.",
+    "giftProblemRecipientEmail": "Add the recipient's email — the gift card is delivered there, not to you.",
     "crownsLoadTitle": "मुकुट लोड नहीं हो सके",
     "crownsLoadMessage": "तय किए गए साल सुरक्षित हैं — पढ़ने वाला लैंप फिसल गया। फिर से कोशिश करें।",
     "crownsReading": "मुकुट पढ़े जा रहे हैं…",
