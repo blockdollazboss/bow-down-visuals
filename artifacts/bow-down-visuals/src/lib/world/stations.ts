@@ -379,7 +379,7 @@ export const PALACE_STATIONS: PalaceStation[] = [
     z: -4.2,
     membersOnly: true,
     panel: { kind: "native", pattern: "create" },
-    websitePath: "/wallpapers",
+    websitePath: "/branding-kit?tab=wallpapers",
   },
 
   /* ── Treasury ────────────────────────────────────────────────── */

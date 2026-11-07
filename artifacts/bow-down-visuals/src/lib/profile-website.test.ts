@@ -8,10 +8,12 @@
  * "missing"), and owner-only invitations never show to visitors.
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   spotlightViewState,
   collectionViewState,
   collectionMoney,
+  collectionSharePath,
   GRAND_STAGE_SEQUENCE,
   grandStageFallbackBlocks,
   visibleBlocks,
@@ -105,6 +107,30 @@ describe("collectionMoney", () => {
     expect(collectionMoney(499)).toBe("$4.99");
     expect(collectionMoney(4500)).toBe("$45.00");
     expect(collectionMoney(0)).toBe("$0.00");
+  });
+});
+
+describe("collectionSharePath + the owner's share door (w200-D4 item 26)", () => {
+  it("builds the public /collection/:slug address, encoded like the fetch", () => {
+    expect(collectionSharePath("djshark")).toBe("/collection/djshark");
+    expect(collectionSharePath("fan name")).toBe("/collection/fan%20name");
+  });
+
+  it("the path resolves to the routed fan-collection page", () => {
+    const appSrc = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
+    expect(appSrc).toContain('<Route path="/collection/:slug">');
+  });
+
+  it("the owner panel on the collection page carries the copy-link door", () => {
+    const pageSrc = readFileSync(new URL("../pages/fan-collection.tsx", import.meta.url), "utf8");
+    /* The door lives in the owner controls, beside the visibility
+       toggle it completes — and the copied URL is built from the
+       shared helper, never a hand-typed path. */
+    expect(pageSrc).toContain('data-testid="collection-copy-share-link"');
+    expect(pageSrc).toContain("collectionSharePath(slug)");
+    expect(pageSrc).toContain("navigator.clipboard.writeText");
+    /* Private collections say plainly that the link opens nothing. */
+    expect(pageSrc).toContain("The link opens nothing while your collection is private");
   });
 });
 

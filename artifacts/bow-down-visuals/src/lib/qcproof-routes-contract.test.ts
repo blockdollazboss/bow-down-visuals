@@ -133,7 +133,7 @@ const Q: QEntry[] = [
   { q: 18, path: "/brand-calculator", form: "direct", zone: "IN", component: "BrandDealCalculator", page: "brand-calculator" },
   { q: 19, path: "/brand-deals", form: "wrapper-branddeals", zone: "IN", component: "BrandDeals", page: "brand-deals" },
   { q: 20, path: "/branding-kit", form: "direct", zone: "IN", component: "BrandingKit", page: "branding-kit" },
-  { q: 21, path: "/branding-shop", form: "redirect", zone: "OUTER", redirectTo: "/branding-kit?tab=shop", page: "branding-kit" },
+  { q: 21, path: "/branding-shop", form: "qpr", zone: "OUTER", redirectTo: "/branding-kit?tab=shop", page: "branding-kit" },
   { q: 22, path: "/broadcast", form: "redirect", zone: "OUTER", redirectTo: "/go-live", page: "go-live" },
   { q: 23, path: "/browse", form: "direct", zone: "OUTER", component: "Browse", page: "discovery/browse" },
   { q: 24, path: "/caption-styler", form: "qpr", zone: "IN", redirectTo: "/hooks?tab=styler", page: "hooks" },

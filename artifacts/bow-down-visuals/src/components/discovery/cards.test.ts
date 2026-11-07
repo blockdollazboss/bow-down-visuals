@@ -40,4 +40,16 @@ describe("website discovery rows — the 2.15 extras", () => {
     /* the watch door survives the restructure, on thumbnail and title */
     expect(cardsSrc).toContain("href={`/watch/${video.id}`}");
   });
+
+  it("TrackRow's share is classified by the caller's kind, never a dead path prefix (w200-D4 item 24)", () => {
+    /* The old check — href.startsWith("/video/") — could never fire:
+       callers only ever produce /track/<id> or /watch/<id>, so every
+       shared video was recorded as a "song". The kind now rides in
+       as a prop, exactly as DropsWire's own ShareMenu already did. */
+    expect(cardsSrc).not.toContain('startsWith("/video/")');
+    expect(cardsSrc).toContain('contentType={kind === "video" ? "video" : "song"}');
+    expect(cardsSrc).toContain('kind?: "track" | "video"');
+    const dropsSrc = readFileSync(new URL("./DropsWire.tsx", import.meta.url), "utf8");
+    expect(dropsSrc).toContain("kind={item.kind}");
+  });
 });

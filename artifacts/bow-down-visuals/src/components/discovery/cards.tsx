@@ -260,7 +260,7 @@ function RowRepostButton({ trackId, startCount }: { trackId: string; startCount:
   );
 }
 
-export function TrackRow({ track, rank, linkPath }: { track: TrackLite; rank?: number; linkPath?: string }) {
+export function TrackRow({ track, rank, linkPath, kind }: { track: TrackLite; rank?: number; linkPath?: string; kind?: "track" | "video" }) {
   const { getAccessToken } = useAuth();
   const href = linkPath ?? `/track/${track.id}`;
   return (
@@ -308,7 +308,11 @@ export function TrackRow({ track, rank, linkPath }: { track: TrackLite; rank?: n
         shareUrl={`${window.location.origin}${href}`}
         title={track.title}
         text={`${track.title} — Made with Bow Down Visuals`}
-        contentType={href.startsWith("/video/") ? "video" : "song"}
+        /* The caller's kind classifies the share — never the href:
+           callers link videos at /watch/…, so a "/video/" prefix
+           check could never fire and every shared video was
+           recorded as a song. No kind passed = a track row. */
+        contentType={kind === "video" ? "video" : "song"}
         contentId={track.id}
         compact
       />

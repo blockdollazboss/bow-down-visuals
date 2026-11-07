@@ -104,4 +104,23 @@ describe("branding shop — checkout embedded on-site", () => {
     expect(payForOrder).toContain("if (data.mock) {");
     expect(placeOrder).toContain("if (!coData.mock && !coData.demo) {");
   });
+
+  it("the paid return's query survives the /branding-shop alias (w200-D4 item 23)", () => {
+    /* The server sends Stripe's return/success to
+       /branding-shop?order=…&paid=1. That URL only reaches the
+       `paid` read above if the /branding-shop alias preserves the
+       incoming query — wouter's <Redirect> drops it, which silently
+       killed the buyer's payment-received landing on every full-page
+       Stripe return. The alias must ride QueryPreservingRedirect. */
+    const appSrc = read("../../App.tsx");
+    expect(appSrc).toContain(
+      '<Route path="/branding-shop"><QueryPreservingRedirect to="/branding-kit?tab=shop" /></Route>',
+    );
+    expect(appSrc).not.toContain(
+      '<Route path="/branding-shop"><Redirect to="/branding-kit?tab=shop" /></Route>',
+    );
+    /* …and the server still names the paid return this alias serves. */
+    const serverSrc = read("../../../../api-server/src/routes/generate/branding-shop.ts");
+    expect(serverSrc).toContain("/branding-shop?order=${order.id}&paid=1");
+  });
 });

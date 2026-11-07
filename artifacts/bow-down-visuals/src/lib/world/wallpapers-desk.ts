@@ -3,8 +3,8 @@
  * (stack1500 world parity wave #3, census item 34).
  *
  * THE FEATURE (website): the Wallpapers desk (components/wallpapers /
- * WallpapersDesk.tsx, reached from /wallpapers and the profile theme
- * surface) makes the art a member's devices wear: generate a piece of
+ * WallpapersDesk.tsx, reached from /branding-kit?tab=wallpapers and
+ * the profile theme surface) makes the art a member's devices wear: generate a piece of
  * art, render it to the EXACT pixel size of a phone / tablet /
  * desktop, branded with the member's own logo and name or clean, a
  * pack of ten clean wallpapers for one flat price, and a LIVING
@@ -111,8 +111,10 @@ function registryCost(path: string): number {
 export const WALLPAPERS_DESK_STATION_ID = "wallpapers-desk";
 
 /** The website path this desk mirrors — the quiet transfer footer's
-    href (station.websitePath) and receipt copy. */
-export const WALLPAPERS_WEBSITE_PATH = "/wallpapers";
+    href (station.websitePath) and receipt copy. The desk's website
+    home is the Branding Kit's Wallpapers tab (the jewelry-bench
+    precedent); no bare /wallpapers route exists. */
+export const WALLPAPERS_WEBSITE_PATH = "/branding-kit?tab=wallpapers";
 
 /* ── Paths ─────────────────────────────────────────────────────────── */
 

@@ -75,7 +75,7 @@ import {
   WATCH_HEARTBEAT_PATH,
   normalizeWatchStream, watchHeartbeatBody, watchStreamIdFromScreen,
   type WatchStreamView,
-  GENERATED_CLIPS_PATH,
+  GENERATED_CLIPS_PATH, PREMIERE_PAGE_PATH,
   normalizeFinishedClips, premiereDraftReady, isOwnPremiere,
   type FinishedClipOption,
   SONG_REQUESTS_PATH, SONG_REQUEST_PLAY_NEXT_PATH, SONG_REQUEST_CLOSE_PATH,
@@ -3329,6 +3329,7 @@ export function LivePremiereDesk({ isLight }: { isLight: boolean }) {
   const [when, setWhen] = useState("");
   const [saving, setSaving] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [copiedPremiereId, setCopiedPremiereId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
   const loadUpcoming = useCallback(async () => {
@@ -3377,6 +3378,19 @@ export function LivePremiereDesk({ isLight }: { isLight: boolean }) {
       setNote(plainErrorText(err, t("worldLivePromo.premiereSaveFailed")));
     } finally {
       setSaving(false);
+    }
+  }
+
+  /* The share door: every upcoming row can copy its premiere page's
+     address — the only way the URL leaves the building, since no
+     surface built a /premiere/<id> link before. */
+  async function handleCopyPremiereLink(p: PremiereDto) {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${PREMIERE_PAGE_PATH(p.id)}`);
+      setCopiedPremiereId(p.id);
+      setTimeout(() => setCopiedPremiereId((c) => (c === p.id ? null : c)), 2000);
+    } catch {
+      /* Clipboard unavailable — no fake "copied" state. */
     }
   }
 
@@ -3446,6 +3460,9 @@ export function LivePremiereDesk({ isLight }: { isLight: boolean }) {
                 {p.phase === "live" ? t("worldLivePromo.premierePlayingNow") : p.scheduledAt ? new Date(p.scheduledAt).toLocaleString(i18n.language) : ""}
                 {p.creator ? t("worldLivePromo.premiereBy", { name: p.creator.displayName }) : ""}
               </span>
+              <button type="button" className={chipBtn(isLight)} onClick={() => void handleCopyPremiereLink(p)} data-testid="world-live-premiere-copy-link">
+                {copiedPremiereId === p.id ? <Check className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />} {copiedPremiereId === p.id ? t("worldLivePromo.copied") : t("worldLivePromo.copyLink")}
+              </button>
               {isOwnPremiere(p, myProfileId) && p.phase === "scheduled" && (
                 <button type="button" className={chipBtn(isLight)} disabled={cancellingId === p.id} onClick={() => void handleCancel(p)} data-testid="world-live-premiere-cancel">
                   {cancellingId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />} {t("worldLivePromo.premiereCancel")}

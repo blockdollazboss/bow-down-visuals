@@ -152,7 +152,7 @@ describe("the station registry", () => {
       "movies-desk": "/movies",
       "carousel-desk": "/carousel-maker",
       "detector-desk": "/detector",
-      "wallpapers-desk": "/wallpapers",
+      "wallpapers-desk": "/branding-kit?tab=wallpapers",
       "daily-drop": null,
       "shark-drops": null,
       "quest-board": null,
