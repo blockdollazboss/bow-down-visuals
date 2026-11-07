@@ -567,6 +567,7 @@ const W6_ALLOW = new Set([
   "coach.tabActionTracker",
   "coach.tabContracts",
   "coach.tabManageDeals",
+  "locations.errImageTooLarge",
   "podcast.publish.appleHeading",
   "podcast.publish.spotifyHeading",
   "lufs.formatMp3",

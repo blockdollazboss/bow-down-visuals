@@ -404,6 +404,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "linkInBio.theme.mintAtelierBlurb",
     "linkInBio.theme.onyxMinimal",
     "linkInBio.tipJar.placeholder",
+    "locations.errImageTooLarge",
     "myClips.extractAudioCost",
     "nfcCardProfile.poweredBy",
     "nfcCards.qrSvg",

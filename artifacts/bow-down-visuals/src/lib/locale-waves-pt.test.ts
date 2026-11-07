@@ -637,6 +637,7 @@ const W6_LEGIT = new Set([
   "coach.tabActionTracker",
   "coach.tabContracts",
   "coach.tabManageDeals",
+  "locations.errImageTooLarge",
   "lufs.labelOriginal",
   "lufs.abOriginal",
   "milestones.manual",

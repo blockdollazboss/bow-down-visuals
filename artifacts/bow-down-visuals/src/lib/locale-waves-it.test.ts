@@ -834,6 +834,7 @@ const W6_LEGIT: string[] = [
   "linkInBio.profile.bio",
   "linkInBio.hero.badge",
   "linkInBio.tab",
+  "locations.errImageTooLarge",
   "nfcCards.bio",
   "nfcCards.emailPlaceholder",
   "nfcCardProfile.poweredBy",

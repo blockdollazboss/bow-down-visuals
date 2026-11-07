@@ -1053,6 +1053,7 @@ const W6_LEGIT_IDENTICAL = new Set([
   "linkInBio.profile.bio",
   "linkInBio.hero.badge",
   "linkInBio.tab",
+  "locations.errImageTooLarge",
   "promote.tabs.linkInBio",
   "coach.tabTeam",
   "coach.tabCollabs",
