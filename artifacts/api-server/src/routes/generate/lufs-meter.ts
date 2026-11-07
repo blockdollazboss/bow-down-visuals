@@ -28,7 +28,7 @@ const execFileAsync = promisify(execFile);
    user-selectable streaming target. Real DSP via ffmpeg (EBU R128 /
    ITU-R BS.1770). No provider, zero paid calls. */
 
-export const LUFS_NORMALIZE_CREDIT_COST = Number(process.env["LUFS_NORMALIZE_CREDITS"]) || 100; // PLACEHOLDER — not user-approved
+export const LUFS_NORMALIZE_CREDIT_COST = Number(process.env["LUFS_NORMALIZE_CREDITS"]) || 100; // RATIFIED — owner ruling 2026-11-07
 const LUFS_MAX_BYTES = 50 * 1024 * 1024; // 50 MB upload cap
 const ANALYZE_TIMEOUT_MS = 300_000;
 const NORMALIZE_TIMEOUT_MS = 600_000;
@@ -401,7 +401,7 @@ router.post("/lufs/analyze", requireAuth, upload.single("audio"), async (req: Re
  *
  * Two-pass loudnorm normalization of an uploaded AUDIO file to a
  * selectable streaming target (default -14 LUFS). 100 Visual Bucs
- * (PLACEHOLDER — not user-approved). Server-owned background job:
+ * (RATIFIED — owner ruling 2026-11-07). Server-owned background job:
  * upload + target + format → charge → poll
  * GET /api/lufs/normalize/:jobId → download. Failed jobs refund.
  */

@@ -29,9 +29,9 @@ import { r2UploadFile } from "@/lib/r2-storage";
  * (free) processing path in this build — every run costs credits.
  */
 
-/* PLACEHOLDER credit price — NOT USER-APPROVED. Shown in the confirm popup
-   and must be finalized before this ships. */
-const PHOTO_ENHANCE_COST_PLACEHOLDER = 100;
+/* Credit price RATIFIED as-is — owner ruling 2026-11-07. Shown in the
+   confirm popup. */
+const PHOTO_ENHANCE_COST = 100;
 
 type EnhanceOp = "upscale" | "denoise" | "restore" | "colorize";
 
@@ -131,7 +131,7 @@ export function PhotoEnhance() {
           operations: ops,
           ...(strengthMap ? { strengths: Object.fromEntries(ops.map((o) => [o, strengthMap[o]])) } : {}),
         }),
-        overrideCost: PHOTO_ENHANCE_COST_PLACEHOLDER,
+        overrideCost: PHOTO_ENHANCE_COST,
         overrideFeature: t("photoEnhance.featureName", { defaultValue: "Photo Enhance" }),
       });
       if (!res) {
@@ -339,7 +339,7 @@ export function PhotoEnhance() {
               <div className="mt-2 text-center text-xs text-white/40">
                 {t("photoEnhance.costNote", {
                   defaultValue: "{{cost}} Visual Bucs per enhancement",
-                  cost: PHOTO_ENHANCE_COST_PLACEHOLDER,
+                  cost: PHOTO_ENHANCE_COST,
                 })}
               </div>
             </div>

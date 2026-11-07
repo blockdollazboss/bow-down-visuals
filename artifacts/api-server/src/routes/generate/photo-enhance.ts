@@ -11,11 +11,11 @@ const router = Router();
 
 /* ─────────────────────────────────────────────────────────────────────────────
    PHOTO ENHANCE — credit pricing
-   PLACEHOLDER — NOT USER-APPROVED. The user must approve the final price
-   before this ships. Env-overridable without a deploy (PHOTO_ENHANCE_CREDITS).
+   RATIFIED — owner ruling 2026-11-07: the 100 VB price is approved
+   as-is. Env-overridable without a deploy (PHOTO_ENHANCE_CREDITS).
    ───────────────────────────────────────────────────────────────────────────── */
-const PHOTO_ENHANCE_CREDIT_COST_PLACEHOLDER = 100;
-const ENHANCE_CREDITS = Number(process.env["PHOTO_ENHANCE_CREDITS"]) || PHOTO_ENHANCE_CREDIT_COST_PLACEHOLDER;
+const PHOTO_ENHANCE_CREDIT_COST = 100;
+const ENHANCE_CREDITS = Number(process.env["PHOTO_ENHANCE_CREDITS"]) || PHOTO_ENHANCE_CREDIT_COST;
 
 /* ── No local `sharp` build exists in this service (checked package.json +
    node_modules on 2026-10-11), so ALL four operations route through the gated

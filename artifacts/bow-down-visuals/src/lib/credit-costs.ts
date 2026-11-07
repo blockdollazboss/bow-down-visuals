@@ -46,9 +46,9 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/stems": { cost: 400, feature: "Stem Separation" },
   "/api/stems?mode=instrumental": { cost: 300, feature: "Stem Separation — Instrumental" },
   "/api/vocal-polish": { cost: 200, feature: "Vocal Polish" },
-  "/api/vocal-tune": { cost: 200, feature: "Vocal Tuning" }, // PLACEHOLDER — NOT USER-APPROVED
-  "/api/lufs/normalize": { cost: 100, feature: "LUFS Loudness Normalize" }, // PLACEHOLDER — NOT USER-APPROVED
-  "/api/deverb": { cost: 1000, feature: "De-Reverb" }, // PLACEHOLDER — NOT USER-APPROVED
+  "/api/vocal-tune": { cost: 200, feature: "Vocal Tuning" }, // RATIFIED — owner ruling 2026-11-07
+  "/api/lufs/normalize": { cost: 100, feature: "LUFS Loudness Normalize" }, // RATIFIED — owner ruling 2026-11-07
+  "/api/deverb": { cost: 1000, feature: "De-Reverb" }, // RATIFIED — owner ruling 2026-11-07
   "/api/vocal-removal": { cost: 300, feature: "Vocal Removal" },
   "/api/mashup": { cost: 400, feature: "Song Mashup" },
   "/api/generate-harmony": { cost: 300, feature: "Harmony Generator (Classic doubles)" },
@@ -87,8 +87,8 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/stabilize": { cost: 300, feature: "Video Stabilization" },
   "/api/apply-speed": { cost: 150, feature: "Speed Preset" },
   "/api/color-grade": { cost: 150, feature: "Color Grade" },
-  // PLACEHOLDER — NOT USER-APPROVED: AI background plate generation (gated, no key yet)
-  "/api/bg-generate": { cost: 200, feature: "Background Plate (price TBD)" },
+  // AI background plate generation (gated, no key yet); price RATIFIED — owner ruling 2026-11-07
+  "/api/bg-generate": { cost: 200, feature: "Background Plate" },
   "/api/video-template/apply": { cost: 250, feature: "Apply Video Template" },
   "/api/split-screen/apply": { cost: 200, feature: "Split-Screen Grid" },
   "/api/export-multi-ratio": { cost: 100, feature: "Multi-Ratio Export (per ratio)" },
@@ -116,9 +116,9 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // 2026-10-24); mirrors GENERATIVE_UPSCALE_CREDIT_COST in the server
   // route (routes/generate/upscale-generative.ts). NOT a placeholder.
   "/api/ai-upscale": { cost: 1500, feature: "Generative AI Upscale" },
-  // PLACEHOLDER prices — the user must approve real prices before these go live.
+  // PLACEHOLDER prices — the user must approve real prices before these go live (avatar-presenter, watermark-removal).
   "/api/avatar-presenter": { cost: 1200, feature: "Avatar Presenter" },
-  "/api/singing-voice": { cost: 800, feature: "Singing-Voice Conversion (price TBD)" },
+  "/api/singing-voice": { cost: 800, feature: "Singing-Voice Conversion" }, // RATIFIED — owner ruling 2026-11-07
   "/api/watermark-removal": { cost: 200, feature: "Remove Watermark" },
   "/api/video-translator/translate": { cost: 500, feature: "Video Translator (500 VB per minute per language)" },
   "/api/analyze-sections": { cost: 100, feature: "Analyze Song Sections" },
@@ -168,12 +168,13 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/cover-art": { cost: 200, feature: "Cover Art" },
   "/api/merch/design": { cost: 300, feature: "Merch Design" },
   "/api/stream-pack/generate": { cost: 100, feature: "Stream Pack Generator" },
-  // PLACEHOLDER prices — the user must approve real prices before these go live.
-  "/api/generate-headshot": { cost: 100, feature: "Headshot (price TBD)" },
-  "/api/generate-product-photo": { cost: 100, feature: "Product Photo (Packshot) (price TBD)" },
-  "/api/photo-enhance": { cost: 100, feature: "Photo Enhance (price TBD)" },
+  // Photo tool prices RATIFIED as-is — owner ruling 2026-11-07 (headshot, product photo packshot, photo enhance, photo backdrop).
+  "/api/generate-headshot": { cost: 100, feature: "Headshot" },
+  "/api/generate-product-photo": { cost: 100, feature: "Product Photo (Packshot)" },
+  "/api/photo-enhance": { cost: 100, feature: "Photo Enhance" },
+  // PLACEHOLDER price — the user must approve the real price before this goes live.
   "/api/remove-background": { cost: 200, feature: "Background Removal" },
-  "/api/photo-backdrop": { cost: 100, feature: "Photo Backdrop (price TBD)" },
+  "/api/photo-backdrop": { cost: 100, feature: "Photo Backdrop" },
   // Priced by pack size on the rail (routes/generate/
   // sample-pack-pricing.ts): SAMPLE_PACK_10_CREDITS = 500 is the
   // base figure this registry records; the 25-pack is 1,200 and the

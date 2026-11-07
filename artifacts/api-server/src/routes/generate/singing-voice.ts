@@ -14,10 +14,10 @@ import { attachJobMapTtl } from "../../lib/job-map-sweeper";
 const router = Router();
 
 /**
- * PLACEHOLDER price — Visual Bucs. NOT final: the user must approve the
- * real price (and the provider + key) before this goes live.
+ * Price — Visual Bucs. RATIFIED as-is by owner ruling 2026-11-07
+ * (the provider + key gate still applies before this goes live).
  */
-const SINGING_VOICE_CREDIT_COST = 800; // PLACEHOLDER — needs user price approval
+const SINGING_VOICE_CREDIT_COST = 800; // RATIFIED — owner ruling 2026-11-07
 
 const conversionSchema = z.object({
   voiceId: z.string().min(1).max(80),

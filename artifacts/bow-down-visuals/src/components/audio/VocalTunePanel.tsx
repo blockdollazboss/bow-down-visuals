@@ -19,12 +19,12 @@ import { useHubProject } from "@/lib/hub-project";
    feel — the correction you don't hear). Hard-tune: every detected
    note snapped to its nearest semitone (strength 100, instant retune)
    via per-note rubberband shifts joined by 20 ms crossfades.
-   200 Visual Bucs per tune (PLACEHOLDER — not user-approved), refunded
+   200 Visual Bucs per tune (RATIFIED — owner ruling 2026-11-07), refunded
    automatically if the job fails. Server-owned background job: safe to
    close the tab while it runs. Works best on isolated vocals; on a full
    mix the tracker follows the strongest pitched material. */
 
-const VOCAL_TUNE_CREDIT_COST = 200; // PLACEHOLDER — NOT USER-APPROVED (matches vocal-polish)
+const VOCAL_TUNE_CREDIT_COST = 200; // RATIFIED — owner ruling 2026-11-07 (matches vocal-polish)
 const VOCAL_TUNE_MAX_BYTES = 50 * 1024 * 1024;
 
 type TuneStyle = "transparent" | "hardtune";

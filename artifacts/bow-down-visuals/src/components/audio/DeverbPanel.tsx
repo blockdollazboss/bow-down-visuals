@@ -24,9 +24,8 @@ import { useHubProject } from "@/lib/hub-project";
    credits display, before/after A/B, and handoffs (cleaned dialogue →
    voiceover/podcast, cleaned vocal → song flow). */
 
-// PLACEHOLDER — NOT USER-APPROVED. Mirrors the server's
-// DEVERB_CREDIT_COST (1000 Visual Bucs) proposal.
-// Do not edit: the final price needs the user's explicit approval.
+// RATIFIED — owner ruling 2026-11-07. Mirrors the server's
+// DEVERB_CREDIT_COST (1000 Visual Bucs).
 const DEVERB_CREDIT_COST_VB = 1000;
 const DEVERB_MAX_BYTES = 50 * 1024 * 1024;
 

@@ -38,7 +38,7 @@ import {
      (200 VB, unchanged price). A color heuristic is never called AI. */
 
 const REMOVE_COST = 200; // existing backend price — do not change here
-const BACKDROP_COST = 100; // PLACEHOLDER — not user-approved
+const BACKDROP_COST = 100; // RATIFIED — owner ruling 2026-11-07
 
 interface BackdropStatus {
   configured: boolean;
@@ -290,7 +290,7 @@ export function BgStudio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, provider, ratio }),
         overrideCost: BACKDROP_COST,
-        overrideFeature: "Photo Backdrop (price TBD)",
+        overrideFeature: "Photo Backdrop",
       });
       if (!res) { setGenerating(false); return; } // user cancelled the confirm
       const data = await res.json();
