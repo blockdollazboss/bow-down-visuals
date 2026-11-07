@@ -150,6 +150,7 @@ const W1_LEGIT = new Set([
   "storefrontBuilder.hostLabel",
   "storefrontBuilder.step3Cost",
   "storefrontBuilder.stepBranding",
+  "storefronts.planNote",
   "tips.displayNamePlaceholder",
   "tips.goalAmountPlaceholder",
   "tips.handlePlaceholder",

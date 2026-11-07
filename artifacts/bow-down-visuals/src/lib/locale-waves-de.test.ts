@@ -156,6 +156,7 @@ const W1_LEGIT_IDENTICAL = new Set([
   "storefrontBuilder.step3Cost",
   "storefrontBuilder.stepBranding",
   "storefronts.heroTitleAccent",
+  "storefronts.planNote",
   "syncPitch.copyEmailLabel",
   "syncPitch.madeWith",
   "syncPitch.matchScore",

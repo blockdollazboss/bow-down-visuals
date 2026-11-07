@@ -145,6 +145,7 @@ const W1_LEGIT: ReadonlySet<string> = new Set([
   "storefrontBuilder.hostLabel",
   "storefrontBuilder.step3Cost",
   "storefrontBuilder.stepBranding",
+  "storefronts.planNote",
   "syncPitch.statBpm",
   "syncPitch.statInstrumental",
   "syncPitch.statStems",

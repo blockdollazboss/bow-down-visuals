@@ -50,8 +50,12 @@ import {
    GET  /creator-tiers/earnings   gross/fee/net widgets + payout balance (auth)
 
    Money is NEVER gated: /earnings and every sale receipt show gross → fee →
-   net at every tier. Only pro controls (custom domain, premium themes,
-   AI boosts, 4–6★ controls) are tier-gated, via requireTier("pro"|"elite"). */
+   net at every tier. Only pro controls (AI boosts, 4–6★ controls) are
+   tier-gated, via requireTier("pro"|"elite"). Custom domains ride the
+   Hosting entitlement (the $9/mo Hosting plan, or included with Elite —
+   routes/domains.ts), and premium theme packs unlock by ownership
+   (1,000 VB each) or live Elite (routes/theme-kit.ts) — Pro alone
+   grants neither. */
 
 const router = Router();
 

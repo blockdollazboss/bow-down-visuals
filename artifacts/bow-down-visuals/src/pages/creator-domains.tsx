@@ -434,7 +434,7 @@ export default function CreatorDomainsPage() {
 
           {domains.length === 0 && (
             <p className="text-center text-sm text-white/40">
-              No custom domains yet — your free subdomain above is already working, and your own .com is one claim away.
+              No custom domains yet — your free subdomain above is already working. Your own .com comes with the Hosting plan ($9/mo), or included free with Creator Elite.
             </p>
           )}
         </div>

@@ -136,6 +136,7 @@ const W1_ALLOW = new Set([
   "storefrontBuilder.domainPlaceholder",
   "storefrontBuilder.handlePlaceholder",
   "storefrontBuilder.step3Cost",
+  "storefronts.planNote",
   "syncPitch.bpmPlaceholder",
   "syncPitch.statBpm",
   "syncPitch.typeTv",

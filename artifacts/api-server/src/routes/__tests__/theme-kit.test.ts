@@ -438,6 +438,22 @@ describe("downloads + entitlement", () => {
     expect(ok.buf.subarray(0, 4).toString("ascii")).toBe("MSCF");
   });
 
+  it("a Pro subscription does NOT unlock a premium pack by tier (Stack-200 M3 ruled model)", async () => {
+    // The plan copy once sold premium themes as a Pro feature; the rail
+    // never granted that. Pin it: Pro tier alone stays locked — only
+    // 1,000 VB ownership or live Elite unlocks a premium pack.
+    await h.db.execute(sql`INSERT INTO creator_subscriptions (id, profile_id, tier, status) VALUES ('99999999-9999-4999-8999-999999999999', ${PROFILE}, 'pro', 'active')`);
+    const locked = await call("POST", "/theme-packs/kit/kings-set/download", { kind: "windows", mode: "dark" });
+    expect(locked.status).toBe(403);
+  });
+
+  it("an Elite subscription unlocks a premium pack with no purchase (Stack-200 M3 ruled model)", async () => {
+    await h.db.execute(sql`INSERT INTO creator_subscriptions (id, profile_id, tier, status) VALUES ('99999999-9999-4999-8999-999999999999', ${PROFILE}, 'elite', 'active')`);
+    const ok = await callBytes("POST", "/theme-packs/kit/kings-set/download", { kind: "windows", mode: "dark" });
+    expect(ok.status).toBe(200);
+    expect(ok.buf.subarray(0, 4).toString("ascii")).toBe("MSCF");
+  });
+
   it("unknown kind is a 400", async () => {
     const r = await call("POST", "/theme-packs/kit/golden-marble/download", { kind: "hologram", mode: "dark" });
     expect(r.status).toBe(400);
