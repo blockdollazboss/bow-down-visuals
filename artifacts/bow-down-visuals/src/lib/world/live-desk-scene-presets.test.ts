@@ -5,7 +5,7 @@
  * Pins:
  * - the desk's preset menu IS the stream-kit registry (reference-
  *   identical to SCENE_PRESETS — the array ScenesPanel renders), all
- *   7 presets, and the panel remains a registry consumer;
+ *   9 presets, and the panel remains a registry consumer;
  * - the relay carries a new command, scene.preset.apply { presetId },
  *   and nothing about what a preset MEANS travels the wire — only
  *   which one;
@@ -187,16 +187,17 @@ async function relayHarness() {
 }
 
 describe("#94 the desk's menu is the preset registry itself", () => {
-  it("is SCENE_PRESETS by reference — all 7, in the registry's order", () => {
+  it("is SCENE_PRESETS by reference — all 9, in the registry's order", () => {
     expect(SCENE_PRESET_OPTIONS).toBe(SCENE_PRESETS);
-    expect(SCENE_PRESET_OPTIONS).toHaveLength(7);
+    expect(SCENE_PRESET_OPTIONS).toHaveLength(9);
     expect(SCENE_PRESET_OPTIONS.map((p) => p.id)).toEqual([
       "just-you", "camera-live-overlay", "screen-and-you", "screen-only",
-      "starting-soon", "be-right-back", "avatar-stage",
+      "starting-soon", "be-right-back", "avatar-stage", "guest-interview", "end-screen",
     ]);
     expect(SCENE_PRESET_OPTIONS.map((p) => p.name)).toEqual([
       "Just You", "Camera + Live Overlay", "Screen + You in the Corner",
       "Screen Only", "Starting Soon", "Be Right Back", "Live as Your Avatar",
+      "Guest Interview", "End Screen",
     ]);
   });
 
@@ -309,7 +310,7 @@ describe("#94 end to end over the relay — parity with the panel's apply", () =
     expect(h.remote.notice).toBeNull();
   });
 
-  it("every one of the 7 presets applies through the relay by its registry name", async () => {
+  it("every one of the 9 presets applies through the relay by its registry name", async () => {
     const h = await relayHarness();
     for (const preset of SCENE_PRESETS) {
       const before = h.stage.scenes.length;

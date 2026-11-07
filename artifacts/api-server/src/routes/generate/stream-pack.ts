@@ -97,6 +97,25 @@ export const STREAM_PACK_THEMES: StreamPackTheme[] = [
       "clean arctic aesthetic, dark navy backgrounds, ice-blue and white frost accents, " +
       "crisp minimal typography, cool glowing light effects, sharp modern broadcast design",
   },
+  {
+    id: "desert-dune",
+    name: "Desert Dune",
+    blurb: "Sand & amber. Warm and minimal.",
+    swatches: ["#171008", "#d9a441", "#f3e5c8"],
+    stylePrompt:
+      "warm minimal desert aesthetic, deep warm-brown backgrounds, sand and amber accents, " +
+      "clean understated typography, soft golden-hour light, calm premium broadcast design",
+  },
+  {
+    id: "midnight-jazz",
+    name: "Midnight Jazz",
+    blurb: "Smoky brass & navy. Late-night club polish.",
+    swatches: ["#070b16", "#c9973f", "#a8bdd8"],
+    stylePrompt:
+      "smoky jazz club aesthetic, midnight navy-black backgrounds, brushed brass and deep blue " +
+      "accents, elegant vintage-club typography, hazy spotlight lighting, late-night premium " +
+      "broadcast design",
+  },
 ];
 
 interface StreamPackAsset {

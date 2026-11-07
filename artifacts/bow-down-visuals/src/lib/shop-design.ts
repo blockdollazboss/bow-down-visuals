@@ -17,7 +17,7 @@
    Any value outside the vocabulary (an old payload, a bent stored
    row) normalizes to the default — a storefront never guesses. */
 
-export const SHOP_LAYOUT_IDS = ["showcase", "gallery", "list"] as const;
+export const SHOP_LAYOUT_IDS = ["showcase", "gallery", "list", "hero"] as const;
 export type ShopLayoutId = (typeof SHOP_LAYOUT_IDS)[number];
 
 export const SHOP_FONT_IDS = ["house", "royal", "classic"] as const;
@@ -84,6 +84,19 @@ export const SHOP_LAYOUT_SPECS: ShopLayoutSpec[] = [
     imageClass: "h-64 w-full shrink-0 object-cover group-hover:scale-[1.02] transition",
     placeholderClass:
       "h-64 w-full shrink-0 bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center",
+  },
+  {
+    id: "hero",
+    name: "Hero",
+    blurb: "The drop up top: your first product full-bleed with its story, the rest in a rail beneath — built for single-drop shops.",
+    contentClass: "max-w-7xl mx-auto px-5 md:px-8 py-10 md:py-14",
+    /* The classes below dress the SUPPORTING RAIL (every product
+       after the featured one); the featured card itself is rendered
+       by shop.tsx's hero branch with its own tall image classes. */
+    gridClass: "grid gap-5 sm:grid-cols-2 lg:grid-cols-4",
+    imageClass: "h-48 w-full shrink-0 object-cover group-hover:scale-[1.02] transition",
+    placeholderClass:
+      "h-48 w-full shrink-0 bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center",
   },
 ];
 

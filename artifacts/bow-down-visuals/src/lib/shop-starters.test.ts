@@ -138,6 +138,22 @@ describe("(c) the settings render on the live storefront — applying is visible
   });
 });
 
+describe("porcelain-light — the design shelf's light entry (stack200 U3)", () => {
+  it("exists, and its light identity rides the ivory accent over the shelf's lightest lawful banner", () => {
+    const porcelain = shopStarterById("porcelain-light");
+    expect(porcelain).toBeDefined();
+    expect(porcelain!.settings).toEqual({ banner_color: "#3a2e22", accent_color: "#efe3c2" });
+    /* The banner still obeys the family darkness law (white ink) —
+       but it is the LIGHTEST banner on the shelf, and the accent is
+       a pale ivory, lighter than every jewel accent before it. */
+    for (const s of SHOP_DESIGN_STARTERS) {
+      if (s.id === "porcelain-light") continue;
+      expect(luminance(porcelain!.settings.banner_color)).toBeGreaterThan(luminance(s.settings.banner_color));
+    }
+    expect(luminance(porcelain!.settings.accent_color)).toBeGreaterThan(0.85);
+  });
+});
+
 describe("(d) banner darkness — white shop-name ink stays readable on every starter", () => {
   it("every banner color is dark (relative luminance < 0.2)", () => {
     for (const s of SHOP_DESIGN_STARTERS) {

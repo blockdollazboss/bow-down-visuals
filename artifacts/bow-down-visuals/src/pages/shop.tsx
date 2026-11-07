@@ -455,6 +455,77 @@ export default function ShopStorefront() {
   const layoutSpec = shopLayoutSpec(normalizeShopLayoutId(shop?.layout_style));
   const fontSpec = shopFontSpec(normalizeShopFontId(shop?.font_style));
 
+  /* The standard product card — every layout's rail card. The Hero
+     layout's supporting rail renders these identical cards under its
+     featured card, so a layout never forks the card itself. */
+  const productCard = (p: PublicProduct) => (
+    <button
+      key={p.id}
+      onClick={() => setSelected(p)}
+      className={`relative flex flex-col text-left rounded-2xl border overflow-hidden hover:border-white/25 transition group ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
+    >
+      {p.pinned_ad?.video_url && (
+        <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-bold text-amber-300">
+          <Play className="h-3 w-3" /> {t("shop.ugcAd", "UGC ad")}
+        </span>
+      )}
+      {p.image_url ? (
+        <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.image_alt_text ?? p.name} className={layoutSpec.imageClass} />
+      ) : (
+        <div className={layoutSpec.placeholderClass}>
+          <ShoppingBag className="w-10 h-10 text-white/20" />
+        </div>
+      )}
+      <div className="p-4 flex flex-1 flex-col">
+        {/* Full title wraps — never ellipsis-cut (owner screenshot Oct 28:
+            "TEST Digital Download — delete pre-la…" on one cut-off line).
+            Names run to 120 chars, so no line clamp either; the price is
+            pinned to the body bottom so rows keep equal heights + aligned prices. */}
+        <div className={`font-bold break-words ${fontSpec.displayClass}${layoutSpec.id === "list" ? " text-lg" : ""}`}>{p.name}</div>
+        {/* List layout only: the product's story rides
+            the card — the Editorial look sells on it.
+            Other layouts keep the story in the detail
+            view, exactly as before. */}
+        {layoutSpec.id === "list" && p.description && (
+          <p className="mt-1 text-sm text-white/55 whitespace-pre-line">{p.description}</p>
+        )}
+        <div className="mt-auto pt-1 font-black" style={{ color: accent }}>{priceLabel(p.price_cents)}</div>
+      </div>
+    </button>
+  );
+
+  /* The Hero layout's featured card (stack200 U3): the shop's first
+     product full-bleed — a tall image, the name at display size, and
+     its story on the card, since the hero product IS the pitch. It
+     opens the same detail view as every other card. */
+  const heroCard = (p: PublicProduct) => (
+    <button
+      key={p.id}
+      onClick={() => setSelected(p)}
+      className={`relative flex w-full flex-col text-left rounded-2xl border overflow-hidden hover:border-white/25 transition group ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
+    >
+      {p.pinned_ad?.video_url && (
+        <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-bold text-amber-300">
+          <Play className="h-3 w-3" /> {t("shop.ugcAd", "UGC ad")}
+        </span>
+      )}
+      {p.image_url ? (
+        <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.image_alt_text ?? p.name} className="h-80 md:h-[26rem] w-full shrink-0 object-cover group-hover:scale-[1.02] transition" />
+      ) : (
+        <div className="h-80 md:h-[26rem] w-full shrink-0 bg-gradient-to-br from-white/[0.06] to-transparent flex items-center justify-center">
+          <ShoppingBag className="w-12 h-12 text-white/20" />
+        </div>
+      )}
+      <div className="p-5 md:p-6 flex flex-1 flex-col">
+        <div className={`text-2xl md:text-3xl font-black break-words ${fontSpec.displayClass}`}>{p.name}</div>
+        {p.description && (
+          <p className="mt-2 text-sm md:text-base text-white/55 whitespace-pre-line">{p.description}</p>
+        )}
+        <div className="mt-3 font-black text-lg" style={{ color: accent }}>{priceLabel(p.price_cents)}</div>
+      </div>
+    </button>
+  );
+
   return (
     <div
       className="min-h-screen bg-black text-white"
@@ -544,43 +615,20 @@ export default function ShopStorefront() {
                 <ShoppingBag className="w-10 h-10 mx-auto text-white/25" />
                 <p className="mt-4 text-white/50 text-sm">{t("shop.noProducts")}</p>
               </div>
+            ) : layoutSpec.id === "hero" ? (
+              /* Hero layout: the first product featured full-bleed,
+                 the rest of the drop in the spec's rail grid beneath. */
+              <>
+                {heroCard(products[0]!)}
+                {products.length > 1 && (
+                  <div className={`${layoutSpec.gridClass} mt-6`}>
+                    {products.slice(1).map((p) => productCard(p))}
+                  </div>
+                )}
+              </>
             ) : (
               <div className={layoutSpec.gridClass}>
-                {products.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setSelected(p)}
-                    className={`relative flex flex-col text-left rounded-2xl border overflow-hidden hover:border-white/25 transition group ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
-                  >
-                    {p.pinned_ad?.video_url && (
-                      <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-bold text-amber-300">
-                        <Play className="h-3 w-3" /> {t("shop.ugcAd", "UGC ad")}
-                      </span>
-                    )}
-                    {p.image_url ? (
-                      <img src={p.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={p.image_alt_text ?? p.name} className={layoutSpec.imageClass} />
-                    ) : (
-                      <div className={layoutSpec.placeholderClass}>
-                        <ShoppingBag className="w-10 h-10 text-white/20" />
-                      </div>
-                    )}
-                    <div className="p-4 flex flex-1 flex-col">
-                      {/* Full title wraps — never ellipsis-cut (owner screenshot Oct 28:
-                          "TEST Digital Download — delete pre-la…" on one cut-off line).
-                          Names run to 120 chars, so no line clamp either; the price is
-                          pinned to the body bottom so rows keep equal heights + aligned prices. */}
-                      <div className={`font-bold break-words ${fontSpec.displayClass}${layoutSpec.id === "list" ? " text-lg" : ""}`}>{p.name}</div>
-                      {/* List layout only: the product's story rides
-                          the card — the Editorial look sells on it.
-                          Other layouts keep the story in the detail
-                          view, exactly as before. */}
-                      {layoutSpec.id === "list" && p.description && (
-                        <p className="mt-1 text-sm text-white/55 whitespace-pre-line">{p.description}</p>
-                      )}
-                      <div className="mt-auto pt-1 font-black" style={{ color: accent }}>{priceLabel(p.price_cents)}</div>
-                    </div>
-                  </button>
-                ))}
+                {products.map((p) => productCard(p))}
               </div>
             )}
             <p className="mt-10 text-center text-xs text-white/50">

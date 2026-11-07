@@ -188,6 +188,8 @@ const BIZ_STREAM_THEME_KEYS: Record<string, string> = {
   "emerald-empire": "worldCoachMoney.bizStreamThemeEmerald",
   "violet-noir": "worldCoachMoney.bizStreamThemeViolet",
   "arctic-frost": "worldCoachMoney.bizStreamThemeArctic",
+  "desert-dune": "worldCoachMoney.bizStreamThemeDesert",
+  "midnight-jazz": "worldCoachMoney.bizStreamThemeJazz",
 };
 const BIZ_STREAM_ASSET_KEYS: Record<string, string> = {
   "webcam-frame": "worldCoachMoney.bizStreamAssetWebcam",

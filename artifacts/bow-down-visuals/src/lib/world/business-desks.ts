@@ -292,6 +292,8 @@ export const STREAM_PACK_THEMES = [
   { key: "emerald-empire", label: "Emerald Empire" },
   { key: "violet-noir", label: "Violet Noir" },
   { key: "arctic-frost", label: "Arctic Frost" },
+  { key: "desert-dune", label: "Desert Dune" },
+  { key: "midnight-jazz", label: "Midnight Jazz" },
 ] as const;
 
 /** Assets — keys, labels and groups exactly as the server catalog

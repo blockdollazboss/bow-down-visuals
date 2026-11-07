@@ -601,7 +601,7 @@ describe("headshots bench — the studio's rail, native at the Branding Kit Desk
 });
 
 describe("stream pack bench — the page's rails, native at the Branding Kit Desk", () => {
-  it("themes and assets are the server catalog's own — 6 themes, 12 graphics in the page's groups", () => {
+  it("themes and assets are the server catalog's own — 8 themes, 12 graphics in the page's groups", () => {
     expect(STREAM_PACK_THEMES.map((t) => [t.key, t.label])).toEqual([
       ["gold-luxury", "Gold Luxury"],
       ["neon-cyber", "Neon Cyber"],
@@ -609,6 +609,8 @@ describe("stream pack bench — the page's rails, native at the Branding Kit Des
       ["emerald-empire", "Emerald Empire"],
       ["violet-noir", "Violet Noir"],
       ["arctic-frost", "Arctic Frost"],
+      ["desert-dune", "Desert Dune"],
+      ["midnight-jazz", "Midnight Jazz"],
     ]);
     expect(STREAM_PACK_ASSETS.map((a) => [a.key, a.label, a.group])).toEqual([
       ["webcam-frame", "Webcam Frame", "Overlays"],

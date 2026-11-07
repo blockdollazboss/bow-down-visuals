@@ -151,6 +151,10 @@ describe("registry shape", () => {
     expect(scenePresetHasSourceType(scenePresetById("just-you")!, "camera")).toBe(true);
     expect(scenePresetHasSourceType(scenePresetById("starting-soon")!, "camera")).toBe(false);
     expect(scenePresetHasSourceType(scenePresetById("avatar-stage")!, "avatar")).toBe(true);
+    expect(scenePresetHasSourceType(scenePresetById("guest-interview")!, "camera")).toBe(true);
+    expect(scenePresetHasSourceType(scenePresetById("guest-interview")!, "guest")).toBe(true);
+    expect(scenePresetHasSourceType(scenePresetById("end-screen")!, "camera")).toBe(false);
+    expect(scenePresetHasSourceType(scenePresetById("end-screen")!, "guest")).toBe(false);
   });
 
   it("(c) building twice gives fresh ids and never shares nested settings with the registry", () => {

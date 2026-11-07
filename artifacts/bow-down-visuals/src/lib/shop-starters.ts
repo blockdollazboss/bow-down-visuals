@@ -123,6 +123,13 @@ export const SHOP_DESIGN_STARTERS: ShopDesignStarter[] = [
     bestFor: "Tech, gear, and minimal catalogs.",
     settings: { banner_color: "#0c0c0e", accent_color: "#d6d3d1" },
   },
+  {
+    id: "porcelain-light",
+    name: "Porcelain Light",
+    blurb: "The shelf's light look: porcelain ivory with gold trim over a warm ceramic glaze — the banner band itself stays deep, as every starter's does, so the white shop name rides it readable.",
+    bestFor: "Skincare, home goods, stationery, and bright boutique brands.",
+    settings: { banner_color: "#3a2e22", accent_color: "#efe3c2" },
+  },
 ];
 
 export function shopStarterById(id: string): ShopDesignStarter | undefined {
@@ -220,6 +227,13 @@ export const SHOP_LOOK_STARTERS: ShopLookStarter[] = [
     blurb: "Full-width rows with ceremonial serif headlines — a short catalog that reads like a program.",
     bestFor: "Limited runs, commissions, and short menus.",
     settings: { layout_style: "list", font_style: "royal" },
+  },
+  {
+    id: "single-drop-hero",
+    name: "Single Drop Hero",
+    blurb: "One hero product full-bleed with its story up top, the rest of the drop in a rail below — headlines set in the ceremonial serif.",
+    bestFor: "Single-drop shops, limited releases, and one-big-thing launches.",
+    settings: { layout_style: "hero", font_style: "royal" },
   },
 ];
 

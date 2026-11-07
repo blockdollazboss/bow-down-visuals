@@ -82,6 +82,10 @@ describe("default-preserves-current-look", () => {
     expect(new Set(grids).size).toBe(SHOP_LAYOUT_SPECS.length);
     expect(shopLayoutSpec("gallery").gridClass).toContain("lg:grid-cols-4");
     expect(shopLayoutSpec("list").gridClass).toContain("grid-cols-1");
+    /* Hero's spec dresses its supporting rail — a four-across row at
+       the gallery's width but its own rhythm (stack200 U3). */
+    expect(shopLayoutSpec("hero").gridClass).toBe("grid gap-5 sm:grid-cols-2 lg:grid-cols-4");
+    expect(shopLayoutSpec("hero").name).toBe("Hero");
     for (const spec of SHOP_LAYOUT_SPECS) {
       expect(spec.contentClass.length).toBeGreaterThan(0);
       expect(spec.imageClass.length).toBeGreaterThan(0);
@@ -106,9 +110,9 @@ describe("default-preserves-current-look", () => {
 
 describe("the FE vocabulary matches the server's — no drift", () => {
   it("the API lib carries the same closed lists", () => {
-    expect(apiDesignLib).toContain('"showcase", "gallery", "list"');
+    expect(apiDesignLib).toContain('"showcase", "gallery", "list", "hero"');
     expect(apiDesignLib).toContain('"house", "royal", "classic"');
-    expect(SHOP_LAYOUT_IDS).toEqual(["showcase", "gallery", "list"]);
+    expect(SHOP_LAYOUT_IDS).toEqual(["showcase", "gallery", "list", "hero"]);
     expect(SHOP_FONT_IDS).toEqual(["house", "royal", "classic"]);
   });
 
