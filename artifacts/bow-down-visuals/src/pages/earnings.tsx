@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { RotateCcw } from "lucide-react";
 import { EarningsDocuments } from "@/components/trust/TrustPanels";
@@ -104,7 +105,23 @@ const LEDGER_KIND_LABEL: Record<string, string> = {
   tip_jar_tip: "Tip jar tip",
 };
 
+/* Catalog keys for the same labels (Stack-200 D6, earnings.ledger* —
+   money labels, English source verbatim in every catalog). The map
+   above stays as the no-catalog fallback. */
+const LEDGER_KIND_KEY: Record<string, string> = {
+  digital_sale: "earnings.ledgerDigitalSale",
+  store_order: "earnings.ledgerStoreOrder",
+  shop_event: "earnings.ledgerShopEvent",
+  beat_license: "earnings.ledgerBeatLicense",
+  membership: "earnings.ledgerMembership",
+  shoutout_request: "earnings.ledgerShoutout",
+  tip_jar_tip: "earnings.ledgerTipJarTip",
+};
+
 function PendingPayoutCard({ getToken }: { getToken: () => Promise<string | null> }) {
+  const { t } = useTranslation();
+  const ledgerLabel = (kind: string) =>
+    LEDGER_KIND_KEY[kind] ? t(LEDGER_KIND_KEY[kind]) : (LEDGER_KIND_LABEL[kind] ?? kind);
   const [read, setRead] = useState<PendingPayoutRead | null>(null);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -158,7 +175,7 @@ function PendingPayoutCard({ getToken }: { getToken: () => Promise<string | null
               {read.rows.slice(0, 8).map((r) => (
                 <li key={r.id} className="flex justify-between gap-2">
                   <span>
-                    {LEDGER_KIND_LABEL[r.sourceKind] ?? r.sourceKind}
+                    {ledgerLabel(r.sourceKind)}
                     {r.entryType === "reversal" ? " — refund reversal" : ""}
                   </span>
                   <span className={r.entryType === "reversal" ? "text-destructive" : ""}>
@@ -175,6 +192,7 @@ function PendingPayoutCard({ getToken }: { getToken: () => Promise<string | null
 }
 
 export default function Earnings() {
+  const { t } = useTranslation();
   const { user, loading: authLoading, getAccessToken } = useAuth();
   const [data, setData] = useState<EarningsResponse | null>(null);
   const [failed, setFailed] = useState(false);
@@ -253,7 +271,7 @@ export default function Earnings() {
   if (!authLoading && !user) {
     return (
       <div className="mx-auto max-w-3xl p-6" data-testid="earnings-signin">
-        <h1 className="text-2xl font-bold">Earnings</h1>
+        <h1 className="text-2xl font-bold">{t("earnings.title")}</h1>
         <p className="mt-4 text-muted-foreground">
           Sign in to see your earnings — sales, memberships, tips and brand deals, all in one picture.
         </p>
@@ -269,7 +287,7 @@ export default function Earnings() {
   if (failed) {
     return (
       <div className="mx-auto max-w-3xl p-6">
-        <h1 className="text-2xl font-bold">Earnings</h1>
+        <h1 className="text-2xl font-bold">{t("earnings.title")}</h1>
         <p className="mt-4 text-destructive">Couldn&apos;t load your earnings — try again in a moment.</p>
         <button
           type="button"
@@ -285,7 +303,7 @@ export default function Earnings() {
   if (!data) {
     return (
       <div className="mx-auto max-w-3xl p-6">
-        <h1 className="text-2xl font-bold">Earnings</h1>
+        <h1 className="text-2xl font-bold">{t("earnings.title")}</h1>
         <p className="mt-4 text-muted-foreground">Loading your money picture…</p>
         {retrying && (
           <p className="mt-1 text-sm text-muted-foreground">Still trying — a sleeping server can take a moment to wake.</p>
@@ -298,7 +316,7 @@ export default function Earnings() {
   const { sources } = data;
   return (
     <div className="mx-auto max-w-3xl p-6">
-      <h1 className="text-2xl font-bold">Earnings</h1>
+      <h1 className="text-2xl font-bold">{t("earnings.title")}</h1>
       <p className="mt-1 text-sm text-muted-foreground">Every stream, one picture — sales, beats, memberships, tips and brand deals.</p>
 
       <SectionBoundary name="earnings-total">
@@ -404,11 +422,11 @@ export default function Earnings() {
         <SectionBoundary name="earnings-source-shoutouts">
         <SourceCard
           onRetry={reload}
-          title="Shoutouts"
+          title={t("earnings.shoutoutsTitle")}
           source={sources.shoutouts}
           detail={
             sources.shoutouts.status === "ok"
-              ? `gross ${usd(sources.shoutouts.grossCents)} · platform fee ${usd(sources.shoutouts.feeCents)} (5%)`
+              ? t("earnings.shoutoutsDetail", { gross: usd(sources.shoutouts.grossCents), fee: usd(sources.shoutouts.feeCents) })
               : undefined
           }
         />
@@ -416,9 +434,9 @@ export default function Earnings() {
         <SectionBoundary name="earnings-source-tipjar">
         <SourceCard
           onRetry={reload}
-          title="Tip jar tips"
+          title={t("earnings.tipJarTitle")}
           source={sources.tipJar}
-          detail="tips arrive in full — no platform fee"
+          detail={t("earnings.tipJarDetail")}
         />
         </SectionBoundary>
         <SectionBoundary name="earnings-source-bookings">

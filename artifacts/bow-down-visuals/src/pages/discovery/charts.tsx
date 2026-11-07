@@ -14,7 +14,7 @@ import { useFollowStates, CreateCta } from "@/components/discovery/FollowButton"
 import { VERTICALS, VERTICAL_META, verticalLabel, type VerticalKey } from "@/lib/verticals";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { brandScoutStats, BRAND_OUTREACH_DOORS, type BrandCreatorLite } from "@/lib/charts-brands";
-import { UGC_BRIEFS_MONEY_NOTE } from "@/lib/ugc-ads";
+import { useTranslation } from "react-i18next";
 import { LiveBattleCrownStrip } from "@/components/live/LiveBattlesPanel";
 import { ChartsRadioPanel } from "@/components/discovery/ChartsRadio";
 import SpotlightModal from "@/components/SpotlightModal";
@@ -275,6 +275,7 @@ function LoadErrorBox({ onRetry }: { onRetry: () => void }) {
 
 export default function Charts() {
   usePageTitle("Charts", "The hottest tracks, videos, and creators on Bow Down Visuals right now.");
+  const { t } = useTranslation();
   const isLightBrands = useIsLightTheme();
   const [tab, setTab] = useState<Tab>("charts");
   const [vertical, setVertical] = useState<VerticalKey | "all">("all");
@@ -699,7 +700,7 @@ export default function Charts() {
                     <span className="mt-2 block text-xs font-black text-[#e8c86a]">See price + inquire →</span>
                   </button>
                 </div>
-                <p className={`mt-4 text-center text-xs ${isLightBrands ? "text-[#6B5B36]" : "text-white/40"}`}>{UGC_BRIEFS_MONEY_NOTE}</p>
+                <p className={`mt-4 text-center text-xs ${isLightBrands ? "text-[#6B5B36]" : "text-white/40"}`}>{t("worldLivePromo.ugcBriefsMoneyNote")}</p>
               </div>
               <SpotlightModal open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
               <LoadingScreenModal open={loadingScreenOpen} onClose={() => setLoadingScreenOpen(false)} />

@@ -68,6 +68,43 @@ const STATEMENT_SOURCE_LINES: ReadonlyArray<{ key: string; label: string }> = [
   { key: "royalties", label: "Royalties (recorded)" },
 ];
 
+/* The locale seam (Stack-200 D6): the in-page viewers pass the
+   catalog-resolved strings (earnings.stmt* — the English source
+   verbatim in every catalog; money labels are never agent-
+   translated); no bundle → the PDF's own English labels, byte-
+   identical. The PDF route never passes a bundle. */
+export interface StatementStrings {
+  labels?: Partial<Record<string, string>>;
+  couldntLoad?: string;
+  lineTemplate?: string;
+  total?: string;
+  totalPartial?: string;
+}
+
+/** Build the bundle from a translate function — the one place the
+ *  earnings.stmt* keys are named, so the two in-page viewers can
+ *  never thread different labels. */
+export function statementStringsFrom(tr: (key: string) => string): StatementStrings {
+  return {
+    labels: {
+      storeSales: tr("earnings.stmtStoreSales"),
+      digitalSales: tr("earnings.stmtDigitalSales"),
+      shopSales: tr("earnings.stmtShopSales"),
+      beats: tr("earnings.stmtBeats"),
+      memberships: tr("earnings.stmtMemberships"),
+      shoutouts: tr("earnings.stmtShoutouts"),
+      tipJar: tr("earnings.stmtTipJar"),
+      brandDeals: tr("earnings.stmtBrandDeals"),
+      ugcBriefs: tr("earnings.stmtUgcBriefs"),
+      royalties: tr("earnings.stmtRoyalties"),
+    },
+    couldntLoad: tr("earnings.stmtCouldntLoad"),
+    lineTemplate: tr("earnings.stmtLine"),
+    total: tr("earnings.stmtTotal"),
+    totalPartial: tr("earnings.stmtTotalPartial"),
+  };
+}
+
 interface StatementLineRow {
   key: string;
   label: string;
@@ -80,12 +117,12 @@ interface StatementLineRow {
  *  A canonical source the payload doesn't carry is skipped (the
  *  builder always sends all ten; a short payload degrades to the
  *  lines it has, never to invented rows). */
-export function statementLineRows(stmt: EarningsStatement): StatementLineRow[] {
+export function statementLineRows(stmt: EarningsStatement, strings?: StatementStrings): StatementLineRow[] {
   const rows: StatementLineRow[] = [];
   for (const { key, label } of STATEMENT_SOURCE_LINES) {
     const s = stmt.sources[key];
     if (!s) continue;
-    rows.push({ key, label, status: s.status, totalCents: s.totalCents, count: s.count });
+    rows.push({ key, label: strings?.labels?.[key] ?? label, status: s.status, totalCents: s.totalCents, count: s.count });
   }
   return rows;
 }
@@ -93,23 +130,29 @@ export function statementLineRows(stmt: EarningsStatement): StatementLineRow[] {
 /** Statement money, the PDF's own format: two decimals, no grouping
  *  ($1234.56, not $1,234.56) — and a missing total reads as the
  *  honest "couldn't load", never a $0.00. */
-export function statementMoney(cents: number | null): string {
-  return cents === null ? "couldn't load" : `$${(cents / 100).toFixed(2)}`;
+export function statementMoney(cents: number | null, couldntLoad = "couldn't load"): string {
+  return cents === null ? couldntLoad : `$${(cents / 100).toFixed(2)}`;
 }
 
 /** One line's right-hand text, exactly as the in-page viewers print
  *  it (and the PDF, modulo its parentheses): an errored source says
  *  "couldn't load"; a loaded one shows its recorded total + count. */
-export function statementLineText(row: StatementLineRow): string {
-  if (row.status === "error") return "couldn't load";
-  return `${statementMoney(row.totalCents)} · ${row.count} records`;
+export function statementLineText(row: StatementLineRow, strings?: StatementStrings): string {
+  const couldntLoad = strings?.couldntLoad ?? "couldn't load";
+  if (row.status === "error") return couldntLoad;
+  const money = statementMoney(row.totalCents, couldntLoad);
+  if (strings?.lineTemplate) {
+    return strings.lineTemplate.replace("{{money}}", money).replace("{{count}}", String(row.count));
+  }
+  return `${money} · ${row.count} records`;
 }
 
 /** The total row's label — partial statements (a source failed)
  *  never present their sum as the whole story. Both the PDF route
  *  and the in-page viewers use this exact wording. */
-export function statementTotalLabel(partial: boolean): string {
-  return partial ? "Total of the sources that loaded" : "Total";
+export function statementTotalLabel(partial: boolean, strings?: StatementStrings): string {
+  if (partial) return strings?.totalPartial ?? "Total of the sources that loaded";
+  return strings?.total ?? "Total";
 }
 
 /** An honestly empty statement: every line loaded and every line

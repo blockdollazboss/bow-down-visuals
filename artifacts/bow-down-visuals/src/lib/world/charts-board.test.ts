@@ -438,7 +438,7 @@ describe("the ChartsBoard surface (source pins)", () => {
        never the blanket free-brief note alone, C-25 follow-up),
        imported from the one seam — and exactly one quiet website
        footer, never more. */
-    expect(outreachPanelSrc).toContain("UGC_BRIEFS_MONEY_NOTE");
+    expect(outreachPanelSrc).toContain("worldLivePromo.ugcBriefsMoneyNote");
     expect(outreachPanelSrc).not.toContain("UGC_PAYMENT_NOTE");
     expect(outreachPanelSrc).toContain('from "@/lib/ugc-ads"');
     expect(outreachPanelSrc).toContain('data-testid="world-charts-brands-website"');

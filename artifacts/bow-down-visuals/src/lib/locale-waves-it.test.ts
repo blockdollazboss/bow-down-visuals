@@ -80,6 +80,7 @@ const W1_NAMESPACES = [
    (Email, Film, No, Dashboard, Software, Fitness, Gaming, Lifestyle, Tech,
    Marketplace, Merch, Design, Logo, Host, Branding, Management, Creator…). */
 const W1_LEGIT = new Set([
+  "brandDeals.related.brandCalculator",
   "brandDeals.tabs.marketplace",
   "referrals.contest.hours",
   "referrals.contest.secs",
@@ -256,6 +257,13 @@ const W2_LEGIT = new Set([
   "labelPitch.typeImprint", "labelPitch.typeMajor",
   "sponsorDealDetail.applicationsLoadError", "sponsorDealDetail.followersPlaceholder", "sponsorDealDetail.retryLoad", "sponsors.matchFollowersPlaceholder",
   "sponsors.matchPlatformsPlaceholder", "sponsorsPost.budgetMaxPlaceholder",
+  "sponsors.handoffDealPage",
+  "sponsors.handoffFunded",
+  "sponsors.handoffOrOnThe",
+  "sponsors.handoffSelfLink",
+  "sponsors.handoffSelfPrefix",
+  "sponsors.managerHandoffNote",
+  "sponsors.openInManager",
   "sponsorsPost.budgetMinPlaceholder",
   "signup.emailField", "signup.passwordField",
   "waitlist.artistTypeContentCreator", "waitlist.artistTypeRapper",
@@ -379,6 +387,22 @@ describe("it-W3 (Stack-28 #93) — create video/image + audio namespaces fully I
 // ── it-W4 (Stack-28 appendix) — audio + tools namespaces closed whole ──
 const W4_NAMESPACES = ["fillerRemover", "mastering", "lrcExport", "samples", "vocalPolish", "vocalTune", "songRework", "producerTag", "audioStudio", "stems", "singingVoice", "beatMaker", "bgReplace", "makeSong", "aiAudio", "sounds", "songs", "beats", "sfx", "translate", "vocalRemoval", "voiceover"];
 const W4_LEGIT = new Set([
+  "beatMaker.soundBankComing",
+  "beatMaker.soundGroupBank",
+  "beatMaker.soundGroupBuiltIn",
+  "beatMaker.soundGroupYours",
+  "beatMaker.soundLoadOwn",
+  "beatMaker.soundNoneLoaded",
+  "beatMaker.soundNotLoadedShort",
+  "beatMaker.soundPickerAria",
+  "beatMaker.soundSaved",
+  "beatMaker.soundSessionOnlyShort",
+  "beats.agreeAndPayButton",
+  "beats.noStemsOnFile",
+  "beats.sellPrefilledNote",
+  "beats.signInToLicense",
+  "beats.signInToLicenseButton",
+  "beats.soldExclusively",
   "vocalTune.styleHardtuneLabel",
   "lrcExport.aiCost",
   "mastering.truePeakMix",
@@ -661,6 +685,9 @@ describe("it W5 namespaces (Stack-28 appendix)", () => {
 
 const W6_NAMESPACES: string[] = ["linkInBio", "weekly_contest", "community", "collabs", "team", "discord-bot", "tour", "extension", "shoutouts", "goLive", "shows", "contests", "gamers", "commentReplies", "nfcCards", "privacy", "promote", "coach", "nfcCardProfile", "qrLogin", "notFound", "copyright", "websiteBuilder", "contact", "locations", "milestones"];
 const W6_LEGIT: string[] = [
+  "coach.tabActionTracker",
+  "coach.tabContracts",
+  "coach.tabManageDeals",
   "linkInBio.public.title",
   "linkInBio.links.urlPlaceholder",
   "linkInBio.theme.onyxMinimal",

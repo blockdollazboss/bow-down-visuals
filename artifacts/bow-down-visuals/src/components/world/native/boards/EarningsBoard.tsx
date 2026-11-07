@@ -33,6 +33,7 @@ import {
   statementLineText,
   statementMoney,
   statementPdfPath,
+  statementStringsFrom,
   statementTotalLabel,
   statementYears,
   usd,
@@ -90,6 +91,9 @@ function fmtDate(iso: string | null, locale: string): string {
 
 export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
   const { t, i18n } = useTranslation();
+  /* Statement labels ride the shared earnings.stmt* bundle
+     (Stack-200 D6) — the same words the Earnings page prints. */
+  const stmtStrings = statementStringsFrom(t);
   /* The seam's string bundle, key-mapped through the catalogs —
      the seam's own defaults keep un-wired callers in English. */
   const boardStrings: EarningsBoardStrings = {
@@ -486,7 +490,7 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
               )}
               {stmt && (
                 <div className="mt-3" data-testid="world-earnings-statement-lines">
-                  {statementLineRows(stmt).map((row) => (
+                  {statementLineRows(stmt, stmtStrings).map((row) => (
                     <div
                       key={row.key}
                       className={`flex items-baseline justify-between gap-3 border-b py-1.5 text-xs ${
@@ -494,12 +498,12 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                       }`}
                     >
                       <span className={muted}>{row.label}</span>
-                      <span className={`font-semibold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{statementLineText(row)}</span>
+                      <span className={`font-semibold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{statementLineText(row, stmtStrings)}</span>
                     </div>
                   ))}
                   <div className={`flex items-baseline justify-between gap-3 py-2 text-xs font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                    <span>{statementTotalLabel(stmt.partial)}</span>
-                    <span>{statementMoney(stmt.totalCents)}</span>
+                    <span>{statementTotalLabel(stmt.partial, stmtStrings)}</span>
+                    <span>{statementMoney(stmt.totalCents, stmtStrings.couldntLoad)}</span>
                   </div>
                   {statementIsEmpty(stmt) && (
                     <p className={`text-[11px] ${muted}`}>{t("worldBoards.ebStatementEmpty", { year })}</p>

@@ -38,8 +38,17 @@ export const UGC_ESCROW_NOTE =
     priceCents == null → the off-site note; priced → the escrow
     note). Per-brief surfaces render the server's paymentNote, which
     carries this same choice; this helper is the fallback when a
-    brief arrives without one. */
-export function ugcBriefMoneyNote(brief: { priceCents?: number | null }): string {
+    brief arrives without one. The optional strings bundle is the
+    locale seam (Stack-200 D6): a surface with catalog access passes
+    the catalog-resolved notes (worldLivePromo.ugcEscrowNote /
+    ugcPaymentNote — the English source verbatim in every catalog,
+    money copy is never agent-translated); no bundle → the English
+    constants above, byte-identical. */
+export function ugcBriefMoneyNote(
+  brief: { priceCents?: number | null },
+  strings?: { escrowNote: string; paymentNote: string },
+): string {
+  if (strings) return brief.priceCents != null ? strings.escrowNote : strings.paymentNote;
   return brief.priceCents != null ? UGC_ESCROW_NOTE : UGC_PAYMENT_NOTE;
 }
 
@@ -282,23 +291,28 @@ export function normalizeUgcProducts(payload: unknown): UgcShopProduct[] {
 
 /* ── Labels + lifecycle ─────────────────────────────────────────────── */
 
-export function ugcAdStatusLabel(status: string): string {
+/* Status labels take an optional catalog-resolved label bundle
+   (Stack-200 D6 locale seam, the E-3 pattern): surfaces with catalog
+   access pass worldLivePromo.ugcAdStatus* / ugcBriefStatus* values;
+   no bundle → the English literals, byte-identical. Unknown statuses
+   still pass through raw, bundle or not. */
+export function ugcAdStatusLabel(status: string, labels?: Partial<Record<string, string>>): string {
   switch (status) {
-    case "draft": return "Draft";
-    case "generating": return "Generating…";
-    case "ready": return "Ready";
-    case "failed": return "Failed — refunded";
+    case "draft": return labels?.draft ?? "Draft";
+    case "generating": return labels?.generating ?? "Generating…";
+    case "ready": return labels?.ready ?? "Ready";
+    case "failed": return labels?.failed ?? "Failed — refunded";
     default: return status;
   }
 }
 
-export function briefStatusLabel(status: string): string {
+export function briefStatusLabel(status: string, labels?: Partial<Record<string, string>>): string {
   switch (status) {
-    case "open": return "Open";
-    case "claimed": return "Claimed";
-    case "delivered": return "Delivered";
-    case "approved": return "Approved";
-    case "closed": return "Closed";
+    case "open": return labels?.open ?? "Open";
+    case "claimed": return labels?.claimed ?? "Claimed";
+    case "delivered": return labels?.delivered ?? "Delivered";
+    case "approved": return labels?.approved ?? "Approved";
+    case "closed": return labels?.closed ?? "Closed";
     default: return status;
   }
 }
@@ -331,14 +345,18 @@ export function briefActionsFor(brief: UgcBrief, userId: string | null): BriefAc
 }
 
 /** The escrow state in plain words (hub panel copy; the World
-    station carries the same words through its catalogs). */
-export function escrowStatusLabel(escrowStatus: string | null): string {
+    station carries the same words through its catalogs). The
+    optional label bundle is the locale seam (Stack-200 D6): the hub
+    panel passes worldLivePromo.ugcEscrow* resolutions; no bundle →
+    the English literals, byte-identical. Money-adjacent copy — the
+    catalog values are the English source verbatim in every locale. */
+export function escrowStatusLabel(escrowStatus: string | null, labels?: Partial<Record<string, string>>): string {
   switch (escrowStatus) {
-    case "unfunded": return "Not funded";
-    case "funding": return "Funding started";
-    case "funded": return "Funded — held safely";
-    case "released": return "Released to the creator";
-    case "refunded": return "Refunded";
+    case "unfunded": return labels?.unfunded ?? "Not funded";
+    case "funding": return labels?.funding ?? "Funding started";
+    case "funded": return labels?.funded ?? "Funded — held safely";
+    case "released": return labels?.released ?? "Released to the creator";
+    case "refunded": return labels?.refunded ?? "Refunded";
     default: return escrowStatus ?? "";
   }
 }

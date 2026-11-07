@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   statementFromPayload,
@@ -7,6 +8,7 @@ import {
   statementLineRows,
   statementLineText,
   statementMoney,
+  statementStringsFrom,
   statementTotalLabel,
 } from "@/lib/earnings-statement";
 import { CATALOG_EXPORT_KIND_OPTIONS, CATALOG_EXPORT_FIELD_OPTIONS } from "./catalog-export-options";
@@ -361,6 +363,11 @@ export function CatalogExportPanel() {
 
 /* ── #5 Earnings documents ─────────────────────────────────────────── */
 export function EarningsDocuments() {
+  const { t: translate } = useTranslation();
+  /* Statement labels resolve through the catalog (Stack-200 D6,
+     earnings.stmt* — English source verbatim in every locale); the
+     PDF keeps the lib's English defaults, so page and PDF agree. */
+  const stmtStrings = statementStringsFrom(translate);
   const { getAccessToken } = useAuth();
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
@@ -412,10 +419,10 @@ export function EarningsDocuments() {
               this view and the downloaded PDF can never disagree —
               and picking another year above clears the old year's
               statement instead of leaving it beside the new year. */}
-          {statementLineRows(stmt).map((row) => (
-            <div key={row.key} className="flex justify-between border-b border-border py-1.5"><span>{row.label}</span><span>{statementLineText(row)}</span></div>
+          {statementLineRows(stmt, stmtStrings).map((row) => (
+            <div key={row.key} className="flex justify-between border-b border-border py-1.5"><span>{row.label}</span><span>{statementLineText(row, stmtStrings)}</span></div>
           ))}
-          <div className="flex justify-between py-2 font-bold"><span>{statementTotalLabel(stmt.partial)}</span><span>{statementMoney(stmt.totalCents)}</span></div>
+          <div className="flex justify-between py-2 font-bold"><span>{statementTotalLabel(stmt.partial, stmtStrings)}</span><span>{statementMoney(stmt.totalCents, stmtStrings.couldntLoad)}</span></div>
           {statementIsEmpty(stmt) && <p className="text-muted-foreground">Nothing was recorded in {year} — this statement is empty.</p>}
         </div>
       )}

@@ -143,6 +143,22 @@ const money = (cents: number): string => `$${(cents / 100).toFixed(2)}`;
 
 export function UgcAdsStation({ isLight }: { isLight: boolean }) {
   const { t, i18n } = useTranslation();
+  /* Status chips resolve through the same lib seam the hub panel
+     uses (Stack-200 D6) — catalog labels, English literals as the
+     no-bundle fallback inside lib/ugc-ads. */
+  const adStatusLabels = {
+    draft: t("worldLivePromo.ugcAdStatusDraft"),
+    generating: t("worldLivePromo.ugcAdStatusGenerating"),
+    ready: t("worldLivePromo.ugcAdStatusReady"),
+    failed: t("worldLivePromo.ugcAdStatusFailedRefunded"),
+  };
+  const briefStatusLabels = {
+    open: t("worldLivePromo.ugcBriefStatusOpen"),
+    claimed: t("worldLivePromo.ugcBriefStatusClaimed"),
+    delivered: t("worldLivePromo.ugcBriefStatusDelivered"),
+    approved: t("worldLivePromo.ugcBriefStatusApproved"),
+    closed: t("worldLivePromo.ugcBriefStatusClosed"),
+  };
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const token = useCallback(() => getAccessToken(), [getAccessToken]);
@@ -660,7 +676,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
                         {t("worldLivePromo.ugcAdMeta", { style: UGC_STYLES.find((s) => s.key === ad.style)?.label ?? ad.style, date: new Date(ad.createdAt).toLocaleDateString(i18n.language) })}
                       </p>
                     </div>
-                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${muted}`}>{ugcAdStatusLabel(ad.status)}</span>
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${muted}`}>{ugcAdStatusLabel(ad.status, adStatusLabels)}</span>
                   </div>
                   {ad.status === "ready" && ad.videoUrl ? (
                     <video src={ad.videoUrl} controls playsInline className="mt-2 aspect-[9/16] max-h-64 w-full rounded-lg bg-black object-contain" />
@@ -786,7 +802,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
                           </p>
                         </div>
                       </div>
-                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${muted}`}>{briefStatusLabel(brief.status)}</span>
+                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${muted}`}>{briefStatusLabel(brief.status, briefStatusLabels)}</span>
                     </div>
 
                     {brief.priceCents != null ? (
