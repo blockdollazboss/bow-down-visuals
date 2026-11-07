@@ -5981,6 +5981,13 @@
     "suggestFlow": "플로우 제안 ({{cost}} Visual Buc)",
     "yourSongsTitle": "내 곡"
   },
+  "sectionBoundary": {
+    "title": "This section hit a snag",
+    "description": "Something glitched while this part of the page was loading. The rest of the page is fine — try this section again.",
+    "retry": "Try again",
+    "postTitle": "This post couldn't be shown",
+    "composerTitle": "The composer hit a snag"
+  },
   "settings": {
     "billing": {
       "title": "결제",

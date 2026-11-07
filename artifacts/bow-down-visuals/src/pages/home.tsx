@@ -13,6 +13,7 @@ import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import { ThreadsIcon } from "@/components/social-icons";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { mediaUrl } from "@/lib/media-cdn";
 import {
   Music,
@@ -427,7 +428,14 @@ function HeroSection({ isLight }: { isLight: boolean }) {
           you down the page.
           z-[2]: above the backdrop grain, BELOW the hero copy (text stays
           on top) and below the studio set and the King. */}
-      <SpotlightRig className="absolute inset-x-0 top-0 z-[2] h-[92%]" />
+      {/* Per-piece isolation (Stack-200 hardening C, census item 43):
+          the hero's canvas/WebGL pieces sit behind SILENT boundaries —
+          if one throws, it degrades to nothing and the static hero
+          (backdrop, copy, CTAs) carries the page. An error card
+          floating mid-hero would be worse than the missing effect. */}
+      <SectionBoundary name="hero-spotlights" variant="silent">
+        <SpotlightRig className="absolute inset-x-0 top-0 z-[2] h-[92%]" />
+      </SectionBoundary>
 
       {/* Hanging mic — the set's ceiling-suspended condenser, its own
           hero layer (z-[6]: above the King z-[4], below the copy
@@ -436,7 +444,9 @@ function HeroSection({ isLight }: { isLight: boolean }) {
           hangs in the corridor between the King and the copy column,
           plugged into the banner's bottom edge like the rig fixtures,
           and swings on the mouse (owner, 2026-10-14). */}
-      <HangingMic className="absolute inset-x-0 top-0 z-[6] h-full" />
+      <SectionBoundary name="hero-hanging-mic" variant="silent">
+        <HangingMic className="absolute inset-x-0 top-0 z-[6] h-full" />
+      </SectionBoundary>
 
       {/* Hero grid — no z-index here on purpose: the shark and the copy
           stack independently (backdrop → beams z-[2] → studio set z-[3]
@@ -450,7 +460,9 @@ function HeroSection({ isLight }: { isLight: boolean }) {
             z-[4]: above the beams and the studio set; the copy (z-10) sits
             above him. */}
         <div className="relative z-[4] flex min-w-0 justify-center">
-          <HeroLogo3D />
+          <SectionBoundary name="hero-logo-3d" variant="silent">
+            <HeroLogo3D />
+          </SectionBoundary>
         </div>
 
         {/* Copy — right side. z-10: headline, subtext and buttons stay
@@ -581,12 +593,14 @@ function HeroSection({ isLight }: { isLight: boolean }) {
           guillotined the smoke into a straight line at the hero's end
           (owner screenshot). The mask dissolves the fog into the fixed
           stage backdrop below instead. */}
-      <FogCanvas
-        className="inset-x-0 bottom-0 z-[2] h-[46%] [mask-image:linear-gradient(to_bottom,black_62%,transparent_99%)] [-webkit-mask-image:linear-gradient(to_bottom,black_62%,transparent_99%)]"
-        ceilingFrac={0.55}
-        buoyancy={-10}
-        waterMode={isLight}
-      />
+      <SectionBoundary name="hero-fog" variant="silent">
+        <FogCanvas
+          className="inset-x-0 bottom-0 z-[2] h-[46%] [mask-image:linear-gradient(to_bottom,black_62%,transparent_99%)] [-webkit-mask-image:linear-gradient(to_bottom,black_62%,transparent_99%)]"
+          ceilingFrac={0.55}
+          buoyancy={-10}
+          waterMode={isLight}
+        />
+      </SectionBoundary>
 
       {/* Scroll hint */}
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce opacity-40">
@@ -1698,6 +1712,15 @@ function AcademySection() {
 
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
+/* Per-section isolation (Stack-200 hardening C, census item 43):
+   every top-level homepage section sits behind its own
+   SectionBoundary, so one throwing section degrades to this
+   contained card — centered in the section column — while the hero,
+   the doors and every other band keep rendering. Before this, the
+   only boundary was the App-level one: a single throw replaced the
+   ENTIRE homepage for signed-out visitors. */
+const SECTION_FALLBACK_CLASS = "mx-5 my-10 max-w-4xl lg:mx-auto";
+
 export default function Home() {
   const { t } = useTranslation();
   usePageTitle(
@@ -1774,33 +1797,69 @@ export default function Home() {
       <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
       <JsonLd data={HOME_FAQ_JSON_LD} />
       <KonamiEgg />
-      <HeroSection isLight={isLight} />
+      <SectionBoundary name="hero" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <HeroSection isLight={isLight} />
+      </SectionBoundary>
       {/* The set stands on the hero/band seam — camera + lights cover the
           straight edges the backdrop and fog print there (owner, 2026-10-12). */}
-      <StudioSetStrip isLight={isLight} />
-      <SocialProofBand />
-      <ProofBand />
+      <SectionBoundary name="studio-set-strip" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <StudioSetStrip isLight={isLight} />
+      </SectionBoundary>
+      <SectionBoundary name="social-proof" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <SocialProofBand />
+      </SectionBoundary>
+      <SectionBoundary name="proof-band" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <ProofBand />
+      </SectionBoundary>
       {/* ── Weekly creator contest ritual — the can't-miss heartbeat ── */}
       <section className="px-5 py-10 md:py-14">
         <div className="mx-auto max-w-6xl">
-          <ContestHubWidget />
+          <SectionBoundary name="contest-hub">
+            <ContestHubWidget />
+          </SectionBoundary>
         </div>
       </section>
-      <CheatCodeDemo />
-      <CreatorVaultSection />
-      <MusicVideoTeaser isLight={isLight} />
-      <HowItWorks />
+      <SectionBoundary name="cheat-code-demo" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <CheatCodeDemo />
+      </SectionBoundary>
+      <SectionBoundary name="creator-vault" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <CreatorVaultSection />
+      </SectionBoundary>
+      <SectionBoundary name="music-video-teaser" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <MusicVideoTeaser isLight={isLight} />
+      </SectionBoundary>
+      <SectionBoundary name="how-it-works" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <HowItWorks />
+      </SectionBoundary>
       <SectionDivider />
-      <BuiltForCreators isLight={isLight} />
-      <StudioShowcase />
-      <TemplatesBand />
-      <BrandingShopSection />
-      <PricingSection />
-      <PromoStrip />
-      <AcademySection />
+      <SectionBoundary name="built-for-creators" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <BuiltForCreators isLight={isLight} />
+      </SectionBoundary>
+      <SectionBoundary name="studio-showcase" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <StudioShowcase />
+      </SectionBoundary>
+      <SectionBoundary name="templates-band" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <TemplatesBand />
+      </SectionBoundary>
+      <SectionBoundary name="branding-shop" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <BrandingShopSection />
+      </SectionBoundary>
+      <SectionBoundary name="pricing" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <PricingSection />
+      </SectionBoundary>
+      <SectionBoundary name="promo-strip" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <PromoStrip />
+      </SectionBoundary>
+      <SectionBoundary name="academy" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <AcademySection />
+      </SectionBoundary>
       <SectionDivider />
-      <FAQSection />
-      <WaitlistSection ref={waitlistRef} />
+      <SectionBoundary name="faq" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <FAQSection />
+      </SectionBoundary>
+      <SectionBoundary name="waitlist" fallbackClassName={SECTION_FALLBACK_CLASS}>
+        <WaitlistSection ref={waitlistRef} />
+      </SectionBoundary>
     </div>
     </>
   );
