@@ -10,8 +10,10 @@
  *    fail closed;
  *  - requireTier: an admin passes every tier gate (resolved as
  *    elite); a member's allow/deny is byte-identical to before;
- *  - requireProTier (shops): an admin on a free plan passes; a free
- *    member gets the exact shipped 403 body;
+ *  - requireShopDomainHosting (shops domain gate, Stack-200 M3b): an
+ *    admin passes with no Hosting row at all; a member without the
+ *    Hosting entitlement gets the exact shipped 403 body naming both
+ *    unlock paths (Hosting $9/mo, or included with Creator Elite);
  *  - canUseCredits under the pre-launch lockdown (CREDITS_ADMIN_ONLY):
  *    admin true with NO grant, member false, member-with-grant true,
  *    and everyone true when the lockdown is off;
@@ -89,7 +91,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
 
 import { adminEmails, isAdminEmail, isAdminRequest, isAdminUserId, skipIfAdmin } from "../admin";
 import { requireTier } from "../../middlewares/require-tier";
-import { requireProTier } from "../../routes/generate/shops";
+import { requireShopDomainHosting, SHOP_DOMAIN_HOSTING_MESSAGE } from "../../routes/generate/shops";
 import { canUseCredits, canBuyCreditPack, CREDIT_PACK_SALES_PAUSED_MESSAGE } from "../credits";
 import { resolvePaidPlan, resolveHostingEntitlement } from "../profile-website";
 import { createAdminAwareUpload, ADMIN_UPLOAD_MAX_BYTES } from "../upload-storage";
@@ -239,41 +241,47 @@ describe("requireTier — admins pass every tier gate; members unchanged", () =>
   });
 });
 
-describe("requireProTier — the shops gate", () => {
-  function run(req: any) {
+describe("requireShopDomainHosting — the shops domain gate", () => {
+  /* Stack-200 M3b: this describe replaces the old requireProTier pin.
+     The gate it covered gated shop domain attach by PLAN (and its 403
+     body claimed shops themselves required Pro — they never did; shop
+     creation is ungated). The ruled model gates attach by the HOSTING
+     entitlement instead. The full route-level matrix (free 403,
+     Pro-only 403, Hosting-active allowed, Elite allowed, admin
+     allowed) is pinned in shop-merge-characterization.test.ts with
+     the real resolver; here we pin the admin exemption + the exact
+     shipped refusal body at the middleware seam. */
+  async function run(req: any) {
     const res = fakeRes();
     const next = vi.fn();
-    requireProTier(req, res, next);
+    await requireShopDomainHosting(req, res, next);
     return { res, next };
   }
 
-  it("free member: the exact shipped 403 body", () => {
-    const { res, next } = run({ userEmail: "member@example.test", userPlan: "free" });
+  it("member without the Hosting entitlement: the exact shipped 403 body", async () => {
+    const { res, next } = await run({ userId: MEMBER_ID });
     expect(next).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(403);
-    expect(res.body).toEqual({
-      error: "PRO_TIER_REQUIRED",
-      message: "Storefronts require a Pro plan or higher. Upgrade to open your own shop.",
-      upgradeUrl: "/pricing",
-    });
+    expect(res.body).toEqual({ error: SHOP_DOMAIN_HOSTING_MESSAGE });
+    /* The honest copy names BOTH unlock paths and can never drift back
+       to a bare code or the old shop-creation mislabel. */
+    expect(SHOP_DOMAIN_HOSTING_MESSAGE).toContain("Hosting plan — $9/mo");
+    expect(SHOP_DOMAIN_HOSTING_MESSAGE).toContain("Creator Elite");
+    expect(SHOP_DOMAIN_HOSTING_MESSAGE).not.toContain("Pro plan");
   });
 
-  it("pro member passes as before", () => {
-    const { next } = run({ userEmail: "member@example.test", userPlan: "pro" });
-    expect(next).toHaveBeenCalledTimes(1);
-  });
-
-  it("admin on a FREE plan passes — the plan never gates the owner", () => {
+  it("admin passes with NO Hosting row and NO subscription — the entitlement never gates the owner", async () => {
     process.env["ADMIN_EMAILS"] = ADMIN;
-    const { res, next } = run({ userEmail: ADMIN, userPlan: "free" });
+    const { res, next } = await run({ userId: ADMIN_ID });
     expect(next).toHaveBeenCalledTimes(1);
     expect(res.statusCode).toBe(0);
   });
 
-  it("ADMIN_EMAILS unset: the owner's address is gated like everyone (fail-closed)", () => {
-    const { res, next } = run({ userEmail: ADMIN, userPlan: "free" });
+  it("ADMIN_EMAILS unset: the owner's id is gated like everyone (fail-closed)", async () => {
+    const { res, next } = await run({ userId: ADMIN_ID });
     expect(next).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(403);
+    expect(res.body).toEqual({ error: SHOP_DOMAIN_HOSTING_MESSAGE });
   });
 });
 
