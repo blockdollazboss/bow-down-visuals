@@ -38,9 +38,15 @@ describe("memberships — tiers/dashboard/members settle per source (S27-31)", (
   });
 
   it("applies each source that succeeded and reserves loadError for a total failure", () => {
-    expect(memberships).toContain("if (tOk) setTiers(");
-    expect(memberships).toContain("if (dOk) setDashboard(");
-    expect(memberships).toContain("if (mOk) setMembers(");
+    /* Stack-200 hardening C (item 38): application now flows through
+       the lib/memberships-data normalizers — a source counts as
+       succeeded only when its payload also has the renderable shape
+       (the per-source settle contract below is unchanged, and the
+       unchecked derefs the casts used to allow are gone). */
+    expect(memberships).toContain("const tOk = tiersNorm !== null;");
+    expect(memberships).toContain("if (tiersNorm) setTiers(tiersNorm);");
+    expect(memberships).toContain("if (dashNorm) setDashboard(dashNorm);");
+    expect(memberships).toContain("if (membersNorm) setMembers(membersNorm);");
     expect(memberships).toContain("if (!tOk && !dOk && !mOk) {");
     expect(memberships).not.toContain("Nothing is applied on failure");
   });

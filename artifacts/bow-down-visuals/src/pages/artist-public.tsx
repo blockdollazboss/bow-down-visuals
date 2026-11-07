@@ -22,6 +22,7 @@ import ProfileTutorialsSection from "@/components/artist/ProfileTutorialsSection
 import SupporterBoardSection from "@/components/artist/SupporterBoardSection";
 import SponsorCreatorSection from "@/components/artist/SponsorCreatorSection";
 import BookArtistSection from "@/components/artist/BookArtistSection";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import {
   fetchPublicLayout,
   grandStageFallbackBlocks,
@@ -485,6 +486,11 @@ export default function ArtistPublic() {
             fallback over the profile's sections stands in — same order. */}
         {(blocks ?? grandStageFallbackBlocks(profile.sections)).map((block, i) => (
           <div key={block.type}>
+            {/* Per-block isolation (Stack-200 hardening C, item 32):
+                one layout block's render throw degrades to its own
+                fallback — the rest of the creator's public storefront
+                stays up for every visitor. */}
+            <SectionBoundary name={`artist-block-${block.type}`}>
             {renderBlock(block)}
             {/* Identity badges ride directly under the masthead. */}
             {i === 0 && (
@@ -503,6 +509,7 @@ export default function ArtistPublic() {
                 <SocialProofStrip figures={profile.social_proof} />
               </>
             )}
+            </SectionBoundary>
           </div>
         ))}
         {/* The King's featured duet pick (ruling #38, stack1400): the
@@ -511,25 +518,25 @@ export default function ArtistPublic() {
             video list — so it gets its own section, fed by the same
             king-duet rail. The section self-hides unless this is the
             official profile AND a pick exists. */}
-        <KingDuetPickSection isOfficial={profile.is_official === true} />
+        <SectionBoundary name="artist-king-duet"><KingDuetPickSection isOfficial={profile.is_official === true} /></SectionBoundary>
         {/* Top Supporters (Wave-4 #49 + N6): the recognition board
             docks on every public profile under the creator's layout —
             hidden only when the creator turned it off. */}
-        <SupporterBoardSection slug={slug} />
+        <SectionBoundary name="artist-supporters"><SupporterBoardSection slug={slug} /></SectionBoundary>
         {/* Tutorials shelf (V1): the creator's how-tos live on the
             profile too — it renders nothing until they have one. */}
-        <ProfileTutorialsSection slug={slug} />
+        <SectionBoundary name="artist-tutorials"><ProfileTutorialsSection slug={slug} /></SectionBoundary>
         {/* Sponsor this creator (payfix sponsor-purchase lane): direct
             sponsorship at the sponsor's own amount on the sponsor escrow
             rail — price + 15%/85% split shown before paying, funded
             on-site, and funded sponsors are recognised in the section. */}
-        <SponsorCreatorSection slug={slug} displayName={profile.display_name} />
+        <SectionBoundary name="artist-sponsor"><SponsorCreatorSection slug={slug} displayName={profile.display_name} /></SectionBoundary>
         {/* Book the Artist (#158): the promoter-facing booking door —
             offer form + the escrow walk for both sides, docked on the
             profile beside the store (MONEY step), never a standalone
             page. */}
-        <BookArtistSection profile={profile} />
-        <ProfileActions profile={profile} />
+        <SectionBoundary name="artist-book"><BookArtistSection profile={profile} /></SectionBoundary>
+        <SectionBoundary name="artist-actions"><ProfileActions profile={profile} /></SectionBoundary>
         <div className="flex justify-center px-4 pb-4">
           <EmbedButton
             kind="profile"

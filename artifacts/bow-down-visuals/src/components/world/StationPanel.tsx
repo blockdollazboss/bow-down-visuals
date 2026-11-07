@@ -12,7 +12,7 @@ import { Link, Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import {
   X, Loader2, Crown, Users,
-  Gift, Flame, LogIn, DoorOpen, AlertTriangle,
+  Gift, Flame, LogIn, DoorOpen,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { PalaceStation } from "@/lib/world/stations";
@@ -261,51 +261,14 @@ const PacksDesk = lazy(() => import("@/components/world/native/PacksDesk").then(
 const SeasonMarksWall = lazy(() => import("@/components/world/native/SeasonMarksWall").then((m) => ({ default: m.SeasonMarksWall })));
 const JukeboxPanel = lazy(() => import("@/components/world/native/JukeboxPanel"));
 
+import { PanelBoundary } from "@/components/world/panel-boundary";
+
 /* The Suspense door a lazy desk renders behind: while its chunk
    lands, the desk's own loading state stands in its place — the
    house "Opening the desk…" line, never a blank hole or a fake
    empty (the empty-lie rule). */
 function DeskDoor({ isLight, children }: { isLight: boolean; children: ReactNode }) {
   return <Suspense fallback={<NativeLoadingState isLight={isLight} />}>{children}</Suspense>;
-}
-
-/** A panel page that failed to load or render: said plainly, with
- *  a retry — never a blank frame dressed as a door. */
-class PanelBoundary extends Component<
-  { isLight: boolean; resetKey: string; children: ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  componentDidUpdate(prev: { resetKey: string }) {
-    if (prev.resetKey !== this.props.resetKey && this.state.failed) {
-      this.setState({ failed: false });
-    }
-  }
-  render() {
-    if (!this.state.failed) return this.props.children;
-    const isLight = this.props.isLight;
-    return (
-      <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
-        <AlertTriangle className="h-7 w-7 text-[#d4af37]" />
-        <p className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-          This desk wouldn&rsquo;t open in the palace
-        </p>
-        <p className={`max-w-sm text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
-          The feature itself is fine — the panel couldn&rsquo;t bring it in. Try the door again.
-        </p>
-        <button
-          type="button"
-          onClick={() => this.setState({ failed: false })}
-          className="rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 bdv-touch-target"
-        >
-          Try again
-        </button>
-      </div>
-    );
-  }
 }
 
 /* The step-through editor, seeded with its deep link: inside the
@@ -1107,47 +1070,47 @@ export default function StationPanel(props: StationPanelProps) {
                 </DeskDoor>
               ) : station.id === "community-hall" ? (
                 <div className="flex flex-col gap-6">
-                  <DeskDoor isLight={isLight}>
+                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                     <CommunityHallBoard isLight={isLight} isGuest={isGuest} />
-                  </DeskDoor>
+                  </DeskDoor></PanelBoundary>
                   {/* Explore + creator/work search (stack-100 #81):
                       the blended scene and the discovery box, on the
                       /api/explore + /api/discovery/search rails. */}
-                  <DeskDoor isLight={isLight}>
+                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                     <ExploreDesk isLight={isLight} />
-                  </DeskDoor>
+                  </DeskDoor></PanelBoundary>
                   {/* Groups + forums (stack-100 #76/#77): the Hall's
                       promised crews, on the /api/groups rails. */}
-                  <DeskDoor isLight={isLight}>
+                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                     <GroupsDesk isLight={isLight} isGuest={isGuest} />
-                  </DeskDoor>
+                  </DeskDoor></PanelBoundary>
                   {/* Events (stack1100 parity): the Hall slate's
                       promised third — browse / RSVP / host on the
                       /api/events rails, in the room. */}
-                  <DeskDoor isLight={isLight}>
+                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                     <EventsDesk isLight={isLight} isGuest={isGuest} />
-                  </DeskDoor>
+                  </DeskDoor></PanelBoundary>
                   {/* Collabs (stack1100 parity): creator cards, the
                       100-Buc match report and requests on the
                       /api/collabs rails, in the room. */}
-                  <DeskDoor isLight={isLight}>
+                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                     <CollabsDesk isLight={isLight} isGuest={isGuest} />
-                  </DeskDoor>
+                  </DeskDoor></PanelBoundary>
                   {/* Local Scenes (stack1500 parity wave #3): the
                       declared-city directory + each city's page —
                       creators, shows, scene chart — on the public
                       /api/discovery/scenes rails, in the room for
                       members and guests alike. */}
-                  <DeskDoor isLight={isLight}>
+                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                     <ScenesDesk isLight={isLight} />
-                  </DeskDoor>
+                  </DeskDoor></PanelBoundary>
                   {/* Community Grants (stack1500 parity wave #3):
                       the monthly VB pool — read rounds, submit,
                       vote, report back — on the
                       /api/community-grants rails, in the room. */}
-                  <DeskDoor isLight={isLight}>
+                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                     <GrantsDesk isLight={isLight} isGuest={isGuest} />
-                  </DeskDoor>
+                  </DeskDoor></PanelBoundary>
                 </div>
               ) : (
                 <NativePlaceholder station={station} isLight={isLight} />
@@ -1167,7 +1130,7 @@ export default function StationPanel(props: StationPanelProps) {
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
             {resolution.pattern === "create" ? (
-              <DeskDoor isLight={isLight}>
+              <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                 <CreateDeskPanel
                   station={station}
                   isLight={isLight}
@@ -1176,14 +1139,14 @@ export default function StationPanel(props: StationPanelProps) {
                   shelfPlayer={shelfPlayer}
                   panelPayload={target.payload ?? null}
                 />
-              </DeskDoor>
+              </DeskDoor></PanelBoundary>
             ) : resolution.pattern === "shop" ? (
-              <DeskDoor isLight={isLight}>
+              <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                 <ShopStand station={station} isLight={isLight} isGuest={isGuest} />
-              </DeskDoor>
+              </DeskDoor></PanelBoundary>
             ) : resolution.pattern === "board" && station.id === "charts-desk" ? (
               <div className="flex flex-col gap-6">
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <ChartsBoard
                     isLight={isLight}
                     isGuest={isGuest}
@@ -1191,77 +1154,77 @@ export default function StationPanel(props: StationPanelProps) {
                     onPlayTrack={props.onJukeboxAdd}
                     shelfPlayer={shelfPlayer}
                   />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Takeovers (stack1500 parity wave #3): the
                     Spotlight + Loading Screen offers with their
                     inquiry forms on the public offer/inquire
                     rails — inquiries, never purchases — stacked
                     at the Charts board. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <TakeoversDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
               </div>
             ) : resolution.pattern === "board" && station.id === "get-paid-room" ? (
               <div className="flex flex-col gap-6">
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <EarningsBoard isLight={isLight} isGuest={isGuest} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* LLC Guide (stack1500 parity wave #3): ask +
                     filing plan on the /api/llc-guide rails at
                     the registry's 100 Bucs each, stacked at the
                     Get Paid board under Earnings. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <LlcDesk isLight={isLight} isGuest={isGuest} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Copyright Assistant (stack1500 parity wave
                     #3): registration draft + Q&A on the
                     /api/copyright rails at the registry's 100
                     Bucs each, stacked at the Get Paid board. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <CopyrightDesk isLight={isLight} isGuest={isGuest} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Brand Deal Calculator (stack1500 parity wave
                     #3): the rate card on the
                     /api/brand-calculator rail at the registry's
                     200 Bucs, stacked at the Get Paid board. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <BrandCalculatorDesk isLight={isLight} isGuest={isGuest} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
               </div>
             ) : resolution.pattern === "board" && station.id === "my-studio" ? (
               <div className="flex flex-col gap-6">
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <StudioBoard isLight={isLight} onContinueProject={(projectId) => setBoardProjectId(projectId)} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Morning Brief (stack1500 parity wave #3): the
                     Command Center's written brief — summary + the
                     one drafted next move — on the free
                     /api/command/brief rail, stacked at the My
                     Studio board under the digest's raw halves. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <BriefDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* My public page (stack-100 #83/#84): view as a
                     visitor + the profile editor, on the creator-
                     profile rails. Members only — a guest never
                     reaches the board pattern (guest-pitch instead). */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <MyProfileDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Account settings (stack-100 #94): fields, cursor,
                     preference switches and the danger zone — export
                     completes here; deletion hands off to the 2D
                     settings confirmations by design. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <AccountDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Social Proof (stack1500 parity wave #3): the
                     verified audience figures + their off switches
                     on the free /api/social-proof rails, stacked
                     at the My Studio board beside the account desk. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <SocialProofDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Creator Academy (stack1400 parity wave #2): the
                     Academy family — the course catalog + AI learning
                     path / lessons / coach on the /api/academy rails,
@@ -1271,9 +1234,9 @@ export default function StationPanel(props: StationPanelProps) {
                     board like the Hall's and Promote Room's stacked
                     desks. Members only, like the board itself and
                     like the locked /academy route on the website. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <AcademyDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Analytics Desk (stack100 wave 4, item 24, desk
                     #98): the Analytics Hub's DEPTH tools — the free
                     connected overview, AI Insights + content
@@ -1284,23 +1247,23 @@ export default function StationPanel(props: StationPanelProps) {
                     Competitor Tracker and the AI Coach — each on
                     its existing registry-priced rail, stacked at
                     the My Studio board. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <AnalyticsDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* DJ Set Prep (stack1500 parity wave #3): tempo +
                     key analysis, crates, the harmonic order
                     proposal and Rekordbox/M3U export on the free
                     /api/dj rails, stacked at the My Studio board. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <DjDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Saved (stack1500 parity wave #3): the bookmark
                     shelf — posts, tracks, videos, profiles — on
                     the /api/saves rails, stacked at the My Studio
                     board. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <SavedDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Thy Library (stack1600 wave 4, item 26 — desk
                     #99): the /library page's three un-carried tabs
                     as one native desk — the 65-preset catalog from
@@ -1311,16 +1274,16 @@ export default function StationPanel(props: StationPanelProps) {
                     rails — stacked at the My Studio board beside
                     Saved; a preset's Use opens the Visual Vibes
                     Editor station in-World. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <LibraryDesk isLight={isLight} onOpenStation={props.onOpenStation} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Setlist Builder (stack1500 parity wave #3):
                     the free hand builder + the 100-Buc AI flow on
                     the /api/setlist/flow rail, stacked at the My
                     Studio board beside DJ Set Prep. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <SetlistDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Tour Planner (stack1600 parity wave #4, desk
                     #97): the run's dates — city, venue, show date,
                     status, notes — on the /api/tour/dates rails
@@ -1330,9 +1293,9 @@ export default function StationPanel(props: StationPanelProps) {
                     desk and the /tour page are two faces of one
                     list and one cached plan, stacked at the My
                     Studio board beside the Setlist Builder. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <TourDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Publish (stack1600 parity wave #4, desk #99):
                     the /publish page's own surface — your tracks
                     and videos on the free /api/publish rails:
@@ -1341,9 +1304,9 @@ export default function StationPanel(props: StationPanelProps) {
                     delete — stacked at the My Studio board. The
                     desk and the page are two faces of one
                     library. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <PublishDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Templates (Stack-100 wave 4, item 27 / desk
                     #100): one browse desk for all four template
                     galleries (videos, hooks, captions, thumbnails)
@@ -1353,17 +1316,17 @@ export default function StationPanel(props: StationPanelProps) {
                     template bench through the video-template
                     payload kind), stacked at the My Studio board
                     in the Create Wing. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <TemplatesDesk isLight={isLight} onOpenStation={props.onOpenStation} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Catalog Import (stack1500 parity wave #3):
                     bring your catalog home — scan, fetch,
                     rebuild, approve — on the free
                     /api/catalog-import rails, stacked at the My
                     Studio board. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <CatalogImportDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Team Workspace (stack1500 parity wave #4a): the
                     Team family — my teams + invites, the shared
                     credit pool with funding, member roles, pool
@@ -1373,9 +1336,9 @@ export default function StationPanel(props: StationPanelProps) {
                     like the board itself and like the locked /team
                     route on the website; under Shot Caller the desk
                     renders the rail's own tier gate. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <TeamDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Team Seats (stack1500 parity, wave 4a follow-on):
                     the Settings team-seats surface — account-level
                     collaborator seats (manager / collaborator /
@@ -1390,27 +1353,27 @@ export default function StationPanel(props: StationPanelProps) {
                     and Team Seats stand side by side in the My Studio
                     stack. Members only, like the board itself and
                     like the sign-in-gated /settings home. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <TeamSeatsDesk isLight={isLight} />
-</DeskDoor>
+</DeskDoor></PanelBoundary>
                 {/* Move Home (stack1500 parity wave #4b, census
                     item 31): the guided five-step setup — answers,
                     the free draft run, per-step previews + typed
                     editors, approve / skip / reopen — on the
                     /api/move-home rails, stacked at the My Studio
                     board. Members only, like the board itself. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <MoveHomeDesk isLight={isLight} isGuest={isGuest} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Identity sets (stack1500 parity wave #4b,
                     census item 38): each vault character's photo
                     set — coverage, add / relabel / remove (owner
                     only), and the pick-for-a-shot rail — on the
                     /api/artist-vaults identity rails, stacked at
                     the My Studio board. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <IdentitySetsDesk isLight={isLight} isGuest={isGuest} />
-</DeskDoor>
+</DeskDoor></PanelBoundary>
                 {/* Website Builder (stack100 wave 4, item 23, #97):
                     describe a site and the AI builds the full package
                     on the /api/website-builder rails — generate at
@@ -1423,9 +1386,9 @@ export default function StationPanel(props: StationPanelProps) {
                     member owns the files and hosts them on their own
                     domain, exactly as the 2D builder states. Members
                     only, like the board itself. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <WebsiteBuilderDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Admin benches (stack1500 parity wave #5, census
                     item 46): the website's /admin benches native in
                     the palace — reports, DMCA, content removal,
@@ -1439,35 +1402,35 @@ export default function StationPanel(props: StationPanelProps) {
                     allowlist server-side, fail-closed: a non-admin
                     session sees only the gate's own "Not authorized."
                     state, never a bench. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <AdminDesk isLight={isLight} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
               </div>
             ) : resolution.pattern === "business" && station.id === "branding-kit-desk" ? (
-              <DeskDoor isLight={isLight}>
+              <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                 <BrandingKitDesk isLight={isLight} isGuest={isGuest} />
-              </DeskDoor>
+              </DeskDoor></PanelBoundary>
             ) : resolution.pattern === "business" && station.id === "press-kit-desk" ? (
-              <DeskDoor isLight={isLight}>
+              <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                 <PressKitDesk isLight={isLight} isGuest={isGuest} />
-              </DeskDoor>
+              </DeskDoor></PanelBoundary>
             ) : resolution.pattern === "business" && station.id === "jewelry-bench" ? (
-              <DeskDoor isLight={isLight}>
+              <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                 <JewelryBench isLight={isLight} isGuest={isGuest} />
-              </DeskDoor>
+              </DeskDoor></PanelBoundary>
             ) : resolution.pattern === "business" && station.id === "smart-cards-stand" ? (
-              <DeskDoor isLight={isLight}>
+              <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                 <SmartCardsStand isLight={isLight} isGuest={isGuest} />
-              </DeskDoor>
+              </DeskDoor></PanelBoundary>
             ) : resolution.pattern === "business" && station.id === "merch-bench" ? (
-              <DeskDoor isLight={isLight}>
+              <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                 <MerchBench isLight={isLight} isGuest={isGuest} />
-              </DeskDoor>
+              </DeskDoor></PanelBoundary>
             ) : resolution.pattern === "business" && station.id === "promote-room" ? (
               <div className="flex flex-col gap-6">
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <PromoteDesk isLight={isLight} isGuest={isGuest} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Label Pitch (stack1400 parity wave #1): the
                     label-pitch family — demo kit + directory +
                     tracker, playlist kit + curators + tracker, and
@@ -1475,9 +1438,9 @@ export default function StationPanel(props: StationPanelProps) {
                     /api/label-pitch + /api/playlist-pitch rails,
                     stacked in the Promote Room like the Hall's and
                     Studio's stacked desks. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <LabelPitchDesk isLight={isLight} isGuest={isGuest} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Email List (stack1400 parity wave #2): the
                     email-list family — subscriber lists + stats,
                     segments, campaigns, the newsletter writer, the
@@ -1485,25 +1448,25 @@ export default function StationPanel(props: StationPanelProps) {
                     on the /api/email-list rails, stacked in the
                     Promote Room like the Hall's and Studio's
                     stacked desks. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <EmailListDesk isLight={isLight} isGuest={isGuest} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Interview Prep (stack1500 parity wave #3): the
                     media coach — practice sessions on the
                     /api/interview-prep rails (200 the session, 100
                     a scored answer), stacked in the Promote Room
                     like the desks above it. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <InterviewDesk isLight={isLight} isGuest={isGuest} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
                 {/* Trend Predictor (stack1500 parity wave #3):
                     the forecast + content ideas on the
                     /api/trend-predictor rails (200 / 100 via
                     the registry), stacked in the Promote Room;
                     the watchlist is the page's own local list. */}
-                <DeskDoor isLight={isLight}>
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <TrendsDesk isLight={isLight} isGuest={isGuest} />
-                </DeskDoor>
+                </DeskDoor></PanelBoundary>
               </div>
             ) : (
               <NativePlaceholder station={station} isLight={isLight} />
@@ -1639,6 +1602,19 @@ export default function StationPanel(props: StationPanelProps) {
     }
   })();
 
+  /* Stack-200 hardening C (item 31): the custom station branch
+     historically returned bare — a custom desk throw took down the
+     whole /world page. It now rides the same PanelBoundary the
+     native branches use, keyed by the custom panel's id. */
+  const boundedBody =
+    resolution?.type === "custom" ? (
+      <PanelBoundary isLight={isLight} resetKey={resolution.id}>
+        {body}
+      </PanelBoundary>
+    ) : (
+      body
+    );
+
   /* The sheet is anchored to the VIEWPORT, not the page: fixed at
      the bottom of the screen, capped in dvh, scrolling internally.
      It used to mount in page flow below the room box, where a desk
@@ -1687,8 +1663,12 @@ export default function StationPanel(props: StationPanelProps) {
           one player, one card, above the station's own body. */}
       {(resolution?.type === "native" ||
         (resolution?.type === "custom" && resolution.id.startsWith("creator-"))) &&
-        shelfPlayer.current && <NowPlayingCard player={shelfPlayer} isLight={isLight} />}
-      {body}
+        shelfPlayer.current && (
+          <PanelBoundary isLight={isLight} resetKey="now-playing">
+            <NowPlayingCard player={shelfPlayer} isLight={isLight} />
+          </PanelBoundary>
+        )}
+      {boundedBody}
       {/* The standard transfer footer — native panels only, exactly
           one, always the frame's last row (NATIVE-PLAN §3.0). The
           guest pitch carries its own sign-in transfer by design,

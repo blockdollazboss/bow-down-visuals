@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { RotateCcw } from "lucide-react";
 import { EarningsDocuments } from "@/components/trust/TrustPanels";
 import AffiliateDeskSection from "@/components/affiliates/AffiliateDeskSection";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import ConnectPayoutCard from "@/components/earnings/ConnectPayoutCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -214,6 +215,41 @@ export default function Earnings() {
      is always a working door, never just words. */
   const reload = () => { setFailed(false); setData(null); setReloadKey((k) => k + 1); };
 
+  /* Stack-200 hardening C (census item 29): PendingPayoutCard,
+     ConnectPayoutCard, AffiliateDeskSection and EarningsDocuments
+     each run their OWN fetch with their own loading/failure state —
+     none of them depends on the GET /api/earnings load above. They
+     used to sit BEHIND this page's whole-page failed/loading early
+     returns, so one earnings-load failure made the payout door
+     unreachable. They now render in every state (loading, failed,
+     loaded), each inside its own SectionBoundary (owner law: one
+     bad section never takes the whole page down). */
+  const independentSections = (
+    <>
+      <SectionBoundary name="earnings-pending-payout">
+        <PendingPayoutCard getToken={() => getAccessToken()} />
+      </SectionBoundary>
+
+      {/* Lane 5 (stack400): the payout door docks directly under the
+          pending balance it acts on — Connect state, Start/Continue
+          setup, cash out, history. The same /api/connect/* rail the
+          Store Dashboard's Get Paid card uses; this page showed the
+          balance with no door to move it. */}
+      <SectionBoundary name="earnings-connect-payout">
+        <ConnectPayoutCard getToken={() => getAccessToken()} />
+      </SectionBoundary>
+
+      {/* #16: the affiliate desk docks in the money desk — its own fetch,
+          its own failure state, never a standalone page. */}
+      <SectionBoundary name="earnings-affiliate-desk">
+        <AffiliateDeskSection />
+      </SectionBoundary>
+      <SectionBoundary name="earnings-documents">
+        <div className="mt-4"><EarningsDocuments /></div>
+      </SectionBoundary>
+    </>
+  );
+
   if (!authLoading && !user) {
     return (
       <div className="mx-auto max-w-3xl p-6" data-testid="earnings-signin">
@@ -242,6 +278,7 @@ export default function Earnings() {
         >
           Try again
         </button>
+        {independentSections}
       </div>
     );
   }
@@ -253,6 +290,7 @@ export default function Earnings() {
         {retrying && (
           <p className="mt-1 text-sm text-muted-foreground">Still trying — a sleeping server can take a moment to wake.</p>
         )}
+        {independentSections}
       </div>
     );
   }
@@ -263,7 +301,8 @@ export default function Earnings() {
       <h1 className="text-2xl font-bold">Earnings</h1>
       <p className="mt-1 text-sm text-muted-foreground">Every stream, one picture — sales, beats, memberships, tips and brand deals.</p>
 
-      <div className="mt-6 rounded-xl border border-border bg-card p-5">
+      <SectionBoundary name="earnings-total">
+        <div className="mt-6 rounded-xl border border-border bg-card p-5">
         <div className="text-sm text-muted-foreground">Total earned (USD)</div>
         <div className="mt-1 text-3xl font-bold">{usd(data.totalCents)}</div>
         {data.partial && (
@@ -275,6 +314,7 @@ export default function Earnings() {
           Stage tips: {sources.tips.status === "error" ? "couldn't load" : `${(sources.tips.stageTipsVb ?? 0).toLocaleString("en-US")} Visual Bucs`}
         </div>
       </div>
+      </SectionBoundary>
 
       {/* Zero state: a wall of $0.00 with no next step is a dead end —
           the money page hands back to the surfaces that fill it
@@ -314,6 +354,7 @@ export default function Earnings() {
       )}
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <SectionBoundary name="earnings-source-store">
         <SourceCard
           onRetry={reload}
           title="Store sales"
@@ -341,6 +382,8 @@ export default function Earnings() {
               : undefined
           }
         />
+        </SectionBoundary>
+        <SectionBoundary name="earnings-source-beats">
         <SourceCard
           onRetry={reload}
           title="Beats (licenses sold)"
@@ -351,8 +394,14 @@ export default function Earnings() {
               : undefined
           }
         />
+        </SectionBoundary>
+        <SectionBoundary name="earnings-source-memberships">
         <SourceCard title="Memberships" source={sources.memberships} onRetry={reload} />
+        </SectionBoundary>
+        <SectionBoundary name="earnings-source-deals">
         <SourceCard title="Brand deals (escrow released)" source={sources.brandDeals} onRetry={reload} />
+        </SectionBoundary>
+        <SectionBoundary name="earnings-source-shoutouts">
         <SourceCard
           onRetry={reload}
           title="Shoutouts"
@@ -363,12 +412,16 @@ export default function Earnings() {
               : undefined
           }
         />
+        </SectionBoundary>
+        <SectionBoundary name="earnings-source-tipjar">
         <SourceCard
           onRetry={reload}
           title="Tip jar tips"
           source={sources.tipJar}
           detail="tips arrive in full — no platform fee"
         />
+        </SectionBoundary>
+        <SectionBoundary name="earnings-source-bookings">
         <SourceCard
           onRetry={reload}
           title="Performance bookings (escrow released)"
@@ -379,6 +432,8 @@ export default function Earnings() {
               : undefined
           }
         />
+        </SectionBoundary>
+        <SectionBoundary name="earnings-tips-card">
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="text-sm text-muted-foreground">Tips</div>
           {sources.tips.status === "error" ? (
@@ -411,20 +466,9 @@ export default function Earnings() {
             </>
           )}
         </div>
+        </SectionBoundary>
       </div>
-      <PendingPayoutCard getToken={() => getAccessToken()} />
-
-      {/* Lane 5 (stack400): the payout door docks directly under the
-          pending balance it acts on — Connect state, Start/Continue
-          setup, cash out, history. The same /api/connect/* rail the
-          Store Dashboard's Get Paid card uses; this page showed the
-          balance with no door to move it. */}
-      <ConnectPayoutCard getToken={() => getAccessToken()} />
-
-      {/* #16: the affiliate desk docks in the money desk — its own fetch,
-          its own failure state, never a standalone page. */}
-      <AffiliateDeskSection />
-      <div className="mt-4"><EarningsDocuments /></div>
+      {independentSections}
 
       {/* Dead-end fix (org wave, audit §1d): the zero state above hands
           back only when nothing has been earned yet — a creator WITH

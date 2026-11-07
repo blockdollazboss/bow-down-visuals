@@ -62,7 +62,11 @@ describe("#24 referrals: no infinite spinner, own data not waterfall-blocked (A3
   });
   it("the error state carries its own retry (rest of page — hero + contest — stays alive above it)", () => {
     expect(page).toContain("setRetryNonce((n) => n + 1)");
-    const contestAt = page.indexOf("{contest && <ContestSection");
+    /* Stack-200 hardening C (item 35): the contest section now rides
+       its own SectionBoundary above the gates — it still renders
+       above the page's error state, which keeps its retry. */
+    expect(page).toContain('<SectionBoundary name="referrals-contest">');
+    const contestAt = page.indexOf("<ContestSection contest={contest}");
     const errorAt = page.lastIndexOf("onClick={() => setRetryNonce((n) => n + 1)}");
     expect(contestAt).toBeGreaterThan(-1);
     expect(errorAt).toBeGreaterThan(contestAt);

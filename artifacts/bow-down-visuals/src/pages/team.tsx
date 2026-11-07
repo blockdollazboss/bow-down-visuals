@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Users, UserPlus, Trash2, LogOut, Crown, Shield, User as UserIcon } from "lucide-react";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { GroupProfileSettings } from "@/components/GroupProfileSettings";
 import { useTranslation } from "react-i18next";
 
@@ -318,7 +319,7 @@ export default function TeamPage() {
 
       {/* Pending invites */}
       {invites.length > 0 && (
-        <Card className="p-5 bg-white/[0.03] border-white/10">
+        <SectionBoundary name="team-invites"><Card className="p-5 bg-white/[0.03] border-white/10">
           <h2 className="font-bold text-white mb-3 flex items-center gap-2">
             <UserPlus className="h-4 w-4 text-[#C9A84C]" /> {t("team.pendingInvites")}
           </h2>
@@ -340,12 +341,12 @@ export default function TeamPage() {
               </div>
             ))}
           </div>
-        </Card>
+        </Card></SectionBoundary>
       )}
 
       {!activeTeam ? (
         !canCreate ? (
-          <Card className="p-6 bg-white/[0.03] border-white/10" data-testid="team-create-gate">
+          <SectionBoundary name="team-create-gate"><Card className="p-6 bg-white/[0.03] border-white/10" data-testid="team-create-gate">
             <h2 className="font-bold text-white mb-2">{t("team.createTeamTitle")}</h2>
             <p className="text-sm text-white/50">
               {t("team.createTeamHint")}
@@ -353,9 +354,9 @@ export default function TeamPage() {
             <p className="text-sm text-white/50 mt-3">
               {t("team.inviteAnyRankNote")}
             </p>
-          </Card>
+          </Card></SectionBoundary>
         ) : (
-        <Card className="p-6 bg-white/[0.03] border-white/10">
+        <SectionBoundary name="team-create"><Card className="p-6 bg-white/[0.03] border-white/10">
           <h2 className="font-bold text-white mb-2">{t("team.createTeamTitle")}</h2>
           <p className="text-sm text-white/50 mb-4">
             {t("team.createTeamHint")}
@@ -372,12 +373,12 @@ export default function TeamPage() {
               {creating ? t("team.creating") : t("team.createTeam")}
             </Button>
           </div>
-        </Card>
+        </Card></SectionBoundary>
         )
       ) : (
         <>
           {/* Pool balance */}
-          <Card className="p-6 bg-gradient-to-br from-[#C9A84C]/15 to-transparent border-[#C9A84C]/30">
+          <SectionBoundary name="team-pool"><Card className="p-6 bg-gradient-to-br from-[#C9A84C]/15 to-transparent border-[#C9A84C]/30">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">{t("team.teamPool")}</p>
@@ -421,11 +422,11 @@ export default function TeamPage() {
                 </Button>
               </div>
             )}
-          </Card>
+          </Card></SectionBoundary>
 
           {/* Invite */}
           {(activeTeam.myRole === "owner" || activeTeam.myRole === "admin") && (
-            <Card className="p-5 bg-white/[0.03] border-white/10">
+            <SectionBoundary name="team-invite"><Card className="p-5 bg-white/[0.03] border-white/10">
               <h2 className="font-bold text-white mb-3 flex items-center gap-2">
                 <UserPlus className="h-4 w-4 text-[#C9A84C]" /> {t("team.inviteTitle")}
               </h2>
@@ -449,11 +450,11 @@ export default function TeamPage() {
                   {inviting ? t("team.sendingInvite") : t("team.sendInvite")}
                 </Button>
               </div>
-            </Card>
+            </Card></SectionBoundary>
           )}
 
           {/* Members */}
-          <Card className="p-5 bg-white/[0.03] border-white/10">
+          <SectionBoundary name="team-members"><Card className="p-5 bg-white/[0.03] border-white/10">
             <h2 className="font-bold text-white mb-3">
               {t("team.membersTitle")} <span className="text-white/40 font-normal">({members.length})</span>
             </h2>
@@ -490,22 +491,22 @@ export default function TeamPage() {
                 </div>
               ))}
             </div>
-          </Card>
+          </Card></SectionBoundary>
 
           {/* Duo/Group public profile (N20) — the team's public half
               is managed where the team itself is managed. */}
-          <GroupProfileSettings teamId={activeTeam.id} myRole={activeTeam.myRole} />
+          <SectionBoundary name="team-group-profile"><GroupProfileSettings teamId={activeTeam.id} myRole={activeTeam.myRole} /></SectionBoundary>
 
           {/* Spending — a failed load shows its note in place of the section */}
           {spendingFailed && spending.length === 0 && (activeTeam.myRole === "owner" || activeTeam.myRole === "admin") && (
-            <Card className="p-5 bg-white/[0.03] border-white/10" data-testid="team-spending-error">
+            <SectionBoundary name="team-spending-error"><Card className="p-5 bg-white/[0.03] border-white/10" data-testid="team-spending-error">
               <h2 className="font-bold text-white mb-2">{t("team.poolSpendingTitle")}</h2>
               <p className="text-sm text-red-300">Team spending couldn&apos;t load — it isn&apos;t hidden, it just didn&apos;t arrive.</p>
               <button type="button" onClick={() => void load()} className="mt-3 rounded-full bg-primary px-5 py-2 text-xs font-bold text-black hover:brightness-110">Try again</button>
-            </Card>
+            </Card></SectionBoundary>
           )}
           {spending.length > 0 && (
-            <Card className="p-5 bg-white/[0.03] border-white/10">
+            <SectionBoundary name="team-spending"><Card className="p-5 bg-white/[0.03] border-white/10">
               <h2 className="font-bold text-white mb-3">{t("team.poolSpendingTitle")}</h2>
               <div className="space-y-1.5">
                 {spending.map((s, i) => (
@@ -515,11 +516,11 @@ export default function TeamPage() {
                   </div>
                 ))}
               </div>
-            </Card>
+            </Card></SectionBoundary>
           )}
 
           {/* Danger zone */}
-          <Card className="p-5 bg-white/[0.03] border-white/10">
+          <SectionBoundary name="team-danger"><Card className="p-5 bg-white/[0.03] border-white/10">
             <div className="flex gap-3 flex-wrap">
               {activeTeam.myRole !== "owner" ? (
                 <Button variant="ghost" onClick={() => void handleLeave()} className="text-white/60">
@@ -534,7 +535,7 @@ export default function TeamPage() {
             <p className="text-xs text-white/30 mt-3">
               {t("team.sharedVaultsNote")}
             </p>
-          </Card>
+          </Card></SectionBoundary>
         </>
       )}
     </div>

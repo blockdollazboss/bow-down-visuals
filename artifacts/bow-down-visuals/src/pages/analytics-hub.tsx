@@ -41,11 +41,21 @@ function AnalyticsTabFallback() {
   );
 }
 
-/* One Suspense door per tab block, in the world DeskDoor style. */
-function TabDoor({ children }: { children: ReactNode }) {
-  return <Suspense fallback={<AnalyticsTabFallback />}>{children}</Suspense>;
+/* One Suspense door per tab block, in the world DeskDoor style —
+   now a Suspense + SectionBoundary PAIR (Stack-200 hardening C,
+   item 36): a lazy panel that throws on load or render degrades to
+   its own honest fallback instead of blanking the whole hub, and
+   the boundary remounts on every tab switch (reset key = hubTab)
+   so a failed tab never poisons the next one. */
+function TabDoor({ name, resetKey, children }: { name: string; resetKey: string; children: ReactNode }) {
+  return (
+    <SectionBoundary key={resetKey} name={name}>
+      <Suspense fallback={<AnalyticsTabFallback />}>{children}</Suspense>
+    </SectionBoundary>
+  );
 }
 import { MonthWrappedCard } from "@/components/MonthWrappedCard";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import {
   BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -1458,7 +1468,7 @@ export default function AnalyticsHub() {
 
         {/* Your Month, Wrapped (#170): one real-numbers recap per month,
             docked here — renders nothing when opted out / no profile. */}
-        <MonthWrappedCard />
+        <SectionBoundary name="analytics-month-wrapped"><MonthWrappedCard /></SectionBoundary>
 
         {csvNote && (
           <div
@@ -1473,7 +1483,8 @@ export default function AnalyticsHub() {
         )}
 
         {/* ── OVERVIEW ROW ─────────────────────────────────────────── */}
-        <div className="relative mt-10 grid grid-cols-1 gap-3 sm:grid-cols-3">
+<SectionBoundary name="analytics-overview">
+                <div className="relative mt-10 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className={`${isLight ? "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-5" : "rounded-2xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-5"}`}>
             <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40">
               <Users className="h-3.5 w-3.5 text-primary" aria-hidden="true" /> {t("analyticsHub.totalFollowers")}
@@ -1506,9 +1517,11 @@ export default function AnalyticsHub() {
             </p>
           </div>
         </div>
+        </SectionBoundary>
 
         {/* ── GROWTH CHART ─────────────────────────────────────────── */}
-        <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
+<SectionBoundary name="analytics-growth-chart">
+                <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-8" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-8"}`}>
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-xl font-bold">
@@ -1568,9 +1581,11 @@ export default function AnalyticsHub() {
             </ResponsiveContainer>
           </div>
         </div>
+        </SectionBoundary>
 
         {/* ── PLATFORM CARDS ───────────────────────────────────────── */}
-        <div id="platform-cards" className="relative mt-6 scroll-mt-24">
+<SectionBoundary name="analytics-platform-cards">
+                <div id="platform-cards" className="relative mt-6 scroll-mt-24">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {PLATFORM_KEYS.map((key) => {
               const { label, Mark, chip } = PLATFORMS[key];
@@ -1715,9 +1730,11 @@ export default function AnalyticsHub() {
             })}
           </div>
         </div>
+        </SectionBoundary>
 
         {/* ── AI INSIGHTS ──────────────────────────────────────────── */}
-        <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
+<SectionBoundary name="analytics-insights">
+                <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
               <Sparkles className="h-5 w-5" aria-hidden="true" />
@@ -1831,13 +1848,15 @@ export default function AnalyticsHub() {
             </div>
           )}
         </div>
+        </SectionBoundary>
 
         {/* ── AI COACH ───────────────────────────────────────────────
             Performance coach: the creator adds their top posts (or imports
             the top-post stat from their hub numbers), picks a platform +
             niche, and POST /api/ai-coach explains WHY posts won/lost with
             actionable next steps. 100 Visual Bucs via confirmedFetch. */}
-        <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
+<SectionBoundary name="analytics-coach">
+                <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
               <Lightbulb className="h-5 w-5" aria-hidden="true" />
@@ -2139,6 +2158,7 @@ export default function AnalyticsHub() {
             </div>
           )}
         </div>
+        </SectionBoundary>
 
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
@@ -2154,6 +2174,7 @@ export default function AnalyticsHub() {
 
         {/* ── COMPETITOR TRACKER ─────────────────────────────────── */}
         {hubTab === "competitor" && (
+        <SectionBoundary name="analytics-competitor">
         <div className={`${isLight ? "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
@@ -2446,13 +2467,14 @@ export default function AnalyticsHub() {
             </div>
           )}
         </div>
+        </SectionBoundary>
         )}
 
         {/* ── CONTENT INTELLIGENCE CHAIN ───────────────────────────────
             The guided 5-step flow: Validate Idea → Hook Lab → Niche Check →
             Competitor Gaps → Content Calendar → plan review. No new page,
             no new sidebar item — this tab is its only home. */}
-        <TabDoor>{hubTab === "intelligence" && (
+        <TabDoor name="analytics-tab-intelligence" resetKey={hubTab}>{hubTab === "intelligence" && (
           <div className="relative mt-10">
             <ContentIntelligenceChain initialHook={intelInitialHook || undefined} />
             {/* ── AI RETENTION DOCTOR ────────────────────────────────────
@@ -2471,7 +2493,7 @@ export default function AnalyticsHub() {
             claiming requires a CMS partnership we don't have yet — the
             component states that up front and never fakes a claim.
             No new page, no new sidebar item — this tab is its only home. */}
-        <TabDoor>{hubTab === "contentid" && (
+        <TabDoor name="analytics-tab-contentid" resetKey={hubTab}>{hubTab === "contentid" && (
           <div className="grid gap-4">
             <ContentIdMonitor />
             <ClaimsPanel />
@@ -2485,7 +2507,7 @@ export default function AnalyticsHub() {
             Spotify sync exists — the component says so and never fakes
             numbers. No new page, no new sidebar item — this tab is its
             only home. */}
-        <TabDoor>{hubTab === "milestones" && (
+        <TabDoor name="analytics-tab-milestones" resetKey={hubTab}>{hubTab === "milestones" && (
           <div className="grid gap-4">
             <MilestoneTracker />
             <RetentionPanel />
@@ -2499,7 +2521,7 @@ export default function AnalyticsHub() {
             /api/analytics/suggestions). Merged from the old /analytics page —
             no new page, no new sidebar item; this tab is its only home. */}
         {hubTab === "connected" && (
-          <ConnectedAccountsTab />
+          <SectionBoundary name="analytics-connected"><ConnectedAccountsTab /></SectionBoundary>
         )}
 
         {/* ── CHANNEL AUDIT ──────────────────────────────────────────────
@@ -2507,7 +2529,7 @@ export default function AnalyticsHub() {
             dimensions A–F with fixes, an overall grade, and a top-3 priority
             list. Absorbed from /channel-audit — no new page, no new sidebar
             item; this tab is its only home. */}
-        <TabDoor>{hubTab === "channelAudit" && (
+        <TabDoor name="analytics-tab-channelaudit" resetKey={hubTab}>{hubTab === "channelAudit" && (
           <ChannelAuditPanel />
         )}</TabDoor>
 
@@ -2516,10 +2538,10 @@ export default function AnalyticsHub() {
             (POST /api/virality-check, 2 credits). Absorbed from
             /virality-check — no new page, no new sidebar item; this tab is
             its only home. */}
-        <TabDoor>{hubTab === "virality" && (
+        <TabDoor name="analytics-tab-virality" resetKey={hubTab}>{hubTab === "virality" && (
           <ViralityCheckPanel />
         )}</TabDoor>
-        <TabDoor>{hubTab === "fandecoder" && (
+        <TabDoor name="analytics-tab-fandecoder" resetKey={hubTab}>{hubTab === "fandecoder" && (
           <FanDecoderSection />
         )}</TabDoor>
 
@@ -2528,7 +2550,7 @@ export default function AnalyticsHub() {
             sources from real play_events rows; fan city stays absent —
             the platform records no fan location, and the panel says so
             instead of estimating. Absorbed into the hub; no new page. */}
-        <TabDoor>{hubTab === "audience" && (
+        <TabDoor name="analytics-tab-audience" resetKey={hubTab}>{hubTab === "audience" && (
           <AudienceRoomPanel />
         )}</TabDoor>
       </main>

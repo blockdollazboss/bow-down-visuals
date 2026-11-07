@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { SecretChallengePopup } from "@/components/SecretChallengePopup";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { NfcOrdersAdmin } from "@/components/NfcOrdersAdmin";
 import { JewelryOrdersAdmin } from "@/components/JewelryOrdersAdmin";
 import { PaymentReversalsAdmin } from "@/components/PaymentReversalsAdmin";
@@ -1880,6 +1881,7 @@ export default function AdminPage() {
         <p className="text-sm text-white/40 py-8 text-center">{t("admin.notAuthorized")}</p>
       ) : (
         <>
+          <SectionBoundary name="admin-grant">
           <div className={`rounded-xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex items-center gap-2 mb-1">
               <VisualBucsIcon className="h-4 w-4" />
@@ -1911,6 +1913,8 @@ export default function AdminPage() {
               {t("admin.grantLogNote")}
             </p>
           </div>
+          </SectionBoundary>
+          <SectionBoundary name="admin-give-friend">
           <div className={`rounded-xl border p-5 mt-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex items-center gap-2 mb-1">
               <Users className="h-4 w-4 text-primary" />
@@ -1947,6 +1951,8 @@ export default function AdminPage() {
             {friendMessage && <p className="mt-3 text-sm text-green-400">{friendMessage}</p>}
             {friendError && <p className="mt-3 text-sm text-red-400">{friendError}</p>}
           </div>
+          </SectionBoundary>
+          <SectionBoundary name="admin-plan">
           <div className={`rounded-xl border p-5 mt-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex items-center gap-2 mb-1">
               <Star className="h-4 w-4 text-primary" />
@@ -1987,6 +1993,8 @@ export default function AdminPage() {
             {planMessage && <p className="mt-3 text-sm text-green-400">{planMessage}</p>}
             {planError && <p className="mt-3 text-sm text-red-400">{planError}</p>}
           </div>
+          </SectionBoundary>
+          <SectionBoundary name="admin-bow-race">
           <div className={`rounded-xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex items-center gap-2 mb-1">
               <Crown className="h-4 w-4 text-primary" />
@@ -2135,27 +2143,28 @@ export default function AdminPage() {
               />
             )}
           </div>
-          <JackpotAdmin authHeaders={authHeaders} />
-          <SpotlightInbox authHeaders={authHeaders} />
-          <ContactInbox authHeaders={authHeaders} />
-          <DmcaReportsInbox authHeaders={authHeaders} />
-          <PitchFixInbox authHeaders={authHeaders} />
-          <ContentReportsInbox authHeaders={authHeaders} />
-          <ContentRemovalPanel authHeaders={authHeaders} />
-          <UserManagement authHeaders={authHeaders} adminEmail={profile?.email ?? null} />
-          <NfcOrdersAdmin authHeaders={authHeaders} />
-          <JewelryOrdersAdmin authHeaders={authHeaders} />
-          <PaymentReversalsAdmin authHeaders={authHeaders} />
-          <OperatorActionsAdmin authHeaders={authHeaders} />
-          <StudioGearQueueAdmin authHeaders={authHeaders} />
-          <ChallengeAdmin authHeaders={authHeaders} />
-          <CommunityGrantsAdmin authHeaders={authHeaders} />
-          <RemixKingAdmin authHeaders={authHeaders} />
+          </SectionBoundary>
+          <SectionBoundary name="admin-jackpot"><JackpotAdmin authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-spotlight"><SpotlightInbox authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-contact"><ContactInbox authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-dmca"><DmcaReportsInbox authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-pitch-fix"><PitchFixInbox authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-content-reports"><ContentReportsInbox authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-content-removal"><ContentRemovalPanel authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-users"><UserManagement authHeaders={authHeaders} adminEmail={profile?.email ?? null} /></SectionBoundary>
+          <SectionBoundary name="admin-nfc-orders"><NfcOrdersAdmin authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-jewelry-orders"><JewelryOrdersAdmin authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-payment-reversals"><PaymentReversalsAdmin authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-operator-actions"><OperatorActionsAdmin authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-gear-queue"><StudioGearQueueAdmin authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-challenges"><ChallengeAdmin authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-community-grants"><CommunityGrantsAdmin authHeaders={authHeaders} /></SectionBoundary>
+          <SectionBoundary name="admin-remix-king"><RemixKingAdmin authHeaders={authHeaders} /></SectionBoundary>
 
           {/* stack1300 stage-booking lane: the World Drop Spectacles
               bench — the admin drop-booking form the events backbone
               never had a client for (Ring 3.4's booking half). */}
-          <WorldDropAdmin authHeaders={authHeaders} />
+          <SectionBoundary name="admin-world-drop"><WorldDropAdmin authHeaders={authHeaders} /></SectionBoundary>
         </>
       )}
     </div>
