@@ -419,7 +419,7 @@ describe("findability — legacy routes redirect, wired pages live in the shell"
       '<Route path="/logo-maker"><Redirect to="/branding-kit?tab=logo" /></Route>',
       '<Route path="/intros-outros"><Redirect to="/branding-kit?tab=intros" /></Route>',
       '<Route path="/stream-pack"><Redirect to="/branding-kit?tab=stream" /></Route>',
-      '<Route path="/branding-shop"><Redirect to="/branding-kit?tab=shop" /></Route>',
+      '<Route path="/branding-shop"><QueryPreservingRedirect to="/branding-kit?tab=shop" /></Route>',
       '<Route path="/jewelry"><Redirect to="/branding-kit?tab=jewelry" /></Route>',
     ]) {
       expect(app, alias).toContain(alias);

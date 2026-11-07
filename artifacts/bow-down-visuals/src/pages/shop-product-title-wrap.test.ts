@@ -66,17 +66,33 @@ describe("shop product card — the full title is readable", () => {
     expect(priceCls).toContain("mt-auto");
   });
 
-  it("the card grid renders the product name exactly once — as the wrapping title", () => {
-    // Scope to the grid region (between the product-grid marker and the
-    // detail-modal marker): the only element rendering {p.name} there is
-    // the title itself, whose classes the first test already pins.
+  it("the card grid renders the product name exactly once per card — as the wrapping title", () => {
+    // JOIN12 structure note: the grid no longer inlines the card —
+    // it delegates to the productCard renderer defined above the
+    // page's return (the Hero layout additionally features the
+    // first product through heroCard, the rest through
+    // productCard). So the grid region itself renders no {p.name}
+    // inline; each renderer draws the name exactly once, as its
+    // wrapping title.
     const gridStart = shopSrc.indexOf("{/* product grid */}");
     const gridEnd = shopSrc.indexOf("{/* product detail modal */}");
     expect(gridStart).toBeGreaterThan(-1);
     expect(gridEnd).toBeGreaterThan(gridStart);
     const grid = shopSrc.slice(gridStart, gridEnd);
-    expect(grid.match(/\{p\.name\}/g)).toHaveLength(1);
-    expect(classNameOfElementRendering(grid, "p.name")).not.toContain("truncate");
+    expect(grid.match(/\{p\.name\}/g)).toBeNull();
+    expect(grid).toContain("products.map((p) => productCard(p))");
+    expect(grid).toContain("products.slice(1).map((p) => productCard(p))");
+    expect(grid).toContain("heroCard(products[0]!)");
+    const cardStart = shopSrc.indexOf("const productCard");
+    const heroStart = shopSrc.indexOf("const heroCard");
+    expect(cardStart).toBeGreaterThan(-1);
+    expect(heroStart).toBeGreaterThan(cardStart);
+    const card = shopSrc.slice(cardStart, heroStart);
+    expect(card.match(/\{p\.name\}/g)).toHaveLength(1);
+    expect(classNameOfElementRendering(card, "p.name")).not.toContain("truncate");
+    const hero = shopSrc.slice(heroStart, shopSrc.indexOf("\n  return (", heroStart));
+    expect(hero.match(/\{p\.name\}/g)).toHaveLength(1);
+    expect(classNameOfElementRendering(hero, "p.name")).not.toContain("truncate");
   });
 });
 

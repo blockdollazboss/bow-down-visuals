@@ -177,7 +177,7 @@ describe("Coach/Money desks extraction (unit 40)", () => {
   });
 
   it("every extracted key is referenced by the six files (no orphans, no remainder)", () => {
-    expect(enKeys.length).toBe(878);
+    expect(enKeys.length).toBe(880);
     const referenced = new Set(
       [...allSrc.matchAll(/worldCoachMoney\.(\w+)/g)].map((m) => m[1]),
     );

@@ -40,10 +40,10 @@ export const UGC_ESCROW_NOTE =
     carries this same choice; this helper is the fallback when a
     brief arrives without one. The optional strings bundle is the
     locale seam (Stack-200 D6): a surface with catalog access passes
-    the catalog-resolved notes (worldLivePromo.ugcEscrowNote /
-    ugcPaymentNote — the English source verbatim in every catalog,
-    money copy is never agent-translated); no bundle → the English
-    constants above, byte-identical. */
+    the catalog-resolved notes (worldLivePromo.ugcEscrowNote and
+    worldLivePromo.ugcPaymentNote — the English source verbatim in
+    every catalog, money copy is never agent-translated); no bundle
+    → the English constants above, byte-identical. */
 export function ugcBriefMoneyNote(
   brief: { priceCents?: number | null },
   strings?: { escrowNote: string; paymentNote: string },

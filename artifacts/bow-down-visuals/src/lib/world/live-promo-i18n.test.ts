@@ -34,9 +34,8 @@
  * LIVE_WAVE1/2/3_PROMOTIONS, LIVE_NATIVE_FOLLOW_ONS and
  * live-shopping-desk.ts LIVE_SHOPPING_PROMOTION/FOLLOW_ONS) —
  * consumed by tests only, rendered by no component; the shared
- * @/lib/ugc-ads strings (UGC_STYLES labels, ugcAdStatusLabel,
- * briefStatusLabel, UGC_PAYMENT_NOTE, ugcAdShareText — the shared
- * lib serves the 2D page too and is a follow-on unit); the
+ * @/lib/ugc-ads strings (UGC_STYLES labels, ugcAdShareText — the
+ * shared lib serves the 2D page too); the
  * buildAlertText composer in shared @/lib/live-shopping; the
  * BACKDROPS labels in shared lib/stream-kit/backdrops; trend-desk's
  * TREND_NICHES (category DATA sent verbatim to the rail) and
@@ -78,6 +77,36 @@ const SEAMS: Record<string, string> = {
   referralsDesk: read("./referrals-desk.ts"),
   ugcStation: read("./ugc-station.ts"),
 };
+/* Stack-200 D6 (hardening items 44–45) was the follow-on unit for
+   the shared @/lib/ugc-ads strings: it keyed the ad/brief status
+   labels and the briefs money notes into this namespace (+12
+   keys). The nine status labels are referenced by UgcAdsStation
+   above; the three money notes are referenced by the seam's own
+   documented bundle keys (lib/ugc-ads.ts) and by the cross-surface
+   consumers below (the 2D UgcAdsPanel, the World
+   BrandOutreachPanel, the /charts For Brands tab). The notes are
+   money copy: English source verbatim in every catalog, pinned
+   byte-equal to the lib constants by locale-newest-keying. */
+const D6_KEYS = new Set([
+  "ugcAdStatusDraft",
+  "ugcAdStatusFailedRefunded",
+  "ugcAdStatusGenerating",
+  "ugcAdStatusReady",
+  "ugcBriefStatusApproved",
+  "ugcBriefStatusClaimed",
+  "ugcBriefStatusClosed",
+  "ugcBriefStatusDelivered",
+  "ugcBriefStatusOpen",
+  "ugcBriefsMoneyNote",
+  "ugcEscrowNote",
+  "ugcPaymentNote",
+]);
+const D6_SOURCES = [
+  read("../ugc-ads.ts"),
+  read("../../components/hub/UgcAdsPanel.tsx"),
+  read("../../components/world/native/boards/BrandOutreachPanel.tsx"),
+  read("../../pages/discovery/charts.tsx"),
+].join("\n");
 const ALL_SOURCES = { ...COMPONENTS, ...SEAMS };
 const JOINED = Object.values(ALL_SOURCES).join("\n");
 
@@ -150,13 +179,18 @@ describe("Live/Promo extraction (unit 44)", () => {
   });
 
   it("the namespace holds the family's full extracted key set", () => {
-    expect(enKeys.length).toBe(549);
+    /* 549 at unit 44; +12 from Stack-200 D6 (items 44–45) — the
+       ugc-ads status labels and briefs money notes. */
+    expect(enKeys.length).toBe(561);
   });
 
   it("every catalog key is referenced by a component or seam (no orphans, no remainder)", () => {
     const referenced = new Set<string>();
     for (const m of JOINED.matchAll(/worldLivePromo\.([A-Za-z0-9_]+)/g)) {
       referenced.add(m[1]!);
+    }
+    for (const m of D6_SOURCES.matchAll(/worldLivePromo\.([A-Za-z0-9_]+)/g)) {
+      if (D6_KEYS.has(m[1]!)) referenced.add(m[1]!);
     }
     expect([...referenced].sort()).toEqual(enKeys);
   });

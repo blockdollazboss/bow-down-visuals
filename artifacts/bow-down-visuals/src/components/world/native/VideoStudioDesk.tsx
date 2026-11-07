@@ -196,7 +196,10 @@ export function VideoStudioDesk({ isLight }: { isLight: boolean }) {
           throw new Error(t("worldVideoStudio.emptySuccess"));
         }
         if (verdict.state === "failed") {
-          throw new Error(verdict.message ?? t("worldVideoStudio.failed"));
+          /* Catalog copy only — the poll body's raw error string
+             never reaches a render (api-error-guard law); the seam
+             still classifies the failure. */
+          throw new Error(t("worldVideoStudio.failed"));
         }
       }
       if (!videoUrl) throw new Error(t("worldVideoStudio.timedOut"));

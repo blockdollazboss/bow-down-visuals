@@ -4,7 +4,10 @@
  * page's hub surface:
  * - its pickers' data lives in data/video-studio.ts, moved
  *   VERBATIM off the unrouted page (the desk never imports
- *   the page — a sibling lane deletes it);
+ *   the page — a sibling lane deletes it; JOIN12 NOTE: the
+ *   sibling lane (C1) has now deleted the page in this same
+ *   wave, so the pins below read the shared data module —
+ *   the surviving verbatim copy, now canonical);
  * - the submit body is the page's exact shape (camera prompt
  *   folded in, the page's ratio rule, gen4.5, reference only
  *   in image mode) on the registry-priced runway-clip rail;
@@ -44,7 +47,7 @@ import {
 } from "./video-studio-desk";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
-const page = read("../../pages/video-studio.tsx");
+const page = read("../../data/video-studio.ts");
 const readJson = (rel: string) => JSON.parse(read(rel)) as Record<string, any>;
 
 describe("the shared data — verbatim off the page", () => {
@@ -198,7 +201,10 @@ describe("copy — en source, English verbatim UNREVIEWED in the other nine", ()
     expect(en.worldVideoStudio.emptySuccess).toBe(
       "Generation finished without a clip — no Visual Bucs were charged.",
     );
-    expect(page).toContain("Generation finished without a clip — no Visual Bucs were charged.");
+    /* JOIN12: B1 also pinned this wording against the page source
+       itself (expect(page).toContain(...)); the page is deleted
+       (C1, this wave), so the catalog — the wording's surviving
+       home — is pinned by the literal assertions here instead. */
     expect(en.worldVideoStudio.timedOut).toBe(
       "Generation timed out — the clip may still finish in the background.",
     );
