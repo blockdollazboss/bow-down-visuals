@@ -32,6 +32,10 @@ export default function CreationStreakWidget({
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const [data, setData] = useState<StreakData | null>(null);
+  /* Honest load failure (Stack-200 D2 A16): a failed streak read used
+     to be indistinguishable from loading — the widget just never
+     appeared, and claimable VB rewards silently went missing. */
+  const [loadFailed, setLoadFailed] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(() => {
     try { return localStorage.getItem(HIDE_KEY) === "1"; } catch { return false; }
@@ -47,8 +51,12 @@ export default function CreationStreakWidget({
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/retention/streak", { headers: await authHeaders() });
-      if (res.ok) setData((await res.json()) as StreakData);
-    } catch { /* widget stays empty on failure */ }
+      if (!res.ok) throw new Error("streak load failed");
+      setData((await res.json()) as StreakData);
+      setLoadFailed(false);
+    } catch {
+      setLoadFailed(true);
+    }
   }, [authHeaders]);
 
   useEffect(() => { void load(); }, [load]);
@@ -94,6 +102,18 @@ export default function CreationStreakWidget({
   }, [authHeaders, load, onBalanceChange, t]);
 
   if (hidden) return null;
+  if (!data && loadFailed) {
+    return (
+      <section className={`rounded-2xl border px-4 py-3 flex items-center gap-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} data-testid="creation-streak-load-error">
+        <Flame className="h-5 w-5 text-white/30 shrink-0" />
+        <span className="flex-1 text-xs font-bold text-white/50">{t("retention.streak_load_error")}</span>
+        <button type="button" onClick={() => void load()}
+          className="text-[11px] font-bold text-amber-200/80 hover:text-amber-200 transition-colors bdv-touch-target">
+          {t("retention.streak_retry")}
+        </button>
+      </section>
+    );
+  }
   if (!data) return null;
 
   const toggle = (

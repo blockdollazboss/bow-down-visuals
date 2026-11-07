@@ -3030,7 +3030,10 @@
     "whyItWorks": "Pourquoi ça marche",
     "youBadge": "TOI",
     "brandDealsLink": "Offres de marques",
-    "collabExplainer": "Partenariats de créateur à créateur — trouvez des collaborateurs, pas des sponsors. Vous chassez l'argent des marques plutôt ? Voyez "
+    "collabExplainer": "Partenariats de créateur à créateur — trouvez des collaborateurs, pas des sponsors. Vous chassez l'argent des marques plutôt ? Voyez ",
+    "myProfileLoadError": "Your saved collab profile couldn't load.",
+    "myProfileLoadErrorBody": "This form is showing blanks, not your saved profile — saving now would overwrite it. Check your connection and try loading it again.",
+    "myProfileRetry": "Try again"
   },
   "commentReplies": {
     "batchSubline": "{{date}} — « {{preview}}… »",
@@ -4199,7 +4202,10 @@
     "noDateSet": "Aucune date définie",
     "cancelStreamAria": "Annuler {{title}}",
     "recentStreams": "Streams récents",
-    "watchVod": "Voir la VOD"
+    "watchVod": "Voir la VOD",
+    "streamsLoading": "Loading your schedule…",
+    "streamsLoadError": "Your stream schedule couldn't load — you may already have streams booked. Check your connection and try again before scheduling another.",
+    "streamsRetry": "Try again"
   },
   "guides": {
     "academy": {
@@ -7397,7 +7403,9 @@
     "videoRequired": "Envoie d'abord une vidéo.",
     "voiceFallback": "voix",
     "voiceNote": "La même voix double toutes les langues, pour un son cohérent dans le monde entier.",
-    "voiceRequired": "Choisis d'abord une voix de doublage."
+    "voiceRequired": "Choisis d'abord une voix de doublage.",
+    "voicesLoadError": "Your voices couldn't load — your cloned voices may be waiting. Check your connection and try again.",
+    "voicesRetry": "Try again"
   },
   "trends": {
     "audienceEstablished": "Établie",
@@ -12727,7 +12735,9 @@
       "shotsHeading": "Liste des plans",
       "shotsWord": "plans",
       "subtitle": "Distribuez vos personnages, planifiez chaque plan, puis envoyez le tout à Scene Studio.",
-      "title": "Réalisateur de personnages"
+      "title": "Réalisateur de personnages",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "Créer le prompt ({{cost}} VB)",
@@ -13047,7 +13057,9 @@
     "item_level_up": "Un créateur vient de monter de niveau",
     "item_publish": "Quelqu'un vient de publier un post",
     "item_lip_sync": "Quelqu'un a lancé un lip-sync",
-    "item_generic": "Quelque chose vient de se passer sur Bow Down Visuals"
+    "item_generic": "Quelque chose vient de se passer sur Bow Down Visuals",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "retention": {
     "streak_title": "Série de création",
@@ -13317,7 +13329,9 @@
       "atRiskSub": "Réclame aujourd'hui ou ta série retombe à zéro.",
       "freezeSalvageTitle": "🧊 Sauve ta série de {{streak}} jours !",
       "freezeSalvageSub": "Tu as manqué hier : un gel de série sauvera ta chaîne. Réclame aujourd'hui !"
-    }
+    },
+    "streak_load_error": "Your creation streak couldn't load — rewards you can claim may be waiting.",
+    "streak_retry": "Try again"
   },
   "retentionDelight": {
     "board_load_error": "Impossible de charger le classement — l'accès a simplement échoué.",
@@ -15318,7 +15332,9 @@
     "launch_week": "Lancer le concours de cette semaine",
     "while_you_wait": "En attendant : parcourez le temple de la renommée",
     "last_week": "Les couronnes de la semaine dernière",
-    "see_all": "Tout voir"
+    "see_all": "Tout voir",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "catalogVault": {
     "title": "Coffre du Catalogue",
@@ -15389,7 +15405,9 @@
     "copied": "Copié !",
     "shareText": "Découvrez mon mashup",
     "coverArtist": "Mashup de chansons",
-    "tabHum": "Fredonner"
+    "tabHum": "Fredonner",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "linkInBio": {
     "tab": "Lien en bio",
@@ -17537,7 +17555,9 @@
     "yourRemix": "Ton remix",
     "yourSongsHeading": "Tes chansons — publiées ou non",
     "yourTracksHeading": "Tes morceaux",
-    "yoursSectionLabel": "À toi"
+    "yoursSectionLabel": "À toi",
+    "shelfLoadErrorLine": "This shelf couldn't load — what you have is safe, it just didn't come through.",
+    "shelfRetryBtn": "Try again"
   },
   "worldCoachMoney": {
     "bcAvgViews": "Vues moyennes",
@@ -24318,6 +24338,30 @@
   "subscriptionHistory": {
     "loading": "Loading your subscription receipts…",
     "loadError": "Your subscription receipts couldn't load — try again.",
+    "retry": "Try again"
+  },
+  "studioGearOrders": {
+    "loadError": "Your gear orders couldn't load — your made-to-order pieces and proof approvals may be waiting. Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "priorityDmBuy": {
+    "loadError": "The priority DM option couldn't load — check your connection and try again.",
+    "retry": "Try again"
+  },
+  "webhookDeliveries": {
+    "loadError": "Delivery history couldn't load — deliveries may have happened that you can't see right now. Try again.",
+    "retry": "Try again"
+  },
+  "composerTiers": {
+    "loadError": "Your fan tiers couldn't load — your members-only audience can't be set until they do.",
+    "retry": "Try again"
+  },
+  "plainDealsItems": {
+    "loadError": "Your items couldn't load — check your connection and try again.",
+    "retry": "Try again"
+  },
+  "threadCalls": {
+    "loadError": "Call history in this thread couldn't load — past calls may be missing from the timeline.",
     "retry": "Try again"
   }
 }

@@ -2939,7 +2939,10 @@
     "whyItWorks": "لماذا ينجح",
     "youBadge": "أنت",
     "brandDealsLink": "صفقات العلامات",
-    "collabExplainer": "شراكات من مبدع إلى مبدع — اعثر على متعاونين، لا رعاة. تطارد أموال العلامات بدلًا من ذلك؟ راجع "
+    "collabExplainer": "شراكات من مبدع إلى مبدع — اعثر على متعاونين، لا رعاة. تطارد أموال العلامات بدلًا من ذلك؟ راجع ",
+    "myProfileLoadError": "Your saved collab profile couldn't load.",
+    "myProfileLoadErrorBody": "This form is showing blanks, not your saved profile — saving now would overwrite it. Check your connection and try loading it again.",
+    "myProfileRetry": "Try again"
   },
   "commentReplies": {
     "batchSubline": "{{date}} — «{{preview}}…»",
@@ -4062,7 +4065,10 @@
     "noDateSet": "لم يُحدد تاريخ",
     "cancelStreamAria": "إلغاء {{title}}",
     "recentStreams": "البثوث الأخيرة",
-    "watchVod": "مشاهدة VOD"
+    "watchVod": "مشاهدة VOD",
+    "streamsLoading": "Loading your schedule…",
+    "streamsLoadError": "Your stream schedule couldn't load — you may already have streams booked. Check your connection and try again before scheduling another.",
+    "streamsRetry": "Try again"
   },
   "guides": {
     "pageTitle": "الأدلة والخدمات — Bow Down Visuals",
@@ -7278,7 +7284,9 @@
     "videoRequired": "ارفع فيديو أولًا.",
     "voiceFallback": "صوت",
     "voiceNote": "نفس الصوت يدبلج كل اللغات، ليبقى صوتك متسقًا حول العالم.",
-    "voiceRequired": "اختر صوت الدبلجة أولًا."
+    "voiceRequired": "اختر صوت الدبلجة أولًا.",
+    "voicesLoadError": "Your voices couldn't load — your cloned voices may be waiting. Check your connection and try again.",
+    "voicesRetry": "Try again"
   },
   "trends": {
     "audienceEstablished": "راسخ",
@@ -12323,7 +12331,9 @@
       "shotsHeading": "قائمة اللقطات",
       "shotsWord": "لقطات",
       "subtitle": "اختر شخصياتك، وخطط لكل لقطة، ثم أرسلها إلى Scene Studio.",
-      "title": "مخرج الشخصيات"
+      "title": "مخرج الشخصيات",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "بناء الموجه ({{cost}} VB)",
@@ -12683,7 +12693,9 @@
       "atRiskSub": "اطلب اليوم وإلا ستُصفَّر سلسلتك.",
       "freezeSalvageTitle": "🧊 أنقذ سلسلتك من {{streak}} يوماً!",
       "freezeSalvageSub": "فاتك الأمس — تجميد السلسلة سينقذ سلسلتك. اطلب اليوم!"
-    }
+    },
+    "streak_load_error": "Your creation streak couldn't load — rewards you can claim may be waiting.",
+    "streak_retry": "Try again"
   },
   "share": {
     "title": "مشاركة",
@@ -14178,7 +14190,9 @@
     "item_level_up": "ارتقى منشئ بالمستوى للتو",
     "item_publish": "نشر شخص منشوراً للتو",
     "item_lip_sync": "بدأ شخص مزامنة شفاه",
-    "item_generic": "حدث شيء للتو على Bow Down Visuals"
+    "item_generic": "حدث شيء للتو على Bow Down Visuals",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "planPublic": {
     "badge": "خطة المحتوى",
@@ -15419,7 +15433,9 @@
     "uploading": "جارٍ الرفع…",
     "working": "جارٍ العمل…",
     "bpmUnknown": "—",
-    "modeSimple": "Turbo"
+    "modeSimple": "Turbo",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "weekly_contest": {
     "aria": "مسابقة المبدعين الأسبوعية",
@@ -15446,7 +15462,9 @@
     "launch_week": "أطلق مسابقة هذا الأسبوع",
     "while_you_wait": "أثناء الانتظار: تصفح قاعة المشاهير",
     "last_week": "تيجان الأسبوع الماضي",
-    "see_all": "عرض الكل"
+    "see_all": "عرض الكل",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "catalogVault": {
     "title": "خزنة الكتالوج",
@@ -17624,7 +17642,9 @@
     "yourRemix": "ريمكسك",
     "yourSongsHeading": "أغانيك — منشورة أم لا",
     "yourTracksHeading": "مقطوعاتك",
-    "yoursSectionLabel": "لك"
+    "yoursSectionLabel": "لك",
+    "shelfLoadErrorLine": "This shelf couldn't load — what you have is safe, it just didn't come through.",
+    "shelfRetryBtn": "Try again"
   },
   "worldCoachMoney": {
     "bcAvgViews": "متوسط المشاهدات",
@@ -24405,6 +24425,30 @@
   "subscriptionHistory": {
     "loading": "Loading your subscription receipts…",
     "loadError": "Your subscription receipts couldn't load — try again.",
+    "retry": "Try again"
+  },
+  "studioGearOrders": {
+    "loadError": "Your gear orders couldn't load — your made-to-order pieces and proof approvals may be waiting. Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "priorityDmBuy": {
+    "loadError": "The priority DM option couldn't load — check your connection and try again.",
+    "retry": "Try again"
+  },
+  "webhookDeliveries": {
+    "loadError": "Delivery history couldn't load — deliveries may have happened that you can't see right now. Try again.",
+    "retry": "Try again"
+  },
+  "composerTiers": {
+    "loadError": "Your fan tiers couldn't load — your members-only audience can't be set until they do.",
+    "retry": "Try again"
+  },
+  "plainDealsItems": {
+    "loadError": "Your items couldn't load — check your connection and try again.",
+    "retry": "Try again"
+  },
+  "threadCalls": {
+    "loadError": "Call history in this thread couldn't load — past calls may be missing from the timeline.",
     "retry": "Try again"
   }
 }

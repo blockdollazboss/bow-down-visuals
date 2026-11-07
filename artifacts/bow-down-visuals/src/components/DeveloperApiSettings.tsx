@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { KeyRound, Loader2, Copy, Check, Trash2, AlertTriangle, BookOpen, Webhook, Pause, Play, History } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -333,6 +334,7 @@ function WebhooksSettings({
   isLight: boolean;
 }) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [hooks, setHooks] = useState<WebhookPublic[] | null>(null);
   const [eventTypes, setEventTypes] = useState<string[]>([]);
   const [unavailable, setUnavailable] = useState(false);
@@ -344,6 +346,7 @@ function WebhooksSettings({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [historyFor, setHistoryFor] = useState<string | null>(null);
   const [deliveries, setDeliveries] = useState<WebhookDelivery[] | null>(null);
+  const [deliveriesFailed, setDeliveriesFailed] = useState(false);
 
   async function authHeaders(): Promise<Record<string, string>> {
     const token = await getAccessToken();
@@ -418,21 +421,29 @@ function WebhooksSettings({
     }
   }
 
-  async function toggleHistory(id: string) {
-    if (historyFor === id) {
-      setHistoryFor(null);
-      return;
-    }
-    setHistoryFor(id);
+  async function loadDeliveries(id: string) {
     setDeliveries(null);
+    setDeliveriesFailed(false);
     try {
       const res = await fetch(`/api/api-webhooks/${id}/deliveries`, { headers: await authHeaders() });
       if (!res.ok) throw new Error("history failed");
       const data = (await res.json()) as { deliveries: WebhookDelivery[] };
       setDeliveries(data.deliveries);
     } catch {
-      setDeliveries([]);
+      /* Empty-lie fix: a failed history read is NOT "no deliveries" —
+         a developer debugging a broken endpoint must not be told
+         nothing was ever delivered exactly when the read broke. */
+      setDeliveriesFailed(true);
     }
+  }
+
+  async function toggleHistory(id: string) {
+    if (historyFor === id) {
+      setHistoryFor(null);
+      return;
+    }
+    setHistoryFor(id);
+    await loadDeliveries(id);
   }
 
   return (
@@ -568,7 +579,15 @@ function WebhooksSettings({
                     </div>
                     {historyFor === h.id && (
                       <div className="mt-3 border-t border-white/10 pt-2">
-                        {deliveries === null ? (
+                        {deliveriesFailed ? (
+                          <p className="flex flex-wrap items-center gap-2 text-xs text-red-300" data-testid="webhook-deliveries-load-error">
+                            {t("webhookDeliveries.loadError")}
+                            <button type="button" onClick={() => void loadDeliveries(h.id)}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+                              {t("webhookDeliveries.retry")}
+                            </button>
+                          </p>
+                        ) : deliveries === null ? (
                           <p className={`flex items-center gap-2 text-xs ${sub}`}><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading deliveries…</p>
                         ) : deliveries.length === 0 ? (
                           <p className={`text-xs ${sub}`}>No deliveries yet for this endpoint.</p>

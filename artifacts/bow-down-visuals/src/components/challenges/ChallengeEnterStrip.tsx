@@ -41,6 +41,12 @@ function buildEnterUrl(c: LiveChallenge, p: Props): string {
 
 export default function ChallengeEnterStrip({ videoUrl, title, from, fromLabel, limit = 3 }: Props) {
   const [challenges, setChallenges] = useState<LiveChallenge[] | null>(null);
+  /* Honest load failure (Stack-200 D2 A19): a failed read used to
+     collapse into an empty list and the strip vanished — a failed
+     load was indistinguishable from "no live challenges", right where
+     a creator is about to publish. */
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,13 +55,28 @@ export default function ChallengeEnterStrip({ videoUrl, title, from, fromLabel, 
         const res = await fetch(`/api/challenges/live-now?limit=${limit}`);
         if (!res.ok) throw new Error(String(res.status));
         const j = await res.json();
-        if (!cancelled) setChallenges(j.challenges ?? []);
+        if (!cancelled) { setChallenges(j.challenges ?? []); setLoadFailed(false); }
       } catch {
-        if (!cancelled) setChallenges([]);
+        if (!cancelled) setLoadFailed(true);
       }
     })();
     return () => { cancelled = true; };
-  }, [limit]);
+  }, [limit, attempt]);
+
+  if (!challenges && loadFailed) {
+    return (
+      <section className="rounded-2xl border border-primary/25 bg-zinc-950 px-4 py-3 flex items-center gap-2" data-testid="challenge-enter-load-error">
+        <Trophy className="h-4 w-4 text-primary shrink-0" />
+        <span className="flex-1 text-xs text-white/60">
+          Live challenges couldn&rsquo;t load — there may be one running right now.
+        </span>
+        <button type="button" onClick={() => setAttempt((n) => n + 1)}
+          className="text-[11px] font-bold text-amber-200/80 hover:text-amber-200 transition-colors shrink-0">
+          Try again
+        </button>
+      </section>
+    );
+  }
 
   if (!challenges || challenges.length === 0) return null;
 

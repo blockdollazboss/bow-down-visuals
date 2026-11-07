@@ -95,6 +95,11 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
   const [expanded, setExpanded] = useState(false);
   const [vaults, setVaults] = useState<ArtistVault[]>([]);
   const [loadingVaults, setLoadingVaults] = useState(true);
+  /* Honest vaults failure (Stack-200 D2 A20): a failed vaults read
+     used to leave the cast grid silently empty — the render then told
+     the creator to go create a vault they may already have. */
+  const [vaultsError, setVaultsError] = useState(false);
+  const [vaultsAttempt, setVaultsAttempt] = useState(0);
   const [castIds, setCastIds] = useState<string[]>([]);
   const [shots, setShots] = useState<ShotDraft[]>([blankShot()]);
   const [planName, setPlanName] = useState("");
@@ -116,24 +121,25 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
         const res = await fetch("/api/artist-vaults", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        if (!res.ok || cancelled) return;
+        if (!res.ok) throw new Error("vaults load failed");
         const data = (await res.json()) as { vaults?: ArtistVault[] };
         const list = data.vaults ?? [];
         if (!cancelled) {
           setVaults(list);
+          setVaultsError(false);
           if (artistVault?.id && list.some((v) => v.id === artistVault.id)) {
             setCastIds((prev) => (prev.includes(artistVault.id) ? prev : [...prev, artistVault.id]));
           }
         }
       } catch {
-        /* cast grid simply stays empty */
+        if (!cancelled) setVaultsError(true);
       } finally {
         if (!cancelled) setLoadingVaults(false);
       }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [vaultsAttempt]);
 
   function toggleCast(id: string) {
     setCastIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
@@ -334,6 +340,14 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
             </p>
             {loadingVaults ? (
               <Loader2 className="h-5 w-5 animate-spin text-white/40" />
+            ) : vaultsError && vaults.length === 0 ? (
+              <p className="flex flex-wrap items-center gap-2 text-xs text-red-300" data-testid="director-vaults-load-error">
+                {t(`${ns}.vaultsLoadError`)}
+                <button type="button" onClick={() => { setLoadingVaults(true); setVaultsAttempt((n) => n + 1); }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+                  {t(`${ns}.vaultsRetry`)}
+                </button>
+              </p>
             ) : vaults.length === 0 ? (
               <p className="text-xs text-white/40">
                 {t(`${ns}.noVaults`)}{" "}
@@ -343,6 +357,15 @@ export function CharacterDirector({ scenes, onScenesChange, artistVault }: Chara
               </p>
             ) : (
               <>
+                {vaultsError && (
+                  <p className="mb-2 flex flex-wrap items-center gap-2 text-xs text-red-300" data-testid="director-vaults-reload-error">
+                    {t(`${ns}.vaultsLoadError`)}
+                    <button type="button" onClick={() => { setLoadingVaults(true); setVaultsAttempt((n) => n + 1); }}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+                      {t(`${ns}.vaultsRetry`)}
+                    </button>
+                  </p>
+                )}
                 <div className="flex gap-1.5 flex-wrap" data-testid="director-cast-grid">
                   {vaults.map((v) => {
                     const selected = castIds.includes(v.id);

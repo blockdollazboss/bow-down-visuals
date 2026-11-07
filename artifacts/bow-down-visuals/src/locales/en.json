@@ -3087,7 +3087,10 @@
     "whyItWorks": "Why it works",
     "youBadge": "YOU",
     "brandDealsLink": "Brand Deals",
-    "collabExplainer": "Creator-to-creator partnerships — find collaborators, not sponsors. Chasing brand money instead? See "
+    "collabExplainer": "Creator-to-creator partnerships — find collaborators, not sponsors. Chasing brand money instead? See ",
+    "myProfileLoadError": "Your saved collab profile couldn't load.",
+    "myProfileLoadErrorBody": "This form is showing blanks, not your saved profile — saving now would overwrite it. Check your connection and try loading it again.",
+    "myProfileRetry": "Try again"
   },
   "commentReplies": {
     "batchSubline": "{{date}} — “{{preview}}…”",
@@ -3308,7 +3311,9 @@
     "launch_week": "Launch this week's contest",
     "while_you_wait": "While you wait: browse the hall of fame",
     "last_week": "Last week's crowns",
-    "see_all": "See all"
+    "see_all": "See all",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "contracts": {
     "paste_the_full_contract_here_cop": "Paste the full contract here — copy it from the PDF or document they sent you. The more complete, the better the analysis.",
@@ -4311,7 +4316,10 @@
     "noDateSet": "No date set",
     "cancelStreamAria": "Cancel {{title}}",
     "recentStreams": "Recent streams",
-    "watchVod": "Watch VOD"
+    "watchVod": "Watch VOD",
+    "streamsLoading": "Loading your schedule…",
+    "streamsLoadError": "Your stream schedule couldn't load — you may already have streams booked. Check your connection and try again before scheduling another.",
+    "streamsRetry": "Try again"
   },
   "guides": {
     "pageTitle": "Guides & Services — Bow Down Visuals",
@@ -7036,7 +7044,9 @@
     "copied": "Copied!",
     "shareText": "Check out my mashup",
     "coverArtist": "Song Mashup",
-    "tabHum": "Hum It"
+    "tabHum": "Hum It",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "djSets": {
     "tab": "DJ Sets",
@@ -7599,7 +7609,9 @@
     "videoRequired": "Upload a video first.",
     "voiceFallback": "voice",
     "voiceNote": "The same voice dubs every language, keeping your sound consistent worldwide.",
-    "voiceRequired": "Pick a dubbing voice first."
+    "voiceRequired": "Pick a dubbing voice first.",
+    "voicesLoadError": "Your voices couldn't load — your cloned voices may be waiting. Check your connection and try again.",
+    "voicesRetry": "Try again"
   },
   "trends": {
     "audienceEstablished": "Established",
@@ -13412,7 +13424,9 @@
       "shotsHeading": "Shot list",
       "shotsWord": "shots",
       "subtitle": "Cast your characters, plan every shot, then send it to Scene Studio.",
-      "title": "Character Director"
+      "title": "Character Director",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "Build prompt ({{cost}} VB)",
@@ -13751,7 +13765,9 @@
     "item_level_up": "A creator just leveled up",
     "item_publish": "Someone just published a post",
     "item_lip_sync": "Someone started a lip-sync",
-    "item_generic": "Something just happened on Bow Down Visuals"
+    "item_generic": "Something just happened on Bow Down Visuals",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "retention": {
     "streak_title": "Creation Streak",
@@ -14021,7 +14037,9 @@
       "atRiskSub": "Claim today or your streak resets to zero.",
       "freezeSalvageTitle": "🧊 Save your {{streak}}-day streak!",
       "freezeSalvageSub": "You missed yesterday — a streak freeze will save your chain. Claim today!"
-    }
+    },
+    "streak_load_error": "Your creation streak couldn't load — rewards you can claim may be waiting.",
+    "streak_retry": "Try again"
   },
   "retentionDelight": {
     "sharkDrop_title": "The Shark Dropped Something",
@@ -17524,7 +17542,9 @@
     "yourRemix": "Your remix",
     "yourSongsHeading": "Your songs — published or not",
     "yourTracksHeading": "Your tracks",
-    "yoursSectionLabel": "Yours"
+    "yoursSectionLabel": "Yours",
+    "shelfLoadErrorLine": "This shelf couldn't load — what you have is safe, it just didn't come through.",
+    "shelfRetryBtn": "Try again"
   },
   "worldCoachMoney": {
     "bcAvgViews": "Average views",
@@ -24305,6 +24325,30 @@
   "subscriptionHistory": {
     "loading": "Loading your subscription receipts…",
     "loadError": "Your subscription receipts couldn't load — try again.",
+    "retry": "Try again"
+  },
+  "studioGearOrders": {
+    "loadError": "Your gear orders couldn't load — your made-to-order pieces and proof approvals may be waiting. Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "priorityDmBuy": {
+    "loadError": "The priority DM option couldn't load — check your connection and try again.",
+    "retry": "Try again"
+  },
+  "webhookDeliveries": {
+    "loadError": "Delivery history couldn't load — deliveries may have happened that you can't see right now. Try again.",
+    "retry": "Try again"
+  },
+  "composerTiers": {
+    "loadError": "Your fan tiers couldn't load — your members-only audience can't be set until they do.",
+    "retry": "Try again"
+  },
+  "plainDealsItems": {
+    "loadError": "Your items couldn't load — check your connection and try again.",
+    "retry": "Try again"
+  },
+  "threadCalls": {
+    "loadError": "Call history in this thread couldn't load — past calls may be missing from the timeline.",
     "retry": "Try again"
   }
 }

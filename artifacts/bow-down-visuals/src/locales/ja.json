@@ -2919,7 +2919,10 @@
     "whyItWorks": "なぜ上手くいくか",
     "youBadge": "あなた",
     "brandDealsLink": "ブランド案件",
-    "collabExplainer": "クリエイター同士のパートナーシップ — スポンサーではなく協力者を見つけましょう。ブランドのお金を追うなら、こちらをご覧ください "
+    "collabExplainer": "クリエイター同士のパートナーシップ — スポンサーではなく協力者を見つけましょう。ブランドのお金を追うなら、こちらをご覧ください ",
+    "myProfileLoadError": "Your saved collab profile couldn't load.",
+    "myProfileLoadErrorBody": "This form is showing blanks, not your saved profile — saving now would overwrite it. Check your connection and try loading it again.",
+    "myProfileRetry": "Try again"
   },
   "commentReplies": {
     "batchSubline": "{{date}} — 「{{preview}}…」",
@@ -4034,7 +4037,10 @@
     "noDateSet": "日付未設定",
     "cancelStreamAria": "{{title}}をキャンセル",
     "recentStreams": "最近の配信",
-    "watchVod": "VODを見る"
+    "watchVod": "VODを見る",
+    "streamsLoading": "Loading your schedule…",
+    "streamsLoadError": "Your stream schedule couldn't load — you may already have streams booked. Check your connection and try again before scheduling another.",
+    "streamsRetry": "Try again"
   },
   "guides": {
     "pageTitle": "ガイド＆サービス — Bow Down Visuals",
@@ -7225,7 +7231,9 @@
     "videoRequired": "先に動画をアップロードしてください。",
     "voiceFallback": "音声",
     "voiceNote": "同じ音声が全言語を吹き替えるので、世界中であなたの声の一貫性が保たれます。",
-    "voiceRequired": "先に吹き替え音声を選んでください。"
+    "voiceRequired": "先に吹き替え音声を選んでください。",
+    "voicesLoadError": "Your voices couldn't load — your cloned voices may be waiting. Check your connection and try again.",
+    "voicesRetry": "Try again"
   },
   "trends": {
     "audienceEstablished": "盤石",
@@ -11316,7 +11324,9 @@
       "shotsHeading": "ショットリスト",
       "shotsWord": "ショット",
       "subtitle": "キャラクターをキャストし、すべてのショットを計画して、Scene Studioへ送信しましょう。",
-      "title": "キャラクターディレクター"
+      "title": "キャラクターディレクター",
+      "vaultsLoadError": "Your character vaults couldn't load — your cast may already exist.",
+      "vaultsRetry": "Try again"
     },
     "cameraMovePlanner": {
       "buildButton": "プロンプトを作成（{{cost}} VB）",
@@ -11676,7 +11686,9 @@
       "atRiskSub": "今日受け取らないと、ストリークがゼロにリセットされます。",
       "freezeSalvageTitle": "🧊 {{streak}}日ストリークを救おう！",
       "freezeSalvageSub": "昨日を逃しました — ストリークフリーズがチェーンを救います。今日受け取りましょう！"
-    }
+    },
+    "streak_load_error": "Your creation streak couldn't load — rewards you can claim may be waiting.",
+    "streak_retry": "Try again"
   },
   "share": {
     "title": "共有",
@@ -13486,7 +13498,9 @@
     "item_level_up": "クリエイターがレベルアップしました",
     "item_publish": "誰かが投稿を公開しました",
     "item_lip_sync": "誰かがリップシンクを開始しました",
-    "item_generic": "Bow Down Visualsで何かが起こりました"
+    "item_generic": "Bow Down Visualsで何かが起こりました",
+    "load_error": "Live activity couldn't load right now.",
+    "load_retry": "Try again"
   },
   "planPublic": {
     "badge": "コンテンツプラン",
@@ -14952,7 +14966,9 @@
     "launch_week": "今週のコンテストを開始",
     "while_you_wait": "待つ間に：殿堂を閲覧",
     "last_week": "先週の王冠",
-    "see_all": "すべて見る"
+    "see_all": "すべて見る",
+    "load_error": "This week's contest couldn't load — a live contest may be running right now.",
+    "load_retry": "Try again"
   },
   "catalogVault": {
     "title": "カタログVault",
@@ -15023,7 +15039,9 @@
     "copied": "コピーしました！",
     "shareText": "私のマッシュアップをチェック",
     "coverArtist": "ソングマッシュアップ",
-    "tabHum": "鼻歌"
+    "tabHum": "鼻歌",
+    "songsLoadError": "Your library couldn't load — uploads still work below.",
+    "songsRetry": "Try again"
   },
   "mediaDetector": {
     "badge": "AIメディア検出",
@@ -17504,7 +17522,9 @@
     "yourRemix": "あなたのリミックス",
     "yourSongsHeading": "あなたの曲 — 公開済みかどうかに関わらず",
     "yourTracksHeading": "あなたのトラック",
-    "yoursSectionLabel": "あなたのもの"
+    "yoursSectionLabel": "あなたのもの",
+    "shelfLoadErrorLine": "This shelf couldn't load — what you have is safe, it just didn't come through.",
+    "shelfRetryBtn": "Try again"
   },
   "worldCoachMoney": {
     "bcAvgViews": "平均再生回数",
@@ -24285,6 +24305,30 @@
   "subscriptionHistory": {
     "loading": "Loading your subscription receipts…",
     "loadError": "Your subscription receipts couldn't load — try again.",
+    "retry": "Try again"
+  },
+  "studioGearOrders": {
+    "loadError": "Your gear orders couldn't load — your made-to-order pieces and proof approvals may be waiting. Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "priorityDmBuy": {
+    "loadError": "The priority DM option couldn't load — check your connection and try again.",
+    "retry": "Try again"
+  },
+  "webhookDeliveries": {
+    "loadError": "Delivery history couldn't load — deliveries may have happened that you can't see right now. Try again.",
+    "retry": "Try again"
+  },
+  "composerTiers": {
+    "loadError": "Your fan tiers couldn't load — your members-only audience can't be set until they do.",
+    "retry": "Try again"
+  },
+  "plainDealsItems": {
+    "loadError": "Your items couldn't load — check your connection and try again.",
+    "retry": "Try again"
+  },
+  "threadCalls": {
+    "loadError": "Call history in this thread couldn't load — past calls may be missing from the timeline.",
     "retry": "Try again"
   }
 }

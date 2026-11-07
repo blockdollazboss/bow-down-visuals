@@ -1,5 +1,6 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Send, Check, X, Ban, Plus, Store, HeartHandshake, Paperclip, Link2, Search, Music2, Clapperboard, Image as ImageIcon, File as FileIcon, Video, PhoneMissed, PhoneOutgoing } from "lucide-react";
 import { VideoCallDock } from "@/components/messages/VideoCallDock";
@@ -136,6 +137,7 @@ function MsgAttachment({ att, mine, query }: { att: PageDmAttachment; mine: bool
 export default function Messages() {
   usePageTitle("Messages", "Your Bow Down Visuals messages — chat with creators, collaborators and brands.");
   const api = useCommunityApi();
+  const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [inbox, setInbox] = useState<Conv[]>([]);
   const [requests, setRequests] = useState<Conv[]>([]);
@@ -143,9 +145,13 @@ export default function Messages() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   /* In-thread call history (video calls Phase 1): ledger entries for
-     the open thread, interleaved with its messages by time. A failed
-     history read degrades to no entries — chat never depends on it. */
+     the open thread, interleaved with its messages by time. Chat never
+     depends on it — but a failed history read is NOT "you never
+     called": it raises callsFailed and the timeline shows a one-line
+     honest note with a retry instead of silently dropping the past
+     calls. */
   const [calls, setCalls] = useState<CallHistoryEntry[]>([]);
+  const [callsFailed, setCallsFailed] = useState(false);
   const callStarterRef = useRef<(() => void) | null>(null);
   const [status, setStatus] = useState<string>("inbox");
   const [draft, setDraft] = useState("");
@@ -215,15 +221,18 @@ export default function Messages() {
       const d = (await api.get(`/api/dm/${id}/calls`)) as { calls: CallHistoryEntry[] };
       if (reqId !== undefined && reqId !== threadReqRef.current) return;
       setCalls(Array.isArray(d.calls) ? d.calls : []);
+      setCallsFailed(false);
     } catch {
       if (reqId !== undefined && reqId !== threadReqRef.current) return;
-      setCalls([]);
+      /* Empty-lie fix: a failed call-history read is NOT "no calls" —
+         leave the entries alone and raise the honest failed note. */
+      setCallsFailed(true);
     }
   }
 
   async function loadThread(id: string) {
     const reqId = ++threadReqRef.current;
-    setMsgs([]); setCalls([]); setStatus("inbox"); setThreadError(null);
+    setMsgs([]); setCalls([]); setCallsFailed(false); setStatus("inbox"); setThreadError(null);
     setThreadLoading(true);
     void loadCalls(id, reqId);
     try {
@@ -572,6 +581,15 @@ export default function Messages() {
                 )}
 
                 <div className="flex-1 space-y-3 overflow-y-auto p-4">
+                  {callsFailed && !threadLoading && !threadError && !threadQuery.trim() && (
+                    <p className="flex flex-wrap items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/[0.04] px-3 py-2 text-xs text-red-300" data-testid="thread-calls-load-error">
+                      {t("threadCalls.loadError")}
+                      <button type="button" onClick={() => { if (activeId) void loadCalls(activeId); }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+                        {t("threadCalls.retry")}
+                      </button>
+                    </p>
+                  )}
                   {threadLoading ? <Loading label="Loading thread" /> : threadError ? (
                     <ErrorBox message={threadError} onRetry={() => activeId && loadThread(activeId)} />
                   ) : threadQuery.trim() && visibleMsgs.length === 0 ? (

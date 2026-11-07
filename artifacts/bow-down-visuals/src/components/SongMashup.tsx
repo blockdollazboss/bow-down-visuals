@@ -94,6 +94,7 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
 
   const [songs, setSongs] = useState<LibSong[]>([]);
   const [loadingSongs, setLoadingSongs] = useState(true);
+  const [songsError, setSongsError] = useState(false);
   const [songAId, setSongAId] = useState<string>("");
   const [songBId, setSongBId] = useState<string>("");
   const [durations, setDurations] = useState<Record<string, number>>({});
@@ -133,10 +134,17 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
       const res = await fetch("/api/songs", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
+      if (!res.ok) throw new Error("songs load failed");
       const data = (await res.json()) as { songs?: LibSong[] };
-      if (res.ok) setSongs(data.songs ?? []);
+      setSongs(data.songs ?? []);
+      setSongsError(false);
     } catch {
-      /* library is optional — uploads still work */
+      /* The library is optional — uploads still work — but a failed
+         library read is not an empty library (Stack-200 D2 A21): the
+         pickers used to be identical for "load failed" and "you have
+         no songs". Raise the honest flag; the note renders above the
+         pickers. */
+      setSongsError(true);
     } finally {
       setLoadingSongs(false);
     }
@@ -538,6 +546,15 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
       </div>
 
       {/* Song pickers */}
+      {songsError && (
+        <p className="mb-3 flex flex-wrap items-center gap-2 text-sm text-red-300" data-testid="mashup-songs-load-error">
+          {t("mashup.songsLoadError")}
+          <button type="button" onClick={() => { setLoadingSongs(true); void loadSongs(); }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+            {t("mashup.songsRetry")}
+          </button>
+        </p>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <SongPicker side="A" />
         <SongPicker side="B" />

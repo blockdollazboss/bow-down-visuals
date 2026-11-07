@@ -41,6 +41,12 @@ export default function FomoFeed({ getToken }: { getToken: () => Promise<string 
   const { t } = useTranslation();
   const [prefEnabled, setPrefEnabled] = useState<boolean | null>(null);
   const [feed, setFeed] = useState<FeedResponse | null>(null);
+  /* Honest first-load failure (Stack-200 D2 A18): reload failures keep
+     the last good feed on screen (right), but a failed FIRST load used
+     to leave feed null forever — first-load failure, still-loading and
+     a genuinely quiet platform were identical, and the poll retried
+     silently with nothing ever shown. */
+  const [feedFailed, setFeedFailed] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(() => {
     try { return localStorage.getItem(HIDE_KEY) === "1"; } catch { return false; }
@@ -69,8 +75,14 @@ export default function FomoFeed({ getToken }: { getToken: () => Promise<string 
   const loadFeed = useCallback(async () => {
     try {
       const res = await fetch("/api/activity/feed", { headers: await authHeaders() });
-      if (res.ok) setFeed((await res.json()) as FeedResponse);
-    } catch { /* feed keeps last good state on failure */ }
+      if (!res.ok) throw new Error("feed load failed");
+      setFeed((await res.json()) as FeedResponse);
+      setFeedFailed(false);
+    } catch {
+      /* Reload failure: the last good feed stays on screen. First-load
+         failure: the flag raises the honest placeholder below. */
+      setFeedFailed(true);
+    }
   }, [authHeaders]);
 
   useEffect(() => {
@@ -94,6 +106,18 @@ export default function FomoFeed({ getToken }: { getToken: () => Promise<string 
 
   if (hidden) return null;
   if (prefEnabled === false) return null;
+  if (!feed && feedFailed) {
+    return (
+      <section className={`rounded-2xl border px-4 py-3 flex items-center gap-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`} data-testid="fomo-feed-load-error">
+        <Activity className="h-5 w-5 text-white/30 shrink-0" />
+        <span className="flex-1 text-xs font-bold text-white/50">{t("fomoFeed.load_error")}</span>
+        <button type="button" onClick={() => void loadFeed()}
+          className="text-[11px] font-bold text-amber-200/80 hover:text-amber-200 transition-colors bdv-touch-target">
+          {t("fomoFeed.load_retry")}
+        </button>
+      </section>
+    );
+  }
   if (!feed) return null;
 
   const relTime = (iso: string): string => {

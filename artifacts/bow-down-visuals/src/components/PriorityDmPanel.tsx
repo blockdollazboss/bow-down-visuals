@@ -211,21 +211,49 @@ export function PriorityDmComposer({ api, creatorUserId, body, onSent, onNotice 
   onSent: () => void;
   onNotice: (msg: string) => void;
 }) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<PriorityStatusResponse | null>(null);
+  const [statusFailed, setStatusFailed] = useState(false);
   const [sending, setSending] = useState(false);
   const intentRef = useRef<string>(newPriorityIntentKey());
+
+  const loadStatus = useCallback(() => {
+    if (!creatorUserId) return;
+    api.get(`/api/priority-dms/status?creator=${encodeURIComponent(creatorUserId)}`).then(
+      (d) => {
+        setStatus(d as PriorityStatusResponse);
+        setStatusFailed(false);
+      },
+      () => {
+        /* Empty-lie fix: a failed status load is NOT "this creator has
+           no priority option" — keep status null and raise the honest
+           failed state below so the fan can retry. */
+        setStatusFailed(true);
+      },
+    );
+  }, [api, creatorUserId]);
 
   useEffect(() => {
     intentRef.current = newPriorityIntentKey();
     setStatus(null);
-    if (!creatorUserId) return;
-    api.get(`/api/priority-dms/status?creator=${encodeURIComponent(creatorUserId)}`).then(
-      (d) => setStatus(d as PriorityStatusResponse),
-      () => setStatus(null),
-    );
-  }, [api, creatorUserId]);
+    setStatusFailed(false);
+    loadStatus();
+  }, [loadStatus]);
 
-  if (!status) return null;
+  if (!status) {
+    if (statusFailed) {
+      return (
+        <p className="flex flex-wrap items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/[0.04] px-3 py-2 text-xs text-red-300" data-testid="priority-dm-status-load-error">
+          {t("priorityDmBuy.loadError")}
+          <button type="button" onClick={() => loadStatus()}
+            className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 px-3 py-1 text-xs font-semibold text-amber-200/80 transition hover:bg-amber-500/10">
+            {t("priorityDmBuy.retry")}
+          </button>
+        </p>
+      );
+    }
+    return null;
+  }
   if (!status.platform_enabled) return null; // gate off: no surface, no price — settings card carries the honest copy
   if (!canBuyPriority(status)) return null;
 
