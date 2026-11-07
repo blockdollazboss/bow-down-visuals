@@ -225,7 +225,7 @@ export function SingingVoiceModal({ open, onClose, source, onConverted }: Singin
               <p className="text-sm font-bold text-white truncate">
                 {t("singingVoice.title", { defaultValue: "Singing Voice" })}
                 <span className="ml-2 text-[10px] font-black text-primary/80 uppercase tracking-widest border border-primary/30 bg-primary/10 rounded-full px-2 py-0.5">
-                  {t("singingVoice.costBadge", { defaultValue: "{{cost}} VB · price TBD", cost: CREDIT_COST })}
+                  {t("singingVoice.costBadge", { defaultValue: "{{cost}} VB", cost: CREDIT_COST })}
                 </span>
               </p>
               <p className="text-xs text-white/40 truncate">“{source.title}”</p>
@@ -353,7 +353,7 @@ export function SingingVoiceModal({ open, onClose, source, onConverted }: Singin
                 title={!configured ? t("singingVoice.disabledTitle", { defaultValue: "Connect a provider key to enable" }) : undefined}
                 className="w-full gold-glow font-bold"
               >
-                {t("singingVoice.convertButton", { defaultValue: "Convert vocals ({{cost}} VB — price TBD)", cost: CREDIT_COST })}
+                {t("singingVoice.convertButton", { defaultValue: "Convert vocals ({{cost}} VB)", cost: CREDIT_COST })}
               </Button>
             </>
           )}

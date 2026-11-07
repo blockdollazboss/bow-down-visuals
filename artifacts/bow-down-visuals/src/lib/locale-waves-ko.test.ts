@@ -307,6 +307,9 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     // brand currency / prices / placeholder-only values
     "samples.credits", "vocalPolish.buttonCost", "vocalPolish.strengthValue",
     "vocalPolish.keyShiftValue", "vocalPolish.tempoValue",
+    // English-verbatim UNREVIEWED money copy — singing-voice 800 VB
+    // RATIFIED by owner ruling 2026-11-07; "price TBD" wording retired.
+    "singingVoice.buttonCost", "singingVoice.convertButton",
     "makeSong.priceBadge", "translate.creditsLabel", "translate.perMinuteCost",
     "translate.globalDropBanner",
     "translate.globalDropUnresolved",

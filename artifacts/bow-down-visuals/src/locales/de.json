@@ -15499,7 +15499,7 @@
   },
   "singingVoice": {
     "buttonLabel": "Singstimme",
-    "buttonCost": "800 VB · Preis folgt",
+    "buttonCost": "800 VB",
     "title": "Singstimme",
     "close": "Schließen",
     "notConfigured": "Die Singstimmen-Konvertierung ist noch nicht angebunden — der Website-Betreiber muss einen Anbieter-Schlüssel hinzufügen. Die Stimmen unten sind Beispiele; der Convert-Button bleibt bis dahin deaktiviert. Ihnen wird nichts abgebucht.",
@@ -15507,7 +15507,7 @@
     "loadingVoices": "Stimmen werden geladen…",
     "strengthLabel": "Stimmenstärke",
     "keepInstrumental": "Mein Instrumental unter den konvertierten Vocals behalten",
-    "convertButton": "Vocals konvertieren (800 VB — Preis folgt)",
+    "convertButton": "Convert vocals (800 VB)",
     "disabledTitle": "Anbieter-Schlüssel anbinden zum Aktivieren",
     "working": "Vocals werden konvertiert…",
     "workingNote": "Das läuft auf dem Server — Sie können dieses Fenster ruhig schließen.",

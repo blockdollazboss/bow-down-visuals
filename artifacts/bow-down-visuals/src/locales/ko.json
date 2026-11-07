@@ -15215,7 +15215,7 @@
   },
   "singingVoice": {
     "buttonLabel": "노래 목소리",
-    "buttonCost": "800 VB · 가격 미정",
+    "buttonCost": "800 VB",
     "title": "노래 목소리",
     "close": "닫기",
     "notConfigured": "노래 목소리 변환은 아직 연결되지 않았습니다 — 사이트 소유자가 제공자 키를 추가해야 합니다. 아래 목소리는 샘플입니다; 그때까지 변환 버튼은 비활성 상태로 유지됩니다. 청구되지 않습니다.",
@@ -15223,7 +15223,7 @@
     "loadingVoices": "목소리 불러오는 중…",
     "strengthLabel": "목소리 강도",
     "keepInstrumental": "변환된 보컬 아래 내 인스트루멘털 유지",
-    "convertButton": "보컬 변환 (800 VB — 가격 미정)",
+    "convertButton": "Convert vocals (800 VB)",
     "disabledTitle": "활성화하려면 제공자 키를 연결하세요",
     "working": "보컬 변환 중…",
     "workingNote": "서버에서 실행됩니다 — 이 창을 닫아도 안전합니다.",

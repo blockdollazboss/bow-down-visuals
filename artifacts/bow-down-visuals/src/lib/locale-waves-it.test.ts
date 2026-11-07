@@ -596,6 +596,12 @@ const W4_LEGIT = new Set([
   "sfx.packButton",
   "sfx.titleAccent",
   "singingVoice.abOriginal",
+  // English-verbatim UNREVIEWED money copy: the singing-voice 800 VB
+  // price was RATIFIED by owner ruling 2026-11-07 and the stale
+  // "price TBD" wording retired — this catalog carries the English
+  // source until a reviewed translation lands.
+  "singingVoice.buttonCost",
+  "singingVoice.convertButton",
   "songRework.remixCta",
   "songRework.remixTitle",
   "songs.remixButton",

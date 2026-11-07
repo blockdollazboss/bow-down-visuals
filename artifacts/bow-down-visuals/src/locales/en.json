@@ -14450,7 +14450,7 @@
   },
   "singingVoice": {
     "buttonLabel": "Singing Voice",
-    "buttonCost": "800 VB · price TBD",
+    "buttonCost": "800 VB",
     "title": "Singing Voice",
     "close": "Close",
     "notConfigured": "Singing-voice conversion isn't connected yet — the site owner needs to add a provider key. The voices below are samples; the Convert button stays disabled until then. You won't be charged.",
@@ -14458,7 +14458,7 @@
     "loadingVoices": "Loading voices…",
     "strengthLabel": "Voice strength",
     "keepInstrumental": "Keep my instrumental under the converted vocal",
-    "convertButton": "Convert vocals (800 VB — price TBD)",
+    "convertButton": "Convert vocals (800 VB)",
     "disabledTitle": "Connect a provider key to enable",
     "working": "Converting vocals…",
     "workingNote": "This runs on the server — safe to close this window.",

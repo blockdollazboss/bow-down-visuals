@@ -421,6 +421,12 @@ const W4_ALLOW = new Set([
   "scheduler.titlePrefix",
   "scheduler.titleSuffix",
   "sfx.titleAccent",
+  // English-verbatim UNREVIEWED money copy: the singing-voice 800 VB
+  // price was RATIFIED by owner ruling 2026-11-07 and the stale
+  // "price TBD" wording retired — this catalog carries the English
+  // source until a reviewed translation lands.
+  "singingVoice.buttonCost",
+  "singingVoice.convertButton",
   "sounds.platformTiktok",
   "stems.midi",
   "stems.wav",
