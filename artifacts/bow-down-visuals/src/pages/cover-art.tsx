@@ -27,6 +27,7 @@ import {
   type CoverArtResult,
 } from "@/lib/cover-art";
 import { AttributionToggle } from "@/components/AttributionToggle";
+import { CreationFinale } from "@/components/player/CreationFinale";
 import { CreatorFontPicker } from "@/components/CreatorFontPicker";
 import { creatorFontFamily } from "@/lib/creator-fonts";
 
@@ -570,6 +571,12 @@ export default function CoverArt() {
         )}
       </main>
 
+      {/* Rank 6a / stack200 C1: Cover Art has its own registered finale —
+          finishing a cover hands off to PUBLISH → PRICE → PROMOTE → EARN
+          under the Cover Art name. While this panel is active the Create
+          shell suppresses its generic "create" finale (see create.tsx),
+          so exactly one finale shows. */}
+      <CreationFinale surfaceId="cover-art" />
     </div>
   );
 }

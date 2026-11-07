@@ -123,7 +123,11 @@ describe("honesty contract", () => {
       new URL("../memberships.ts", import.meta.url),
       "utf8",
     );
-    expect(src).toContain("paymentsLive: true");
+    /* paymentsLive derives from the configured rail (paymentsConfigured,
+       the tip jar / shoutouts predicate) — never a hardcoded literal that
+       claims payments are live when no Stripe key is configured. */
+    expect(src).toContain("paymentsLive: paymentsConfigured()");
+    expect(src).not.toContain("paymentsLive: true");
     /* Activation is gated on a verified paid session — never on intent. */
     expect(src).toContain('session.payment_status !== "paid"');
     expect(src).not.toContain("stripe.charges.create");

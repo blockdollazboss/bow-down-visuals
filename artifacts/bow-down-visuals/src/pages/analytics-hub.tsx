@@ -434,6 +434,7 @@ function ConnectedAccountsTab() {
   const isLight = useIsLightTheme();
   const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [overview, setOverview] = useState<ConnOverviewResponse | null>(null);
   /* Starts in flight: until the first overview settles, the platform
@@ -531,10 +532,17 @@ function ConnectedAccountsTab() {
     setAiError(null);
     setOutOfCredits(false);
     try {
-      const { res, data } = await authedFetch("/api/analytics/insights", {
+      /* Priced (100 VB, registry-priced): the confirmed path, like the
+         hub's own AI calls below and the World Analytics desk — the
+         spend confirmation shows the ruled price first. A cancel
+         returns null: no request is issued and no charge happens. */
+      const res = await confirmedFetch("/api/analytics/insights", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (!res) return; // user cancelled the credit confirmation
+      const data = (await res.json().catch(() => ({}))) as any;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);
         refreshProfile();
@@ -562,10 +570,15 @@ function ConnectedAccountsTab() {
     setAiError(null);
     setOutOfCredits(false);
     try {
-      const { res, data } = await authedFetch("/api/analytics/suggestions", {
+      /* Priced (100 VB, registry-priced): confirmed path — see
+         runInsights above. A cancel returns null and charges nothing. */
+      const res = await confirmedFetch("/api/analytics/suggestions", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (!res) return; // user cancelled the credit confirmation
+      const data = (await res.json().catch(() => ({}))) as any;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);
         refreshProfile();

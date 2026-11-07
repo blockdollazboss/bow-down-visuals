@@ -89,6 +89,12 @@ export const MEMBERSHIPS_AI_CREDITS = Number(process.env["MEMBERSHIPS_AI_CREDIT_
    moves until payment processing ships. */
 export const MEMBERSHIPS_PLATFORM_FEE_PCT = 10;
 
+/* paymentsLive derives from the configured rail — the same truth the
+   checkout endpoint enforces (503 when no Stripe key is set), mirroring
+   the tip jar's and shoutouts' paymentsConfigured(). The flag must never
+   dress a dead rail up as live, so it is derived, never a literal. */
+const paymentsConfigured = () => !!process.env["STRIPE_SECRET_KEY"];
+
 const perkSchema = z.string().trim().min(1).max(140);
 
 const tierCreateSchema = z.object({
@@ -490,7 +496,10 @@ router.get("/memberships/dashboard", requireAuth, publicApiLimiter, async (req, 
     netMrrCents: netAfterFee(mrrCents),
     churnPct,
     byTier,
-    paymentsLive: true, /* 0132: TEST-mode checkout — joins verify as paid before activating */
+    /* 0132: TEST-mode checkout — joins verify as paid before activating.
+       paymentsLive derives from the configured rail (paymentsConfigured),
+       never a literal true. */
+    paymentsLive: paymentsConfigured(),
     testMode: isCheckoutTestMode(),
   });
 });

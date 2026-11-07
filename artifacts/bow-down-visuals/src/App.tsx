@@ -674,9 +674,11 @@ function AppShell() {
           <Route path="/live/:id"><LiveWatch /></Route>
           <Route path="/live/guest/:token"><LiveGuest /></Route>
           <Route path="/premiere/:id"><PremierePage /></Route>
-          {/* Legacy broadcast page retired (findability fix, 2026-10-18):
-              the live studio is /go-live's Broadcast tab. The old path
-              keeps working as a redirect — no inbound link breaks. */}
+          {/* Broadcast channels + premieres live in /go-live's Broadcast
+              tab (BroadcastChannelsPanel — docked there by Stack 200
+              Lane C item 2 after the standalone page was retired by the
+              2026-10-18 findability fix). The old path keeps working as
+              a redirect — no inbound link breaks. */}
           <Route path="/broadcast"><Redirect to="/go-live" /></Route>
           {/* Dead-link aliases (Stack-100 #3, Lane A): the Stack-100 #2
               push report linked these seven paths and every one 404'd —

@@ -20,6 +20,10 @@ export interface CreationSurface {
 
 export const CREATION_FINALE_SURFACES = [
   { id: "create", path: "/create", label: "Create desk" },
+  /* Cover Art is a panel of the Create desk; its own route (/cover-art)
+     lands on that panel, and the panel renders this surface's finale so
+     a finished cover hands off under its own name (stack200 C1). */
+  { id: "cover-art", path: "/cover-art", label: "Cover Art" },
   { id: "video-editor", path: "/video-editor", label: "Video Editor", publishType: "video" },
   { id: "audio-studio", path: "/audio-studio", label: "Audio Studio", publishType: "audio" },
   { id: "thumbnail-studio", path: "/thumbnail-studio", label: "Thumbnail Studio" },

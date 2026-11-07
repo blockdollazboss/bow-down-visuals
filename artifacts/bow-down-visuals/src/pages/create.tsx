@@ -291,10 +291,16 @@ export default function Create() {
           </Suspense>
         </div>
 
-        {/* Rank 6a: every creation ends in the Get Paid finale. */}
-        <div className="mx-auto w-full max-w-4xl px-1">
-          <CreationFinale surfaceId="create" />
-        </div>
+        {/* Rank 6a: every creation ends in the Get Paid finale. The
+            coverart panel renders its own registered finale
+            (surfaceId="cover-art") inside the panel, so the shell's
+            generic "create" finale stands down there — one finale per
+            surface, never two stacked. */}
+        {panel !== "coverart" && (
+          <div className="mx-auto w-full max-w-4xl px-1">
+            <CreationFinale surfaceId="create" />
+          </div>
+        )}
 
         {/* Phase 3 orphan rescue: the Media Detector's only inbound path
             was a hub workflow — the Create front door names it too. */}

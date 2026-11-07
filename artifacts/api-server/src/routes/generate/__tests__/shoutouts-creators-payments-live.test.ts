@@ -189,3 +189,34 @@ describe("GET /shoutouts/creators paymentsLive truth", () => {
     }
   });
 });
+
+/* Stack 200 Lane C item 1 — the revenue rail carried the mirror-image
+   hardcode: `paymentsLive: true` as a bare literal, claiming payments
+   are live regardless of configuration while the creators list (above)
+   and the checkout endpoint derive/enforce the configured truth. The
+   revenue response now derives from paymentsConfigured() too. These
+   pins hold BOTH directions; the configured test fails against the old
+   literal in the unconfigured direction and vice versa. */
+describe("GET /shoutouts/revenue paymentsLive truth (stack200 C1)", () => {
+  it("reports live when the payment rail is configured", async () => {
+    const { status, json } = await call("GET", "/shoutouts/revenue");
+    expect(status).toBe(200);
+    expect(json.paymentsLive).toBe(true);
+  });
+
+  it("reports NOT live when the rail is not configured", async () => {
+    const savedKey = process.env["STRIPE_SECRET_KEY"];
+    delete process.env["STRIPE_SECRET_KEY"];
+    try {
+      const { status, json } = await call("GET", "/shoutouts/revenue");
+      expect(status).toBe(200);
+      expect(json.paymentsLive).toBe(false);
+      /* The revenue read itself is free — it keeps serving real tracked
+         sums; only the payment claim drops. */
+      expect(json.total).toBe(0);
+      expect(json.grossCents).toBe(0);
+    } finally {
+      if (savedKey !== undefined) process.env["STRIPE_SECRET_KEY"] = savedKey;
+    }
+  });
+});
