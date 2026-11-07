@@ -3,7 +3,7 @@
  * catalog / gate / resolution / write-decision contract.
  *
  * Pinned:
- * - the catalog is 6 bands × 3 template variants, named with the
+ * - the catalog is 6 bands × 4 template variants, named with the
  *   ladder's own rung names (lib/creator-rank STAR_TITLES — the
  *   single source), and every band's "classic" carries exactly
  *   the Phase 5 dressing parameters (house / bar / flank), so an
@@ -36,14 +36,15 @@ import {
 } from "../../lib/world-room-dressing";
 
 describe("the dressing catalog", () => {
-  it("offers exactly three template variants per rung, eighteen in all", () => {
-    expect(ROOM_DRESSING_VARIANTS).toHaveLength(18);
+  it("offers exactly four template variants per rung, twenty-four in all", () => {
+    expect(ROOM_DRESSING_VARIANTS).toHaveLength(24);
     for (let band = 1; band <= 6; band++) {
       const inBand = ROOM_DRESSING_VARIANTS.filter((v) => v.band === band);
       expect(inBand.map((v) => v.id)).toEqual([
         `t${band}-classic`,
         `t${band}-bold`,
         `t${band}-regal`,
+        `t${band}-shadow`,
       ]);
     }
   });
@@ -55,6 +56,8 @@ describe("the dressing catalog", () => {
     expect(roomDressingVariantById("t1-classic")?.name).toBe("Street Punk Classic");
     expect(roomDressingVariantById("t4-regal")?.name).toBe("Shot Caller Regal");
     expect(roomDressingVariantById("t6-bold")?.name).toBe("Kingpin Bold");
+    expect(roomDressingVariantById("t1-shadow")?.name).toBe("Street Punk Shadow");
+    expect(roomDressingVariantById("t6-shadow")?.name).toBe("Kingpin Shadow");
   });
 
   it("the classic of every band IS the Phase 5 dressing (default-equivalence)", () => {
@@ -65,7 +68,7 @@ describe("the dressing catalog", () => {
       expect(classic.bannerStyle).toBe("flank");
       expect(defaultRoomDressingVariant(band)).toBe(classic);
     }
-    /* The other two styles genuinely differ in the dressing
+    /* The other styles genuinely differ in the dressing
      * system's own parameters — no new art, no freeform. */
     const bold = roomDressingVariantById("t3-bold")!;
     expect(bold.palette).toBe("inverted");
@@ -74,6 +77,13 @@ describe("the dressing catalog", () => {
     expect(regal.palette).toBe("gilded");
     expect(regal.trimStyle).toBe("crown");
     expect(regal.bannerStyle).toBe("trio");
+    /* Shadow is the bare-walls style: swapped hues, the single
+     * bar, and no banners at all — the "none" the vocabulary
+     * always carried, finally worn. */
+    const shadow = roomDressingVariantById("t3-shadow")!;
+    expect(shadow.palette).toBe("inverted");
+    expect(shadow.trimStyle).toBe("bar");
+    expect(shadow.bannerStyle).toBe("none");
   });
 
   it("the default clamps out-of-range stars to the ladder", () => {
@@ -158,6 +168,19 @@ describe("resolution — what a visitor's room read carries", () => {
     expect(dto?.variantId).toBe("t2-regal");
     expect(dto?.picked).toBe(true);
     expect(dto?.palette).toBe("gilded");
+  });
+
+  it("a stored shadow pick resolves with its bare-walls tuple", () => {
+    const dto = resolveRoomDressing({
+      themeConfig: { [ROOM_DRESSING_CONFIG_KEY]: "t4-shadow" },
+      earnedStars: 4,
+    });
+    expect(dto?.variantId).toBe("t4-shadow");
+    expect(dto?.name).toBe("Shot Caller Shadow");
+    expect(dto?.picked).toBe(true);
+    expect(dto?.palette).toBe("inverted");
+    expect(dto?.trimStyle).toBe("bar");
+    expect(dto?.bannerStyle).toBe("none");
   });
 
   it("an unmeasured room with no pick resolves null — no fabricated tier", () => {

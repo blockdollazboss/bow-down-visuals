@@ -5,7 +5,7 @@
    Ring 3 Phase 5 dressed a Creator Room by its owner's EARNED rank
    alone: one trim per rung, resolved server-side off lib/creator-rank,
    nothing for the owner to pick. Ring 4 adds the CHOICE inside the
-   tier: a small catalog of template variants — three per rung — that
+   tier: a small catalog of template variants — four per rung — that
    restyle the room through the dressing system's own parameters
    (palette treatment, trim style, banner style). No freeform
    building, no new art: a variant is a parameter tuple the scene's
@@ -68,9 +68,11 @@ export interface RoomDressingVariant {
   bannerStyle: RoomDressingBannerStyle;
 }
 
-/** The three template styles every band offers, in picker order.
+/** The four template styles every band offers, in picker order.
  *  "classic" is always the default: its parameters ARE the Phase 5
- *  rendering. */
+ *  rendering. "shadow" is the bare-walls style: the hues swap like
+ *  bold's, the trim stays the single bar, and NO banners hang —
+ *  the runner carries the room's color alone. */
 const DRESSING_STYLES: ReadonlyArray<{
   key: string;
   label: string;
@@ -81,9 +83,10 @@ const DRESSING_STYLES: ReadonlyArray<{
   { key: "classic", label: "Classic", palette: "house", trimStyle: "bar", bannerStyle: "flank" },
   { key: "bold", label: "Bold", palette: "inverted", trimStyle: "double", bannerStyle: "flank" },
   { key: "regal", label: "Regal", palette: "gilded", trimStyle: "crown", bannerStyle: "trio" },
+  { key: "shadow", label: "Shadow", palette: "inverted", trimStyle: "bar", bannerStyle: "none" },
 ];
 
-/** The whole catalog: 6 bands × 3 variants. Names carry the
+/** The whole catalog: 6 bands × 4 variants. Names carry the
  *  ladder's own rung names (STAR_TITLES via starTitle — the single
  *  source), never a second set of words. */
 export const ROOM_DRESSING_VARIANTS: readonly RoomDressingVariant[] = [1, 2, 3, 4, 5, 6].flatMap(
