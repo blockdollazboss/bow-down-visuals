@@ -22,14 +22,21 @@
  *         placeholders pending real translation, NOT translations.
  *         When a real translation lands for a key, delete it from
  *         PLACEHOLDER_KEYS in the same commit (the list only shrinks).
- *       - OWNER_DECISION_KEYS (money + error copy) are deliberately
- *         ABSENT from the non-en catalogs: the locale honesty law
- *         forbids drafting money/error translations, so they wait
- *         for owner-approved translations. When one lands, remove
- *         the key from OWNER_DECISION_KEYS in the same commit.
+ *       - The money + error keys originally sat ABSENT under an
+ *         owner-decision contract (the locale honesty law forbids
+ *         drafting money/error translations without owner
+ *         approval). OWNER RULING, Nov 7, 2026 (by delegation —
+ *         "do what was recommended"): those keys flip to the wave's
+ *         standard treatment — English source verbatim in the 9
+ *         non-en catalogs, UNREVIEWED — so they joined
+ *         PLACEHOLDER_KEYS in join13 and the absence pin is retired
+ *         for this namespace.
  *  3. balance.* (16 keys — the permanent/temporary Visual Bucs
- *     breakdown) is likewise en-only money copy, pinned absent
- *     under the same owner-decision contract.
+ *     breakdown) was likewise en-only money copy, pinned absent
+ *     under the same owner-decision contract until the same
+ *     Nov 7, 2026 ruling flipped it: the whole namespace now rides
+ *     English-verbatim UNREVIEWED in every catalog (money copy is
+ *     never draft-translated), pinned present below.
  *  4. The raw-key guard: a complete literal t("…") call with no
  *     defaultValue must resolve in en — otherwise users see the raw
  *     key. (Calls WITH a defaultValue are the house English-first
@@ -107,16 +114,16 @@ const CG_PLACEHOLDER_KEYS = [
   "projectSubmitted", "fundedProject", "fundedBadge", "tieTitle",
   "reportBackTitle", "reportOwed", "reportBackLabel", "reportBackPlaceholder",
   "reportBackSubmit", "reportPosted", "pastTitle",
-] as const;
-
-const CG_OWNER_DECISION_KEYS = [
+  // Flipped in by the Nov 7, 2026 owner ruling (header point 2) — the
+  // former owner-decision money/error keys, now carried
+  // English-verbatim UNREVIEWED like the rest of this list:
   // money copy — amounts, pool, payment facts
   "fundedLine", "poolCaption", "vbOnlyLine", "noCandidatesResult", "tieBody",
   // error copy
   "loadError", "submitError", "voteError", "projectRequired",
 ] as const;
 
-const BALANCE_OWNER_DECISION_KEYS = [
+const BALANCE_PLACEHOLDER_KEYS = [
   "permanent_label", "temporary_label", "permanent_amount", "temporary_amount",
   "temporary_expires_day", "temporary_expires_days", "temporary_expires_today",
   "temporary_more_grant", "temporary_more_grants", "temporary_no_expiry",
@@ -127,7 +134,7 @@ const BALANCE_OWNER_DECISION_KEYS = [
 describe("communityGrants — every en key is classified, and the split holds in all 9 catalogs", () => {
   it("the classification covers en's communityGrants exactly (a new en key must be classified here)", () => {
     const enKeys = [...EN.keys()].filter((k) => k.startsWith("communityGrants.")).map((k) => k.slice("communityGrants.".length)).sort();
-    const classified = ["title", "byCreator", ...CG_PLACEHOLDER_KEYS, ...CG_OWNER_DECISION_KEYS].sort();
+    const classified = ["title", "byCreator", ...CG_PLACEHOLDER_KEYS].sort();
     expect(enKeys).toEqual(classified);
   });
 
@@ -146,36 +153,30 @@ describe("communityGrants — every en key is classified, and the split holds in
     }
   });
 
-  it("owner-decision money/error keys stay absent until owner-approved translations land", () => {
-    for (const l of NON_EN) {
-      for (const k of CG_OWNER_DECISION_KEYS) {
-        expect(EN.has(`communityGrants.${k}`), `en communityGrants.${k}`).toBe(true);
-        expect(CATS[l]!.has(`communityGrants.${k}`), `${l}: communityGrants.${k}`).toBe(false);
-      }
-    }
-  });
 });
 
-describe("balance — en-only money copy, pinned absent under the owner-decision contract", () => {
+describe("balance — money copy carried English-verbatim UNREVIEWED in every catalog (owner ruling, Nov 7, 2026)", () => {
   it("the pin list is exactly en's balance key set", () => {
     const enKeys = [...EN.keys()].filter((k) => k.startsWith("balance.")).map((k) => k.slice("balance.".length)).sort();
-    expect(enKeys).toEqual([...BALANCE_OWNER_DECISION_KEYS].sort());
+    expect(enKeys).toEqual([...BALANCE_PLACEHOLDER_KEYS].sort());
   });
 
-  it("no non-en catalog carries a balance key yet", () => {
+  it("every balance key is present in every catalog, carrying the English text until translated", () => {
     for (const l of NON_EN) {
-      for (const k of BALANCE_OWNER_DECISION_KEYS) {
-        expect(CATS[l]!.has(`balance.${k}`), `${l}: balance.${k}`).toBe(false);
+      for (const k of BALANCE_PLACEHOLDER_KEYS) {
+        expect(CATS[l]!.get(`balance.${k}`), `${l}: balance.${k}`).toBe(EN.get(`balance.${k}`));
       }
     }
   });
 });
 
 /* ------------------------------------------------------------------ */
-/* officeHours (#167 door) — drafted UI copy in all 10, money/error    */
-/* copy owner-decision en-only, same split as the lanes above.         */
-/* The non-en UI values are AGENT-DRAFTED and UNREVIEWED (fill-in      */
-/* contract): present and placeholder-shaped, awaiting native review.  */
+/* officeHours (#167 door) — drafted UI copy in all 10; the money/   */
+/* error keys originally sat en-only under the owner-decision        */
+/* contract, flipped by the Nov 7, 2026 owner ruling (header         */
+/* point 2) to English-verbatim UNREVIEWED placeholders below.       */
+/* The non-en UI values are AGENT-DRAFTED and UNREVIEWED (fill-in    */
+/* contract): present and placeholder-shaped, awaiting native review.*/
 /* ------------------------------------------------------------------ */
 
 const OH_UI_KEYS = [
@@ -188,7 +189,9 @@ const OH_UI_KEYS = [
   "priceVbLabel",
 ] as const;
 
-const OH_OWNER_DECISION_KEYS = [
+const OH_PLACEHOLDER_KEYS = [
+  // Flipped in by the Nov 7, 2026 owner ruling — the former
+  // owner-decision keys, now carried English-verbatim UNREVIEWED:
   // money copy — the VB price, the charge button, the balance line,
   // the seller's money explainer, the price validation
   "priceLine", "bookButton", "balanceAfterLine", "sellerBlurb", "needPrice",
@@ -202,7 +205,7 @@ const placeholdersOf = (v: string | undefined) =>
 describe("officeHours — every en key is classified, and the split holds in all 9 catalogs", () => {
   it("the classification covers en's officeHours exactly (a new en key must be classified here)", () => {
     const enKeys = [...EN.keys()].filter((k) => k.startsWith("officeHours.")).map((k) => k.slice("officeHours.".length)).sort();
-    const classified = [...OH_UI_KEYS, ...OH_OWNER_DECISION_KEYS].sort();
+    const classified = [...OH_UI_KEYS, ...OH_PLACEHOLDER_KEYS].sort();
     expect(enKeys).toEqual(classified);
   });
 
@@ -223,11 +226,10 @@ describe("officeHours — every en key is classified, and the split holds in all
     }
   });
 
-  it("owner-decision money/error keys stay absent outside en until owner-approved translations land", () => {
+  it("flipped money/error keys are present in every catalog, carrying the English text until translated (owner ruling, Nov 7, 2026)", () => {
     for (const l of NON_EN) {
-      for (const k of OH_OWNER_DECISION_KEYS) {
-        expect(EN.has(`officeHours.${k}`), `en officeHours.${k}`).toBe(true);
-        expect(CATS[l]!.has(`officeHours.${k}`), `${l}: officeHours.${k}`).toBe(false);
+      for (const k of OH_PLACEHOLDER_KEYS) {
+        expect(CATS[l]!.get(`officeHours.${k}`), `${l}: officeHours.${k}`).toBe(EN.get(`officeHours.${k}`));
       }
     }
   });
