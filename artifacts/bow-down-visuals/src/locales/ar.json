@@ -4802,7 +4802,7 @@
     "tabOverlay": "طبقة البث المباشر",
     "tabProducts": "المنتجات",
     "testAlertBadge": "تنبيه تجريبي",
-    "testAlertsNote": "تنبيهات تجريبية فقط — لا مدفوعات حقيقية حتى يُطلق الدفع عبر المنصة.",
+    "testAlertsNote": "Test alerts only — firing one never charges anyone. Real purchases go through the pinned product's Buy button, which checks out right here on the platform (test mode).",
     "testDataBadge": "بيانات تجريبية",
     "testSales": "مبيعات تجريبية",
     "testSalesCount": "{{count}} مبيعات تجريبية",

@@ -96,6 +96,7 @@ const W1_ALLOW = new Set([
   "distribute.visual_bucs",
   "jewelry.merchWord",
   "liveShopping.crossLinkEnd",
+  "liveShopping.testAlertsNote",
   "llcGuide.cheatCodeLabel",
   "llcGuide.creatorYouTuber",
   "memberships.aiCost",

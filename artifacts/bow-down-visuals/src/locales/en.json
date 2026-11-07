@@ -5043,7 +5043,7 @@
     "tabOverlay": "Live Overlay",
     "tabProducts": "Products",
     "testAlertBadge": "test alert",
-    "testAlertsNote": "Test alerts only — no real payments until platform checkout ships.",
+    "testAlertsNote": "Test alerts only — firing one never charges anyone. Real purchases go through the pinned product's Buy button, which checks out right here on the platform (test mode).",
     "testDataBadge": "Test data",
     "testSales": "test sales",
     "testSalesCount": "{{count}} test sales",

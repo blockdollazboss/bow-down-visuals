@@ -4775,7 +4775,7 @@
     "tabOverlay": "Overlay Live",
     "tabProducts": "Prodotti",
     "testAlertBadge": "avviso di prova",
-    "testAlertsNote": "Solo avvisi di prova — nessun pagamento reale finché non arriva il checkout della piattaforma.",
+    "testAlertsNote": "Test alerts only — firing one never charges anyone. Real purchases go through the pinned product's Buy button, which checks out right here on the platform (test mode).",
     "testDataBadge": "Dati di prova",
     "testSales": "vendite di prova",
     "testSalesCount": "{{count}} vendite di prova",

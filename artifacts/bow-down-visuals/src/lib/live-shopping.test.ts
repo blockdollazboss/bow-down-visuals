@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildAlertText,
@@ -57,5 +58,40 @@ describe("buildAlertText", () => {
 
   it("falls back to 'A viewer' for blank names", () => {
     expect(buildAlertText("   ", 1, 2499)).toBe("A viewer bought 1× — $24.99");
+  });
+});
+
+/* Stack-200 census item 4 — the note under "Fire a test purchase
+ * alert" used to claim "no real payments until platform checkout
+ * ships" on the very page whose default buy path IS the shipped
+ * on-platform checkout (embedded, test mode) — the page's own banner
+ * says so. The replacement states today's truth: a test alert never
+ * charges anyone, and real purchases go through the pinned product's
+ * Buy button at platform checkout on the page (test mode).
+ * Payment-adjacent copy follows the money-copy law (the W8 shoutout
+ * pattern): the English source is carried VERBATIM in all ten
+ * catalogs — the non-English values are English by design, flagged
+ * UNREVIEWED, and allowlisted in the locale-waves suites. */
+describe("liveShopping.testAlertsNote (Stack-200 item 4)", () => {
+  const load = (locale: string): Record<string, any> =>
+    JSON.parse(readFileSync(new URL(`../locales/${locale}.json`, import.meta.url), "utf8")) as Record<string, any>;
+  const en = load("en").liveShopping.testAlertsNote as string;
+
+  it("no longer claims payments haven't shipped", () => {
+    expect(en).not.toContain("no real payments");
+    expect(en).not.toContain("until platform checkout ships");
+  });
+
+  it("states today's truth: test alerts never charge; the Buy button checks out on-platform (test mode)", () => {
+    expect(en).toContain("never charges anyone");
+    expect(en).toContain("Buy button");
+    expect(en).toContain("right here on the platform (test mode)");
+  });
+
+  it("is present and English-verbatim in every catalog (money-copy law)", () => {
+    for (const locale of ["en", "ar", "de", "es", "fr", "hi", "it", "ja", "ko", "pt"]) {
+      const note = load(locale).liveShopping.testAlertsNote;
+      expect(note, `${locale} liveShopping.testAlertsNote`).toBe(en);
+    }
   });
 });

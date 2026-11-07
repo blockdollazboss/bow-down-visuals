@@ -4766,7 +4766,7 @@
     "tabOverlay": "라이브 오버레이",
     "tabProducts": "상품",
     "testAlertBadge": "테스트 알림",
-    "testAlertsNote": "테스트 알림 전용 — 플랫폼 결제가 출시되기 전까지 실제 결제는 없습니다.",
+    "testAlertsNote": "Test alerts only — firing one never charges anyone. Real purchases go through the pinned product's Buy button, which checks out right here on the platform (test mode).",
     "testDataBadge": "테스트 데이터",
     "testSales": "테스트 판매",
     "testSalesCount": "테스트 판매 {{count}}건",

@@ -16,7 +16,7 @@ import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { recordCreditUsage } from "../../lib/payment-record";
-import { membershipNetSql } from "../../lib/seller-earnings";
+import { sellerEarningsSummary } from "../../lib/seller-earnings";
 
 const router = Router();
 
@@ -127,32 +127,21 @@ export async function readCreatorState(userId: string): Promise<CreatorState> {
   });
 
   await attempt("earnings", async () => {
-    // The same four sources (and the same total definition) as
-    // GET /api/earnings — the coach's numbers must agree with the
-    // money view the creator already sees.
-    const orders = await db.execute(sql`
-      SELECT COALESCE(SUM(o.creator_amount_cents), 0)::int AS cents
-      FROM store_orders o
-      JOIN creator_profiles cp ON cp.id = o.profile_id
-      WHERE cp.user_id = ${userId} AND o.status = 'completed'
-    `);
-    const shop = await db.execute(sql`
-      SELECT COALESCE(SUM(amount_cents - platform_fee_cents), 0)::int AS cents
-      FROM shop_events
-      WHERE user_id = ${userId} AND event_type = 'sale'
-    `);
-    const members = await db.execute(sql`
-      SELECT COALESCE(SUM(${membershipNetSql("price_cents")}), 0)::int AS cents
-      FROM fan_members
-      WHERE user_id = ${userId} AND stripe_session_id IS NOT NULL AND status <> 'refunded'
-    `);
-    const deals = await db.execute(sql`
-      SELECT COALESCE(SUM(net_cents), 0)::int AS cents
-      FROM sponsor_payouts
-      WHERE creator_user_id = ${userId} AND status = 'released'
-    `);
-    const centsOf = (r: { rows: unknown[] }) => Number(((r.rows as Array<{ cents?: unknown }>)[0]?.cents) ?? 0);
-    state.earningsCents = centsOf(orders) + centsOf(shop) + centsOf(members) + centsOf(deals);
+    // The earnings total IS sellerEarningsSummary's totalCents — the
+    // ONE canonical aggregation GET /api/earnings is built from
+    // (lib/seller-earnings). The coach keeps NO source list of its
+    // own, so the "Earnings to date" it states can never drift from
+    // the money view the creator already sees, and a source added to
+    // the summary reaches the coach automatically. (The coach used to
+    // hand-sum only the old four sources — store orders, shop sales,
+    // memberships, brand deals — and silently undercounted creators
+    // earning from digital sales, beats, shoutouts, tip-jar tips, or
+    // UGC briefs: Stack-200 census item 2.)
+    const summary = await sellerEarningsSummary(userId);
+    state.earningsCents = summary.totalCents;
+  });
+
+  await attempt("tips", async () => {
     const tips = await db.execute(sql`
       SELECT COALESCE(SUM(amount_vb), 0)::int AS vb
       FROM live_stream_tips

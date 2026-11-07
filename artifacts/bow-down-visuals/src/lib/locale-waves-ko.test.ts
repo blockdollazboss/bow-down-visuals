@@ -94,7 +94,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     // house rank names (kept in English in the existing ko catalog)
     // punctuation / placeholder-only fragments
     "referrals.hero.p4", "referrals.tracker.earned", "referrals.contest.prizeFor",
-    "liveShopping.crossLinkEnd", "tips.tipMeta", "brandDeals.resultsCount",
+    "liveShopping.crossLinkEnd", "liveShopping.testAlertsNote", "tips.tipMeta", "brandDeals.resultsCount",
     // platform names
     "referrals.sharekit.templates.threads", "referrals.sharekit.templates.chat",
     // proper-noun example placeholders
