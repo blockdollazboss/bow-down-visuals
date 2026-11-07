@@ -15768,7 +15768,13 @@
       "ivoryPearl": "Ivory Pearl",
       "ivoryPearlBlurb": "Sanfte Elfenbein-Perle mit champagnergoldenen Linien",
       "roseChampagne": "Rose Champagne",
-      "roseChampagneBlurb": "Zarter Rosé-Marmor mit roségoldenem Glanz"
+      "roseChampagneBlurb": "Zarter Rosé-Marmor mit roségoldenem Glanz",
+      "cobaltStage": "Cobalt Stage",
+      "cobaltStageBlurb": "Deep cobalt with silver-gold trim — cool stage light",
+      "mintAtelier": "Mint Atelier",
+      "mintAtelierBlurb": "Pale mint with antique gold — a fresh, tailored light look",
+      "amberDusk": "Amber Dusk",
+      "amberDuskBlurb": "Burnt amber over espresso — sunset turned after-dark"
     },
     "links": {
       "title": "Links",

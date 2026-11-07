@@ -147,7 +147,7 @@ describe("coverArtSchema", () => {
 });
 
 describe("layout templates", () => {
-  it("exposes exactly the seven documented layouts", () => {
+  it("exposes exactly the ten documented layouts", () => {
     expect(COVER_ART_LAYOUTS.map((l) => l.key)).toEqual([
       "center-stage",
       "headline-top",
@@ -156,6 +156,9 @@ describe("layout templates", () => {
       "corner-mark",
       "corner-seal",
       "pure-art",
+      "tracklist-back",
+      "frame-in-frame",
+      "magazine-cover",
     ]);
   });
 

@@ -19,7 +19,7 @@ import {
 const read = (rel: string) => readFileSync(path.resolve(import.meta.dirname, rel), "utf8");
 
 describe("cover art layout registry", () => {
-  it("exposes exactly the seven documented layouts, in picker order", () => {
+  it("exposes exactly the ten documented layouts, in picker order", () => {
     expect(COVER_ART_LAYOUTS.map((l) => l.key)).toEqual([
       "center-stage",
       "headline-top",
@@ -28,6 +28,9 @@ describe("cover art layout registry", () => {
       "corner-mark",
       "corner-seal",
       "pure-art",
+      "tracklist-back",
+      "frame-in-frame",
+      "magazine-cover",
     ]);
   });
 

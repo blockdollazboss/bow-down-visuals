@@ -2,7 +2,9 @@
  * podcast-episode-templates.test.ts — Stack-100 A7: the Podcast desk
  * had NO templates at all while every sibling creation surface got
  * starters in the org/design waves. The registry in lib/podcast.ts is
- * the truth: the six named episode templates, each carrying a complete
+ * the truth: the nine named episode templates (the original six plus
+ * the Stack-200 U1 additions — deep-dive explainer, audio diary,
+ * review desk), each carrying a complete
  * segment structure (intro/hook/segments/outro with per-segment
  * guidance). The page renders the shelf FROM the registry and applies
  * through podcastTemplatePrefill — a pure prefill that never charges,
@@ -39,12 +41,15 @@ const EXPECTED_IDS = [
   "story-episode",
   "panel-discussion",
   "listener-qa",
+  "deep-dive-explainer",
+  "audio-diary",
+  "review-desk",
 ] as const;
 
 describe("A7 — podcast episode template registry", () => {
-  it("carries exactly the six named templates, in shelf order, with unique ids", () => {
+  it("carries exactly the nine named templates, in shelf order, with unique ids", () => {
     expect(PODCAST_EPISODE_TEMPLATES.map((t) => t.id)).toEqual([...EXPECTED_IDS]);
-    expect(new Set(PODCAST_EPISODE_TEMPLATES.map((t) => t.id)).size).toBe(6);
+    expect(new Set(PODCAST_EPISODE_TEMPLATES.map((t) => t.id)).size).toBe(9);
     for (const tpl of PODCAST_EPISODE_TEMPLATES) {
       expect(getPodcastEpisodeTemplate(tpl.id)).toBe(tpl);
       expect(tpl.name.length).toBeGreaterThan(0);
@@ -99,6 +104,9 @@ describe("A7 — template shapes match the form they prefill", () => {
       "news-roundup",
       "story-episode",
       "listener-qa",
+      "deep-dive-explainer",
+      "audio-diary",
+      "review-desk",
     ]);
     for (const tpl of scriptTpls) {
       expect(tpl.format).toBe("single");

@@ -191,6 +191,43 @@ export const COVER_ART_LAYOUTS = [
       "edge and no text zone is reserved; the image alone is the cover",
     imageZone: "Fill the entire frame with the artwork — no text zone needed.",
   },
+  {
+    key: "tracklist-back",
+    label: "Tracklist Back",
+    blurb: "The back cover — tracklist, credits and a barcode corner",
+    direction:
+      "back-cover composition — the artist name sits in small capitals " +
+      "across the very top with the album title at medium size directly " +
+      "beneath it; below them a clean tracklist block runs down the left " +
+      "with a credits column beside it, and the bottom-right corner " +
+      "stays clear, reserved for a barcode",
+    imageZone:
+      "Keep the frame calm and readable behind a tracklist and credits, and keep the bottom-right corner clear where a barcode will sit.",
+  },
+  {
+    key: "frame-in-frame",
+    label: "Frame in Frame",
+    blurb: "Art inside a matted frame, title in the mat below",
+    direction:
+      "framed composition — the artwork sits inside an inset bordered " +
+      "frame, like a picture in a mat, filling the upper portion of the " +
+      "cover; the song title is set in the mat band beneath the frame " +
+      "with the artist name below it in smaller type",
+    imageZone:
+      "Concentrate the artwork in the upper portion inside an inset frame, and leave the band beneath the frame clean where the title will sit.",
+  },
+  {
+    key: "magazine-cover",
+    label: "Magazine Cover",
+    blurb: "Editorial masthead up top, cover lines down the sides",
+    direction:
+      "editorial magazine composition — a bold masthead title spans the " +
+      "top of the frame at hero size with the artist name beneath it in " +
+      "smaller type; short cover lines run down both sides and a feature " +
+      "image fills the whole cover behind the text",
+    imageZone:
+      "Fill the entire frame with the feature artwork, keeping the top strip and both side edges calm enough for a masthead and cover lines.",
+  },
 ] as const;
 export type CoverArtLayoutKey = (typeof COVER_ART_LAYOUTS)[number]["key"];
 
