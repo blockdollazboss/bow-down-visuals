@@ -5452,7 +5452,7 @@
   "locations": {
     "addLocation": "Add a location",
     "errDelete": "Could not delete location.",
-    "errImageTooLarge": "That photo is over 10 MB \u2014 pick a smaller one.",
+    "errImageTooLarge": "That photo is over 10 MB — pick a smaller one.",
     "errLoad": "Could not load locations.",
     "errNameFirst": "Name the location first, then choose an image.",
     "errNameUrl": "Give the location a name and an image URL.",
@@ -20669,23 +20669,23 @@
     "modeText": "Text to Video",
     "modeImage": "Image to Video",
     "uploadPhoto": "Upload a photo",
-    "promptPlaceholder": "Describe your video\u2026",
+    "promptPlaceholder": "Describe your video…",
     "cameraLabel": "Camera Movement",
     "durationLabel": "Duration",
     "aspectLabel": "Aspect Ratio",
     "generate": "Generate Video Clip",
-    "generating": "Generating\u2026",
+    "generating": "Generating…",
     "resultsLabel": "Fresh from the studio",
     "failed": "Generation failed",
-    "emptySuccess": "Generation finished without a clip \u2014 no Visual Bucs were charged.",
-    "timedOut": "Generation timed out \u2014 the clip may still finish in the background.",
-    "errorNotImage": "That file isn\u2019t an image \u2014 choose a photo.",
-    "errorImageTooLarge": "That photo is over 10 MB \u2014 pick a smaller one."
+    "emptySuccess": "Generation finished without a clip — no Visual Bucs were charged.",
+    "timedOut": "Generation timed out — the clip may still finish in the background.",
+    "errorNotImage": "That file isn’t an image — choose a photo.",
+    "errorImageTooLarge": "That photo is over 10 MB — pick a smaller one."
   },
   "worldRepurposeDesk": {
     "title": "Content Repurposer",
     "fromProject": "From your project",
-    "outOfBucs": "You\u2019re out of Visual Bucs for the Repurpose pack. Top up at the Treasury\u2019s Visual Buc Packs desk and run it again."
+    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again."
   },
   "worldRemixDesk": {
     "title": "Remix Trends",
@@ -24668,7 +24668,10 @@
     "kingsSetDescription": "Built on the approved King's Set: the blackest marble and the brightest gold leaf in the dark, the brightest ivory and deepest antique bronze by day. Pairs with the King's Crown cursor.",
     "arcadeGoldName": "Arcade Gold",
     "arcadeGoldTagline": "Cheat-code charcoal, hot gold, ember glow",
-    "arcadeGoldDescription": "The cheat-code side of the palace: warm charcoal marble, hot gold, and an ember underglow in the dark — warm paper marble and deep bronze by day. Pairs with the Game Controller cursor."
+    "arcadeGoldDescription": "The cheat-code side of the palace: warm charcoal marble, hot gold, and an ember underglow in the dark — warm paper marble and deep bronze by day. Pairs with the Game Controller cursor.",
+    "crimsonMarbleName": "Crimson Marble",
+    "crimsonMarbleTagline": "Crimson-veined marble, antique gold",
+    "crimsonMarbleDescription": "The palace cut in red stone: crimson-veined black marble and antique gold in the dark — blush ivory marble and deep crimson by day. Pairs with the Diamond cursor."
   },
   "profileHosting": {
     "heading": "Profile Hosting",

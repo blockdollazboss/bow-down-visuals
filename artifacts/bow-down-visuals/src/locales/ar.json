@@ -24768,7 +24768,10 @@
     "kingsSetDescription": "مبني على King's Set المعتمد: الرخام الأكثر سوادًا وورقة الذهب الأكثر لمعانًا في الظلام، والعاج الأكثر لمعانًا والبرونز العتيق الأعمق نهارًا. يتناسق مع مؤشر King's Crown.",
     "arcadeGoldName": "ذهب الأركيد",
     "arcadeGoldTagline": "فحم رموز الغش، ذهب ساخن، توهج الجمر",
-    "arcadeGoldDescription": "جانب رموز الغش من القصر: رخام فحمي دافئ، وذهب ساخن، وتوهج جمر في الظلام — رخام ورقي دافئ وبرونز عميق نهارًا. يتناسق مع مؤشر Game Controller."
+    "arcadeGoldDescription": "جانب رموز الغش من القصر: رخام فحمي دافئ، وذهب ساخن، وتوهج جمر في الظلام — رخام ورقي دافئ وبرونز عميق نهارًا. يتناسق مع مؤشر Game Controller.",
+    "crimsonMarbleName": "Crimson Marble",
+    "crimsonMarbleTagline": "Crimson-veined marble, antique gold",
+    "crimsonMarbleDescription": "The palace cut in red stone: crimson-veined black marble and antique gold in the dark — blush ivory marble and deep crimson by day. Pairs with the Diamond cursor."
   },
   "profileHosting": {
     "heading": "Profile Hosting",

@@ -86,6 +86,7 @@ const APPROVED_ART_IDS = new Set([
   "pack-ground-golden-hour-dark", "pack-ground-golden-hour-light",
   "pack-ground-kings-set-dark", "pack-ground-kings-set-light",
   "pack-ground-arcade-gold-dark", "pack-ground-arcade-gold-light",
+  "pack-ground-crimson-marble-dark", "pack-ground-crimson-marble-light",
   "kings-set-throne-phone", "kings-set-plaza-phone",
   "kings-set-stage-desktop", "kings-set-throne-loop", "kings-set-plaza-loop",
   "kings-set-stage-loop",

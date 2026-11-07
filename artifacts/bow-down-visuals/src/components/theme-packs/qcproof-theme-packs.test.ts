@@ -69,8 +69,8 @@ describe("(a) per-device wallpapers — distinct sizes, distinct files, home + l
     expect(new Set(dims).size).toBe(3);
   });
 
-  it("the shipped manifest carries 30 renders whose hashes differ per device, mode and pack", () => {
-    expect(assets.deviceWallpapers).toHaveLength(30);
+  it("the shipped manifest carries 36 renders whose hashes differ per device, mode and pack", () => {
+    expect(assets.deviceWallpapers).toHaveLength(36);
     for (const pack of THEME_PACKS) {
       for (const mode of ["light", "dark"] as const) {
         const rows = assets.deviceWallpapers.filter((w) => w.pack === pack.id && w.mode === mode);
@@ -109,13 +109,18 @@ describe("(b) designed icon art — bespoke per pack, from the approved art prog
     expect(assets.iconRule).toContain("never redrawn");
   });
 
-  it("every pack's masters are its own generation files — no shared source across packs", () => {
+  it("every raised pack's masters are its own generation files — no shared source across packs", () => {
+    /* Scoped to the packs whose designed sets have been raised into
+       the manifest (see DESIGNED_SET_PACKS in lib/theme-kit.test.ts):
+       crimson-marble's designed emblem set is raised by the
+       owner-approved art program, not invented in code. */
+    const raised = THEME_PACKS.filter((p) => p.id !== "crimson-marble");
     for (const icon of ["phone", "camera", "wallet"] as const) {
       for (const mode of ["light", "dark"] as const) {
-        const sources = THEME_PACKS.map(
+        const sources = raised.map(
           (p) => assets.icons.find((e) => e.pack === p.id && e.icon === icon && e.mode === mode)!.sourceAsset,
         );
-        expect(new Set(sources).size, `${icon}/${mode}`).toBe(THEME_PACKS.length);
+        expect(new Set(sources).size, `${icon}/${mode}`).toBe(raised.length);
         for (const s of sources) expect(s).toMatch(/\.webp$/);
       }
     }
@@ -180,9 +185,9 @@ describe("(d) price parity — server tiers mirror the FE registry", () => {
       expect(block, pack.id).not.toBeNull();
       expect(block![1], pack.id).toBe(pack.tier);
     }
-    /* Exactly the two ruled premium ids; the house pack is included. */
+    /* Exactly the three ruled premium ids; the house pack is included. */
     expect(THEME_PACKS.filter((p) => p.tier === "premium").map((p) => p.id).sort())
-      .toEqual(["arcade-gold", "kings-set"]);
+      .toEqual(["arcade-gold", "crimson-marble", "kings-set"]);
     expect(themePackById("golden-marble")!.tier).toBe("included");
     expect(themePackById("golden-marble")!.house).toBe(true);
   });

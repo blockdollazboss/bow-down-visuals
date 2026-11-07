@@ -24681,7 +24681,10 @@
     "kingsSetDescription": "Costruito sull'approvato King's Set: il marmo più nero e la foglia d'oro più luminosa al buio, l'avorio più luminoso e il bronzo antico più profondo di giorno. Si abbina al cursore King's Crown.",
     "arcadeGoldName": "Oro Arcade",
     "arcadeGoldTagline": "Carbone codice trucco, oro rovente, bagliore di brace",
-    "arcadeGoldDescription": "Il lato codice trucco del palazzo: marmo carbone caldo, oro rovente e un bagliore di brace al buio — marmo carta calda e bronzo profondo di giorno. Si abbina al cursore Game Controller."
+    "arcadeGoldDescription": "Il lato codice trucco del palazzo: marmo carbone caldo, oro rovente e un bagliore di brace al buio — marmo carta calda e bronzo profondo di giorno. Si abbina al cursore Game Controller.",
+    "crimsonMarbleName": "Crimson Marble",
+    "crimsonMarbleTagline": "Crimson-veined marble, antique gold",
+    "crimsonMarbleDescription": "The palace cut in red stone: crimson-veined black marble and antique gold in the dark — blush ivory marble and deep crimson by day. Pairs with the Diamond cursor."
   },
   "profileHosting": {
     "heading": "Profile Hosting",

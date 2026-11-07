@@ -24652,7 +24652,10 @@
     "kingsSetDescription": "स्वीकृत King's Set पर निर्मित: अंधेरे में सबसे काला संगमरमर और सबसे चमकदार सोने की पत्ती, दिन में सबसे चमकदार हाथीदांत और सबसे गहरा प्राचीन कांस्य। King's Crown कर्सर के साथ मेल खाता है।",
     "arcadeGoldName": "आर्केड गोल्ड",
     "arcadeGoldTagline": "चीट-कोड चारकोल, गर्म सोना, अंगार की चमक",
-    "arcadeGoldDescription": "महल का चीट-कोड पक्ष: गर्म चारकोल संगमरमर, गर्म सोना, और अंधेरे में अंगार की आभा — दिन में गर्म कागज़ संगमरमर और गहरा कांस्य। Game Controller कर्सर के साथ मेल खाता है।"
+    "arcadeGoldDescription": "महल का चीट-कोड पक्ष: गर्म चारकोल संगमरमर, गर्म सोना, और अंधेरे में अंगार की आभा — दिन में गर्म कागज़ संगमरमर और गहरा कांस्य। Game Controller कर्सर के साथ मेल खाता है।",
+    "crimsonMarbleName": "Crimson Marble",
+    "crimsonMarbleTagline": "Crimson-veined marble, antique gold",
+    "crimsonMarbleDescription": "The palace cut in red stone: crimson-veined black marble and antique gold in the dark — blush ivory marble and deep crimson by day. Pairs with the Diamond cursor."
   },
   "profileHosting": {
     "heading": "Profile Hosting",
