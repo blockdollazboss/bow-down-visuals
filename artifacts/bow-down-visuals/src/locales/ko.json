@@ -5170,6 +5170,7 @@
   "locations": {
     "addLocation": "장소 추가하기",
     "errDelete": "장소를 삭제하지 못했습니다.",
+    "errImageTooLarge": "That photo is over 10 MB \u2014 pick a smaller one.",
     "errLoad": "장소를 불러오지 못했습니다.",
     "errNameFirst": "먼저 장소 이름을 정한 뒤 이미지를 선택하세요.",
     "errNameUrl": "장소에 이름과 이미지 URL을 지정하세요.",
@@ -20628,6 +20629,44 @@
     "winnersStageThroneOption": "Throne Hall — Front Row 회원과 하우스가 주최",
     "winnersThemePrefix": "“{{theme}}” · ",
     "winnersYourWork": "내 작품"
+  },
+  "worldVideoStudio": {
+    "title": "Video Studio",
+    "subtitle": "Generate cinematic videos with camera controls",
+    "fromProject": "From your project",
+    "presetsLabel": "One-Click Presets",
+    "modeText": "Text to Video",
+    "modeImage": "Image to Video",
+    "uploadPhoto": "Upload a photo",
+    "promptPlaceholder": "Describe your video\u2026",
+    "cameraLabel": "Camera Movement",
+    "durationLabel": "Duration",
+    "aspectLabel": "Aspect Ratio",
+    "generate": "Generate Video Clip",
+    "generating": "Generating\u2026",
+    "resultsLabel": "Fresh from the studio",
+    "failed": "Generation failed",
+    "emptySuccess": "Generation finished without a clip \u2014 no Visual Bucs were charged.",
+    "timedOut": "Generation timed out \u2014 the clip may still finish in the background.",
+    "errorNotImage": "That file isn\u2019t an image \u2014 choose a photo.",
+    "errorImageTooLarge": "That photo is over 10 MB \u2014 pick a smaller one."
+  },
+  "worldRepurposeDesk": {
+    "title": "Content Repurposer",
+    "fromProject": "From your project",
+    "outOfBucs": "You\u2019re out of Visual Bucs for the Repurpose pack. Top up at the Treasury\u2019s Visual Buc Packs desk and run it again."
+  },
+  "worldRemixDesk": {
+    "title": "Remix Trends",
+    "subtitle": "Trending motions and styles. Tap Remix to apply one to your project in Visual Vibes — the editor opens right here in the palace.",
+    "remix": "Remix",
+    "empty": "No presets in this category yet."
+  },
+  "worldTrendsRadar": {
+    "title": "Trend Radar",
+    "subtitle": "What's actually rising on Bow Down right now — counted plays, not predictions. The Predictor above calls what's next; this bench shows what's already moving.",
+    "guestNote": "You're visiting as a guest — the radar reads the platform's counted plays for signed-in members, so the bench needs you signed in.",
+    "guestSignIn": "Sign in to see the radar"
   },
   "worldLivePromo": {
     "tryAgain": "다시 시도",

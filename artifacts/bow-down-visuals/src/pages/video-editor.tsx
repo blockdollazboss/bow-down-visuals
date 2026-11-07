@@ -1672,7 +1672,7 @@ export default function VideoEditor() {
 
   /* Trending Remix Feed deep-link (?remix=<slug>) — applies the preset's
      effect/motion and opens the relevant tab. */
-  useRemixDeeplink({ setSettings, setTab });
+  useRemixDeeplink({ setSettings, setTab, search });
 
   const handleUndo = useCallback(() => {
     if (isTimelineLocked(settingsRef.current)) { notifyTimelineLocked(); return; }

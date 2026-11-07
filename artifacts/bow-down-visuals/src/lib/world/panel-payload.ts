@@ -37,6 +37,21 @@
                            editor's search — the editor's own param
                            reader applies it there, exactly as on
                            the page. No new editor plumbing.
+     remix-preset        → the Visual Vibes Editor step-through
+                           (stack200 lane B1, census item 2): the
+                           Remix desk's "Remix" for the trending
+                           presets whose 2D deep link carries the
+                           fallback ?remix=<slug> param (the motion
+                           and VFX looks with no library mapping).
+                           The step-through seeds ?remix= into the
+                           editor's search and the editor's own
+                           remix deep-link reader applies it,
+                           exactly as on the page. A trending
+                           preset whose link carries ?fx= or
+                           ?transition= rides the library-preset
+                           kind instead — the desk's seam mirrors
+                           each preset's OWN params, never a
+                           translation of them.
 
    A desk applies a payload ONLY through parsePanelPayloadFor with
    its OWN station id: a payload addressed to another desk, a kind
@@ -56,6 +71,12 @@ export type PanelPayload =
       /** The editor query param the preset's 2D deep link carries. */
       param: "fx" | "textstyle" | "transition";
       slug: string;
+    }
+  | {
+      kind: "remix-preset";
+      /** A trending-preset slug from data/trending-presets — the
+       *  editor's remix deep-link reader resolves it there. */
+      slug: string;
     };
 
 type PanelPayloadKind = PanelPayload["kind"];
@@ -66,6 +87,7 @@ const PAYLOAD_KINDS: ReadonlySet<string> = new Set([
   "thumbnail-template",
   "video-template",
   "library-preset",
+  "remix-preset",
 ]);
 
 /** Which payload kinds each station's desk can honestly apply.
@@ -75,7 +97,7 @@ const STATION_PAYLOAD_KINDS: Readonly<Record<string, ReadonlySet<PanelPayloadKin
   "hook-desk": new Set<PanelPayloadKind>(["hook-template", "caption-pack"]),
   "thumbnail-desk": new Set<PanelPayloadKind>(["thumbnail-template"]),
   "video-desk": new Set<PanelPayloadKind>(["video-template"]),
-  "visual-vibes-editor": new Set<PanelPayloadKind>(["library-preset"]),
+  "visual-vibes-editor": new Set<PanelPayloadKind>(["library-preset", "remix-preset"]),
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -100,6 +122,11 @@ export function parsePanelPayloadFor(stationId: string, raw: unknown): PanelPayl
     const slug = raw["slug"];
     if (typeof slug !== "string" || slug.trim().length === 0) return null;
     return { kind: "library-preset", param, slug };
+  }
+  if (kind === "remix-preset") {
+    const slug = raw["slug"];
+    if (typeof slug !== "string" || slug.trim().length === 0) return null;
+    return { kind: "remix-preset", slug };
   }
   const slug = raw["templateSlug"];
   if (typeof slug !== "string" || slug.trim().length === 0) return null;
@@ -141,4 +168,13 @@ export function libraryPresetPayload(
   slug: string,
 ): PanelPayload {
   return { kind: "library-preset", param, slug };
+}
+
+/** The remix-preset payload (the Remix Desk's "Remix", stack200
+ *  lane B1): the slug is a trending-preset key from the site's
+ *  catalog (data/trending-presets) whose 2D deep link carries
+ *  the fallback ?remix= param; the step-through seeds it and
+ *  the editor's own remix reader resolves it there. */
+export function remixPresetPayload(slug: string): PanelPayload {
+  return { kind: "remix-preset", slug };
 }

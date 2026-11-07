@@ -207,6 +207,9 @@ const SetlistDesk = lazy(() => import("@/components/world/native/SetlistDesk").t
 const TourDesk = lazy(() => import("@/components/world/native/TourDesk").then((m) => ({ default: m.TourDesk })));
 const PublishDesk = lazy(() => import("@/components/world/native/PublishDesk").then((m) => ({ default: m.PublishDesk })));
 const TemplatesDesk = lazy(() => import("@/components/world/native/TemplatesDesk").then((m) => ({ default: m.TemplatesDesk })));
+const RemixDesk = lazy(() => import("@/components/world/native/RemixDesk").then((m) => ({ default: m.RemixDesk })));
+const RepurposeDesk = lazy(() => import("@/components/world/native/RepurposeDesk").then((m) => ({ default: m.RepurposeDesk })));
+const VideoStudioDesk = lazy(() => import("@/components/world/native/VideoStudioDesk").then((m) => ({ default: m.VideoStudioDesk })));
 const CatalogImportDesk = lazy(() => import("@/components/world/native/CatalogImportDesk").then((m) => ({ default: m.CatalogImportDesk })));
 const TeamDesk = lazy(() => import("@/components/world/native/TeamDesk").then((m) => ({ default: m.TeamDesk })));
 const TeamSeatsDesk = lazy(() => import("@/components/world/native/TeamSeatsDesk").then((m) => ({ default: m.TeamSeatsDesk })));
@@ -235,6 +238,7 @@ const LabelPitchDesk = lazy(() => import("@/components/world/native/LabelPitchDe
 const EmailListDesk = lazy(() => import("@/components/world/native/EmailListDesk").then((m) => ({ default: m.EmailListDesk })));
 const InterviewDesk = lazy(() => import("@/components/world/native/InterviewDesk").then((m) => ({ default: m.InterviewDesk })));
 const TrendsDesk = lazy(() => import("@/components/world/native/TrendsDesk").then((m) => ({ default: m.TrendsDesk })));
+const TrendsRadarDesk = lazy(() => import("@/components/world/native/TrendsRadarDesk").then((m) => ({ default: m.TrendsRadarDesk })));
 
 /* ─── Round-4 doors (world-perf round 4, stack1200) ─────────────
    After round 3 the frame still statically carried every block
@@ -282,7 +286,7 @@ function StepThroughEditor({
   preset,
 }: {
   projectId: string | null;
-  preset?: { param: "fx" | "textstyle" | "transition"; slug: string } | null;
+  preset?: { param: "fx" | "textstyle" | "transition" | "remix"; slug: string } | null;
 }) {
   const search = editorStepthroughSearch(projectId, preset ?? null);
   const loc = useMemo(
@@ -946,12 +950,16 @@ export default function StationPanel(props: StationPanelProps) {
     /* A library-preset payload addressed to this station (the
        Library desk's "Use") seeds the editor with the picked look —
        parsed defensively for THIS station id; anything else opens
-       the editor exactly as blank as it always has. */
+       the editor exactly as blank as it always has. A remix-preset
+       payload (the Remix desk's "Remix", stack200 lane B1) seeds
+       the editor's own ?remix= deep link the same way. */
     const stepPayload = parsePanelPayloadFor(station.id, target.payload ?? null);
     const presetSeed =
       stepPayload?.kind === "library-preset"
         ? { param: stepPayload.param, slug: stepPayload.slug }
-        : null;
+        : stepPayload?.kind === "remix-preset"
+          ? { param: "remix" as const, slug: stepPayload.slug }
+          : null;
     return (
       <div className="fixed inset-0 z-[70] flex flex-col bg-black" data-testid="world-station-stepthrough">
         <div
@@ -1307,6 +1315,31 @@ export default function StationPanel(props: StationPanelProps) {
                 <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <PublishDesk isLight={isLight} />
                 </DeskDoor></PanelBoundary>
+                {/* Repurpose (stack200 world parity lane B1,
+                    census item 4): the Content Pack mode of the
+                    repurpose page as a native desk — analyze a
+                    project video / upload / URL on the
+                    /api/repurpose rails, watch the pack build,
+                    and finished clips + thumbnails flow into the
+                    hub project — stacked at the board right
+                    after Publish, where a finished video's next
+                    step lives. (Join12: wrapped in PanelBoundary
+                    like its neighbours, per D5's per-desk
+                    isolation.) */}
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                  <RepurposeDesk isLight={isLight} />
+                </DeskDoor></PanelBoundary>
+                {/* Video Studio (stack200 world parity lane B1,
+                    census item 5): the video-studio hub surface —
+                    camera-movement picker, one-click presets,
+                    text/image modes and the hub spine (project
+                    picks in, finished clips into the project) on
+                    the gen4.5 runway-clip rail — stacked at the
+                    board with the other project desks. (Join12:
+                    PanelBoundary wrap as above.) */}
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                  <VideoStudioDesk isLight={isLight} />
+                </DeskDoor></PanelBoundary>
                 {/* Templates (Stack-100 wave 4, item 27 / desk
                     #100): one browse desk for all four template
                     galleries (videos, hooks, captions, thumbnails)
@@ -1318,6 +1351,19 @@ export default function StationPanel(props: StationPanelProps) {
                     in the Create Wing. */}
                 <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <TemplatesDesk isLight={isLight} onOpenStation={props.onOpenStation} />
+                </DeskDoor></PanelBoundary>
+                {/* Remix Trends (stack200 world parity lane B1,
+                    census item 2): the Trending Remix Feed's own
+                    catalog — category filter, trend-score order,
+                    and a Remix tap that hands the preset through
+                    the panel payload to the Visual Vibes editor
+                    step-through with the preset's own deep-link
+                    param — stacked at the My Studio board beside
+                    the Library and Templates handoff desks.
+                    (Join12: wrapped in PanelBoundary like its
+                    neighbours, per D5's per-desk isolation.) */}
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                  <RemixDesk isLight={isLight} onOpenStation={props.onOpenStation} />
                 </DeskDoor></PanelBoundary>
                 {/* Catalog Import (stack1500 parity wave #3):
                     bring your catalog home — scan, fetch,
@@ -1466,6 +1512,17 @@ export default function StationPanel(props: StationPanelProps) {
                     the watchlist is the page's own local list. */}
                 <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <TrendsDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor></PanelBoundary>
+                {/* Trend Radar (stack200 world parity lane B1):
+                    the real-signal radar itself — counted plays
+                    behind the verified gates on the free
+                    /api/trend-radar rail, with C-30's outside-heat
+                    family when the rail sends it — stacked under
+                    the Predictor it was always the other half of.
+                    (Join12: wrapped in PanelBoundary like its
+                    neighbours, per D5's per-desk isolation.) */}
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                  <TrendsRadarDesk isLight={isLight} isGuest={isGuest} />
                 </DeskDoor></PanelBoundary>
               </div>
             ) : (
