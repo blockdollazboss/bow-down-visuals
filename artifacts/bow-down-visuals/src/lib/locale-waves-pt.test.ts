@@ -793,6 +793,10 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "streamPack.theme.violet-noir.blurb",
   "streamPack.theme.arctic-frost.name",
   "streamPack.theme.arctic-frost.blurb",
+  "streamPack.theme.desert-dune.name",
+  "streamPack.theme.desert-dune.blurb",
+  "streamPack.theme.midnight-jazz.name",
+  "streamPack.theme.midnight-jazz.blurb",
 ]);
   waveSuite("W4", W4_NAMESPACES, W4_LEGIT);
   waveSuite("W6", W6_NAMESPACES, W6_LEGIT);

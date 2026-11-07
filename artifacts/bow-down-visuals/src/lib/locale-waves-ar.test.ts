@@ -545,6 +545,10 @@ const W5_ALLOW = new Set([
   "streamPack.theme.violet-noir.blurb",
   "streamPack.theme.arctic-frost.name",
   "streamPack.theme.arctic-frost.blurb",
+  "streamPack.theme.desert-dune.name",
+  "streamPack.theme.desert-dune.blurb",
+  "streamPack.theme.midnight-jazz.name",
+  "streamPack.theme.midnight-jazz.blurb",
 ]);
 
 describe("ar-W5 (Stack-28 appendix) link-in-bio/nfc/privacy + promo namespaces fully translated", () => {

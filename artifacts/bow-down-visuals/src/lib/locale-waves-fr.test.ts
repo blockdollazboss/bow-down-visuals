@@ -901,6 +901,10 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "streamPack.theme.violet-noir.blurb",
   "streamPack.theme.arctic-frost.name",
   "streamPack.theme.arctic-frost.blurb",
+  "streamPack.theme.desert-dune.name",
+  "streamPack.theme.desert-dune.blurb",
+  "streamPack.theme.midnight-jazz.name",
+  "streamPack.theme.midnight-jazz.blurb",
 ]);
 describe("fr W5 (Stack-28 appendix) — namespaces closed whole", () => {
   const keys = Object.keys(EN).filter((k) => W5_NAMESPACES.some((ns) => k === ns || k.startsWith(`${ns}.`)));

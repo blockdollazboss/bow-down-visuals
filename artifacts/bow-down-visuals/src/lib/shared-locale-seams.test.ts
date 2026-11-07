@@ -216,7 +216,7 @@ describe("E-2 stream-pack theme seam", () => {
       "utf8",
     );
     const entries = [...serverSrc.matchAll(/id: "([\w-]+)",\s*\n\s*name: "([^"]+)",\s*\n\s*blurb: "([^"]+)"/g)];
-    expect(entries.length).toBe(6);
+    expect(entries.length).toBe(8);
     for (const [, id, name, blurb] of entries) {
       expect(resolveKey(CATALOGS.en, `streamPack.theme.${id}.name`)).toBe(name);
       expect(resolveKey(CATALOGS.en, `streamPack.theme.${id}.blurb`)).toBe(blurb);
@@ -271,7 +271,7 @@ describe("E-2 catalog presence — the new keys exist in all 10 catalogs, Englis
       "loadSummaryFallback", "loadPlatformsFallback", "loadPayoutsFallback",
     ].map((k) => `royalties.${k}`),
     ...["primary", "secondary", "accent", "neutral", "background"].map((k) => `brandingKit.colorRole.${k}`),
-    ...["gold-luxury", "neon-cyber", "crimson-royal", "emerald-empire", "violet-noir", "arctic-frost"].flatMap(
+    ...["gold-luxury", "neon-cyber", "crimson-royal", "emerald-empire", "violet-noir", "arctic-frost", "desert-dune", "midnight-jazz"].flatMap(
       (id) => [`streamPack.theme.${id}.name`, `streamPack.theme.${id}.blurb`],
     ),
     ...SITE_FEATURES.flatMap((f) => [`features.registry.${f.key}.name`, `features.registry.${f.key}.tagline`]),
@@ -279,7 +279,7 @@ describe("E-2 catalog presence — the new keys exist in all 10 catalogs, Englis
   ];
 
   it("all present and non-empty everywhere, identical to en until reviewed translations land", () => {
-    expect(newKeys.length).toBe(16 + 5 + 6 + 5 + 12 + SITE_FEATURES.length * 2 + FEATURE_CATEGORIES.length * 2);
+    expect(newKeys.length).toBe(16 + 5 + 6 + 5 + 16 + SITE_FEATURES.length * 2 + FEATURE_CATEGORIES.length * 2);
     for (const key of newKeys) {
       const enValue = resolveKey(CATALOGS.en, key);
       expect(typeof enValue, `en ${key}`).toBe("string");

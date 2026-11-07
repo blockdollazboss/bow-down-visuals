@@ -6052,6 +6052,14 @@
       "arctic-frost": {
         "name": "Arctic Frost",
         "blurb": "Ice blue & white. Clean and sharp."
+      },
+      "desert-dune": {
+        "name": "Desert Dune",
+        "blurb": "Sand & amber. Warm and minimal."
+      },
+      "midnight-jazz": {
+        "name": "Midnight Jazz",
+        "blurb": "Smoky brass & navy. Late-night club polish."
       }
     },
     "allOn": "alle an",

@@ -1019,6 +1019,10 @@ const W5_LEGIT_IDENTICAL = new Set([
   "streamPack.theme.violet-noir.blurb",
   "streamPack.theme.arctic-frost.name",
   "streamPack.theme.arctic-frost.blurb",
+  "streamPack.theme.desert-dune.name",
+  "streamPack.theme.desert-dune.blurb",
+  "streamPack.theme.midnight-jazz.name",
+  "streamPack.theme.midnight-jazz.blurb",
 ]);
 describe("de locale wave W5 (Stack-28 appendix)", () => {
   it("every en key exists non-empty in de and no untranslated residue remains", () => checkWave(W5_NAMESPACES, W5_LEGIT_IDENTICAL));
