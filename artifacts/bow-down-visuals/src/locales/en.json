@@ -24264,5 +24264,26 @@
     "arcadeGoldName": "Arcade Gold",
     "arcadeGoldTagline": "Cheat-code charcoal, hot gold, ember glow",
     "arcadeGoldDescription": "The cheat-code side of the palace: warm charcoal marble, hot gold, and an ember underglow in the dark — warm paper marble and deep bronze by day. Pairs with the Game Controller cursor."
+  },
+  "profileHosting": {
+    "heading": "Profile Hosting",
+    "tagline": "Your page is your website \u2014 on your own domain, with clean branding, hosted by us.",
+    "pricePerMonth": "${{price}}/month",
+    "includedWithEliteNote": "Included with Creator Elite \u2014 Elite members get Hosting free while subscribed, with no separate charge.",
+    "eliteActive": "Hosting is on for your page \u2014 it's included with your Creator Elite plan.",
+    "adminActive": "Hosting is on for your page.",
+    "hostingActive": "Hosting is active on your page.",
+    "activeUntil": "Your current period runs to {{date}}.",
+    "renewsNote": "Renews monthly. Manage or cancel any time in Settings \u2192 Billing.",
+    "buyButton": "Get Hosting \u2014 ${{price}}/month",
+    "openingCheckout": "Opening checkout\u2026",
+    "checkoutDidntStart": "Checkout didn't start. Try again in a minute.",
+    "notSwitchedOn": "Hosting checkout isn't switched on yet \u2014 the price is set, but there's nothing to pay today.",
+    "noProfile": "Create your creator profile first \u2014 Hosting runs your page.",
+    "signInPrompt": "Sign in to get Hosting for your page \u2192",
+    "loadFailed": "Couldn't load your hosting state \u2014 tap to retry.",
+    "switchingOn": "Payment received \u2014 your Hosting is switching on. This page refreshes itself as soon as it's live.",
+    "cancelCheckout": "Cancel \u2014 no charge",
+    "siteAnchorNote": "Hosting takes it further: your profile page becomes your whole website, on your own domain with clean branding \u2014 ${{price}}/month standalone, or included with Creator Elite."
   }
 }

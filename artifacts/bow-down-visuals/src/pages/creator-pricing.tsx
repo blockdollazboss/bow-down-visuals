@@ -14,6 +14,8 @@ import TierBadge from "@/components/TierBadge";
 import SubscriptionHistory from "@/components/SubscriptionHistory";
 import { SocialProofBand } from "@/components/SocialProofBand";
 import GiftMembership from "@/components/GiftMembership";
+import ProfileHosting from "@/components/ProfileHosting";
+import { useTranslation } from "react-i18next";
 import { EmbeddedPaymentForm } from "@/components/checkout/EmbeddedCheckout";
 import { checkoutFailureCopy, postJsonWithTransportRetry } from "@/lib/checkout-fetch";
 import { loginPathWithNext } from "@/lib/auth-next";
@@ -67,6 +69,7 @@ function useQuery() {
 }
 
 export default function CreatorPricing() {
+  const { t } = useTranslation();
   const isLight = useIsLightTheme();
   usePageTitle("Creator Plans — Go Pro, Keep More of Your Money", "Creator plans for every level: compare ranks, Visual Buc rates, automation and control — go pro and keep more of your money.");
   const query = useQuery();
@@ -530,6 +533,11 @@ export default function CreatorPricing() {
             checkout on this page, one-time payment, no auto-renew */}
         <GiftMembership isLight={isLight} />
 
+        {/* profile hosting — the $9/mo plan's door (Stack-200 A5):
+            docks here in the money flow; embedded checkout on this
+            page, state read live from /creator-hosting/me */}
+        <ProfileHosting isLight={isLight} />
+
         {embeddedDone && (
           <div className="mt-4 rounded-2xl border border-emerald-400/40 bg-emerald-400/10 p-5">
             <div className="flex items-center gap-2 font-black text-emerald-200">
@@ -642,6 +650,19 @@ export default function CreatorPricing() {
           <div id="feature-site" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">Your site</h3>
             <p className="mt-1">Free gets you a subdomain on bowdownvisuals.com. Your own custom domain comes with the Hosting plan ($9/mo) — and it's included free while you're Creator Elite. Your brand, your URL, same checkout.</p>
+            {/* Stack-200 A5: this anchor is where every Hosting plan
+                feature row points — it now names the plan itself.
+                The sentence is money copy (profileHosting.siteAnchorNote,
+                English verbatim in all 10 catalogs); the price figure is
+                the ruled standalone $9 (HOSTING_PRICE_USD_PER_MONTH in
+                lib/platform-fees) — the Hosting card above always
+                shows the live configured price. */}
+            <p className="mt-1">
+              {t("profileHosting.siteAnchorNote", { price: 9 })}{" "}
+              <a href="#profile-hosting" className={`whitespace-nowrap text-xs font-semibold ${isLight ? "text-[#7A5A12] hover:text-[#2A1E07]" : "text-amber-300/90 hover:text-amber-200"}`}>
+                See Profile Hosting ↓
+              </a>
+            </p>
           </div>
           <div id="feature-streaming" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">Streaming</h3>

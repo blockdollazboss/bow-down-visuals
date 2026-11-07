@@ -180,6 +180,17 @@ const EN = CATALOGS.en!;
    byte-identical in every catalog — the numeric-parity suite
    judges it a fact, not copy). The namespace carries no array
    leaves, so the plain string checks below judge it as-is.
+   "profileHosting" came with the Stack-200 wave A5 lane (Nov 6 2026):
+   the Profile Hosting door on /creator-pricing (money census item 5 —
+   the $9/mo plan had a complete API rail and no door). Its 19 leaves
+   are the door's whole copy set: the price line and the Elite-inclusion
+   wording are MONEY copy, so under the money-copy law every catalog
+   carries the ENGLISH SOURCE VERBATIM (figures ride {{price}} /
+   {{date}} interpolation) — the nine non-en values are the English
+   source by design, flagged UNREVIEWED as translations, never
+   agent-drafted. The namespace is pinned here from day one; the
+   namespace carries no array leaves, so the plain string checks
+   below judge it as-is.
    "appPage" came with the Stack-100 #3 app-page lane (Oct 24 2026):
    the public /app download home (Android APK / Chrome extension /
    iPhone-iPad / desktop web-app cards, install guides, the update
@@ -193,7 +204,7 @@ const EN = CATALOGS.en!;
    numeric-parity suite judges it a fact, not copy); version/size ride
    in {{placeholders}} only. The namespace carries no array leaves,
    so the plain string checks below judge it as-is. */
-const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9", "podcast", "outreach", "press-kit", "admin", "analyticsHub", "contentIntelligence", "hubSpine", "captionSuite", "world", "wallpapers", "appPage"] as const;
+const WHOLE_NAMESPACES = ["tutorials", "command", "djSets", "smartClips", "socialProof", "playlistPitch", "liveGuests", "moveHome", "catalogImport", "playlist", "paidSeries", "proFinishing", "videoExport", "outOfCredits", "showcasePublish", "share", "review", "videoEditor", "settings", "dashboard", "myShop", "nav", "retention", "wave8", "wave9", "podcast", "outreach", "press-kit", "admin", "analyticsHub", "contentIntelligence", "hubSpine", "captionSuite", "world", "wallpapers", "appPage", "profileHosting"] as const;
 /* Block prefixes inside older, larger namespaces. */
 const BLOCK_PREFIXES = [
   "artistVault.identity",
@@ -429,11 +440,20 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
        "Heating up outside" YouTube lane) in all ten catalogs
        = 5041. The nine non-en renderings are agent-drafted and
        UNREVIEWED under the standing locale law.
+       Plus the Stack-200 wave A5 Profile Hosting door fill:
+       profileHosting keys ×19 (the whole namespace — heading /
+       tagline / pricePerMonth / includedWithEliteNote / the three
+       entitled-state lines / activeUntil / renewsNote / buyButton /
+       checkout + load states / siteAnchorNote — the /creator-pricing
+       Hosting card's copy) in all ten catalogs = 5060. The price
+       and Elite-inclusion lines are money copy: the English source
+       sits verbatim in every catalog under the money-copy law,
+       figures by interpolation — UNREVIEWED as translations.
        (Round 6's
        syncPitch load keys ×8, labelPitch labels keys ×2 and
        merch designs keys ×3 sit outside this derived set, like
        the rounds 4–5 merch keys above.) */
-    expect(REQUIRED.length).toBe(5041);
+    expect(REQUIRED.length).toBe(5060);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {

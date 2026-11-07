@@ -15,6 +15,13 @@
  * HOSTING_CHECKOUT_UNAVAILABLE rather than faking a charge. With the
  * id set, checkout creates a TEST-mode subscription session with kind
  * "creator_hosting" metadata the webhook sync keys on.
+ *
+ * EMBEDDED (Stack-200 wave, money census item 5): the session is an
+ * embedded Checkout Session (ui_mode "embedded") — the route answers
+ * a clientSecret and NEVER a hosted URL (owner law: the buyer never
+ * leaves bowdownvisuals.com), and completion returns to
+ * /creator-pricing?hosting=return&session_id=… The webhook sync is
+ * untouched: the embedded session completes with the same metadata.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } from "vitest";
 import express from "express";
@@ -71,7 +78,14 @@ vi.mock("stripe", () => {
       sessions: {
         create: async (params: any) => {
           h.state.stripeCreateParams = params;
-          return { id: "cs_test_hosting", url: "https://checkout.example.com/cs_test_hosting" };
+          /* The fake still carries a hosted `url` field on purpose:
+             the pin below proves the route never forwards it — an
+             embedded session's answer is its client_secret only. */
+          return {
+            id: "cs_test_hosting",
+            url: "https://checkout.example.com/cs_test_hosting",
+            client_secret: "cs_test_hosting_secret_123",
+          };
         },
       },
     };
@@ -250,12 +264,37 @@ describe("POST /creator-hosting/checkout", () => {
     process.env["STRIPE_SECRET_KEY"] = "sk_test_example";
     const { status, json } = await call("POST", "/creator-hosting/checkout", { user: OWNER_USER, body: {} });
     expect(status).toBe(200);
-    expect(json.url).toContain("cs_test_hosting");
     const params = h.state.stripeCreateParams;
     expect(params.mode).toBe("subscription");
     expect(params.line_items).toEqual([{ price: "price_test_hosting", quantity: 1 }]);
     expect(params.metadata.kind).toBe("creator_hosting");
     expect(params.subscription_data.metadata.kind).toBe("creator_hosting");
+  });
+
+  it("the session is EMBEDDED — clientSecret out, no hosted URL path anywhere", async () => {
+    process.env["STRIPE_PRICE_HOSTING"] = "price_test_hosting";
+    process.env["STRIPE_SECRET_KEY"] = "sk_test_example";
+    const { status, json } = await call("POST", "/creator-hosting/checkout", {
+      user: OWNER_USER,
+      body: { returnTo: "/creator-pricing" },
+    });
+    expect(status).toBe(200);
+    /* The answer the door consumes: a client secret for the on-page
+       EmbeddedSessionCheckout mount — never a hosted checkout URL,
+       even though the (fake) provider session object carried one. */
+    expect(json.clientSecret).toBe("cs_test_hosting_secret_123");
+    expect(json.sessionId).toBe("cs_test_hosting");
+    expect(json.uiMode).toBe("embedded");
+    expect(json.url).toBeUndefined();
+    expect(json.checkoutUrl).toBeUndefined();
+    /* The session itself is created embedded: ui_mode set, a
+       return_url back to the pricing page carrying the session id,
+       and NO success_url/cancel_url redirect pair. */
+    const params = h.state.stripeCreateParams;
+    expect(params.ui_mode).toBe("embedded");
+    expect(params.return_url).toContain("/creator-pricing?hosting=return&session_id={CHECKOUT_SESSION_ID}");
+    expect(params.success_url).toBeUndefined();
+    expect(params.cancel_url).toBeUndefined();
   });
 
   it("an already-hosted creator isn't sold the plan twice", async () => {
