@@ -119,6 +119,15 @@ export const CHARACTER_THEMES: CharacterTheme[] = [
     deep: "#0A2A5E",
     cardTint: "rgba(15,82,186,0.08)",
   },
+  {
+    id: "teal-abyss",
+    name: "Teal Abyss",
+    vibe: "Deep water · pressure · quiet money",
+    primary: "#0F766E",
+    highlight: "#5EEAD4",
+    deep: "#134E4A",
+    cardTint: "rgba(15,118,110,0.08)",
+  },
 ];
 
 const FALLBACK = CHARACTER_THEMES[0]!;
