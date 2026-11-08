@@ -190,6 +190,45 @@ export const SONG_PRESETS: SongPreset[] = [
       beatStyle: "Fiddle and pedal steel, acoustic strum, story-first verses",
     },
   },
+  /* ── Stack 300 upgrade wave (song-presets lane): Drill, Dancehall
+     and Kids Music were the last three genre values the select sells
+     with no preset reaching for them ("Other" is the catch-all and
+     honestly gets none). Each sets exactly its genre, plus the
+     beat-style recipe words its sound is made of. ── */
+  {
+    id: "drill-serious",
+    label: "Serious Drill",
+    emoji: "🥶",
+    group: "genre",
+    simplePrompt: "dark drill track — sliding 808s, urgent strings, cold confident delivery",
+    form: {
+      genre: "Drill",
+      beatStyle: "Sliding 808s, dark piano and strings, drill hi-hat rolls",
+    },
+  },
+  {
+    id: "dancehall-heat",
+    label: "Dancehall Heat",
+    emoji: "🌴",
+    group: "genre",
+    simplePrompt: "feel-good dancehall song with a waistline groove and a hook built for the dancefloor",
+    form: {
+      genre: "Dancehall",
+      beatStyle: "Dancehall riddim — 3+3+2 groove, warm bass, melodic keys",
+    },
+  },
+  {
+    id: "kids-singalong",
+    label: "Kids Singalong",
+    emoji: "🎈",
+    group: "genre",
+    simplePrompt: "bright singalong song for kids — simple words, a counting-and-clapping hook, every line easy to shout back",
+    form: {
+      genre: "Kids Music",
+      mood: "Kid-Friendly",
+      beatStyle: "Bouncy piano, claps, ukulele strum — nothing scary, everything smiling",
+    },
+  },
 
   /* ── By mood & vibe — sets the mood select (Lo-Fi: beat style only,
         because the form has no Lo-Fi genre or mood value) ── */
@@ -240,6 +279,68 @@ export const SONG_PRESETS: SongPreset[] = [
     group: "mood",
     simplePrompt: "chill lo-fi track with mellow vibes",
     form: { beatStyle: "Lo-fi chill beat — mellow chords, soft drums, vinyl crackle" },
+  },
+  /* ── Stack 300 upgrade wave (song-presets lane): the seven mood
+     values the select sells that no preset patched — Luxury, Street,
+     Romantic, Pain, Inspirational, Funny, Kid-Friendly. Each sets
+     exactly its mood select value, the same one-value-one-preset
+     shape as the original five. With these, every mood the form
+     sells has a preset. ── */
+  {
+    id: "luxury-life",
+    label: "Luxury Life",
+    emoji: "💎",
+    group: "mood",
+    simplePrompt: "luxury song about the finer things — smooth, expensive-sounding, champagne-room calm",
+    form: { mood: "Luxury" },
+  },
+  {
+    id: "romantic-serenade",
+    label: "Romantic Serenade",
+    emoji: "🌹",
+    group: "mood",
+    simplePrompt: "romantic love song — warm verses, a hook that says the thing plainly",
+    form: { mood: "Romantic" },
+  },
+  {
+    id: "street-anthem",
+    label: "Street Anthem",
+    emoji: "🏙️",
+    group: "mood",
+    simplePrompt: "street anthem — block stories, loyalty bars, a hook the whole neighborhood can chant",
+    form: { mood: "Street" },
+  },
+  {
+    id: "pain-song",
+    label: "Pain Song",
+    emoji: "💔",
+    group: "mood",
+    simplePrompt: "pain song — melodic and honest about the losses, hook that aches",
+    form: { mood: "Pain" },
+  },
+  {
+    id: "inspirational-rise",
+    label: "Inspirational Rise",
+    emoji: "🌅",
+    group: "mood",
+    simplePrompt: "inspirational song that lifts people up — keep-going verses, a rising hopeful hook",
+    form: { mood: "Inspirational" },
+  },
+  {
+    id: "funny-banger",
+    label: "Funny Banger",
+    emoji: "😂",
+    group: "mood",
+    simplePrompt: "funny song with joke-dense verses and a hook that lands the punchline every time",
+    form: { mood: "Funny" },
+  },
+  {
+    id: "kid-friendly-pop",
+    label: "Kid-Friendly Pop",
+    emoji: "🧸",
+    group: "mood",
+    simplePrompt: "kid-friendly song — clean, kind and silly in the right places, safe for the whole family",
+    form: { mood: "Kid-Friendly" },
   },
 
   /* ── By structure — structure rides Special Instructions, the real
@@ -322,6 +423,33 @@ export const SONG_PRESETS: SongPreset[] = [
     form: {
       specialInstructions:
         "Structure: build tension through the verse — rising drums, filtered synths, everything climbing — then a full drop; the second build climbs higher and the final drop lands biggest.",
+    },
+  },
+  /* ── Stack 300 upgrade wave (song-presets lane): the two shapes
+     the structure group still lacked — a continuous no-chorus
+     freestyle (every earlier entry returns to a hook) and the
+     first two-voice shape. Like every structure preset, both ride
+     Special Instructions only; no new form field is claimed. ── */
+  {
+    id: "no-hook-freestyle",
+    label: "No-Hook Freestyle",
+    emoji: "🎙️",
+    group: "structure",
+    simplePrompt: "one continuous freestyle verse — no hook, no chorus, the bars never let up",
+    form: {
+      specialInstructions:
+        "Structure: one continuous verse with no hook and no chorus — keep the flow running start to finish, internal rhymes and beat switches carry it.",
+    },
+  },
+  {
+    id: "duet-trade-off",
+    label: "Duet Trade-Off",
+    emoji: "👥",
+    group: "structure",
+    simplePrompt: "duet — two singers trade verses and come together on the hook",
+    form: {
+      specialInstructions:
+        "Structure: duet — singer one takes verse one, singer two takes verse two, both voices join on the hook; leave a short call-and-response break before the final hook.",
     },
   },
 ];
