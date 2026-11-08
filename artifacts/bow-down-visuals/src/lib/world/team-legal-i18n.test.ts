@@ -14,10 +14,11 @@ import { COPYRIGHT_DISCLAIMER } from "./copyright-desk";
 import { LLC_DISCLAIMER_BODY, LLC_DISCLAIMER_TITLE } from "./llc-desk";
 
 /* ─── Stack100 locale unit 46 — Team/Legal desk family ─────────────
-   The six World desks of the Team/Legal family (TeamDesk,
-   TeamSeatsDesk, ContractAnalyzer, CopyrightDesk, LlcDesk,
-   BriefDesk) ride the i18n catalogs: their own flat namespace
-   worldTeamLegal (212 keys) plus REUSED catalog keys where the
+   The seven World desks of the Team/Legal family (TeamDesk,
+   TeamSeatsDesk, ContractAnalyzer, ContractGenerator,
+   CopyrightDesk, LlcDesk, BriefDesk) ride the i18n catalogs:
+   their own flat namespace
+   worldTeamLegal (241 keys) plus REUSED catalog keys where the
    2D pages already carry the same words byte-for-byte
    (team.* for TeamDesk, settings.team* for TeamSeatsDesk,
    contracts.type.* for the analyzer's type labels,
@@ -25,7 +26,7 @@ import { LLC_DISCLAIMER_BODY, LLC_DISCLAIMER_TITLE } from "./llc-desk";
 
    LOCALE HONESTY: the non-English worldTeamLegal values are
    agent-drafted and UNREVIEWED — a native pass is still owed.
-   The 13 MONEY lines below state a price / fee / charge /
+   The 16 MONEY lines below state a price / fee / charge /
    no-charge fact: they carry the English source verbatim in
    EVERY catalog, figures by interpolation, never translated.
 
@@ -64,6 +65,7 @@ const COMPONENTS = [
   "../../components/world/native/CopyrightDesk.tsx",
   "../../components/world/native/LlcDesk.tsx",
   "../../components/world/native/BriefDesk.tsx",
+  "../../components/world/native/ContractGenerator.tsx",
 ];
 const SEAMS = [
   "./team-desk.ts",
@@ -93,7 +95,11 @@ const nsOf = (cat: Catalog) =>
 const EN = nsOf(en as Catalog);
 const EN_KEYS = Object.keys(EN);
 
-/* The 13 money lines: en verbatim in all 10 catalogs. */
+/* The 16 money lines: en verbatim in all 10 catalogs. The three
+   gen* lines joined with the Contract Generator desk (Stack 300,
+   crew 29): the generator's price is not owner-ruled yet, so its
+   money lines are English source verbatim everywhere, figures by
+   interpolation — the same law as the analyzer's three. */
 const MONEY_KEYS = [
   "teamOutOfCredits",
   "teamCreateHint",
@@ -103,6 +109,9 @@ const MONEY_KEYS = [
   "contractOutOfCredits",
   "contractButton",
   "contractErrorShape",
+  "genIntro",
+  "genButton",
+  "genOutOfCredits",
   "copyrightDraftButton",
   "llcPlanButton",
   "briefSubtitle",
@@ -114,7 +123,7 @@ const tokensOf = (v: string) =>
   [...v.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]).sort();
 
 describe("unit 46 — the family is wired to the catalogs", () => {
-  it("all six components translate through useTranslation", () => {
+  it("all seven components translate through useTranslation", () => {
     for (const rel of COMPONENTS) {
       const src = read(rel);
       expect(src, rel).toContain('from "react-i18next"');
@@ -125,8 +134,10 @@ describe("unit 46 — the family is wired to the catalogs", () => {
     expect(read(COMPONENTS[4]).match(/useTranslation\(\)/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("the namespace holds exactly 212 keys", () => {
-    expect(EN_KEYS.length).toBe(212);
+  it("the namespace holds exactly 241 keys", () => {
+    // 212 at unit 46; +29 for the Contract Generator desk family
+    // (Stack 300, crew 29) — genTitle … genDraftAnother.
+    expect(EN_KEYS.length).toBe(241);
   });
 
   it("referenced keys == catalog keys (zero orphans, zero missing)", () => {
@@ -174,7 +185,7 @@ describe("unit 46 — all 10 catalogs carry the family", () => {
     }
   });
 
-  it("the 13 money lines are byte-identical English in every catalog", () => {
+  it("the 16 money lines are byte-identical English in every catalog", () => {
     for (const [loc, cat] of Object.entries(CATALOGS)) {
       const ns = nsOf(cat);
       for (const k of MONEY_KEYS) {
