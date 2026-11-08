@@ -157,6 +157,31 @@ describe("registry shape", () => {
     expect(scenePresetHasSourceType(scenePresetById("end-screen")!, "guest")).toBe(false);
   });
 
+  it("the stack300 scenes serve the jobs they name", () => {
+    // chroma-stage: the camera really is in chroma mode, over a color
+    // backdrop, and its key settings are createSource's defaults.
+    const chroma = scenePresetById("chroma-stage")!;
+    expect(scenePresetHasSourceType(chroma, "color")).toBe(true);
+    const keyed = buildSceneFromPreset(chroma).sources.find((s) => s.type === "camera")!;
+    expect(keyed.cameraMode).toBe("chroma");
+    expect(keyed.chroma).toEqual(createSource("camera").chroma);
+    // goal-push: both money-goal widget kinds ride along, and both
+    // draw only from real stream data (widget sources, nothing else).
+    const goal = scenePresetById("goal-push")!;
+    const kinds = goal.sources.filter((s) => s.type === "widget").map((s) => s.widget?.kind);
+    expect(kinds).toEqual(["goal-bar", "tip-ticker"]);
+    // media-premiere: a media source carries the scene (no camera),
+    // with no URL preset — the stage draws its honest placeholder.
+    const premiere = scenePresetById("media-premiere")!;
+    expect(scenePresetHasSourceType(premiere, "media")).toBe(true);
+    expect(scenePresetHasSourceType(premiere, "camera")).toBe(false);
+    expect(premiere.sources.find((s) => s.type === "media")!.mediaUrl).toBeUndefined();
+    // panel-talk: exactly two guest tiles beside the host camera.
+    const panel = buildSceneFromPreset(scenePresetById("panel-talk")!);
+    expect(panel.sources.filter((s) => s.type === "guest")).toHaveLength(2);
+    expect(panel.sources.filter((s) => s.type === "camera")).toHaveLength(1);
+  });
+
   it("(c) building twice gives fresh ids and never shares nested settings with the registry", () => {
     const preset = scenePresetById("camera-live-overlay")!;
     const a = buildSceneFromPreset(preset);
