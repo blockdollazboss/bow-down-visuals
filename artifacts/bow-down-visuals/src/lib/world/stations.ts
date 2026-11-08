@@ -381,6 +381,27 @@ export const PALACE_STATIONS: PalaceStation[] = [
     panel: { kind: "native", pattern: "create" },
     websitePath: "/branding-kit?tab=wallpapers",
   },
+  {
+    /* Stack 400 world parity, census B-04: the Photo Desk — the
+       Photo Studio family's native desk (background removal +
+       AI backdrop, background plates, photo enhance, headshots,
+       product photos — each on its 2D twin's own rail at its
+       registry price). It stands mid-room at (21, -4), 2.8m+
+       clear of the Hook and Detector prompts west of it, 3.2m+
+       from the Carousel and Movies prompts east, 3.6m+ from the
+       Visual Vibes door north — the registry's nearest-wins rule
+       covers the rest. Members-only exactly as every rail it
+       rides is (requireAuth on the routes). */
+    id: "photo-desk",
+    roomId: CREATE_WING_ID,
+    name: "Photo Desk",
+    tagline: "The Photo Studio in-world — cutouts, backdrops, headshots and product shots.",
+    x: 21,
+    z: -4,
+    membersOnly: true,
+    panel: { kind: "native", pattern: "create" },
+    websitePath: "/thumbnail-studio?tab=background",
+  },
 
   /* ── Treasury ────────────────────────────────────────────────── */
   {

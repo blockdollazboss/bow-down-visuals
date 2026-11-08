@@ -50,8 +50,9 @@ describe("the station registry", () => {
      * and the Merch Bench) + stack1400 parity wave #2 item 4
      * (the Movies Desk) + stack1400 parity wave #2 item 5
      * (the Carousel Desk) + stack1500 parity wave #3 item 12
-     * (the Detector Desk) + item 34 (the Wallpapers Desk). */
-    expect(PALACE_STATIONS.length).toBe(47);
+     * (the Detector Desk) + item 34 (the Wallpapers Desk)
+     * + Stack 400 census B-04 (the Photo Desk). */
+    expect(PALACE_STATIONS.length).toBe(48);
     for (const s of PALACE_STATIONS) {
       expect(s.name.length, s.id).toBeGreaterThan(0);
       expect(s.tagline.length, s.id).toBeGreaterThan(10);
@@ -74,7 +75,7 @@ describe("the station registry", () => {
       expect(["native", "custom", "stepthrough"], s.id).toContain(s.panel.kind);
       expect(s.panel.kind, s.id).not.toBe("page");
     }
-    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(28);
+    expect(PALACE_STATIONS.filter((s) => s.panel.kind === "native").length).toBe(29);
     /* Six original customs + the Creator Rooms arch (Ring 2, 3.5)
      * + the Season Marks Wall (Ring 4) + the Winners' Circle (2.24)
      * + the plaza monument's Kingdom Board (Open World Phase 1)
@@ -112,6 +113,7 @@ describe("the station registry", () => {
       "carousel-desk": "create",
       "detector-desk": "create",
       "wallpapers-desk": "create",
+      "photo-desk": "create",
       "crowns-desk": "shop",
       "branding-kit-desk": "business",
       "branding-shop-desk": "shop",
@@ -124,7 +126,7 @@ describe("the station registry", () => {
       "promote-room": "business",
       "get-paid-room": "board",
     };
-    expect(Object.keys(patterns).length).toBe(28);
+    expect(Object.keys(patterns).length).toBe(29);
     for (const [id, pattern] of Object.entries(patterns)) {
       expect(STATION_BY_ID.get(id)!.panel, id).toEqual({ kind: "native", pattern });
     }
@@ -153,6 +155,7 @@ describe("the station registry", () => {
       "carousel-desk": "/carousel-maker",
       "detector-desk": "/detector",
       "wallpapers-desk": "/branding-kit?tab=wallpapers",
+      "photo-desk": "/thumbnail-studio?tab=background",
       "daily-drop": null,
       "shark-drops": null,
       "quest-board": null,
@@ -262,12 +265,12 @@ describe("the station registry", () => {
   it("guests never reach the create desks — every create station is members-only (stack-20 round 2, #3/#4 gate)", () => {
     /* The publish rail and the jukebox chip live behind these
        doors; the gate is the registry flag the world enforces at
-       walk-up, and it must stay on for all eleven desks — the two
+       walk-up, and it must stay on for all twelve desks — the two
        song desks (publish + chip) named explicitly. */
     const createStations = PALACE_STATIONS.filter(
       (s) => s.panel.kind === "native" && s.panel.pattern === "create",
     );
-    expect(createStations.length).toBe(11);
+    expect(createStations.length).toBe(12);
     for (const s of createStations) expect(s.membersOnly, s.id).toBe(true);
     expect(STATION_BY_ID.get("song-desk")!.membersOnly).toBe(true);
     expect(STATION_BY_ID.get("song-video-desk")!.membersOnly).toBe(true);
