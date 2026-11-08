@@ -1213,6 +1213,12 @@ export interface SitePlanMe {
   status: string;
   feePct: number;
   aiBoostsPerMonth: number;
+  /** Boosts used in the current month; null when the server didn't
+      report them (an older build) — surfaces then show the quota
+      alone, exactly as before stack300. */
+  aiBoostsUsedThisMonth: number | null;
+  /** Boosts left in the current month; null when unreported. */
+  aiBoostsRemaining: number | null;
   currentPeriodEnd: string | null;
 }
 
@@ -1226,6 +1232,8 @@ export function parseSitePlanMe(payload: unknown): SitePlanMe | null {
     status: str(payload["status"]) ?? "active",
     feePct: num(payload["feePct"]) ?? (num(payload["feeBps"]) !== null ? (num(payload["feeBps"]) as number) / 100 : 0),
     aiBoostsPerMonth: num(payload["aiBoostsPerMonth"]) ?? 0,
+    aiBoostsUsedThisMonth: num(payload["aiBoostsUsedThisMonth"]),
+    aiBoostsRemaining: num(payload["aiBoostsRemaining"]),
     currentPeriodEnd: str(payload["currentPeriodEnd"]),
   };
 }

@@ -80,6 +80,35 @@ vi.mock("../../lib/supabase-admin", () => ({
   addCreditsToProfile: async () => undefined,
 }));
 
+/* Stack300 plans-boosts: the assist route now checks the caller's AI
+   promotion boosts before charging. This file pins the CHARGE-path
+   contract, so the boosts ledger is pinned to "allowance spent"
+   (remaining 0 → the flat 100 VB charge, exactly the pre-allowance
+   behavior). The boost-funded behaviors live in
+   social-assist-boosts.test.ts. */
+vi.mock("../../middlewares/require-tier", async (importOriginal) => {
+  const real = await importOriginal<any>();
+  return {
+    ...real,
+    resolveCreatorTier: async () => ({ tier: "free", profileId: "profile-1" }),
+  };
+});
+
+vi.mock("../../lib/admin", async (importOriginal) => {
+  const real = await importOriginal<any>();
+  return { ...real, isAdminUserId: async () => false };
+});
+
+vi.mock("../../lib/ai-boosts", () => ({
+  fundingFor: ({ isAdmin, remaining }: { isAdmin: boolean; remaining: number }) =>
+    isAdmin ? "admin" : remaining > 0 ? "boost" : "charge",
+  getAiBoostState: async () => ({ tier: "free", allowance: 3, used: 3, remaining: 0, period: "2026-11" }),
+  tryConsumeAiBoost: async () => {
+    throw new Error("must not consume when no boosts remain");
+  },
+  refundAiBoost: async () => undefined,
+}));
+
 vi.mock("../../lib/payment-record", () => ({
   recordCreditUsageStrict: async () => undefined,
 }));

@@ -1,5 +1,5 @@
 import { plainErrorText } from "../../lib/api-error";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ImagePlus, Link2, Music2, ShoppingBag, CalendarDays, Sparkles, Plus, X, BarChart3, Globe, Users, Heart, Crown, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,6 +62,33 @@ export function Composer({
   const [assistPrompt, setAssistPrompt] = useState("");
   const [showAssist, setShowAssist] = useState(false);
   const [assisting, setAssisting] = useState(false);
+  /* The member's AI-boosts standing (stack300): with plan boosts
+     left, a draft is boost-funded, not 100 Bucs — the price copy
+     below says which before anyone spends. Null = not read yet (or
+     the read failed): the historic 100-Bucs copy stands, which is
+     the real past-allowance price. */
+  const [boostsLeft, setBoostsLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!showAssist) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await apiJson<{ aiBoostsRemaining?: number | null }>(getAccessToken, "/api/creator-tiers/me");
+        if (!cancelled && typeof me.aiBoostsRemaining === "number") setBoostsLeft(me.aiBoostsRemaining);
+      } catch {
+        /* Standing unknown — the 100-Bucs copy stays. */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showAssist, getAccessToken]);
+
+  const assistCostLabel =
+    boostsLeft !== null && boostsLeft > 0
+      ? `Free with a plan boost — ${boostsLeft} left this month`
+      : "100 Visual Bucs";
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -159,10 +186,14 @@ export function Composer({
     setAssisting(true);
     setError(null);
     try {
-      const data = await apiJson<{ draft: string }>(getAccessToken, "/api/posts/assist", {
+      const data = await apiJson<{
+        draft: string;
+        boost?: { applied: boolean; allowance: number; used: number; remaining: number } | null;
+      }>(getAccessToken, "/api/posts/assist", {
         method: "POST",
         body: JSON.stringify({ prompt: assistPrompt.trim(), tone: "hype" }),
       });
+      if (data.boost) setBoostsLeft(data.boost.remaining);
       if (data.draft) setBody((b) => (b ? `${b}\n\n${data.draft}` : data.draft).slice(0, 500));
       setAssistPrompt("");
       setShowAssist(false);
@@ -409,11 +440,11 @@ export function Composer({
       <div data-min-stars="1">
         {showAssist ? (
           <div className="mt-2 flex gap-2">
-            <input aria-label="What should it say? (100 Visual Bucs)"
+            <input aria-label={`What should it say? (${assistCostLabel})`}
               value={assistPrompt}
               onChange={(e) => setAssistPrompt(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && assist()}
-              placeholder="What should it say? (100 Visual Bucs)"
+              placeholder={`What should it say? (${assistCostLabel})`}
               maxLength={300}
               className="flex-1 rounded-lg border border-[#d4af37]/40 bg-[#0d0d0d] px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus:border-[#d4af37] focus:outline-none"
             />
@@ -542,7 +573,7 @@ export function Composer({
             <ShoppingBag className="h-5 w-5" />
             <span className="hidden text-xs font-semibold sm:inline">link your drop</span>
           </button>
-          <button aria-expanded={showAssist} data-min-stars="1" onClick={() => setShowAssist((v) => !v)} title="Write it for you (100 Visual Bucs)" className="flex items-center gap-1 rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
+          <button aria-expanded={showAssist} data-min-stars="1" onClick={() => setShowAssist((v) => !v)} title={`Write it for you (${assistCostLabel})`} className="flex items-center gap-1 rounded-full p-2 text-[#d4af37] hover:bg-[#d4af37]/10">
             <Sparkles className="h-5 w-5" />
             <span className="hidden text-xs font-semibold sm:inline">write it for me</span>
           </button>

@@ -9,6 +9,12 @@ interface CreatorTierState {
   feeBps: number;
   status: string;
   currentPeriodEnd: string | null;
+  /* AI promotion boosts standing (stack300): the month's quota, how
+     many are used and how many are left. Null/absent when the server
+     didn't report them — surfaces then show the quota alone. */
+  aiBoostsPerMonth?: number;
+  aiBoostsUsedThisMonth?: number | null;
+  aiBoostsRemaining?: number | null;
 }
 
 /* ─── useCreatorTier — the ONE source of truth for tier display ──────────
