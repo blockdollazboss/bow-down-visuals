@@ -41,10 +41,10 @@ function functionBody(src: string, name: string): string {
 }
 
 describe("song preset registry — exists and is organised", () => {
-  it("carries 21 presets: 8 by genre, 6 by mood & vibe, 7 by structure", () => {
-    expect(SONG_PRESETS).toHaveLength(21);
+  it("carries 33 presets: 11 by genre, 13 by mood & vibe, 9 by structure", () => {
+    expect(SONG_PRESETS).toHaveLength(33);
     expect(SONG_PRESET_GROUPS.map((g) => g.id)).toEqual(["genre", "mood", "structure"]);
-    const counts: Record<SongPresetGroup, number> = { genre: 8, mood: 6, structure: 7 };
+    const counts: Record<SongPresetGroup, number> = { genre: 11, mood: 13, structure: 9 };
     for (const group of SONG_PRESET_GROUPS) {
       expect(songPresetsByGroup(group.id as SongPresetGroup)).toHaveLength(counts[group.id as SongPresetGroup]);
     }
@@ -66,6 +66,60 @@ describe("song preset registry — exists and is organised", () => {
     expect(drop.form.specialInstructions!.toLowerCase()).toContain("drop");
     expect(drop.form.genre).toBeUndefined();
     expect(drop.form.songLength).toBeUndefined();
+  });
+
+  it("the Stack 300 presets close the genre/mood axes and add the two missing shapes", () => {
+    /* Genre axis: Drill, Dancehall and Kids Music were the last
+       select values no preset patched ("Other" is the catch-all and
+       honestly gets none). Each sets exactly its genre; the kids'
+       entry also names its mood, the registry's family-audience
+       pairing. */
+    expect(getSongPreset("drill-serious")!.form.genre).toBe("Drill");
+    expect(getSongPreset("dancehall-heat")!.form.genre).toBe("Dancehall");
+    const kids = getSongPreset("kids-singalong")!;
+    expect(kids.group).toBe("genre");
+    expect(kids.form.genre).toBe("Kids Music");
+    expect(kids.form.mood).toBe("Kid-Friendly");
+    for (const genre of SONG_PRESET_GENRES) {
+      if (genre === "Other") continue;
+      expect(
+        SONG_PRESETS.some((p) => p.form.genre === genre),
+        `genre covered: ${genre}`,
+      ).toBe(true);
+    }
+    /* Mood axis: all twelve values the select sells now have a
+       preset (the seven Stack 300 entries join the original five;
+       Lo-Fi Chill stays beat-style only by design). */
+    const moodIds: Array<[string, string]> = [
+      ["luxury-life", "Luxury"],
+      ["romantic-serenade", "Romantic"],
+      ["street-anthem", "Street"],
+      ["pain-song", "Pain"],
+      ["inspirational-rise", "Inspirational"],
+      ["funny-banger", "Funny"],
+      ["kid-friendly-pop", "Kid-Friendly"],
+    ];
+    for (const [id, mood] of moodIds) {
+      const preset = getSongPreset(id)!;
+      expect(preset.group, id).toBe("mood");
+      expect(songPresetPatch(preset), id).toEqual({ mood });
+    }
+    for (const mood of SONG_PRESET_MOODS) {
+      expect(
+        SONG_PRESETS.some((p) => p.form.mood === mood),
+        `mood covered: ${mood}`,
+      ).toBe(true);
+    }
+    /* Structure axis: the continuous no-chorus shape and the first
+       two-voice shape, both riding Special Instructions only. */
+    const freestyle = getSongPreset("no-hook-freestyle")!;
+    expect(freestyle.group).toBe("structure");
+    expect(freestyle.form.specialInstructions).toContain("no hook and no chorus");
+    expect(Object.keys(songPresetPatch(freestyle))).toEqual(["specialInstructions"]);
+    const duet = getSongPreset("duet-trade-off")!;
+    expect(duet.group).toBe("structure");
+    expect(duet.form.specialInstructions).toContain("both voices join on the hook");
+    expect(Object.keys(songPresetPatch(duet))).toEqual(["specialInstructions"]);
   });
 
   it("ids and labels are unique; every preset has an emoji and a Simple prompt", () => {
