@@ -973,7 +973,7 @@ export function MakeSongModule() {
                         className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/[0.06] px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 transition-all"
                       >
                         <Mic className="h-4 w-4" />
-                        {t("singingVoice.buttonLabel", { defaultValue: "Singing Voice" })} ({t("singingVoice.buttonCost", { defaultValue: "800 VB · price TBD" })})
+                        {t("singingVoice.buttonLabel", { defaultValue: "Singing Voice" })} ({t("singingVoice.buttonCost", { defaultValue: "800 VB" })})
                       </button>
                       <SingingVoiceModal
                         open={singingOpen}

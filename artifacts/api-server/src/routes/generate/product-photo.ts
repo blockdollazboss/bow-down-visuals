@@ -22,7 +22,7 @@ const router = Router();
 
 /* Site credits per generated product photo. Env-overridable without a deploy.
    PACKSHOT_CREDITS (100) RATIFIED as-is by owner ruling 2026-11-07;
-   LIFESTYLE_CREDITS remains a PLACEHOLDER — not user-approved. */
+   LIFESTYLE_CREDITS (150) RATIFIED as-is by owner ruling 2026-11-07. */
 const PACKSHOT_CREDITS = Number(process.env["PRODUCT_PHOTO_PACKSHOT_CREDITS"]) || 100;
 const LIFESTYLE_CREDITS = Number(process.env["PRODUCT_PHOTO_LIFESTYLE_CREDITS"]) || 150;
 

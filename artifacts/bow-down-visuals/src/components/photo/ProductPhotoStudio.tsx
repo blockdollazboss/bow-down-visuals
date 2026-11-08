@@ -23,8 +23,8 @@ import { r2List } from "@/lib/r2-storage";
    standalone; the host page mounts <ProductPhotoStudio />.
    ───────────────────────────────────────────────────────────────────────── */
 
-/* Packshot price RATIFIED as-is — owner ruling 2026-11-07; the lifestyle
-   price remains a placeholder — NOT user-approved. Report changes here. */
+/* Packshot and lifestyle prices RATIFIED as-is — owner rulings
+   2026-11-07. Report changes here. */
 const PACKSHOT_CREDITS = 100;
 const LIFESTYLE_CREDITS = 150;
 

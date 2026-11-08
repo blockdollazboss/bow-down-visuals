@@ -168,7 +168,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/cover-art": { cost: 200, feature: "Cover Art" },
   "/api/merch/design": { cost: 300, feature: "Merch Design" },
   "/api/stream-pack/generate": { cost: 100, feature: "Stream Pack Generator" },
-  // Photo tool prices RATIFIED as-is — owner ruling 2026-11-07 (headshot, product photo packshot, photo enhance, photo backdrop).
+  // Photo tool prices RATIFIED as-is — owner ruling 2026-11-07 (headshot, product photo packshot + lifestyle, photo enhance, photo backdrop).
   "/api/generate-headshot": { cost: 100, feature: "Headshot" },
   "/api/generate-product-photo": { cost: 100, feature: "Product Photo (Packshot)" },
   "/api/photo-enhance": { cost: 100, feature: "Photo Enhance" },

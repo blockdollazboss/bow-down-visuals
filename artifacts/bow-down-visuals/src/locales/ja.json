@@ -15077,7 +15077,7 @@
   },
   "singingVoice": {
     "buttonLabel": "歌声",
-    "buttonCost": "800 VB · 価格は未定",
+    "buttonCost": "800 VB",
     "title": "歌声",
     "close": "閉じる",
     "notConfigured": "歌声変換はまだ接続されていません — サイトオーナーがプロバイダーキーを追加する必要があります。下の声はサンプルです。変換ボタンはそれまで無効のままで、請求はされません。",
@@ -15085,7 +15085,7 @@
     "loadingVoices": "声を読み込み中…",
     "strengthLabel": "声の強さ",
     "keepInstrumental": "変換されたボーカルの下に私のインストゥルメンタルを保持",
-    "convertButton": "ボーカルを変換（800 VB — 価格は未定）",
+    "convertButton": "Convert vocals (800 VB)",
     "disabledTitle": "有効化するにはプロバイダーキーを接続",
     "working": "ボーカルを変換中…",
     "workingNote": "これはサーバーで実行されます — このウィンドウを閉じても安全です。",

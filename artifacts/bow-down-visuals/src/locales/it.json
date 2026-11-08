@@ -15215,7 +15215,7 @@
   },
   "singingVoice": {
     "buttonLabel": "Voce Cantata",
-    "buttonCost": "800 VB · prezzo da definire",
+    "buttonCost": "800 VB",
     "title": "Voce Cantata",
     "close": "Chiudi",
     "notConfigured": "La conversione in voce cantata non è ancora collegata — il proprietario del sito deve aggiungere una chiave del fornitore. Le voci qui sotto sono esempi; il pulsante Converti resta disattivato fino ad allora. Non ti verrà addebitato nulla.",
@@ -15223,7 +15223,7 @@
     "loadingVoices": "Caricamento delle voci…",
     "strengthLabel": "Intensità della voce",
     "keepInstrumental": "Tieni il mio strumentale sotto la voce convertita",
-    "convertButton": "Converti le voci (800 VB — prezzo da definire)",
+    "convertButton": "Convert vocals (800 VB)",
     "disabledTitle": "Collega una chiave del fornitore per attivare",
     "working": "Conversione delle voci…",
     "workingNote": "Gira sul server — puoi chiudere questa finestra.",
