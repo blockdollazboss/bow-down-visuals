@@ -1,6 +1,6 @@
 import { apiErrorMessage } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Clapperboard, Loader2, Download, AlertTriangle, CheckCircle2,
@@ -74,6 +74,7 @@ export function StreamPackTool() {
      apply toggles that mark graphics for the Go Live studio tray. */
   const [library, setLibrary] = useState<StreamPackAssetRecord[] | null>(null);
   const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [channelName, setChannelName] = useState("");
   const [themes, setThemes] = useState<ThemeInfo[]>([]);
@@ -89,27 +90,31 @@ export function StreamPackTool() {
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [doneCount, setDoneCount] = useState(0);
 
-  /* Load the catalog (free endpoint) — themes + assets + price. */
+  /* Load the catalog (free endpoint) — themes + assets + price. A
+     failed load is an honest error with a retry, never silently
+     empty pickers (the library load below has always done this). */
+  const loadCatalog = useCallback(async () => {
+    try {
+      const res = await fetch("/api/stream-pack/catalog");
+      if (!res.ok) throw new Error(`stream-pack/catalog ${res.status}`);
+      const data = await res.json() as {
+        themes?: ThemeInfo[]; assets?: AssetInfo[]; creditCostPerImage?: number;
+      };
+      if (data.themes?.length) setThemes(data.themes);
+      if (data.assets?.length) {
+        setAssets(data.assets);
+        setSelected(new Set(data.assets.map((a) => a.key)));
+      }
+      if (typeof data.creditCostPerImage === "number") setCreditCost(data.creditCostPerImage);
+      setCatalogError(null);
+    } catch {
+      setCatalogError(t("streamPack.catalogError"));
+    }
+  }, [t]);
+
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/stream-pack/catalog");
-        if (!res.ok) return;
-        const data = await res.json() as {
-          themes?: ThemeInfo[]; assets?: AssetInfo[]; creditCostPerImage?: number;
-        };
-        if (cancelled) return;
-        if (data.themes?.length) setThemes(data.themes);
-        if (data.assets?.length) {
-          setAssets(data.assets);
-          setSelected(new Set(data.assets.map((a) => a.key)));
-        }
-        if (typeof data.creditCostPerImage === "number") setCreditCost(data.creditCostPerImage);
-      } catch { /* fallback: page still renders, generation will surface errors */ }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    void loadCatalog();
+  }, [loadCatalog]);
 
   /* Load the durable library (members only — generation needs an
      account too). A failed load is an honest error with a retry,
@@ -289,6 +294,19 @@ export function StreamPackTool() {
             {t("streamPack.infoBoxA")} <span className="text-white/80 font-semibold">{t("streamPack.infoBoxStatic")}</span> {t("streamPack.infoBoxB")}
           </p>
         </div>
+
+        {catalogError && (
+          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3">
+            <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
+            <p className="text-sm text-red-200/80">{catalogError}</p>
+            <button
+              onClick={() => void loadCatalog()}
+              className="ml-auto shrink-0 rounded-lg border border-white/[0.12] px-3 py-1.5 text-xs font-semibold text-white/70 hover:border-white/25 transition"
+            >
+              {t("streamPack.retry")}
+            </button>
+          </div>
+        )}
 
         {outOfCredits && (
           <div className="mt-4"><OutOfCredits /></div>

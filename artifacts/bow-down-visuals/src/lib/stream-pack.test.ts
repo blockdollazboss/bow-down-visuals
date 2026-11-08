@@ -141,4 +141,14 @@ describe("surface wiring (source pins)", () => {
     expect(panel).toContain("StreamPackTray");
     expect(panel).toContain("<StreamPackTray");
   });
+
+  it("the catalog load fails honestly — an error state with a retry, never silently empty pickers", () => {
+    const page = read("../pages/stream-pack.tsx");
+    expect(page).toContain("catalogError");
+    expect(page).toContain('t("streamPack.catalogError")');
+    expect(page).toContain("loadCatalog");
+    /* The old swallow: silent return on !res.ok and a bare catch fallback. */
+    expect(page).not.toContain("if (!res.ok) return;");
+    expect(page).not.toContain("fallback: page still renders");
+  });
 });

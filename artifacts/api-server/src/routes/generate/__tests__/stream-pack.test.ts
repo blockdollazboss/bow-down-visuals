@@ -45,8 +45,8 @@ describe("STREAM_PACK_CREDIT_COST", () => {
 });
 
 describe("STREAM_PACK_THEMES", () => {
-  it("ships 8 themes with gold-luxury as the default", () => {
-    expect(STREAM_PACK_THEMES).toHaveLength(8);
+  it("ships 10 themes with gold-luxury as the default", () => {
+    expect(STREAM_PACK_THEMES).toHaveLength(10);
     expect(STREAM_PACK_THEMES[0]!.id).toBe("gold-luxury");
   });
 

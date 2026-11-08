@@ -116,6 +116,26 @@ export const STREAM_PACK_THEMES: StreamPackTheme[] = [
       "accents, elegant vintage-club typography, hazy spotlight lighting, late-night premium " +
       "broadcast design",
   },
+  {
+    id: "rose-velvet",
+    name: "Rose Velvet",
+    blurb: "Rose & plum. Glam beauty polish.",
+    swatches: ["#14060f", "#ec4899", "#fbcfe8"],
+    stylePrompt:
+      "glamorous beauty aesthetic, deep plum-black backgrounds, rich rose-pink and blush " +
+      "accents, elegant fashion typography, soft velvet textures, rosy spotlight lighting, " +
+      "luxurious beauty-brand broadcast design",
+  },
+  {
+    id: "obsidian-chrome",
+    name: "Obsidian Chrome",
+    blurb: "Black, silver & white. Pure monochrome.",
+    swatches: ["#050505", "#c0c6ce", "#ffffff"],
+    stylePrompt:
+      "sleek monochrome aesthetic, pure black and charcoal backgrounds, polished silver-chrome " +
+      "and white accents, sharp minimal tech typography, reflective metallic sheen, clean " +
+      "high-contrast esports broadcast design in black and white only",
+  },
 ];
 
 interface StreamPackAsset {
