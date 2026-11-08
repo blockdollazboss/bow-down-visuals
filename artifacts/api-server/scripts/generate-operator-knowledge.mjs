@@ -1198,6 +1198,17 @@ const FEATURE_PRICE_LINKS = [
     endpoint: "/api/memberships/ai-perks",
     attachToFeatureIds: ["memberships"],
   },
+  /* Contract generation (Stack-300 crew 29): the contracts page calls
+     /api/contracts/generate through the world contract-generator helper
+     (lib/world/contract-generator.ts), two hops below the page, so the
+     one-hop scan attributes only /api/contracts/analyze to the
+     contracts feature and the generate rail's registry price (300 VB
+     default, CONTRACT_GENERATION_CREDIT_COST-overridable) would be
+     invisible to the operator. */
+  {
+    endpoint: "/api/contracts/generate",
+    attachToFeatureIds: ["contracts"],
+  },
   {
     endpoint: "/api/royalties/insights",
     attachToFeatureIds: ["tab-royalties"],

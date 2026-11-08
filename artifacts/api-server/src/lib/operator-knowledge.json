@@ -1,29 +1,29 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "f50046150c07b944e39065946a08c204bb54487d",
+  "baseCommit": "19eb57b7491494d1a611207033248c830718bc4d",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-07",
+  "generatedAt": "2026-11-08",
   "counts": {
     "routesInApp": 245,
     "pageFiles": 175,
     "features": 252,
     "excludedRoutes": 76,
     "excludedPageFiles": 24,
-    "pricedActions": 258,
+    "pricedActions": 259,
     "routeFileEndpoints": 17,
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
     "withDescriptions": 252,
     "withoutDescriptions": 0,
-    "serverRouteFiles": 431,
-    "serverEndpoints": 1743,
-    "serverEndpointsVisible": 1091,
+    "serverRouteFiles": 432,
+    "serverEndpoints": 1750,
+    "serverEndpointsVisible": 1097,
     "serverFilesClassified": 98
   },
   "packs": [
@@ -966,6 +966,10 @@
         "/api/generate-artist-image/:param",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
+        "/api/r2/multipart/abort",
+        "/api/r2/multipart/complete",
+        "/api/r2/multipart/init",
+        "/api/r2/multipart/part-url",
         "/api/r2/object",
         "/api/r2/upload",
         "/api/referrals/apply",
@@ -6548,6 +6552,8 @@
         "/api/admin/status",
         "/api/collabs/profiles",
         "/api/contracts/analyze",
+        "/api/contracts/generate",
+        "/api/contracts/generate/status",
         "/api/creator-profiles/me",
         "/api/credits/claim-trial",
         "/api/dev/add-credits",
@@ -6561,6 +6567,12 @@
           "feature": "Contract Analyzer",
           "vb": 300,
           "endpoint": "/api/contracts/analyze",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Contract Generation",
+          "vb": 300,
+          "endpoint": "/api/contracts/generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         }
       ],
@@ -7912,6 +7924,7 @@
         "/api/creator-tiers/history",
         "/api/creator-tiers/me",
         "/api/creator-tiers/plans",
+        "/api/creator-tiers/portal",
         "/api/credits/claim-trial",
         "/api/embedded-checkout/subscription/intent",
         "/api/embedded-checkout/subscription/verify",
@@ -9419,6 +9432,7 @@
         "/api/admin/import-artists",
         "/api/admin/status",
         "/api/content-warning/preferences",
+        "/api/creator-tiers/me",
         "/api/credits/claim-trial",
         "/api/discovery/feed",
         "/api/discovery/feed/prefs",
@@ -12397,6 +12411,7 @@
         "/api/catalog-export/build",
         "/api/content-id/claims",
         "/api/content-id/claims/:param",
+        "/api/creator-hosting/me",
         "/api/creator-profiles/me",
         "/api/creator-tiers/cancel",
         "/api/creator-tiers/change",
@@ -19168,6 +19183,12 @@
         "unseen": []
       },
       {
+        "file": "artifacts/api-server/src/routes/generate/contract-generator.ts",
+        "endpoints": 2,
+        "visible": 2,
+        "unseen": []
+      },
+      {
         "file": "artifacts/api-server/src/routes/generate/copyright.ts",
         "endpoints": 2,
         "visible": 2,
@@ -21265,10 +21286,11 @@
       },
       {
         "file": "artifacts/api-server/src/routes/r2-upload.ts",
-        "endpoints": 4,
-        "visible": 3,
+        "endpoints": 9,
+        "visible": 7,
         "unseen": [
-          "/api/r2/list"
+          "/api/r2/list",
+          "/api/r2/multipart/parts"
         ]
       },
       {
