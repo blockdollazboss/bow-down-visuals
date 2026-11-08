@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, HeadObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand, ListPartsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Readable } from "stream";
 
@@ -77,6 +77,96 @@ export async function r2GetPresignedPutUrl(key: string, contentType: string, exp
     ContentType: contentType,
   });
   return getSignedUrl(s3, command, { expiresIn });
+}
+
+/* ── Multipart uploads (stack300 #67) ─────────────────────────────────────
+   Large uploads used to be a single presigned PUT: a failure at 79 MB of
+   an 80 MB file restarted from byte 0. Multipart splits the file into
+   independently retriable parts — the browser asks this API to init an
+   upload, presigns each part, and completes with the part ETags. A part
+   that fails is re-sent alone; ListParts is the server truth a resumed
+   upload reconciles against. */
+
+export async function r2CreateMultipartUpload(key: string, contentType: string): Promise<string> {
+  const s3 = getR2Client();
+  const res = await s3.send(new CreateMultipartUploadCommand({
+    Bucket: R2_BUCKET,
+    Key: key,
+    ContentType: contentType,
+  }));
+  if (!res.UploadId) throw new Error("R2 did not return a multipart upload id");
+  return res.UploadId;
+}
+
+export async function r2GetPresignedPartUrl(
+  key: string,
+  uploadId: string,
+  partNumber: number,
+  expiresIn = 3600,
+): Promise<string> {
+  const s3 = getR2Client();
+  const command = new UploadPartCommand({
+    Bucket: R2_BUCKET,
+    Key: key,
+    UploadId: uploadId,
+    PartNumber: partNumber,
+  });
+  return getSignedUrl(s3, command, { expiresIn });
+}
+
+export interface R2UploadedPart {
+  partNumber: number;
+  etag: string;
+  size: number;
+}
+
+export async function r2ListParts(key: string, uploadId: string): Promise<R2UploadedPart[]> {
+  const s3 = getR2Client();
+  const parts: R2UploadedPart[] = [];
+  let marker: string | undefined;
+  for (;;) {
+    const res = await s3.send(new ListPartsCommand({
+      Bucket: R2_BUCKET,
+      Key: key,
+      UploadId: uploadId,
+      PartNumberMarker: marker,
+    }));
+    for (const p of res.Parts ?? []) {
+      if (typeof p.PartNumber === "number" && p.ETag) {
+        parts.push({ partNumber: p.PartNumber, etag: p.ETag, size: p.Size ?? 0 });
+      }
+    }
+    if (!res.IsTruncated || !res.NextPartNumberMarker) break;
+    marker = res.NextPartNumberMarker;
+  }
+  return parts.sort((a, b) => a.partNumber - b.partNumber);
+}
+
+export async function r2CompleteMultipartUpload(
+  key: string,
+  uploadId: string,
+  parts: Array<{ partNumber: number; etag: string }>,
+): Promise<string> {
+  const s3 = getR2Client();
+  const sorted = [...parts].sort((a, b) => a.partNumber - b.partNumber);
+  await s3.send(new CompleteMultipartUploadCommand({
+    Bucket: R2_BUCKET,
+    Key: key,
+    UploadId: uploadId,
+    MultipartUpload: {
+      Parts: sorted.map((p) => ({ PartNumber: p.partNumber, ETag: p.etag })),
+    },
+  }));
+  return r2PublicUrl(key);
+}
+
+export async function r2AbortMultipartUpload(key: string, uploadId: string): Promise<void> {
+  const s3 = getR2Client();
+  await s3.send(new AbortMultipartUploadCommand({
+    Bucket: R2_BUCKET,
+    Key: key,
+    UploadId: uploadId,
+  }));
 }
 
 export async function r2GetSignedUrl(key: string, expiresIn = 3600): Promise<string> {
