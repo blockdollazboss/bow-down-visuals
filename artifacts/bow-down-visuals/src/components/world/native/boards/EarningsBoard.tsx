@@ -18,6 +18,7 @@ import { CatalogExportDesk } from "@/components/world/native/CatalogExportDesk";
 import { SuccessionDesk } from "@/components/world/native/SuccessionDesk";
 import { ReferralsDesk } from "@/components/world/native/ReferralsDesk";
 import { PlansDesk } from "@/components/world/native/PlansDesk";
+import HostingDesk from "@/components/world/native/HostingDesk";
 import { TipJarDesk } from "@/components/world/native/TipJarDesk";
 import { ledgerPage } from "@/lib/world/money-desks-2";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
@@ -535,6 +536,13 @@ export function EarningsBoard({ isLight, isGuest }: { isLight: boolean; isGuest:
                 catalog read from its rail, checkout/portal hosted
                 in a new tab, exactly as the pricing page rides it. */}
             <PlansDesk isLight={isLight} />
+
+            {/* Stack 300 #90 (A5): Profile Hosting — the hosting
+                door's World sibling on the /api/creator-hosting
+                rails: status native, embedded checkout in the desk,
+                the billing portal in a new tab at the money moment
+                only, exactly as the pricing-page card rides it. */}
+            <HostingDesk isLight={isLight} />
 
             {/* World Parity P3-F: the catalog-export builder —
                 one kind, the fields you pick, built on the

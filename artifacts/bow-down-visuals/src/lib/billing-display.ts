@@ -42,6 +42,15 @@ export interface BillingStateView {
       be repriced in place Pro ↔ Elite from this card. Optional in the
       view type so older payloads degrade to "no control shown". */
   canChangePlan?: boolean;
+  /** FE-merged (BillingSettings reads GET /creator-hosting/me beside
+      the tier billing state): the member holds a standalone Profile
+      Hosting subscription. The billing state itself is tier-only, so
+      a Free-tier hosting buyer's status reads "free" — but their
+      Hosting subscription sits on the SAME Stripe customer, and the
+      portal (which now resolves that shared customer) manages it.
+      Without this flag the portal entry hid from exactly the buyers
+      the Hosting copy sends to Settings → Billing (Stack 300 A3). */
+  hasHostingSubscription?: boolean;
 }
 
 type BillingDateKind = "renews" | "ends" | "ended" | null;
@@ -94,7 +103,8 @@ export function describeBilling(b: BillingStateView): BillingDisplay {
     dateIso,
     showCancel: b.canCancel,
     showResume: b.canResume,
-    showManagePayment: b.hasStripeCustomer && b.status !== "free",
+    showManagePayment:
+      (b.hasStripeCustomer && b.status !== "free") || b.hasHostingSubscription === true,
     showSeePlans: b.status === "free" || b.status === "canceled" || b.status === "incomplete",
     showChangePlan:
       b.canChangePlan === true && (b.plan === "pro" || b.plan === "elite"),

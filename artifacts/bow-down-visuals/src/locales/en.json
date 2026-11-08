@@ -16475,6 +16475,17 @@
     "refundDoneFallback": "{{amount}} refunded to your original payment method.",
     "refundFailed": "Couldn't refund that card."
   },
+  "worldHostingDesk": {
+    "title": "Profile Hosting",
+    "loading": "Reading your hosting…",
+    "loadFailed": "Your hosting state didn't load.",
+    "tryAgain": "Try again",
+    "manage": "Manage or cancel",
+    "opening": "Opening…",
+    "portalOpened": "Your billing page opened in a new tab — manage or cancel there, then come back.",
+    "portalOpenFailed": "We couldn't open your billing page.",
+    "networkHiccup": "The connection hiccuped — nothing changed. Try again."
+  },
   "worldPlansDesk": {
     "title": "Your site plan",
     "loadFailed": "The plan catalog wouldn't open — your plan is unchanged.",
@@ -24757,6 +24768,11 @@
     "signInPrompt": "Sign in to get Hosting for your page →",
     "loadFailed": "Couldn't load your hosting state — tap to retry.",
     "switchingOn": "Payment received — your Hosting is switching on. This page refreshes itself as soon as it's live.",
+    "switchingOnLate": "Still switching on — payments can take a little longer to land than this page waited. Your Hosting turns on by itself; check again in a moment.",
+    "checkAgain": "Check again",
+    "manageButton": "Manage or cancel",
+    "manageDidntOpen": "We couldn't open your billing page — nothing changed. Try again.",
+    "checkoutUnavailable": "We can't open the payment form right now — that's a problem on our side, not yours. Nothing has been charged.",
     "cancelCheckout": "Cancel — no charge",
     "siteAnchorNote": "Hosting takes it further: your profile page becomes your whole website, on your own domain with clean branding — ${{price}}/month standalone, or included with Creator Elite."
   },

@@ -38,6 +38,11 @@ const HOSTING_KEYS = [
   "adminActive", "hostingActive", "activeUntil", "renewsNote", "buyButton",
   "openingCheckout", "checkoutDidntStart", "notSwitchedOn", "noProfile",
   "signInPrompt", "loadFailed", "switchingOn", "cancelCheckout", "siteAnchorNote",
+  /* Stack 300 (items 88/115/116): the manage door on the active card,
+     the return-poll terminal state + its re-check, and the honest
+     key-missing checkout state. */
+  "switchingOnLate", "checkAgain", "manageButton", "manageDidntOpen",
+  "checkoutUnavailable",
 ] as const;
 
 describe("profile hosting door — reads the rail, buys embedded, never leaves the site", () => {
@@ -95,10 +100,37 @@ describe("profile hosting door — reads the rail, buys embedded, never leaves t
   });
 });
 
+describe("profile hosting — Stack 300 tails (manage door, poll terminal, key-missing state)", () => {
+  it("the active card carries the manage door: portal POST, opened in a new tab (item 88)", () => {
+    expect(card).toContain('fetch("/api/creator-tiers/portal"');
+    expect(card).toContain('window.open(payload.url, "_blank", "noopener,noreferrer")');
+    const activeBranch = card.slice(
+      card.indexOf('{state.kind === "hosting-active" && ('),
+      card.indexOf('{state.kind === "not-switched-on" && ('),
+    );
+    expect(activeBranch).toContain('t("profileHosting.manageButton")');
+    expect(activeBranch).toContain("openManage()");
+  });
+
+  it("the return poll lands in a terminal state with a manual re-check (item 115)", () => {
+    expect(card).toContain("setPollDone(true)");
+    expect(card).toContain('t("profileHosting.switchingOnLate")');
+    expect(card).toContain('t("profileHosting.checkAgain")');
+    /* The live "switching on" note yields once the budget is spent. */
+    expect(card).toContain("returning && !pollDone");
+  });
+
+  it("the key-missing checkout state is honest and makes no retry promise (item 116)", () => {
+    const embBranch = card.slice(card.indexOf("hasStripePublishableKey() ? ("));
+    expect(embBranch).toContain('t("profileHosting.checkoutUnavailable")');
+    expect(embBranch).not.toContain('t("profileHosting.checkoutDidntStart")');
+  });
+});
+
 describe("profile hosting copy — money lines are English verbatim in all 10 catalogs", () => {
   const en = catalog("en")["profileHosting"] as Record<string, string>;
 
-  it("en carries the full 19-key set with the ruled figures by interpolation", () => {
+  it("en carries the full 24-key set with the ruled figures by interpolation", () => {
     expect(Object.keys(en).sort()).toEqual([...HOSTING_KEYS].sort());
     expect(en["pricePerMonth"]).toBe("${{price}}/month");
     expect(en["buyButton"]).toContain("${{price}}");

@@ -61,6 +61,12 @@ export default function ProfileHosting({ isLight }: { isLight: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [returning, setReturning] = useState(false);
+  /* Item 115: once the return-poll budget runs out without the
+     entitlement landing, the card swaps the "switching on" note for
+     a terminal state with a manual re-check — the note never hangs
+     forever with no next step. */
+  const [pollDone, setPollDone] = useState(false);
+  const [manageBusy, setManageBusy] = useState(false);
   const pollRef = useRef(0);
 
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
@@ -120,11 +126,16 @@ export default function ProfileHosting({ isLight }: { isLight: boolean }) {
     const params = new URLSearchParams(window.location.search);
     if (params.get("hosting") !== "return") return;
     setReturning(true);
+    setPollDone(false);
     pollRef.current = 0;
     const timer = setInterval(() => {
       pollRef.current += 1;
       if (pollRef.current > 8) {
         clearInterval(timer);
+        /* Budget exhausted, entitlement still not landed: land the
+           terminal state (item 115) instead of leaving the amber
+           "switching on" note up indefinitely. */
+        setPollDone(true);
         return;
       }
       void loadMe().then((fresh) => {
@@ -160,6 +171,36 @@ export default function ProfileHosting({ isLight }: { isLight: boolean }) {
       setError(t("profileHosting.checkoutDidntStart"));
     } finally {
       setBusy(false);
+    }
+  }
+
+  /* Manage / cancel for the standalone Hosting subscription (Stack
+     300 A3): the renewsNote copy has always pointed hosting buyers at
+     Settings → Billing — this is that same door on the card itself.
+     The billing portal is the sanctioned money-moment exit and opens
+     in a NEW TAB (the PlansDesk precedent); the portal route resolves
+     the SHARED Stripe customer, so a hosting-only buyer now reaches
+     it instead of the old subscription-rows-only 404. */
+  async function openManage() {
+    if (manageBusy) return;
+    setManageBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/creator-tiers/portal", {
+        method: "POST",
+        headers: await authHeaders(),
+        body: JSON.stringify({ returnTo: "/creator-pricing" }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as { url?: string };
+      if (!res.ok || !payload.url) {
+        setError(apiErrorMessage(payload, t("profileHosting.manageDidntOpen")));
+        return;
+      }
+      window.open(payload.url, "_blank", "noopener,noreferrer");
+    } catch {
+      setError(t("profileHosting.manageDidntOpen"));
+    } finally {
+      setManageBusy(false);
     }
   }
 
@@ -247,6 +288,17 @@ export default function ProfileHosting({ isLight }: { isLight: boolean }) {
             )}
           </div>
           <p className={`mt-2 text-xs ${noteCls}`}>{t("profileHosting.renewsNote")}</p>
+          <button
+            onClick={() => { void openManage(); }}
+            disabled={manageBusy}
+            className={`mt-3 rounded-full border px-5 py-2 text-xs font-bold transition disabled:opacity-50 ${isLight ? "border-[#7A5A12]/40 text-[#2A1E07]" : "border-white/25 text-white"}`}
+          >
+            {manageBusy ? (
+              <span className="inline-flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("profileHosting.manageButton")}</span>
+            ) : (
+              t("profileHosting.manageButton")
+            )}
+          </button>
         </div>
       )}
 
@@ -254,9 +306,21 @@ export default function ProfileHosting({ isLight }: { isLight: boolean }) {
         <p className={`mt-5 text-sm ${noteCls}`}>{t("profileHosting.notSwitchedOn")}</p>
       )}
 
-      {returning && state.kind !== "hosting-active" && state.kind !== "elite-included" && state.kind !== "admin-entitled" && (
+      {returning && !pollDone && state.kind !== "hosting-active" && state.kind !== "elite-included" && state.kind !== "admin-entitled" && (
         <div className="mt-5 rounded-xl border border-amber-400/40 bg-amber-400/10 p-4 text-sm text-amber-200">
           {t("profileHosting.switchingOn")}
+        </div>
+      )}
+
+      {pollDone && state.kind !== "hosting-active" && state.kind !== "elite-included" && state.kind !== "admin-entitled" && (
+        <div className="mt-5 rounded-xl border border-amber-400/40 bg-amber-400/10 p-4 text-sm text-amber-200">
+          <p>{t("profileHosting.switchingOnLate")}</p>
+          <button
+            onClick={() => { void loadMe(); }}
+            className="mt-3 rounded-full border border-amber-300/50 px-4 py-1.5 text-xs font-bold text-amber-100 transition hover:bg-amber-400/10"
+          >
+            {t("profileHosting.checkAgain")}
+          </button>
         </div>
       )}
 
@@ -286,8 +350,14 @@ export default function ProfileHosting({ isLight }: { isLight: boolean }) {
           {hasStripePublishableKey() ? (
             <EmbeddedSessionCheckout clientSecret={clientSecret} />
           ) : (
+            /* Item 116: a session exists but the publishable key is
+               missing — a SITE configuration fault that no amount of
+               customer retrying can fix. The old copy here was
+               checkoutDidntStart ("Try again in a minute"), which
+               sent the buyer in circles; this state names it as
+               our-side and makes no retry promise. */
             <div className="rounded-xl border border-red-400/40 bg-red-400/10 p-4 text-sm text-red-200">
-              {t("profileHosting.checkoutDidntStart")}
+              {t("profileHosting.checkoutUnavailable")}
             </div>
           )}
           <button

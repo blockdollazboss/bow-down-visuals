@@ -197,6 +197,46 @@ describe("describeBilling — change plan (stack600 plan-tier-change)", () => {
   });
 });
 
+describe("describeBilling — standalone Hosting buyer (Stack 300 A3)", () => {
+  it("a Free-tier hosting buyer sees the portal entry — their subscription lives on the shared customer", () => {
+    /* The exact broken population: tier state reads Free with no
+       tier customer on the billing row, but the member holds a
+       standalone Hosting subscription (hasHostingSubscription merged
+       from /creator-hosting/me). The manage-payment door is the one
+       the Hosting copy promises them. */
+    const d = describeBilling(state({ hasHostingSubscription: true }));
+    expect(d.status).toBe("free");
+    expect(d.showManagePayment).toBe(true);
+    /* Nothing else changes: still no tier price, no cancel, plans door. */
+    expect(d.isPaid).toBe(false);
+    expect(d.showCancel).toBe(false);
+    expect(d.showSeePlans).toBe(true);
+  });
+
+  it("without the hosting flag a Free member still sees no portal entry", () => {
+    expect(describeBilling(state({})).showManagePayment).toBe(false);
+    expect(describeBilling(state({ hasHostingSubscription: false })).showManagePayment).toBe(false);
+  });
+
+  it("a paid tier member's portal entry is unchanged by the flag", () => {
+    const d = describeBilling(
+      state({
+        plan: "pro",
+        planName: "Pro",
+        priceUsdPerMonth: 12,
+        status: "active",
+        currentPeriodEnd: PERIOD_END,
+        renewalDate: PERIOD_END,
+        hasStripeSubscription: true,
+        hasStripeCustomer: true,
+        canCancel: true,
+        hasHostingSubscription: true,
+      }),
+    );
+    expect(d.showManagePayment).toBe(true);
+  });
+});
+
 describe("formatBillingDate", () => {
   it("formats an ISO period end as a stable UTC date", () => {
     expect(formatBillingDate(PERIOD_END, "en-US")).toBe("Nov 25, 2026");

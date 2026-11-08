@@ -52,6 +52,28 @@ async function legacyCustomerId(profileId: string | null | undefined): Promise<s
   return hosting?.stripeCustomerId ?? null;
 }
 
+/**
+ * Read-only customer resolution for doors that must never MINT a
+ * customer — the billing portal above all: a member who has never
+ * checked out has nothing to manage, and creating a Stripe customer
+ * just to open an empty portal would invent a billing record. Reads
+ * the same sources getOrCreateStripeCustomerForUser trusts, in the
+ * same order (durable mapping → legacy subscription row → legacy
+ * hosting row), and writes nothing. Null = no customer on record
+ * anywhere, so the caller answers its honest "nothing to manage"
+ * state. (Stack 300 A3: the portal read ONLY creator_subscriptions
+ * and 404'd every standalone Hosting buyer, whose customer id lives
+ * on the creator_hosting row / the mapping.)
+ */
+export async function resolveStoredStripeCustomerId(args: {
+  userId: string;
+  profileId?: string | null;
+}): Promise<string | null> {
+  const stored = await storedCustomerId(args.userId);
+  if (stored) return stored;
+  return legacyCustomerId(args.profileId);
+}
+
 /** Insert the mapping; on a race, the winner's id is the one true id. */
 async function persistCustomerId(userId: string, customerId: string): Promise<string> {
   await db
