@@ -169,9 +169,12 @@ describe("2.6–2.8 audio desk contracts", () => {
 
 describe("2.9–2.11 thumbnail + cover contracts", () => {
   it("thumbnail benches ride the studio endpoints with the overlay editor + CTR bench", () => {
-    expect(thumbBenches).toContain('fetch("/api/thumbnail-generator"');
-    expect(thumbBenches).toContain('fetch("/api/wave8/thumbnail-ab/variants"');
-    expect(thumbBenches).toContain('fetch("/api/thumbnail-test"');
+    /* Stack 400 B-03: the four charged rails ride confirmedFetch
+       (the CreditConfirm gates the spend first) — the pins name
+       confirmedFetch, not the bare fetch these used to be. */
+    expect(thumbBenches).toContain('confirmedFetch("/api/thumbnail-generator"');
+    expect(thumbBenches).toContain('confirmedFetch("/api/wave8/thumbnail-ab/variants"');
+    expect(thumbBenches).toContain('confirmedFetch("/api/thumbnail-test"');
     expect(thumbBenches).toContain('data-testid="world-thumbnail-overlay-preview"');
     expect(thumbBenches).toContain('data-testid="world-thumbnail-face-upload"');
     expect(thumbBenches).toContain("ctrPredictionOfResponse");

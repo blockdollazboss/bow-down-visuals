@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, Trophy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { parsePanelPayloadFor } from "@/lib/world/panel-payload";
 import { getThumbnailTemplate } from "@/data/thumbnail-templates";
 import {
@@ -34,7 +35,6 @@ import {
 import {
   DeskSelectField,
   DeskTextField,
-  useDeskAuthHeaders,
 } from "./CreateDeskLeaf";
 import {
   QuestProgressChip,
@@ -54,6 +54,11 @@ import { SchedulerComposeStandalone } from "./SchedulerDesk";
    - the CTR prediction bench (POST /api/thumbnail-test) — the
      page's honest framing kept: a prediction from best practices,
      never a guarantee. Prices from the registry, shown up front.
+   Stack 400 B-03: every charged run rides useConfirmedApi's
+   confirmedFetch — the SAME CreditConfirm the website studio
+   shows (registry cost, member confirms) gates the spend BEFORE
+   the rail is called, on all four rails; a cancelled confirm
+   returns null and the run stops with no charge.
    R2 #10 finish: the bench tells the truth about a batch that
    stopped partway (the server refunds it and returns the landed
    variations — they render as real slots beside failed ones, with
@@ -83,7 +88,7 @@ export function ThumbnailBenches({
   const { t, i18n } = useTranslation();
   const fmtCost = (n: number) => n.toLocaleString(i18n.language);
   const { getAccessToken, refreshProfile } = useAuth();
-  const authHeaders = useDeskAuthHeaders();
+  const { confirmedFetch } = useConfirmedApi();
   const quest = useQuestProgressChip();
   const [prompt, setPrompt] = useState("");
   const [stylePreset, setStylePreset] = useState("bold-text-pop");
@@ -161,11 +166,11 @@ export function ThumbnailBenches({
       const form = new FormData();
       for (const [k, v] of thumbnailGeneratorFields({ prompt, stylePreset, aspectRatio, overlayText, attribution })) form.append(k, v);
       if (faceFile) form.append(THUMBNAIL_FACE_FIELD, faceFile);
-      const res = await fetch("/api/thumbnail-generator", {
+      const res = await confirmedFetch("/api/thumbnail-generator", {
         method: "POST",
-        headers: await authHeaders(),
         body: form,
       });
+      if (!res) return; // the member cancelled the credit confirmation
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
         /* A batch that stopped partway: the server refunded it and
@@ -224,11 +229,12 @@ export function ThumbnailBenches({
     setError(null);
     setWinner(null);
     try {
-      const res = await fetch("/api/wave8/thumbnail-ab/variants", {
+      const res = await confirmedFetch("/api/wave8/thumbnail-ab/variants", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildThumbnailVariantsPayload({ sourceImageUrl: selectedUrl, title: overlayText || prompt, niche: stylePreset })),
       });
+      if (!res) return; // the member cancelled the credit confirmation
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreateMedia.thErrVariants")));
       setVariants(thumbnailVariantsOfResponse(data));
@@ -263,11 +269,11 @@ export function ThumbnailBenches({
       const form = new FormData();
       for (const f of testFiles) form.append(THUMBNAIL_TEST_FIELD, f);
       for (const [k, v] of thumbnailTestFields({ title: overlayText, niche: stylePreset })) form.append(k, v);
-      const res = await fetch("/api/thumbnail-test", {
+      const res = await confirmedFetch("/api/thumbnail-test", {
         method: "POST",
-        headers: await authHeaders(),
         body: form,
       });
+      if (!res) return; // the member cancelled the credit confirmation
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
       if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreateMedia.thErrPredictionLanded")));
       const parsed = ctrPredictionOfResponse(data);
@@ -298,11 +304,11 @@ export function ThumbnailBenches({
       const form = new FormData();
       form.append(THUMBNAIL_IMPROVE_FIELD, file);
       for (const [k, v] of thumbnailImproveFields({ tips })) form.append(k, v);
-      const res = await fetch("/api/thumbnail-test/improve", {
+      const res = await confirmedFetch("/api/thumbnail-test/improve", {
         method: "POST",
-        headers: await authHeaders(),
         body: form,
       });
+      if (!res) return; // the member cancelled the credit confirmation
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
       if (res.status === 402) {
         setError(t("worldCreateMedia.thErrOutOfBucs"));

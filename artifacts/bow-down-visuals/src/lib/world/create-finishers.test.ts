@@ -124,7 +124,9 @@ describe("50 — Thumbnail CTR apply-suggestions rail", () => {
   });
 
   it("the bench posts to the studio's improve rail at the registry price", () => {
-    expect(thumbBenches).toContain('fetch("/api/thumbnail-test/improve"');
+    /* Stack 400 B-03: the improve rail rides confirmedFetch too —
+       the CreditConfirm gates the spend before the rail is called. */
+    expect(thumbBenches).toContain('confirmedFetch("/api/thumbnail-test/improve"');
     expect(thumbBenches).toContain("thumbnailImproveCost()");
     expect(thumbBenches).toContain("thumbnailImproveFields(");
     expect(thumbBenches).toContain('data-testid="world-thumbnail-ctr-apply"');
