@@ -197,7 +197,13 @@ router.post("/membership-gifts/checkout", requireAuth, publicApiLimiter, async (
   try {
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      ui_mode: "embedded",
+      /* ui_mode "embedded_page" — Stripe's current documented value
+         for an embedded Checkout Session. The retired "embedded"
+         value this rail originally sent is rejected by the API
+         (C-39, Stack 400: the same defect the staging log proved
+         against profile-hosting, Nov 8 — this rail could never have
+         created a session live). */
+      ui_mode: "embedded_page",
       line_items: [
         {
           price_data: {

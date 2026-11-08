@@ -14,8 +14,23 @@
  *    window and null after period_end (no cron, no writes).
  *  - collision: a second gift QUEUES behind the active gift (starts
  *    exactly when the first ends — no paid time lost, none doubled);
- *    checkout is embedded (ui_mode=embedded, mode=payment — never a
- *    subscription, never a hosted-page redirect).
+ *    checkout is embedded (ui_mode=embedded_page, mode=payment —
+ *    never a subscription, never a hosted-page redirect).
+ *
+ * ACCEPTANCE-FAITHFUL DOUBLE (Stack 400, item C-39 audit): the
+ * guarded-client double below used to accept ANY session params —
+ * so this suite stayed green while the route sent ui_mode
+ * "embedded", a value Stripe has retired (the Nov 8 staging log
+ * proved the rejection against the sibling hosting rail:
+ * StripeInvalidRequestError, param ui_mode). The route now sends
+ * "embedded_page" (fixed in this wave), and the double VALIDATES
+ * the param the real API validates — the ui_mode rule is written
+ * from Stripe's current API documentation, never from the route:
+ * any value other than the documented "hosted" / "embedded_page"
+ * is rejected with the same Stripe-shaped error the live API
+ * returns, and no session is stored for a rejected create. (The
+ * gifts rail uses price_data, so the price-set and tax-code rules
+ * of the hosting suite's double have nothing to bind to here.)
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import express from "express";
@@ -48,12 +63,31 @@ vi.mock("@workspace/db", async (importOriginal) => {
 
 vi.mock("../../lib/stripe-client", async (importOriginal) => {
   const actual = await importOriginal<any>();
+  /* ACCEPTANCE-FAITHFUL at the ui_mode boundary (C-39): the real
+     API only accepts Stripe's currently documented ui_mode values
+     ("hosted", "embedded_page"); the retired "embedded" is
+     rejected with a StripeInvalidRequestError naming the param —
+     the exact error the live API returned on staging (Nov 8).
+     A rejected create stores NO session and records NO params. */
+  function validateSessionParams(params: any): void {
+    if (params.ui_mode !== undefined && params.ui_mode !== "hosted" && params.ui_mode !== "embedded_page") {
+      const err: any = new Error(
+        `The ui_mode value '${params.ui_mode}' is no longer supported. Use 'embedded_page' instead.`,
+      );
+      err.type = "StripeInvalidRequestError";
+      err.code = "parameter_invalid";
+      err.param = "ui_mode";
+      err.statusCode = 400;
+      throw err;
+    }
+  }
   return {
     ...actual,
     createGuardedStripeClient: () => ({
       checkout: {
         sessions: {
           create: async (params: any) => {
+            validateSessionParams(params);
             h.sessionSeq += 1;
             const id = `cs_test_gift_${h.sessionSeq}`;
             const session = {
@@ -271,7 +305,7 @@ describe("checkout → verify: grant exactly once", () => {
     expect(r.json.noRenewCopy).toContain("does not auto-renew");
     const params = h.createdParams[0];
     expect(params.mode).toBe("payment");
-    expect(params.ui_mode).toBe("embedded");
+    expect(params.ui_mode).toBe("embedded_page");
     expect(params.line_items[0].price_data.unit_amount).toBe(1200);
     expect(params.metadata.kind).toBe("membership_gift");
     expect(params.metadata.recipient_user_id).toBe(RECIPIENT);
@@ -403,5 +437,43 @@ describe("recipient device ping (fan-out truth, stack1100 Y3)", () => {
     } finally {
       __setMembershipGiftPushGate(null);
     }
+  });
+});
+
+describe("C-39 — the acceptance-faithful double (the seam the old suite faked)", () => {
+  it("the double rejects the retired ui_mode value with Stripe's documented error shape — no session is stored", async () => {
+    /* Reach the double the only way anything reaches Stripe here:
+       through the guarded client the route uses. A create carrying
+       the retired value must throw the live API's rejection; the
+       current value must succeed. */
+    const { createGuardedStripeClient } = await import("../../lib/stripe-client");
+    const stripe: any = createGuardedStripeClient();
+    await expect(
+      stripe.checkout.sessions.create({
+        mode: "payment",
+        ui_mode: "embedded",
+        metadata: { amount_cents: "1200" },
+      }),
+    ).rejects.toMatchObject({
+      type: "StripeInvalidRequestError",
+      param: "ui_mode",
+      message: expect.stringContaining("no longer supported"),
+    });
+    expect(h.sessions.size).toBe(0);
+    const accepted = await stripe.checkout.sessions.create({
+      mode: "payment",
+      ui_mode: "embedded_page",
+      metadata: { amount_cents: "1200" },
+    });
+    expect(accepted.client_secret).toContain("_secret");
+    expect(h.sessions.size).toBe(1);
+  });
+
+  it("source guard: the route sends ui_mode \"embedded_page\" and never the retired value", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const src = fs.readFileSync(path.join(__dirname, "..", "membership-gifts.ts"), "utf8");
+    expect(src).toContain('ui_mode: "embedded_page"');
+    expect(src).not.toContain('ui_mode: "embedded"');
   });
 });
