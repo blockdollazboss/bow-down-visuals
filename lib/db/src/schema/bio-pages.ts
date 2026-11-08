@@ -73,6 +73,8 @@ export const BIO_THEMES = [
   { key: "cobalt-stage", label: "Cobalt Stage", blurb: "Deep cobalt with silver-gold trim — cool stage light" },
   { key: "mint-atelier", label: "Mint Atelier", blurb: "Pale mint with antique gold — a fresh, tailored light look" },
   { key: "amber-dusk", label: "Amber Dusk", blurb: "Burnt amber over espresso — sunset turned after-dark" },
+  { key: "violet-reign", label: "Violet Reign", blurb: "Deep violet with gold trim — the royal purple look" },
+  { key: "sky-atrium", label: "Sky Atrium", blurb: "Pale sky blue with antique gold — a bright, open light look" },
 ] as const;
 export const BIO_THEME_KEYS = new Set(BIO_THEMES.map((t) => t.key));
 

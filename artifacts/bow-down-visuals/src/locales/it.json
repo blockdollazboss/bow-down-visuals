@@ -14195,7 +14195,11 @@
     "tplTimelineName": "Timeline Journey",
     "tplTimelineDesc": "Dated milestones on one rising road — where you started, where you stand.",
     "tplProsConsName": "Pros & Cons",
-    "tplProsConsDesc": "One subject, both sides — the case for, the case against, the verdict."
+    "tplProsConsDesc": "One subject, both sides — the case for, the case against, the verdict.",
+    "tplAgendaName": "Event Agenda",
+    "tplAgendaDesc": "One slide per time slot — doors, set times and speakers, right on the clock.",
+    "tplWrappedName": "Wrapped Recap",
+    "tplWrappedDesc": "Your month or year in posts — the biggest moments, counted and retold."
   },
   "fomoFeed": {
     "active_recently": "{{count}} creator attivi negli ultimi {{mins}} min",
@@ -15826,7 +15830,11 @@
       "mintAtelier": "Mint Atelier",
       "mintAtelierBlurb": "Pale mint with antique gold — a fresh, tailored light look",
       "amberDusk": "Amber Dusk",
-      "amberDuskBlurb": "Burnt amber over espresso — sunset turned after-dark"
+      "amberDuskBlurb": "Burnt amber over espresso — sunset turned after-dark",
+      "violetReign": "Violet Reign",
+      "violetReignBlurb": "Deep violet with gold trim — the royal purple look",
+      "skyAtrium": "Sky Atrium",
+      "skyAtriumBlurb": "Pale sky blue with antique gold — a bright, open light look"
     },
     "links": {
       "title": "Link",

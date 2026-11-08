@@ -881,6 +881,8 @@ export const BIO_PAGE_THEMES = [
   { key: "cobalt-stage", label: "Cobalt Stage" },
   { key: "mint-atelier", label: "Mint Atelier" },
   { key: "amber-dusk", label: "Amber Dusk" },
+  { key: "violet-reign", label: "Violet Reign" },
+  { key: "sky-atrium", label: "Sky Atrium" },
 ] as const;
 
 export const BIO_SOCIAL_FIELDS = [
