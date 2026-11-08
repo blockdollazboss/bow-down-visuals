@@ -61,9 +61,9 @@ describe("statementLineRows — the PDF's lines, shared by both in-page viewers"
   it("carries the PDF route's labels in the PDF's order, whatever order the payload used", () => {
     expect(statementLineRows(stmt).map((r) => r.label)).toEqual([
       "Store sales",
-      "Shop sales",
+      "Shop sales (profile store, shops, digital)",
       "Memberships",
-      "Brand deals",
+      "Brand deals (escrow released)",
       "Royalties (recorded)",
     ]);
     expect(statementLineRows(stmt).map((r) => r.key)).toEqual([
@@ -107,12 +107,12 @@ describe("statementLineRows — the PDF's lines, shared by both in-page viewers"
     expect(statementLineRows(full).map((r) => r.label)).toEqual([
       "Store sales",
       "Digital sales",
-      "Shop sales",
-      "Beat licenses",
+      "Shop sales (profile store, shops, digital)",
+      "Beats (licenses sold)",
       "Memberships",
       "Shoutouts",
       "Tip jar tips",
-      "Brand deals",
+      "Brand deals (escrow released)",
       "UGC briefs",
       "Royalties (recorded)",
     ]);

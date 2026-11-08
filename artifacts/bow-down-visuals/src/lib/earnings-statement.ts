@@ -57,14 +57,17 @@ export function statementFromPayload(payload: unknown): EarningsStatement | null
 const STATEMENT_SOURCE_LINES: ReadonlyArray<{ key: string; label: string }> = [
   { key: "storeSales", label: "Store sales" },
   { key: "digitalSales", label: "Digital sales" },
-  { key: "shopSales", label: "Shop sales" },
-  { key: "beats", label: "Beat licenses" },
+  /* Stack-400 A-05: the cards' "Store sales" card breaks its total
+     down into profile store / shop / digital store, so statement and
+     cards agree when this line names the same shop component. */
+  { key: "shopSales", label: "Shop sales (profile store, shops, digital)" },
+  { key: "beats", label: "Beats (licenses sold)" },
   { key: "memberships", label: "Memberships" },
   { key: "shoutouts", label: "Shoutouts" },
   { key: "tipJar", label: "Tip jar tips" },
-  { key: "brandDeals", label: "Brand deals" },
+  { key: "brandDeals", label: "Brand deals (escrow released)" },
   { key: "ugcBriefs", label: "UGC briefs" },
-  { key: "bookings", label: "Performance bookings" },
+  { key: "bookings", label: "Performance bookings (escrow released)" },
   { key: "royalties", label: "Royalties (recorded)" },
 ];
 
@@ -89,7 +92,8 @@ export function statementStringsFrom(tr: (key: string) => string): StatementStri
     labels: {
       storeSales: tr("earnings.stmtStoreSales"),
       digitalSales: tr("earnings.stmtDigitalSales"),
-      shopSales: tr("earnings.stmtShopSales"),
+      shopSales: tr("earnings.stmtShopSalesFull"),
+      bookings: tr("earnings.stmtBookings"),
       beats: tr("earnings.stmtBeats"),
       memberships: tr("earnings.stmtMemberships"),
       shoutouts: tr("earnings.stmtShoutouts"),
