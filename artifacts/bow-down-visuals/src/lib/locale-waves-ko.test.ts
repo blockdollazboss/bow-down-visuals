@@ -323,7 +323,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "voiceover.creditsEstimate", "scheduler.bestTime.cost", "scheduler.bestTime.bucs",
     "myProjects.visualBucsUsed", "mashup.priceBadge",
     // proper-noun / example placeholders (incl. example lyrics)
-    "beatMaker.titlePlaceholder", "beatMaker.bpmValue", "beatMaker.presetRnB", "beatMaker.presetJerseyClub", "beatMaker.presetLofi", "beats.titlePlaceholder",
+    "beatMaker.titlePlaceholder", "beatMaker.bpmValue", "beatMaker.presetRnB", "beatMaker.presetJerseyClub", "beatMaker.presetLofi", "beatMaker.presetPop", "beatMaker.presetEdm", "beatMaker.presetDancehall", "beats.titlePlaceholder",
     "beats.keyPlaceholder", "beats.moodTagsPlaceholder", "lyricVideo.lyricsPlaceholder",
     // brand fragment / house mode names / punctuation
     "beatMaker.soundBankComing",

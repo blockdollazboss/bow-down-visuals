@@ -118,17 +118,16 @@ describe("photo develop presets — real parameters, real ranges", () => {
 });
 
 describe("photo develop presets — Stack 200 U2: the cool grade and the neutral mono", () => {
-  it("the shelf carries 8 looks, the two new ones included", () => {
-    expect(PHOTO_DEVELOP_PRESETS).toHaveLength(8);
+  it("the shelf carries the two U2 looks", () => {
     expect(photoDevelopPresetById("teal-shadow")).not.toBeNull();
     expect(photoDevelopPresetById("silver-noir")).not.toBeNull();
   });
 
-  it("teal-shadow is the registry's cool grade — the coldest temperature on the shelf", () => {
+  it("teal-shadow is a mid cool grade — colder than every warm/neutral entry (Stack 300's blue-hour pushed past it)", () => {
     const teal = photoDevelopPresetById("teal-shadow")!;
     expect(teal.develop.temperature).toBeLessThan(0);
     for (const p of PHOTO_DEVELOP_PRESETS) {
-      if (p.id !== "teal-shadow") {
+      if (p.id !== "teal-shadow" && p.id !== "blue-hour") {
         expect(teal.develop.temperature, `${p.id} is colder`).toBeLessThan(p.develop.temperature);
       }
     }
@@ -217,5 +216,60 @@ describe("photo develop presets — the editor shelf wiring", () => {
     expect(registry).not.toContain("fetch(");
     expect(registry).not.toContain('"/api/'); // quoted path = code; the header's prose mention is documentation
     expect(editor).not.toMatch(/builtin[^)]*confirmedFetch/);
+  });
+});
+
+describe("photo develop presets — Stack 300: the loud grade, the portrait grade, the far-cool grade", () => {
+  /* The Stack 300 census proved three wholly unoccupied regions:
+     saturation above +22 (every entry neutral, muted or mono), the
+     low-contrast + lifted-lightness portrait region, and the
+     far-cool/dark end of the temperature×exposure plane. */
+  it("the shelf carries 11 looks, the three new ones included", () => {
+    expect(PHOTO_DEVELOP_PRESETS).toHaveLength(11);
+    expect(photoDevelopPresetById("vivid-pop")).not.toBeNull();
+    expect(photoDevelopPresetById("soft-portrait")).not.toBeNull();
+    expect(photoDevelopPresetById("blue-hour")).not.toBeNull();
+  });
+
+  it("vivid-pop owns the loud end — the highest saturation on the shelf, and it stays a color grade", () => {
+    const vivid = photoDevelopPresetById("vivid-pop")!;
+    expect(vivid.develop.saturation).toBe(48);
+    for (const p of PHOTO_DEVELOP_PRESETS) {
+      if (p.id !== "vivid-pop") {
+        expect(vivid.develop.saturation, `${p.id} is louder`).toBeGreaterThan(p.develop.saturation);
+      }
+    }
+    /* loud, not faded: exposure and contrast lift with the color */
+    expect(vivid.develop.exposure).toBeGreaterThan(0);
+    expect(vivid.develop.contrast).toBeGreaterThan(0);
+  });
+
+  it("soft-portrait owns the soft region — the lowest contrast and the highest lightness on the shelf", () => {
+    const soft = photoDevelopPresetById("soft-portrait")!;
+    for (const p of PHOTO_DEVELOP_PRESETS) {
+      if (p.id !== "soft-portrait") {
+        expect(soft.develop.contrast, `${p.id} is softer`).toBeLessThan(p.develop.contrast);
+        expect(soft.develop.lightness, `${p.id} lifts more`).toBeGreaterThan(p.develop.lightness);
+      }
+    }
+    /* face-first: gentle warmth, saturation near-neutral so skin stays true */
+    expect(soft.develop.temperature).toBeGreaterThan(0);
+    expect(Math.abs(soft.develop.saturation)).toBeLessThanOrEqual(5);
+  });
+
+  it("blue-hour is the far-cool end — the coldest temperature and the darkest exposure on the shelf", () => {
+    const blue = photoDevelopPresetById("blue-hour")!;
+    expect(blue.develop.temperature).toBe(-62);
+    expect(blue.develop.exposure).toBe(-0.55);
+    for (const p of PHOTO_DEVELOP_PRESETS) {
+      if (p.id !== "blue-hour") {
+        expect(blue.develop.temperature, `${p.id} is colder`).toBeLessThan(p.develop.temperature);
+        expect(blue.develop.exposure, `${p.id} is darker`).toBeLessThan(p.develop.exposure);
+      }
+    }
+    /* still a COLOR grade — it is not silver-noir wearing blue */
+    expect(blue.develop.saturation).toBeGreaterThan(-100);
+    expect(blue.develop).not.toEqual(photoDevelopPresetById("silver-noir")!.develop);
+    expect(blue.develop).not.toEqual(photoDevelopPresetById("teal-shadow")!.develop);
   });
 });

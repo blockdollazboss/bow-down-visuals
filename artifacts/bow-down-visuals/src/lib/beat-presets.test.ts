@@ -1088,10 +1088,11 @@ describe("beat preset registry — note-for-note the originals", () => {
     expect(new Set(BEAT_GENRES).size).toBe(BEAT_GENRES.length);
   });
 
-  it("carries the 5 originals first, in picker order, then the Stack 200 U2 additions", () => {
+  it("carries the 5 originals first, in picker order, then the Stack 200 U2 and Stack 300 additions", () => {
     expect(BEAT_PRESET_IDS).toEqual([
       "trap", "drill", "boombap", "afrobeats", "house",
       "rnb", "jersey-club", "lofi",
+      "pop", "edm", "dancehall",
     ]);
     expect(Object.keys(BEAT_PRESETS).slice(0, 5)).toEqual(Object.keys(FIXTURE_PRESETS));
   });
@@ -1160,11 +1161,13 @@ describe("beat preset registry — playback shape invariants", () => {
       }
     }
     /* 13 original seed notes + rnb's 6 (4 keys + 2 pad) + lofi's 5
-       (3 keys + 2 pad); jersey-club carries no seed. */
-    expect(ids.size).toBe(24);
+       (3 keys + 2 pad); jersey-club carries no seed. Stack 300:
+       pop's 8 (4 keys + 4 pluck) + edm's 6 (4 keys + 2 pad);
+       dancehall carries no seed. */
+    expect(ids.size).toBe(38);
   });
 
-  it("labels and tempos: the originals, then the U2 additions in picker order", () => {
+  it("labels and tempos: the originals, then the U2 and Stack 300 additions in picker order", () => {
     expect(Object.values(BEAT_PRESETS).map((p) => p.nameKey)).toEqual([
       "beatMaker.presetTrap",
       "beatMaker.presetDrill",
@@ -1174,8 +1177,11 @@ describe("beat preset registry — playback shape invariants", () => {
       "beatMaker.presetRnB",
       "beatMaker.presetJerseyClub",
       "beatMaker.presetLofi",
+      "beatMaker.presetPop",
+      "beatMaker.presetEdm",
+      "beatMaker.presetDancehall",
     ]);
-    expect(Object.values(BEAT_PRESETS).map((p) => p.bpm)).toEqual([140, 142, 92, 102, 124, 92, 140, 82]);
+    expect(Object.values(BEAT_PRESETS).map((p) => p.bpm)).toEqual([140, 142, 92, 102, 124, 92, 140, 82, 112, 128, 102]);
     for (const p of Object.values(BEAT_PRESETS)) expect(p.fallback.length).toBeGreaterThan(0);
   });
 
@@ -1248,5 +1254,57 @@ describe("beat preset registry — Stack 200 U2: the pattern-less genres get pat
     expect(BEAT_PRESETS.rnb.fallback).toBe("R&B");
     expect(BEAT_PRESETS["jersey-club"].fallback).toBe("Jersey Club");
     expect(BEAT_PRESETS.lofi.fallback).toBe("Lo-Fi");
+  });
+});
+
+describe("beat preset registry — Stack 300: the last three pattern-less genres get patterns", () => {
+  /* BEAT_GENRES still named pop, edm and dancehall with no pattern —
+     the Stack 300 census proved them the last three (hip-hop is
+     served by boombap, its classic named form). These pins hold the
+     closure: after this wave every BEAT_GENRES entry a creator can
+     pick has a starting pattern to load. */
+  it("every formerly pattern-less genre now resolves to a real preset", () => {
+    expect(BEAT_GENRES).toContain("pop");
+    expect(BEAT_GENRES).toContain("edm");
+    expect(BEAT_GENRES).toContain("dancehall");
+    expect(beatPresetById("pop")).toBe(BEAT_PRESETS.pop);
+    expect(beatPresetById("edm")).toBe(BEAT_PRESETS.edm);
+    expect(beatPresetById("dancehall")).toBe(BEAT_PRESETS.dancehall);
+  });
+
+  it("the new tempos sit in each genre's real range", () => {
+    expect(BEAT_PRESETS.pop.bpm).toBeGreaterThanOrEqual(100);
+    expect(BEAT_PRESETS.pop.bpm).toBeLessThanOrEqual(120);
+    expect(BEAT_PRESETS.edm.bpm).toBeGreaterThanOrEqual(122);
+    expect(BEAT_PRESETS.edm.bpm).toBeLessThanOrEqual(135);
+    expect(BEAT_PRESETS.dancehall.bpm).toBeGreaterThanOrEqual(95);
+    expect(BEAT_PRESETS.dancehall.bpm).toBeLessThanOrEqual(110);
+  });
+
+  it("the Stack 300 additions seed melody where the genre wants one (pop + edm; dancehall none)", () => {
+    expect(BEAT_PRESETS.pop.melody).toBeDefined();
+    expect(BEAT_PRESETS.edm.melody).toBeDefined();
+    expect(BEAT_PRESETS.dancehall.melody).toBeUndefined();
+  });
+
+  it("dancehall's signature is its 3+3+2 kick pulse in both halves of the bar", () => {
+    const kick = BEAT_PRESETS.dancehall.grid[0]!;
+    for (const step of [0, 3, 6, 8, 11, 14]) expect(kick[step]).toBeGreaterThan(0);
+    /* and it is NOT afrobeats' four-beat kick wearing a new name */
+    expect(BEAT_PRESETS.dancehall.grid[0]).not.toEqual(BEAT_PRESETS.afrobeats.grid[0]);
+    expect(BEAT_PRESETS.dancehall.grid).not.toEqual(BEAT_PRESETS.afrobeats.grid);
+  });
+
+  it("edm drives four-on-the-floor with a crash on step 0 — house's groove does not cover it", () => {
+    const kick = BEAT_PRESETS.edm.grid[0]!;
+    for (const step of [0, 4, 8, 12]) expect(kick[step]).toBe(2);
+    expect(BEAT_PRESETS.edm.grid[8]![0]).toBeGreaterThan(0);
+    expect(BEAT_PRESETS.edm.grid).not.toEqual(BEAT_PRESETS.house.grid);
+  });
+
+  it("the new fallbacks are the genre names the picker shows", () => {
+    expect(BEAT_PRESETS.pop.fallback).toBe("Pop");
+    expect(BEAT_PRESETS.edm.fallback).toBe("EDM");
+    expect(BEAT_PRESETS.dancehall.fallback).toBe("Dancehall");
   });
 });

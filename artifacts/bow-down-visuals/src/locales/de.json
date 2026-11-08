@@ -2114,7 +2114,10 @@
     "soundSessionOnlyShort": "this session only",
     "presetRnB": "R&B",
     "presetJerseyClub": "Jersey Club",
-    "presetLofi": "Lo-Fi"
+    "presetLofi": "Lo-Fi",
+    "presetPop": "Pop",
+    "presetEdm": "EDM",
+    "presetDancehall": "Dancehall"
   },
   "beats": {
     "aiSuggestsPrefix": "KI schlägt vor: ",
