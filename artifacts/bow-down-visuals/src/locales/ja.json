@@ -561,7 +561,7 @@
       },
       {
         "title": "配信する",
-        "body": "Spotify、Apple Music、YouTubeなどへの音楽配信 — 近日開始。"
+        "body": "Music distribution to Spotify, Apple Music, YouTube & more — live now, priced per release. Only the Distribute Unlimited plan ($399/yr) is still on the way."
       },
       {
         "title": "守る",
@@ -1482,7 +1482,7 @@
   },
   "analyticsHub": {
     "pageTitle": "Analytics Hub — クロスプラットフォームダッシュボード",
-    "pageDescription": "TikTok、Instagram、YouTube、Xを1つのダッシュボードで追跡し、実数に基づくAI成長プランをゲット。",
+    "pageDescription": "Your TikTok, Instagram, YouTube, and X numbers in one dashboard — entered by you or imported from a CSV — plus an AI growth plan built on your real numbers.",
     "fields": {
       "followers": "フォロワー",
       "views7d": "再生数（7日）",
@@ -1507,7 +1507,7 @@
     "errorGrowthPlanFailed": "成長プランに失敗しました — もう一度お試しください。",
     "heroEyebrow": "クリエイターツール",
     "heroTitle": "分析ハブ",
-    "heroSubtitle": "全プラットフォーム、1つのダッシュボード — TikTok、Instagram、YouTube、X。トラッキングは永久無料。AI成長プランは{{cost}} Visual Bucs。",
+    "heroSubtitle": "Every platform, one dashboard — TikTok, Instagram, YouTube, and X. Add your numbers by hand or import a CSV; platform connections are coming soon. Tracking is free forever; the AI Growth Plan is {{cost}} Visual Bucs.",
     "addNumbers": "数字を入力",
     "totalFollowers": "総フォロワー数",
     "acrossPlatforms": "4プラットフォーム合計",
@@ -14455,7 +14455,7 @@
     "generateCta": "背景を生成",
     "generating": "背景を生成中…",
     "backdropFailed": "背景の生成に失敗しました。",
-    "priceTbdNote": "下書き価格 — 最終ではありません。無料の色とグラデーションは一切料金がかかりません。",
+    "freeColorsNote": "Free colors and gradients never cost anything.",
     "composeFailed": "最終画像を合成できませんでした。",
     "compositing": "合成中…",
     "result": "あなたの新しい写真",

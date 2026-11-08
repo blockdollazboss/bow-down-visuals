@@ -561,7 +561,7 @@
       },
       {
         "title": "Distributieren",
-        "body": "Musik-Distribution an Spotify, Apple Music, YouTube & mehr — kommt bald."
+        "body": "Music distribution to Spotify, Apple Music, YouTube & more — live now, priced per release. Only the Distribute Unlimited plan ($399/yr) is still on the way."
       },
       {
         "title": "Schützen",
@@ -1606,14 +1606,14 @@
     "growthPlanDescription": "Ein Stratege, der deine echten Zahlen liest und dir genau sagt, wo du als Nächstes Gas geben sollst.",
     "growthPlanTitle": "KI-Wachstumsplan",
     "heroEyebrow": "Creator Tools",
-    "heroSubtitle": "Jede Plattform, ein Dashboard – TikTok, Instagram, YouTube und X. Tracking ist für immer kostenlos; der KI-Wachstumsplan kostet {{cost}} Visual Bucs.",
+    "heroSubtitle": "Every platform, one dashboard — TikTok, Instagram, YouTube, and X. Add your numbers by hand or import a CSV; platform connections are coming soon. Tracking is free forever; the AI Growth Plan is {{cost}} Visual Bucs.",
     "heroTitle": "Analytics Hub",
     "hookStudio": "Hook Studio",
     "importCsv": "CSV importieren",
     "importCsvTitle": "CSV importieren: platform,followers,views7d,views30d,engagementRate,topPostViews (Header optional)",
     "last30Days": "letzte 30 Tage, alle Plattformen",
     "noDataYet": "noch keine Daten",
-    "pageDescription": "Tracke TikTok, Instagram, YouTube und X in einem Dashboard und hol dir einen KI-Wachstumsplan auf Basis deiner echten Zahlen.",
+    "pageDescription": "Your TikTok, Instagram, YouTube, and X numbers in one dashboard — entered by you or imported from a CSV — plus an AI growth plan built on your real numbers.",
     "pageTitle": "Analytics Hub — Plattformübergreifendes Dashboard",
     "planCostNote": "{{cost}} Visual Bucs pro Plan · basiert auf deinen echten Zahlen · von Thy Cheat Code",
     "platformUpdated": "{{platform}} aktualisiert – Snapshot gespeichert.",
@@ -15076,7 +15076,7 @@
     },
     "noOutput": "Kein Ausgabebild zurückgegeben.",
     "photoReady": "Foto bereit",
-    "priceTbdNote": "Entwurfspreis — nicht final. Kostenlose Farben und Verläufe kosten niemals etwas.",
+    "freeColorsNote": "Free colors and gradients never cost anything.",
     "promptPlaceholder": "Beschreibe den Hintergrund — z. B. goldene Wüstendünen bei Morgengrauen, weiches Licht",
     "provider": "Modell",
     "removeCta": "Hintergrund entfernen",

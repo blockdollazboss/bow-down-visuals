@@ -1159,9 +1159,21 @@ describe("admin — full parity, no untranslated English residue, single-brace t
      Engagement/Trend in this catalog.
    - fr tabIntelligence "Intelligence" and competitor.notesLabel
      "Notes": spelled identically in French (the same class as fr
-     playlistPitch's "Description" / "Genre"). */
+     playlistPitch's "Description" / "Genre").
+   - pageDescription + heroSubtitle (ALL nine, Stack 400 lane 1,
+     A-03): the Analytics Hub money/honesty copy — the hub's intake
+     truth (manual entry / CSV import; platform connections not yet
+     live) and the growth-plan price line. Under the money-copy law
+     these two keys carry the ENGLISH SOURCE VERBATIM in every
+     catalog, flagged UNREVIEWED as translations, never
+     agent-drafted — the same treatment as profileHosting. */
+/* Stack 400 lane 1 (A-03): the two Analytics Hub keys whose copy the
+   money-copy law carries English-verbatim UNREVIEWED in every catalog
+   (see the header note above) — identical to en BY DESIGN in all nine. */
+const AH_MONEY_COPY_KEYS = ["pageDescription", "heroSubtitle"] as const;
+
 const AH_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
-  ar: ["hookStudio", "milestones.loggedFrom"],
+  ar: ["hookStudio", "milestones.loggedFrom", ...AH_MONEY_COPY_KEYS],
   de: [
     "fields.engagementRate",
     "heroTitle",
@@ -1170,16 +1182,18 @@ const AH_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "hookStudio",
     "tabDashboard",
     "milestones.loggedFrom",
+    ...AH_MONEY_COPY_KEYS,
   ],
-  es: ["milestones.loggedFrom"],
+  es: ["milestones.loggedFrom", ...AH_MONEY_COPY_KEYS],
   fr: [
     "fields.engagementRate",
     "statEngagement",
     "tabIntelligence",
     "competitor.notesLabel",
     "milestones.loggedFrom",
+    ...AH_MONEY_COPY_KEYS,
   ],
-  hi: ["hookStudio", "milestones.loggedFrom"],
+  hi: ["hookStudio", "milestones.loggedFrom", ...AH_MONEY_COPY_KEYS],
   it: [
     "fields.engagementRate",
     "heroTitle",
@@ -1189,10 +1203,11 @@ const AH_RESIDUE_ALLOWLIST: Record<string, readonly string[]> = {
     "hookStudio",
     "tabDashboard",
     "milestones.loggedFrom",
+    ...AH_MONEY_COPY_KEYS,
   ],
-  ja: ["hookStudio", "milestones.loggedFrom"],
-  ko: ["hookStudio", "milestones.loggedFrom"],
-  pt: ["milestones.loggedFrom"],
+  ja: ["hookStudio", "milestones.loggedFrom", ...AH_MONEY_COPY_KEYS],
+  ko: ["hookStudio", "milestones.loggedFrom", ...AH_MONEY_COPY_KEYS],
+  pt: ["milestones.loggedFrom", ...AH_MONEY_COPY_KEYS],
 };
 
 describe("analyticsHub — no untranslated English residue", () => {

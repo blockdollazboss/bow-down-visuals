@@ -561,7 +561,7 @@
       },
       {
         "title": "Distribute",
-        "body": "Music distribution to Spotify, Apple Music, YouTube & more — coming soon."
+        "body": "Music distribution to Spotify, Apple Music, YouTube & more — live now, priced per release. Only the Distribute Unlimited plan ($399/yr) is still on the way."
       },
       {
         "title": "Protect",
@@ -1464,7 +1464,7 @@
   },
   "analyticsHub": {
     "pageTitle": "Analytics Hub — Cross-Platform Dashboard",
-    "pageDescription": "Track TikTok, Instagram, YouTube, and X in one dashboard, then get an AI growth plan built on your real numbers.",
+    "pageDescription": "Your TikTok, Instagram, YouTube, and X numbers in one dashboard — entered by you or imported from a CSV — plus an AI growth plan built on your real numbers.",
     "fields": {
       "followers": "Followers",
       "views7d": "Views (7d)",
@@ -1489,7 +1489,7 @@
     "errorGrowthPlanFailed": "Growth plan failed — try again.",
     "heroEyebrow": "Creator tools",
     "heroTitle": "Analytics Hub",
-    "heroSubtitle": "Every platform, one dashboard — TikTok, Instagram, YouTube, and X. Tracking is free forever; the AI Growth Plan is {{cost}} Visual Bucs.",
+    "heroSubtitle": "Every platform, one dashboard — TikTok, Instagram, YouTube, and X. Add your numbers by hand or import a CSV; platform connections are coming soon. Tracking is free forever; the AI Growth Plan is {{cost}} Visual Bucs.",
     "addNumbers": "Add your numbers",
     "totalFollowers": "Total followers",
     "acrossPlatforms": "across all four platforms",
@@ -14769,7 +14769,7 @@
     "generateCta": "Generate backdrop",
     "generating": "Generating backdrop…",
     "backdropFailed": "Backdrop generation failed.",
-    "priceTbdNote": "Draft price — not final. Free colors and gradients never cost anything.",
+    "freeColorsNote": "Free colors and gradients never cost anything.",
     "composeFailed": "Could not compose the final image.",
     "compositing": "Compositing…",
     "result": "Your new photo",

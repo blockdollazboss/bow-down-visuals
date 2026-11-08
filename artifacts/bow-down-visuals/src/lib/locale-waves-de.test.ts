@@ -486,7 +486,7 @@ describe("de locale wave W2 (Stack-28)", () => {
 });
 const W3_NAMESPACES = ["movies", "motionGraphics", "cartoonStudio", "bgStudio", "headshotStudio", "colorGrade", "photoEnhance", "speedRamp", "captionTemplates", "videoTemplatesPage", "makeVideo", "songAndVideo", "photoShoot", "upscale", "thumbnail", "thumbnailMaker", "avatarPresenter", "thumbnailStudio", "logoMaker", "captionStyler", "clipMaker", "thumbnailTest", "thumbnails", "watermarkRemoval", "harmony", "mixMaster"];
 const W3_LEGIT_IDENTICAL = new Set([
-  "avatarPresenter.avatarLabel",
+  "bgStudio.freeColorsNote", "avatarPresenter.avatarLabel",
   "avatarPresenter.title",
   "captionStyler.positionLabel",
   "captionStyler.styles.hormozi.label",
@@ -1251,7 +1251,7 @@ const W7_LEGIT_IDENTICAL = new Set([
   "analyticsHub.fields.engagementRate",
   "analyticsHub.heroTitle",
   "analyticsHub.hookStudio",
-  "analyticsHub.milestones.loggedFrom",
+  "analyticsHub.milestones.loggedFrom", "analyticsHub.pageDescription", "analyticsHub.heroSubtitle",
   "analyticsHub.statEngagement",
   "analyticsHub.tabDashboard",
   "analyticsHub.trendLabel",

@@ -561,7 +561,7 @@
       },
       {
         "title": "Distribuisci",
-        "body": "Distribuzione musicale su Spotify, Apple Music, YouTube e altro — in arrivo."
+        "body": "Music distribution to Spotify, Apple Music, YouTube & more — live now, priced per release. Only the Distribute Unlimited plan ($399/yr) is still on the way."
       },
       {
         "title": "Proteggi",
@@ -1482,7 +1482,7 @@
   },
   "analyticsHub": {
     "pageTitle": "Analytics Hub — Dashboard Cross-Platform",
-    "pageDescription": "Traccia TikTok, Instagram, YouTube e X in un'unica dashboard, poi ricevi un piano di crescita AI basato sui tuoi numeri reali.",
+    "pageDescription": "Your TikTok, Instagram, YouTube, and X numbers in one dashboard — entered by you or imported from a CSV — plus an AI growth plan built on your real numbers.",
     "fields": {
       "followers": "Follower",
       "views7d": "Visualizzazioni (7g)",
@@ -1507,7 +1507,7 @@
     "errorGrowthPlanFailed": "Piano di crescita fallito — riprova.",
     "heroEyebrow": "Strumenti per creator",
     "heroTitle": "Analytics Hub",
-    "heroSubtitle": "Ogni piattaforma, un'unica dashboard — TikTok, Instagram, YouTube e X. Il tracciamento è gratis per sempre; il Piano di Crescita AI costa {{cost}} Visual Bucs.",
+    "heroSubtitle": "Every platform, one dashboard — TikTok, Instagram, YouTube, and X. Add your numbers by hand or import a CSV; platform connections are coming soon. Tracking is free forever; the AI Growth Plan is {{cost}} Visual Bucs.",
     "addNumbers": "Aggiungi i tuoi numeri",
     "totalFollowers": "Follower totali",
     "acrossPlatforms": "su tutte e quattro le piattaforme",
@@ -14728,7 +14728,7 @@
     },
     "noOutput": "Nessuna immagine di output restituita.",
     "photoReady": "Foto pronta",
-    "priceTbdNote": "Prezzo in bozza — non definitivo. Colori e gradienti gratuiti non costano mai nulla.",
+    "freeColorsNote": "Free colors and gradients never cost anything.",
     "promptPlaceholder": "Descrivi lo sfondo — es. dune dorate del deserto all'alba, luce morbida",
     "provider": "Modello",
     "removeCta": "Rimuovi sfondo",

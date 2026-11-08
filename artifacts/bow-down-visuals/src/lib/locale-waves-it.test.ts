@@ -428,7 +428,7 @@ const W3_NAMESPACES = [
    Avatar, Studio, Stage, Stem, Beat, FX, Vibe, Hype, Tagline, Gaming,
    Minimal, Premium, Standard, Turbo, Anime, Vintage, Neon, Karaoke…). */
 const W3_LEGIT = new Set([
-  "harmony.buttonCost", "harmony.vb", "harmony.modeAiShort", "harmony.partsLine",
+  "bgStudio.freeColorsNote", "harmony.buttonCost", "harmony.vb", "harmony.modeAiShort", "harmony.partsLine",
   "songAndVideo.simpleTabLabel",
   "mixMaster.title", "mixMaster.tabMaster", "mixMaster.tabMix",
   "mixMaster.genres.hip-hop.label", "mixMaster.genres.pop.label",
@@ -993,7 +993,7 @@ const W7_LEGIT: string[] = [
   "analyticsHub.focus",
   "analyticsHub.heroTitle",
   "analyticsHub.hookStudio",
-  "analyticsHub.milestones.loggedFrom",
+  "analyticsHub.milestones.loggedFrom", "analyticsHub.pageDescription", "analyticsHub.heroSubtitle",
   "analyticsHub.statEngagement",
   "analyticsHub.tabDashboard",
   "analyticsHub.trendLabel",
