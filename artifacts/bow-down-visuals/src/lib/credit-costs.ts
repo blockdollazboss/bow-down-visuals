@@ -444,6 +444,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/promo-generator": { cost: 100, feature: "Promo Generator" }, // PROMO_GENERATOR_CREDITS
   "/api/brand-kit": { cost: 200, feature: "Brand Kit" }, // BRAND_KIT_COST (POST generate; GET is free)
   "/api/contracts/analyze": { cost: 300, feature: "Contract Analyzer" }, // CONTRACT_ANALYSIS_CREDITS
+  "/api/contracts/generate": { cost: 300, feature: "Contract Generation" }, // CONTRACT_GENERATION_CREDITS (default; surfaces display the rail's /generate/status value live)
   "/api/cover-in-motion/animate": { cost: 400, feature: "Cover in Motion" }, // MOTION_CREDIT_COST
   "/api/finish-my-song/complete": { cost: 400, feature: "Finish My Song" }, // FINISH_CREDIT_COST
   "/api/rate-my-mix/analyze": { cost: 100, feature: "Rate My Mix" }, // MIX_CREDIT_COST

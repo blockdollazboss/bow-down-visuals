@@ -239,3 +239,132 @@ export function severityLabel(severity: string, strings: ContractSeverityStrings
       return strings.fallback;
   }
 }
+
+/* ─── Contract generator seam (Stack 300, crew 29) ─────────────────
+   The drafting twin of the analyzer above, on its own rail:
+
+     POST /api/contracts/generate        → { generation, disclaimer }
+     GET  /api/contracts/generate/status → { creditCost, disclaimer }
+
+   Owner ruling (Nov 7, 2026): "Build it — contract generation
+   too." The price is NOT owner-ruled yet: the rail charges its
+   env-overridable CONTRACT_GENERATION_CREDITS (default 300, the
+   analyzer-matching recommendation) and NO surface hardcodes the
+   displayed price — both the 2D page and this desk read the rail's
+   live status value, so the owner's ruling sets the number with
+   no rebuild. The fallback below covers only the pre-status first
+   paint (and the spend confirmation if status never lands); the
+   charge itself always comes from the rail.
+
+   The framing law rides verbatim: the rail returns the analyzer's
+   own disclaimer line with every draft (and prepends it to any
+   draft that leaves it out) — surfaces print it, never reword it. */
+
+export const CONTRACTS_GENERATE_PATH = "/api/contracts/generate";
+export const CONTRACTS_GENERATE_STATUS_PATH = "/api/contracts/generate/status";
+export const CONTRACT_GENERATE_FEATURE = "Contract Generation";
+
+/** Pre-status fallback price: the registry's recorded default
+ *  (lib/credit-costs.ts). Display takes over from the rail's
+ *  status the moment it lands. */
+export const CONTRACT_GENERATE_FALLBACK_COST_VB = 300;
+
+export interface ContractGenerateStatus {
+  creditCost: number;
+  disclaimer: string;
+}
+
+/** Parse the rail's status answer. Anything off-shape is null —
+ *  surfaces keep the fallback price rather than inventing one. */
+export function parseGenerateStatus(payload: unknown): ContractGenerateStatus | null {
+  const root = asRecord(payload);
+  if (!root) return null;
+  const creditCost = root["creditCost"];
+  if (typeof creditCost !== "number" || !Number.isFinite(creditCost) || creditCost <= 0) return null;
+  return { creditCost, disclaimer: str(root["disclaimer"]) };
+}
+
+/** The deal-point form: the two parties are the rail's only
+ *  required fields; every other point is optional — left out, it
+ *  reaches the draft as a bracketed blank, never an invention. */
+export interface ContractGenerateFields {
+  creatorName: string;
+  counterpartyName: string;
+  paymentTerms: string;
+  term: string;
+  territory: string;
+  exclusivity: string;
+  rightsGranted: string;
+  termination: string;
+  context: string;
+}
+
+export const EMPTY_GENERATE_FIELDS: ContractGenerateFields = {
+  creatorName: "",
+  counterpartyName: "",
+  paymentTerms: "",
+  term: "",
+  territory: "",
+  exclusivity: "",
+  rightsGranted: "",
+  termination: "",
+  context: "",
+};
+
+/** The surfaces' readiness gate: both parties named, and the type
+ *  is one of the family's seven (the rail re-checks all of it). */
+export function generateReady(fields: ContractGenerateFields, contractType: string): boolean {
+  return (
+    fields.creatorName.trim().length > 0 &&
+    fields.counterpartyName.trim().length > 0 &&
+    CONTRACT_TYPE_OPTIONS.some((t) => t.key === contractType)
+  );
+}
+
+export function buildGenerateBody(
+  fields: ContractGenerateFields,
+  contractType: string,
+  idempotencyKey?: string,
+): Record<string, unknown> {
+  return {
+    contractType,
+    creatorName: fields.creatorName.trim(),
+    counterpartyName: fields.counterpartyName.trim(),
+    paymentTerms: fields.paymentTerms.trim(),
+    term: fields.term.trim(),
+    territory: fields.territory.trim(),
+    exclusivity: fields.exclusivity.trim(),
+    rightsGranted: fields.rightsGranted.trim(),
+    termination: fields.termination.trim(),
+    context: fields.context.trim(),
+    /* The caller's per-intent key, when it holds one: the rail
+       charges under it exactly once, so a retry of the same ask
+       can never double-charge. Absent, the rail derives a key
+       from the deal points themselves. */
+    ...(idempotencyKey ? { idempotencyKey } : {}),
+  };
+}
+
+export interface ContractGenerationResult {
+  title: string;
+  draft: string;
+  summary: string;
+  disclaimer: string;
+}
+
+/** Parse the rail's answer. A charged generation that can't be
+ *  read is a failed attempt (null) — never a blank draft over a
+ *  paid result; the surfaces' error lines name the refund path. */
+export function parseContractGeneration(payload: unknown): ContractGenerationResult | null {
+  const root = asRecord(payload);
+  const g = root ? asRecord(root["generation"]) : null;
+  if (!root || !g) return null;
+  const draft = str(g["draft"]);
+  if (!draft) return null;
+  return {
+    title: str(g["title"]),
+    summary: str(g["summary"]),
+    draft,
+    disclaimer: str(root["disclaimer"]),
+  };
+}

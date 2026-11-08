@@ -30,6 +30,7 @@ import { NativeLoadingState, NativeEmptyState, NativeErrorState } from "./Native
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
 import { PressReleaseWriter } from "./PressReleaseWriter";
 import { ContractAnalyzer } from "./ContractAnalyzer";
+import { ContractGenerator } from "./ContractGenerator";
 import { TRANSFER_BUTTON_LABEL, transferButtonLabel } from "@/lib/world/station-panel";
 import { applyBrandKit, fetchBrandKit, saveBrandKit, saveLogoToBrandKit, BRAND_KIT_COLOR_ROLES, type BrandKit } from "@/lib/brand-kit";
 import {
@@ -3006,6 +3007,16 @@ export function PromoteDesk({ isLight, isGuest }: { isLight: boolean; isGuest: b
           {!isGuest ? (
             <div className={`border-t pt-4 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
               <ContractAnalyzer isLight={isLight} />
+            </div>
+          ) : null}
+          {/* Contract drafting (Stack 300, crew 29): the analyzer's
+              twin, docked directly under it — pick a type, name the
+              parties, drop in the deal points, get a first draft on
+              the /api/contracts/generate rail, then hand it back to
+              the analyzer or the 2D page. Members only: charged. */}
+          {!isGuest ? (
+            <div className={`border-t pt-4 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`}>
+              <ContractGenerator isLight={isLight} />
             </div>
           ) : null}
         </div>

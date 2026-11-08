@@ -1,8 +1,8 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  FileText, Loader2, Sparkles, AlertTriangle, ShieldCheck, ShieldAlert,
+  FileText, FileSearch, Loader2, Sparkles, PenLine, AlertTriangle, ShieldCheck, ShieldAlert,
   Scale, Lightbulb, CheckCircle2, XCircle, MinusCircle, Gavel, Copy, Download,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,13 +11,35 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
 import { PlainWordsDeals } from "@/components/contracts/PlainWordsDeals";
+import {
+  CONTRACTS_GENERATE_PATH,
+  CONTRACTS_GENERATE_STATUS_PATH,
+  CONTRACT_GENERATE_FEATURE,
+  CONTRACT_GENERATE_FALLBACK_COST_VB,
+  EMPTY_GENERATE_FIELDS,
+  buildGenerateBody,
+  generateReady,
+  parseContractGeneration,
+  parseGenerateStatus,
+  type ContractGenerateFields,
+  type ContractGenerationResult,
+} from "@/lib/world/contract-analyzer";
 
-/* ─── Contract Analyzer ──────────────────────────────────────────────────
-   AI contract review for creators: paste a record deal, brand deal, sync
-   license, or management agreement → GPT-6 Sol returns risk score, red
-   flags, key terms, negotiation tips, and missing protections.
-   POST /api/contracts/analyze at 300 credits, charge-before-generate with
-   auto-refund on failure. Always framed as AI reading, not legal advice. */
+/* ─── Contracts — Analyzer + Generator ─────────────────────────────
+   AI contract help for creators, two modes docked on one page:
+   Analyze — paste a record deal, brand deal, sync license, or
+   management agreement → GPT-6 Sol returns risk score, red flags,
+   key terms, negotiation tips, and missing protections
+   (POST /api/contracts/analyze at 300 credits).
+   Generate — the drafting twin (Stack 300, crew 29; owner ruling
+   Nov 7, 2026): pick one of the same 7 types, fill in the deal
+   points, and GPT-6 Sol drafts a complete starting contract
+   (POST /api/contracts/generate). Its price is not owner-ruled
+   yet, so the page reads it live from the rail's
+   /generate/status — never a hardcoded figure.
+   Both rails charge before generating with auto-refund on
+   failure. Always framed as an AI reading/draft, not legal
+   advice — the rails' disclaimer copy is reused verbatim. */
 
 const CREDIT_COST = 300;
 
@@ -59,6 +81,12 @@ interface AnalyzeResponse {
   error?: string;
   message?: string;
 }
+interface GenerateResponse {
+  generation?: { title?: string; draft?: string; summary?: string };
+  disclaimer?: string;
+  error?: string;
+  message?: string;
+}
 
 function riskColor(level: string): string {
   switch (level) {
@@ -94,7 +122,7 @@ export default function Contracts() {
   const isLight = useIsLightTheme();
   usePageTitle("Contracts", "Creator contracts on Bow Down Visuals — generate and manage agreements for brand deals, features and collaborations.");
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [contractText, setContractText] = useState("");
   const [contractType, setContractType] = useState<ContractTypeKey>("record-deal");
@@ -103,6 +131,141 @@ export default function Contracts() {
   const [result, setResult] = useState<Analysis | null>(null);
   const [disclaimer, setDisclaimer] = useState("");
   const [error, setError] = useState("");
+  const [draftNotice, setDraftNotice] = useState(false);
+
+  /* ── Generate mode state (Stack 300, crew 29) ──────────────────
+     The displayed price is the rail's live status value — never
+     hardcoded — so the owner's price ruling lands with no rebuild;
+     the fallback covers only the pre-status first paint. */
+  const [mode, setMode] = useState<"analyze" | "generate">("analyze");
+  const [genFields, setGenFields] = useState<ContractGenerateFields>({ ...EMPTY_GENERATE_FIELDS });
+  const [genType, setGenType] = useState<ContractTypeKey>("brand-deal");
+  const [genCost, setGenCost] = useState(CONTRACT_GENERATE_FALLBACK_COST_VB);
+  const [genDisclaimer, setGenDisclaimer] = useState("");
+  const [genLoading, setGenLoading] = useState(false);
+  const [genResult, setGenResult] = useState<ContractGenerationResult | null>(null);
+  const [genError, setGenError] = useState("");
+  const [genOutOfCredits, setGenOutOfCredits] = useState(false);
+  /* One idempotency key per draft INTENT (the persona pattern):
+     minted when a draft is first asked for, kept across retries of
+     that same ask so a double-tap or network retry can never charge
+     twice. A refunded failure voids the key server-side, so a failed
+     ask clears it here and the retry is a fresh intent; editing the
+     form after a success does the same. */
+  const genKeyRef = useRef("");
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const headers: Record<string, string> = {};
+        const token = await getAccessToken().catch(() => null);
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        const res = await fetch(CONTRACTS_GENERATE_STATUS_PATH, { headers });
+        if (!res.ok) return;
+        const status = parseGenerateStatus(await res.json().catch(() => null));
+        if (live && status) {
+          setGenCost(status.creditCost);
+          if (status.disclaimer) setGenDisclaimer(status.disclaimer);
+        }
+      } catch {
+        /* status unreachable — the fallback price stands */
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [getAccessToken]);
+
+  /* World handoff intake: the in-World generator desk stashes the
+     draft it just made ("Analyze my draft" there) and lands here —
+     the draft becomes the analyzer's text, in its own type family,
+     ready to read. Consumed once. */
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("bdv-contract-draft");
+      if (!raw) return;
+      sessionStorage.removeItem("bdv-contract-draft");
+      const parsed = JSON.parse(raw) as { draft?: unknown; contractType?: unknown };
+      if (typeof parsed.draft === "string" && parsed.draft.trim().length >= 200) {
+        setContractText(parsed.draft);
+        if (
+          typeof parsed.contractType === "string" &&
+          CONTRACT_TYPES.some((ct) => ct.key === parsed.contractType)
+        ) {
+          setContractType(parsed.contractType as ContractTypeKey);
+        }
+        setDraftNotice(true);
+      }
+    } catch {
+      /* no handoff waiting */
+    }
+  }, []);
+
+  function setGenField(key: keyof ContractGenerateFields, value: string) {
+    /* Editing the deal after a draft landed starts a NEW intent —
+       its key must not ride the old draft's charge. */
+    if (genResult) genKeyRef.current = "";
+    setGenFields((f) => ({ ...f, [key]: value }));
+  }
+
+  const canGenerate = generateReady(genFields, genType) && !genLoading;
+
+  async function generate() {
+    if (!canGenerate) return;
+    setGenLoading(true);
+    setGenError("");
+    setGenOutOfCredits(false);
+    setGenResult(null);
+    if (!genKeyRef.current) {
+      genKeyRef.current = `gen-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+    try {
+      const res = await confirmedFetch(CONTRACTS_GENERATE_PATH, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        overrideCost: genCost,
+        overrideFeature: CONTRACT_GENERATE_FEATURE,
+        body: JSON.stringify(buildGenerateBody(genFields, genType, genKeyRef.current)),
+      });
+      if (!res) return; // declined the confirmation — nothing charged
+      const data = (await res.json().catch(() => ({}))) as GenerateResponse;
+      if (res.status === 402) {
+        setGenOutOfCredits(true);
+        return;
+      }
+      if (!res.ok) {
+        /* The rail refunded this attempt and voided its key — the
+           retry is a new intent and mints a fresh key. */
+        genKeyRef.current = "";
+        setGenError(apiErrorMessage(data, t("contracts.gen_error_failed")));
+        return;
+      }
+      const parsed = parseContractGeneration(data);
+      if (!parsed) {
+        setGenError(t("contracts.gen_error_shape"));
+        return;
+      }
+      setGenResult(parsed);
+      if (parsed.disclaimer) setGenDisclaimer(parsed.disclaimer);
+    } catch (e) {
+      setGenError(plainErrorText(e, t("contracts.gen_error_failed")));
+    } finally {
+      setGenLoading(false);
+    }
+  }
+
+  /* One-tap handoff: the generated draft becomes the analyzer's
+     text — same type family — and the page flips to Analyze. */
+  function analyzeDraft() {
+    if (!genResult) return;
+    setMode("analyze");
+    setContractType(genType);
+    setContractText(genResult.draft);
+    setResult(null);
+    setError("");
+    setDraftNotice(true);
+  }
 
   const charCount = contractText.length;
   const canAnalyze = contractText.trim().length >= 200 && !loading;
@@ -112,6 +275,7 @@ export default function Contracts() {
     setLoading(true);
     setError("");
     setResult(null);
+    setDraftNotice(false);
     try {
       const res = await confirmedFetch("/api/contracts/analyze", {
         method: "POST",
@@ -151,9 +315,211 @@ export default function Contracts() {
           <p className="text-white/50 max-w-2xl mx-auto">{t("contracts.paste_any_creator_contract_recor")}</p>
         </div>
 
-        {!a ? (
+        {/* Mode toggle — Analyze a contract you were sent, or
+            Generate a first draft from your own deal points. */}
+        <div className="flex justify-center mb-8">
+          <div
+            className="inline-flex rounded-full border border-white/10 bg-white/[0.03] p-1 gap-1"
+            role="tablist"
+            aria-label={t("contracts.mode_label")}
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "analyze"}
+              onClick={() => setMode("analyze")}
+              className={`px-5 py-2 rounded-full text-sm font-bold transition-colors ${
+                mode === "analyze" ? "bg-amber-400 text-black" : "text-white/50 hover:text-white"
+              }`}
+            >
+              <span className="inline-flex items-center gap-2">
+                <FileSearch className="h-4 w-4" />
+                {t("contracts.mode_analyze")}
+              </span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "generate"}
+              onClick={() => setMode("generate")}
+              className={`px-5 py-2 rounded-full text-sm font-bold transition-colors ${
+                mode === "generate" ? "bg-amber-400 text-black" : "text-white/50 hover:text-white"
+              }`}
+            >
+              <span className="inline-flex items-center gap-2">
+                <PenLine className="h-4 w-4" />
+                {t("contracts.mode_generate")}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {mode === "generate" ? (
+          !genResult ? (
+            <div className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+              <p className="text-sm text-white/50 mb-6">{t("contracts.gen_intro")}</p>
+
+              {/* Contract type — the analyzer's family of 7 */}
+              <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">{t("contracts.what_kind_of_contract_is_it")}</label>
+              <div className="flex flex-wrap gap-2 mb-6">
+                {CONTRACT_TYPES.map((ct) => (
+                  <button
+                    key={ct.key}
+                    type="button"
+                    onClick={() => setGenType(ct.key)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold border transition-colors ${
+                      genType === ct.key
+                        ? "border-amber-400/60 bg-amber-400/15 text-amber-200"
+                        : "border-white/10 bg-white/[0.03] text-white/50 hover:text-white"
+                    }`}
+                  >
+                    {t(`contracts.type.${ct.key}`)}
+                  </button>
+                ))}
+              </div>
+
+              {/* The two parties — the rail's only required points */}
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">{t("contracts.gen_creator_name")}</label>
+                  <input aria-label={t("contracts.gen_creator_name")}
+                    value={genFields.creatorName}
+                    onChange={(e) => setGenField("creatorName", e.target.value)}
+                    placeholder={t("contracts.gen_creator_placeholder")}
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-amber-400/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">{t("contracts.gen_counterparty_name")}</label>
+                  <input aria-label={t("contracts.gen_counterparty_name")}
+                    value={genFields.counterpartyName}
+                    onChange={(e) => setGenField("counterpartyName", e.target.value)}
+                    placeholder={t("contracts.gen_counterparty_placeholder")}
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-amber-400/50"
+                  />
+                </div>
+              </div>
+
+              {/* Deal points — optional; a blank stays a bracketed
+                  blank in the draft, never an invented number. */}
+              {([
+                ["paymentTerms", "contracts.gen_payment_label", "contracts.gen_payment_placeholder"],
+                ["term", "contracts.gen_term_label", "contracts.gen_term_placeholder"],
+                ["territory", "contracts.gen_territory_label", "contracts.gen_territory_placeholder"],
+                ["exclusivity", "contracts.gen_exclusivity_label", "contracts.gen_exclusivity_placeholder"],
+                ["rightsGranted", "contracts.gen_rights_label", "contracts.gen_rights_placeholder"],
+                ["termination", "contracts.gen_termination_label", "contracts.gen_termination_placeholder"],
+                ["context", "contracts.gen_context_label", "contracts.gen_context_placeholder"],
+              ] as const).map(([field, labelKey, placeholderKey]) => (
+                <div key={field} className="mb-4">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-2">{t(labelKey)}</label>
+                  <textarea aria-label={t(labelKey)}
+                    value={genFields[field]}
+                    onChange={(e) => setGenField(field, e.target.value)}
+                    placeholder={t(placeholderKey)}
+                    rows={2}
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-amber-400/50"
+                  />
+                </div>
+              ))}
+
+              {genOutOfCredits && (
+                <div className="mb-6 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200 flex gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> {t("contracts.gen_out_of_credits", { cost: genCost })}
+                </div>
+              )}
+              {genError && (
+                <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300 flex gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> {genError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={generate}
+                disabled={!canGenerate}
+                className="w-full py-4 rounded-xl font-black text-black bg-gradient-to-r from-amber-300 to-yellow-500 hover:from-amber-200 hover:to-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              >
+                {genLoading ? (
+                  <><Loader2 className="h-5 w-5 animate-spin" />{t("contracts.gen_generating")}</>
+                ) : (
+                  <><PenLine className="h-5 w-5" /> {t("contracts.gen_generate_button", { cost: genCost })}</>
+                )}
+              </button>
+              {!user && (
+                <p className="text-center text-xs text-white/30 mt-3">{t("contracts.gen_sign_in")}</p>
+              )}
+              {genDisclaimer && (
+                <p className="text-center text-xs text-white/30 mt-4">{genDisclaimer}</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(genResult.draft).catch(() => {});
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-white/70 transition hover:border-primary/50 hover:text-primary"
+                >
+                  <Copy className="h-4 w-4" />{t("contracts.gen_copy_draft", { defaultValue: "Copy draft" })}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const blob = new Blob([genResult.draft], { type: "text/plain;charset=utf-8" });
+                    const el = document.createElement("a");
+                    el.href = URL.createObjectURL(blob);
+                    el.download = "contract-draft.txt";
+                    el.click();
+                    setTimeout(() => URL.revokeObjectURL(el.href), 4000);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-white/70 transition hover:border-primary/50 hover:text-primary"
+                >
+                  <Download className="h-4 w-4" />{t("contracts.gen_download_draft", { defaultValue: "Download" })}
+                </button>
+                <button
+                  type="button"
+                  onClick={analyzeDraft}
+                  className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-black text-black bg-gradient-to-r from-amber-300 to-yellow-500 hover:from-amber-200 hover:to-yellow-400 transition-all"
+                >
+                  <FileSearch className="h-4 w-4" />{t("contracts.gen_analyze_draft", { defaultValue: "Analyze my draft" })}
+                </button>
+              </div>
+
+              <div className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                <h2 className="text-lg font-black mb-2 flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-amber-400" />
+                  {genResult.title || t("contracts.gen_result_fallback_title")}
+                </h2>
+                {genResult.summary && (
+                  <p className="text-sm text-white/60 mb-4">{genResult.summary}</p>
+                )}
+                <pre className="whitespace-pre-wrap font-mono text-sm text-white/80 leading-relaxed">{genResult.draft}</pre>
+              </div>
+
+              {/* Disclaimer — the rail's own line, verbatim */}
+              <div className={`rounded-2xl border p-5 flex gap-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                <Gavel className="h-5 w-5 text-white/30 shrink-0 mt-0.5" />
+                <p className="text-xs text-white/40 leading-relaxed">{genResult.disclaimer || genDisclaimer}</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { genKeyRef.current = ""; setGenResult(null); setGenError(""); setGenOutOfCredits(false); }}
+                className="w-full py-3 rounded-xl font-bold border border-white/15 text-white/70 hover:text-white hover:border-white/30 transition-colors"
+              >{t("contracts.gen_generate_another")}</button>
+            </div>
+          )
+        ) : !a ? (
           <div className={`rounded-2xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             {/* Contract type */}
+            {draftNotice && (
+              <div className="mb-6 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200 flex gap-2">
+                <FileText className="h-4 w-4 shrink-0 mt-0.5" /> {t("contracts.gen_draft_loaded")}
+              </div>
+            )}
             <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">{t("contracts.what_kind_of_contract_is_it")}</label>
             <div className="flex flex-wrap gap-2 mb-6">
               {CONTRACT_TYPES.map((ct) => (
@@ -176,7 +542,7 @@ export default function Contracts() {
             <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">{t("contracts.paste_the_contract_text")}</label>
             <textarea aria-label={t("contracts.paste_the_contract_text")}
               value={contractText}
-              onChange={(e) => setContractText(e.target.value)}
+              onChange={(e) => { setContractText(e.target.value); setDraftNotice(false); }}
               placeholder={t("contracts.paste_the_full_contract_here_cop")}
               rows={12}
               className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-amber-400/50 font-mono"
@@ -394,10 +760,16 @@ export default function Contracts() {
         <PlainWordsDeals isLight={isLight} />
       </main>
 
-      {/* Proven-balance gate (QC fix #2): renders the Not Enough Bucs
-          card only on a proven balance below the analyzer's CREDIT_COST
-          — never at load on an unchecked balance. */}
-      <OutOfCredits cost={CREDIT_COST} />
+      {/* Proven-balance gates (QC fix #2): each renders the Not Enough
+          Bucs card only on a proven balance below its own action's
+          cost — the analyzer's CREDIT_COST in analyze mode, Generate's
+          live rail price while its form is up — never at load on an
+          unchecked balance. */}
+      {mode === "generate" && !genResult ? (
+        <OutOfCredits cost={genCost} />
+      ) : (
+        <OutOfCredits cost={CREDIT_COST} />
+      )}
     </div>
   );
 }
