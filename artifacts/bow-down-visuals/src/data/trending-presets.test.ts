@@ -5,7 +5,9 @@
  * deep-links into /video-editor through its remixParams, so each entry
  * must be well-formed on its own. The slug list is pinned in file order:
  * the Stack 200 U5 additions (speed-ramp-surge, ink-splash-reveal) close
- * out their categories, and the pin keeps the count honest at 22.
+ * out their categories, the Stack 300 additions (noir-mono-grade,
+ * spin-swap, fade-through, vhs-static-drift) close out theirs, and the
+ * pin keeps the count honest at 26.
  */
 import { describe, it, expect } from "vitest";
 import { TRENDING_PRESETS, getTrendingPreset } from "./trending-presets";
@@ -27,22 +29,26 @@ const EXPECTED_SLUGS = [
   "neon-night",
   "vintage-film",
   "anime-pop",
+  "noir-mono-grade",
   /* Transition */
   "match-cut-snap",
   "whoosh-wipe",
   "zoom-flash",
   "glitch-cut",
+  "spin-swap",
+  "fade-through",
   /* Effect */
   "film-grain-storm",
   "light-leaks",
   "particle-burst",
   "ink-splash-reveal",
+  "vhs-static-drift",
 ];
 
 const CATEGORIES = ["Motion", "Style", "Transition", "Effect"];
 
 describe("trending preset catalog", () => {
-  it("holds the full pinned catalog (22 presets)", () => {
+  it("holds the full pinned catalog (26 presets)", () => {
     expect(TRENDING_PRESETS.map((p) => p.slug)).toEqual(EXPECTED_SLUGS);
   });
 
@@ -94,6 +100,31 @@ describe("trending preset catalog", () => {
       name: "Ink Splash Reveal",
       category: "Effect",
       remixParams: { remix: "ink-splash-reveal" },
+    });
+  });
+
+  it("the Stack 300 additions ride the previously unridden editor vocabulary", () => {
+    expect(getTrendingPreset("spin-swap")).toMatchObject({
+      name: "Spin Swap",
+      category: "Transition",
+      remixParams: { transition: "tr-spin-in" },
+    });
+    expect(getTrendingPreset("fade-through")).toMatchObject({
+      name: "Fade Through",
+      category: "Transition",
+      remixParams: { transition: "tr-fade-through" },
+    });
+    expect(getTrendingPreset("noir-mono-grade")).toMatchObject({
+      name: "Noir Mono Grade",
+      category: "Style",
+      editorEffect: "Black & White",
+      remixParams: { fx: "fx-noir" },
+    });
+    expect(getTrendingPreset("vhs-static-drift")).toMatchObject({
+      name: "VHS Static Drift",
+      category: "Effect",
+      editorEffect: "VHS",
+      remixParams: { fx: "fx-static-vhs" },
     });
   });
 });

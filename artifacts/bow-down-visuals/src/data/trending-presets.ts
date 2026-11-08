@@ -157,6 +157,16 @@ export const TRENDING_PRESETS: TrendingPreset[] = [
     trendScore: 81,
     platform: ["tiktok", "reels", "shorts"],
   },
+  {
+    slug: "noir-mono-grade",
+    name: "Noir Mono Grade",
+    description: "True black-and-white: high contrast, zero color. The timeless grade for statements, portraits, and anything that should feel like a classic.",
+    category: "Style",
+    editorEffect: "Black & White",
+    remixParams: { fx: "fx-noir" },
+    trendScore: 80,
+    platform: ["tiktok", "reels", "shorts"],
+  },
   /* ─── Transition ─── */
   {
     slug: "match-cut-snap",
@@ -192,6 +202,24 @@ export const TRENDING_PRESETS: TrendingPreset[] = [
     category: "Transition",
     remixParams: { transition: "tr-glitch-cut" },
     trendScore: 76,
+    platform: ["tiktok", "reels", "shorts"],
+  },
+  {
+    slug: "spin-swap",
+    name: "Spin Swap",
+    description: "A full 360° spin that lands you in the next scene. The outfit-change and location-swap transition everyone's double-tapping.",
+    category: "Transition",
+    remixParams: { transition: "tr-spin-in" },
+    trendScore: 87,
+    platform: ["tiktok", "reels", "shorts"],
+  },
+  {
+    slug: "fade-through",
+    name: "Fade Through",
+    description: "A soft crossfade-through for the quiet scene change — weddings, memorials, slow storytelling. The emotional cut the hard transitions can't do.",
+    category: "Transition",
+    remixParams: { transition: "tr-fade-through" },
+    trendScore: 75,
     platform: ["tiktok", "reels", "shorts"],
   },
   /* ─── Effect ─── */
@@ -231,6 +259,16 @@ export const TRENDING_PRESETS: TrendingPreset[] = [
     category: "Effect",
     remixParams: { remix: "ink-splash-reveal" },
     trendScore: 68,
+    platform: ["tiktok", "reels", "shorts"],
+  },
+  {
+    slug: "vhs-static-drift",
+    name: "VHS Static Drift",
+    description: "Tape texture over the shot — tracking lines, static drift, timestamp-era wobble. Found-footage nostalgia, straight off the family camcorder.",
+    category: "Effect",
+    editorEffect: "VHS",
+    remixParams: { fx: "fx-static-vhs" },
+    trendScore: 77,
     platform: ["tiktok", "reels", "shorts"],
   },
 ];

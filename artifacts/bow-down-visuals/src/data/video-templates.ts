@@ -260,6 +260,30 @@ export const VIDEO_TEMPLATE_METAS: VideoTemplateMeta[] = [
     category: "Promo",
     outcome: "Drops your crowd counts down to",
   },
+  {
+    key: "interview-qa-cut",
+    name: "Interview Q&A Cut",
+    tagline: "Question, answer — cut like a show",
+    description:
+      "A two-person Q&A that alternates question cards and answer clips, with your guest's name in a gold lower-third and their strongest line pulled big for the close. Interviews, podcasts, and collabs, structured in one tap.",
+    aspect: "9:16",
+    durationLabel: "~19s",
+    slotCount: 6,
+    category: "Interview",
+    outcome: "Interviews cut like a show segment",
+  },
+  {
+    key: "behind-the-scenes-cut",
+    name: "Behind the Scenes Cut",
+    tagline: "The making-of, start to finish",
+    description:
+      "Your process footage, cut as the story behind the drop: the setup, the work nobody sees, the moment it clicked, and the finished piece as the close. The post your audience saves.",
+    aspect: "9:16",
+    durationLabel: "~14s",
+    slotCount: 6,
+    category: "Creator",
+    outcome: "Making-of cuts that sell the finished piece",
+  },
 ];
 
 export const VIDEO_TEMPLATE_CATEGORIES = [
@@ -271,6 +295,7 @@ export const VIDEO_TEMPLATE_CATEGORIES = [
   "Creator",
   "Podcast",
   "Tutorial",
+  "Interview",
 ];
 
 export function getVideoTemplateMeta(key: string): VideoTemplateMeta | null {
