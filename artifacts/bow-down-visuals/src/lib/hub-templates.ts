@@ -579,6 +579,16 @@ const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
         { step: "monetize", hint: "Merch + show + deluxe — stack the revenue" },
       ],
     },
+    {
+      key: "mixtape-drop", name: "Mixtape Drop", blurb: "Free tape, street-first, promos carry it.", icon: Rocket,
+      projectName: "Mixtape Drop",
+      concept: "A mixtape rollout: the tape is free and everywhere — no playlist pitch, no paywall. Protect the originals first, give the tape away on every platform that takes it, and let relentless promo clips do the job a single usually does. The tape builds the audience; the album monetizes it later.",
+      preload: [
+        { step: "protect", hint: "Register the originals before the tape goes out free" },
+        { step: "distribute", hint: "Free everywhere · every platform that takes it, day one" },
+        { step: "promos", hint: "The promos ARE the campaign · hook clips daily" },
+      ],
+    },
   ],
   grow: [
     {
@@ -610,6 +620,16 @@ const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
         { step: "collabs", hint: "Same-size first · bring a concept, not just 'let's collab'" },
         { step: "replies", hint: "Reply to every comment in the first hour — the algorithm notices" },
         { step: "contests", hint: "One giveaway per quarter with a collab partner" },
+      ],
+    },
+    {
+      key: "flagship-series", name: "Flagship Series", blurb: "One show, same day, every week — your anchor.", icon: Star,
+      projectName: "Flagship Series",
+      concept: "Build one recurring anchor series: the same format, same day, every week, until audiences subscribe to the SHOW, not just the channel. One repeatable idea executed relentlessly beats fifty random uploads — the flagship is the engine everything else feeds.",
+      preload: [
+        { step: "hooks", hint: "One format promise · the same open every episode" },
+        { step: "calendar", hint: "Same day, same time, every week — no exceptions" },
+        { step: "analytics", hint: "Episode-over-episode retention · fix the format, not the topic" },
       ],
     },
   ],
@@ -644,6 +664,15 @@ const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
         { step: "strategy", hint: "One membership tier · one irresistible perk" },
       ],
     },
+    {
+      key: "digital-product-launch", name: "Digital Product Launch", blurb: "Package what you know. Sell it while you sleep.", icon: Banknote,
+      projectName: "Digital Product Launch",
+      concept: "Package and sell your own digital product — a course, a preset pack, a sample pack — end to end. Sponsors pay you once and merch ships physical; a digital product you own sells every day with no inventory and no one's permission. Build it once, launch it like a drop.",
+      preload: [
+        { step: "strategy", hint: "One product your audience already asks for · smallest version that delivers the result" },
+        { step: "calculator", hint: "Price on the result it creates, not the hours it took" },
+      ],
+    },
   ],
   learn: [
     {
@@ -671,6 +700,15 @@ const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
       preload: [
         { step: "academy", hint: "One sprint lesson a day for 7 days — in order, no skipping ahead" },
         { step: "guides", hint: "Pair each day's lesson with its matching guide, then do the rep" },
+      ],
+    },
+    {
+      key: "analytics-literacy", name: "Analytics Literacy", blurb: "Read your numbers. Know what they demand.", icon: TrendingUp,
+      projectName: "Analytics Literacy",
+      concept: "A starter curriculum for reading your own numbers: retention, click-through, and traffic sources — and what each one is telling you to fix. Every other starter assumes you can read a dashboard; this one teaches it, one metric at a time, with a real decision at the end of each lesson.",
+      preload: [
+        { step: "academy", hint: "Start with retention — it's the metric every platform pays for" },
+        { step: "guides", hint: "Pair each metric's lesson with one change to your next upload" },
       ],
     },
   ],
@@ -701,6 +739,16 @@ const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
         { step: "video", hint: "Film a 60-second welcome: who you help, what happens next, one promise" },
         { step: "presskit", hint: "Your kit is the client's proof — best work first, numbers up top" },
         { step: "contracts", hint: "Booking contract + deposit terms go out with the welcome pack — signed before session one" },
+      ],
+    },
+    {
+      key: "invoice-and-tax-kit", name: "Invoice + Tax Kit", blurb: "Invoice on rhythm. Set the tax aside first.", icon: Coins,
+      projectName: "Invoice + Tax Kit",
+      concept: "The get-paid back office every working creator hits monthly: an invoicing rhythm with real payment terms, a tax set-aside that happens the moment money lands, and records that make tax season a non-event. Forming the LLC was step one — this is the system that keeps it fed and legal.",
+      preload: [
+        { step: "llc", hint: "Invoice from the business · get paid to the business account" },
+        { step: "contracts", hint: "Payment terms in every contract: net-15, late fee, kill fee" },
+        { step: "calculator", hint: "Set aside a fixed % of every payment for taxes the day it lands" },
       ],
     },
   ],
