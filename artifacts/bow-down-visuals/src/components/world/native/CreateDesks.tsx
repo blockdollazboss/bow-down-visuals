@@ -43,6 +43,9 @@ import {
   defaultEditorSettings,
 } from "@/lib/editor-settings";
 import { callGenerateApi } from "@/lib/generate-api";
+import { probeMediaDurationSec, transcribeCostForDurationSec } from "@/lib/credit-costs";
+import { parsePanelPayloadFor, type PanelPayload } from "@/lib/world/panel-payload";
+import { PanelBoundary } from "@/components/world/panel-boundary";
 import { generateMusicAudio, type GenerateMusicAudioRequest } from "@/lib/generate-music-audio";
 import { extractSongPackage } from "@/lib/hub-song";
 import { COVER_ART_RATIOS, COVER_ART_STYLES } from "@/lib/cover-art";
@@ -140,6 +143,10 @@ export interface CreateDeskProps {
    *  resolves on open — desks save their result as that project
    *  first, so the editor opens on THIS piece). */
   onOpenEditor?: () => void;
+  /** Opens another station in the room (the host's panel swap),
+   *  carrying an optional panel payload — the Locations bench's
+   *  "Use in cover art" door rides it (stack300 item 96). */
+  onOpenStation?: (stationId: string, payload?: PanelPayload | null) => void;
   /** The panel payload this desk was opened with (Stack-100 #2
    *  item 97, lib/world/panel-payload): RAW and untrusted — a desk
    *  that speaks payloads parses it with parsePanelPayloadFor for
@@ -343,6 +350,7 @@ export function SongDesk(props: CreateDeskProps) {
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmSpend } = useCreditConfirm();
+  const { confirmedFetch } = useConfirmedApi();
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
   const [tab, setTab] = useState<"create" | "inspo" | "mashup" | "hum">("create");
@@ -429,15 +437,27 @@ export function SongDesk(props: CreateDeskProps) {
 
   /* Ring 2 (2.5): upload + auto-transcribe intake — the file rides
      POST /api/transcribe (form field "audio") and the transcript
-     becomes the song's topic/lyrics seed in the prompt. */
+     becomes the song's topic/lyrics seed in the prompt.
+     Stack300 item 80: the call rides confirmedFetch, priced by
+     the file's probed length on the ruled schedule (100 VB up to
+     5 min, +20 per extra min) — the 2D AudioTranscribe flow's
+     exact pattern; a declined confirmation runs nothing and
+     leaves the desk untouched. */
   const intakeFile = async (file: File) => {
     setIntakeBusy(true);
     setIntakeNote(null);
     void quest.snapshot();
     try {
+      const durationSec = await probeMediaDurationSec(file);
       const form = new FormData();
       form.append(TRANSCRIBE_FORM_FIELD, file);
-      const res = await fetch("/api/transcribe", { method: "POST", headers: await authHeaders(), body: form });
+      const res = await confirmedFetch("/api/transcribe", {
+        method: "POST",
+        headers: await authHeaders(),
+        body: form,
+        overrideCost: transcribeCostForDurationSec(durationSec),
+      });
+      if (!res) return; // the member declined the price — nothing ran
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreateDesk.transcriptionFailed")));
       const transcript = transcriptOfResponse(data);
@@ -743,6 +763,7 @@ export function SongVideoDesk(props: CreateDeskProps) {
   const { t } = useTranslation();
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [prompt, setPrompt] = useState("");
   const [adv, setAdv] = useState<SongVideoAdvanced>({ ...EMPTY_SONG_ADVANCED, videoStyle: "", platform: "" });
   const [state, setState] = useState<CreateDeskJobState>("idle");
@@ -765,8 +786,18 @@ export function SongVideoDesk(props: CreateDeskProps) {
     try {
       const token = await getAccessToken();
       const payload = useAdvanced ? buildSongVideoPayloadAdvanced(prompt, adv) : buildSongVideoPayloadTurbo(prompt);
-      const result = await callGenerateApi("/api/generate-song-video", payload, token);
-      if (!result) throw new Error(t("worldCreateDesk.songVideoStartFailed"));
+      /* Stack300 item 76: the package run rides the confirmed
+         rail at the desk's own price (songVideoDeskCost — the
+         figure the runner already shows), like its 2D twin.
+         A declined confirmation comes back null: nothing ran,
+         the desk returns to idle with no failure shown. */
+      const result = await callGenerateApi("/api/generate-song-video", payload, token, (input, init) =>
+        confirmedFetch(input, { ...init, overrideCost: songVideoDeskCost() }),
+      );
+      if (!result) {
+        setState("idle");
+        return;
+      }
       setRawResult(result.rawResult);
       setGenHistoryId(result.genHistoryId ?? null);
       if (result.creditsRemaining !== undefined) refreshProfile();
@@ -962,9 +993,20 @@ function SongVideoWizard(props: {
     setTranscribing(true);
     setError(null);
     try {
+      /* Stack300 item 80: confirmed rail, priced by the file's
+         probed length on the ruled schedule — the 2D pattern.
+         The file stays staged either way; a decline simply
+         leaves it untranscribed. */
+      const durationSec = await probeMediaDurationSec(file);
       const form = new FormData();
       form.append(TRANSCRIBE_FORM_FIELD, file);
-      const res = await fetch("/api/transcribe", { method: "POST", headers: await authHeaders(), body: form });
+      const res = await confirmedFetch("/api/transcribe", {
+        method: "POST",
+        headers: await authHeaders(),
+        body: form,
+        overrideCost: transcribeCostForDurationSec(durationSec),
+      });
+      if (!res) return; // the member declined the price — nothing ran
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreateDesk.transcriptionFailed")));
       const text = transcriptOfResponse(data);
@@ -1014,13 +1056,15 @@ function SongVideoWizard(props: {
     setBusy("plan");
     setError(null);
     try {
-      const token = await getAccessToken();
       const style = "viral-tiktok";
       let settings: ReturnType<typeof defaultEditorSettings> = {
         ...defaultEditorSettings(),
         aiEdit: { ...defaultAiEditSettings(), enabled: true, style, autoApplyTransitions: true },
       };
-      const res = await fetch("/api/generate/ai-edit-plan", {
+      /* Stack300 item 77: the plan rides the confirmed rail at
+         aiEditPlanCost (the figure the button already names) —
+         the 2D editor's own pattern. A decline runs nothing. */
+      const res = await confirmedFetch("/api/generate/ai-edit-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify(
@@ -1035,7 +1079,9 @@ function SongVideoWizard(props: {
             lyricsText: lyrics,
           }),
         ),
+        overrideCost: aiEditPlanCost(),
       });
+      if (!res) return; // the member declined the price — nothing ran
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(apiErrorMessage(data, t("worldCreateDesk.editPlanFailed")));
       const plan = aiEditPlanOfResponse(data);
@@ -1049,7 +1095,6 @@ function SongVideoWizard(props: {
       }
       setEditorSettings(settings);
       refreshProfile();
-      void token;
     } catch (err) {
       setError(plainErrorText(err, t("worldCreateDesk.editPlanFailedSave")));
     } finally {
@@ -1227,6 +1272,90 @@ function SongVideoWizard(props: {
   );
 }
 
+/* ─── Cartoon Studio style family (stack300 item 106) ─────────────
+   The Cartoon Studio page's preset family, mirrored verbatim from
+   pages/cartoon-studio.tsx STYLE_PRESETS — ids, cartoonStudio.*
+   nameKeys and direction strings; keep the two in sync. Picking a
+   style applies the page's own prompt applications at the desk:
+   the Video Desk's clip takes the page's video form
+   (`<prompt>, <direction>`); the Cover Art desk's artist-image
+   bench takes the page's characters form
+   (`Cartoon character design sheet, <direction>. <prompt>`).
+   No style picked = the desks behave exactly as before. The
+   directions are prompt data mirrored from the page, not UI
+   copy; the labels ride the page's cartoonStudio.* keys. */
+const CARTOON_STYLE_PRESETS = [
+  {
+    id: "anime",
+    nameKey: "cartoonStudio.styleAnimeName",
+    direction:
+      "vibrant anime style, cel-shaded, clean dynamic linework, Japanese animation aesthetic, expressive",
+  },
+  {
+    id: "toon3d",
+    nameKey: "cartoonStudio.style3dToonName",
+    direction:
+      "3D cartoon render style, stylized animated feature film look, soft volumetric lighting, smooth appealing shapes",
+  },
+  {
+    id: "classic2d",
+    nameKey: "cartoonStudio.styleClassic2dName",
+    direction:
+      "classic 2D hand-drawn cartoon style, vintage animation cel aesthetic, bold confident outlines, flat cheerful colors",
+  },
+  {
+    id: "comic",
+    nameKey: "cartoonStudio.styleComicName",
+    direction:
+      "comic book art style, bold ink outlines, halftone dot shading, dramatic cel shading, graphic novel look",
+  },
+] as const;
+
+type CartoonStyleId = (typeof CARTOON_STYLE_PRESETS)[number]["id"];
+
+function cartoonStyleOf(id: CartoonStyleId | null) {
+  return CARTOON_STYLE_PRESETS.find((s) => s.id === id) ?? null;
+}
+
+function CartoonStyleStrip({
+  isLight,
+  value,
+  onChange,
+}: {
+  isLight: boolean;
+  value: CartoonStyleId | null;
+  onChange: (id: CartoonStyleId | null) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <p className={`mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
+        {t("cartoonStudio.pageTitle")}
+      </p>
+      <div className="flex flex-wrap gap-1.5" data-testid="world-cartoon-style-strip">
+        {CARTOON_STYLE_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            data-testid={`world-cartoon-style-${preset.id}`}
+            aria-pressed={value === preset.id}
+            onClick={() => onChange(value === preset.id ? null : preset.id)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
+              value === preset.id
+                ? "border-[#d4af37] bg-[#d4af37] text-black"
+                : isLight
+                  ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                  : "border-white/15 text-white/75 hover:text-white"
+            }`}
+          >
+            {t(preset.nameKey)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Video Desk ───────────────────────────────────────────────────── */
 
 export function VideoDesk(props: CreateDeskProps) {
@@ -1240,6 +1369,10 @@ export function VideoDesk(props: CreateDeskProps) {
   /* The model shelf: one picker governs the desk's clip AND the
      storyboard bench's per-scene clips below it. */
   const [clipSettings, setClipSettings] = useState<ClipSettings>(DEFAULT_CLIP_SETTINGS);
+  /* Cartoon Studio style family pick (stack300 item 106) — null
+     is the desk's plain behaviour; a pick restyles the clip
+     prompt with the page's video application. */
+  const [cartoonStyleId, setCartoonStyleId] = useState<CartoonStyleId | null>(null);
   const [librarySaved, setLibrarySaved] = useState<boolean | null>(null);
   const [state, setState] = useState<CreateDeskJobState>("idle");
   const [clipUrl, setClipUrl] = useState<string | null>(null);
@@ -1305,13 +1438,18 @@ export function VideoDesk(props: CreateDeskProps) {
     setProgress(null);
     setLibrarySaved(null);
     try {
+      /* A picked Cartoon Studio style restyles the generation
+         prompt with the page's video application (item 106);
+         the member's own words stay the title and save name. */
+      const cartoon = cartoonStyleOf(cartoonStyleId);
+      const generationPrompt = cartoon ? `${prompt.trim()}, ${cartoon.direction}` : prompt;
       /* The UGC Ads station's proven pattern: the price is shown,
          the member confirms, and the rail itself charges only on
          success — a failed generation charges nothing. */
       const res = await confirmedFetch("/api/generate-runway-clip", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildRunwayClipPayload(prompt, negativePrompt, clipSettings)),
+        body: JSON.stringify(buildRunwayClipPayload(generationPrompt, negativePrompt, clipSettings)),
         overrideCost: clipPlanCost(clipSettings),
         overrideFeature: t("worldCreateDesk.confirmClipFeature"),
       });
@@ -1335,8 +1473,17 @@ export function VideoDesk(props: CreateDeskProps) {
     setPlanError(null);
     try {
       const token = await getAccessToken();
-      const result = await callGenerateApi("/api/generate-video-plan", buildVideoPlanPayload(prompt), token);
-      if (!result) throw new Error(t("worldCreateDesk.planStartFailed"));
+      /* Stack300 item 77: the plan rides the confirmed rail at
+         videoPlanCost (the figure the button already names),
+         like its 2D twin. A declined confirmation comes back
+         null: nothing ran, back to idle with no failure shown. */
+      const result = await callGenerateApi("/api/generate-video-plan", buildVideoPlanPayload(prompt), token, (input, init) =>
+        confirmedFetch(input, { ...init, overrideCost: videoPlanCost() }),
+      );
+      if (!result) {
+        setPlanState("idle");
+        return;
+      }
       setPlanText(result.rawResult);
       if (result.creditsRemaining !== undefined) refreshProfile();
       setPlanState("done");
@@ -1368,6 +1515,7 @@ export function VideoDesk(props: CreateDeskProps) {
           {planText ? <TextResult isLight={isLight} title={t("worldCreateDesk.yourVideoPlan")} text={resultExcerpt(planText)} /> : null}
         </div>
       </AdvancedExpander>
+      <CartoonStyleStrip isLight={isLight} value={cartoonStyleId} onChange={setCartoonStyleId} />
       <ClipModelPicker isLight={isLight} settings={clipSettings} onChange={setClipSettings} />
       <CreateDeskRunner
         isLight={isLight}
@@ -1427,42 +1575,56 @@ export function VideoDesk(props: CreateDeskProps) {
             : t("worldCreateDesk.clipMaking")}
         </p>
       )}
-      <StoryboardBench
-        isLight={isLight}
-        editorBusy={editor.busy}
-        clipSettings={clipSettings}
-        onSendToEditor={
-          props.onOpenEditor
-            ? (payload) => {
-                void editor.send(payload);
-              }
-            : undefined
-        }
-      />
-      <StoryboardPlanner
-        isLight={isLight}
-        editorBusy={editor.busy}
-        onSendToEditor={
-          props.onOpenEditor
-            ? (payload) => {
-                void editor.send(payload);
-              }
-            : undefined
-        }
-      />
+      {/* Stack300 item 109: every stacked bench rides behind its
+          OWN error boundary, like the community-hall benches —
+          one bench's render failure now shows that bench's
+          fallback card instead of unmounting the whole desk. */}
+      <PanelBoundary isLight={isLight} resetKey="video-desk-storyboard">
+        <StoryboardBench
+          isLight={isLight}
+          editorBusy={editor.busy}
+          clipSettings={clipSettings}
+          onSendToEditor={
+            props.onOpenEditor
+              ? (payload) => {
+                  void editor.send(payload);
+                }
+              : undefined
+          }
+        />
+      </PanelBoundary>
+      <PanelBoundary isLight={isLight} resetKey="video-desk-storyboard-planner">
+        <StoryboardPlanner
+          isLight={isLight}
+          editorBusy={editor.busy}
+          onSendToEditor={
+            props.onOpenEditor
+              ? (payload) => {
+                  void editor.send(payload);
+                }
+              : undefined
+          }
+        />
+      </PanelBoundary>
       {/* Video Templates bench (Stack-100 wave 4, item 27 /
           desk #100): the video-template payload's receiving end —
           the rail's catalog, slot filling and the registry-priced
           apply on /api/video-template, stacked under the
           storyboard pair like its Create Wing neighbours. */}
-      <VideoTemplateBench isLight={isLight} panelPayload={props.panelPayload ?? null} />
+      <PanelBoundary isLight={isLight} resetKey="video-desk-templates">
+        <VideoTemplateBench isLight={isLight} panelPayload={props.panelPayload ?? null} />
+      </PanelBoundary>
       {/* Locations bench (stack200 world parity lane B1, census
           item 3): the saved-places surface from pages/locations
           — the same free /api/locations rails the page and the
           editor's Locations tab share — as a native bench under
           the template bench, so places are managed in the room
-          instead of only inside the editor step-through. */}
-      <LocationsBench isLight={isLight} />
+          instead of only inside the editor step-through. Its
+          cover-art door (stack300 item 96) rides the host's
+          panel swap through onOpenStation. */}
+      <PanelBoundary isLight={isLight} resetKey="video-desk-locations">
+        <LocationsBench isLight={isLight} onOpenStation={props.onOpenStation} />
+      </PanelBoundary>
     </div>
   );
 }
@@ -1474,6 +1636,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
+  const { confirmedFetch } = useConfirmedApi();
   const [prompt, setPrompt] = useState("");
   const [songTitle, setSongTitle] = useState("");
   const [artistName, setArtistName] = useState("");
@@ -1495,6 +1658,10 @@ export function CoverArtDesk(props: CreateDeskProps) {
   const [imageState, setImageState] = useState<CreateDeskJobState>("idle");
   const [imagePrompt, setImagePrompt] = useState("");
   const [imageModel, setImageModel] = useState<ArtistImageModel>("gen4_image");
+  /* Cartoon Studio style family pick for the artist-image bench
+     (stack300 item 106) — a pick turns the bench's run into the
+     page's characters application. */
+  const [imageCartoonStyleId, setImageCartoonStyleId] = useState<CartoonStyleId | null>(null);
   const [artistImageUrl, setArtistImageUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const imagePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1503,6 +1670,25 @@ export function CoverArtDesk(props: CreateDeskProps) {
   useEffect(() => () => {
     if (imagePollRef.current) clearInterval(imagePollRef.current);
   }, []);
+
+  /* Stack300 item 96: the Locations bench's "Use in cover art"
+     door lands here as a cover-art-scene payload — seed the
+     prompt with the page's exact words (cover-art.tsx reads
+     ?scene= into the same line): appended to words already
+     typed, or standing alone on a blank desk. Applied once per
+     mount; anything that isn't this desk's own payload kind
+     parses to null and the desk opens blank, as always. */
+  const sceneSeededRef = useRef(false);
+  useEffect(() => {
+    if (sceneSeededRef.current) return;
+    const payload = parsePanelPayloadFor("cover-art-desk", props.panelPayload ?? null);
+    if (payload?.kind !== "cover-art-scene") return;
+    sceneSeededRef.current = true;
+    const scene = payload.sceneUrl;
+    setPrompt((p) =>
+      p ? `${p} — set against this saved location backdrop: ${scene}` : `Set against this saved location backdrop: ${scene}`,
+    );
+  }, [props.panelPayload]);
 
   const run = async () => {
     if (state === "running" || !prompt.trim()) return;
@@ -1520,11 +1706,21 @@ export function CoverArtDesk(props: CreateDeskProps) {
     setShareNote(null);
     void coverQuest.snapshot();
     try {
-      const res = await fetch("/api/cover-art", {
+      /* Stack300 item 78: the cover rides the confirmed rail at
+         the picked tier's own price (coverArtCost — premium is
+         300, above the registry's standard 200, so the override
+         is what makes the confirmation tell the truth). A
+         decline runs nothing and returns the desk to idle. */
+      const res = await confirmedFetch("/api/cover-art", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify(buildCoverArtPayload(prompt, { songTitle, artistName, style, aspectRatio, tier, attribution })),
+        overrideCost: coverArtCost(tier),
       });
+      if (!res) {
+        setState("idle");
+        return;
+      }
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
       if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, t("worldCreateDesk.coverFailed")));
       setCoverUrl(data.url);
@@ -1561,11 +1757,18 @@ export function CoverArtDesk(props: CreateDeskProps) {
     setMotionState("running");
     setMotionError(null);
     try {
-      const res = await fetch("/api/cover-in-motion/animate", {
+      /* Stack300 item 78: confirmed rail at coverInMotionCost —
+         the figure the button already names. */
+      const res = await confirmedFetch("/api/cover-in-motion/animate", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify(buildCoverInMotionPayload(coverUrl)),
+        overrideCost: coverInMotionCost(),
       });
+      if (!res) {
+        setMotionState("idle");
+        return;
+      }
       const data = (await res.json().catch(() => ({}))) as { videoUrl?: string; error?: string; message?: string };
       if (!res.ok || !data.videoUrl) throw new Error(apiErrorMessage(data, t("worldCreateDesk.animationFailed")));
       setMotionUrl(data.videoUrl);
@@ -1583,11 +1786,25 @@ export function CoverArtDesk(props: CreateDeskProps) {
     setImageError(null);
     setArtistImageUrl(null);
     try {
-      const res = await fetch("/api/generate-artist-image", {
+      /* A picked Cartoon Studio style turns this run into the
+         page's characters application (item 106); unstyled, the
+         bench sends the member's words exactly as typed. */
+      const cartoon = cartoonStyleOf(imageCartoonStyleId);
+      const generationPrompt = cartoon
+        ? `Cartoon character design sheet, ${cartoon.direction}. ${imagePrompt.trim()}`
+        : imagePrompt;
+      /* Stack300 item 78: confirmed rail at the picked model's
+         own price (artistImageCost). */
+      const res = await confirmedFetch("/api/generate-artist-image", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify(buildArtistImagePayload(imagePrompt, imageModel)),
+        body: JSON.stringify(buildArtistImagePayload(generationPrompt, imageModel)),
+        overrideCost: artistImageCost(imageModel),
       });
+      if (!res) {
+        setImageState("idle");
+        return;
+      }
       const data = (await res.json().catch(() => ({}))) as { taskId?: string; status?: string; url?: string | null; error?: string; message?: string };
       if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, t("worldCreateDesk.imageStartFailed")));
       if (data.status === "succeeded" && data.url) {
@@ -1730,6 +1947,7 @@ export function CoverArtDesk(props: CreateDeskProps) {
           <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
             {t("worldCreateDesk.artistImageBench")}
           </p>
+          <CartoonStyleStrip isLight={isLight} value={imageCartoonStyleId} onChange={setImageCartoonStyleId} />
           <DeskTextField isLight={isLight} label={t("worldCreateDesk.describeArtistImage")} value={imagePrompt} onChange={setImagePrompt} />
           <DeskSelectField
             isLight={isLight}
@@ -1860,6 +2078,7 @@ export function ThumbnailDesk(props: CreateDeskProps) {
   const { t, i18n } = useTranslation();
   const { isLight } = props;
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [prompt, setPrompt] = useState("");
   const [artistName, setArtistName] = useState("");
   const [songTitle, setSongTitle] = useState("");
@@ -1908,12 +2127,20 @@ export function ThumbnailDesk(props: CreateDeskProps) {
     void thumbQuest.snapshot();
     try {
       const token = await getAccessToken();
+      /* Stack300 item 79: the thumbnail rides the confirmed rail
+         at thumbnailDeskCost (the figure the desk already
+         shows), like its 2D twin. A declined confirmation comes
+         back null: nothing ran, back to idle, no failure shown. */
       const result = await callGenerateApi(
         "/api/generate-thumbnail",
         buildThumbnailPayload(prompt, { artistName, songTitle, platform, artStyle, colorTheme, mood, featuredText }),
         token,
+        (input, init) => confirmedFetch(input, { ...init, overrideCost: thumbnailDeskCost() }),
       );
-      if (!result) throw new Error(t("worldCreateDesk.thumbnailStartFailed"));
+      if (!result) {
+        setState("idle");
+        return;
+      }
       setImageUrl(result.thumbnailImageUrl ?? null);
       if (result.imageError) setImageNote(result.imageError);
       if (result.creditsRemaining !== undefined) refreshProfile();
