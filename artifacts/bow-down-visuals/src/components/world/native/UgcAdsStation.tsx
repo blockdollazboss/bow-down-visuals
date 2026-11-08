@@ -42,6 +42,7 @@ import {
   type UgcBrief,
   type UgcShopProduct,
   type UgcStyleKey,
+  ugcErrorText,
 } from "@/lib/ugc-ads";
 import {
   buildBriefInput,
@@ -257,7 +258,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       });
       set({ hook: script.hook, scriptLines: script.lines.join("\n"), cta: script.cta });
     } catch (err) {
-      setMakerError(plainErrorText(err, t("worldLivePromo.ugcScriptFailed")));
+      setMakerError(ugcErrorText(err, (key) => t(key), t("worldLivePromo.ugcScriptFailed")));
     } finally {
       setScriptBusy(false);
     }
@@ -341,7 +342,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       setAdsState("ready");
       refreshProfile();
     } catch (err) {
-      setMakerError(plainErrorText(err, t("worldLivePromo.ugcGenerationFailed")));
+      setMakerError(ugcErrorText(err, (key) => t(key), t("worldLivePromo.ugcGenerationFailed")));
       void loadAds();
     } finally {
       setGenerating(false);
@@ -358,7 +359,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       if (latestAd?.id === ready.id) setLatestAd(ready);
       refreshProfile();
     } catch (err) {
-      setMakerError(plainErrorText(err, t("worldLivePromo.ugcGenerationFailed")));
+      setMakerError(ugcErrorText(err, (key) => t(key), t("worldLivePromo.ugcGenerationFailed")));
       void loadAds();
     } finally {
       setBusyAdId(null);
@@ -375,7 +376,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       if (latestAd?.id === saved.id) setLatestAd(saved);
       void loadProducts();
     } catch (err) {
-      setMakerError(plainErrorText(err, t("worldLivePromo.ugcPinFailed")));
+      setMakerError(ugcErrorText(err, (key) => t(key), t("worldLivePromo.ugcPinFailed")));
     } finally {
       setBusyAdId(null);
     }
@@ -389,7 +390,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       if (latestAd?.id === ad.id) setLatestAd(null);
       setConfirmDeleteId(null);
     } catch (err) {
-      setMakerError(plainErrorText(err, t("worldLivePromo.ugcDeleteFailed")));
+      setMakerError(ugcErrorText(err, (key) => t(key), t("worldLivePromo.ugcDeleteFailed")));
     } finally {
       setBusyAdId(null);
     }
@@ -431,7 +432,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
       setBriefsState("ready");
       setBoardNote(t("worldLivePromo.ugcBriefPosted"));
     } catch (err) {
-      setBoardNote(plainErrorText(err, t("worldLivePromo.ugcBriefPostFailed")));
+      setBoardNote(ugcErrorText(err, (key) => t(key), t("worldLivePromo.ugcBriefPostFailed")));
     } finally {
       setPostingBrief(false);
     }
@@ -457,7 +458,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
         setBoardNote(t("worldLivePromo.ugcClosedRefundNote"));
       }
     } catch (err) {
-      setBoardNote(plainErrorText(err, t("worldLivePromo.ugcBriefActionFailed")));
+      setBoardNote(ugcErrorText(err, (key) => t(key), t("worldLivePromo.ugcBriefActionFailed")));
       void loadBriefs();
     } finally {
       setBusyBriefId(null);
@@ -483,7 +484,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
         setBoardNote(t("worldLivePromo.ugcFundOnWebsite"));
       }
     } catch (err) {
-      setBoardNote(plainErrorText(err, t("worldLivePromo.ugcBriefActionFailed")));
+      setBoardNote(ugcErrorText(err, (key) => t(key), t("worldLivePromo.ugcBriefActionFailed")));
       void loadBriefs();
     } finally {
       setBusyBriefId(null);
