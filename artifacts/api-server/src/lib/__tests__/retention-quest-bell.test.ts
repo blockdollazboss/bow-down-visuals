@@ -165,7 +165,9 @@ describe("DE-18 — the quest bell", () => {
     await recordShareEvent(USER);
     expect(h.state.notifications).toHaveLength(1);
     expect(String(h.state.notifications[0]!["body"])).toContain("Viral Sharer");
-    expect(String(h.state.notifications[0]!["body"])).toContain("60");
+    /* The bell speaks the def's reward — 25 VB since the owner's
+       2026-11-08 Viral Sharer ruling (was 60). */
+    expect(String(h.state.notifications[0]!["body"])).toContain("25");
   });
 
   it("each quest rings its own bell, naming itself and its reward", async () => {

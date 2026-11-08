@@ -32,8 +32,9 @@ const QUEST_META: Record<string, { icon: typeof ImageIcon; href: string; titleKe
   "make-thumbnail": { icon: ImageIcon, href: "/thumbnail-maker", titleKey: "retention.quest_make_thumbnail_title", descKey: "retention.quest_make_thumbnail_desc" },
   "generate-song":   { icon: Music2, href: "/make-song", titleKey: "retention.quest_generate_song_title", descKey: "retention.quest_generate_song_desc" },
   "export-video":    { icon: Clapperboard, href: "/video-editor", titleKey: "retention.quest_export_video_title", descKey: "retention.quest_export_video_desc" },
-  /* Viral Sharer (share-to-earn loop): reward is 0 / TBD until the owner
-     approves how it fits the 300 VB/week pool — see backend QUEST_DEFS. */
+  /* Viral Sharer (share-to-earn loop): reward ruled 25 VB (2026-11-08),
+     drawn from the shared 300 VB/week pool — see backend QUEST_DEFS.
+     The reward renders from the server payload like every quest. */
   "viral-sharer":   { icon: Share2, href: "/my-projects", titleKey: "retention.quest_viral_sharer_title", descKey: "retention.quest_viral_sharer_desc" },
 };
 

@@ -222,7 +222,9 @@ describe("claimQuestReward", () => {
   it("claims under the claimed_at IS NULL CAS and pays atomically", async () => {
     seedQuest();
     const res = await claimQuestReward(USER, "viral-sharer");
-    expect(res).toEqual({ reward: 60 });
+    /* 25 VB — the owner's 2026-11-08 ruling for the Viral Sharer
+       reward (QUEST_DEFS carries the ruled number). */
+    expect(res).toEqual({ reward: 25 });
 
     expect(h.state.updates).toHaveLength(1);
     const upd = h.state.updates[0]!;
@@ -232,7 +234,7 @@ describe("claimQuestReward", () => {
     expect(whereRendered.sql.toLowerCase()).toContain("is null");
     expect(whereRendered.params).toContain("viral-sharer");
 
-    expect(h.state.atomicCalls).toEqual([{ userId: USER, amount: 60 }]);
+    expect(h.state.atomicCalls).toEqual([{ userId: USER, amount: 25 }]);
     expect(h.state.rmwCalls).toHaveLength(0);
   });
 
