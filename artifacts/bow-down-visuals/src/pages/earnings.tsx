@@ -375,7 +375,7 @@ export default function Earnings() {
         <SectionBoundary name="earnings-source-store">
         <SourceCard
           onRetry={reload}
-          title="Store sales"
+          title={t("earnings.storeSalesTitle")}
           source={sources.storeSales}
           detail={
             sources.storeSales.status === "ok" && sources.storeSales.breakdown
@@ -404,7 +404,7 @@ export default function Earnings() {
         <SectionBoundary name="earnings-source-beats">
         <SourceCard
           onRetry={reload}
-          title="Beats (licenses sold)"
+          title={t("earnings.beatsTitle")}
           source={sources.beats}
           detail={
             sources.beats.status === "ok"
@@ -414,10 +414,10 @@ export default function Earnings() {
         />
         </SectionBoundary>
         <SectionBoundary name="earnings-source-memberships">
-        <SourceCard title="Memberships" source={sources.memberships} onRetry={reload} />
+        <SourceCard title={t("earnings.membershipsTitle")} source={sources.memberships} onRetry={reload} />
         </SectionBoundary>
         <SectionBoundary name="earnings-source-deals">
-        <SourceCard title="Brand deals (escrow released)" source={sources.brandDeals} onRetry={reload} />
+        <SourceCard title={t("earnings.brandDealsTitle")} source={sources.brandDeals} onRetry={reload} />
         </SectionBoundary>
         <SectionBoundary name="earnings-source-shoutouts">
         <SourceCard
@@ -442,11 +442,11 @@ export default function Earnings() {
         <SectionBoundary name="earnings-source-bookings">
         <SourceCard
           onRetry={reload}
-          title="Performance bookings (escrow released)"
+          title={t("earnings.bookingsTitle")}
           source={sources.bookings}
           detail={
             sources.bookings.status === "ok"
-              ? `gross ${usd(sources.bookings.grossCents)} · platform fee ${usd(sources.bookings.feeCents)} (15%)`
+              ? t("earnings.bookingsDetail", { gross: usd(sources.bookings.grossCents), fee: usd(sources.bookings.feeCents) })
               : undefined
           }
         />
