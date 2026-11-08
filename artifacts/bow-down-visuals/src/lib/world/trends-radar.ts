@@ -36,6 +36,14 @@
  * catalog namespace (trends.radar.*) so the labels can never
  * drift from the page's; the desk's palace framing lives in
  * worldTrendsRadar.*.
+ *
+ * Stack 300 item 107: the website rail (components/
+ * TrendRadar.tsx) parses through this same seam now — it
+ * used to cast the body and coerce missing families to [],
+ * so a broken feed rendered as a quiet feed and a null row
+ * threw at render. Rows therefore also carry the server's
+ * createLink (the page's hop into Create); the bench reads
+ * it never, the page links it always.
  */
 
 export const TREND_RADAR_PATH = "/api/trend-radar";
@@ -54,11 +62,18 @@ export interface RadarSound {
   genre: string | null;
   slug: string;
   trend: RadarVelocity;
+  /** The website rail's hop into Create with this sound
+   *  pre-loaded. The bench never renders it (read-only by
+   *  design); the Trends page's rows link it. "" when the
+   *  payload carried none — never invented here. */
+  createLink: string;
 }
 
 export interface RadarTopic {
   genre: string;
   trend: RadarVelocity;
+  /** Same contract as RadarSound.createLink. */
+  createLink: string;
 }
 
 export type RadarFormatKind = "short" | "duet" | "stitch" | "full";
@@ -66,6 +81,8 @@ export type RadarFormatKind = "short" | "duet" | "stitch" | "full";
 export interface RadarFormat {
   format: RadarFormatKind;
   trend: RadarVelocity;
+  /** Same contract as RadarSound.createLink. */
+  createLink: string;
 }
 
 /** C-30 outside heat — deliberately NOT shaped like the
@@ -137,6 +154,7 @@ function soundOf(raw: unknown): RadarSound | null {
     genre: typeof o["genre"] === "string" ? o["genre"] : null,
     slug: typeof o["slug"] === "string" ? o["slug"] : "",
     trend,
+    createLink: typeof o["createLink"] === "string" ? o["createLink"] : "",
   };
 }
 
@@ -146,7 +164,7 @@ function topicOf(raw: unknown): RadarTopic | null {
   const genre = typeof o["genre"] === "string" ? o["genre"].trim() : "";
   const trend = velocityOf(o["trend"]);
   if (!genre || !trend) return null;
-  return { genre, trend };
+  return { genre, trend, createLink: typeof o["createLink"] === "string" ? o["createLink"] : "" };
 }
 
 function formatOf(raw: unknown): RadarFormat | null {
@@ -158,7 +176,11 @@ function formatOf(raw: unknown): RadarFormat | null {
   }
   const trend = velocityOf(o["trend"]);
   if (!trend) return null;
-  return { format: format as RadarFormatKind, trend };
+  return {
+    format: format as RadarFormatKind,
+    trend,
+    createLink: typeof o["createLink"] === "string" ? o["createLink"] : "",
+  };
 }
 
 /** The server's honesty rule, re-checked at the seam: a row

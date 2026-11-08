@@ -208,6 +208,12 @@ describe("copy — en source, English verbatim UNREVIEWED in the other nine", ()
     expect(en.worldVideoStudio.timedOut).toBe(
       "Generation timed out — the clip may still finish in the background.",
     );
+    /* Stack300 item 117: the poll path's no-detail fallback —
+       the rail's charge truth (charge settles only on a
+       finished clip) plus the next step, verbatim in all ten. */
+    expect(en.worldVideoStudio.failedNoDetail).toBe(
+      "Generation failed — no Visual Bucs were charged for a clip that didn't finish. Try running it again.",
+    );
     for (const loc of ["ar", "de", "es", "fr", "hi", "it", "ja", "ko", "pt"]) {
       expect(readJson(`../../locales/${loc}.json`).worldVideoStudio, loc).toEqual(en.worldVideoStudio);
     }

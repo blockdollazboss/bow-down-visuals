@@ -187,7 +187,8 @@ export function VideoStudioDesk({ isLight }: { isLight: boolean }) {
           headers: await authHeaders(),
           credentials: "include",
         });
-        const verdict = interpretStudioPoll(await pollRes.json().catch(() => ({})));
+        const pollBody: unknown = await pollRes.json().catch(() => ({}));
+        const verdict = interpretStudioPoll(pollBody);
         if (verdict.state === "done") {
           videoUrl = verdict.url;
           break;
@@ -196,10 +197,17 @@ export function VideoStudioDesk({ isLight }: { isLight: boolean }) {
           throw new Error(t("worldVideoStudio.emptySuccess"));
         }
         if (verdict.state === "failed") {
-          /* Catalog copy only — the poll body's raw error string
-             never reaches a render (api-error-guard law); the seam
-             still classifies the failure. */
-          throw new Error(t("worldVideoStudio.failed"));
+          /* Two-kind failure words (stack300 item 117), mirroring
+             the site's export rail: the server's plain message
+             when the job carries one — the rail composes it from
+             the failure kind, charge truth included — read through
+             apiErrorMessage exactly like the submit path above, so
+             a raw string still never reaches a render unfiltered
+             (api-error-guard law). No usable message → the
+             catalog's no-detail wording: the rail's charge truth
+             (a clip that didn't finish was not charged) and the
+             next step, claiming nothing beyond that. */
+          throw new Error(apiErrorMessage(pollBody, t("worldVideoStudio.failedNoDetail")));
         }
       }
       if (!videoUrl) throw new Error(t("worldVideoStudio.timedOut"));

@@ -20,6 +20,11 @@ import { describe, expect, it } from "vitest";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const radar = read("../components/TrendRadar.tsx");
+/* Stack300 item 107 moved the fetch seam into the shared strict
+   parser (lib/world/trends-radar) — the dormancy mechanism lives
+   there now; the contract below pins it at its new home with the
+   same strength. */
+const seam = read("./world/trends-radar.ts");
 
 const LOCALES = ["en", "es", "fr", "pt", "de", "it", "hi", "ar", "ja", "ko"] as const;
 const OUTSIDE_KEYS = ["outsideTitle", "outsideSubtitle", "outsideBadge", "outsideViews", "outsideNote"] as const;
@@ -33,8 +38,12 @@ function radarCatalog(locale: string): Record<string, string> {
 
 describe("dormancy — the section exists only when real chart rows arrive", () => {
   it("normalizes an absent/empty outsideHeat to null at the fetch seam", () => {
-    expect(radar).toContain("d.outsideHeat && Array.isArray(d.outsideHeat.videos)");
-    expect(radar).toContain("d.outsideHeat.videos.length > 0");
+    /* Item 107: the component routes the body through the shared
+       strict parser; the parser keeps only labelable videos and
+       an outside family with none left is null — dormant. */
+    expect(radar).toContain("trendRadarFeedOf(");
+    expect(seam).toContain("function outsideHeatOf(raw: unknown): OutsideHeat | null");
+    expect(seam).toContain("if (videos.length === 0) return null;");
   });
 
   it("gates the whole section on showOutside (videos actually present)", () => {
