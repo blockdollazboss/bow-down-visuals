@@ -134,3 +134,26 @@ describe("single-drop-hero — the hero look starter (stack200 U3)", () => {
     expect(isLookStarterApplied({ layout_style: "hero", font_style: "house" }, hero!)).toBe(false);
   });
 });
+
+describe("hero-house — the hero layout in the house voice (stack300)", () => {
+  it("pairs the hero layout with the house font, and only those two fields move", () => {
+    const hero = shopLookStarterById("hero-house");
+    expect(hero).toBeDefined();
+    expect(hero!.settings).toEqual({ layout_style: "hero", font_style: "house" });
+    expect(shopLookPatch(hero!)).toEqual({ layout_style: "hero", font_style: "house" });
+    expect(isLookStarterApplied({ layout_style: "hero", font_style: "house" }, hero!)).toBe(true);
+    expect(isLookStarterApplied({ layout_style: "hero", font_style: "royal" }, hero!)).toBe(false);
+  });
+});
+
+describe("gallery-classic — the gallery wall in the classic serif (stack300)", () => {
+  it("pairs the gallery layout with the classic font, and only those two fields move", () => {
+    const gallery = shopLookStarterById("gallery-classic");
+    expect(gallery).toBeDefined();
+    expect(gallery!.settings).toEqual({ layout_style: "gallery", font_style: "classic" });
+    expect(shopLookPatch(gallery!)).toEqual({ layout_style: "gallery", font_style: "classic" });
+    expect(isLookStarterApplied({ layout_style: "gallery", font_style: "classic" }, gallery!)).toBe(true);
+    expect(isLookStarterApplied({ layout_style: "gallery", font_style: "house" }, gallery!)).toBe(false);
+    expect(isLookStarterApplied({ layout_style: "list", font_style: "classic" }, gallery!)).toBe(false);
+  });
+});

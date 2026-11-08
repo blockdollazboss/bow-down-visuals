@@ -154,6 +154,29 @@ describe("porcelain-light — the design shelf's light entry (stack200 U3)", () 
   });
 });
 
+describe("acid-lime — the design shelf's yellow-green entry (stack300)", () => {
+  function rgbDistance(a: string, b: string): number {
+    const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+    const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+    return Math.hypot(pa[0]! - pb[0]!, pa[1]! - pb[1]!, pa[2]! - pb[2]!);
+  }
+
+  it("exists with the green-black banner + acid-lime accent pairing", () => {
+    const acid = shopStarterById("acid-lime");
+    expect(acid).toBeDefined();
+    expect(acid!.settings).toEqual({ banner_color: "#0d1405", accent_color: "#a3e635" });
+    expect(shopStarterPatch(acid!)).toEqual({ banner_color: "#0d1405", accent_color: "#a3e635" });
+  });
+
+  it("its accent is a genuinely new hue on the shelf — far from every existing accent", () => {
+    const acid = shopStarterById("acid-lime")!;
+    for (const s of SHOP_DESIGN_STARTERS) {
+      if (s.id === "acid-lime") continue;
+      expect(rgbDistance(acid.settings.accent_color, s.settings.accent_color), s.id).toBeGreaterThan(100);
+    }
+  });
+});
+
 describe("(d) banner darkness — white shop-name ink stays readable on every starter", () => {
   it("every banner color is dark (relative luminance < 0.2)", () => {
     for (const s of SHOP_DESIGN_STARTERS) {

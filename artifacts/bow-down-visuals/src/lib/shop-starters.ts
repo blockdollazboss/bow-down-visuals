@@ -130,6 +130,13 @@ export const SHOP_DESIGN_STARTERS: ShopDesignStarter[] = [
     bestFor: "Skincare, home goods, stationery, and bright boutique brands.",
     settings: { banner_color: "#3a2e22", accent_color: "#efe3c2" },
   },
+  {
+    id: "acid-lime",
+    name: "Acid Lime",
+    blurb: "Green-black banner with an acid-lime strike — the shelf's only yellow-green, loud and fast.",
+    bestFor: "Gaming, street, and esports shops.",
+    settings: { banner_color: "#0d1405", accent_color: "#a3e635" },
+  },
 ];
 
 export function shopStarterById(id: string): ShopDesignStarter | undefined {
@@ -234,6 +241,20 @@ export const SHOP_LOOK_STARTERS: ShopLookStarter[] = [
     blurb: "One hero product full-bleed with its story up top, the rest of the drop in a rail below — headlines set in the ceremonial serif.",
     bestFor: "Single-drop shops, limited releases, and one-big-thing launches.",
     settings: { layout_style: "hero", font_style: "royal" },
+  },
+  {
+    id: "hero-house",
+    name: "Hero House",
+    blurb: "The hero layout in the clean house voice — one big drop up top, no ceremonial serif.",
+    bestFor: "Single-drop shops and launches that read modern and direct.",
+    settings: { layout_style: "hero", font_style: "house" },
+  },
+  {
+    id: "gallery-classic",
+    name: "Gallery Classic",
+    blurb: "The dense four-across wall set in the classic warm serif — a packed catalog that reads like a bookshelf.",
+    bestFor: "Books, art, and sample-pack catalogs with a bookish read.",
+    settings: { layout_style: "gallery", font_style: "classic" },
   },
 ];
 
