@@ -930,6 +930,7 @@ const W5_LEGIT_IDENTICAL = new Set([
   "randomizer.crossLink.name",
   "randomizer.titlePrefix",
   "repurpose.badge",
+  "repurpose.error.lostJobs",
   "repurpose.modeLabel",
   "repurpose.modeSmart",
   "repurpose.modeStreamVod",

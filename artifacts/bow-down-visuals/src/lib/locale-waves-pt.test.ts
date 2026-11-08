@@ -734,6 +734,7 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "nfcCards.qrSvg",
   "randomizer.crossLink.name",
   "repurpose.modeSmart",
+  "repurpose.error.lostJobs",
   "repurpose.modeStreamVod",
   "retention.awayDigest.bowRace",
   "retention.quests_progress",

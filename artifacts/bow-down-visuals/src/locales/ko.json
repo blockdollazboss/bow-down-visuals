@@ -9090,7 +9090,7 @@
       "thumbJobFailed": "썸네일 작업 조회 실패.",
       "clipCuttingFailed": "클립 자르기에 실패했습니다. 팩 Visual Bucs는 텍스트 출력을 커버합니다 — 클립은 동영상 편집기에서 다시 자를 수 있습니다.",
       "thumbFailed": "썸네일 이미지를 생성할 수 없습니다 — 아래 썸네일 프롬프트는 어떤 이미지 도구에서도 작동합니다.",
-      "lostJobs": "백그라운드 작업을 놓쳤습니다 — 새로고침하여 확인하세요.",
+      "lostJobs": "Lost track of the background jobs — use Check again to see where they stand.",
       "rerollFailed": "리롤 실패 — 다시 시도하세요.",
       "thumbRerollFailed": "썸네일 리롤 실패 — 다시 시도하세요."
     },
@@ -20714,7 +20714,11 @@
   "worldRepurposeDesk": {
     "title": "Content Repurposer",
     "fromProject": "From your project",
-    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again."
+    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "checkAgain": "Check again",
+    "checkingJobs": "Checking your jobs…",
+    "streamOutOfBucs": "You’re out of Visual Bucs for Stream VOD. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "smartOutOfBucs": "You’re out of Visual Bucs for Smart Clips. Top up at the Treasury’s Visual Buc Packs desk and run it again."
   },
   "worldRemixDesk": {
     "title": "Remix Trends",

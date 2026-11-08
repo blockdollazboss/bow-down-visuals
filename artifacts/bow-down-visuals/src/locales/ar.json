@@ -9201,7 +9201,7 @@
       "thumbJobFailed": "فشل بحث مهمة الصورة المصغرة.",
       "clipCuttingFailed": "فشل قص المقطع. Visual Bucs حزمتك تغطي مخرجات النص — المقاطع يمكن إعادة قصها من محرر الفيديو.",
       "thumbFailed": "فشل توليد صور الصور المصغرة — موجهات الصور المصغرة أدناه ما زالت تعمل مع أي أداة صور.",
-      "lostJobs": "فُقد تتبع مهام الخلفية — حدّث للتحقق.",
+      "lostJobs": "Lost track of the background jobs — use Check again to see where they stand.",
       "rerollFailed": "فشلت إعادة الرمي — حاول مجدداً.",
       "thumbRerollFailed": "فشلت إعادة رمي الصورة المصغرة — حاول مجدداً."
     },
@@ -20830,7 +20830,11 @@
   "worldRepurposeDesk": {
     "title": "Content Repurposer",
     "fromProject": "From your project",
-    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again."
+    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "checkAgain": "Check again",
+    "checkingJobs": "Checking your jobs…",
+    "streamOutOfBucs": "You’re out of Visual Bucs for Stream VOD. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "smartOutOfBucs": "You’re out of Visual Bucs for Smart Clips. Top up at the Treasury’s Visual Buc Packs desk and run it again."
   },
   "worldRemixDesk": {
     "title": "Remix Trends",

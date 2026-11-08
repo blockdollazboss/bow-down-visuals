@@ -9089,7 +9089,7 @@
       "thumbJobFailed": "サムネイルジョブの検索に失敗しました。",
       "clipCuttingFailed": "クリップのカットに失敗しました。パックのVisual Bucsはテキスト出力をカバーします — クリップは動画エディターから再カットできます。",
       "thumbFailed": "サムネイル画像を生成できませんでした — 以下のサムネイルプロンプトはどの画像ツールでも使えます。",
-      "lostJobs": "バックグラウンドジョブを見失いました — 更新して確認してください。",
+      "lostJobs": "Lost track of the background jobs — use Check again to see where they stand.",
       "rerollFailed": "リロールに失敗しました — もう一度お試しください。",
       "thumbRerollFailed": "サムネイルのリロールに失敗しました — もう一度お試しください。"
     },
@@ -20710,7 +20710,11 @@
   "worldRepurposeDesk": {
     "title": "Content Repurposer",
     "fromProject": "From your project",
-    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again."
+    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "checkAgain": "Check again",
+    "checkingJobs": "Checking your jobs…",
+    "streamOutOfBucs": "You’re out of Visual Bucs for Stream VOD. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "smartOutOfBucs": "You’re out of Visual Bucs for Smart Clips. Top up at the Treasury’s Visual Buc Packs desk and run it again."
   },
   "worldRemixDesk": {
     "title": "Remix Trends",

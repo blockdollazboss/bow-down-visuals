@@ -9090,7 +9090,7 @@
       "thumbJobFailed": "थंबनेल जॉब लुकअप विफल।",
       "clipCuttingFailed": "क्लिप कटिंग विफल। आपके पैक Visual Bucs टेक्स्ट आउटपुट कवर करते हैं — क्लिप वीडियो एडिटर से फिर से काटे जा सकते हैं।",
       "thumbFailed": "थंबनेल इमेज जनरेट नहीं हो सकीं — नीचे दिए गए थंबनेल प्रॉम्प्ट किसी भी इमेज टूल के साथ काम करते हैं।",
-      "lostJobs": "बैकग्राउंड जॉब का ट्रैक खो गया — जांचने के लिए रीफ़्रेश करें।",
+      "lostJobs": "Lost track of the background jobs — use Check again to see where they stand.",
       "rerollFailed": "रीरोल विफल — फिर से कोशिश करें।",
       "thumbRerollFailed": "थंबनेल रीरोल विफल — फिर से कोशिश करें।"
     },
@@ -20714,7 +20714,11 @@
   "worldRepurposeDesk": {
     "title": "Content Repurposer",
     "fromProject": "From your project",
-    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again."
+    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "checkAgain": "Check again",
+    "checkingJobs": "Checking your jobs…",
+    "streamOutOfBucs": "You’re out of Visual Bucs for Stream VOD. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "smartOutOfBucs": "You’re out of Visual Bucs for Smart Clips. Top up at the Treasury’s Visual Buc Packs desk and run it again."
   },
   "worldRemixDesk": {
     "title": "Remix Trends",

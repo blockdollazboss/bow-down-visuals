@@ -9103,7 +9103,7 @@
       "thumbJobFailed": "Busca do trabalho de miniatura falhou.",
       "clipCuttingFailed": "Corte do clipe falhou. Seus Visual Bucs do pacote cobrem as saídas de texto — os clipes podem ser recortados no editor de vídeo.",
       "thumbFailed": "As imagens das miniaturas não puderam ser geradas — os prompts de miniatura abaixo funcionam com qualquer ferramenta de imagem.",
-      "lostJobs": "Perdeu o rastro dos trabalhos em segundo plano — atualize para verificar.",
+      "lostJobs": "Lost track of the background jobs — use Check again to see where they stand.",
       "rerollFailed": "Nova tentativa falhou — tente de novo.",
       "thumbRerollFailed": "Nova tentativa da miniatura falhou — tente de novo."
     },
@@ -20743,7 +20743,11 @@
   "worldRepurposeDesk": {
     "title": "Content Repurposer",
     "fromProject": "From your project",
-    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again."
+    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "checkAgain": "Check again",
+    "checkingJobs": "Checking your jobs…",
+    "streamOutOfBucs": "You’re out of Visual Bucs for Stream VOD. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "smartOutOfBucs": "You’re out of Visual Bucs for Smart Clips. Top up at the Treasury’s Visual Buc Packs desk and run it again."
   },
   "worldRemixDesk": {
     "title": "Remix Trends",
