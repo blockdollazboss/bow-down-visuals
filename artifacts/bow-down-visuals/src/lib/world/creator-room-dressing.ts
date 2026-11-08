@@ -3,7 +3,7 @@
  * Ring 4).
  *
  * The CATALOG lives server-side (artifacts/api-server/src/lib/
- * world-room-dressing.ts): twenty-four template variants, four per
+ * world-room-dressing.ts): thirty template variants, five per
  * rung, each a parameter tuple in the dressing system's own
  * vocabulary — palette treatment, trim style, banner style. This
  * module mirrors that list for the picker (what stands where,
@@ -60,9 +60,10 @@ const DRESSING_STYLES: ReadonlyArray<{
   { key: "bold", label: "Bold", palette: "inverted", trimStyle: "double", bannerStyle: "flank" },
   { key: "regal", label: "Regal", palette: "gilded", trimStyle: "crown", bannerStyle: "trio" },
   { key: "shadow", label: "Shadow", palette: "inverted", trimStyle: "bar", bannerStyle: "none" },
+  { key: "gallery", label: "Gallery", palette: "house", trimStyle: "bar", bannerStyle: "trio" },
 ];
 
-/** The mirror catalog: 6 bands × 4 variants, in picker order
+/** The mirror catalog: 6 bands × 5 variants, in picker order
  *  (band ascending, classic first — the default leads its band). */
 export const CREATOR_ROOM_DRESSING_VARIANTS: readonly RoomDressingVariant[] = [1, 2, 3, 4, 5, 6].flatMap(
   (band) =>
