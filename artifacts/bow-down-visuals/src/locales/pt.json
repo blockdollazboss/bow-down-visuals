@@ -20179,6 +20179,7 @@
     "assistButton": "Write it for me · {{cost}} VB",
     "assistDidntAnswer": "A assistência não respondeu — uma assistência com falha é reembolsada. Tente novamente.",
     "assistDraftedNote": "Rascunhado no seu editor abaixo — torne-o seu e depois publique.",
+    "assistReplayNote": "This is the draft you already made for this request — tweak the words for a fresh one.",
     "assistBoostNote": "Drafted into your composer below — written with a plan boost ({{remaining}} left this month). Make it yours, then post it.",
     "assistFailedFallback": "A caneta ficou sem tinta — uma assistência com falha é reembolsada. Tente novamente.",
     "assistNoWords": "A assistência voltou sem palavras — uma assistência com falha é reembolsada. Tente novamente.",

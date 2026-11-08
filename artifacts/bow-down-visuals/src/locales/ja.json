@@ -20146,6 +20146,7 @@
     "assistButton": "Write it for me · {{cost}} VB",
     "assistDidntAnswer": "アシストから返事がありませんでした。失敗したアシストは返金されます。もう一度お試しください。",
     "assistDraftedNote": "下の作成欄に下書きしました。ご自身の言葉に直してから投稿してください。",
+    "assistReplayNote": "This is the draft you already made for this request — tweak the words for a fresh one.",
     "assistBoostNote": "Drafted into your composer below — written with a plan boost ({{remaining}} left this month). Make it yours, then post it.",
     "assistFailedFallback": "ペンが止まってしまいました。失敗したアシストは返金されます。もう一度お試しください。",
     "assistNoWords": "アシストが言葉なしで戻ってきました。失敗したアシストは返金されます。もう一度お試しください。",

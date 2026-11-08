@@ -13,6 +13,14 @@
                               (stack300 plans-boosts). A failed
                               assist is refunded server-side either
                               way — Bucs back, or the boost restored.
+                              A repeat of the SAME prompt+tone is a
+                              replay: the rail answers the stored
+                              draft of the first ask (one boost /
+                              charge, one generation) and marks the
+                              body replayed: true (stack400 C-03) —
+                              the surfaces say so plainly instead of
+                              letting it read as a stuck generator
+                              (C-36).
 
    The assist NEVER posts: it returns words the member reads, edits
    and posts themselves — the 2D composer's exact contract. Tones
@@ -66,6 +74,16 @@ export interface PostAssistBoost {
   allowance: number;
   used: number;
   remaining: number;
+}
+
+/** Whether the rail answered this ask from the stored result of an
+ *  earlier identical ask (stack400 C-03/C-36): the draft is the one
+ *  already paid for — no new boost, charge, or generation — and the
+ *  body carries exactly one added field, replayed: true. Absent on
+ *  a fresh success. */
+export function parsePostAssistReplayed(data: unknown): boolean {
+  if (typeof data !== "object" || data === null) return false;
+  return (data as Record<string, unknown>)["replayed"] === true;
 }
 
 export function parsePostAssistBoost(data: unknown): PostAssistBoost | null {

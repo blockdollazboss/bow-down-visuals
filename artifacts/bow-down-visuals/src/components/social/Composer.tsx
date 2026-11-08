@@ -62,6 +62,11 @@ export function Composer({
   const [assistPrompt, setAssistPrompt] = useState("");
   const [showAssist, setShowAssist] = useState(false);
   const [assisting, setAssisting] = useState(false);
+  /* Stack400 C-36: when the rail answers a replay (the stored draft
+     of an earlier identical ask), this line says so plainly — the
+     member already paid for those words; silence would read as a
+     stuck generator. Cleared on the next ask. */
+  const [assistNote, setAssistNote] = useState<string | null>(null);
   /* The member's AI-boosts standing (stack300): with plan boosts
      left, a draft is boost-funded, not 100 Bucs — the price copy
      below says which before anyone spends. Null = not read yet (or
@@ -185,16 +190,21 @@ export function Composer({
     if (!assistPrompt.trim() || assisting) return;
     setAssisting(true);
     setError(null);
+    setAssistNote(null);
     try {
       const data = await apiJson<{
         draft: string;
         boost?: { applied: boolean; allowance: number; used: number; remaining: number } | null;
+        replayed?: boolean;
       }>(getAccessToken, "/api/posts/assist", {
         method: "POST",
         body: JSON.stringify({ prompt: assistPrompt.trim(), tone: "hype" }),
       });
       if (data.boost) setBoostsLeft(data.boost.remaining);
       if (data.draft) setBody((b) => (b ? `${b}\n\n${data.draft}` : data.draft).slice(0, 500));
+      if (data.replayed) {
+        setAssistNote("This is the draft you already made for this request — tweak the words for a fresh one.");
+      }
       setAssistPrompt("");
       setShowAssist(false);
     } catch (e) {
@@ -454,6 +464,7 @@ export function Composer({
           </div>
         ) : null}
       </div>
+      {assistNote && <p className="mt-2 text-xs text-[#d4af37]">{assistNote}</p>}
 
       {/* schedule + audience (4-6★) */}
       {!replyTo && <div data-min-stars="4" className="mt-2 flex flex-wrap items-center gap-3">

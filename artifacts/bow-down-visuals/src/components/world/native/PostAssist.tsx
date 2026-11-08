@@ -11,6 +11,7 @@ import {
   buildPostAssistPayload,
   parsePostAssistBoost,
   parsePostAssistDraft,
+  parsePostAssistReplayed,
   postAssistPromptReady,
   type PostAssistTone,
 } from "@/lib/world/post-assist";
@@ -101,12 +102,18 @@ export function PostAssistBlock({
       onDraft(draft);
       setPrompt("");
       /* When a plan boost funded the draft, the note says so — and
-         how many are left this month (stack300 plans-boosts). */
+         how many are left this month (stack300 plans-boosts). When
+         the rail answered a REPLAY — the stored draft of an earlier
+         identical ask (stack400 C-03) — the note says that instead,
+         plainly: the member already paid for these words, and a
+         fresh draft needs fresh words (C-36). */
       const boost = parsePostAssistBoost(data);
       setNote(
-        boost?.applied
-          ? t("worldSocialDesk.assistBoostNote", { remaining: boost.remaining })
-          : t("worldSocialDesk.assistDraftedNote"),
+        parsePostAssistReplayed(data)
+          ? t("worldSocialDesk.assistReplayNote")
+          : boost?.applied
+            ? t("worldSocialDesk.assistBoostNote", { remaining: boost.remaining })
+            : t("worldSocialDesk.assistDraftedNote"),
       );
       refreshProfile();
     } catch {
