@@ -7,7 +7,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -150,12 +150,38 @@ function pruneJobs(): void {
 }
 
 /**
- * Insert the durable money-record row. Returns false when the row
- * could not be written — the caller (the POST handler) must then
- * compensate the up-front charge (stack300 item 65): a charge with
- * no row is a charge boot recovery can never refund.
+ * Postgres unique_violation (SQLSTATE 23505) — raised when an insert
+ * hits migration 0331's partial UNIQUE index on (user_id,
+ * attempt_key). Drivers nest the pg error differently (top level, or
+ * under `cause` via drizzle), so check both the code and the message.
  */
-async function insertMultiRatioRow(job: MultiRatioJob): Promise<boolean> {
+function isUniqueViolation(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { code?: unknown; message?: unknown; cause?: unknown };
+  if (e.code === "23505") return true;
+  if (typeof e.message === "string" && e.message.includes("violates unique constraint")) return true;
+  if (e.cause && e.cause !== err) return isUniqueViolation(e.cause);
+  return false;
+}
+
+type InsertOutcome = "inserted" | "conflict" | "failed";
+
+/**
+ * Insert the durable money-record row. Three outcomes:
+ * - "inserted" — the row stands; the job may start.
+ * - "conflict" — a concurrent identical POST won the insert race
+ *   (stack400 C-04: migration 0331's partial UNIQUE index on
+ *   (user_id, attempt_key) for in-flight states; the ON CONFLICT
+ *   (id) clause below arbitrates ONLY the fresh random id, so an
+ *   attempt-key violation still raises). The caller returns the
+ *   winner's job — this request's charge carried the same attempt
+ *   key, so the ledger suppressed it as a replay: nothing was
+ *   charged twice and nothing needs refunding.
+ * - "failed" — the row could not be written; the caller must
+ *   compensate the up-front charge (stack300 item 65): a charge with
+ *   no row is a charge boot recovery can never refund.
+ */
+async function insertMultiRatioRow(job: MultiRatioJob): Promise<InsertOutcome> {
   try {
     await db.execute(sql`
       INSERT INTO multi_ratio_jobs
@@ -165,10 +191,11 @@ async function insertMultiRatioRow(job: MultiRatioJob): Promise<boolean> {
               ${job.attemptKey ?? null})
       ON CONFLICT (id) DO NOTHING
     `);
-    return true;
+    return "inserted";
   } catch (err) {
+    if (isUniqueViolation(err)) return "conflict";
     logger.error({ err, jobId: job.id }, "[export-multi-ratio] job row insert failed");
-    return false;
+    return "failed";
   }
 }
 
@@ -262,6 +289,39 @@ async function findActiveMultiRatioJobByAttemptKey(
   }
 }
 
+/**
+ * C-04 insert-conflict companion: find this user's job for the same
+ * attempt key in ANY state. An insert conflict proves the winner
+ * was in flight at insert time, but by the time the loser looks, a
+ * fast-settling winner can already be terminal — the duplicate
+ * answer is still that job (its charge is the one standing; this
+ * request's keyed charge was suppressed as its replay).
+ */
+async function findMultiRatioJobByAttemptKeyAnyState(
+  userId: string,
+  attemptKey: string,
+): Promise<MultiRatioJob | null> {
+  const cutoff = Date.now() - DEDUP_WINDOW_MS;
+  for (const job of jobs.values()) {
+    if (job.userId === userId && job.attemptKey === attemptKey && job.createdAt > cutoff) {
+      return job;
+    }
+  }
+  try {
+    const r = await db.execute(sql`
+      SELECT * FROM multi_ratio_jobs
+      WHERE user_id = ${userId} AND attempt_key = ${attemptKey}
+        AND created_at > now() - interval '2 hours'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+    const row = r.rows[0] as Record<string, unknown> | undefined;
+    return row ? multiRatioRowToJob(row) : null;
+  } catch {
+    return null;
+  }
+}
+
 /* The one settlement path (A-08): refunds every ratio that never
    completed and lands the terminal state — called by the worker when a
    job finishes (normally or by exception) AND by boot recovery for
@@ -298,6 +358,16 @@ async function settleMultiRatioJob(
       return;
     }
     job.refunded = (job.refunded ?? 0) + refund;
+    /* C-04: money came back for this attempt — void the charge's
+       idempotency key (the Lane V3 F1 pattern) so a fresh identical
+       POST charges again instead of being suppressed as a replay of
+       a charge that no longer stands (and then settling refunds
+       against money never taken). Best-effort by design:
+       voidChargeIdempotencyKey never throws, and a failed void is
+       logged CRITICAL inside it. */
+    if (job.attemptKey) {
+      await voidChargeIdempotencyKey(job.attemptKey);
+    }
   }
   if (opts.interrupted) {
     job.state = "failed";
@@ -435,11 +505,16 @@ router.post("/export-multi-ratio", requireAuth, async (req, res) => {
     return;
   }
 
+  /* C-04: the charge carries the attempt key as its idempotencyKey —
+     the credits ledger then suppresses a concurrent duplicate's
+     charge as a replay of the winner's, so the pair lands exactly
+     one charge even before the job-row constraint (migration 0331)
+     is consulted. */
   let creditsAfter: number;
   try {
     creditsAfter = await chargeCredits(req.userId!, costTotal, {
       action: `Multi-Ratio Export (${ratios.join(", ")})`,
-    });
+    }, { idempotencyKey: attemptKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -477,15 +552,41 @@ router.post("/export-multi-ratio", requireAuth, async (req, res) => {
     attemptKey,
   };
 
-  /* Item 65: the durable row is the money record boot recovery
-     settles from. If it cannot be written, the up-front charge would
-     strand with no row to refund from — so compensate NOW, in the
-     live request: refund in full and refuse the start honestly. If
-     the compensating refund itself fails, log CRITICAL for manual
-     reconciliation (the main export rail's standard) rather than
-     letting the charge vanish silently. */
-  const rowInserted = await insertMultiRatioRow(job);
-  if (!rowInserted) {
+  const insertOutcome = await insertMultiRatioRow(job);
+  if (insertOutcome === "conflict") {
+    /* C-04: a concurrent identical POST won the insert race — its
+       job is the answer, exactly like the dedup lookup hit above.
+       This request never charged separately (its keyed charge was
+       suppressed as a replay of the winner's), so there is nothing
+       to refund and nothing to render twice. */
+    const winner = await findMultiRatioJobByAttemptKeyAnyState(req.userId!, attemptKey);
+    if (winner) {
+      res.status(202).json({
+        ...publicJob(winner),
+        creditsRemaining: creditsAfter,
+        duplicate: true,
+      });
+      return;
+    }
+    /* The winner vanished between the conflict and the lookup
+       (settled AND pruned inside the same instant — a crack in the
+       race, not a state the money can be wrong in: the conflict
+       proves this charge was suppressed, so no charge stands for
+       this request). Refuse honestly rather than invent a job. */
+    res.status(503).json({
+      error: "export_unavailable",
+      message: "The export could not be started and no charge was taken. Please try again.",
+    });
+    return;
+  }
+  if (insertOutcome === "failed") {
+    /* Item 65: the durable row is the money record boot recovery
+       settles from. If it cannot be written, the up-front charge
+       would strand with no row to refund from — so compensate NOW,
+       in the live request: refund in full and refuse the start
+       honestly. If the compensating refund itself fails, log
+       CRITICAL for manual reconciliation (the main export rail's
+       standard) rather than letting the charge vanish silently. */
     let refundedNow = true;
     try {
       await refundCredits(req.userId!, costTotal, {
@@ -497,6 +598,12 @@ router.post("/export-multi-ratio", requireAuth, async (req, res) => {
         { err: refundErr, jobId: job.id, userId: req.userId, costTotal },
         "[export-multi-ratio] CRITICAL: job row insert failed AND the compensating refund failed — manual reconciliation required",
       );
+    }
+    if (refundedNow) {
+      /* C-04: the refunded charge's key is void — otherwise a retry
+         of this same request would be suppressed as a replay and
+         render against money that was given back. */
+      await voidChargeIdempotencyKey(attemptKey);
     }
     res.status(503).json({
       error: "export_unavailable",

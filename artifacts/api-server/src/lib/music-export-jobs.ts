@@ -22,6 +22,11 @@ import { logger } from "./logger";
  * - `attempt_key` is the duplicate-submit guard (item 64): derived
  *   from (user + params hash) at creation, a duplicate POST inside
  *   the dedup window returns the existing queued/processing job.
+ *   Since stack400 C-05 the guard is also a constraint: migration
+ *   0331's partial UNIQUE index on (user_id, attempt_key) for
+ *   in-flight states makes a concurrent duplicate's INSERT conflict,
+ *   and createMusicExportJob returns the winning job — the lookup
+ *   alone was a read, and two simultaneous POSTs both passed it.
  *
  * Mix export carries no credit charge (the rail is free), so there is
  * no charge bookkeeping on this table — durability, ownership, and
@@ -105,7 +110,44 @@ function toMusicExportJob(row: Record<string, unknown>): MusicExportJob {
   };
 }
 
-/** Create the durable job row (state=queued). Returns the job. */
+/**
+ * Postgres unique_violation (SQLSTATE 23505) — what the partial
+ * UNIQUE indexes migration 0331 puts on the export job tables raise
+ * when a concurrent duplicate insert loses the race. Drivers nest
+ * the pg error differently (top level, or under `cause` via
+ * drizzle), so check both the code and the message.
+ */
+export function isUniqueViolation(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { code?: unknown; message?: unknown; cause?: unknown };
+  if (e.code === "23505") return true;
+  if (typeof e.message === "string" && e.message.includes("violates unique constraint")) return true;
+  if (e.cause && e.cause !== err) return isUniqueViolation(e.cause);
+  return false;
+}
+
+/**
+ * C-37: the terminal-row prune as a named sweep. It used to ride
+ * ONLY the create path (the fire-and-forget below) — if creates are
+ * rare, prunes are rare, and done/failed rows carrying the full
+ * render params lingered far past the 2 h horizon. Boot recovery
+ * now runs it on every boot (routes/music-export.ts), so the table
+ * is swept at least once per deploy/restart regardless of traffic.
+ * Never throws.
+ */
+export async function pruneMusicExportJobs(): Promise<void> {
+  await db()
+    .execute(
+      sql`DELETE FROM music_export_jobs WHERE state IN ('done', 'failed') AND created_at < now() - interval '2 hours'`,
+    )
+    .catch((err) => logger.warn({ err }, "[music-export-jobs] prune failed"));
+}
+
+/**
+ * Create the durable job row (state=queued). Returns the job — which,
+ * when a concurrent identical POST won the insert race, is the
+ * WINNER's job, not the row this call tried to write (C-05).
+ */
 export async function createMusicExportJob(
   id: string,
   userId: string,
@@ -114,17 +156,38 @@ export async function createMusicExportJob(
 ): Promise<MusicExportJob> {
   const d = db();
   // Best-effort prune of old terminal jobs; never blocks creation.
-  d.execute(
-    sql`DELETE FROM music_export_jobs WHERE state IN ('done', 'failed') AND created_at < now() - interval '2 hours'`,
-  ).catch((err) => logger.warn({ err }, "[music-export-jobs] prune failed"));
-  const res = await d.execute(sql`
-    INSERT INTO music_export_jobs (id, user_id, state, params, attempt_key)
-    VALUES (${id}, ${userId}, 'queued', ${JSON.stringify(params ?? {})}::jsonb, ${attemptKey})
-    RETURNING ${JOB_COLUMNS}
-  `);
-  const row = res.rows[0] as Record<string, unknown> | undefined;
-  if (!row) throw new Error("createMusicExportJob: INSERT returned no row");
-  return toMusicExportJob(row);
+  void pruneMusicExportJobs();
+  try {
+    const res = await d.execute(sql`
+      INSERT INTO music_export_jobs (id, user_id, state, params, attempt_key)
+      VALUES (${id}, ${userId}, 'queued', ${JSON.stringify(params ?? {})}::jsonb, ${attemptKey})
+      RETURNING ${JOB_COLUMNS}
+    `);
+    const row = res.rows[0] as Record<string, unknown> | undefined;
+    if (!row) throw new Error("createMusicExportJob: INSERT returned no row");
+    return toMusicExportJob(row);
+  } catch (err) {
+    /* C-05: migration 0331's partial UNIQUE index on (user_id,
+       attempt_key) for in-flight states makes the database the
+       duplicate-submit guard. A concurrent identical POST whose
+       lookup raced the winner's insert lands here — the winner's
+       job is the answer, exactly like the route's dedup lookup hit.
+       The re-check retries briefly: the prune above is
+       fire-and-forget and unordered, so a winner row the prune
+       deleted mid-race must not strand this caller — after the
+       retries the original error is rethrown and the route answers
+       its honest 503. */
+    if (attemptKey && isUniqueViolation(err)) {
+      for (let i = 0; i < 20; i++) {
+        const winner = await findActiveMusicExportJobByAttemptKey(userId, attemptKey).catch(
+          () => undefined,
+        );
+        if (winner) return winner;
+        await new Promise((r) => setTimeout(r, 25));
+      }
+    }
+    throw err;
+  }
 }
 
 export async function getMusicExportJob(id: string): Promise<MusicExportJob | undefined> {
@@ -198,6 +261,34 @@ export async function failMusicExportJob(
   `);
 }
 
+/**
+ * C-37: strip signed query strings from stem URLs in PERSISTED
+ * params. The render fetches the URLs it is handed at request time,
+ * never the row's copy — the row's params exist so boot recovery can
+ * re-run an interrupted job, and a recovery re-run past a
+ * signature's expiry fails honestly ("interrupted", nothing charged
+ * — the rail is free) rather than rendering on a stale credential.
+ * Queryless URLs pass through untouched; a fresh POST from the
+ * client persists its own freshly-signed params.
+ */
+export function stripPersistedStemUrls(params: unknown): unknown {
+  if (!params || typeof params !== "object") return params;
+  const p = params as Record<string, unknown>;
+  if (!Array.isArray(p["stems"])) return params;
+  let changed = false;
+  const stems = (p["stems"] as unknown[]).map((s) => {
+    if (!s || typeof s !== "object") return s;
+    const stem = s as Record<string, unknown>;
+    const url = stem["url"];
+    if (typeof url !== "string") return s;
+    const q = url.indexOf("?");
+    if (q === -1) return s;
+    changed = true;
+    return { ...stem, url: url.slice(0, q) };
+  });
+  return changed ? { ...p, stems } : params;
+}
+
 const MAX_ATTEMPTS = 3;
 
 /**
@@ -230,7 +321,18 @@ export async function recoverInterruptedMusicExportJobs(
     const job = toMusicExportJob(r);
     try {
       if (job.attempts >= MAX_ATTEMPTS) {
-        await failMusicExportJob(job.id, "This export was interrupted by a server restart and could not be recovered. Please try again — you were not charged.", "interrupted");
+        /* Terminal now — fail it with the params stripped of any
+           signed query strings in the same write (C-37), so
+           credentials don't rest in the row for the prune horizon. */
+        await db().execute(sql`
+          UPDATE music_export_jobs
+          SET state = 'failed',
+              error = ${"This export was interrupted by a server restart and could not be recovered. Please try again — you were not charged."},
+              code = 'interrupted',
+              params = ${JSON.stringify(stripPersistedStemUrls(job.params))}::jsonb,
+              updated_at = now()
+          WHERE id = ${job.id} AND state IN ('queued', 'processing')
+        `);
         logger.warn({ jobId: job.id }, "[music-export-jobs] interrupted job exceeded retry limit; marked failed");
         continue;
       }

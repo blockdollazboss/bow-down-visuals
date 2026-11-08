@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
@@ -57,6 +58,9 @@ export interface ExportJob {
   result?: Record<string, unknown> | null;
   error?: ExportJobError | null;
   creditsCharged: boolean;
+  /** Duplicate-submit attempt key (migration 0331) — also carried
+   *  inside params, where the render pipeline reads it. */
+  attemptKey?: string | null;
   /** Temporary-first split of the standing reserve/charge (migration
    *  0306): how much came out of the temporary pool, and that pool's
    *  expiry at deduction time. Null when no split is recorded. */
@@ -84,7 +88,7 @@ function db() {
   return drizzle(getPool());
 }
 
-const JOB_COLUMNS = sql`id, user_id, project_id, state, stage, progress, params, result, error, credits_charged, credits_from_bonus, credits_bonus_expires_at, attempts, created_at, updated_at`;
+const JOB_COLUMNS = sql`id, user_id, project_id, state, stage, progress, params, result, error, credits_charged, credits_from_bonus, credits_bonus_expires_at, attempt_key, attempts, created_at, updated_at`;
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   if (v == null) return null;
@@ -111,6 +115,7 @@ function toExportJob(row: Record<string, unknown>): ExportJob {
     result: asRecord(row["result"]),
     error: asRecord(row["error"]) as ExportJobError | null,
     creditsCharged: row["credits_charged"] === true,
+    attemptKey: row["attempt_key"] != null ? String(row["attempt_key"]) : null,
     creditsFromBonus:
       row["credits_from_bonus"] == null ? null : Number(row["credits_from_bonus"]),
     creditsBonusExpiresAt:
@@ -125,7 +130,37 @@ function toExportJob(row: Record<string, unknown>): ExportJob {
   };
 }
 
-/** Create the durable job row. Returns the job (state=queued). */
+/**
+ * Postgres unique_violation (SQLSTATE 23505) — what the partial
+ * UNIQUE indexes migration 0331 puts on the export job tables raise
+ * when a concurrent duplicate insert loses the race. Drivers nest
+ * the pg error differently (top level, or under `cause` via
+ * drizzle), so check both the code and the message. (Twin of the
+ * helper in lib/music-export-jobs.ts — the two job stores stay
+ * self-contained, the codebase's pattern for these rails.)
+ */
+function isUniqueViolation(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { code?: unknown; message?: unknown; cause?: unknown };
+  if (e.code === "23505") return true;
+  if (typeof e.message === "string" && e.message.includes("violates unique constraint")) return true;
+  if (e.cause && e.cause !== err) return isUniqueViolation(e.cause);
+  return false;
+}
+
+/** The item-64 attempt key the route rides inside the params body. */
+function extractAttemptKey(params: unknown): string | null {
+  if (!params || typeof params !== "object") return null;
+  const k = (params as Record<string, unknown>)["attemptKey"];
+  return typeof k === "string" && k.length > 0 ? k : null;
+}
+
+/**
+ * Create the durable job row. Returns the job (state=queued) — which,
+ * when a concurrent identical POST won the insert race, is the
+ * WINNER's job, not the row this call tried to write (C-05): one row
+ * means one A-07 reservation, exactly once.
+ */
 export async function createExportJob(
   userId: string,
   projectId: string,
@@ -136,14 +171,39 @@ export async function createExportJob(
   d.execute(
     sql`DELETE FROM export_jobs WHERE state IN ('done', 'failed', 'cancelled') AND created_at < now() - interval '2 hours'`,
   ).catch((err) => logger.warn({ err }, "[export-jobs] prune failed"));
-  const res = await d.execute(sql`
-    INSERT INTO export_jobs (user_id, project_id, params)
-    VALUES (${userId}, ${projectId}, ${JSON.stringify(params ?? {})}::jsonb)
-    RETURNING ${JOB_COLUMNS}
-  `);
-  const row = res.rows[0] as Record<string, unknown> | undefined;
-  if (!row) throw new Error("createExportJob: INSERT returned no row");
-  return toExportJob(row);
+  /* C-05: the attempt key also lands in the real attempt_key column
+     (migration 0331) — a jsonb expression cannot back the partial
+     UNIQUE index that makes the database the duplicate-submit
+     guard. It still rides inside params, where the render pipeline
+     and the params-based finder read it. */
+  const attemptKey = extractAttemptKey(params);
+  try {
+    const res = await d.execute(sql`
+      INSERT INTO export_jobs (id, user_id, project_id, params, attempt_key)
+      VALUES (${randomUUID()}, ${userId}, ${projectId}, ${JSON.stringify(params ?? {})}::jsonb, ${attemptKey})
+      RETURNING ${JOB_COLUMNS}
+    `);
+    const row = res.rows[0] as Record<string, unknown> | undefined;
+    if (!row) throw new Error("createExportJob: INSERT returned no row");
+    return toExportJob(row);
+  } catch (err) {
+    /* A concurrent identical POST whose lookup raced the winner's
+       insert lands here — the winner's job is the answer, exactly
+       like the route's dedup lookup hit. The re-check retries
+       briefly: the prune above is fire-and-forget and unordered, so
+       a winner row the prune deleted mid-race must not strand this
+       caller — after the retries the original error is rethrown. */
+    if (attemptKey && isUniqueViolation(err)) {
+      for (let i = 0; i < 20; i++) {
+        const winner = await findActiveExportJobByAttemptKey(userId, attemptKey).catch(
+          () => undefined,
+        );
+        if (winner) return winner;
+        await new Promise((r) => setTimeout(r, 25));
+      }
+    }
+    throw err;
+  }
 }
 
 export async function getExportJob(id: string): Promise<ExportJob | undefined> {
@@ -162,6 +222,11 @@ export async function getExportJob(id: string): Promise<ExportJob | undefined> {
  * the original is queued/active returns that job — no second row, no
  * second reservation. Scoped to the owner: a key never leaks another
  * user's job.
+ *
+ * Since stack400 C-05 the key also lives in the real attempt_key
+ * column (migration 0331) and the database enforces the guard (see
+ * createExportJob); the lookup matches either home — the column for
+ * new rows, the params copy for rows written before the migration.
  */
 export async function findActiveExportJobByAttemptKey(
   userId: string,
@@ -172,7 +237,7 @@ export async function findActiveExportJobByAttemptKey(
     SELECT ${JOB_COLUMNS} FROM export_jobs
     WHERE user_id = ${userId}
       AND state IN ('queued', 'active')
-      AND params->>'attemptKey' = ${attemptKey}
+      AND (attempt_key = ${attemptKey} OR params->>'attemptKey' = ${attemptKey})
       AND created_at > now() - interval '2 hours'
     ORDER BY created_at DESC
     LIMIT 1

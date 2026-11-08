@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
+import { skipIfAdmin } from "../lib/admin";
 import { buildChargeIdempotencyKey } from "../lib/credits";
 import {
   claimMusicExportJob,
@@ -10,7 +12,9 @@ import {
   failMusicExportJob,
   findActiveMusicExportJobByAttemptKey,
   getMusicExportJob,
+  pruneMusicExportJobs,
   recoverInterruptedMusicExportJobs as recoverMusicExportJobs,
+  type MusicExportJob,
 } from "../lib/music-export-jobs";
 import {
   AudioExportError,
@@ -427,8 +431,9 @@ router.post("/music/export", requireAuth, async (req, res) => {
   }
 
   const jobId = randomUUID();
+  let job: MusicExportJob;
   try {
-    await createMusicExportJob(jobId, userId, renderParams, attemptKey);
+    job = await createMusicExportJob(jobId, userId, renderParams, attemptKey);
   } catch (err) {
     /* No durable row, no render: better an honest 503 than a job the
        next restart would silently erase (the old in-memory behavior). */
@@ -437,6 +442,15 @@ router.post("/music/export", requireAuth, async (req, res) => {
       error: "Audio export is unavailable on this server right now.",
       code: "export_unavailable",
     });
+    return;
+  }
+
+  if (job.id !== jobId) {
+    /* C-05: the insert race was lost — the durable store returned
+       the winning job for this attempt key (migration 0331's
+       constraint). Answer with THAT job as the duplicate; never
+       kick a render for the phantom id this request generated. */
+    res.status(202).json({ jobId: job.id, status: job.state, duplicate: true });
     return;
   }
 
@@ -514,6 +528,10 @@ async function processMixExportJob(
  * re-runnable from scratch. Called once from index.ts after listen.
  */
 export async function recoverInterruptedMusicExportJobs(): Promise<void> {
+  /* C-37: the terminal-row prune rides boot recovery too — it used
+     to ride ONLY the create path, so rare creates meant rare prunes
+     and stale rows (with their full render params) lingered. */
+  await pruneMusicExportJobs();
   await recoverMusicExportJobs(async (job) => {
     void processMixExportJob(job.id, logger);
   });
@@ -524,6 +542,37 @@ const MIN_PREVIEW_SECONDS = 5;
 const MAX_PREVIEW_SECONDS = 20;
 const DEFAULT_PREVIEW_SECONDS = 12;
 
+/* C-13: /music/preview-render renders a full mix SYNCHRONOUSLY in
+   the request — no job queue sits in front of it (unlike
+   /music/export), so its only protections are the two mounted here:
+   - this per-user rate limiter (the lib/rate-limit.ts
+     generationLimiter shape: 20/min per user, house admin skip), and
+   - the in-process concurrency gate in the handler below: at most 1
+     preview per user and MAX_CONCURRENT_PREVIEWS globally, so
+     parallel preview calls can never stack synchronous ffmpeg
+     renders on the API process and starve the export queue.
+   Over-cap calls are refused honestly (429) BEFORE any render work;
+   every existing error copy on the route is unchanged. */
+const previewRenderLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  skip: skipIfAdmin,
+  keyGenerator: (req) => {
+    const userId = (req as { userId?: string }).userId;
+    return userId || (req.ip ? ipKeyGenerator(req.ip) : "unknown");
+  },
+  message: {
+    error: "Too many preview renders. Please wait a minute and try again.",
+    code: "preview_rate_limited",
+  },
+});
+
+const MAX_CONCURRENT_PREVIEWS = 3;
+let previewsInFlight = 0;
+const previewsByUser = new Map<string, number>();
+
 /**
  * Renders a short clip of the *actual* FFmpeg mix pipeline (not the Web Audio
  * browser approximation) so users can A/B it before spending export credits
@@ -532,7 +581,7 @@ const DEFAULT_PREVIEW_SECONDS = 12;
  * renders in a couple seconds even with a heavy effect chain — so no job
  * polling is needed here.
  */
-router.post("/music/preview-render", requireAuth, async (req, res) => {
+router.post("/music/preview-render", requireAuth, previewRenderLimiter, async (req, res) => {
   const { stems, masterVolume, masterSettings, previewSeconds, aiDisclosure } = (req.body ?? {}) as {
     stems?: RawStem[];
     masterVolume?: unknown;
@@ -589,6 +638,20 @@ router.post("/music/preview-render", requireAuth, async (req, res) => {
     Math.max(MIN_PREVIEW_SECONDS, Number.isFinite(Number(previewSeconds)) ? Number(previewSeconds) : DEFAULT_PREVIEW_SECONDS),
   );
 
+  /* C-13 concurrency gate — checked after all validation, so a
+     refused call costs no render work and a malformed call still
+     gets its honest 400 first. */
+  const previewUserId = req.userId!;
+  if (previewsInFlight >= MAX_CONCURRENT_PREVIEWS || (previewsByUser.get(previewUserId) ?? 0) >= 1) {
+    res.status(429).json({
+      error: "A preview render is already running — give it a few seconds and try again.",
+      code: "preview_busy",
+    });
+    return;
+  }
+  previewsInFlight++;
+  previewsByUser.set(previewUserId, (previewsByUser.get(previewUserId) ?? 0) + 1);
+
   try {
     const { buffer, contentType, warnings } = await runMixExport({
       stems: selected,
@@ -613,6 +676,11 @@ router.post("/music/preview-render", requireAuth, async (req, res) => {
     }
     req.log.error({ err }, "Preview render failed");
     res.status(500).json({ error: "Preview render failed.", code: "export_failed" });
+  } finally {
+    previewsInFlight--;
+    const left = (previewsByUser.get(previewUserId) ?? 1) - 1;
+    if (left <= 0) previewsByUser.delete(previewUserId);
+    else previewsByUser.set(previewUserId, left);
   }
 });
 
