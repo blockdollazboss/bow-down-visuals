@@ -11,7 +11,7 @@ import { logger } from "../lib/logger";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
 import { maybeGrantPendingReferralWelcome } from "../lib/referral-welcome";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../lib/stripe-client";
-import { getOrCreateStripeCustomerForUser } from "../lib/creator-stripe-customer";
+import { getOrCreateStripeCustomerForUser, resolveStoredStripeCustomerId } from "../lib/creator-stripe-customer";
 import { changeCreatorTierSubscription, previewCreatorTierChange } from "../lib/creator-tier-upgrade";
 import {
   buildTierChangeIdempotencyKey,
@@ -783,12 +783,17 @@ router.post("/creator-tiers/portal", requireAuth, publicApiLimiter, async (req: 
     res.status(404).json({ error: "No creator profile yet — nothing to manage." });
     return;
   }
-  const [row] = await db
-    .select({ stripeCustomerId: creatorSubscriptionsTable.stripeCustomerId })
-    .from(creatorSubscriptionsTable)
-    .where(eq(creatorSubscriptionsTable.profileId, profileId))
-    .limit(1);
-  if (!row?.stripeCustomerId) {
+  /* The customer resolves through the SHARED one-customer mapping
+     (lib/creator-stripe-customer): the durable user mapping, then the
+     legacy ids on the subscription / hosting rows. Reading ONLY
+     creator_subscriptions here 404'd every standalone Hosting buyer —
+     their subscription lives on creator_hosting, on the SAME Stripe
+     customer — while the Hosting copy sends them to Settings →
+     Billing to manage or cancel (Stack 300 A3). Read-only on
+     purpose: the portal never mints a customer for a member with
+     nothing to manage. */
+  const customerId = await resolveStoredStripeCustomerId({ userId: req.userId!, profileId });
+  if (!customerId) {
     res.status(404).json({ error: "No billing record yet. Subscribe first, then manage it here." });
     return;
   }
@@ -801,7 +806,7 @@ router.post("/creator-tiers/portal", requireAuth, publicApiLimiter, async (req: 
   }
   const back = (typeof req.body?.returnTo === "string" && req.body.returnTo.startsWith("/")) ? req.body.returnTo : "/creator-pricing";
   const session = await stripe.billingPortal.sessions.create({
-    customer: row.stripeCustomerId,
+    customer: customerId,
     return_url: `${getBaseUrl(req)}${back}`,
   });
   res.json({ url: session.url });

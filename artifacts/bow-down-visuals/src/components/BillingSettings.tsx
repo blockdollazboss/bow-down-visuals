@@ -15,6 +15,7 @@ import {
   BillingLoadError,
   type BillingLoadFailureKind,
 } from "@/lib/billing-load";
+import type { HostingMeView } from "@/lib/profile-hosting-state";
 
 /* Terminal load copy per failure kind (stack800 lane 4): the old card
    collapsed every cause into one "Couldn't load your billing" and
@@ -62,6 +63,13 @@ export function BillingSettings() {
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
   const [billing, setBilling] = useState<BillingStateView | null>(null);
+  /* Stack 300 A3: the standalone Profile Hosting subscription rides
+     the SAME Stripe customer but is not part of the tier billing
+     state — read it beside billing so the card can show it and
+     un-hide the portal entry for a Free-tier hosting buyer (the
+     buyer the Hosting copy sends here). Best-effort: a failed read
+     leaves the tier card exactly as it was. */
+  const [hosting, setHosting] = useState<HostingMeView | null>(null);
   const [loadFailure, setLoadFailure] = useState<BillingLoadFailureKind | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -94,6 +102,25 @@ export function BillingSettings() {
       cancelled = true;
     };
   }, [user, getAccessToken, retryNonce]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/creator-hosting/me", {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as HostingMeView;
+        if (!cancelled) setHosting(data);
+      } catch { /* best-effort — the tier card stands on its own */ }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, getAccessToken]);
 
   async function post(path: string): Promise<BillingStateView | null> {
     const token = await getAccessToken();
@@ -251,7 +278,12 @@ export function BillingSettings() {
     }
   }
 
-  const display = billing ? describeBilling(billing) : null;
+  const display = billing
+    ? describeBilling({
+        ...billing,
+        hasHostingSubscription: hosting?.hostingSource === "hosting" && hosting.hostingEntitled,
+      })
+    : null;
   const dateText = display ? formatBillingDate(display.dateIso, i18n.language) : null;
 
   const cardCls = isLight
@@ -327,6 +359,16 @@ export function BillingSettings() {
           {display.dateKind === "ended" && dateText && (
             <p className={`text-sm ${subCls}`} data-testid="billing-date">
               {t("settings.billing.endedOn", { date: dateText })}
+            </p>
+          )}
+
+          {hosting?.hostingSource === "hosting" && hosting.hostingEntitled && (
+            <p className={`text-sm ${subCls}`} data-testid="billing-hosting">
+              {t("profileHosting.hostingActive")}
+              {hosting.currentPeriodEnd
+                ? ` ${t("profileHosting.activeUntil", { date: formatBillingDate(hosting.currentPeriodEnd, i18n.language) ?? "" })}`
+                : ""}{" "}
+              {t("profileHosting.renewsNote")}
             </p>
           )}
 

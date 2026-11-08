@@ -458,8 +458,17 @@ describe("wave-3/4 newest surfaces — full parity in all 10 catalogs", () => {
        (Round 6's
        syncPitch load keys ×8, labelPitch labels keys ×2 and
        merch designs keys ×3 sit outside this derived set, like
-       the rounds 4–5 merch keys above.) */
-    expect(REQUIRED.length).toBe(5064);
+       the rounds 4–5 merch keys above.)
+       Plus the Stack 300 hosting-tails fill: profileHosting
+       keys ×5 (switchingOnLate / checkAgain — the return-poll
+       terminal state and its re-check; manageButton /
+       manageDidntOpen — the active card's own manage door;
+       checkoutUnavailable — the honest key-missing checkout
+       state) in all ten catalogs = 5069. The new lines sit next
+       to money: the English source sits verbatim in every
+       catalog under the money-copy law — UNREVIEWED as
+       translations. */
+    expect(REQUIRED.length).toBe(5069);
   });
 
   it.each(ALL)("%s carries every newest-surface key", (locale) => {
