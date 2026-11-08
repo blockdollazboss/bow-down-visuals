@@ -1002,7 +1002,7 @@ function AiAssistPanel({
       if (!res) return; /* user cancelled */
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: data.error ?? "AI assist failed", variant: "destructive" });
+        toast({ title: apiErrorMessage(data, "AI assist failed"), variant: "destructive" });
         return;
       }
       setResult({ action, text: data.result });

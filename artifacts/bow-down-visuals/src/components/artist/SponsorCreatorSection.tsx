@@ -204,9 +204,9 @@ export default function SponsorCreatorSection({
 
   async function startSponsorship() {
     setError(null);
-    if (amountCents < 100) { setError("Sponsorships start at $1."); return; }
-    if (!brandName.trim()) { setError("Tell the creator who is sponsoring them (your name or brand)."); return; }
-    if (!deliverables.trim()) { setError("Say what this sponsorship covers."); return; }
+    if (amountCents < 100) { setError(t("sponsors.errorMinAmount")); return; }
+    if (!brandName.trim()) { setError(t("sponsors.errorBrandNameMissing")); return; }
+    if (!deliverables.trim()) { setError(t("sponsors.errorDeliverablesMissing")); return; }
     setBusy(true);
     try {
       const created = await authedFetch(`/api/sponsors/creator/${encodeURIComponent(slug)}`, {
