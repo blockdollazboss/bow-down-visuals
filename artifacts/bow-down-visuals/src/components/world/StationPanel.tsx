@@ -249,6 +249,12 @@ const CommentToVideoBench = lazy(() => import("@/components/world/native/Comment
 const LyricStoriesBench = lazy(() => import("@/components/world/native/LyricStoriesBench").then((m) => ({ default: m.LyricStoriesBench })));
 const DreamCollabBench = lazy(() => import("@/components/world/native/DreamCollabBench").then((m) => ({ default: m.DreamCollabBench })));
 const LinkToHitBench = lazy(() => import("@/components/world/native/LinkToHitBench").then((m) => ({ default: m.LinkToHitBench })));
+/* Stack 400 world parity (census B-06 + B-08): the Avatar
+   Presenter bench inside the Video Desk stack, and the Chat
+   Speak bench at the My Studio board (the in-World
+   Thy/operator surface). Lazy like every stacked bench. */
+const AvatarPresenterBench = lazy(() => import("@/components/world/native/AvatarPresenterBench").then((m) => ({ default: m.AvatarPresenterBench })));
+const ChatSpeakBench = lazy(() => import("@/components/world/native/ChatSpeakBench").then((m) => ({ default: m.ChatSpeakBench })));
 
 /* ─── Round-4 doors (world-perf round 4, stack1200) ─────────────
    After round 3 the frame still statically carried every block
@@ -1148,7 +1154,33 @@ export default function StationPanel(props: StationPanelProps) {
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
             {resolution.pattern === "create" ? (
-              station.id === "hook-desk" ? (
+              station.id === "video-desk" ? (
+                <div className="flex flex-col gap-6">
+                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                    <CreateDeskPanel
+                      station={station}
+                      isLight={isLight}
+                      onJukeboxAdd={props.onJukeboxAdd}
+                      onOpenEditor={props.onOpenEditorStation}
+                      onOpenStation={props.onOpenStation}
+                      shelfPlayer={shelfPlayer}
+                      panelPayload={target.payload ?? null}
+                    />
+                  </DeskDoor></PanelBoundary>
+                  {/* Avatar Presenter (Stack 400 world parity,
+                      census B-06): the make-video flow's
+                      presenter option native inside the Video
+                      Desk — the panel's own rail behind the
+                      registry's 1,200-Bucs confirmation, and
+                      the panel's own honest dark state while
+                      the avatar engine is unfunded (it ships
+                      dark by the owner's ruling: no generate
+                      control, no charge, nothing faked). */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:avatar-presenter`}><DeskDoor isLight={isLight}>
+                    <AvatarPresenterBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                </div>
+              ) : station.id === "hook-desk" ? (
                 <div className="flex flex-col gap-6">
                   <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                     <CreateDeskPanel
@@ -1431,6 +1463,18 @@ export default function StationPanel(props: StationPanelProps) {
                     in-world. */}
                 <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <DreamCollabBench isLight={isLight} onOpenStation={props.onOpenStation} />
+                </DeskDoor></PanelBoundary>
+                {/* Chat Speak (Stack 400 world parity, census
+                    B-08): the operator's spoken replies native
+                    at the board — the chat drawer's own speak
+                    rail behind the server-priced confirmation,
+                    charged only when it plays; the voice-casting
+                    state shows the drawer's own words. This is
+                    the in-World Thy/operator surface: the King
+                    you talk to, heard out loud, without leaving
+                    the room. */}
+                <PanelBoundary isLight={isLight} resetKey={`${station.id}:chat-speak`}><DeskDoor isLight={isLight}>
+                  <ChatSpeakBench isLight={isLight} />
                 </DeskDoor></PanelBoundary>
                 {/* Link To Hit (Stack 300 world parity, Lane B
                     item 12): the /create hub's comedy panel

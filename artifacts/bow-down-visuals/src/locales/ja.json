@@ -25102,5 +25102,39 @@
     "plans": "Creator Plans",
     "creditsCaption": "Creator Plans add pro analytics and AI boosts — that's the subscription side.",
     "plansCaption": "Need credits right now? Credit Packs top up your Visual Bucs."
+  },
+  "worldAvatarPresenterBench": {
+    "title": "Avatar Presenter",
+    "subtitle": "A talking-head host that presents your video.",
+    "costBadge": "{{cost}} VB",
+    "checking": "Checking avatar provider…",
+    "notConfigured": "AI avatars aren't connected yet — the site owner needs to add a HeyGen or Hedra API key before talking-head presenters can generate. Your video plan will note the presenter choice for later.",
+    "ready": "Avatar provider connected ({{provider}}).",
+    "avatarLabel": "Avatar",
+    "avatarPlaceholder": "Choose an avatar…",
+    "scriptLabel": "Presenter script",
+    "scriptPlaceholder": "What should the presenter say? (saved with your plan — generation unlocks when the provider is connected)",
+    "scriptPlaceholderLive": "What should the presenter say?",
+    "savedNote": "Your presenter choice is saved with the video plan. Generation itself stays disabled until the provider key is added — you won't be charged.",
+    "generate": "Generate presenter — {{cost}} VB",
+    "generating": "Making your presenter…",
+    "failed": "The presenter couldn't be made — you weren't charged for a failed run.",
+    "jobFailed": "The presenter job failed — the charge was refunded.",
+    "doneNoClip": "The presenter job finished without a clip — the charge was refunded.",
+    "pollTimeout": "Still making your presenter — check back in a moment; a finished clip lands in your library.",
+    "statusFailed": "Couldn't check whether the avatar provider is connected — nothing was charged.",
+    "outOfCredits": "You need {{cost}} Visual Bucs for an AI avatar presenter."
+  },
+  "worldChatSpeakBench": {
+    "title": "Hear Thy Speak",
+    "subtitle": "Type a reply and hear Thy Cheat Code say it out loud, in his own voice.",
+    "textLabel": "What should he say?",
+    "textPlaceholder": "The reply you want to hear out loud…",
+    "checking": "Checking his voice…",
+    "costBadge": "{{cost}} VB",
+    "speak": "Speak it — {{cost}} VB",
+    "stop": "Stop",
+    "listenAgain": "Listen again — free",
+    "failed": "Thy Cheat Code couldn't speak that reply — please try again."
   }
 }
