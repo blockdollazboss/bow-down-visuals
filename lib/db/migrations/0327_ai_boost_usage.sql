@@ -1,4 +1,4 @@
--- 0326: ai_boost_usage — the AI promotion boosts ledger (stack300
+-- 0327: ai_boost_usage — the AI promotion boosts ledger (stack300
 -- lane plans-boosts, census A item 2 / manifest item 87).
 --
 -- WHY THIS FILE EXISTS: every plan surface sells "AI promotion
