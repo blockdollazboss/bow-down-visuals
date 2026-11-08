@@ -83,6 +83,12 @@ describe("the generate — confirmed, polled, honestly finished", () => {
     expect(desk).toContain('t("worldVideoStudio.timedOut")');
   });
 
+  it("a poll failure speaks two kinds (stack300 item 117): the server's plain message when the job carries one, the catalog's no-detail words otherwise", () => {
+    expect(desk).toContain('apiErrorMessage(pollBody, t("worldVideoStudio.failedNoDetail"))');
+    /* The bare catalog-only failure throw is gone from the poll path. */
+    expect(desk).not.toContain('throw new Error(t("worldVideoStudio.failed"));');
+  });
+
   it("a picked photo uploads to storage first — never a data URL in the body", () => {
     expect(desk).toContain("r2UploadFile(key, referenceFile, referenceFile.type, token)");
     expect(desk).toContain("video-studio-refs/");

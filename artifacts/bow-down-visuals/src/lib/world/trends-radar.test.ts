@@ -64,6 +64,13 @@ describe("the parse — honesty guards", () => {
     const feed = trendRadarFeedOf(FEED)!;
     expect(feed.sounds).toHaveLength(1);
     expect(feed.sounds[0]).toMatchObject({ mediaId: "m1", title: "Golden Hour Loop", genre: "Soul" });
+    /* Stack300 item 107: rows carry the server's createLink
+       through the parse (the website rail links it; this bench
+       never renders it). A row without one parses with "" —
+       never an invented link. */
+    expect(feed.sounds[0]!.createLink).toBe("/create?panel=video");
+    expect(feed.topics[0]!.createLink).toBe("");
+    expect(feed.formats[0]!.createLink).toBe("");
     expect(feed.topics).toHaveLength(1);
     expect(feed.topics[0]).toMatchObject({ genre: "drill", trend: { velocity: null, coldStart: true } });
     expect(feed.formats).toHaveLength(1);

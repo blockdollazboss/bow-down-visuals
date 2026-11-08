@@ -20751,6 +20751,7 @@
     "generating": "Generating…",
     "resultsLabel": "Fresh from the studio",
     "failed": "Generation failed",
+    "failedNoDetail": "Generation failed — no Visual Bucs were charged for a clip that didn't finish. Try running it again.",
     "emptySuccess": "Generation finished without a clip — no Visual Bucs were charged.",
     "timedOut": "Generation timed out — the clip may still finish in the background.",
     "errorNotImage": "That file isn’t an image — choose a photo.",

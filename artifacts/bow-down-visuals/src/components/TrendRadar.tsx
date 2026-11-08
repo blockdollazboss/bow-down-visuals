@@ -4,6 +4,11 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { Radar, AlertTriangle, RotateCcw, Music2, Hash, Shapes, ArrowRight, SquarePlay, Play } from "lucide-react";
 import { Link } from "wouter";
+import {
+  trendRadarFeedOf,
+  type TrendRadarFeed,
+  type RadarVelocity,
+} from "@/lib/world/trends-radar";
 
 /* ── Trend Radar (UPGRADE #178) ────────────────────────────────────────
    The real-signal rail of the Trends page, docked above the AI
@@ -24,69 +29,21 @@ import { Link } from "wouter";
    the server the API sends null and this section simply does not
    exist — no placeholder, no error, no invented numbers. */
 
-interface TrendVelocity {
-  currentPlays: number;
-  baselineDaily: number;
-  velocity: number | null;
-  coldStart: boolean;
-}
-
-interface SoundTrend {
-  mediaId: string;
-  title: string;
-  genre: string | null;
-  slug: string;
-  trend: TrendVelocity;
-  createLink: string;
-}
-
-interface TopicTrend {
-  genre: string;
-  trend: TrendVelocity;
-  createLink: string;
-}
-
-interface FormatTrend {
-  format: "short" | "duet" | "stitch" | "full";
-  trend: TrendVelocity;
-  createLink: string;
-}
-
-/* C-30 outside heat — YouTube's own chart, YouTube's own numbers.
-   Deliberately NOT shaped like the on-site families: no trend
-   velocity, no pace text, no createLink into Create — a snapshot
-   with a click-through to the video on YouTube. */
-interface YoutubeHeatVideo {
-  videoId: string;
-  title: string;
-  channelTitle: string;
-  viewCount: number;
-  thumbnailUrl: string | null;
-  url: string;
-  source: string;
-}
-
-interface YoutubeHeat {
-  source: string;
-  region: string;
-  videos: YoutubeHeatVideo[];
-}
-
-interface TrendFeed {
-  generatedAt: string;
-  sounds: SoundTrend[];
-  topics: TopicTrend[];
-  formats: FormatTrend[];
-  /* null whenever the outside family is dormant (no key, chart
-     unreachable) — the section then renders nothing at all. */
-  outsideHeat: YoutubeHeat | null;
-}
+/* The feed's shape AND its strict parse are the World bench's
+   seam (lib/world/trends-radar) — shared since stack300 item
+   107: a payload that isn't the feed parses to null and lands
+   on this component's own load-error state below; malformed
+   rows drop instead of throwing at render; the outside family
+   stays null unless honestly-labelable videos survive. The
+   C-30 dormancy contract is unchanged — it lives in the seam's
+   outsideHeatOf now, and the section below still renders only
+   when real chart rows are present. */
 
 export function TrendRadar() {
   const isLight = useIsLightTheme();
   const { t, i18n } = useTranslation();
   const { user, getAccessToken } = useAuth();
-  const [feed, setFeed] = useState<TrendFeed | null>(null);
+  const [feed, setFeed] = useState<TrendRadarFeed | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
 
@@ -101,18 +58,15 @@ export function TrendRadar() {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!res.ok) throw new Error("load failed");
-        const d = (await res.json()) as TrendFeed;
+        /* Strict parse (stack300 item 107): a 200 whose body
+           isn't the feed — an error body, a shape drift — parses
+           to null and lands on the load-error state, never on
+           the "nothing heating up" state; malformed rows drop
+           inside the seam instead of throwing at render. */
+        const parsed = trendRadarFeedOf(await res.json().catch(() => null));
+        if (!parsed) throw new Error("load failed");
         if (cancelled) return;
-        setFeed({
-          generatedAt: d.generatedAt,
-          sounds: Array.isArray(d.sounds) ? d.sounds : [],
-          topics: Array.isArray(d.topics) ? d.topics : [],
-          formats: Array.isArray(d.formats) ? d.formats : [],
-          outsideHeat:
-            d.outsideHeat && Array.isArray(d.outsideHeat.videos) && d.outsideHeat.videos.length > 0
-              ? d.outsideHeat
-              : null,
-        });
+        setFeed(parsed);
       } catch {
         if (!cancelled) setLoadError(true);
       }
@@ -122,7 +76,7 @@ export function TrendRadar() {
     };
   }, [user, getAccessToken, retryNonce]);
 
-  function paceText(trend: TrendVelocity): string {
+  function paceText(trend: RadarVelocity): string {
     return trend.coldStart
       ? t("trends.radar.coldStart", { current: trend.currentPlays })
       : t("trends.radar.pace", {
