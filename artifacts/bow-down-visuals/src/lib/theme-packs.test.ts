@@ -83,7 +83,7 @@ describe("theme pack registry", () => {
   it("has unique ids, exactly the five site-rooted packs, and one house pack for both modes", () => {
     const ids = THEME_PACKS.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual(["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold", "crimson-marble"]);
+    expect(ids).toEqual(["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold", "crimson-marble", "sapphire-marble"]);
     const house = THEME_PACKS.filter((p) => p.house);
     expect(house).toHaveLength(1);
     // The house pack IS both house themes: one pack, two variants.

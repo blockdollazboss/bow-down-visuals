@@ -24729,7 +24729,10 @@
     "arcadeGoldDescription": "O lado código de trapaça do palácio: mármore carvão quente, ouro quente e um brilho de brasa no escuro — mármore papel quente e bronze profundo de dia. Combina com o cursor Game Controller.",
     "crimsonMarbleName": "Crimson Marble",
     "crimsonMarbleTagline": "Crimson-veined marble, antique gold",
-    "crimsonMarbleDescription": "The palace cut in red stone: crimson-veined black marble and antique gold in the dark — blush ivory marble and deep crimson by day. Pairs with the Diamond cursor."
+    "crimsonMarbleDescription": "The palace cut in red stone: crimson-veined black marble and antique gold in the dark — blush ivory marble and deep crimson by day. Pairs with the Diamond cursor.",
+    "sapphireMarbleName": "Sapphire Marble",
+    "sapphireMarbleTagline": "Deep-sea sapphire marble, platinum silver",
+    "sapphireMarbleDescription": "The palace cut in blue stone: sapphire-veined blue-black marble with platinum silver in the dark — pale ice-blue marble and deep sapphire by day. Pairs with the Gold Star cursor."
   },
   "profileHosting": {
     "heading": "Profile Hosting",

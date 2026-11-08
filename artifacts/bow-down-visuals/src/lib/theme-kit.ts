@@ -348,6 +348,23 @@ export const DESIGNED_ICON_NAMES = [
 ] as const;
 export type DesignedIconName = (typeof DESIGNED_ICON_NAMES)[number];
 
+/** Packs whose designed emblem set has actually been RAISED into the
+    asset library — all 50 icons × light+dark on disk, hashes pinned
+    in kit-assets-manifest.json. Every other pack's set is
+    owner-approved art-program work that has not landed yet
+    (crimson-marble, sapphire-marble): its icon-set + folder-icons
+    components are marked artPending in the kit manifest, the desk
+    says so, and its bundles name the missing files
+    (ICONS-MISSING.txt) — never a substitute. Pinned against the
+    files on disk by theme-kit.test.ts (kit-vs-manifest). */
+export const DESIGNED_ICON_SET_PACK_IDS: readonly string[] = [
+  "golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold",
+];
+
+export function hasDesignedIconSet(packId: string): boolean {
+  return DESIGNED_ICON_SET_PACK_IDS.includes(packId);
+}
+
 /** Site path of one designed icon for a pack × mode. */
 export function designedIconPath(packId: string, icon: DesignedIconName, mode: ThemePackMode): string {
   return `/theme-packs/icons/${packId}/${icon}-${mode}.webp`;
@@ -398,6 +415,12 @@ export interface KitComponentManifest {
       claims light+dark declares both, never one mode's art under a
       both-modes claim (the QC-200 G3 honesty fix). */
   artByMode?: Record<ThemePackMode, string>;
+  /** True when the component's designed art has NOT been raised yet:
+      artByMode names the set's canonical paths, but the files are
+      not in the asset library — the component is unavailable until
+      the art program lands it, and bundles name the missing files
+      instead of shipping substitutes (Stack-300 A4 honesty). */
+  artPending?: boolean;
   /** Honest slot note where a component shares art (lock wallpapers
       use the pack ground — no distinct lock scene was approved). */
   note?: string;
@@ -442,7 +465,12 @@ export function kitManifest(pack: ThemePack): KitManifest {
         light: designedIconPath(pack.id, DESIGNED_ICON_NAMES[0]!, "light"),
         dark: designedIconPath(pack.id, DESIGNED_ICON_NAMES[0]!, "dark"),
       };
-      base.note = `${DESIGNED_ICON_NAMES.length} designed icons per mode — the approved art-manifest set for this pack.`;
+      if (hasDesignedIconSet(pack.id)) {
+        base.note = `${DESIGNED_ICON_NAMES.length} designed icons per mode — the approved art-manifest set for this pack.`;
+      } else {
+        base.artPending = true;
+        base.note = `${DESIGNED_ICON_NAMES.length} designed icons per mode — this pack's designed emblem set has not been raised yet: the kit names the missing files (ICONS-MISSING.txt) and ships no substitute art.`;
+      }
     }
     if (c.id === "folder-icons") {
       // Folder icons ARE the designed files emblem (DESIGN finals).
@@ -450,6 +478,10 @@ export function kitManifest(pack: ThemePack): KitManifest {
         light: designedIconPath(pack.id, "files", "light"),
         dark: designedIconPath(pack.id, "files", "dark"),
       };
+      if (!hasDesignedIconSet(pack.id)) {
+        base.artPending = true;
+        base.note = "Folder icons are the designed 'files' emblem — not raised yet for this pack: the kit ships none and names it in ICONS-MISSING.txt.";
+      }
     }
     return base;
   });

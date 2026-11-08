@@ -94,6 +94,14 @@ export const SERVER_PACKS: ServerPack[] = [
       light: { background: "18 48% 97%", foreground: "350 35% 10%", primary: "38 82% 46%" },
     },
   },
+  {
+    id: "sapphire-marble", name: "Sapphire Marble", tier: "premium", cursor: "star",
+    deviceArt: { dark: "/wallpapers/theme-packs/sapphire-marble-dark.webp", light: "/wallpapers/theme-packs/sapphire-marble-light.webp" },
+    colors: {
+      dark: { background: "222 47% 5%", foreground: "212 32% 94%", primary: "215 90% 58%" },
+      light: { background: "207 48% 97%", foreground: "219 42% 11%", primary: "216 82% 40%" },
+    },
+  },
 ];
 
 export function serverPackById(id: string): ServerPack | undefined {
@@ -258,6 +266,8 @@ export const KIT_ART_SITE_PATHS: Record<string, string> = {
   "pack-ground-arcade-gold-light": "/wallpapers/theme-packs/arcade-gold-light.webp",
   "pack-ground-crimson-marble-dark": "/wallpapers/theme-packs/crimson-marble-dark.webp",
   "pack-ground-crimson-marble-light": "/wallpapers/theme-packs/crimson-marble-light.webp",
+  "pack-ground-sapphire-marble-dark": "/wallpapers/theme-packs/sapphire-marble-dark.webp",
+  "pack-ground-sapphire-marble-light": "/wallpapers/theme-packs/sapphire-marble-light.webp",
   "kings-set-throne-phone": "/wallpapers/kings-set-throne-phone.webp",
   "kings-set-plaza-phone": "/wallpapers/kings-set-plaza-phone.webp",
   "kings-set-stage-desktop": "/wallpapers/kings-set-stage-desktop.webp",
@@ -603,6 +613,24 @@ function addWallpapers(archive: InstanceType<typeof ZipArchive>, pack: ServerPac
   }
 }
 
+/** The designed-icon site paths ABSENT from this deploy's asset
+    library for a pack, in bundle order (light then dark, manifest
+    name order). A pack whose set the art program has not raised yet
+    (crimson-marble, sapphire-marble) is missing all 100; a raised
+    pack is missing none. The bundle paperwork (README, kit.json,
+    install texts, the manifests endpoint) conditions itself on
+    this list — the kit never claims icons it does not ship. */
+export function designedIconsMissing(pack: ServerPack): string[] {
+  const missing: string[] = [];
+  for (const mode of ["light", "dark"] as KitMode[]) {
+    for (const icon of DESIGNED_ICON_NAMES) {
+      const sitePath = designedIconSitePath(pack.id, icon, mode);
+      if (!readSiteAsset(sitePath)) missing.push(sitePath);
+    }
+  }
+  return missing;
+}
+
 /** The DESIGNED icon set: the approved emblem art for this pack —
     all 50 icons × light AND dark, the actual files from the art
     manifest (never code-drawn substitutes). Returns the site paths
@@ -692,14 +720,46 @@ export function buildKitZip(
     accent !== defaultAccent || cursorAccent !== defaultAccent ||
     Object.keys(homeArt).length > 0 || Object.keys(lockArt).length > 0;
 
+  /* Icon honesty (Stack-300 A4): the paperwork conditions itself on
+     the missing list — a pack whose designed set has not been raised
+     says so in its own bundle instead of claiming all 50 icons. */
+  const iconMissing = designedIconsMissing(pack);
+  const iconFilesTotal = DESIGNED_ICON_NAMES.length * 2;
+  const iconFilesPresent = iconFilesTotal - iconMissing.length;
+  const iconsComplete = iconMissing.length === 0;
+  const folderIconMissing = (["light", "dark"] as KitMode[]).some((m) =>
+    iconMissing.includes(designedIconSitePath(pack.id, "files", m)),
+  );
+  const iconReadmeLines = iconsComplete
+    ? [
+        `Icons: the designed emblem set approved for this pack — all 50 icons in light`,
+        `and dark (icons/ folder), plus the pack app icon: the real Bow Down Visuals`,
+        `logo lockup, whole, on the pack tile (app-icon-light/dark.webp).`,
+      ]
+    : iconFilesPresent === 0
+      ? [
+          `Icons: this pack's designed emblem set has NOT been raised yet — no icons`,
+          `are included in this bundle. The icons/ folders (android/ios) carry`,
+          `ICONS-MISSING.txt naming every designed file; no substitute art was`,
+          `generated, because the set is owner-approved art from the theme-pack art`,
+          `manifest. Re-download this kit once the set lands. The pack app icon IS`,
+          `included: the real Bow Down Visuals logo lockup, whole, on the pack tile`,
+          `(app-icon-light/dark.webp).`,
+        ]
+      : [
+          `Icons: ${iconFilesPresent} of the ${iconFilesTotal} designed emblem files (50 icons × light`,
+          `and dark) ship in the icons/ folder; the rest are named in`,
+          `icons/ICONS-MISSING.txt — no substitute art was generated. Plus the pack`,
+          `app icon: the real Bow Down Visuals logo lockup, whole, on the pack tile`,
+          `(app-icon-light/dark.webp).`,
+        ];
+
   const readme = [
     `Bow Down Visuals — ${pack.name} whole-device theme kit (${opts.mode})`,
     `Bundle: ${kind}`,
     ``,
     `One package, one price, owned forever. Every component ships in light AND dark.`,
-    `Icons: the designed emblem set approved for this pack — all 50 icons in light`,
-    `and dark (icons/ folder), plus the pack app icon: the real Bow Down Visuals`,
-    `logo lockup, whole, on the pack tile (app-icon-light/dark.webp).`,
+    ...iconReadmeLines,
     `Wallpapers: this pack's clean ground art (no logo baked on), sized per device`,
     `— wallpaper-<mode>-phone/tablet/desktop.webp for home, lock-<mode>-*.webp for`,
     `the lock screen. Home and lock share the pack's approved ground art: no`,
@@ -725,6 +785,8 @@ export function buildKitZip(
       count: DESIGNED_ICON_NAMES.length,
       modes: ["light", "dark"],
       names: [...DESIGNED_ICON_NAMES],
+      complete: iconsComplete,
+      missing: iconMissing,
     },
     appIcon: { light: appIconSitePath(pack.id, "light"), dark: appIconSitePath(pack.id, "dark") },
     wallpapers: {
@@ -739,13 +801,19 @@ export function buildKitZip(
     addWallpapers(archive, pack, `${base}mac/`, opts.mix);
     addFolderIcons(archive, pack, `${base}mac/`);
     addAppIcons(archive, pack, `${base}mac/`);
-    archive.append("Set the wallpapers from System Settings > Wallpaper. Folder icons: Get Info on a folder, drag the icon file onto the icon well.", { name: `${base}mac/INSTALL.txt` });
+    archive.append(folderIconMissing
+      ? "Set the wallpapers from System Settings > Wallpaper. Folder icons: this pack's designed folder icon (the designed 'files' emblem) has not been raised yet, so no folder icon is included in this bundle — no substitute art was generated; it arrives with the pack's designed emblem set."
+      : "Set the wallpapers from System Settings > Wallpaper. Folder icons: Get Info on a folder, drag the icon file onto the icon well.", { name: `${base}mac/INSTALL.txt` });
   }
   if (kind === "android" || kind === "full") {
     addWallpapers(archive, pack, `${base}android/`, opts.mix);
     addDesignedIcons(archive, pack, `${base}android/`);
     addAppIcons(archive, pack, `${base}android/`);
-    archive.append("Android: apply the icons with your launcher's icon-pack import (the designed icons/ set, light and dark), set the wallpapers from the kit (wallpaper-<mode>-phone.webp for home, lock-<mode>-phone.webp for the lock screen), and set the ringtone + notification sounds from the sounds folder (the site sound library set, by role).", { name: `${base}android/INSTALL.txt` });
+    archive.append(iconsComplete
+      ? "Android: apply the icons with your launcher's icon-pack import (the designed icons/ set, light and dark), set the wallpapers from the kit (wallpaper-<mode>-phone.webp for home, lock-<mode>-phone.webp for the lock screen), and set the ringtone + notification sounds from the sounds folder (the site sound library set, by role)."
+      : iconFilesPresent === 0
+        ? "Android: this pack's designed icon set has not been raised yet — the icons/ folder carries ICONS-MISSING.txt naming the designed files and no icons are included (no substitute art was generated), so there is no icon pack to import yet; re-download this kit once the designed set lands. Set the wallpapers from the kit (wallpaper-<mode>-phone.webp for home, lock-<mode>-phone.webp for the lock screen), and set the ringtone + notification sounds from the sounds folder (the site sound library set, by role)."
+        : `Android: apply the icons with your launcher's icon-pack import (the designed icons/ set, light and dark — this bundle carries ${iconFilesPresent} of the ${iconFilesTotal} designed files; icons/ICONS-MISSING.txt names the rest and no substitute art was generated), set the wallpapers from the kit (wallpaper-<mode>-phone.webp for home, lock-<mode>-phone.webp for the lock screen), and set the ringtone + notification sounds from the sounds folder (the site sound library set, by role).`, { name: `${base}android/INSTALL.txt` });
     addSounds(archive, `${base}android/sounds/`);
   }
   if (kind === "ios" || kind === "full") {
@@ -755,8 +823,18 @@ export function buildKitZip(
     archive.append([
       "iPhone / iPad — honest labeling: Apple does not allow a true system theme.",
       "This kit uses Apple's own Shortcuts route: Shortcuts > + > Open App > choose the",
-      "app > Share > Add to Home Screen > set the kit icon from the icons/ folder",
-      "(the pack's designed set — pick the light or dark face). Repeat per app. Your",
+      ...(iconsComplete
+        ? [
+            "app > Share > Add to Home Screen > set the kit icon from the icons/ folder",
+            "(the pack's designed set — pick the light or dark face). Repeat per app. Your",
+          ]
+        : [
+            "app > Share > Add to Home Screen — NOTE: this pack's designed icon set is",
+            "not complete in this bundle: the icons/ folder carries ICONS-MISSING.txt",
+            "naming the missing designed files and no substitute art was generated, so",
+            "skip the icon step until the designed set lands and you re-download this",
+            "kit. Your",
+          ]),
       "original apps stay in the App Library. Wallpapers set from Photos > Share >",
       "Use as Wallpaper. Ringtones install via GarageBand / Finder sync from the",
       "sounds folder (the site sound library set, by role).",

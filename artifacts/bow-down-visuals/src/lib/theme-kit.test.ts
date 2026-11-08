@@ -22,7 +22,7 @@
  *     logo path + Cinzel/Manrope pairing; Chrome manifest colors come
  *     from the pack; the Windows theme text points sounds at the
  *     library manifest names.
- *  7. Server mirror: the API kit builder knows the same six packs,
+ *  7. Server mirror: the API kit builder knows the same seven packs,
  *     the same sound roles, the same designed icon names, and
  *     contains no per-pack wav data.
  */
@@ -34,6 +34,8 @@ import {
   APPROVED_ART_SOURCES,
   COMPONENT_SOUND_ROLES,
   DESIGNED_ICON_NAMES,
+  DESIGNED_ICON_SET_PACK_IDS,
+  hasDesignedIconSet,
   KIT_COMPONENTS,
   KIT_WALLPAPER_DEVICES,
   LOGO_BY_MODE,
@@ -61,19 +63,23 @@ const sha256 = (buf: Buffer): string => createHash("sha256").update(buf).digest(
 
 /* Packs whose owner-approved DESIGNED emblem set (50 icons × 2 modes)
    has been raised into the kit asset manifest. crimson-marble
-   (Stack-200 U4) ships its registry entry, grounds, per-device
-   renders and app icons now; its designed emblem set is raised by
-   the same owner-approved art program that produced the other five
-   sets (theme-pack-art/MANIFEST.md, Oct 25 2026) — until it lands,
-   the server kit builder declares the gap inside the bundle itself
-   (ICONS-MISSING.txt) rather than substituting art. The designed-set
-   assertions below scope to this list so the gap stays VISIBLE
-   here: adding crimson-marble to this list without its 100 files
-   fails the manifest pins immediately. */
+   (Stack-200 U4) and sapphire-marble (Stack-300 theme-packs) ship
+   their registry entries, grounds, per-device renders and app icons
+   now; their designed emblem sets are raised by the same
+   owner-approved art program that produced the other five sets
+   (theme-pack-art/MANIFEST.md, Oct 25 2026) — until they land, the
+   server kit builder declares the gap inside the bundle itself
+   (ICONS-MISSING.txt) rather than substituting art, and the FE kit
+   manifest marks the two icon components artPending. The
+   designed-set assertions below scope to this list so the gap stays
+   VISIBLE here: adding a pack to this list without its 100 files
+   fails the manifest pins immediately. This list and the module's
+   DESIGNED_ICON_SET_PACK_IDS are the same fact — pinned equal
+   below so the two can never drift. */
 const DESIGNED_SET_PACKS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold"];
 
 describe("kit manifest — 12 components × every pack × light+dark", () => {
-  it("covers all six packs with all twelve components in both modes", () => {
+  it("covers all seven packs with all twelve components in both modes", () => {
     const manifests = allKitManifests();
     expect(manifests.map((m) => m.packId)).toEqual(THEME_PACKS.map((p) => p.id));
     for (const m of manifests) {
@@ -126,6 +132,36 @@ describe("kit manifest — 12 components × every pack × light+dark", () => {
         light: designedIconPath(pack.id, "files", "light"),
         dark: designedIconPath(pack.id, "files", "dark"),
       });
+    }
+  });
+
+  it("packs without a raised designed set mark both icon components artPending (Stack-300 A4)", () => {
+    // The module's raised-set list and this file's scoping list are
+    // the same fact — they can never drift apart.
+    expect([...DESIGNED_ICON_SET_PACK_IDS].sort()).toEqual([...DESIGNED_SET_PACKS].sort());
+    for (const pack of THEME_PACKS) {
+      const m = kitManifest(pack);
+      const icons = m.components.find((x) => x.component === "icon-set")!;
+      const folders = m.components.find((x) => x.component === "folder-icons")!;
+      if (DESIGNED_SET_PACKS.includes(pack.id)) {
+        expect(hasDesignedIconSet(pack.id), pack.id).toBe(true);
+        expect(icons.artPending, pack.id).toBeUndefined();
+        expect(folders.artPending, pack.id).toBeUndefined();
+        expect(icons.note, pack.id).not.toContain("not been raised");
+      } else {
+        expect(hasDesignedIconSet(pack.id), pack.id).toBe(false);
+        expect(icons.artPending, pack.id).toBe(true);
+        expect(folders.artPending, pack.id).toBe(true);
+        expect(icons.note, pack.id).toContain("has not been raised yet");
+        expect(icons.note, pack.id).toContain("ICONS-MISSING.txt");
+        expect(folders.note, pack.id).toContain("not raised yet");
+      }
+      // No other component is ever art-pending.
+      for (const c of m.components) {
+        if (c.component !== "icon-set" && c.component !== "folder-icons") {
+          expect(c.artPending, `${pack.id}/${c.component}`).toBeUndefined();
+        }
+      }
     }
   });
 
@@ -193,7 +229,7 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
     expect(DESIGNED_ICON_NAMES).not.toContain("crown");
   });
 
-  // Explicit 30s budget: this test sha256-hashes 548 files (~16 MB) and
+  // Explicit 30s budget: this test sha256-hashes 556 files (~16 MB) and
   // runs at ~2.5s on a calm box — over half of vitest's 5s default — so
   // under multi-lane contention it used to TIME OUT and read as an asset
   // regression (stack600 reconciliation: the assets and manifest were
@@ -205,9 +241,9 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
       icons: Array<{ pack: string; icon: string; mode: string; path: string; sourceAsset: string; sha256: string }>;
       deviceWallpapers: Array<{ pack: string; mode: string; device: string; width: number; height: number; path: string; sha256: string }>;
     };
-    // 500 designed icons (5 raised sets) + 12 app icons (all 6 packs)
+    // 500 designed icons (5 raised sets) + 14 app icons (all 7 packs)
     // ride the same entries list.
-    expect(assets.icons).toHaveLength(512);
+    expect(assets.icons).toHaveLength(514);
     const seen = new Set<string>();
     for (const e of assets.icons) {
       seen.add(`${e.pack}|${e.icon}|${e.mode}`);
@@ -227,7 +263,7 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
       }
     }
     // Per-device wallpapers: every pack × mode × device, pinned sizes.
-    expect(assets.deviceWallpapers).toHaveLength(36);
+    expect(assets.deviceWallpapers).toHaveLength(42);
     for (const w of assets.deviceWallpapers) {
       const url = publicFile(w.path);
       expect(existsSync(url), w.path).toBe(true);
@@ -427,7 +463,7 @@ describe("server mirror parity", () => {
     "utf8",
   );
 
-  it("knows the same six packs and the same six library roles", () => {
+  it("knows the same seven packs and the same six library roles", () => {
     for (const p of THEME_PACKS) expect(serverBuild).toContain(`id: "${p.id}"`);
     for (const role of ["notification", "message", "success", "error", "royal-sting", "ringtone"]) {
       expect(serverBuild).toContain(`"${role}"`);
