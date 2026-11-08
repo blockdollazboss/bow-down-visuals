@@ -116,7 +116,7 @@ const ghostBtn =
 export default function MyShop() {
   usePageTitle("My Shop", "Your own storefront on Bow Down Visuals — sell products with AI-written descriptions, images, and your own domain.");
   const isLight = useIsLightTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
   /* Shops-list load failures are NOT "no shops yet" — they get their
@@ -941,7 +941,7 @@ export default function MyShop() {
                       <p className="text-[11px] font-bold uppercase tracking-[0.25em]" style={{ color: editAccentColor }}>Bow Down Visuals Shop</p>
                       <p className="mt-1 text-2xl font-black text-white">{editName || activeShop.name}</p>
                       {editTagline && <p className="mt-1 text-sm text-white/70">{editTagline}</p>}
-                      <p className="mt-3 text-sm font-black" style={{ color: editAccentColor }}>{centsToDisplay(2999)}</p>
+                      <p className="mt-3 text-sm font-black" style={{ color: editAccentColor }}>{centsToDisplay(2999, i18n.language)}</p>
                     </div>
                   </div>
 
@@ -1334,7 +1334,7 @@ export default function MyShop() {
                                 </span>
                               )}
                             </div>
-                            <div className="text-amber-300 text-sm font-bold">{centsToDisplay(p.price_cents)}</div>
+                            <div className="text-amber-300 text-sm font-bold">{centsToDisplay(p.price_cents, i18n.language)}</div>
                             <div className="mt-1.5 flex gap-2">
                               <button className="text-xs text-white/50 hover:text-white flex items-center gap-1" onClick={() => openEditProduct(p)}>
                                 <Pencil className="w-3 h-3" /> {t("myShop.edit")}
@@ -1703,7 +1703,7 @@ function AnalyticsCard({
   shopId: string;
   authed: (path: string, init?: RequestInit) => Promise<Response>;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isLight = useIsLightTheme();
   const [data, setData] = useState<{
     totals: { views: number; sales: number; gross_cents: number; platform_fee_cents: number; seller_net_cents: number; pending_orders?: number };
@@ -1743,8 +1743,8 @@ function AnalyticsCard({
             {[
               { label: t("myShop.statViews"), value: String(data.totals.views) },
               { label: t("myShop.statSales"), value: String(data.totals.sales) },
-              { label: t("myShop.statGross"), value: centsToDisplay(data.totals.gross_cents) },
-              { label: t("myShop.statYouKeep"), value: centsToDisplay(data.totals.seller_net_cents), gold: true },
+              { label: t("myShop.statGross"), value: centsToDisplay(data.totals.gross_cents, i18n.language) },
+              { label: t("myShop.statYouKeep"), value: centsToDisplay(data.totals.seller_net_cents, i18n.language), gold: true },
             ].map((s) => (
               <div key={s.label} className={`rounded-xl border p-4 ${isLight ? "bg-[#F7ECD2]/80 border-[#C9A84C]/30" : "border-white/10 bg-black/40"}`}>
                 <div className={`text-xl font-black ${s.gold ? "text-amber-300" : ""}`}>{s.value}</div>
@@ -1801,8 +1801,8 @@ function AnalyticsCard({
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="font-bold">{centsToDisplay(sale.amount_cents)}</div>
-                      <div className="text-[11px] text-emerald-300">{t("myShop.youKeepAmount", { amount: centsToDisplay(sale.seller_net_cents) })}</div>
+                      <div className="font-bold">{centsToDisplay(sale.amount_cents, i18n.language)}</div>
+                      <div className="text-[11px] text-emerald-300">{t("myShop.youKeepAmount", { amount: centsToDisplay(sale.seller_net_cents, i18n.language) })}</div>
                     </div>
                   </div>
                 ))}
@@ -1824,7 +1824,7 @@ function AnalyticsCard({
                       <div className="text-[11px] text-white/40">{new Date(sale.created_at).toLocaleDateString()}</div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="font-bold">{centsToDisplay(sale.amount_cents)}</div>
+                      <div className="font-bold">{centsToDisplay(sale.amount_cents, i18n.language)}</div>
                       <div className="text-[11px] text-amber-300">{sale.payment_status === "expired" ? t("myShop.checkoutExpired", { defaultValue: "Checkout expired" }) : t("myShop.pendingBadge", { defaultValue: "Pending" })}</div>
                     </div>
                   </div>

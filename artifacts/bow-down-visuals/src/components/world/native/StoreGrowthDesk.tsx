@@ -207,7 +207,7 @@ function LeadMagnetsSection({
   products: GrowthProduct[];
   onSaved: (saved: GrowthProduct) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const leadStrings = {
     titleRequired: t("worldCommerceStands.growthProblemTitleRequired"),
     titleLong: t("worldCommerceStands.growthProblemTitleLong"),
@@ -327,7 +327,7 @@ function LeadMagnetsSection({
                     const problem = leadMagnetRestoreProblem(restorePrice, leadStrings);
                     if (problem) { setError(problem); return; }
                     const payload = buildLeadMagnetRestorePayload(restorePrice);
-                    if (payload) void patchPrice(p, payload, t("worldCommerceStands.growthRestoredNote", { title: p.title, price: centsToDisplay(payload.priceCents) }));
+                    if (payload) void patchPrice(p, payload, t("worldCommerceStands.growthRestoredNote", { title: p.title, price: centsToDisplay(payload.priceCents, i18n.language) }));
                   }}
                   className={goldBtn(busyId === p.id)}
                 >
@@ -394,7 +394,7 @@ function LeadMagnetsSection({
             >
               <option value="">{t("worldCommerceStands.growthConvertPick")}</option>
               {convertible.map((p) => (
-                <option key={p.id} value={p.id}>{p.title} — {centsToDisplay(p.priceCents)}</option>
+                <option key={p.id} value={p.id}>{p.title} — {centsToDisplay(p.priceCents, i18n.language)}</option>
               ))}
             </select>
             {convertId && !convertArmed && (
@@ -442,7 +442,7 @@ function AddonSection({
   products: GrowthProduct[];
   onSaved: (saved: GrowthProduct) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const bumpStrings = {
     percentProblem: t("worldCommerceStands.growthProblemPercent"),
     summaryNone: t("worldCommerceStands.growthSummaryNone"),
@@ -532,7 +532,7 @@ function AddonSection({
             <div key={p.id} data-testid={mode === "bump" ? "world-store-growth-bump-row" : "world-store-growth-upsell-row"} className={rowCls(isLight)}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{p.title}</span>
-                <span className="text-sm font-black text-[#d4af37]">{isLeadMagnet(p) ? t("worldCommerceStands.growthFree") : centsToDisplay(p.priceCents)}</span>
+                <span className="text-sm font-black text-[#d4af37]">{isLeadMagnet(p) ? t("worldCommerceStands.growthFree") : centsToDisplay(p.priceCents, i18n.language)}</span>
                 <span className={`text-xs ${summary.live ? (isLight ? "text-[#92600a]" : "text-amber-300") : muted(isLight)}`}>{summary.line}</span>
                 <button type="button" data-testid={mode === "bump" ? "world-store-growth-bump-edit" : "world-store-growth-upsell-edit"} onClick={() => openEditor(p)} className={chipBtn(isLight)}>
                   <Pencil className="h-3 w-3" /> {p.bumpConfig ? t("worldCommerceStands.growthChangeAddon") : t("worldCommerceStands.growthAttachAddon")}
@@ -550,7 +550,7 @@ function AddonSection({
                       <option value="">{t("worldCommerceStands.growthPickProduct")}</option>
                       {bumpCandidates(products, p.id).map((q) => (
                         <option key={q.id} value={q.id}>
-                          {q.title} — {centsToDisplay(q.priceCents)}{q.isActive ? "" : t("worldCommerceStands.growthDraftSuffix")}
+                          {q.title} — {centsToDisplay(q.priceCents, i18n.language)}{q.isActive ? "" : t("worldCommerceStands.growthDraftSuffix")}
                         </option>
                       ))}
                     </select>
@@ -586,9 +586,9 @@ function AddonSection({
                     <p className={`text-[11px] ${muted(isLight)}`}>
                       {t("worldCommerceStands.growthBuyerPreview", {
                         title: target.title,
-                        price: centsToDisplay(bumpUnitCents(target.priceCents, parseBumpPercent(percentRaw))),
+                        price: centsToDisplay(bumpUnitCents(target.priceCents, parseBumpPercent(percentRaw)), i18n.language),
                         offPart: parseBumpPercent(percentRaw) > 0
-                          ? t("worldCommerceStands.growthBuyerPreviewOff", { pct: parseBumpPercent(percentRaw), list: centsToDisplay(target.priceCents) })
+                          ? t("worldCommerceStands.growthBuyerPreviewOff", { pct: parseBumpPercent(percentRaw), list: centsToDisplay(target.priceCents, i18n.language) })
                           : "",
                         fee: feeLabel,
                       })}

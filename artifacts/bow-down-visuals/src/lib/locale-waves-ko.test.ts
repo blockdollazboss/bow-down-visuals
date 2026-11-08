@@ -325,6 +325,13 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     // brand fragment / house mode names / punctuation
     "beatMaker.soundBankComing",
     "beatMaker.soundGroupBank",
+  "beatMaker.soundBankGroupDrums",
+  "beatMaker.soundBankGroup808",
+  "beatMaker.soundBankGroupBass",
+  "beatMaker.soundBankGroupMelodic",
+  "beatMaker.soundBankGroupFx",
+  "beatMaker.soundBankGroupOther",
+  "beatMaker.soundBankKit",
     "beatMaker.soundGroupBuiltIn",
     "beatMaker.soundGroupYours",
     "beatMaker.soundLoadOwn",

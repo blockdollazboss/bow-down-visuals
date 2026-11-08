@@ -78,8 +78,9 @@ describe("the desk's seller mirror — the sold rail", () => {
     expect(desk).toContain('data-testid="world-gift-card-sold-totals"');
     expect(desk).toContain('data-testid="world-gift-card-sold-row"');
     /* The figures are the rail's formatted strings first. */
-    expect(desk).toContain("sold.liability.issued || centsToDisplay(sold.liability.issuedCents)");
-    expect(desk).toContain("sold.liability.outstanding || centsToDisplay(sold.liability.outstandingCents)");
+    /* Stack 300 item 98: the fallback formatter now carries the viewer's locale. */
+    expect(desk).toContain("sold.liability.issued || centsToDisplay(sold.liability.issuedCents, i18n.language)");
+    expect(desk).toContain("sold.liability.outstanding || centsToDisplay(sold.liability.outstandingCents, i18n.language)");
     expect(desk).toContain("sold.liability.note");
   });
 
@@ -107,7 +108,7 @@ describe("the desk's buyer refund — the website rail, two-tap armed", () => {
 
   it("the first tap arms the exact amount; the settled answer is the rail's own words", () => {
     expect(desk).toContain("setArmedRefundId(card.id)");
-    expect(desk).toContain('t("worldGiftCardsDesk.refundArm", { amount: centsToDisplay(card.availableCents) })');
+    expect(desk).toContain('t("worldGiftCardsDesk.refundArm", { amount: centsToDisplay(card.availableCents, i18n.language) })');
     expect(desk).toContain('data-testid="world-gift-card-refund-note"');
     expect(desk).toContain('data-testid="world-gift-card-refund-error"');
     /* Success and failure are separate states, and both lists reload from the rails after. */

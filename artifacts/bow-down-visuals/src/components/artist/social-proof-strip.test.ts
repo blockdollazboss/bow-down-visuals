@@ -64,7 +64,11 @@ describe("SocialProofStrip wiring (source pins)", () => {
     // desk always did; the 2D strip used to fall back to en-US.
     expect(src).toContain("formatProofValue(f.value, i18n.language)");
     expect(src).toContain("proofUpdatedLabel(f.updatedAt, i18n.language)");
-    expect(src).toContain("Updated {updated}");
+    // Stack 300 item 97: the "Updated" word itself rides the shared
+    // social-proof.updated key (same key SocialProofSettings uses) —
+    // no literal English left in the strip.
+    expect(src).toContain("t(\"social-proof.updated\", { date: updated })");
+    expect(src).not.toContain("Updated {updated}");
   });
   it("is mounted on the public profile under the masthead badges", () => {
     const page = readFileSync(join(__dirname, "..", "..", "pages", "artist-public.tsx"), "utf8");
