@@ -165,8 +165,31 @@ const EARNINGS_KEYS = Object.keys(EN).filter((k) => k.startsWith("earnings."));
 
 describe("D6 · earnings keying (items 48–49)", () => {
   it("the earnings namespace exists in all 10 catalogs, English-verbatim (money labels)", () => {
-    expect(EARNINGS_KEYS.length).toBe(26);
+    expect(EARNINGS_KEYS.length).toBe(32);
     for (const k of EARNINGS_KEYS) expectVerbatimEverywhere(k);
+  });
+
+  it("Stack 300 remainders (items 111–112): the bookings card + four older SourceCards carry the exact English source", () => {
+    expect(EN["earnings.bookingsTitle"]).toBe("Performance bookings (escrow released)");
+    /* Figures by interpolation only — the fee wording is the English source, never re-drafted. */
+    expect(EN["earnings.bookingsDetail"]).toBe("gross {{gross}} · platform fee {{fee}} (15%)");
+    expect(EN["earnings.storeSalesTitle"]).toBe("Store sales");
+    expect(EN["earnings.beatsTitle"]).toBe("Beats (licenses sold)");
+    expect(EN["earnings.membershipsTitle"]).toBe("Memberships");
+    expect(EN["earnings.brandDealsTitle"]).toBe("Brand deals (escrow released)");
+    const page = read("../pages/earnings.tsx");
+    expect(page).toContain('t("earnings.bookingsTitle")');
+    expect(page).toContain('t("earnings.bookingsDetail"');
+    expect(page).toContain('t("earnings.storeSalesTitle")');
+    expect(page).toContain('t("earnings.beatsTitle")');
+    expect(page).toContain('t("earnings.membershipsTitle")');
+    expect(page).toContain('t("earnings.brandDealsTitle")');
+    /* The hard-coded literals the census flagged are gone. */
+    expect(page).not.toContain('title="Performance bookings (escrow released)"');
+    expect(page).not.toContain('title="Store sales"');
+    expect(page).not.toContain('title="Beats (licenses sold)"');
+    expect(page).not.toContain('title="Memberships"');
+    expect(page).not.toContain('title="Brand deals (escrow released)"');
   });
 
   it("the statement seam: no bundle is byte-identical to the PDF's English", () => {

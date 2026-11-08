@@ -24819,6 +24819,10 @@
     "makerScriptNeeded": "The ad needs a script — write one above or let Turbo write it."
   },
   "earnings": {
+    "beatsTitle": "Beats (licenses sold)",
+    "bookingsDetail": "gross {{gross}} · platform fee {{fee}} (15%)",
+    "bookingsTitle": "Performance bookings (escrow released)",
+    "brandDealsTitle": "Brand deals (escrow released)",
     "ledgerBeatLicense": "Beat license",
     "ledgerDigitalSale": "Digital sale",
     "ledgerMembership": "Membership",
@@ -24826,6 +24830,7 @@
     "ledgerShoutout": "Shoutout",
     "ledgerStoreOrder": "Store order",
     "ledgerTipJarTip": "Tip jar tip",
+    "membershipsTitle": "Memberships",
     "shoutoutsDetail": "gross {{gross}} · platform fee {{fee}} (5%)",
     "shoutoutsTitle": "Shoutouts",
     "stmtBeats": "Beat licenses",
@@ -24842,6 +24847,7 @@
     "stmtTotal": "Total",
     "stmtTotalPartial": "Total of the sources that loaded",
     "stmtUgcBriefs": "UGC briefs",
+    "storeSalesTitle": "Store sales",
     "tipJarDetail": "tips arrive in full — no platform fee",
     "tipJarTitle": "Tip jar tips",
     "title": "Earnings"
