@@ -6124,6 +6124,14 @@
       "midnight-jazz": {
         "name": "Midnight Jazz",
         "blurb": "Smoky brass & navy. Late-night club polish."
+      },
+      "rose-velvet": {
+        "name": "Rose Velvet",
+        "blurb": "Rose & plum. Glam beauty polish."
+      },
+      "obsidian-chrome": {
+        "name": "Obsidian Chrome",
+        "blurb": "Black, silver & white. Pure monochrome."
       }
     },
     "allOn": "tutti attivi",
@@ -6155,6 +6163,7 @@
     "libraryEmpty": "Niente di salvato — genera un pacchetto qui sopra e arriverà qui.",
     "libraryLoading": "Caricamento della tua libreria…",
     "libraryError": "Impossibile caricare la tua libreria.",
+    "catalogError": "The stream pack catalog couldn't load.",
     "libraryActionFailed": "Quella modifica non è stata salvata — riprova.",
     "addToStudio": "Aggiungi al mio studio",
     "inStudio": "Nel mio studio",

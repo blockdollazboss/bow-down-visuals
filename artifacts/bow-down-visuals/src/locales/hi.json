@@ -6112,6 +6112,14 @@
       "midnight-jazz": {
         "name": "Midnight Jazz",
         "blurb": "Smoky brass & navy. Late-night club polish."
+      },
+      "rose-velvet": {
+        "name": "Rose Velvet",
+        "blurb": "Rose & plum. Glam beauty polish."
+      },
+      "obsidian-chrome": {
+        "name": "Obsidian Chrome",
+        "blurb": "Black, silver & white. Pure monochrome."
       }
     },
     "allOn": "सब चालू",
@@ -6143,6 +6151,7 @@
     "libraryEmpty": "अभी कुछ सहेजा नहीं है — ऊपर एक पैक जनरेट करें और यह यहाँ आ जाएगा।",
     "libraryLoading": "आपकी लाइब्रेरी लोड हो रही है…",
     "libraryError": "आपकी लाइब्रेरी लोड नहीं हो सकी।",
+    "catalogError": "The stream pack catalog couldn't load.",
     "libraryActionFailed": "वह बदलाव सहेजा नहीं गया — फिर से कोशिश करें।",
     "addToStudio": "मेरे स्टूडियो में जोड़ें",
     "inStudio": "मेरे स्टूडियो में",
