@@ -57,7 +57,8 @@ export interface BeatPreset {
 
 export type BeatPresetId =
   | "trap" | "drill" | "boombap" | "afrobeats" | "house"
-  | "rnb" | "jersey-club" | "lofi";
+  | "rnb" | "jersey-club" | "lofi"
+  | "pop" | "edm" | "dancehall";
 
 /** The starting patterns, in picker order. */
 export const BEAT_PRESETS: Record<BeatPresetId, BeatPreset> = {
@@ -249,6 +250,100 @@ export const BEAT_PRESETS: Record<BeatPresetId, BeatPreset> = {
         { id: "seed-lofi-pad-2", pitch: 46, startStep: 8, lengthSteps: 8, velocity: 55 },
       ],
     },
+  },
+  /* ── Stack 300 upgrade wave: the last three BEAT_GENRES with no
+     starting pattern — pop, edm and dancehall were pickable AI genres
+     with nothing to load in the sequencer, the same gap Stack 200
+     closed for r&b/jersey-club/lofi. Each pattern is written in this
+     registry's own format (9 rows × 16 steps, bass in the C1..B2 808
+     range, melody seeds in the roll's step shape). Picking one is
+     still a free local edit. ── */
+  pop: {
+    nameKey: "beatMaker.presetPop", fallback: "Pop", bpm: 112,
+    /* Bright and tidy: four-on-the-floor-light kick with a step-14
+       lift, snare/clap stacked on the backbeat, near-16th closed
+       hats, major-key chord stabs and a bright pluck hook seed. */
+    grid: [
+      [2,0,0,0,1,0,0,0,1,0,0,0,1,0,1,0],
+      [0,0,0,0,2,0,0,0,0,0,0,0,2,0,0,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+      [2,1,1,1,2,1,1,1,2,1,1,1,2,1,1,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
+      [1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0],
+      [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+      [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [41,null,null,null,41,null,null,null,36,null,null,null,38,null,34,null],
+    melody: {
+      keys: [
+        { id: "seed-pop-keys-1", pitch: 65, startStep: 0, lengthSteps: 1, velocity: 95 },
+        { id: "seed-pop-keys-2", pitch: 69, startStep: 4, lengthSteps: 1, velocity: 90 },
+        { id: "seed-pop-keys-3", pitch: 72, startStep: 8, lengthSteps: 1, velocity: 95 },
+        { id: "seed-pop-keys-4", pitch: 69, startStep: 12, lengthSteps: 1, velocity: 90 },
+      ],
+      pluck: [
+        { id: "seed-pop-pluck-1", pitch: 77, startStep: 2, lengthSteps: 0.5, velocity: 85 },
+        { id: "seed-pop-pluck-2", pitch: 76, startStep: 6, lengthSteps: 0.5, velocity: 80 },
+        { id: "seed-pop-pluck-3", pitch: 77, startStep: 10, lengthSteps: 0.5, velocity: 85 },
+        { id: "seed-pop-pluck-4", pitch: 81, startStep: 14, lengthSteps: 0.5, velocity: 85 },
+      ],
+      pad: [],
+    },
+  },
+  edm: {
+    nameKey: "beatMaker.presetEdm", fallback: "EDM", bpm: 128,
+    /* Festival drive: accented four-floor kick, clap riding the
+       backbeat, open hats on the offbeats, a crash on step 0 and a
+       two-tick perc build into the next bar; supersaw-style key
+       stabs over a wide sustained pad. House does NOT cover this —
+       house grooves, this drives. */
+    grid: [
+      [2,0,0,0,2,0,0,0,2,0,0,0,2,0,0,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+      [0,0,0,0,2,0,0,0,0,0,0,0,2,0,0,0],
+      [0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
+      [0,0,2,0,0,0,2,0,0,0,2,0,0,0,2,0],
+      [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1],
+      [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],
+      [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [36,null,36,null,36,null,36,null,36,null,36,null,39,null,38,null],
+    melody: {
+      keys: [
+        { id: "seed-edm-keys-1", pitch: 60, startStep: 0, lengthSteps: 1, velocity: 100 },
+        { id: "seed-edm-keys-2", pitch: 63, startStep: 4, lengthSteps: 1, velocity: 95 },
+        { id: "seed-edm-keys-3", pitch: 60, startStep: 8, lengthSteps: 1, velocity: 100 },
+        { id: "seed-edm-keys-4", pitch: 58, startStep: 12, lengthSteps: 1, velocity: 95 },
+      ],
+      pluck: [],
+      pad: [
+        { id: "seed-edm-pad-1", pitch: 48, startStep: 0, lengthSteps: 8, velocity: 70 },
+        { id: "seed-edm-pad-2", pitch: 46, startStep: 8, lengthSteps: 8, velocity: 70 },
+      ],
+    },
+  },
+  dancehall: {
+    nameKey: "beatMaker.presetDancehall", fallback: "Dancehall", bpm: 102,
+    /* The genre's signature 3+3+2 kick pulse runs in both halves of
+       the bar against a plain backbeat clap, a sparse snare, and a
+       shaker driving the 16ths. No melody seed — jersey-club
+       precedent: the pattern is the instrument. Afrobeats, at the
+       same tempo, runs a different four-beat kick — this is not a
+       re-skin of it. */
+    grid: [
+      [2,0,0,1,0,0,1,0,2,0,0,1,0,0,1,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+      [1,0,0,1,0,0,1,0,1,0,0,1,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+      [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+      [0,0,1,0,0,1,0,0,0,0,1,0,0,1,0,0],
+      [2,1,1,1,2,1,1,1,2,1,1,1,2,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [36,null,null,36,null,null,43,null,36,null,null,36,null,41,null,null],
   },
 };
 

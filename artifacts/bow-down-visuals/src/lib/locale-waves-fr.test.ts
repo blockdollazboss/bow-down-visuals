@@ -578,7 +578,7 @@ const W4_LEGIT: ReadonlySet<string> = new Set([
   "beatMaker.genreLabel",
   "beatMaker.presetAfrobeats",
   "beatMaker.presetDrill",
-  "beatMaker.presetHouse", "beatMaker.presetRnB", "beatMaker.presetJerseyClub", "beatMaker.presetLofi",
+  "beatMaker.presetHouse", "beatMaker.presetRnB", "beatMaker.presetJerseyClub", "beatMaker.presetLofi", "beatMaker.presetPop", "beatMaker.presetEdm", "beatMaker.presetDancehall",
   "beatMaker.presetTrap",
   "beatMaker.track808",
   "beatMaker.trackClap",

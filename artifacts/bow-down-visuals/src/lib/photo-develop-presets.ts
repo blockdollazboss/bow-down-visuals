@@ -120,6 +120,34 @@ export const PHOTO_DEVELOP_PRESETS: readonly PhotoDevelopPreset[] = [
     ["#e8e8ec", "#101014"],
     { exposure: 0.05, brightness: -6, contrast: 42, temperature: 0, saturation: -100, lightness: -3 },
   ),
+  /* ── Stack 300 upgrade wave: the three regions the shelf had no
+     answer for. Saturation above +22 was wholly unoccupied (every
+     entry neutral, muted or mono) — vivid-pop turns color UP. The
+     low-contrast + lifted-lightness portrait region was empty and
+     no entry was face-oriented — soft-portrait is. And teal-shadow
+     is a MID cool grade; the far-cool, dark end of the
+     temperature×exposure plane had no entry — blue-hour is it. ── */
+  look(
+    "vivid-pop",
+    "Vivid Pop",
+    "Color turned up hard — loud, bright, built to jump off a feed.",
+    ["#ff5a3c", "#3c8aff"],
+    { exposure: 0.15, brightness: 4, contrast: 22, temperature: 6, saturation: 48, lightness: 2 },
+  ),
+  look(
+    "soft-portrait",
+    "Soft Portrait",
+    "Soft and face-first — gentle contrast, lifted light, skin stays true.",
+    ["#f2c9a8", "#8a5f43"],
+    { exposure: 0.2, brightness: 8, contrast: -24, temperature: 10, saturation: -4, lightness: 14 },
+  ),
+  look(
+    "blue-hour",
+    "Blue Hour",
+    "Deep blue twilight — the cold dark after the sun is gone.",
+    ["#7fb0e8", "#0a1626"],
+    { exposure: -0.55, brightness: -4, contrast: 20, temperature: -62, hue: 6, saturation: -6, lightness: -6 },
+  ),
 ];
 
 export function photoDevelopPresetById(id: string): PhotoDevelopPreset | null {
