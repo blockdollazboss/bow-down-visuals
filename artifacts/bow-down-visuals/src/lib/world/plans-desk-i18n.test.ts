@@ -41,7 +41,7 @@ describe("PlansDesk extraction (item 5)", () => {
   });
 
   it("every extracted key is referenced by the desk (no orphans, no remainder)", () => {
-    expect(enKeys.length).toBe(40);
+    expect(enKeys.length).toBe(41);
     for (const key of enKeys) {
       expect(desk, `worldPlansDesk.${key}`).toContain(`worldPlansDesk.${key}`);
     }

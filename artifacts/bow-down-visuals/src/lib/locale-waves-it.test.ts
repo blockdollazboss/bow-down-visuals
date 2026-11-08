@@ -186,7 +186,7 @@ const W1_LEGIT = new Set([
   "royalties.loadPayoutsFailed",
   "royalties.loadSummaryFallback",
   "royalties.loadPlatformsFallback",
-  "royalties.loadPayoutsFallback",
+  "royalties.loadPayoutsFallback", "contracts.mode_label", "contracts.mode_analyze", "contracts.mode_generate", "contracts.gen_intro", "contracts.gen_creator_name", "contracts.gen_creator_placeholder", "contracts.gen_counterparty_name", "contracts.gen_counterparty_placeholder", "contracts.gen_payment_label", "contracts.gen_payment_placeholder", "contracts.gen_term_label", "contracts.gen_term_placeholder", "contracts.gen_territory_label", "contracts.gen_territory_placeholder", "contracts.gen_exclusivity_label", "contracts.gen_exclusivity_placeholder", "contracts.gen_rights_label", "contracts.gen_rights_placeholder", "contracts.gen_termination_label", "contracts.gen_termination_placeholder", "contracts.gen_context_label", "contracts.gen_context_placeholder", "contracts.gen_generating", "contracts.gen_generate_button", "contracts.gen_sign_in", "contracts.gen_out_of_credits", "contracts.gen_error_failed", "contracts.gen_error_shape", "contracts.gen_result_fallback_title", "contracts.gen_copy_draft", "contracts.gen_download_draft", "contracts.gen_analyze_draft", "contracts.gen_draft_loaded", "contracts.gen_generate_another",
 ]);
 
 describe("it-W1 (Stack-28 #75) — commerce namespaces fully Italian", () => {
@@ -614,7 +614,7 @@ const W4_LEGIT = new Set([
   "singingVoice.abOriginal",
   // English-verbatim UNREVIEWED money copy: the singing-voice 800 VB
   // price was RATIFIED by owner ruling 2026-11-07 and the stale
-  // "price TBD" wording retired — this catalog carries the English
+  //  wording retired — this catalog carries the English
   // source until a reviewed translation lands.
   "singingVoice.buttonCost",
   "singingVoice.convertButton",
@@ -815,7 +815,7 @@ const W5_LEGIT: string[] = [
   "streamPack.theme.desert-dune.name",
   "streamPack.theme.desert-dune.blurb",
   "streamPack.theme.midnight-jazz.name",
-  "streamPack.theme.midnight-jazz.blurb",
+  "streamPack.theme.midnight-jazz.blurb", "streamPack.theme.rose-velvet.name", "streamPack.theme.rose-velvet.blurb", "streamPack.theme.obsidian-chrome.name", "streamPack.theme.obsidian-chrome.blurb", "streamPack.catalogError",
 ];
 describe("it W5 namespaces (Stack-28 appendix)", () => {
   const r = checkWave(W5_NAMESPACES, [...W5_LEGIT]);

@@ -179,9 +179,54 @@ describe("sitemap ↔ public allowlist agreement (D-11)", () => {
 });
 
 describe("robots.txt + llms.txt honesty", () => {
-  it("robots references the sitemap on the canonical host and blocks nothing", () => {
+  it("robots references the sitemap on the canonical host and blocks only the private/token surfaces (Stack-300 SEO #85)", () => {
     expect(robots).toContain(`Sitemap: ${CANON}/sitemap.xml`);
-    expect(robots).not.toContain("Disallow:");
+    // Stack-300 SEO #85 deliberately disallows the members-only roots and
+    // token shapes (mirroring the inverse of the public allowlist in
+    // src/lib/public-routes.ts); public fan landings under the same
+    // prefixes stay crawlable. Pin the exact disallowed set so nothing
+    // public is ever blocked by drift.
+    const disallowed = [...robots.matchAll(/^Disallow:\s*(\S+)$/gm)].map((m) => m[1]);
+    expect(disallowed).toEqual([
+      "/api/",
+      "/admin",
+      "/dashboard",
+      "/settings",
+      "/my-shop",
+      "/my-projects",
+      "/my-music",
+      "/my-clips",
+      "/earnings",
+      "/credit-history",
+      "/store/dashboard",
+      "/store/buy/",
+      "/creator/",
+      "/groups",
+      "/events",
+      "/community",
+      "/messages",
+      "/team",
+      "/referrals",
+      "/promote",
+      "/brand-deals",
+      "/sponsors/",
+      "/distribute",
+      "/publish",
+      "/create",
+      "/go-live",
+      "/video-editor",
+      "/audio-studio",
+      "/thumbnail-studio",
+      "/login",
+      "/signup",
+      "/reset-password",
+      "/qr-login",
+      "/store/success",
+      "/overlay/",
+      "/review/",
+      "/sync-one-sheet/",
+      "/live/guest/",
+    ]);
   });
 
   it("llms.txt does not advertise locked routes as public (D-12)", () => {

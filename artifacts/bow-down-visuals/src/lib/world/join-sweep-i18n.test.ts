@@ -148,8 +148,8 @@ const tokensOf = (value: string): string[] => {
 const digitsOf = (value: string): string[] => value.match(/[0-9][0-9,]*/g) ?? [];
 
 describe("join sweep — the branch-only desk strings resolve through the catalog", () => {
-  it("the en namespace carries the full sweep set (116 keys)", () => {
-    expect(Object.keys(EN)).toHaveLength(116);
+  it("the en namespace carries the full sweep set (117 keys)", () => {
+    expect(Object.keys(EN)).toHaveLength(117);
   });
 
   it("referenced keys == catalog keys (zero orphans, zero missing) across the five surfaces", () => {

@@ -62,7 +62,7 @@ describe("shop product card — the full title is readable", () => {
     expect(shopSrc).toContain('className="p-4 flex flex-1 flex-col"');
     // …and the price rides mt-auto so prices align across a row of
     // mixed title lengths instead of floating under each title.
-    const priceCls = classNameOfElementRendering(shopSrc, "priceLabel(p.price_cents)");
+    const priceCls = classNameOfElementRendering(shopSrc, "priceLabel(p.price_cents, i18n.language)");
     expect(priceCls).toContain("mt-auto");
   });
 

@@ -138,7 +138,7 @@ describe("Social-family extraction (unit 43)", () => {
   });
 
   it("the namespace holds the family's full extracted key set", () => {
-    expect(enKeys.length).toBe(647);
+    expect(enKeys.length).toBe(648);
   });
 
   it("every catalog key is referenced by a component (no orphans, no remainder)", () => {

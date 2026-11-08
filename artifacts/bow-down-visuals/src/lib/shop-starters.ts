@@ -135,7 +135,7 @@ export const SHOP_DESIGN_STARTERS: ShopDesignStarter[] = [
     name: "Acid Lime",
     blurb: "Green-black banner with an acid-lime strike — the shelf's only yellow-green, loud and fast.",
     bestFor: "Gaming, street, and esports shops.",
-    settings: { banner_color: "#0d1405", accent_color: "#a3e635" },
+    settings: { banner_color: "#0d1405", accent_color: "#65a30d" },
   },
 ];
 

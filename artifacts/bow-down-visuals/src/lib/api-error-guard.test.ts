@@ -71,6 +71,12 @@ const BARE_ALLOWLIST: Array<[string, string]> = [
   ["LiveCaptionsStudioPanel.tsx", "setNote(r.error)"],
   ["copyright.tsx", "setError(result.error)"],
   ["ThemeKitPanel.tsx", "throw new Error(clean.error)"],
+  /* join14: the World repurpose desk's stream-cut poll error is
+     composed at the source — streamCutJobOf (lib/world/repurpose-desk.ts)
+     only ever surfaces the server's fixed job-state sentences, and the
+     ?? fallback here is the desk's own catalog copy
+     (clipMaker.errorCutRefunded); never a raw API body. */
+  ["RepurposeDesk.tsx", "setError(job.error ??"],
 ];
 
 describe("error truth: no raw server error reaches a render", () => {

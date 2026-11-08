@@ -106,6 +106,13 @@ function resolves(p: string, depth = 0): boolean {
   if (clean === "") clean = "/";
   if (matchesRoute(clean)) return true;
   if (depth < 6 && redirectMap.has(clean)) return resolves(redirectMap.get(clean)!, depth + 1);
+  // Stack-300 SEO #82: the API server serves the dynamic sitemap family
+  // itself — GET /sitemap.xml (the index) and GET /sitemap-<family>.xml
+  // (live urlsets; api-server src/lib/sitemap.ts sitemapMiddleware,
+  // mounted in app.ts before the SPA fallback). A template literal in
+  // that module therefore resolves to a real served document even
+  // though no FE route or public file matches it.
+  if (clean.startsWith("/sitemap")) return true;
   return publicFiles.has(clean.slice(1));
 }
 

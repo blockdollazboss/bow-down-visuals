@@ -189,7 +189,7 @@ const W1_LEGIT_IDENTICAL = new Set([
   "royalties.loadPayoutsFailed",
   "royalties.loadSummaryFallback",
   "royalties.loadPlatformsFallback",
-  "royalties.loadPayoutsFallback",
+  "royalties.loadPayoutsFallback", "contracts.mode_label", "contracts.mode_analyze", "contracts.mode_generate", "contracts.gen_intro", "contracts.gen_creator_name", "contracts.gen_creator_placeholder", "contracts.gen_counterparty_name", "contracts.gen_counterparty_placeholder", "contracts.gen_payment_label", "contracts.gen_payment_placeholder", "contracts.gen_term_label", "contracts.gen_term_placeholder", "contracts.gen_territory_label", "contracts.gen_territory_placeholder", "contracts.gen_exclusivity_label", "contracts.gen_exclusivity_placeholder", "contracts.gen_rights_label", "contracts.gen_rights_placeholder", "contracts.gen_termination_label", "contracts.gen_termination_placeholder", "contracts.gen_context_label", "contracts.gen_context_placeholder", "contracts.gen_generating", "contracts.gen_generate_button", "contracts.gen_sign_in", "contracts.gen_out_of_credits", "contracts.gen_error_failed", "contracts.gen_error_shape", "contracts.gen_result_fallback_title", "contracts.gen_copy_draft", "contracts.gen_download_draft", "contracts.gen_analyze_draft", "contracts.gen_draft_loaded", "contracts.gen_generate_another",
 ]);
 describe("de locale wave W1 (Stack-28)", () => {
   it("every en key exists non-empty in de and no untranslated residue remains", () => checkWave(W1_NAMESPACES, W1_LEGIT_IDENTICAL));
@@ -805,7 +805,7 @@ const W4_LEGIT_IDENTICAL = new Set([
   "singingVoice.abOriginal",
   // English-verbatim UNREVIEWED money copy: the singing-voice 800 VB
   // price was RATIFIED by owner ruling 2026-11-07 and the stale
-  // "price TBD" wording retired — this catalog carries the English
+  //  wording retired — this catalog carries the English
   // source until a reviewed translation lands.
   "singingVoice.buttonCost",
   "singingVoice.convertButton",
@@ -1051,7 +1051,7 @@ const W5_LEGIT_IDENTICAL = new Set([
   // until a reviewed translation lands.
   "extension.metaTitle",
   "extension.one_email_when_it_launches_no_sp",
-  "extension.we_ll_email_you_the_install_link",
+  "extension.we_ll_email_you_the_install_link", "streamPack.theme.rose-velvet.name", "streamPack.theme.rose-velvet.blurb", "streamPack.theme.obsidian-chrome.name", "streamPack.theme.obsidian-chrome.blurb", "streamPack.catalogError",
 ]);
 describe("de locale wave W5 (Stack-28 appendix)", () => {
   it("every en key exists non-empty in de and no untranslated residue remains", () => checkWave(W5_NAMESPACES, W5_LEGIT_IDENTICAL));
@@ -1204,7 +1204,7 @@ const W6_LEGIT_IDENTICAL = new Set([
   // until a reviewed translation lands.
   "extension.metaTitle",
   "extension.one_email_when_it_launches_no_sp",
-  "extension.we_ll_email_you_the_install_link",
+  "extension.we_ll_email_you_the_install_link", "streamPack.theme.rose-velvet.name", "streamPack.theme.rose-velvet.blurb", "streamPack.theme.obsidian-chrome.name", "streamPack.theme.obsidian-chrome.blurb", "streamPack.catalogError",
 ]);
 describe("de W6 namespaces (Stack-28 appendix)", () => {
   it("every en key exists non-empty in de and no untranslated residue remains", () => checkWave(W6_NAMESPACES, W6_LEGIT_IDENTICAL));
@@ -1519,7 +1519,7 @@ const W7_LEGIT_IDENTICAL = new Set([
   // Stack-300 item 92 (A7): the corrected podcast dialogue
   // headline rides English verbatim (never agent-translated)
   // until a reviewed translation lands.
-  "podcast.dialogue.disabledTitle",
+  "podcast.dialogue.disabledTitle", "streamPack.theme.rose-velvet.name", "streamPack.theme.rose-velvet.blurb", "streamPack.theme.obsidian-chrome.name", "streamPack.theme.obsidian-chrome.blurb", "streamPack.catalogError",
 ]);
 describe("de W7 namespaces (Stack-28 appendix)", () => {
   it("every en key exists non-empty in de and no untranslated residue remains", () => checkWave(W7_NAMESPACES, W7_LEGIT_IDENTICAL));

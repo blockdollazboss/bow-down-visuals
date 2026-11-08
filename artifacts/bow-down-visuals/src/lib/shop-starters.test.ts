@@ -164,8 +164,8 @@ describe("acid-lime — the design shelf's yellow-green entry (stack300)", () =>
   it("exists with the green-black banner + acid-lime accent pairing", () => {
     const acid = shopStarterById("acid-lime");
     expect(acid).toBeDefined();
-    expect(acid!.settings).toEqual({ banner_color: "#0d1405", accent_color: "#a3e635" });
-    expect(shopStarterPatch(acid!)).toEqual({ banner_color: "#0d1405", accent_color: "#a3e635" });
+    expect(acid!.settings).toEqual({ banner_color: "#0d1405", accent_color: "#65a30d" });
+    expect(shopStarterPatch(acid!)).toEqual({ banner_color: "#0d1405", accent_color: "#65a30d" });
   });
 
   it("its accent is a genuinely new hue on the shelf — far from every existing accent", () => {

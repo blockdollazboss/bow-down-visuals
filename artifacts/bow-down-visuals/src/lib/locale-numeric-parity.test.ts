@@ -224,7 +224,7 @@ const NUMERIC_ALLOWLIST: Record<string, Record<string, string>> = {
       "commentReplies.commentsLabel", "commentReplies.errorNoComments", "community.paste_some_comments_first_one_pe",
       "content-calendar.pick_at_least_one_platform_to_pl", "contests.verify_at_least_one_entry_first",
       "dashboard.metaDescription", "email-list.per_draft", "extension.five_tabs",
-      "extension.one_email_when_it_launches_no_sp", "features.every_ai_tool_a_creator_needs_ma",
+      "features.every_ai_tool_a_creator_needs_ma",
       "features.pick_any_feature_above_and_gener", "gamers.the_content_creator_cheat_code_f", "guides.whySkillBody",
       "home.demo.pop.treatment.0", "home.featuresSubtitle", "hooks.creditNoteGeneration", "hooks.creditNoteScorecard",
       "hooks.hookGenSub", "hooks.hooksTip", "hooks.pfDescPlaceholder", "hooks.pfTitleLabel", "hooks.pfTitlePlaceholder",
