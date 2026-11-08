@@ -228,6 +228,32 @@ export const COVER_ART_LAYOUTS = [
     imageZone:
       "Fill the entire frame with the feature artwork, keeping the top strip and both side edges calm enough for a masthead and cover lines.",
   },
+  {
+    key: "headline-right",
+    label: "Headline Right",
+    blurb: "Title across the top, right-aligned — subject breathes below",
+    direction:
+      "right-aligned top billing — the song title large across the top " +
+      "of the frame, right-aligned, with the artist name directly " +
+      "beneath it also right-aligned in smaller type; the artwork's " +
+      "subject fills the lower two-thirds and the top band stays " +
+      "clean for the text",
+    imageZone:
+      "Leave a clean uncluttered band across the top of the composition where the title will sit, and concentrate the subject in the lower two-thirds.",
+  },
+  {
+    key: "billboard-foot",
+    label: "Billboard Foot",
+    blurb: "Artist name as the marquee billing, title anchored at the foot",
+    direction:
+      "marquee billing — the artist name in medium letter-spaced " +
+      "capitals across the very top of the frame as the billing, with " +
+      "the song title at hero size anchored along the bottom; the " +
+      "artwork's subject sits in the upper-middle and the bottom band " +
+      "stays clean for the title",
+    imageZone:
+      "Leave a clean uncluttered band across the bottom of the composition where the title will sit, and concentrate the subject in the upper-middle.",
+  },
 ] as const;
 export type CoverArtLayoutKey = (typeof COVER_ART_LAYOUTS)[number]["key"];
 

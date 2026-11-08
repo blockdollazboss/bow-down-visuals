@@ -19,7 +19,7 @@ import {
 const read = (rel: string) => readFileSync(path.resolve(import.meta.dirname, rel), "utf8");
 
 describe("cover art layout registry", () => {
-  it("exposes exactly the ten documented layouts, in picker order", () => {
+  it("exposes exactly the twelve documented layouts, in picker order", () => {
     expect(COVER_ART_LAYOUTS.map((l) => l.key)).toEqual([
       "center-stage",
       "headline-top",
@@ -31,6 +31,8 @@ describe("cover art layout registry", () => {
       "tracklist-back",
       "frame-in-frame",
       "magazine-cover",
+      "headline-right",
+      "billboard-foot",
     ]);
   });
 
@@ -128,6 +130,32 @@ describe("coverArtLayoutDiagram", () => {
     const d = coverArtLayoutDiagram(findCoverArtLayout("split-frame")!);
     expect(pct(d.subject.left)).toBe(48);
     expect(pct(d.title!.left) + pct(d.title!.width)).toBeLessThanOrEqual(48);
+  });
+
+  it("headline-right is the first right-aligned layout — title and artist pinned to the right edge", () => {
+    const layout = findCoverArtLayout("headline-right")!;
+    expect(layout.align).toBe("right");
+    expect(COVER_ART_LAYOUTS.filter((l) => l.align === "right").map((l) => l.key)).toEqual(["headline-right"]);
+    const d = coverArtLayoutDiagram(layout);
+    expect(pct(d.title!.top)).toBe(8);
+    expect(pct(d.title!.left) + pct(d.title!.width)).toBe(94); // right edge, 6% margin
+    expect(pct(d.artist!.top)).toBeGreaterThan(pct(d.title!.top));
+    expect(pct(d.artist!.left) + pct(d.artist!.width)).toBe(94);
+    expect(pct(d.subject.top)).toBe(36); // subject breathes in the lower frame
+  });
+
+  it("billboard-foot puts the artist name on top at medium scale, title at the foot", () => {
+    const layout = findCoverArtLayout("billboard-foot")!;
+    expect(layout.artistZone).toBe("top");
+    expect(layout.artistScale).toBe("medium");
+    expect(COVER_ART_LAYOUTS.filter((l) => l.artistZone === "top").map((l) => l.key)).toEqual(["billboard-foot"]);
+    expect(COVER_ART_LAYOUTS.filter((l) => l.artistScale === "medium").map((l) => l.key)).toEqual(["billboard-foot"]);
+    const d = coverArtLayoutDiagram(layout);
+    expect(pct(d.artist!.top)).toBe(3);
+    expect(pct(d.artist!.width)).toBe(44); // ARTIST_WIDTHS medium
+    expect(pct(d.title!.top)).toBe(74);
+    expect(pct(d.title!.width)).toBe(84); // hero scale
+    expect(pct(d.subject.height)).toBe(60); // subject upper
   });
 
   it("corner-seal reserves the bottom-right badge corner, clear of the artist bar", () => {

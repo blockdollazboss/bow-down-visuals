@@ -259,6 +259,32 @@ export const COVER_ART_LAYOUTS: CoverArtLayout[] = [
     subjectZone: "full-bleed",
     badgeZone: null,
   },
+  {
+    key: "headline-right",
+    label: "Headline Right",
+    blurb: "Title across the top, right-aligned — subject breathes below",
+    formats: ["single", "album"],
+    titleZone: "top",
+    titleScale: "large",
+    artistZone: "below-title",
+    artistScale: "small",
+    align: "right",
+    subjectZone: "lower",
+    badgeZone: null,
+  },
+  {
+    key: "billboard-foot",
+    label: "Billboard Foot",
+    blurb: "Artist name as the marquee billing, title anchored at the foot",
+    formats: ["single", "ep", "album"],
+    titleZone: "bottom",
+    titleScale: "hero",
+    artistZone: "top",
+    artistScale: "medium",
+    align: "center",
+    subjectZone: "upper",
+    badgeZone: null,
+  },
 ];
 
 /** Unlike styles/ratios there is NO fallback layout — an unknown or empty
