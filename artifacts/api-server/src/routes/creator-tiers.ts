@@ -20,6 +20,7 @@ import {
   type TierChangePreviewView,
 } from "../lib/tier-change";
 import { buildBillingState, type SubscriptionBillingRow } from "../lib/billing-state";
+import { getAiBoostState } from "../lib/ai-boosts";
 import { stripeTaxSessionFields } from "../lib/stripe-tax";
 import {
   TIER_PLANS,
@@ -177,12 +178,28 @@ router.get("/creator-tiers/me", requireAuth, async (req, res) => {
     logger.warn({ err, userId: req.userId }, "creator-tiers/me: billing row read failed, answering from resolved tier");
   }
   const billing = buildBillingState(row, tier);
+  /* The caller's AI-boost standing for the current month (stack300:
+     the sold allowance is real now — lib/ai-boosts.ts). Fail-soft like
+     the billing row above: a ledger read failure omits the counts
+     (null) rather than inventing them or breaking the tier read the
+     sidebar badge depends on. */
+  let aiBoostsUsedThisMonth: number | null = null;
+  let aiBoostsRemaining: number | null = null;
+  try {
+    const boosts = await getAiBoostState(req.userId!, tier);
+    aiBoostsUsedThisMonth = boosts.used;
+    aiBoostsRemaining = boosts.remaining;
+  } catch (err) {
+    logger.warn({ err, userId: req.userId }, "creator-tiers/me: boosts ledger read failed, omitting boost counts");
+  }
   res.json({
     tier,
     status: row?.status ?? "active",
     feeBps: TIER_FEE_BPS[tier],
     feePct: bpsToPct(TIER_FEE_BPS[tier]),
     aiBoostsPerMonth: TIER_AI_BOOSTS[tier],
+    aiBoostsUsedThisMonth,
+    aiBoostsRemaining,
     currentPeriodEnd: row?.currentPeriodEnd ?? null,
     cancelAtPeriodEnd: row?.cancelAtPeriodEnd ?? null,
     billingStatus: billing.status,

@@ -360,6 +360,7 @@ export function PlansDesk({ isLight }: { isLight: boolean }) {
                 {t("worldPlansDesk.standingPrefix")}<strong className="capitalize">{me.tier}</strong>
                 {me.status !== "active" ? t("worldPlansDesk.standingStatus", { status: t(planStatusLabelKey(me.status)) }) : ""}
                 {t("worldPlansDesk.standingSuffix", { feePct: me.feePct, boosts: me.aiBoostsPerMonth })}
+                {me.aiBoostsRemaining !== null ? t("worldPlansDesk.boostsRemaining", { remaining: me.aiBoostsRemaining }) : ""}
                 {me.currentPeriodEnd ? t("worldPlansDesk.standingPeriod", { date: new Date(me.currentPeriodEnd).toLocaleDateString(i18n.language, { month: "short", day: "numeric", year: "numeric" }) }) : ""}.
               </p>
             )}

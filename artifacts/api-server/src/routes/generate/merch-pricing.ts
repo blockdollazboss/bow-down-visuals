@@ -6,8 +6,13 @@
 /** Site credits charged per AI design batch (2 mockups). Env-overridable at the route. */
 export const MERCH_DESIGN_CREDIT_COST = 300;
 
-/** Future platform commission on merch sales (percent). Recorded as intent;
- *  checkout is honestly "coming soon" — no payments are processed yet. */
+/** Platform commission on merch sales (percent).
+ *  ★ RATIFIED by owner ruling, Nov 7, 2026 ("Ratify it — merch cut
+ *  is 15%") — before that ruling this figure was an unruled
+ *  placeholder that already shaped suggested retail prices and the
+ *  World MerchBench margin copy; it is now the owner's number.
+ *  Checkout is honestly "coming soon" — no payments are processed
+ *  yet, so nothing has ever charged on this figure. */
 export const MERCH_COMMISSION_PCT = 15;
 
 /** How many mockups one design batch generates. */

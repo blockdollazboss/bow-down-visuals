@@ -9,6 +9,7 @@ import {
   POST_ASSIST_PATH,
   POST_ASSIST_TONES,
   buildPostAssistPayload,
+  parsePostAssistBoost,
   parsePostAssistDraft,
   postAssistPromptReady,
   type PostAssistTone,
@@ -17,9 +18,11 @@ import {
 /* ─── Post Assist — "Write It For Me" (Stack-100 #58) ───────────────
    One shared block, two homes: the Community Hall's feed composer
    and the Promote Room. It rides the 2D composer's own rail
-   (POST /api/posts/assist, 100 Visual Bucs — the registry's price,
-   confirmed through useConfirmedApi before anything runs, refunded
-   server-side when the assist fails) and hands the drafted words
+   (POST /api/posts/assist, 100 Visual Bucs — the registry's price
+   past the monthly plan boosts allowance, which the rail draws
+   first when one remains; confirmed through useConfirmedApi before
+   anything runs, refunded server-side when the assist fails) and
+   hands the drafted words
    back to the host surface. It never posts by itself: the member
    reads, edits and sends their own words, exactly like the website
    composer. */
@@ -97,7 +100,14 @@ export function PostAssistBlock({
       }
       onDraft(draft);
       setPrompt("");
-      setNote(t("worldSocialDesk.assistDraftedNote"));
+      /* When a plan boost funded the draft, the note says so — and
+         how many are left this month (stack300 plans-boosts). */
+      const boost = parsePostAssistBoost(data);
+      setNote(
+        boost?.applied
+          ? t("worldSocialDesk.assistBoostNote", { remaining: boost.remaining })
+          : t("worldSocialDesk.assistDraftedNote"),
+      );
       refreshProfile();
     } catch {
       setNote(t("worldSocialDesk.assistDidntAnswer"));

@@ -500,6 +500,20 @@ describe("#69 site plan logic", () => {
     expect(planHostedUrl({ url: "https://billing.stripe.com/x" })).toBe("https://billing.stripe.com/x");
     expect(planHostedUrl({})).toBeNull();
   });
+
+  it("me carries the boost standing when the rail reports it, null when it doesn't", () => {
+    const withBoosts = parseSitePlanMe({
+      tier: "pro", status: "active", feeBps: 700, feePct: 7, aiBoostsPerMonth: 25,
+      aiBoostsUsedThisMonth: 7, aiBoostsRemaining: 18, currentPeriodEnd: null,
+    })!;
+    expect(withBoosts.aiBoostsUsedThisMonth).toBe(7);
+    expect(withBoosts.aiBoostsRemaining).toBe(18);
+    /* An older server (or a failed ledger read) omits the counts —
+       they parse as null so surfaces show the quota alone. */
+    const without = parseSitePlanMe({ tier: "pro", status: "active", feeBps: 700, feePct: 7, aiBoostsPerMonth: 25, currentPeriodEnd: null })!;
+    expect(without.aiBoostsUsedThisMonth).toBeNull();
+    expect(without.aiBoostsRemaining).toBeNull();
+  });
 });
 
 describe("#70 full ledger pagination", () => {

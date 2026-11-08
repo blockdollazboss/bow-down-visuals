@@ -42,6 +42,15 @@ import { refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep, isStorageRef
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { queueKeywordComment } from "../lib/keyword-automations";
 import { isMissingSchemaError } from "../lib/pg-errors";
+import { resolveCreatorTier } from "../middlewares/require-tier";
+import { isAdminUserId } from "../lib/admin";
+import {
+  fundingFor,
+  getAiBoostState,
+  refundAiBoost,
+  tryConsumeAiBoost,
+  type AiBoostState,
+} from "../lib/ai-boosts";
 
 /* Mirror-on-save (2026-10-13 law): post attachments, story media and
    highlight covers are re-hosted into permanent storage at save time.
@@ -3269,7 +3278,13 @@ router.get("/posts/:id/analytics", requireAuth, async (req: Request, res: Respon
 
 /* AI "write it for me" (1 star): returns a draft. Never auto-posts.
    Price: 100 Visual Bucs (owner ruling, Oct 20, 2026 — supersedes the
-   old 1 VB literal). */
+   old 1 VB literal) — charged only past the caller's AI promotion
+   boosts allowance: the plan terms have always included monthly
+   boosts (Free 3 / Pro 25 / Elite 100, TIER_AI_BOOSTS), and since
+   stack300 the allowance is real (lib/ai-boosts.ts, migration 0326):
+   a member with boosts left pays one boost, not Bucs. The 100 VB
+   price itself is unchanged. Admin accounts bypass the counter
+   (admin-unrestricted ruling) and take the charge path as before. */
 export const POST_ASSIST_CREDITS = 100;
 const assistSchema = z.object({
   prompt: z.string().trim().min(3).max(300),
@@ -3280,25 +3295,64 @@ router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, r
   /* Set once the charge lands; a provider failure after it refunds the
      exact charged amount (D5 sweep G15). */
   let assistCharged = false;
+  /* Set once a plan boost funds the assist; a provider failure after
+     it gives the boost back, exactly like the credit refund. */
+  let assistBoosted = false;
+  let assistBoostState: AiBoostState | null = null;
   let assistIdempotencyKey: string | null = null;
   try {
     const parsed = assistSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
     /* Server-derived idempotency key — a double-submit of the same
-       draft request can't charge twice for one delivery. */
+       draft request can't charge twice for one delivery. The boost
+       ledger keys on the same value, so a double-submit can't burn
+       two boosts for one delivery either. */
     const idempotencyKey = buildChargeIdempotencyKey("post_assist", req.userId!, null, {
       prompt: parsed.data.prompt,
       tone: parsed.data.tone,
     });
     assistIdempotencyKey = idempotencyKey;
-    try {
-      await chargeCredits(req.userId!, POST_ASSIST_CREDITS, { action: "post_assist" }, { idempotencyKey });
-      assistCharged = true;
-    } catch (e) {
-      if (e instanceof OutOfCreditsError) {
-        return res.status(402).json({ error: "out_of_credits", message: "That draft costs 100 Visual Bucs — top up to keep the cheat code writing." });
+    /* Funding, in order: admin → the unchanged charge path; a boost
+       remaining → the boost pays; otherwise → the 100 VB charge.
+       A boosts-ledger failure degrades to the charge path (the
+       pre-allowance behavior) — a broken counter never hands out
+       free assists and never blocks a paying member. */
+    const { tier } = await resolveCreatorTier(req.userId, req.userPlan);
+    const isAdmin = await isAdminUserId(req.userId!);
+    let funding = fundingFor({ isAdmin, remaining: 0 });
+    if (funding !== "admin") {
+      try {
+        const state = await getAiBoostState(req.userId!, tier);
+        funding = fundingFor({ isAdmin, remaining: state.remaining });
+        if (funding === "boost") {
+          const consumed = await tryConsumeAiBoost(req.userId!, tier, idempotencyKey);
+          if (consumed.outcome !== "exhausted") {
+            assistBoosted = true;
+            assistBoostState = consumed.state;
+          } else {
+            /* Lost a race for the month's last boost — charge instead. */
+            funding = "charge";
+            assistBoostState = consumed.state;
+          }
+        } else {
+          assistBoostState = state;
+        }
+      } catch (boostErr) {
+        logger.warn({ err: boostErr, userId: req.userId }, "[social] post_assist boosts ledger unavailable — falling back to the charge path");
+        funding = "charge";
+        assistBoostState = null;
       }
-      throw e;
+    }
+    if (!assistBoosted) {
+      try {
+        await chargeCredits(req.userId!, POST_ASSIST_CREDITS, { action: "post_assist" }, { idempotencyKey });
+        assistCharged = true;
+      } catch (e) {
+        if (e instanceof OutOfCreditsError) {
+          return res.status(402).json({ error: "out_of_credits", message: "That draft costs 100 Visual Bucs — top up to keep the cheat code writing." });
+        }
+        throw e;
+      }
     }
     const openai = getOpenAI();
     const completion = await openai.chat.completions.create({
@@ -3314,7 +3368,20 @@ router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, r
       ],
     });
     const draft = completion.choices[0]?.message?.content?.trim().slice(0, 500) ?? "";
-    return res.json({ draft });
+    return res.json({
+      draft,
+      /* How this assist was funded + the caller's boost standing, so
+         the surfaces can say what it cost and what is left. Null when
+         the boosts ledger could not be read (the charge path ran). */
+      boost: assistBoostState
+        ? {
+            applied: assistBoosted,
+            allowance: assistBoostState.allowance,
+            used: assistBoostState.used,
+            remaining: assistBoostState.remaining,
+          }
+        : null,
+    });
   } catch (err) {
     if (assistCharged) {
       try {
@@ -3324,6 +3391,16 @@ router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, r
         if (assistIdempotencyKey) await voidChargeIdempotencyKey(assistIdempotencyKey);
       } catch (refundErr) {
         logger.error({ err: refundErr, userId: req.userId }, "[social] CRITICAL: post_assist refund failed — manual reconciliation required");
+      }
+    }
+    if (assistBoosted && assistIdempotencyKey) {
+      try {
+        /* The boost twin of the refund above: deleting the ledger row
+           restores the member's remaining count, so the retry can be
+           boost-funded again instead of charging for a failed draft. */
+        await refundAiBoost(req.userId!, assistIdempotencyKey);
+      } catch (refundErr) {
+        logger.error({ err: refundErr, userId: req.userId }, "[social] CRITICAL: post_assist boost refund failed — manual reconciliation required");
       }
     }
     return res.status(500).json({ error: "assist_failed", message: "The cheat code's pen ran dry — try again." });

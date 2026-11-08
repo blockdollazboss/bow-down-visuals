@@ -2,13 +2,17 @@
    "Write It For Me" — the feed composer's AI drafting hand, on the
    2D Composer's own rail:
 
-     POST /api/posts/assist   { prompt, tone } → { draft }
-                              100 Visual Bucs (the route's
-                              POST_ASSIST_CREDITS + the credit
-                              registry's own entry — the world's
-                              confirmedFetch shows the spend
-                              confirmation before it runs; a failed
-                              assist is refunded server-side)
+     POST /api/posts/assist   { prompt, tone } → { draft, boost }
+                              100 Visual Bucs past the caller's
+                              monthly plan boosts allowance (the
+                              route's POST_ASSIST_CREDITS + the
+                              credit registry's own entry): with
+                              boosts left, the rail draws one boost
+                              instead of charging, and the response's
+                              boost object says which funded it
+                              (stack300 plans-boosts). A failed
+                              assist is refunded server-side either
+                              way — Bucs back, or the boost restored.
 
    The assist NEVER posts: it returns words the member reads, edits
    and posts themselves — the 2D composer's exact contract. Tones
@@ -49,6 +53,33 @@ export function parsePostAssistDraft(data: unknown): string | null {
   if (typeof data !== "object" || data === null) return null;
   const draft = (data as Record<string, unknown>)["draft"];
   return typeof draft === "string" && draft.trim().length > 0 ? draft.trim() : null;
+}
+
+/** How an assist was funded, as the rail reports it: whether a plan
+ *  boost paid (vs the 100 VB charge), the month's allowance, and how
+ *  many boosts are used / left after it. Null when the rail answered
+ *  without a boost report (an older build, or the boosts ledger was
+ *  unreadable and the charge path ran) — the desk then keeps its
+ *  standing drafted-note, never an invented count. */
+export interface PostAssistBoost {
+  applied: boolean;
+  allowance: number;
+  used: number;
+  remaining: number;
+}
+
+export function parsePostAssistBoost(data: unknown): PostAssistBoost | null {
+  if (typeof data !== "object" || data === null) return null;
+  const boost = (data as Record<string, unknown>)["boost"];
+  if (typeof boost !== "object" || boost === null) return null;
+  const b = boost as Record<string, unknown>;
+  const applied = b["applied"];
+  const allowance = b["allowance"];
+  const used = b["used"];
+  const remaining = b["remaining"];
+  if (typeof applied !== "boolean") return null;
+  if (typeof allowance !== "number" || typeof used !== "number" || typeof remaining !== "number") return null;
+  return { applied, allowance, used, remaining };
 }
 
 /** How the 2D composer takes a draft in: appended after the words

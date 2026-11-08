@@ -327,6 +327,7 @@ function PlanLadderBody({
         {me.status !== "active" ? ` (${me.status.replace(/_/g, " ")})` : ""}
         {t("worldJoinSweep.coachStandingFee", { feePct: me.feePct })}
         {myView ? t("worldJoinSweep.coachStandingBoosts", { boosts: myView.aiBoostsPerMonth }) : ""}
+        {me.aiBoostsRemaining !== null && me.aiBoostsRemaining !== undefined ? t("worldJoinSweep.coachStandingBoostsLeft", { remaining: me.aiBoostsRemaining }) : ""}
         {me.currentPeriodEnd
           ? t("worldJoinSweep.coachStandingPeriod", { date: new Date(me.currentPeriodEnd).toLocaleDateString(i18n.language, { month: "short", day: "numeric", year: "numeric" }) })
           : ""}

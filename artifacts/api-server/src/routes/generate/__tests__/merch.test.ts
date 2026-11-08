@@ -32,7 +32,7 @@ describe("merch pricing contract", () => {
     expect(MERCH_BATCH_SIZE).toBe(2);
   });
 
-  it("future commission is recorded as 15%", () => {
+  it("commission is the owner-ratified 15% (ruling, Nov 7, 2026)", () => {
     expect(MERCH_COMMISSION_PCT).toBe(15);
   });
 
