@@ -151,7 +151,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     // proper-noun / number / format example placeholders
     "academy.nichePlaceholder", "academy.hoursPlaceholder", "fomoFeed.load_error", "fomoFeed.load_retry", "auth.emailPlaceholder",
     "auth.passwordPlaceholder", "productPhotoStudio.pastePlaceholder",
-    "carouselMaker.brandColorsPlaceholder", "carouselMaker.tplTimelineName", "carouselMaker.tplTimelineDesc", "carouselMaker.tplProsConsName", "carouselMaker.tplProsConsDesc",
+    "carouselMaker.brandColorsPlaceholder", "carouselMaker.tplTimelineName", "carouselMaker.tplTimelineDesc", "carouselMaker.tplProsConsName", "carouselMaker.tplProsConsDesc", "carouselMaker.tplAgendaName", "carouselMaker.tplAgendaDesc", "carouselMaker.tplWrappedName", "carouselMaker.tplWrappedDesc",
     // brand currency / placeholder-only
     "promo-clip.creditBadge", "productPhotoStudio.credits",
     // house mode names (kept in English across the existing ko catalog)
@@ -398,6 +398,10 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "linkInBio.profile.avatarUrlPlaceholder",
     "linkInBio.theme.amberDusk",
     "linkInBio.theme.amberDuskBlurb",
+    "linkInBio.theme.violetReign",
+    "linkInBio.theme.violetReignBlurb",
+    "linkInBio.theme.skyAtrium",
+    "linkInBio.theme.skyAtriumBlurb",
     "linkInBio.theme.cobaltStage",
     "linkInBio.theme.cobaltStageBlurb",
     "linkInBio.theme.mintAtelier",

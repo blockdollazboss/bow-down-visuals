@@ -67,6 +67,17 @@ export const CAROUSEL_TEMPLATES: CarouselTemplate[] = [
      (bgStyle, accent, numberStyle) tuples in this registry. ── */
   { id: "timeline-journey", nameKey: "carouselMaker.tplTimelineName", descKey: "carouselMaker.tplTimelineDesc", bgStyle: "gradient-wash", accent: "#e8c468", numberStyle: "pill" },
   { id: "pros-cons",        nameKey: "carouselMaker.tplProsConsName", descKey: "carouselMaker.tplProsConsDesc", bgStyle: "split", accent: "#f6d47c", numberStyle: "pill" },
+  /* ── Stack 300 upgrade wave (bio-carousel lane): two more shapes the
+     shelf named but no template served. event-agenda is a clock-anchored
+     schedule — one slide per time slot (not timeline-journey's dated
+     past milestones, not day-in-life's photo diary); wrapped-recap is
+     the period retrospective — biggest moments counted and retold,
+     closing on the headline number (not stats' single-topic numbers,
+     not story's narrative arc). Maker-native like the U2 pair, and the
+     (bgStyle, accent, numberStyle) tuples stay distinct per the parity
+     pins: neon-edge/#f6d47c/corner and framed/#f6d47c/corner are new. ── */
+  { id: "event-agenda",  nameKey: "carouselMaker.tplAgendaName",  descKey: "carouselMaker.tplAgendaDesc",  bgStyle: "neon-edge", accent: "#f6d47c", numberStyle: "corner" },
+  { id: "wrapped-recap", nameKey: "carouselMaker.tplWrappedName", descKey: "carouselMaker.tplWrappedDesc", bgStyle: "framed",    accent: "#f6d47c", numberStyle: "corner" },
 ];
 
 /** Resolve a template reference (a Library deep-link slug like
