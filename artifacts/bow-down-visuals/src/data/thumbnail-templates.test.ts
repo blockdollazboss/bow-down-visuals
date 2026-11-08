@@ -6,7 +6,8 @@
  * ?template=<slug>, where the maker applies the entry's stylePreset —
  * so every stylePreset must be one of the maker's real preset ids
  * (pages/thumbnail-studio.tsx STYLE_PRESETS). The count is pinned at
- * 31 after the Stack 200 U5 addition (live-stream-thumbnail).
+ * 34 after the Stack 300 additions (horror-story, car-review and
+ * asmr-video thumbnails — the Horror, Cars and ASMR categories).
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -27,8 +28,8 @@ const MAKER_STYLE_PRESETS = [
 ];
 
 describe("thumbnail template library", () => {
-  it("holds the full library (31 templates)", () => {
-    expect(THUMBNAIL_TEMPLATES.length).toBe(31);
+  it("holds the full library (34 templates)", () => {
+    expect(THUMBNAIL_TEMPLATES.length).toBe(34);
   });
 
   it("uses unique, kebab-case slugs", () => {
@@ -80,5 +81,40 @@ describe("thumbnail template library", () => {
     });
     expect(live?.prompt).toContain("LIVE badge");
     expect(THUMBNAIL_CATEGORIES).toContain("Live");
+  });
+
+  it("the Stack 300 horror, car and ASMR covers resolve with their shapes", () => {
+    const horror = getThumbnailTemplate("horror-story-thumbnail");
+    expect(horror).toMatchObject({
+      title: "Horror Story Thumbnail",
+      category: "Horror",
+      stylePreset: "shocked-face",
+      aspectRatio: "16:9",
+      overlayText: "DON'T TURN AROUND",
+    });
+    expect(horror?.prompt).toContain("flashlight beam");
+    expect(THUMBNAIL_CATEGORIES).toContain("Horror");
+
+    const car = getThumbnailTemplate("car-review-thumbnail");
+    expect(car).toMatchObject({
+      title: "Car Review Thumbnail",
+      category: "Cars",
+      stylePreset: "bold-text-pop",
+      aspectRatio: "16:9",
+      overlayText: "500HP MONSTER",
+    });
+    expect(car?.prompt).toContain("three-quarter");
+    expect(THUMBNAIL_CATEGORIES).toContain("Cars");
+
+    const asmr = getThumbnailTemplate("asmr-video-thumbnail");
+    expect(asmr).toMatchObject({
+      title: "ASMR Video Thumbnail",
+      category: "ASMR",
+      stylePreset: "vlog",
+      aspectRatio: "16:9",
+      overlayText: "PURE TINGLES",
+    });
+    expect(asmr?.prompt).toContain("microphone");
+    expect(THUMBNAIL_CATEGORIES).toContain("ASMR");
   });
 });
