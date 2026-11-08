@@ -147,7 +147,7 @@ describe("coverArtSchema", () => {
 });
 
 describe("layout templates", () => {
-  it("exposes exactly the ten documented layouts", () => {
+  it("exposes exactly the twelve documented layouts", () => {
     expect(COVER_ART_LAYOUTS.map((l) => l.key)).toEqual([
       "center-stage",
       "headline-top",
@@ -159,7 +159,22 @@ describe("layout templates", () => {
       "tracklist-back",
       "frame-in-frame",
       "magazine-cover",
+      "headline-right",
+      "billboard-foot",
     ]);
+  });
+
+  it("headline-right directs right-aligned top billing over a lower subject", () => {
+    const l = resolveCoverArtLayout("headline-right")!;
+    expect(l.direction).toContain("right-aligned");
+    expect(l.imageZone.toLowerCase()).toContain("lower two-thirds");
+  });
+
+  it("billboard-foot directs marquee billing on top and the title at the bottom", () => {
+    const l = resolveCoverArtLayout("billboard-foot")!;
+    expect(l.direction).toContain("marquee billing");
+    expect(l.direction).toContain("anchored along the bottom");
+    expect(l.imageZone.toLowerCase()).toContain("bottom");
   });
 
   it("every layout has a label, blurb, direction, and image zone", () => {
