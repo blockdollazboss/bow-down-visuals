@@ -77,6 +77,46 @@ describe("registry completeness — every template carries a full outline", () =
   });
 });
 
+describe("Stack-300 census-D — fiction's first starters + the guided journal", () => {
+  it("carries the three named additions with their genres", () => {
+    expect(bookTemplateById("novel")?.genre).toBe("Fiction");
+    expect(bookTemplateById("short-story-collection")?.genre).toBe("Short Stories");
+    expect(bookTemplateById("guided-journal")?.genre).toBe("Journal");
+    expect(BOOK_TEMPLATES.length).toBe(11);
+  });
+
+  it("the novel's chapters follow a real story arc, front and back matter around them", () => {
+    const novel = bookTemplateById("novel")!;
+    expect(novel.chapters.filter((c) => c.kind === "front").length).toBe(2);
+    expect(novel.chapters.filter((c) => c.kind === "back").length).toBe(2);
+    expect(novel.chapters.filter((c) => c.kind === "chapter").map((c) => c.title)).toEqual([
+      "The Opening Image",
+      "The Inciting Incident",
+      "The First Attempt",
+      "Complications",
+      "The Midpoint Turn",
+      "The Darkest Moment",
+      "The Climax",
+      "The Resolution",
+    ]);
+  });
+
+  it("the collection's five chapters are standalone story slots, not one arc", () => {
+    const coll = bookTemplateById("short-story-collection")!;
+    expect(coll.chapters.filter((c) => c.kind === "chapter").length).toBe(5);
+    expect(coll.chapters[0]!.title).toBe("Preface — The Thread That Links Them");
+  });
+
+  it("the guided journal runs six weekly prompt runs between its covers", () => {
+    const journal = bookTemplateById("guided-journal")!;
+    const runs = journal.chapters.filter((c) => c.kind === "chapter");
+    expect(runs.length).toBe(6);
+    expect(runs[0]!.title).toBe("Week One — Where You Stand");
+    expect(runs[5]!.title).toBe("Week Six — Where You're Headed");
+    expect(journal.chapters[journal.chapters.length - 2]!.title).toBe("Looking Back");
+  });
+});
+
 describe("shapes fit the real rails (read from the api-server source)", () => {
   it("the rails the seed rides exist with the bounds the registry respects", () => {
     /* CreateBookSchema: genre max 100. CreateChapterSchema: title

@@ -16,7 +16,14 @@
    The shapes below are pinned against the real rails by
    book-starter-templates.test.ts: chapter titles fit the server's
    CreateChapterSchema, guidance fits UpdateChapterSchema's ai_notes,
-   and the genre fits CreateBookSchema. */
+   and the genre fits CreateBookSchema.
+
+   Stack-300 census-D additions: the shelf's first fiction starters
+   (novel — one continuous arc; short-story-collection — discrete
+   standalone stories, a different job from both) and guided-journal
+   (the secular prompt journal — devotional is explicitly faith-based
+   and workbook is skill exercises, so daily reflection prompts had
+   no starter). */
 
 export type BookTemplateSectionKind = "front" | "chapter" | "back";
 
@@ -543,6 +550,201 @@ export const BOOK_TEMPLATES: BookTemplate[] = [
         kind: "back",
         guidance:
           "Three to five sentences in the third person: who you are, the records before this one, and where fans can hear more and find you on tour.",
+      },
+    ],
+  },
+  {
+    id: "novel",
+    name: "Tell the Story Only You Can",
+    genre: "Fiction",
+    blurb: "A real story arc in eight chapters — an opening image, a darkest moment, and an ending that pays for all of it.",
+    audience: "For fiction writers drafting a novel with a spine, not just a stack of scenes.",
+    chapters: [
+      {
+        title: "Title Page & Dedication",
+        kind: "front",
+        guidance:
+          "Your book's first impression: the title, your name, and a short dedication to the person (or the season) this story belongs to. It can be a single line — plain is powerful here.",
+      },
+      {
+        title: "A Note Before You Begin",
+        kind: "front",
+        guidance:
+          "A short, optional door-opener: what kind of story this is and anything you want the reader carrying into chapter one — and nothing that spoils the turn waiting at the middle.",
+      },
+      {
+        title: "The Opening Image",
+        kind: "chapter",
+        guidance:
+          "Show the hero's world as it is before the story happens: who they are, what an ordinary day holds, and the want they haven't admitted yet. This is the picture the ending gets measured against.",
+      },
+      {
+        title: "The Inciting Incident",
+        kind: "chapter",
+        guidance:
+          "The event that breaks the ordinary: an arrival, a loss, an offer, a discovery. By the end of this chapter, the hero's old life must be impossible to simply resume.",
+      },
+      {
+        title: "The First Attempt",
+        kind: "chapter",
+        guidance:
+          "The hero acts on the new situation with the tools they already have — and it half-works or half-fails. Show what they learn from the attempt; the story's rules get established here.",
+      },
+      {
+        title: "Complications",
+        kind: "chapter",
+        guidance:
+          "Everything gets harder: allies wobble, the opposition pushes back, and the cost of continuing rises. Give the hero a real reason to quit — then have them continue anyway.",
+      },
+      {
+        title: "The Midpoint Turn",
+        kind: "chapter",
+        guidance:
+          "Halfway through, everything changes — a revelation, a betrayal, a door that can't close again. Raise the stakes and change what the story is about underneath.",
+      },
+      {
+        title: "The Darkest Moment",
+        kind: "chapter",
+        guidance:
+          "The hero loses the thing they were protecting, or faces the truth they've been avoiding. Let it hurt on the page; the climb out only matters if the bottom is real.",
+      },
+      {
+        title: "The Climax",
+        kind: "chapter",
+        guidance:
+          "The final confrontation the whole book has been promising: the hero faces the central problem with nothing left to hide behind. Let who they've become decide it — not luck.",
+      },
+      {
+        title: "The Resolution",
+        kind: "chapter",
+        guidance:
+          "The new ordinary: show the world after the climax in a scene, not a summary. Echo the opening image so the reader can feel exactly how far the hero has travelled.",
+      },
+      {
+        title: "Epilogue",
+        kind: "back",
+        guidance:
+          "A short last look from a little distance — one scene or reflection that seals the story's meaning and lets the reader set the book down gently. A page or two is plenty.",
+      },
+      {
+        title: "About the Author",
+        kind: "back",
+        guidance:
+          "Three to five sentences in the third person: who you are, what you write, where you live, and where readers can find your next book.",
+      },
+    ],
+  },
+  {
+    id: "short-story-collection",
+    name: "Stories, Linked",
+    genre: "Short Stories",
+    blurb: "Five standalone stories under one cover — each complete alone, stronger together for the thread that links them.",
+    audience: "For storytellers with finished tales that belong in one book.",
+    chapters: [
+      {
+        title: "Preface — The Thread That Links Them",
+        kind: "front",
+        guidance:
+          "Tell the reader what connects these stories — a place, a family, a question, a season of life — and how to read them: in order, or dipped into. Keep it to a page; the stories are the argument.",
+      },
+      {
+        title: "The First Story",
+        kind: "chapter",
+        guidance:
+          "Open with the story carried by a character: one person, one want, one pressure that won't let go. Choose your most welcoming tale — it teaches the reader how this book reads.",
+      },
+      {
+        title: "The Second Story",
+        kind: "chapter",
+        guidance:
+          "A story where the place does the pushing: a street, a house, a town that shapes what everyone in it can do. Let the setting act like a character with rules of its own.",
+      },
+      {
+        title: "The Third Story",
+        kind: "chapter",
+        guidance:
+          "A story built on a decision with no clean option: two goods pulling apart, or two losses. Stay with the moment of choosing, and with what it costs afterwards — that's the engine.",
+      },
+      {
+        title: "The Fourth Story",
+        kind: "chapter",
+        guidance:
+          "A story powered by something hidden: who knows it, who mustn't, and the scene where it almost surfaces. Keep the revelation earned — no twist the story hasn't paid for.",
+      },
+      {
+        title: "The Last Story",
+        kind: "chapter",
+        guidance:
+          "Close with a reunion: people — or a person and a place — meeting again after time has changed them. Placed last, it can quietly rhyme with the first story and tie off the thread.",
+      },
+      {
+        title: "About the Author",
+        kind: "back",
+        guidance:
+          "Three to five sentences in the third person: who you are, where your stories have appeared, and where readers can find more of your work.",
+      },
+    ],
+  },
+  {
+    id: "guided-journal",
+    name: "Six Weeks of Honest Pages",
+    genre: "Journal",
+    blurb: "A guided daily journal in six weekly runs — a theme, a handful of prompts, and room to answer honestly.",
+    audience: "For journal-keepers and coaches building a daily reflection practice readers can actually keep.",
+    chapters: [
+      {
+        title: "How to Use This Journal",
+        kind: "front",
+        guidance:
+          "Set the rhythm plainly: one prompt a day, a few honest lines, and no guilt-catching-up when a day is missed. Tell the reader what to keep nearby — a pen, ten unhurried minutes — and that there are no wrong answers.",
+      },
+      {
+        title: "Week One — Where You Stand",
+        kind: "chapter",
+        guidance:
+          "Seven prompts that take stock: where the reader's time, energy, and attention actually go today. Start observational, not judgmental — a clear map before any plans.",
+      },
+      {
+        title: "Week Two — The People Around You",
+        kind: "chapter",
+        guidance:
+          "Seven prompts on the reader's people: who steadies them, who drains them, who they owe a word. One prompt should end in a small real action — a message sent, a thanks given.",
+      },
+      {
+        title: "Week Three — What You're Carrying",
+        kind: "chapter",
+        guidance:
+          "Seven prompts on the load: worries, unfinished business, old stories on repeat. Handle gently — the week's last prompt should help the reader set one thing down, even temporarily.",
+      },
+      {
+        title: "Week Four — What You Want",
+        kind: "chapter",
+        guidance:
+          "Seven prompts that turn from inventory to desire: what the reader wants more of, less of, and next. Keep them concrete — a want you can picture beats a virtue you can't.",
+      },
+      {
+        title: "Week Five — What You're Learning",
+        kind: "chapter",
+        guidance:
+          "Seven prompts on growth: recent lessons, mistakes that taught, a skill quietly improving. Ask for evidence from real days, not aspirations — learning leaves receipts.",
+      },
+      {
+        title: "Week Six — Where You're Headed",
+        kind: "chapter",
+        guidance:
+          "The closing run: seven prompts that draft a direction — the next season in one page, the first small step, and one thing the reader will refuse to carry forward.",
+      },
+      {
+        title: "Looking Back",
+        kind: "back",
+        guidance:
+          "A final reflection chapter: prompts that send the reader back through their own entries to find the patterns, the surprises, and the one sentence that sums up the six weeks. End by inviting a start date for the next run.",
+      },
+      {
+        title: "About the Author",
+        kind: "back",
+        guidance:
+          "Three to five sentences in the third person: who you are, the practice behind this journal, and where readers can find more of your work.",
       },
     ],
   },

@@ -94,7 +94,7 @@ describe("formatDuration", () => {
 });
 
 describe("episode templates registry (Stack-100 A7 — full pins in podcast-episode-templates.test.ts)", () => {
-  it("carries the nine named starter templates", () => {
+  it("carries the twelve named starter templates", () => {
     expect(PODCAST_EPISODE_TEMPLATES.map((t) => t.id)).toEqual([
       "interview",
       "solo-commentary",
@@ -105,6 +105,9 @@ describe("episode templates registry (Stack-100 A7 — full pins in podcast-epis
       "deep-dive-explainer",
       "audio-diary",
       "review-desk",
+      "co-host-duo",
+      "the-debate",
+      "workshop-episode",
     ]);
     expect(getPodcastEpisodeTemplate("interview")?.name).toBe("Interview");
     expect(getPodcastEpisodeTemplate("missing")).toBeNull();
