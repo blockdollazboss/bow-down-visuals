@@ -374,3 +374,67 @@ describe("creator pack mix → buyer bundle", () => {
     expect(win.buf.includes(Buffer.from("still-kings-set-throne-phone.webp"))).toBe(true);
   });
 });
+
+describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", () => {
+  /* The fixture tree carries designed files for the five raised packs
+     only. crimson-marble + sapphire-marble sets are NOT raised: their
+     bundles must say so in their own paperwork (README, kit.json,
+     install texts) instead of claiming all 50 icons, and the
+     manifests endpoint must carry the missing list. A raised pack
+     (golden-marble) is the control: complete, missing []. */
+  async function buyPack(packId: string): Promise<void> {
+    await h.db.execute(
+      sql`INSERT INTO theme_pack_purchases (user_id, pack_id, price_vb) VALUES (${BUYER}, ${packId}, 1000)`,
+    );
+  }
+
+  for (const packId of ["crimson-marble", "sapphire-marble"]) {
+    it(`${packId}: the full bundle names its missing designed set everywhere`, async () => {
+      await buyPack(packId);
+      const r = await callBytes("POST", `/theme-packs/kit/${packId}/download`, { kind: "full", mode: "dark" });
+      expect(r.status).toBe(200);
+      const entries = unzipEntries(r.buf);
+      const base = `${packId}-dark/`;
+      const kit = JSON.parse(entries.get(`${base}kit.json`)!.toString("utf8"));
+      expect(kit.icons.complete).toBe(false);
+      expect(kit.icons.missing).toHaveLength(100);
+      expect(kit.icons.missing).toContain(`/theme-packs/icons/${packId}/phone-light.webp`);
+      const readme = entries.get(`${base}README.txt`)!.toString("utf8");
+      expect(readme).toContain("has NOT been raised yet");
+      expect(readme).not.toContain("the designed emblem set approved for this pack — all 50 icons");
+      const android = entries.get(`${base}android/INSTALL.txt`)!.toString("utf8");
+      expect(android).toContain("has not been raised yet");
+      const ios = entries.get(`${base}ios/GUIDED-SETUP.txt`)!.toString("utf8");
+      expect(ios).toContain("not complete in this bundle");
+      const mac = entries.get(`${base}mac/INSTALL.txt`)!.toString("utf8");
+      expect(mac).toContain("has not been raised yet");
+      // The missing note itself ships in both icon folders.
+      expect(entries.get(`${base}android/icons/ICONS-MISSING.txt`)).toBeDefined();
+      expect(entries.get(`${base}ios/icons/ICONS-MISSING.txt`)).toBeDefined();
+    });
+  }
+
+  it("golden-marble (raised set): the paperwork stays the complete claim", async () => {
+    const r = await callBytes("POST", "/theme-packs/kit/golden-marble/download", { kind: "full", mode: "dark" });
+    expect(r.status).toBe(200);
+    const entries = unzipEntries(r.buf);
+    const kit = JSON.parse(entries.get("golden-marble-dark/kit.json")!.toString("utf8"));
+    expect(kit.icons.complete).toBe(true);
+    expect(kit.icons.missing).toEqual([]);
+    const readme = entries.get("golden-marble-dark/README.txt")!.toString("utf8");
+    expect(readme).toContain("all 50 icons in light");
+    expect(entries.get("golden-marble-dark/android/icons/ICONS-MISSING.txt")).toBeUndefined();
+  });
+
+  it("manifests endpoint: missing lists + notes separate raised from unraised packs", async () => {
+    const r = await call("GET", "/theme-packs/kit/manifests");
+    expect(r.status).toBe(200);
+    const byId = new Map(r.json.packs.map((p: any) => [p.packId, p]));
+    expect(byId.get("golden-marble").icons.missing).toEqual([]);
+    expect(byId.get("golden-marble").icons.note).toContain("downloads ship these files");
+    for (const packId of ["crimson-marble", "sapphire-marble"]) {
+      expect(byId.get(packId).icons.missing).toHaveLength(100);
+      expect(byId.get(packId).icons.note).toContain("has not been raised yet");
+    }
+  });
+});

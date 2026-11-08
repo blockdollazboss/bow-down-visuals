@@ -21,6 +21,7 @@ import {
   buildKitZip,
   KIT_BUNDLE_KINDS,
   DESIGNED_ICON_NAMES,
+  designedIconsMissing,
   WALLPAPER_DEVICES,
   appIconSitePath,
   type KitBundleKind,
@@ -87,6 +88,7 @@ const APPROVED_ART_IDS = new Set([
   "pack-ground-kings-set-dark", "pack-ground-kings-set-light",
   "pack-ground-arcade-gold-dark", "pack-ground-arcade-gold-light",
   "pack-ground-crimson-marble-dark", "pack-ground-crimson-marble-light",
+  "pack-ground-sapphire-marble-dark", "pack-ground-sapphire-marble-light",
   "kings-set-throne-phone", "kings-set-plaza-phone",
   "kings-set-stage-desktop", "kings-set-throne-loop", "kings-set-plaza-loop",
   "kings-set-stage-loop",
@@ -238,7 +240,10 @@ router.get("/theme-packs/kit/manifests", async (_req, res) => {
         count: DESIGNED_ICON_NAMES.length,
         modes: ["light", "dark"],
         names: [...DESIGNED_ICON_NAMES],
-        note: "The owner-approved designed emblem set for this pack — downloads ship these files, never code-drawn substitutes.",
+        missing: designedIconsMissing(p),
+        note: designedIconsMissing(p).length === 0
+          ? "The owner-approved designed emblem set for this pack — downloads ship these files, never code-drawn substitutes."
+          : "This pack's designed emblem set has not been raised yet — downloads name the missing files (ICONS-MISSING.txt) and ship no substitute art.",
       },
       appIcon: { light: appIconSitePath(p.id, "light"), dark: appIconSitePath(p.id, "dark") },
       wallpapers: {

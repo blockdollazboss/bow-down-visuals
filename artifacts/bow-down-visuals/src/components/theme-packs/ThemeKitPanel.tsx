@@ -2,7 +2,7 @@ import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Check, Copy, Download, Loader2, Lock, RotateCcw, Share2, SlidersHorizontal, Sparkles, Store,
+  Check, Clock, Copy, Download, Loader2, Lock, RotateCcw, Share2, SlidersHorizontal, Sparkles, Store,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -21,6 +21,7 @@ import {
   designedAppIconPath,
   designedIconPath,
   effectiveAccent,
+  hasDesignedIconSet,
   encodeLook,
   kitManifest,
   renderWidgetSvg,
@@ -255,8 +256,14 @@ export function ThemeKitPanel({
       </p>
       <ul className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5" aria-label={`${copyName} kit components`}>
         {manifest.components.map((c) => (
-          <li key={c.component} className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Check className="h-3 w-3 shrink-0" /> {c.label}
+          <li key={c.component} className={`flex items-center gap-1 text-[11px] text-muted-foreground ${c.artPending ? "opacity-60" : ""}`}>
+            {c.artPending ? (
+              <Clock className="h-3 w-3 shrink-0" aria-hidden />
+            ) : (
+              <Check className="h-3 w-3 shrink-0" />
+            )}{" "}
+            {c.label}
+            {c.artPending ? <span>— designed art not raised yet</span> : null}
           </li>
         ))}
       </ul>
@@ -275,19 +282,28 @@ export function ThemeKitPanel({
           className="h-9 w-9 rounded-[9px] border border-primary/50 object-cover"
           loading="lazy"
         />
-        {DESIGNED_ICON_NAMES.slice(0, 11).map((name) => (
-          <img
-            key={name}
-            src={designedIconPath(pack.id, name, mode)}
-            alt={`${copyName} ${name} icon (${mode})`}
-            title={name}
-            className="h-9 w-9 rounded-[9px] border border-border/60 object-cover"
-            loading="lazy"
-          />
-        ))}
-        <span className="text-[10px] text-muted-foreground">
-          + all {DESIGNED_ICON_NAMES.length} designed icons, light + dark, in the kit
-        </span>
+        {hasDesignedIconSet(pack.id) ? (
+          <>
+            {DESIGNED_ICON_NAMES.slice(0, 11).map((name) => (
+              <img
+                key={name}
+                src={designedIconPath(pack.id, name, mode)}
+                alt={`${copyName} ${name} icon (${mode})`}
+                title={name}
+                className="h-9 w-9 rounded-[9px] border border-border/60 object-cover"
+                loading="lazy"
+              />
+            ))}
+            <span className="text-[10px] text-muted-foreground">
+              + all {DESIGNED_ICON_NAMES.length} designed icons, light + dark, in the kit
+            </span>
+          </>
+        ) : (
+          <span className="text-[10px] text-muted-foreground">
+            This pack's designed icon set hasn't been raised yet — the kit names the
+            missing files and ships no substitute art.
+          </span>
+        )}
       </div>
 
       {unlocked ? (
@@ -517,6 +533,7 @@ export function CreatorPacksSection() {
               <option value="kings-set">The King's Set</option>
               <option value="arcade-gold">Arcade Gold</option>
               <option value="crimson-marble">Crimson Marble</option>
+              <option value="sapphire-marble">Sapphire Marble</option>
             </select>
           </label>
           <label className="flex flex-col gap-1 text-[11px] font-semibold">

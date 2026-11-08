@@ -309,10 +309,10 @@ beforeEach(async () => {
 });
 
 describe("manifests", () => {
-  it("lists six packs × twelve components with the sound-sync note", async () => {
+  it("lists seven packs × twelve components with the sound-sync note", async () => {
     const r = await call("GET", "/theme-packs/kit/manifests");
     expect(r.status).toBe(200);
-    expect(r.json.packs).toHaveLength(6);
+    expect(r.json.packs).toHaveLength(7);
     for (const p of r.json.packs) {
       expect(p.components).toHaveLength(12);
       expect(p.sounds.source).toBe("site-sound-library");
