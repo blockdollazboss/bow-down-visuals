@@ -19,6 +19,7 @@ import {
   briefStatusLabel,
   escrowStatusLabel,
   ugcBriefNetPreview,
+  ugcFeePct,
   ugcAdStatusLabel,
   ugcAdShareText,
   fetchMyShopProducts,
@@ -863,7 +864,7 @@ export function UgcAdsPanel() {
             <input aria-label={t("worldLivePromo.ugcBriefPhotoPlaceholder")} value={briefForm.productImageUrl} onChange={(e) => setBriefForm({ ...briefForm, productImageUrl: e.target.value })} placeholder={t("worldLivePromo.ugcBriefPhotoPlaceholder")} maxLength={2048} className={`${inputClass} sm:col-span-2`} />
             <input aria-label={t("worldLivePromo.ugcBriefPriceAria")} value={briefForm.price} onChange={(e) => setBriefForm({ ...briefForm, price: e.target.value })} placeholder={t("worldLivePromo.ugcBriefPricePlaceholder")} inputMode="decimal" className={inputClass} />
             <p className="self-center text-xs text-white/45">
-              {t("worldLivePromo.ugcBriefPriceHelp")}
+              {t("worldLivePromo.ugcBriefPriceHelp", { feePct: ugcFeePct(null) })}
             </p>
           </div>
           <textarea aria-label={t("worldLivePromo.ugcBriefDetailsPlaceholder")}
@@ -956,7 +957,7 @@ export function UgcAdsPanel() {
                         if (brief.escrowStatus === "refunded") return null;
                         return (
                           <span className="text-white/50">
-                            {t("worldLivePromo.ugcCreatorReceives", { net: moneyCents(preview.netCents), gross: moneyCents(brief.priceCents), fee: moneyCents(preview.feeCents) })}
+                            {t("worldLivePromo.ugcCreatorReceives", { net: moneyCents(preview.netCents), gross: moneyCents(brief.priceCents), fee: moneyCents(preview.feeCents), feePct: ugcFeePct(brief.feeBps) })}
                           </span>
                         );
                       })()}

@@ -132,7 +132,9 @@ describe("D6 · briefs board keying (items 44–45)", () => {
     expect(src).toContain('t("worldLivePromo.ugcBriefsMoneyNote")');
     expect(src).toContain('t("worldLivePromo.ugcApproveRelease"');
     expect(src).toContain('t("worldLivePromo.ugcCreatorReceives"');
-    expect(src).toContain('t("worldLivePromo.ugcBriefPriceHelp")');
+    /* Stack-300 A6: the fee percent interpolates from the brief rail
+       (DTO feeBps / rail default) — no typed "5%" copy remains. */
+    expect(src).toContain('t("worldLivePromo.ugcBriefPriceHelp", { feePct: ugcFeePct(null) })');
     expect(src).toContain('t("ugcAds.fundingPanelNote")');
     expect(src).toContain('t("ugcAds.checkFundingStatus")');
     expect(src).toContain("escrowStatusLabel(brief.escrowStatus, escrowLabels)");

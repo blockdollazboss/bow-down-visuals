@@ -204,7 +204,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 const FAQ = [
   {
     q: "Can I really earn on Free?",
-    a: "Yes. Free sells with the same flat 5% platform fee as every tier and your full earnings dashboard is always visible. Paid tiers add features — your own domain, unlimited products, pro analytics and more AI promotion boosts.",
+    a: "Yes. Free sells with the same flat 5% platform fee as every tier and your full earnings dashboard is always visible. Paid tiers add features — pro analytics and more AI promotion boosts.",
   },
   {
     q: "Do paid tiers lower my platform fee?",
@@ -356,7 +356,7 @@ export default function Pricing() {
           </h1>
           <p className="text-white/50 text-xl max-w-2xl mx-auto leading-relaxed">
             Three creator plans — Free, Pro and Elite — every one at the same flat 5% platform fee.
-            Paid tiers add your own domain, unlimited products, pro analytics and AI promotion boosts.
+            Paid tiers add pro analytics and AI promotion boosts.
           </p>
           <p className="text-white/35 text-sm max-w-xl mx-auto mt-3">
             {t("pricing.hero.disclaimer")}

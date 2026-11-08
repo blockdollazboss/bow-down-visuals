@@ -114,7 +114,9 @@ describe("pricing page + guide copy carry no dead claims", () => {
 
   it("the #feature-site anchor sells the Hosting / Elite domain, not Pro", () => {
     expect(pricingPage).not.toContain("Pro connects your own custom domain");
-    expect(pricingPage).toContain("comes with the Hosting plan ($9/mo)");
+    /* Stack-300 A6: the price is no longer a typed copy — it rides
+       GET /creator-hosting/plan via hostingPriceLabel. */
+    expect(pricingPage).toContain("comes with the Hosting plan (${hostingPriceLabel}/mo)");
     expect(pricingPage).toContain("included free while you're Creator Elite");
   });
 

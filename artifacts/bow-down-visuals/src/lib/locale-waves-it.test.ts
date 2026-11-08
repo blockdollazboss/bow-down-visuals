@@ -106,6 +106,12 @@ const W1_LEGIT = new Set([
   "pricing.creditPacks.packs.150.price",
   "pricing.creditPacks.packs.500.credits",
   "pricing.creditPacks.packs.500.price",
+  // Stack-300 A1: the hero subtitle is plan/fee money copy; its
+  // stale paid-tier claim ("your own domain, unlimited products")
+  // was struck Nov 7, 2026, so this catalog carries the corrected
+  // English source verbatim (money copy is never agent-translated)
+  // until a reviewed translation lands.
+  "pricing.hero.subtitle",
   "pricing.plans.crimeBoss.name",
   "pricing.plans.gangster.features.f2",
   "pricing.plans.gangster.name",
@@ -932,6 +938,12 @@ const W6_LEGIT: string[] = [
   "tour.heroTitleB",
   "websiteBuilder.templateLinkInBio",
   "websiteBuilder.templatePressKit",
+  // Stack-300 item 93 (A8): the corrected extension waitlist +
+  // title copy rides English verbatim (never agent-translated)
+  // until a reviewed translation lands.
+  "extension.metaTitle",
+  "extension.one_email_when_it_launches_no_sp",
+  "extension.we_ll_email_you_the_install_link",
 ];
 describe("it W6 namespaces (Stack-28 appendix)", () => {
   const r = checkWave(W6_NAMESPACES, [...W6_LEGIT]);
@@ -1181,6 +1193,10 @@ const W7_LEGIT: string[] = [
   "brandingKit.colorRole.accent",
   "brandingKit.colorRole.neutral",
   "brandingKit.colorRole.background",
+  // Stack-300 item 92 (A7): the corrected podcast dialogue
+  // headline rides English verbatim (never agent-translated)
+  // until a reviewed translation lands.
+  "podcast.dialogue.disabledTitle",
 ];
 describe("it W7 namespaces (Stack-28 appendix)", () => {
   const r = checkWave(W7_NAMESPACES, [...W7_LEGIT]);

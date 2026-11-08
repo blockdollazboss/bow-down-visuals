@@ -116,6 +116,12 @@ const W1_ALLOW = new Set([
   "pricing.creditPacks.packs.50.price",
   "pricing.creditPacks.packs.500.credits",
   "pricing.creditPacks.packs.500.price",
+  // Stack-300 A1: the hero subtitle is plan/fee money copy; its
+  // stale paid-tier claim ("your own domain, unlimited products")
+  // was struck Nov 7, 2026, so this catalog carries the corrected
+  // English source verbatim (money copy is never agent-translated)
+  // until a reviewed translation lands.
+  "pricing.hero.subtitle",
   "pricing.plans.crimeBoss.name",
   "pricing.plans.gangster.name",
   "pricing.plans.hustler.name",
@@ -562,6 +568,12 @@ const W5_ALLOW = new Set([
   "streamPack.theme.desert-dune.blurb",
   "streamPack.theme.midnight-jazz.name",
   "streamPack.theme.midnight-jazz.blurb",
+  // Stack-300 item 93 (A8): the corrected extension waitlist +
+  // title copy rides English verbatim (never agent-translated)
+  // until a reviewed translation lands.
+  "extension.metaTitle",
+  "extension.one_email_when_it_launches_no_sp",
+  "extension.we_ll_email_you_the_install_link",
 ]);
 
 describe("ar-W5 (Stack-28 appendix) link-in-bio/nfc/privacy + promo namespaces fully translated", () => {
@@ -685,6 +697,10 @@ const W6_ALLOW = new Set([
   "brandingKit.colorRole.secondary",
   "wave9.characterDirector.vaultsLoadError",
   "wave9.characterDirector.vaultsRetry",
+  // Stack-300 item 92 (A7): the corrected podcast dialogue
+  // headline rides English verbatim (never agent-translated)
+  // until a reviewed translation lands.
+  "podcast.dialogue.disabledTitle",
 ]);
 
 describe("ar-W6 (Stack-28 appendix) milestones/lufs/presave/stabilize/create + promote/coach/release namespaces fully translated", () => {

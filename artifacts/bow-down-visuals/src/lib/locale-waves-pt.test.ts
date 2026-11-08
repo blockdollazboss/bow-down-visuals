@@ -129,6 +129,12 @@ const W1_LEGIT: ReadonlySet<string> = new Set([
   "pricing.creditPacks.packs.150.price",
   "pricing.creditPacks.packs.50.price",
   "pricing.creditPacks.packs.500.price",
+  // Stack-300 A1: the hero subtitle is plan/fee money copy; its
+  // stale paid-tier claim ("your own domain, unlimited products")
+  // was struck Nov 7, 2026, so this catalog carries the corrected
+  // English source verbatim (money copy is never agent-translated)
+  // until a reviewed translation lands.
+  "pricing.hero.subtitle",
   "referrals.contest.days",
   "referrals.contest.hours",
   "referrals.contest.mins",
@@ -658,6 +664,10 @@ const W6_LEGIT = new Set([
   "brandingKit.colorRole.accent",
   "brandingKit.colorRole.neutral",
   "brandingKit.colorRole.background",
+  // Stack-300 item 92 (A7): the corrected podcast dialogue
+  // headline rides English verbatim (never agent-translated)
+  // until a reviewed translation lands.
+  "podcast.dialogue.disabledTitle",
   "coach.tabCollabs","admin.friendEmailPlaceholder", "admin.pageTitle", "admin.planEmailPlaceholder", "admin.removal.reasons.spam", "admin.users.credits", "admin.users.emailPlaceholder", "analyticsHub.milestones.loggedFrom", "captionSuite.burnModeHint", "captionSuite.credits", "captionSuite.endCardText", "captionSuite.generateCost", "captionSuite.share_facebook", "captionSuite.share_telegram", "captionSuite.share_whatsapp", "coach.cadencePlaceholder", "coach.crossLinkBrand", "coach.nicheFitness", "coach.nicheTech", "coach.platformInstagram", "coach.platformTikTok", "coach.platformYouTube", "coach.titleStart", "contentIntelligence.calendarFrom", "contentIntelligence.compUrlPlaceholder", "contentIntelligence.platformInstagram", "contentIntelligence.platformTikTok", "contentIntelligence.platformX", "contentIntelligence.platformYouTube", "cover-art.midnight_crown", "cover-art.thy_cheat_code", "dashboard.tile_hook", "dashboard.tile_vibes", "djSets.bpm", "djSets.exportRekordbox", "hubSpine.attributionTitle", "hubSpine.handoffs.meme.label", "hubSpine.handoffs.resultLabel", "hubSpine.madeWith", "hubSpine.promoCards.historyForRelease", "hubSpine.promoCards.sizeHint.16x9", "lufs.formatMp3", "lufs.formatWav", "moveHome.bioLabel", "moveHome.displayNamePh", "moveHome.genrePh", "moveHome.handlePh", "moveHome.locationPh", "moveHome.starterProductPh", "moveHome.verticalPodcast", "nav.arcade", "nav.branding", "nav.contentCalendar", "nav.credits", "nav.feed", "nav.merch", "nav.royalties", "nav.shorts", "nav.videoEditor", "outreach.audiencePlaceholder", "outreach.brandNamePlaceholder", "outreach.contactPlaceholder", "outreach.creatorNamePlaceholder", "outreach.invoice.brandEmailPlaceholder", "outreach.invoice.creatorEmailPlaceholder", "outreach.invoice.total", "outreach.productPlaceholder", "outreach.sponsorReadToneCasual", "paidSeries.buyerInitial", "playlist.itemsCount_one", "playlist.kindPlaylist", "playlist.pageTitleWith", "podcast.generate.creditsEstimate", "podcast.hosts.solo", "podcast.publish.appleHeading", "podcast.publish.spotifyHeading", "podcast.result.apple", "podcast.result.durationApprox", "podcast.result.spotify", "podcast.script.creditsCost", "podcast.script.durationApprox", "press-kit.pdf", "press-kit.placeholders.artistName", "press-kit.placeholders.bookingEmail", "press-kit.placeholders.genre", "press-kit.placeholders.handle", "press-kit.placeholders.location", "press-kit.placeholders.url", "press-kit.pressRelease.placeholders.contactEmail", "press-kit.pressRelease.placeholders.contactPhone", "press-kit.pressRelease.types.single", "press-kit.sections.bio", "press-public.sections.bio", "privacy.section4Item1Label", "privacy.section4Item2Label", "privacy.section4Item3Label", "proFinishing.codecLabel", "proFinishing.qualitySummary", "promote.results.hashtags", "promote.tones.hype", "release.crossLinks.p3", "release.types.ep.label", "release.types.single.label", "review.feedback", "share.attribution", "share.whatsapp", "smartClips.featureName", "tutorials.officialBadge", "videoEditor.lipSyncTitle", "videoEditor.modeSimple", "videoEditor.motionTrack.costChip", "videoEditor.pageTitle", "videoEditor.pipTitle", "videoEditor.railLipSync", "videoEditor.railLyricVideo", "videoEditor.railUpscale", "videoEditor.railVibes", "videoEditor.stockLibrary.sceneSection", "videoEditor.subjectReframe.aspectVertical", "videoEditor.subjectReframe.costLabel", "videoEditor.subjectReframe.platformVertical", "videoEditor.subjectReframe.platformYoutube", "videoEditor.vibe_noir", "videoEditor.vibe_y2k", "videoEditor.vibesTitle", "videoEditor.volumeTitle", "videoExport.aspectVertical", "videoExport.aspectWide", "videoExport.colDuration", "videoExport.colNum", "videoExport.colStatus", "videoExport.colUrl", "videoExport.fCodec", "videoExport.fileSizeValue", "wallpapers.groupTablet", "wave8.adlib.adlibsHeading", "wave8.adlib.takeA", "wave8.adlib.takeB", "wave8.captionStyler.presetPopin", "wave8.highlights.reelLengthSeconds", "wave8.mediaKit.bioTitle", "wave8.merchDrop.priceBands.premium", "wave8.splits.royaltyAmountPlaceholder", "wave8.splits.total", "wave8.thumbnailAb.originalLabel", "wave9.cameraMovePlanner.buildCost", "wave9.cameraMovePlanner.intensity.natural", "wave9.characterDirector.planCost", "wave9.characterDirector.vaultsLoadError", "wave9.characterDirector.vaultsRetry", "wave9.remix.master", "wave9.templates.talkingHeadName", "websiteBuilder.templatePressKit", "admin.gearQueue.total", "admin.reversals.age", "admin.reversals.ageDay", "admin.reversals.ageHour", "admin.worldDrops.budgetLine", "admin.worldDrops.claimsLine", "admin.worldDrops.errors.amountRange", "admin.worldDrops.rangeLine"]);
 const W5_NAMESPACES = ["myProjects", "mashup", "repurpose", "myClips", "hooks", "mediaDetector", "scriptWriter", "randomizer", "library", "artistVault", "catalogVault", "streamPack", "viralityCheck", "titles", "interviewPrep", "audit", "trends", "email-list", "importPage", "chooseArtist", "analytics", "retention", "introsOutros", "setlist", "generations", "hub", "linkInBio", "weekly_contest", "shows", "discord-bot", "contests", "team", "extension", "shoutouts", "community", "collabs", "gamers", "tour", "commentReplies", "goLive", "nfcCards"] as const;
 const W5_LEGIT: ReadonlySet<string> = new Set([
@@ -811,6 +821,12 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "streamPack.theme.desert-dune.blurb",
   "streamPack.theme.midnight-jazz.name",
   "streamPack.theme.midnight-jazz.blurb",
+  // Stack-300 item 93 (A8): the corrected extension waitlist +
+  // title copy rides English verbatim (never agent-translated)
+  // until a reviewed translation lands.
+  "extension.metaTitle",
+  "extension.one_email_when_it_launches_no_sp",
+  "extension.we_ll_email_you_the_install_link",
 ]);
   waveSuite("W4", W4_NAMESPACES, W4_LEGIT);
   waveSuite("W6", W6_NAMESPACES, W6_LEGIT);

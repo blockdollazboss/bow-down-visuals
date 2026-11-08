@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import {
+  UGC_BRIEF_DEFAULT_FEE_BPS,
+  ugcFeePct,
   normalizeUgcAd,
   normalizeUgcAds,
   normalizeUgcBrief,
@@ -189,5 +192,29 @@ describe("labels + share text", () => {
     const ad = normalizeUgcAd(RAW_AD)!;
     expect(ugcAdShareText(ad)).toContain("Okay, I finally tried it.");
     expect(ugcAdShareText(ad)).toContain("Gold Chain Tee");
+  });
+});
+
+describe("brief fee percent — copy rides the rail (Stack-300 A6)", () => {
+  it("the FE default equals the rail's UGC_BRIEF_PLATFORM_FEE_BPS default", () => {
+    /* Re-derived from the server source, the credit-costs-rail-truth
+       pattern: if the rail's env default moves, this pin moves the
+       FE seam constant with it instead of the copy lying quietly. */
+    const rail = readFileSync(
+      new URL("../../../api-server/src/routes/ugc-briefs.ts", import.meta.url),
+      "utf8",
+    );
+    const m = rail.match(
+      /UGC_BRIEF_PLATFORM_FEE_BPS\s*=\s*Number\(process\.env\["UGC_BRIEF_PLATFORM_FEE_BPS"\]\)\s*\|\|\s*(\d+)/,
+    );
+    expect(m, "rail fee default derivation").toBeTruthy();
+    expect(UGC_BRIEF_DEFAULT_FEE_BPS).toBe(Number(m![1]));
+  });
+
+  it("ugcFeePct renders bps as a display percent, DTO first", () => {
+    expect(ugcFeePct(500)).toBe(5);
+    expect(ugcFeePct(550)).toBe(5.5);
+    expect(ugcFeePct(null)).toBe(UGC_BRIEF_DEFAULT_FEE_BPS / 100);
+    expect(ugcFeePct(undefined)).toBe(UGC_BRIEF_DEFAULT_FEE_BPS / 100);
   });
 });
