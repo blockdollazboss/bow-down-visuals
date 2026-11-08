@@ -2,9 +2,10 @@
  * podcast-episode-templates.test.ts — Stack-100 A7: the Podcast desk
  * had NO templates at all while every sibling creation surface got
  * starters in the org/design waves. The registry in lib/podcast.ts is
- * the truth: the nine named episode templates (the original six plus
+ * the truth: the twelve named episode templates (the original six plus
  * the Stack-200 U1 additions — deep-dive explainer, audio diary,
- * review desk), each carrying a complete
+ * review desk — plus the Stack-300 census-D additions: co-host duo,
+ * the debate, workshop episode), each carrying a complete
  * segment structure (intro/hook/segments/outro with per-segment
  * guidance). The page renders the shelf FROM the registry and applies
  * through podcastTemplatePrefill — a pure prefill that never charges,
@@ -44,12 +45,15 @@ const EXPECTED_IDS = [
   "deep-dive-explainer",
   "audio-diary",
   "review-desk",
+  "co-host-duo",
+  "the-debate",
+  "workshop-episode",
 ] as const;
 
 describe("A7 — podcast episode template registry", () => {
-  it("carries exactly the nine named templates, in shelf order, with unique ids", () => {
+  it("carries exactly the twelve named templates, in shelf order, with unique ids", () => {
     expect(PODCAST_EPISODE_TEMPLATES.map((t) => t.id)).toEqual([...EXPECTED_IDS]);
-    expect(new Set(PODCAST_EPISODE_TEMPLATES.map((t) => t.id)).size).toBe(9);
+    expect(new Set(PODCAST_EPISODE_TEMPLATES.map((t) => t.id)).size).toBe(12);
     for (const tpl of PODCAST_EPISODE_TEMPLATES) {
       expect(getPodcastEpisodeTemplate(tpl.id)).toBe(tpl);
       expect(tpl.name.length).toBeGreaterThan(0);
@@ -97,7 +101,7 @@ describe("A7 — podcast episode template registry", () => {
 });
 
 describe("A7 — template shapes match the form they prefill", () => {
-  it("script templates are solo-host: format single, no speaker tags", () => {
+  it("script templates are host-read: a host format, no speaker tags", () => {
     const scriptTpls = PODCAST_EPISODE_TEMPLATES.filter((t) => t.mode === "script");
     expect(scriptTpls.map((t) => t.id)).toEqual([
       "solo-commentary",
@@ -107,19 +111,27 @@ describe("A7 — template shapes match the form they prefill", () => {
       "deep-dive-explainer",
       "audio-diary",
       "review-desk",
+      "co-host-duo",
+      "workshop-episode",
     ]);
     for (const tpl of scriptTpls) {
-      expect(tpl.format).toBe("single");
+      // Solo starters select the single-host format; the co-host duo is
+      // the registry's one dual starter (Stack-300 census-D) — the rail
+      // alternates unprefixed paragraphs between the two host voices.
+      expect(tpl.format, tpl.id).toBe(tpl.id === "co-host-duo" ? "dual" : "single");
       expect(tpl.speakers).toEqual([]);
       for (const seg of tpl.segments) {
         for (const l of seg.starterLines) expect(l.speaker).toBe("HOST");
       }
     }
+    expect(scriptTpls.filter((t) => t.format === "dual").map((t) => t.id)).toEqual([
+      "co-host-duo",
+    ]);
   });
 
   it("dialogue templates carry 2+ speakers and leave the format control alone", () => {
     const dialogueTpls = PODCAST_EPISODE_TEMPLATES.filter((t) => t.mode === "dialogue");
-    expect(dialogueTpls.map((t) => t.id)).toEqual(["interview", "panel-discussion"]);
+    expect(dialogueTpls.map((t) => t.id)).toEqual(["interview", "panel-discussion", "the-debate"]);
     for (const tpl of dialogueTpls) {
       expect(tpl.format).toBeNull();
       expect(tpl.speakers.length).toBeGreaterThanOrEqual(2);
@@ -194,11 +206,62 @@ describe("A7 — prefill + summary are derived from the registry, never hand-cop
     expect(podcastTemplateSummary(interview)).toBe("6 segments · ~30 min of structure · 2 voices");
     const solo = getPodcastEpisodeTemplate("solo-commentary")!;
     expect(podcastTemplateSummary(solo)).toContain("Solo host");
+    // The summary label must match the prefill: the one dual starter
+    // reads "Two hosts", never "Solo host".
+    const duo = getPodcastEpisodeTemplate("co-host-duo")!;
+    expect(podcastTemplateSummary(duo)).toContain("Two hosts");
+    expect(podcastTemplateSummary(duo)).not.toContain("Solo host");
   });
 
   it("the registry module itself performs no fetch, charge, or submit", () => {
     expect(lib).not.toContain("fetch(");
     expect(lib).not.toContain("confirmedFetch");
+  });
+});
+
+describe("Stack-300 census-D — the three additions fill real gaps, not re-skins", () => {
+  it("co-host-duo is the first script×dual template (the cell was empty)", () => {
+    const duo = getPodcastEpisodeTemplate("co-host-duo")!;
+    expect(duo.mode).toBe("script");
+    expect(duo.format).toBe("dual");
+    // The two takes are separate segments — the trade is the structure.
+    expect(duo.segments.map((s) => s.title)).toEqual([
+      "The Cold Open",
+      "Intro",
+      "Host One's Take",
+      "Host Two's Take",
+      "Where We Land Together",
+      "Outro",
+    ]);
+  });
+
+  it("the-debate is dialogue's first adversarial shape, on a HOST/COUNTERPOINT roster", () => {
+    const debate = getPodcastEpisodeTemplate("the-debate")!;
+    expect(debate.mode).toBe("dialogue");
+    expect(debate.speakers).toEqual(["HOST", "COUNTERPOINT"]);
+    expect(debate.segments.map((s) => s.title)).toEqual([
+      "The Motion",
+      "The Case For",
+      "The Case Against",
+      "Rebuttals",
+      "Closing Statements",
+      "You Decide",
+    ]);
+    // Both sides actually speak in the seed, cases before rebuttals.
+    const built = buildPodcastTemplateScript(debate);
+    expect(parseDialogueSpeakers(built)).toEqual(["HOST", "COUNTERPOINT"]);
+  });
+
+  it("workshop-episode's body segments are practice steps with pause-and-do cues", () => {
+    const workshop = getPodcastEpisodeTemplate("workshop-episode")!;
+    expect(workshop.mode).toBe("script");
+    expect(workshop.format).toBe("single");
+    const steps = workshop.segments.filter((s) => s.title.startsWith("Step "));
+    expect(steps.length).toBe(2);
+    for (const step of steps) {
+      expect(step.guidance).toMatch(/pause/i);
+    }
+    expect(workshop.segments.map((s) => s.title)).toContain("The Self-Check");
   });
 });
 

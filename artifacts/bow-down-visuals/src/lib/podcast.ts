@@ -152,6 +152,14 @@ JORDAN: That's free game right there. Try it on your next upload and watch the r
    the shelf card's rundown, never inside the seeded script — the
    script carries headings and spoken starter lines only, so nothing
    instructional can be read aloud by accident.
+
+   Stack-300 census-D additions: `co-host-duo` fills the one empty
+   cell in the mode×format space (script×dual — the studio and the
+   rail both implemented two-host scripts, no starter used them),
+   `the-debate` gives Dialogue mode its first adversarial shape (the
+   existing two were cooperative), and `workshop-episode` adds the
+   teach-by-doing job the explainer never did (its segments are
+   practice steps with pause-and-do cues, not explanations).
 ------------------------------------------------------------------------ */
 
 export type PodcastSegmentKind = "intro" | "hook" | "segment" | "interview" | "outro";
@@ -195,7 +203,10 @@ export type PodcastTemplateId =
   | "listener-qa"
   | "deep-dive-explainer"
   | "audio-diary"
-  | "review-desk";
+  | "review-desk"
+  | "co-host-duo"
+  | "the-debate"
+  | "workshop-episode";
 
 export interface PodcastEpisodeTemplate {
   id: PodcastTemplateId;
@@ -1079,6 +1090,284 @@ export const PODCAST_EPISODE_TEMPLATES: PodcastEpisodeTemplate[] = [
       },
     ],
   },
+  {
+    id: "co-host-duo",
+    name: "Co-Host Duo",
+    tagline: "Two hosts, one shared script",
+    description:
+      "Switches to Script mode with two hosts and seeds the script with a six-segment shared structure — a chapter heading and a spoken starter line per segment, written for the two host voices trading sections (unprefixed paragraphs alternate between them on the rail). Title, description, voices and music bed stay yours.",
+    mode: "script",
+    format: "dual",
+    speakers: [],
+    segments: [
+      {
+        kind: "hook",
+        title: "The Cold Open",
+        guidance:
+          "Open together: tease the one moment or claim this episode delivers, in two short trades — the back-and-forth in the first thirty seconds is what sells a two-host show.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Two hosts, one promise: stick around and you'll [the payoff] — and we do not agree on how we get there.",
+          },
+        ],
+      },
+      {
+        kind: "intro",
+        title: "Intro",
+        guidance:
+          "Introduce both hosts by name and role, name the show, and say exactly what this episode does — listeners should know whose voice is whose before the takes start.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Welcome to [show name] — I'm [host one], this is [host two], and today we're taking on [the topic] together.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Host One's Take",
+        guidance:
+          "The first host's full position, uninterrupted: the argument, the example, the bottom line. The second host saves the pushback for their own segment — that deal is what makes this format work.",
+        minutes: 7,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "My take first: [host one's position]. Here's why — [the example or story].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Host Two's Take",
+        guidance:
+          "The second host's turn — answer the first take directly before adding your own. Agreement is fine; a different angle is better. Name where you actually land.",
+        minutes: 7,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "And here's where I land: [host two's position]. [Host one] is right about [the concession] — but the part that matters is [the difference].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Where We Land Together",
+        guidance:
+          "Find the shared ground out loud: what both hosts agree on, what honestly stays unresolved, and the one action you'd both hand the listener.",
+        minutes: 4,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "So where do we land together? We agree on [the shared ground]. We still split on [the open question]. And we'd both tell you: [the shared action].",
+          },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "Outro",
+        guidance:
+          "Close as a pair: one breath each — a thank-you, the call to action, and a tease of the next episode's argument.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "That's us for today. Follow [show name], settle our argument in the comments, and next time we're taking on [next topic].",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "the-debate",
+    name: "The Debate",
+    tagline: "Two sides, argued properly",
+    description:
+      "Switches to Dialogue mode and seeds the dialogue script with a six-segment debate structure — HOST argues for the motion and COUNTERPOINT argues against, with opening cases, rebuttals and closing statements written in. Title, description, voices and music bed stay yours.",
+    mode: "dialogue",
+    format: null,
+    speakers: ["HOST", "COUNTERPOINT"],
+    segments: [
+      {
+        kind: "intro",
+        title: "The Motion",
+        guidance:
+          "State the motion in one sentence a listener can repeat, introduce both sides fairly, and lay out the shape: opening cases, rebuttals, closing statements — then the listener decides.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Welcome to [show name]. Today's motion: [the proposition]. I argue for it — my opponent argues against. You decide who takes it. Let's begin.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Case For",
+        guidance:
+          "The strongest honest case for the motion: lead with the best argument, back it with one concrete example, and concede nothing you don't have to — yet.",
+        minutes: 6,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "The case for is simple: [the strongest argument]. Look at [the concrete example] — that's the motion working in the real world.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Case Against",
+        guidance:
+          "The strongest honest case against: attack the motion's weakest point, not a straw version of it. One concrete counter-example beats three opinions.",
+        minutes: 6,
+        starterLines: [
+          {
+            speaker: "COUNTERPOINT",
+            line: "The case against: [the strongest counter-argument]. And that example proves the opposite — [the counter-example] is what the motion actually produces.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Rebuttals",
+        guidance:
+          "Each side answers the other's best point — no new cases, no dodging. This is the segment where debates are actually won.",
+        minutes: 6,
+        starterLines: [
+          {
+            speaker: "COUNTERPOINT",
+            line: "My opponent's best point was [their strongest argument] — and it fails, because [the answer].",
+          },
+          {
+            speaker: "HOST",
+            line: "And the strongest point against — [their strongest argument] — sounds decisive until you see [the answer].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Closing Statements",
+        guidance:
+          "One closing each, a minute's worth: restate your case at its highest, and name what the listener gives up by choosing the other side.",
+        minutes: 4,
+        starterLines: [
+          {
+            speaker: "COUNTERPOINT",
+            line: "My close: [the case against, at its highest]. Choose the motion, and you give up [what's lost].",
+          },
+          {
+            speaker: "HOST",
+            line: "My close: [the case for, at its highest]. The other side asks you to settle for [the cost of refusing]. Don't.",
+          },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "You Decide",
+        guidance:
+          "No verdict from the hosts — hand it to the listeners: where to vote or comment, and what the next motion is.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "That's the debate — the verdict is yours. Tell us who took it, follow [show name], and next time the motion is [next proposition].",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "workshop-episode",
+    name: "Workshop Episode",
+    tagline: "Teach it by doing it, together",
+    description:
+      "Switches to Script mode with a solo host and seeds the script with a six-segment workshop structure — the finished thing promised up front, a supply list before step one, guided making steps with pauses to work, and a self-check at the end. Title, description, voice and music bed stay yours.",
+    mode: "script",
+    format: "single",
+    speakers: [],
+    segments: [
+      {
+        kind: "hook",
+        title: "What You'll Have Made",
+        guidance:
+          "Open on the finished thing: what the listener will have made or done by the end of the episode. That promise is what every step cashes in.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "By the end of this episode, you'll have [the finished thing] — made by your own hands, step by step, right along with me.",
+          },
+        ],
+      },
+      {
+        kind: "intro",
+        title: "What You Need Beside You",
+        guidance:
+          "List everything the listener needs within reach before step one — materials, tools, and how much time to set aside. If they have to stop mid-step to hunt for something, the workshop breaks.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Before we start, get these beside you: [the supplies]. Give yourself [the time] — and pause me here if you need a minute to set up.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Step One — Do It With Me",
+        guidance:
+          "Teach the first step by doing it yourself as you speak. End the segment by telling the listener to pause the episode and do the step now — and say how long to give it before pressing play again.",
+        minutes: 8,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Step one: [the first step]. Watch how I do it — [the detail that matters]. Now pause me and do yours. Give it [the minutes] — I'll be right here.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Step Two — The Next Piece",
+        guidance:
+          "The second step, built on the first one's result. Name the most common mistake at this exact point before it happens — and the fix, if it already has. End the same way: tell the listener to pause and do the step, with the time to give it stated out loud.",
+        minutes: 8,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Step two: [the second step]. The trap here is [the common mistake] — if yours already looks like that, do this: [the fix]. Pause and work — [the minutes].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Self-Check",
+        guidance:
+          "Walk the listener through checking their own work: the signs it's right, and what each wrong sign tells them to redo. Checking is a step of the build, not an afterthought.",
+        minutes: 4,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Now check your work with me. It should [the first sign of right]. If instead you see [the wrong sign], go back to [the step to redo] — no shame in the loop.",
+          },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "Outro",
+        guidance:
+          "Celebrate the finished thing, invite listeners to share theirs, and preview the next workshop's make.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "You made [the finished thing] — that's yours now. Share it [where to share], follow the show, and next time we're making [the next project].",
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 export function getPodcastEpisodeTemplate(id: string): PodcastEpisodeTemplate | null {
@@ -1104,7 +1393,9 @@ export function podcastTemplateSummary(template: PodcastEpisodeTemplate): string
   parts.push(
     template.mode === "dialogue"
       ? `${template.speakers.length} voices`
-      : "Solo host",
+      : template.format === "dual"
+        ? "Two hosts"
+        : "Solo host",
   );
   return parts.join(" · ");
 }
