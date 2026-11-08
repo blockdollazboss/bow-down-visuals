@@ -9500,7 +9500,7 @@
       "thumbJobFailed": "La recherche du travail de miniature a échoué.",
       "clipCuttingFailed": "Le découpage du clip a échoué. Vos Visual Bucs du pack couvrent les sorties texte — les clips peuvent être redécoupés depuis l'éditeur vidéo.",
       "thumbFailed": "Les images de miniatures n'ont pas pu être générées — les prompts de miniature ci-dessous fonctionnent avec n'importe quel outil d'image.",
-      "lostJobs": "Perte de trace des travaux en arrière-plan — actualisez pour vérifier.",
+      "lostJobs": "Lost track of the background jobs — use Check again to see where they stand.",
       "rerollFailed": "Le rejeu a échoué — réessayez.",
       "thumbRerollFailed": "Le rejeu de miniature a échoué — réessayez."
     },
@@ -20809,7 +20809,11 @@
   "worldRepurposeDesk": {
     "title": "Content Repurposer",
     "fromProject": "From your project",
-    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again."
+    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "checkAgain": "Check again",
+    "checkingJobs": "Checking your jobs…",
+    "streamOutOfBucs": "You’re out of Visual Bucs for Stream VOD. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "smartOutOfBucs": "You’re out of Visual Bucs for Smart Clips. Top up at the Treasury’s Visual Buc Packs desk and run it again."
   },
   "worldRemixDesk": {
     "title": "Remix Trends",

@@ -427,6 +427,7 @@ const W4_ALLOW = new Set([
   "scheduler.platforms.instagram.label",
   "scheduler.platforms.tiktok.label",
   "scheduler.platforms.x.label",
+  "repurpose.error.lostJobs",
   "scheduler.titlePrefix",
   "scheduler.titleSuffix",
   "sfx.titleAccent",

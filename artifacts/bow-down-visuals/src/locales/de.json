@@ -9195,7 +9195,7 @@
       "thumbJobFailed": "Thumbnail-Job-Suche fehlgeschlagen.",
       "clipCuttingFailed": "Clip-Schnitt fehlgeschlagen. Deine Pack Visual Bucs decken die Text-Ausgaben ab — Clips können aus dem Video-Editor neu geschnitten werden.",
       "thumbFailed": "Thumbnail-Bilder konnten nicht generiert werden — die Thumbnail-Prompts unten funktionieren weiterhin mit jedem Bild-Tool.",
-      "lostJobs": "Hintergrund-Jobs aus den Augen verloren — aktualisiere, um zu prüfen.",
+      "lostJobs": "Lost track of the background jobs — use Check again to see where they stand.",
       "rerollFailed": "Re-Roll fehlgeschlagen — versuch es erneut.",
       "thumbRerollFailed": "Thumbnail-Re-Roll fehlgeschlagen — versuch es erneut."
     },
@@ -20780,7 +20780,11 @@
   "worldRepurposeDesk": {
     "title": "Content Repurposer",
     "fromProject": "From your project",
-    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again."
+    "outOfBucs": "You’re out of Visual Bucs for the Repurpose pack. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "checkAgain": "Check again",
+    "checkingJobs": "Checking your jobs…",
+    "streamOutOfBucs": "You’re out of Visual Bucs for Stream VOD. Top up at the Treasury’s Visual Buc Packs desk and run it again.",
+    "smartOutOfBucs": "You’re out of Visual Bucs for Smart Clips. Top up at the Treasury’s Visual Buc Packs desk and run it again."
   },
   "worldRemixDesk": {
     "title": "Remix Trends",

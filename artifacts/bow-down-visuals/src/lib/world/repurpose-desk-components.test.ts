@@ -114,3 +114,145 @@ describe("light/dark parity — theme-switched surfaces", () => {
     expect(desk).toContain('isLight ? "text-[#6B5B36]" : "text-white/50"');
   });
 });
+
+/* ════════════════════════════════════════════════════════════
+   Stack 300 items 94/95/118 — the desk's other two modes and
+   the Check again action, pinned as source contracts.
+   ════════════════════════════════════════════════════════════ */
+
+describe("modes — the page's three, switched in the desk (items 94/95)", () => {
+  it("a tablist switches pack / stream / smart on the page's mode keys", () => {
+    expect(desk).toContain('role="tablist"');
+    expect(desk).toContain('t("repurpose.modeLabel", { defaultValue: "Repurpose mode" })');
+    expect(desk).toContain('t("repurpose.modePack", { defaultValue: "Content Pack" })');
+    expect(desk).toContain('t("repurpose.modeStreamVod", { defaultValue: "Stream VOD" })');
+    expect(desk).toContain('t("repurpose.modeSmart", { defaultValue: "Smart Clips" })');
+    expect(desk).toContain('useState<"pack" | "stream" | "smart">("pack")');
+    expect(desk).toContain('mode === "pack"');
+    expect(desk).toContain("<StreamVodMode isLight={isLight} />");
+    expect(desk).toContain("<SmartClipsMode isLight={isLight} />");
+  });
+});
+
+describe("Stream VOD mode — the page's rails, the page's confirms (item 94)", () => {
+  it("analyze rides confirmedFetch on the registry-priced rail (300 — the page's confirm)", () => {
+    expect(desk).toContain("confirmedFetch(STREAM_ANALYZE_PATH");
+    expect(desk).toContain('t("clipMaker.findHighlights", { cost: STREAM_ANALYZE_COST_VB })');
+    expect(desk).toContain('data-testid="world-repurpose-desk-stream"');
+    expect(desk).toContain('data-testid="world-repurpose-desk-stream-run"');
+  });
+
+  it("cutting confirms the per-clip total as the override, exactly like the page", () => {
+    expect(desk).toContain("confirmedFetch(STREAM_CUT_PATH");
+    expect(desk).toContain("overrideCost: picks.length * STREAM_CUT_COST_PER_CLIP_VB");
+    expect(desk).toContain('overrideFeature: t("clipMaker.cutFeatureName")');
+    expect(desk).toContain('t("clipMaker.cutClips", { count: picks.length, cost: picks.length * STREAM_CUT_COST_PER_CLIP_VB })');
+    expect(desk).toContain('data-testid="world-repurpose-desk-stream-cut"');
+  });
+
+  it("the cut job polls at the pack cadence and flows done clips into the hub", () => {
+    expect(desk).toContain("streamCutJobPath(cutJobId)");
+    expect(desk).toContain("streamCutJobOf(");
+    expect(desk).toContain('data-testid="world-repurpose-desk-stream-outofbucs"');
+    expect(desk).toContain('t("worldRepurposeDesk.streamOutOfBucs")');
+    expect(desk).toContain('t("clipMaker.errorJobLost")');
+  });
+
+  it("mode copy rides the page's clipMaker.* keys", () => {
+    for (const key of [
+      't("clipMaker.step1Title")',
+      't("clipMaker.chooseFile")',
+      't("clipMaker.clipLength")',
+      't("clipMaker.maxClips")',
+      't("clipMaker.vibe")',
+      't("clipMaker.analyzing")',
+      't("clipMaker.analyzeNote", { vibe })',
+      't("clipMaker.highlightsFound", { count: analysis.highlights.length })',
+      't("clipMaker.selectAll")',
+      't("clipMaker.copyTimestamps")',
+      't("clipMaker.selectToCut")',
+      't("clipMaker.cutting")',
+      't("clipMaker.cuttingBackground")',
+      't("clipMaker.step3Title")',
+      't("clipMaker.downloadClip")',
+      't("clipMaker.errorNoSource")',
+      't("clipMaker.errorNoSelection")',
+      't("clipMaker.errorAnalysisFailed")',
+      't("clipMaker.errorCutStartFailed")',
+      't("clipMaker.errorCutFailed")',
+      't("clipMaker.errorCutRefunded")',
+    ]) {
+      expect(desk, key).toContain(key);
+    }
+  });
+});
+
+describe("Smart Clips mode — free propose, confirmed render (item 95)", () => {
+  it("proposing rides a plain authed fetch (free), rendering rides confirmedFetch", () => {
+    expect(desk).toContain("fetch(SMART_PROPOSE_PATH");
+    expect(desk).toContain("confirmedFetch(SMART_RENDER_PATH");
+    expect(desk).toContain("overrideCost: kept.length * SMART_RENDER_COST_PER_CLIP_VB");
+    expect(desk).toContain('overrideFeature: t("smartClips.featureName")');
+    expect(desk).toContain('data-testid="world-repurpose-desk-smart"');
+    expect(desk).toContain('data-testid="world-repurpose-desk-smart-find"');
+    expect(desk).toContain('data-testid="world-repurpose-desk-smart-render"');
+  });
+
+  it("only kept, valid drafts render; rendered clips flow into the hub", () => {
+    expect(desk).toContain("keptSmartDrafts(drafts)");
+    expect(desk).toContain("smartDraftWindow(draft)");
+    expect(desk).toContain("buildSmartRenderBody(videoUrl.trim(), kept)");
+    expect(desk).toContain("smartClipsOf(data)");
+    expect(desk).toContain('data-testid="world-repurpose-desk-smart-outofbucs"');
+    expect(desk).toContain('t("worldRepurposeDesk.smartOutOfBucs")');
+  });
+
+  it("mode copy rides the page's smartClips.* keys", () => {
+    for (const key of [
+      't("smartClips.title")',
+      't("smartClips.urlLabel")',
+      't("smartClips.searchLabel")',
+      't("smartClips.countLabel")',
+      't("smartClips.lengthLabel")',
+      't("smartClips.findButton")',
+      't("smartClips.finding")',
+      't("smartClips.findNote")',
+      't("smartClips.errorNoUrl")',
+      't("smartClips.errorFailed")',
+      't("smartClips.errorNoProposals")',
+      't("smartClips.proposalsTitle")',
+      't("smartClips.proposalsHint")',
+      't("smartClips.keepLabel")',
+      't("smartClips.startLabel")',
+      't("smartClips.endLabel")',
+      't("smartClips.quoteLabel")',
+      't("smartClips.invalidTime")',
+      't("smartClips.rendering")',
+      't("smartClips.resultsTitle")',
+      't("smartClips.download")',
+      't("smartClips.energyPick")',
+      't("smartClips.methodSemantic")',
+      't("smartClips.methodMixed")',
+      't("smartClips.methodEnergy")',
+    ]) {
+      expect(desk, key).toContain(key);
+    }
+  });
+});
+
+describe("Check again — the lost-jobs line carries a real action (item 118)", () => {
+  it("the poll's give-up keeps the job ids instead of throwing them away", () => {
+    expect(desk).toContain("setLostJobIds({ clip: clipJobId, thumb: thumbJobId })");
+    expect(desk).toContain("const [lostJobIds, setLostJobIds] = useState");
+    expect(desk).toContain("async function checkAgain()");
+    expect(desk).toContain("readJob(lostJobIds.clip)");
+    expect(desk).toContain("readJob(lostJobIds.thumb)");
+  });
+
+  it("the button renders beside the lost-jobs copy with the desk's own keys", () => {
+    expect(desk).toContain('data-testid="world-repurpose-desk-check-again"');
+    expect(desk).toContain('t("worldRepurposeDesk.checkAgain")');
+    expect(desk).toContain('t("worldRepurposeDesk.checkingJobs")');
+    expect(desk).toContain("onClick={() => void checkAgain()}");
+  });
+});

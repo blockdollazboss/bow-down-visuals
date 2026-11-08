@@ -428,6 +428,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "privacy.section4Item3Label",
     "promote.hero.titleAccent",
     "randomizer.crossLink.name",
+    "repurpose.error.lostJobs",
     "repurpose.modeLabel",
     "repurpose.modeStreamVod",
     "retention.awayDigest.bowRace",
