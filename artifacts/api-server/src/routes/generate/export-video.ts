@@ -13,7 +13,7 @@ import { recordCreditUsageStrict, type CreditUsageRecord } from "../../lib/payme
 import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport, rehydratePreparedExports } from "../../lib/prepared-exports";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
-import { OutOfCreditsError, refundCredits, type CreditPoolSplit } from "../../lib/credits";
+import { OutOfCreditsError, refundCredits, buildChargeIdempotencyKey, type CreditPoolSplit } from "../../lib/credits";
 import { buildEffectStack } from "./effects-ffmpeg";
 import { buildAdjustmentGraph, type AdjustmentExportItem } from "./lane-export";
 import { buildDuckingMixFilter, duckingParamsFromSimple } from "./ducking-filter";
@@ -29,6 +29,7 @@ import { aiDisclosureMetadataText, PROVENANCE_PLATFORM } from "../../lib/provena
 import { drizzleProxyStore, resolveExportSources } from "../../lib/proxy-editing";
 import {
   createExportJob,
+  findActiveExportJobByAttemptKey,
   getExportJob,
   claimJobForRun,
   updateJobStage,
@@ -3768,7 +3769,13 @@ function preflightExportBody(body: {
 /** Shared async-job kickoff: persist the job row, return 202, and enqueue the
  *  background render. Both export routes use the same pipeline. */
 async function startExportJob(
-  req: { userId?: string; userPlan?: string; userSupabase?: SupabaseClient; log?: ExportJobContext["log"] },
+  req: {
+    userId?: string;
+    userPlan?: string;
+    userSupabase?: SupabaseClient;
+    log?: ExportJobContext["log"];
+    header?: (name: string) => string | undefined;
+  },
   res: { status: (code: number) => { json: (body: unknown) => void } },
   body: ExportRequestBody,
 ): Promise<void> {
@@ -3792,7 +3799,39 @@ async function startExportJob(
   } catch (err) {
     logger.warn({ err, userId: req.userId }, "[export] proxy relink check failed — proceeding with sent URLs");
   }
-  const job = await createExportJob(req.userId!, body.projectId.trim(), body);
+  /* ── Duplicate-submit guard (stack300 item 64) ──
+   * A network retry, double-tab, or re-tap after a lost 202 used to
+   * create a second job — and a second A-07 reservation — for the
+   * same render. The attempt key is derived from (user + project +
+   * final params hash), computed AFTER the proxy relink above so a
+   * retry that relinks identically matches; a client-sent
+   * Idempotency-Key header wins when present. The key rides inside
+   * the persisted params, so the guard survives restarts exactly
+   * like the job does. A duplicate while the original is queued or
+   * active returns THAT job — no new row, no new reservation, and
+   * no second enqueue (the original worker or boot recovery owns
+   * the render). */
+  const attemptKey = buildChargeIdempotencyKey(
+    "video_export",
+    req.userId!,
+    req.header?.("Idempotency-Key") ?? null,
+    { projectId: body.projectId.trim(), body },
+  );
+  const existing = await findActiveExportJobByAttemptKey(req.userId!, attemptKey).catch((err) => {
+    logger.warn({ err, userId: req.userId }, "[export] attempt dedup lookup failed — proceeding with a new job");
+    return undefined;
+  });
+  if (existing) {
+    res.status(202).json({
+      jobId: existing.id,
+      status: existing.state,
+      charge: buildExportChargeInfo(existing, req.userPlan),
+      duplicate: true,
+    });
+    return;
+  }
+
+  const job = await createExportJob(req.userId!, body.projectId.trim(), { ...body, attemptKey });
   /* Charge info rides the 202 (payfix lane 6): branded = 0/free, clean =
      400 with the reserve state the client should expect at job start. */
   res.status(202).json({ jobId: job.id, status: job.state, charge: buildExportChargeInfo(job, req.userPlan) });

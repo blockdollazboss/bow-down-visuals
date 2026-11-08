@@ -64,6 +64,37 @@ CREATE TABLE export_jobs (
   updated_at timestamptz NOT NULL DEFAULT now()
 );`;
 
+export const MUSIC_EXPORT_JOBS_DDL = `
+CREATE TABLE music_export_jobs (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL,
+  state text NOT NULL DEFAULT 'queued',
+  params jsonb NOT NULL,
+  result jsonb,
+  error text,
+  code text,
+  attempt_key text,
+  attempts integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);`;
+
+export const MULTI_RATIO_JOBS_DDL = `
+CREATE TABLE multi_ratio_jobs (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL,
+  video_url text NOT NULL,
+  cost_total integer NOT NULL,
+  cost_per_ratio integer NOT NULL,
+  ratios jsonb NOT NULL DEFAULT '[]',
+  state text NOT NULL DEFAULT 'queued',
+  error text,
+  refunded integer,
+  attempt_key text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);`;
+
 export interface TestDb {
   mem: IMemoryDb;
   db: ReturnType<typeof drizzle>;

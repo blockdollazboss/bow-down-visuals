@@ -29,7 +29,7 @@ import { notifyUserEvent, type UserEventInput } from "./push-events";
  * - `none`    — stored but never delivered.
  */
 
-type JobType = "lip_sync" | "export" | "sale";
+type JobType = "lip_sync" | "export" | "sale" | "music_export" | "multi_ratio";
 type JobCompletionStatus = "completed" | "failed";
 type NotifyChannel = "relay" | "discord" | "log" | "none";
 
@@ -321,6 +321,176 @@ export async function notifyTerminalExportJobs(): Promise<number> {
       }
     } catch (err) {
       logger.warn({ err, jobId }, "[job-notifications] export backfill notification failed");
+    }
+  }
+  return created;
+}
+
+/**
+ * Backfill "it's ready" pings for terminal MUSIC (mix) export jobs
+ * (stack300 item 73).
+ *
+ * Music-export and multi-ratio renders run server-side to completion
+ * with durable rows, exactly like video exports — but nothing ever
+ * pinged the user when one finished or failed: close the tab during a
+ * minutes-long mix and the result arrived in silence. Same exactly-once
+ * mechanics as notifyTerminalExportJobs: the poller picks up terminal
+ * rows from the last 24h with no notification yet, the UNIQUE gate
+ * makes the landing exactly-once, and each fresh landing also fires
+ * the device-push event on the same gate.
+ */
+export async function notifyTerminalMusicExportJobs(): Promise<number> {
+  let rows: Record<string, unknown>[];
+  try {
+    const res = await db().execute(sql`
+      SELECT j.id, j.user_id, j.state, j.result, j.error
+      FROM music_export_jobs j
+      LEFT JOIN job_notifications n
+        ON n.job_type = 'music_export' AND n.job_id = j.id::text
+      WHERE j.state IN ('done', 'failed')
+        AND n.id IS NULL
+        AND j.updated_at > now() - interval '24 hours'
+      LIMIT 20
+    `);
+    rows = res.rows as Record<string, unknown>[];
+  } catch (err) {
+    // music_export_jobs may not exist yet on a fresh database — non-fatal.
+    logger.warn({ err }, "[job-notifications] music export backfill select failed; skipping");
+    return 0;
+  }
+  let created = 0;
+  for (const r of rows) {
+    const jobId = String(r["id"]);
+    const state = String(r["state"]);
+    const userId = String(r["user_id"]);
+    try {
+      let title: string;
+      let message: string;
+      let mediaUrl: string | null = null;
+      if (state === "done") {
+        const result = asJsonRecord(r["result"]);
+        mediaUrl = typeof result?.["url"] === "string" ? (result["url"] as string) : null;
+        title = "Music export ready";
+        message = "Your mix export finished.";
+      } else {
+        const raw =
+          typeof r["error"] === "string" && r["error"] ? String(r["error"]) : "The music export failed.";
+        title = "Music export failed";
+        message = raw.length > 500 ? `${raw.slice(0, 500)}…` : raw;
+      }
+      const ok = await createJobNotification({
+        jobType: "music_export",
+        jobId,
+        userId,
+        projectId: null,
+        status: state === "done" ? "completed" : "failed",
+        title,
+        message,
+        videoUrl: mediaUrl,
+      });
+      if (ok) {
+        created++;
+        try {
+          await _exportEventNotifier({
+            userId,
+            category: "money",
+            kind: state === "done" ? "music_export_done" : "music_export_failed",
+            title,
+            body:
+              state === "done"
+                ? "Your mix export finished — tap to open the Audio Studio and download it."
+                : message,
+            link: "/audio-studio",
+          });
+        } catch (err) {
+          logger.warn({ err, jobId }, "[job-notifications] music export push event failed (non-fatal)");
+        }
+      }
+    } catch (err) {
+      logger.warn({ err, jobId }, "[job-notifications] music export backfill notification failed");
+    }
+  }
+  return created;
+}
+
+/**
+ * Backfill "it's ready" pings for terminal MULTI-RATIO export jobs
+ * (stack300 item 73). Same exactly-once mechanics as the export and
+ * music-export backfills above.
+ */
+export async function notifyTerminalMultiRatioJobs(): Promise<number> {
+  let rows: Record<string, unknown>[];
+  try {
+    const res = await db().execute(sql`
+      SELECT j.id, j.user_id, j.state, j.ratios, j.error
+      FROM multi_ratio_jobs j
+      LEFT JOIN job_notifications n
+        ON n.job_type = 'multi_ratio' AND n.job_id = j.id::text
+      WHERE j.state IN ('done', 'failed')
+        AND n.id IS NULL
+        AND j.updated_at > now() - interval '24 hours'
+      LIMIT 20
+    `);
+    rows = res.rows as Record<string, unknown>[];
+  } catch (err) {
+    // multi_ratio_jobs may not exist yet on a fresh database — non-fatal.
+    logger.warn({ err }, "[job-notifications] multi-ratio backfill select failed; skipping");
+    return 0;
+  }
+  let created = 0;
+  for (const r of rows) {
+    const jobId = String(r["id"]);
+    const state = String(r["state"]);
+    const userId = String(r["user_id"]);
+    try {
+      let title: string;
+      let message: string;
+      let mediaUrl: string | null = null;
+      if (state === "done") {
+        const ratios = Array.isArray(r["ratios"]) ? (r["ratios"] as Record<string, unknown>[]) : [];
+        const firstDone = ratios.find((x) => x["state"] === "done" && typeof x["url"] === "string");
+        mediaUrl = firstDone ? String(firstDone["url"]) : null;
+        title = "Multi-ratio export ready";
+        message = "Your multi-ratio export finished.";
+      } else {
+        const rawErr = typeof r["error"] === "string" ? String(r["error"]) : "";
+        const raw =
+          rawErr === "interrupted_by_restart"
+            ? "This export was interrupted by a server restart. Every unfinished ratio was refunded."
+            : rawErr || "The multi-ratio export failed.";
+        title = "Multi-ratio export failed";
+        message = raw.length > 500 ? `${raw.slice(0, 500)}…` : raw;
+      }
+      const ok = await createJobNotification({
+        jobType: "multi_ratio",
+        jobId,
+        userId,
+        projectId: null,
+        status: state === "done" ? "completed" : "failed",
+        title,
+        message,
+        videoUrl: mediaUrl,
+      });
+      if (ok) {
+        created++;
+        try {
+          await _exportEventNotifier({
+            userId,
+            category: "money",
+            kind: state === "done" ? "multi_ratio_done" : "multi_ratio_failed",
+            title,
+            body:
+              state === "done"
+                ? "Your multi-ratio export finished — tap to open the Video Editor and download it."
+                : message,
+            link: "/video-editor",
+          });
+        } catch (err) {
+          logger.warn({ err, jobId }, "[job-notifications] multi-ratio push event failed (non-fatal)");
+        }
+      }
+    } catch (err) {
+      logger.warn({ err, jobId }, "[job-notifications] multi-ratio backfill notification failed");
     }
   }
   return created;

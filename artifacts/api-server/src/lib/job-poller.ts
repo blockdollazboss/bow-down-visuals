@@ -27,6 +27,8 @@ import { refundCredits } from "./credits";
 import {
   createJobNotification,
   notifyTerminalExportJobs,
+  notifyTerminalMusicExportJobs,
+  notifyTerminalMultiRatioJobs,
 } from "./job-notifications";
 import { notifyUserEvent, type UserEventInput } from "./push-events";
 
@@ -407,6 +409,14 @@ export async function runPollerTick(): Promise<void> {
     await pollDueJobs().catch((err) => logger.error({ err }, "[job-poller] poll phase failed"));
     await notifyTerminalExportJobs().catch((err) =>
       logger.error({ err }, "[job-poller] export notification backfill failed"),
+    );
+    /* Stack300 item 73: the music-export and multi-ratio families get
+       the same terminal backfill — their endings notify too. */
+    await notifyTerminalMusicExportJobs().catch((err) =>
+      logger.error({ err }, "[job-poller] music export notification backfill failed"),
+    );
+    await notifyTerminalMultiRatioJobs().catch((err) =>
+      logger.error({ err }, "[job-poller] multi-ratio notification backfill failed"),
     );
     /* Lip-sync failure refunds: retry the ones that never landed (a
        refund write that threw, a process that died mid-failure) —

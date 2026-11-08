@@ -1,7 +1,17 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAuth } from "../middlewares/require-auth";
+import { logger } from "../lib/logger";
+import { buildChargeIdempotencyKey } from "../lib/credits";
+import {
+  claimMusicExportJob,
+  completeMusicExportJob,
+  createMusicExportJob,
+  failMusicExportJob,
+  findActiveMusicExportJobByAttemptKey,
+  getMusicExportJob,
+  recoverInterruptedMusicExportJobs as recoverMusicExportJobs,
+} from "../lib/music-export-jobs";
 import {
   AudioExportError,
   isAllowedStemUrl,
@@ -33,13 +43,18 @@ const router = Router();
 const BUCKET = "audio-stems";
 const MAX_STEMS = 64;
 
-/* ── In-process async job store ──────────────────────────────────────────
+/* ── Durable async job store (stack300 item 62) ─────────────────────────
    Mix renders can legitimately take several minutes for a full-length song
    with many stems and heavy per-stem effect chains, well past what an HTTP
-   request/proxy can hold open reliably. POST /music/export now enqueues a
-   job and returns immediately; the client polls GET /music/export/job/:id
-   for status. Jobs are pruned after 2 h; safe for a single-instance
-   deployment since the server process is long-running.                    */
+   request/proxy can hold open reliably. POST /music/export enqueues a job
+   and returns immediately; the client polls GET /music/export/job/:id for
+   status. Jobs used to live in a process Map — every restart wiped
+   in-flight renders and polling 404'd mid-render. The record now lives in
+   the music_export_jobs table (lib/music-export-jobs.ts, migration 0326):
+   the row carries the owner (the poll endpoint 404s for anyone else,
+   item 63), the full render params (boot recovery re-runs an interrupted
+   job from scratch), and an attempt key (a duplicate start POST returns
+   the in-flight job instead of rendering twice, item 64).              */
 interface MixExportJobResult {
   url: string;
   format: "mp3" | "wav";
@@ -49,26 +64,17 @@ interface MixExportJobResult {
   createdAt: string;
   warnings?: string[];
 }
-interface MixExportJob {
-  status: "queued" | "processing" | "done" | "failed";
-  result?: MixExportJobResult;
-  error?: string;
-  code?: string;
-  createdAt: string;
-  updatedAt: string;
+
+/** Everything needed to (re)run a mix render — persisted on the job row. */
+interface MixExportParams {
+  stems: ExportStemInput[];
+  masterVolume: number;
+  format: "mp3" | "wav";
+  masterSettings?: MasterBusSettings;
+  kind: AudioExportKind;
+  exportType: string;
+  aiDisclosure: boolean;
 }
-
-const mixExportJobs = new Map<string, MixExportJob>();
-
-setInterval(
-  () => {
-    const cutoffMs = Date.now() - 2 * 60 * 60 * 1000;
-    for (const [id, job] of mixExportJobs) {
-      if (new Date(job.createdAt).getTime() < cutoffMs) mixExportJobs.delete(id);
-    }
-  },
-  30 * 60 * 1000,
-).unref();
 
 const TYPE_MAP: Record<AudioExportType, { kind: AudioExportKind; format: "mp3" | "wav" }> = {
   "full-mp3": { kind: "full", format: "mp3" },
@@ -389,52 +395,74 @@ router.post("/music/export", requireAuth, async (req, res) => {
   const mv = Number.isFinite(Number(masterVolume)) ? Number(masterVolume) : 100;
   const parsedMaster = parseMasterSettings(masterSettings);
 
-  const jobId = randomUUID();
-  const now = new Date().toISOString();
-  mixExportJobs.set(jobId, { status: "queued", createdAt: now, updatedAt: now });
-
-  const sb = req.userSupabase!;
-  const userId = req.userId;
-  const log = req.log;
-
-  void processMixExportJob(jobId, {
+  const renderParams: MixExportParams = {
     stems: selected,
     masterVolume: mv,
     format: mapping.format,
     masterSettings: parsedMaster,
     kind: mapping.kind,
     exportType: exportType!,
-    ...disclosureOpts(aiDisclosure),
-    sb,
-    userId: userId!,
-    log,
+    aiDisclosure: aiDisclosure !== false,
+  };
+
+  /* Item 64: duplicate-submit guard. The attempt key is derived from
+     (user + render params) — or taken from the client's Idempotency-Key
+     header when it sends one — and a duplicate POST while the original
+     job is still queued/processing returns THAT job instead of
+     starting a second identical render. */
+  const userId = req.userId!;
+  const attemptKey = buildChargeIdempotencyKey(
+    "music_export",
+    userId,
+    req.header("Idempotency-Key") ?? null,
+    renderParams,
+  );
+  const existing = await findActiveMusicExportJobByAttemptKey(userId, attemptKey).catch((err) => {
+    req.log.error({ err }, "Music export dedup lookup failed; proceeding with a new job");
+    return undefined;
   });
+  if (existing) {
+    res.status(202).json({ jobId: existing.id, status: existing.state, duplicate: true });
+    return;
+  }
+
+  const jobId = randomUUID();
+  try {
+    await createMusicExportJob(jobId, userId, renderParams, attemptKey);
+  } catch (err) {
+    /* No durable row, no render: better an honest 503 than a job the
+       next restart would silently erase (the old in-memory behavior). */
+    req.log.error({ err }, "Music export job could not be recorded");
+    res.status(503).json({
+      error: "Audio export is unavailable on this server right now.",
+      code: "export_unavailable",
+    });
+    return;
+  }
+
+  void processMixExportJob(jobId, req.log);
 
   res.status(202).json({ jobId, status: "queued" });
 });
 
+/**
+ * Run one mix render from its durable row. The claim (queued →
+ * processing) is atomic, so the route kickoff and boot recovery can
+ * both call this for the same job and exactly one renders. All state
+ * lands back on the row — the poll endpoint reads nothing else.
+ */
 async function processMixExportJob(
   jobId: string,
-  params: {
-    stems: ExportStemInput[];
-    masterVolume: number;
-    format: "mp3" | "wav";
-    masterSettings?: MasterBusSettings;
-    kind: AudioExportKind;
-    exportType: string;
-    aiDisclosure?: boolean;
-    disclosureText?: string;
-    sb: SupabaseClient;
-    userId: string;
-    log: { error: (obj: unknown, msg?: string) => void };
-  },
+  log: { error: (obj: unknown, msg?: string) => void },
 ): Promise<void> {
-  const update = (patch: Partial<MixExportJob>) => {
-    const j = mixExportJobs.get(jobId);
-    if (j) mixExportJobs.set(jobId, { ...j, ...patch, updatedAt: new Date().toISOString() });
-  };
+  const claimed = await claimMusicExportJob(jobId).catch((err) => {
+    log.error({ err, jobId }, "Music export job claim failed");
+    return undefined;
+  });
+  if (!claimed) return; // gone, already claimed, or already terminal
 
-  update({ status: "processing" });
+  const params = claimed.params as MixExportParams;
+  const { disclosureText } = disclosureOpts(params.aiDisclosure);
 
   try {
     const { buffer, contentType, ext, warnings } = await runMixExport({
@@ -443,41 +471,52 @@ async function processMixExportJob(
       format: params.format,
       masterSettings: params.masterSettings,
       aiDisclosure: params.aiDisclosure,
-      disclosureText: params.disclosureText,
+      disclosureText,
     });
 
-    const path = `${params.userId}/exports/${Date.now()}-${params.kind}.${ext}`;
+    const path = `${claimed.userId}/exports/${Date.now()}-${params.kind}.${ext}`;
     const r2Key = `audio-stems/${path}`;
     try {
       await r2Upload(r2Key, buffer, contentType);
     } catch (upErr) {
-      params.log.error({ err: upErr }, "Audio export upload failed");
-      update({ status: "failed", error: "Could not save the exported file.", code: "export_failed" });
+      log.error({ err: upErr, jobId }, "Audio export upload failed");
+      await failMusicExportJob(jobId, "Could not save the exported file.", "export_failed").catch(() => undefined);
       return;
     }
     const exportUrl = r2PublicUrl(r2Key);
 
-    update({
-      status: "done",
-      result: {
-        url: exportUrl,
-        format: params.format,
-        kind: params.kind,
-        exportType: params.exportType,
-        stemsUsed: params.stems.map((s) => s.name),
-        createdAt: new Date().toISOString(),
-        ...(warnings.length > 0 ? { warnings } : {}),
-      },
-    });
+    const result: MixExportJobResult = {
+      url: exportUrl,
+      format: params.format,
+      kind: params.kind,
+      exportType: params.exportType,
+      stemsUsed: params.stems.map((s) => s.name),
+      createdAt: new Date().toISOString(),
+      ...(warnings.length > 0 ? { warnings } : {}),
+    };
+    await completeMusicExportJob(jobId, result as unknown as Record<string, unknown>).catch((err) =>
+      log.error({ err, jobId }, "Music export completion could not be recorded"),
+    );
   } catch (err) {
     if (err instanceof AudioExportError) {
-      params.log.error({ err, stderr: err.stderr }, "Audio export error");
-      update({ status: "failed", error: err.message, code: err.code });
+      log.error({ err, stderr: err.stderr, jobId }, "Audio export error");
+      await failMusicExportJob(jobId, err.message, err.code).catch(() => undefined);
       return;
     }
-    params.log.error({ err }, "Audio export failed");
-    update({ status: "failed", error: "Audio export failed.", code: "export_failed" });
+    log.error({ err, jobId }, "Audio export failed");
+    await failMusicExportJob(jobId, "Audio export failed.", "export_failed").catch(() => undefined);
   }
+}
+
+/**
+ * Boot recovery (item 62): re-drive mix-export jobs a previous process
+ * left queued/processing — the persisted params make the render
+ * re-runnable from scratch. Called once from index.ts after listen.
+ */
+export async function recoverInterruptedMusicExportJobs(): Promise<void> {
+  await recoverMusicExportJobs(async (job) => {
+    void processMixExportJob(job.id, logger);
+  });
 }
 
 /** Clamp bounds for the "true render" preview clip length. */
@@ -577,13 +616,23 @@ router.post("/music/preview-render", requireAuth, async (req, res) => {
   }
 });
 
-router.get("/music/export/job/:id", requireAuth, (req, res) => {
-  const job = mixExportJobs.get(String(req.params["id"] ?? ""));
-  if (!job) {
+router.get("/music/export/job/:id", requireAuth, async (req, res) => {
+  const job = await getMusicExportJob(String(req.params["id"] ?? "")).catch(() => undefined);
+  /* Item 63: the job record carries its owner — a poll from anyone
+     else gets the same 404 as a missing job (the sibling export poll
+     handlers' pattern), never the result URL. */
+  if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Export job not found or expired.", code: "job_not_found" });
     return;
   }
-  res.json(job);
+  res.json({
+    status: job.state,
+    ...(job.result ? { result: job.result } : {}),
+    ...(job.error ? { error: job.error } : {}),
+    ...(job.code ? { code: job.code } : {}),
+    createdAt: new Date(job.createdAt).toISOString(),
+    updatedAt: new Date(job.updatedAt).toISOString(),
+  });
 });
 
 export default router;

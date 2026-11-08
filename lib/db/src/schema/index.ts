@@ -38,6 +38,7 @@ export * from "./group-profiles";
 export * from "./lip-sync-jobs";
 export * from "./lip-sync-runs";
 export * from "./multi-ratio-jobs";
+export * from "./music-export-jobs";
 export * from "./job-notifications";
 export * from "./songs";
 export * from "./dj";
