@@ -17,6 +17,7 @@ import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
 import { recoverInterruptedVaultJobsBoot } from "./lib/vault-runner";
 import { recoverInterruptedLipSyncRuns } from "./routes/lip-sync";
 import { recoverInterruptedMultiRatioJobs } from "./routes/generate/export-multi-ratio";
+import { recoverInterruptedMusicExportJobs } from "./routes/music-export";
 import { recoverInterruptedLiveStreams } from "./routes/live-streams";
 import { resumeActiveDeliveries } from "./routes/generate/distribution";
 import { startPublishAttemptSweeper } from "./lib/social-sweeper";
@@ -110,6 +111,13 @@ const server = app.listen(port, (err) => {
   );
   recoverInterruptedMultiRatioJobs().catch((recoveryErr) =>
     logger.error({ recoveryErr }, "Multi-ratio job recovery failed"),
+  );
+
+  // Stack300 item 62: re-drive music (mix) export jobs a previous
+  // process left queued/processing — params persisted on the row make
+  // the render re-runnable from scratch.
+  recoverInterruptedMusicExportJobs().catch((recoveryErr) =>
+    logger.error({ recoveryErr }, "Music export job recovery failed"),
   );
 
   // W4: own-server live rows orphaned by the previous process (their

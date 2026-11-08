@@ -154,6 +154,34 @@ export async function getExportJob(id: string): Promise<ExportJob | undefined> {
 }
 
 /**
+ * Duplicate-submit guard (stack300 item 64): find this user's
+ * still-in-flight job for the same start attempt. The attempt key is
+ * derived at the route from (user + project + params hash) and stored
+ * inside the params jsonb the row already persists, so the lookup
+ * survives restarts exactly like the job does. A duplicate POST while
+ * the original is queued/active returns that job — no second row, no
+ * second reservation. Scoped to the owner: a key never leaks another
+ * user's job.
+ */
+export async function findActiveExportJobByAttemptKey(
+  userId: string,
+  attemptKey: string,
+): Promise<ExportJob | undefined> {
+  if (!attemptKey) return undefined;
+  const res = await db().execute(sql`
+    SELECT ${JOB_COLUMNS} FROM export_jobs
+    WHERE user_id = ${userId}
+      AND state IN ('queued', 'active')
+      AND params->>'attemptKey' = ${attemptKey}
+      AND created_at > now() - interval '2 hours'
+    ORDER BY created_at DESC
+    LIMIT 1
+  `);
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  return row ? toExportJob(row) : undefined;
+}
+
+/**
  * Claim a job for a worker run: queued → active, attempts + 1.
  * The claim is a single atomic UPDATE, so even if two processes ever
  * raced (e.g. overlapping deploys), exactly one wins the render —

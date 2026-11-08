@@ -7,7 +7,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey } from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -115,6 +115,10 @@ interface MultiRatioJob {
   updatedAt: number;
   error?: string;
   refunded?: number;
+  /** Duplicate-submit guard (stack300 item 64): derived from
+   *  (user + params hash) at creation and stored on the durable row;
+   *  a duplicate POST inside the dedup window returns this job. */
+  attemptKey?: string | null;
 }
 
 /* Job store (Stack-100 #3, A-08): the live working copy stays in this
@@ -145,17 +149,26 @@ function pruneJobs(): void {
     .catch(() => undefined);
 }
 
-async function insertMultiRatioRow(job: MultiRatioJob): Promise<void> {
+/**
+ * Insert the durable money-record row. Returns false when the row
+ * could not be written — the caller (the POST handler) must then
+ * compensate the up-front charge (stack300 item 65): a charge with
+ * no row is a charge boot recovery can never refund.
+ */
+async function insertMultiRatioRow(job: MultiRatioJob): Promise<boolean> {
   try {
     await db.execute(sql`
       INSERT INTO multi_ratio_jobs
-        (id, user_id, video_url, cost_total, cost_per_ratio, ratios, state, error, refunded)
+        (id, user_id, video_url, cost_total, cost_per_ratio, ratios, state, error, refunded, attempt_key)
       VALUES (${job.id}, ${job.userId}, ${job.videoUrl}, ${job.costTotal}, ${job.costPerRatio},
-              ${JSON.stringify(job.ratios)}::jsonb, ${job.state}, ${job.error ?? null}, ${job.refunded ?? null})
+              ${JSON.stringify(job.ratios)}::jsonb, ${job.state}, ${job.error ?? null}, ${job.refunded ?? null},
+              ${job.attemptKey ?? null})
       ON CONFLICT (id) DO NOTHING
     `);
+    return true;
   } catch (err) {
-    logger.error({ err, jobId: job.id }, "[export-multi-ratio] job row insert failed (continuing in-memory)");
+    logger.error({ err, jobId: job.id }, "[export-multi-ratio] job row insert failed");
+    return false;
   }
 }
 
@@ -195,12 +208,53 @@ function multiRatioRowToJob(row: Record<string, unknown>): MultiRatioJob {
     updatedAt: new Date(String(row["updated_at"])).getTime(),
     error: (row["error"] as string | null) ?? undefined,
     refunded: row["refunded"] == null ? undefined : Number(row["refunded"]),
+    attemptKey: row["attempt_key"] != null ? String(row["attempt_key"]) : null,
   };
 }
 
 async function loadMultiRatioJob(id: string): Promise<MultiRatioJob | null> {
   try {
     const r = await db.execute(sql`SELECT * FROM multi_ratio_jobs WHERE id = ${id} LIMIT 1`);
+    const row = r.rows[0] as Record<string, unknown> | undefined;
+    return row ? multiRatioRowToJob(row) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Duplicate-submit window (item 64): the terminal-prune horizon. */
+const DEDUP_WINDOW_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Item 64: find this user's still-in-flight job for the same start
+ * attempt — the live Map first (same process), then the durable rows
+ * (a retry that lands after a restart still dedups). Scoped to the
+ * owner: an attempt key never leaks another user's job.
+ */
+async function findActiveMultiRatioJobByAttemptKey(
+  userId: string,
+  attemptKey: string,
+): Promise<MultiRatioJob | null> {
+  const cutoff = Date.now() - DEDUP_WINDOW_MS;
+  for (const job of jobs.values()) {
+    if (
+      job.userId === userId &&
+      job.attemptKey === attemptKey &&
+      (job.state === "queued" || job.state === "active") &&
+      job.createdAt > cutoff
+    ) {
+      return job;
+    }
+  }
+  try {
+    const r = await db.execute(sql`
+      SELECT * FROM multi_ratio_jobs
+      WHERE user_id = ${userId} AND attempt_key = ${attemptKey}
+        AND state IN ('queued', 'active')
+        AND created_at > now() - interval '2 hours'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
     const row = r.rows[0] as Record<string, unknown> | undefined;
     return row ? multiRatioRowToJob(row) : null;
   } catch {
@@ -222,11 +276,27 @@ async function settleMultiRatioJob(
   const notDone = job.ratios.filter((r) => r.state !== "done").length;
   const refund = notDone * job.costPerRatio;
   if (refund > 0) {
-    await refundCredits(job.userId, refund, {
-      action: job.ratios.some((r) => r.state === "done")
-        ? "Multi-Ratio Export — Partial Refund"
-        : "Multi-Ratio Export — Full Refund",
-    }).catch(() => {});
+    /* Item 66: `refunded` may only move when the refund actually
+       landed. The old code swallowed a refund failure and still
+       recorded the money as refunded — an invisible, permanent lie
+       on the money record. On failure: log CRITICAL (the main export
+       rail's standard), persist the honest state, and leave the job
+       NON-TERMINAL so boot recovery re-runs settlement and retries
+       the refund instead of the loss being final. */
+    try {
+      await refundCredits(job.userId, refund, {
+        action: job.ratios.some((r) => r.state === "done")
+          ? "Multi-Ratio Export — Partial Refund"
+          : "Multi-Ratio Export — Full Refund",
+      });
+    } catch (err) {
+      logger.error(
+        { err, jobId: job.id, userId: job.userId, refund },
+        "[export-multi-ratio] CRITICAL: settlement refund failed — job left non-terminal so recovery retries the refund; manual reconciliation required if this persists",
+      );
+      await persistMultiRatioJob(job);
+      return;
+    }
     job.refunded = (job.refunded ?? 0) + refund;
   }
   if (opts.interrupted) {
@@ -327,6 +397,34 @@ router.post("/export-multi-ratio", requireAuth, async (req, res) => {
   const ratios = [...new Set(parsed.data.ratios)]; // de-dupe
   const costTotal = ratios.length * COST_PER_RATIO;
 
+  /* Item 64: duplicate-submit guard — BEFORE any charge. The attempt
+     key is derived from (user + params hash), or taken from the
+     client's Idempotency-Key header when it sends one. A duplicate
+     POST while the original job is queued/active returns THAT job:
+     no second charge, no second render. */
+  const attemptKey = buildChargeIdempotencyKey(
+    "multi_ratio_export",
+    req.userId!,
+    req.header("Idempotency-Key") ?? null,
+    {
+      videoUrl: parsed.data.videoUrl,
+      ratios,
+      mode: parsed.data.mode,
+      attribution: parsed.data.attribution,
+      aiDisclosure: parsed.data.aiDisclosure !== false,
+      topic: parsed.data.topic ?? null,
+    },
+  );
+  const existing = await findActiveMultiRatioJobByAttemptKey(req.userId!, attemptKey);
+  if (existing) {
+    res.status(202).json({
+      ...publicJob(existing),
+      creditsRemaining: req.userCredits ?? 0,
+      duplicate: true,
+    });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < costTotal) {
     res.status(402).json({
@@ -376,9 +474,40 @@ router.post("/export-multi-ratio", requireAuth, async (req, res) => {
     state: "queued",
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    attemptKey,
   };
+
+  /* Item 65: the durable row is the money record boot recovery
+     settles from. If it cannot be written, the up-front charge would
+     strand with no row to refund from — so compensate NOW, in the
+     live request: refund in full and refuse the start honestly. If
+     the compensating refund itself fails, log CRITICAL for manual
+     reconciliation (the main export rail's standard) rather than
+     letting the charge vanish silently. */
+  const rowInserted = await insertMultiRatioRow(job);
+  if (!rowInserted) {
+    let refundedNow = true;
+    try {
+      await refundCredits(req.userId!, costTotal, {
+        action: "Multi-Ratio Export — Refund (job record failed)",
+      });
+    } catch (refundErr) {
+      refundedNow = false;
+      logger.error(
+        { err: refundErr, jobId: job.id, userId: req.userId, costTotal },
+        "[export-multi-ratio] CRITICAL: job row insert failed AND the compensating refund failed — manual reconciliation required",
+      );
+    }
+    res.status(503).json({
+      error: "export_unavailable",
+      message: refundedNow
+        ? "The export could not be started, so your Visual Bucs were refunded in full. Please try again."
+        : "The export could not be started. Your charge has been flagged for restoration — if it is not back in your balance shortly, contact support.",
+    });
+    return;
+  }
+
   jobs.set(job.id, job);
-  await insertMultiRatioRow(job);
   pruneJobs();
 
   // Background render through the shared single-slot export queue so a

@@ -16,6 +16,10 @@ import { pgTable, uuid, text, integer, timestamp, jsonb } from "drizzle-orm/pg-c
  *   settle function runs from the worker AND from boot recovery;
  *   recovery refunds every ratio that never completed, then marks the
  *   job failed with error 'interrupted_by_restart')
+ * - `attempt_key` — duplicate-submit guard (migration 0326, stack300
+ *   item 64): derived from (user + params hash) at creation; a
+ *   duplicate POST inside the dedup window returns the existing
+ *   queued/active job instead of charging again
  *
  * Per-ratio charging does not fit export_jobs' single credits_charged
  * flag, hence the dedicated table.
@@ -30,6 +34,7 @@ const multiRatioJobsTable = pgTable("multi_ratio_jobs", {
   state: text("state").notNull().default("queued"),
   error: text("error"),
   refunded: integer("refunded"),
+  attempt_key: text("attempt_key"),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -23,17 +23,30 @@ const h = vi.hoisted(() => ({
 
 vi.mock("../../middlewares/require-auth", () => ({
   requireAuth: (req: any, _res: any, next: any) => {
-    req.userId = "user-1";
+    req.userId = "11111111-1111-4111-8111-111111111111";
     req.userCredits = 100_000;
     next();
   },
 }));
 
-vi.mock("../../lib/credits", () => ({
-  chargeCredits: vi.fn(async () => 99_900),
-  refundCredits: vi.fn(async () => 99_900),
-  OutOfCreditsError: class OutOfCreditsError extends Error {},
-}));
+vi.mock("../../lib/credits", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    chargeCredits: vi.fn(async () => 99_900),
+    refundCredits: vi.fn(async () => 99_900),
+  };
+});
+
+/* The durable job row is real (pg-mem): since stack300 item 65 the
+   route refuses a start whose money-record row cannot be written, so
+   this suite's POSTs need a working multi_ratio_jobs table. */
+vi.mock("@workspace/db", async () => {
+  const { createTestDb, MULTI_RATIO_JOBS_DDL } = await import("../../lib/__tests__/test-db");
+  const td = createTestDb();
+  td.mem.public.none(MULTI_RATIO_JOBS_DDL);
+  return { db: td.db, pgSslConfig: () => undefined };
+});
 
 vi.mock("../../lib/objectStorage", () => ({
   uploadMediaToSupabaseStorage: vi.fn(async (objectName: string, buffer: Buffer) => {
