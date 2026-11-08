@@ -20,15 +20,18 @@
  */
 import { NextFunction, Request, Response, Router } from "express";
 import { randomUUID } from "crypto";
+import { unlink } from "node:fs/promises";
 import multer from "multer";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import {
-  uploadMediaToSupabaseStorage,
+  uploadFileStreamToSupabaseStorage,
+  SUPABASE_CLIPS_BUCKET,
   refreshSupabaseStorageUrl,
   refreshSupabaseStorageUrlsDeep,
 } from "../lib/objectStorage";
+import { tmpUploadStorage, createAdminAwareUpload } from "../lib/upload-storage";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { isUndefinedTable, pgErrorText } from "../lib/pg-errors";
 import { sanitizeAltText } from "../lib/alt-text";
@@ -41,8 +44,13 @@ const router = Router();
 const PUBLISH_UPLOAD_MAX_BYTES = 80 * 1024 * 1024;
 const ARTWORK_MAX_BYTES = 10 * 1024 * 1024;
 
-const upload = multer({
-  storage: multer.memoryStorage(),
+const upload = createAdminAwareUpload({
+  // 2026-11-07 (stack300 #68): disk-backed, the migration /upload-clip
+  // got in the 2026-10-12 OOM fix and this door never did — memory
+  // storage held the whole 80 MB upload in RAM for the request's life.
+  // Disk storage also earns this door the admin-aware 1 GB ceiling the
+  // other disk doors carry; member caps are byte-identical to before.
+  storage: tmpUploadStorage,
   limits: { fileSize: PUBLISH_UPLOAD_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     const ok =
@@ -80,9 +88,12 @@ router.post("/upload", requireAuth, upload.single("file"), async (req, res) => {
         ? "video"
         : "artwork";
     const objectName = `publish/${req.userId}/${kind}/${Date.now()}-${randomUUID()}.${ext}`;
-    const ref = await uploadMediaToSupabaseStorage(
+    // Streamed from the temp file (stack300 #68) — same bucket and ref
+    // shape uploadMediaToSupabaseStorage produced from the buffer.
+    const ref = await uploadFileStreamToSupabaseStorage(
+      SUPABASE_CLIPS_BUCKET,
       objectName,
-      req.file.buffer,
+      req.file.path,
       req.file.mimetype || "application/octet-stream",
     );
     const url = await refreshSupabaseStorageUrl(ref);
@@ -92,6 +103,8 @@ router.post("/upload", requireAuth, upload.single("file"), async (req, res) => {
     const msg = err instanceof Error ? err.message : "Upload failed";
     req.log.error({ err: msg }, "[publish] upload failed");
     res.status(500).json({ error: msg });
+  } finally {
+    if (req.file) await unlink(req.file.path).catch(() => {});
   }
 });
 

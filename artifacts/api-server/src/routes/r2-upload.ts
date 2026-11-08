@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
-import { r2GetPresignedPutUrl, r2PublicUrl, r2Delete, r2List, isR2Configured } from "../lib/r2-client";
+import { r2GetPresignedPutUrl, r2PublicUrl, r2Delete, r2List, isR2Configured, r2CreateMultipartUpload, r2GetPresignedPartUrl, r2ListParts, r2CompleteMultipartUpload, r2AbortMultipartUpload } from "../lib/r2-client";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -19,6 +19,14 @@ const router = Router();
    GET /api/r2/list?prefix=<userId>/generated -> { files: [{ name, url, path }] }
 
    DELETE /api/r2/object — body { key }. Same key rules.
+
+   Multipart (stack300 #67) — chunked/resumable large uploads:
+   POST /api/r2/multipart/init     { key, contentType } -> { uploadId, key, publicUrl }
+   POST /api/r2/multipart/part-url { key, uploadId, partNumber } -> { url }
+   GET  /api/r2/multipart/parts?key&uploadId -> { parts: [{ partNumber, etag, size }] }
+   POST /api/r2/multipart/complete { key, uploadId, parts: [{ partNumber, etag }] } -> { publicUrl, key }
+   POST /api/r2/multipart/abort    { key, uploadId } -> { ok: true }
+   Same requireAuth + key allowlist as every door above.
 */
 
 const ALLOWED_PREFIXES = ["audio-stems/"];
@@ -134,6 +142,149 @@ router.delete("/r2/object", requireAuth, async (req, res) => {
   } catch (err) {
     logger.error("r2 delete failed");
     res.status(500).json({ error: "Delete failed." });
+  }
+});
+
+/* ── Multipart uploads (stack300 #67) ─────────────────────────────────── */
+
+const multipartInitSchema = z.object({
+  key: z.string().min(1).max(500),
+  contentType: z.string().min(1).max(100),
+});
+
+const multipartScopedSchema = z.object({
+  key: z.string().min(1).max(500),
+  uploadId: z.string().min(1).max(500),
+});
+
+const multipartPartUrlSchema = multipartScopedSchema.extend({
+  partNumber: z.number().int().min(1).max(10000),
+});
+
+const multipartCompleteSchema = multipartScopedSchema.extend({
+  parts: z
+    .array(
+      z.object({
+        partNumber: z.number().int().min(1).max(10000),
+        etag: z.string().min(1).max(200),
+      }),
+    )
+    .min(1)
+    .max(10000),
+});
+
+function r2Ready(res: import("express").Response): boolean {
+  if (!isR2Configured()) {
+    res.status(503).json({ error: "R2 storage not configured." });
+    return false;
+  }
+  return true;
+}
+
+router.post("/r2/multipart/init", requireAuth, async (req, res) => {
+  try {
+    if (!r2Ready(res)) return;
+    const parsed = multipartInitSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "key and contentType are required." });
+      return;
+    }
+    const { key, contentType } = parsed.data;
+    if (!isKeyAllowed(key, req.userId)) {
+      res.status(403).json({ error: "Key prefix not allowed." });
+      return;
+    }
+    const uploadId = await r2CreateMultipartUpload(key, contentType);
+    res.json({ uploadId, key, publicUrl: r2PublicUrl(key) });
+  } catch (err) {
+    logger.error("r2 multipart init failed");
+    res.status(500).json({ error: "Could not start multipart upload." });
+  }
+});
+
+router.post("/r2/multipart/part-url", requireAuth, async (req, res) => {
+  try {
+    if (!r2Ready(res)) return;
+    const parsed = multipartPartUrlSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "key, uploadId and a valid partNumber are required." });
+      return;
+    }
+    const { key, uploadId, partNumber } = parsed.data;
+    if (!isKeyAllowed(key, req.userId)) {
+      res.status(403).json({ error: "Key prefix not allowed." });
+      return;
+    }
+    const url = await r2GetPresignedPartUrl(key, uploadId, partNumber);
+    res.json({ url });
+  } catch (err) {
+    logger.error("r2 multipart part-url failed");
+    res.status(500).json({ error: "Could not create part upload URL." });
+  }
+});
+
+/* GET /api/r2/multipart/parts?key&uploadId — the parts the server already
+   holds; a resumed upload reconciles against this, never against hope. */
+router.get("/r2/multipart/parts", requireAuth, async (req, res) => {
+  try {
+    if (!r2Ready(res)) return;
+    const key = String(req.query.key ?? "");
+    const uploadId = String(req.query.uploadId ?? "");
+    if (!key || !uploadId) {
+      res.status(400).json({ error: "key and uploadId are required." });
+      return;
+    }
+    if (!isKeyAllowed(key, req.userId)) {
+      res.status(403).json({ error: "Key prefix not allowed." });
+      return;
+    }
+    const parts = await r2ListParts(key, uploadId);
+    res.json({ parts });
+  } catch (err) {
+    logger.error("r2 multipart list-parts failed");
+    res.status(500).json({ error: "Could not list uploaded parts." });
+  }
+});
+
+router.post("/r2/multipart/complete", requireAuth, async (req, res) => {
+  try {
+    if (!r2Ready(res)) return;
+    const parsed = multipartCompleteSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "key, uploadId and a non-empty parts list are required." });
+      return;
+    }
+    const { key, uploadId, parts } = parsed.data;
+    if (!isKeyAllowed(key, req.userId)) {
+      res.status(403).json({ error: "Key prefix not allowed." });
+      return;
+    }
+    const publicUrl = await r2CompleteMultipartUpload(key, uploadId, parts);
+    res.json({ publicUrl, key });
+  } catch (err) {
+    logger.error("r2 multipart complete failed");
+    res.status(500).json({ error: "Could not complete multipart upload." });
+  }
+});
+
+router.post("/r2/multipart/abort", requireAuth, async (req, res) => {
+  try {
+    if (!r2Ready(res)) return;
+    const parsed = multipartScopedSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: "key and uploadId are required." });
+      return;
+    }
+    const { key, uploadId } = parsed.data;
+    if (!isKeyAllowed(key, req.userId)) {
+      res.status(403).json({ error: "Key prefix not allowed." });
+      return;
+    }
+    await r2AbortMultipartUpload(key, uploadId);
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error("r2 multipart abort failed");
+    res.status(500).json({ error: "Could not abort multipart upload." });
   }
 });
 

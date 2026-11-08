@@ -1,4 +1,5 @@
 import { plainErrorText } from "../../../lib/api-error";
+import { mapWithConcurrency } from "../../../lib/async-pool";
 import { useEffect, useRef, useState } from "react";
 import {
   Upload, Loader2, Trash2, Volume2, VolumeX, Headphones, Lock, LockOpen, Music4, Repeat2,
@@ -61,12 +62,17 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
     }
     setUploading(true);
     try {
-      const added: AudioStem[] = [];
-      for (const file of Array.from(files)) {
-        const duration = await readAudioDuration(file);
-        const upload = await uploadStemFile(user.id, file);
-        added.push(makeStem(file, upload, "Other Stem", duration));
-      }
+      // Bounded-parallel uploads (stack300 #70): 3 at a time, results
+      // land back in file order so stem order matches the pick order.
+      const added: AudioStem[] = await mapWithConcurrency(
+        Array.from(files),
+        3,
+        async (file) => {
+          const duration = await readAudioDuration(file);
+          const upload = await uploadStemFile(user.id, file);
+          return makeStem(file, upload, "Other Stem", duration);
+        },
+      );
       setStems([...stems, ...added]);
       toast({ title: "Stems uploaded", description: `${added.length} stem${added.length > 1 ? "s" : ""} added.` });
     } catch (err) {

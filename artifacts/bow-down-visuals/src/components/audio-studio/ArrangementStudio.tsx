@@ -1,4 +1,5 @@
 import { plainErrorText } from "../../lib/api-error";
+import { mapWithConcurrency } from "../../lib/async-pool";
 /* ── Arrangement Studio (Stack 6) ────────────────────────────────────────
  * The Audio desk as an instrument: songs/stems live on a timeline as
  * tracks with clips you can move and trim, per-track parametric FX chains
@@ -689,16 +690,20 @@ export default function ArrangementStudio() {
     setUploading(true);
     try {
       const added: ArrangementTrack[] = [];
-      for (const file of Array.from(files)) {
-        const up = await uploadAudioFile(file);
-        if (!up) continue;
+      // Bounded-parallel uploads (stack300 #70): 3 at a time, results
+      // land back in file order so track order matches the pick order.
+      const fileList = Array.from(files);
+      const uploads = await mapWithConcurrency(fileList, 3, (file) => uploadAudioFile(file));
+      uploads.forEach((up, i) => {
+        if (!up) return;
+        const file = fileList[i] as File;
         const track = makeAudioTrack(file.name.replace(/\.[^.]+$/, "") || "Track");
         track.clips = [{
           id: arrangementUid("clip"), url: up.url, name: file.name,
           startTime: 0, trimStart: 0, trimEnd: 0, durationSec: up.durationSec,
         }];
         added.push(track);
-      }
+      });
       if (added.length > 0) {
         setArrangement((a) => ({ ...a, tracks: [...a.tracks, ...added] }));
         setSelectedTrackId(added[0]!.id);
