@@ -609,4 +609,65 @@ describe("membership fee — net of the 10% platform fee (Nov 5, 2026 defect)", 
     expect(rows.map((r) => r.entry_type).sort()).toEqual(["accrual", "reversal"]);
     expect(rows.every((r) => r.net_cents === 450 && r.platform_fee_cents === 50)).toBe(true);
   });
+
+  /* C-12 (stack400): the reversal must copy the ACCRUAL's amounts, not
+     re-derive them from the row's CURRENT price. If price_cents is
+     edited after accrual (tier price change applied to the row, admin
+     correction), a re-derived reversal no longer cancels the accrual
+     and pending payout is silently wrong by the difference, forever. */
+  it("C-12: a price change between accrual and refund still nets the pair to EXACTLY zero", async () => {
+    await seedSeller();
+    /* Accrue at price X = $12.00 (net $10.80 at the rail's 10%). */
+    await h.db.execute(sql`
+      INSERT INTO fan_members (user_id, price_cents, stripe_session_id, status)
+      VALUES (${SELLER}, 1200, 'cs_memb_drift', 'active')`);
+    let read = await readPendingPayoutForSeller(SELLER);
+    expect(read.pendingCents).toBe(1080);
+
+    /* The tier's price changes and the edit lands on the row: Y = $15.00.
+       Then the membership is refunded. */
+    await h.db.execute(sql`UPDATE fan_members SET price_cents = 1500 WHERE stripe_session_id = 'cs_memb_drift'`);
+    await h.db.execute(sql`UPDATE fan_members SET status = 'refunded' WHERE stripe_session_id = 'cs_memb_drift'`);
+    read = await readPendingPayoutForSeller(SELLER);
+
+    /* The reversal copies the accrual (gross 1200 / fee 120 / net 1080) —
+       NOT the split of the new $15.00 price (which would be net 1350 and
+       leave pending at −270, floored to a silent lie). */
+    const rows = await ledgerRows("membership");
+    expect(rows.map((r) => r.entry_type).sort()).toEqual(["accrual", "reversal"]);
+    const accrual = rows.find((r) => r.entry_type === "accrual");
+    const reversal = rows.find((r) => r.entry_type === "reversal");
+    expect(reversal.gross_cents).toBe(accrual.gross_cents);
+    expect(reversal.platform_fee_cents).toBe(accrual.platform_fee_cents);
+    expect(reversal.net_cents).toBe(accrual.net_cents);
+    expect(read.accruedCents).toBe(1080);
+    expect(read.reversedCents).toBe(1080);
+    expect(read.accruedCents - read.reversedCents).toBe(0);
+    expect(read.pendingCents).toBe(0);
+
+    /* Replay: still exactly one pair, still zero. */
+    const reread = await readPendingPayoutForSeller(SELLER);
+    expect(reread.reversalCount).toBe(1);
+    expect(reread.pendingCents).toBe(0);
+  });
+
+  it("C-12: refund + price change BEFORE the first sync also nets to zero in one pass", async () => {
+    await seedSeller();
+    /* The row is created already-refunded at $12.00, then its price is
+       edited to $15.00 before any sync ever ran — the accrual and the
+       reversal land in the SAME sync and must still cancel exactly. */
+    await h.db.execute(sql`
+      INSERT INTO fan_members (user_id, price_cents, stripe_session_id, status)
+      VALUES (${SELLER}, 1200, 'cs_memb_drift_early', 'refunded')`);
+    await h.db.execute(sql`UPDATE fan_members SET price_cents = 1500 WHERE stripe_session_id = 'cs_memb_drift_early'`);
+    const read = await readPendingPayoutForSeller(SELLER);
+    expect(read.accrualCount).toBe(1);
+    expect(read.reversalCount).toBe(1);
+    expect(read.accruedCents).toBe(read.reversedCents);
+    expect(read.pendingCents).toBe(0);
+    const rows = await ledgerRows("membership");
+    const accrual = rows.find((r) => r.entry_type === "accrual");
+    const reversal = rows.find((r) => r.entry_type === "reversal");
+    expect(reversal.net_cents).toBe(accrual.net_cents);
+  });
 });
