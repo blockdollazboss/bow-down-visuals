@@ -17,13 +17,14 @@
  * callDeverbProvider() below.
  * ─────────────────────────────────────────────────────────────────────
  *
- * ── PRICING: PLACEHOLDER — NOT APPROVED ──────────────────────────────
- * DEVERB_CREDIT_COST (default 1000 Visual Bucs) is a
- * PROPOSAL. DEVERB_PRICING_APPROVED is false until the user explicitly
- * approves the price in a reviewed commit — never flip as a drive-by.
- * While false, the server refuses every deverb request BEFORE any
- * provider call, any credit check, or any charge: nothing generates and
- * nothing moves.
+ * ── PRICING: RATIFIED — owner ruling 2026-11-07 ─────────────────────
+ * DEVERB_CREDIT_COST (default 1000 Visual Bucs) was a proposal until
+ * the owner ratified the price as-is on 2026-11-07 (tapped in chat:
+ * "Ratify them — keep these nine prices"). DEVERB_PRICING_APPROVED is
+ * true from that ruling. The remaining gate is the provider key: while
+ * DEVERB_API_KEY is unset, the server refuses every deverb request
+ * BEFORE any provider call, any credit check, or any charge: nothing
+ * generates and nothing moves.
  * ─────────────────────────────────────────────────────────────────────
  */
 import { randomUUID } from "crypto";
@@ -47,22 +48,21 @@ import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-stora
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-/* ── Pricing (PLACEHOLDER — NOT USER-APPROVED) ───────────────────────── */
+/* ── Pricing (RATIFIED — owner ruling 2026-11-07) ────────────────────── */
 
 /**
- * PLACEHOLDER — NOT USER-APPROVED. Proposed: 10 Visual Bucs per deverb
- * job (1000 credits). True de-reverb is an AI-provider call, priced on
- * the same order as other AI audio tools. Env override exists so ops can
- * tune without a code change, but the FINAL price needs the user's
- * explicit approval — see DEVERB_PRICING_APPROVED.
+ * RATIFIED — owner ruling 2026-11-07: 1000 Visual Bucs per deverb job,
+ * approved as-is. True de-reverb is an AI-provider call, priced on the
+ * same order as other AI audio tools. Env override exists so ops can
+ * tune without a code change — see DEVERB_PRICING_APPROVED.
  */
 export const DEVERB_CREDIT_COST =
   Number(process.env["DEVERB_CREDIT_COST"]) || 1000;
 
 /** Explicit approval gate (same pattern as VEO_PRICING_APPROVED). */
-const DEVERB_PRICING_APPROVED = false;
+const DEVERB_PRICING_APPROVED = true; // flipped 2026-11-07 after the owner ratified the 1,000 VB price as-is
 /** Bump when the proposed rate changes, so an approval is tied to a version. */
-const DEVERB_PRICING_VERSION = "2026-10-11-placeholder";
+const DEVERB_PRICING_VERSION = "2026-11-07-approved";
 
 /** Provider gate: which env var must hold a live key before jobs can run. */
 const DEVERB_PROVIDER_KEY_ENV = "DEVERB_API_KEY";

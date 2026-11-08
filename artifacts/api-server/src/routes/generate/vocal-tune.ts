@@ -30,7 +30,7 @@ import {
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-/** PLACEHOLDER — NOT USER-APPROVED. Matches vocal-polish's 200 VB. */
+/** RATIFIED — owner ruling 2026-11-07. Matches vocal-polish's 200 VB. */
 export const VOCAL_TUNE_CREDIT_COST = 200;
 const VOCAL_TUNE_MAX_BYTES = 50 * 1024 * 1024; // 50 MB upload/download cap
 const MAX_SEGMENTS = 700; // filtergraph sanity cap for the hard-tune path

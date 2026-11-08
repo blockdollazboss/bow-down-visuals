@@ -21,7 +21,8 @@ import { r2Upload } from "../../lib/r2-client";
 const router = Router();
 
 /* Site credits per generated product photo. Env-overridable without a deploy.
-   PLACEHOLDER prices — the user has NOT approved real prices yet. */
+   PACKSHOT_CREDITS (100) RATIFIED as-is by owner ruling 2026-11-07;
+   LIFESTYLE_CREDITS remains a PLACEHOLDER — not user-approved. */
 const PACKSHOT_CREDITS = Number(process.env["PRODUCT_PHOTO_PACKSHOT_CREDITS"]) || 100;
 const LIFESTYLE_CREDITS = Number(process.env["PRODUCT_PHOTO_LIFESTYLE_CREDITS"]) || 150;
 

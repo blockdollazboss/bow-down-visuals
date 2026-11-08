@@ -22,10 +22,10 @@ const router = Router();
    disables the option. No job is created and no credits are charged when
    unconfigured.
 
-   *** PRICE PLACEHOLDER — NOT USER-APPROVED ***
-   Draft price 100 VB (~$0.50). Real provider cost is ~$0.03–$0.05 per image
-   so this holds a healthy margin, but the user must approve the real price
-   before this goes live. Env-overridable via PHOTO_BACKDROP_CREDITS. */
+   *** PRICE RATIFIED — owner ruling 2026-11-07 ***
+   Price 100 VB (~$0.50), approved as-is. Real provider cost is
+   ~$0.03–$0.05 per image so this holds a healthy margin.
+   Env-overridable via PHOTO_BACKDROP_CREDITS. */
 
 const BACKDROP_COST = Number(process.env["PHOTO_BACKDROP_CREDITS"]) || 100;
 

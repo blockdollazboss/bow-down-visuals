@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "fe425427b9d9d4f820c5e4ab39514a5ac90789ff",
+  "baseCommit": "f50046150c07b944e39065946a08c204bb54487d",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -4908,7 +4908,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Headshot (price TBD)",
+          "feature": "Headshot",
           "vb": 100,
           "endpoint": "/api/generate-headshot",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -5046,7 +5046,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Headshot (price TBD)",
+          "feature": "Headshot",
           "vb": 100,
           "endpoint": "/api/generate-headshot",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -5184,7 +5184,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Headshot (price TBD)",
+          "feature": "Headshot",
           "vb": 100,
           "endpoint": "/api/generate-headshot",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -5322,7 +5322,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Headshot (price TBD)",
+          "feature": "Headshot",
           "vb": 100,
           "endpoint": "/api/generate-headshot",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -5462,7 +5462,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Headshot (price TBD)",
+          "feature": "Headshot",
           "vb": 100,
           "endpoint": "/api/generate-headshot",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -5480,7 +5480,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Product Photo (Packshot) (price TBD)",
+          "feature": "Product Photo (Packshot)",
           "vb": 100,
           "endpoint": "/api/generate-product-photo",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -5612,7 +5612,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Headshot (price TBD)",
+          "feature": "Headshot",
           "vb": 100,
           "endpoint": "/api/generate-headshot",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -5750,7 +5750,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Headshot (price TBD)",
+          "feature": "Headshot",
           "vb": 100,
           "endpoint": "/api/generate-headshot",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -7394,7 +7394,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Singing-Voice Conversion (price TBD)",
+          "feature": "Singing-Voice Conversion",
           "vb": 800,
           "endpoint": "/api/singing-voice",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13311,13 +13311,13 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Photo Backdrop (price TBD)",
+          "feature": "Photo Backdrop",
           "vb": 100,
           "endpoint": "/api/photo-backdrop",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Photo Enhance (price TBD)",
+          "feature": "Photo Enhance",
           "vb": 100,
           "endpoint": "/api/photo-enhance",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13475,13 +13475,13 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Photo Backdrop (price TBD)",
+          "feature": "Photo Backdrop",
           "vb": 100,
           "endpoint": "/api/photo-backdrop",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Photo Enhance (price TBD)",
+          "feature": "Photo Enhance",
           "vb": 100,
           "endpoint": "/api/photo-enhance",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13658,13 +13658,13 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Photo Backdrop (price TBD)",
+          "feature": "Photo Backdrop",
           "vb": 100,
           "endpoint": "/api/photo-backdrop",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Photo Enhance (price TBD)",
+          "feature": "Photo Enhance",
           "vb": 100,
           "endpoint": "/api/photo-enhance",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -13847,13 +13847,13 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Photo Backdrop (price TBD)",
+          "feature": "Photo Backdrop",
           "vb": 100,
           "endpoint": "/api/photo-backdrop",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Photo Enhance (price TBD)",
+          "feature": "Photo Enhance",
           "vb": 100,
           "endpoint": "/api/photo-enhance",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -14405,7 +14405,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Background Plate (price TBD)",
+          "feature": "Background Plate",
           "vb": 200,
           "endpoint": "/api/bg-generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -15013,7 +15013,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Background Plate (price TBD)",
+          "feature": "Background Plate",
           "vb": 200,
           "endpoint": "/api/bg-generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -15419,7 +15419,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Background Plate (price TBD)",
+          "feature": "Background Plate",
           "vb": 200,
           "endpoint": "/api/bg-generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -15847,7 +15847,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Background Plate (price TBD)",
+          "feature": "Background Plate",
           "vb": 200,
           "endpoint": "/api/bg-generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -16281,7 +16281,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Background Plate (price TBD)",
+          "feature": "Background Plate",
           "vb": 200,
           "endpoint": "/api/bg-generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -16714,7 +16714,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Background Plate (price TBD)",
+          "feature": "Background Plate",
           "vb": 200,
           "endpoint": "/api/bg-generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
@@ -17142,7 +17142,7 @@
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
-          "feature": "Background Plate (price TBD)",
+          "feature": "Background Plate",
           "vb": 200,
           "endpoint": "/api/bg-generate",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"

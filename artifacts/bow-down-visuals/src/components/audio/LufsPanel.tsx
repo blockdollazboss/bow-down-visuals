@@ -21,7 +21,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
 
-export const LUFS_NORMALIZE_CREDIT_COST = 100; // PLACEHOLDER — not user-approved
+export const LUFS_NORMALIZE_CREDIT_COST = 100; // RATIFIED — owner ruling 2026-11-07
 const LUFS_MAX_BYTES = 50 * 1024 * 1024;
 const TARGET_OPTIONS = [-16, -14, -11, -8] as const;
 type TargetLufs = (typeof TARGET_OPTIONS)[number];

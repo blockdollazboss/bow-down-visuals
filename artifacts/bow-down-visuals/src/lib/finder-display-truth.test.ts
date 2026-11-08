@@ -17,10 +17,13 @@
  * The sweep that followed the named cases covered every *_COST-style
  * display constant in the client. Cases proven display==rail are not
  * pinned here; cases where the price itself is an unapproved
- * placeholder on BOTH sides (LUFS, vocal tune, …) are owner price
- * questions, not display lies, and stay unpinned. Podcast dialogue
- * left that list on 2026-11-02: ruling #32 approved 300 VB per
- * 10 minutes, so it is pinned below like every other ruled price.
+ * placeholder on BOTH sides are owner price questions, not display
+ * lies, and stay unpinned. Podcast dialogue left that list on
+ * 2026-11-02: ruling #32 approved 300 VB per 10 minutes, so it is
+ * pinned below like every other ruled price. LUFS normalize and
+ * vocal tune left that list on 2026-11-07: the owner ratified their
+ * placeholder prices as-is (100 / 200 VB), so they are pinned below
+ * the same way.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -77,6 +80,8 @@ const CASES: Case[] = [
   // ── The sweep ────────────────────────────────────────────────────
   { label: "fan decoder", feFile: "components/analytics-hub/FanDecoderSection.tsx", feConstant: "COST", apiFile: "routes/generate/fan-decoder.ts", apiConstant: "DECODE_CREDITS", expected: 100 },
   { label: "deverb", feFile: "components/audio/DeverbPanel.tsx", feConstant: "DEVERB_CREDIT_COST_VB", apiFile: "routes/generate/deverb.ts", apiConstant: "DEVERB_CREDIT_COST", endpoint: "/api/deverb", expected: 1000 },
+  { label: "lufs normalize", feFile: "components/audio/LufsPanel.tsx", feConstant: "LUFS_NORMALIZE_CREDIT_COST", apiFile: "routes/generate/lufs-meter.ts", apiConstant: "LUFS_NORMALIZE_CREDIT_COST", endpoint: "/api/lufs/normalize", expected: 100 },
+  { label: "vocal tune", feFile: "components/audio/VocalTunePanel.tsx", feConstant: "VOCAL_TUNE_CREDIT_COST", apiFile: "routes/generate/vocal-tune.ts", apiConstant: "VOCAL_TUNE_CREDIT_COST", endpoint: "/api/vocal-tune", expected: 200 },
   { label: "finish my song (audio studio tab)", feFile: "components/audio-studio/FinishMySong.tsx", feConstant: "COST", apiFile: "routes/generate/finish-my-song.ts", apiConstant: "FINISH_CREDIT_COST", expected: 400 },
   { label: "rate my mix", feFile: "components/audio-studio/RateMyMix.tsx", feConstant: "COST", apiFile: "routes/generate/rate-my-mix.ts", apiConstant: "MIX_CREDIT_COST", expected: 100 },
   { label: "cover in motion", feFile: "components/create/CoverInMotionPanel.tsx", feConstant: "COST", apiFile: "routes/generate/cover-in-motion.ts", apiConstant: "MOTION_CREDIT_COST", expected: 400 },

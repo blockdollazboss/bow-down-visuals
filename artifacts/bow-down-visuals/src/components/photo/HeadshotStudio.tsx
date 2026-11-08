@@ -30,7 +30,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 type FlowMode = "autopilot" | "preset" | "manual";
 type PresetId = "studio" | "stage" | "street" | "luxury";
 
-/* PLACEHOLDER price — user must approve the real price (see credit-costs.ts report). */
+/* Price RATIFIED as-is — owner ruling 2026-11-07. */
 const HEADSHOT_COST = 100;
 
 const PRESETS: { id: PresetId; icon: typeof Building2; blurbKey: string; defaultBlurb: string }[] = [

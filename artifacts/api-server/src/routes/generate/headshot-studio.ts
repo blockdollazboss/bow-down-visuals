@@ -10,8 +10,8 @@ import { r2Upload } from "../../lib/r2-client";
 const router = Router();
 
 /**
- * PLACEHOLDER credit price for AI Headshots — the user must approve the real
- * price before this goes live. 100 credits (~$0.50) matches the Nano Banana
+ * Credit price for AI Headshots — RATIFIED as-is by owner ruling
+ * 2026-11-07. 100 credits (~$0.50) matches the Nano Banana
  * 2.1 artist-image tier and holds a healthy margin on ~$0.05 real cost.
  * Env-overridable without a deploy.
  */
