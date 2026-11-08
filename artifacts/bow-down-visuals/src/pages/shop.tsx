@@ -93,14 +93,17 @@ interface PublicProduct {
   splits?: { userId: string; sharePct: number }[] | null;
 }
 
-/** $0 shop products are FREE goods — label them, never "$0.00". */
-function priceLabel(cents: number): string {
-  return cents === 0 ? "FREE" : centsToDisplay(cents);
+/** $0 shop products are FREE goods — label them, never "$0.00".
+ *  The caller threads its active locale (Stack 300 item 98) so the
+ *  amount formats for the reader's language like every other price
+ *  on the page. */
+function priceLabel(cents: number, locale?: string): string {
+  return cents === 0 ? "FREE" : centsToDisplay(cents, locale);
 }
 
 export default function ShopStorefront() {
   const isLight = useIsLightTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const params = useParams<{ slug?: string }>();
   const handle = (params.slug ?? "").toLowerCase();
   const [shop, setShop] = useState<PublicShop | null>(null);
@@ -489,7 +492,7 @@ export default function ShopStorefront() {
         {layoutSpec.id === "list" && p.description && (
           <p className="mt-1 text-sm text-white/55 whitespace-pre-line">{p.description}</p>
         )}
-        <div className="mt-auto pt-1 font-black" style={{ color: accent }}>{priceLabel(p.price_cents)}</div>
+        <div className="mt-auto pt-1 font-black" style={{ color: accent }}>{priceLabel(p.price_cents, i18n.language)}</div>
       </div>
     </button>
   );
@@ -521,7 +524,7 @@ export default function ShopStorefront() {
         {p.description && (
           <p className="mt-2 text-sm md:text-base text-white/55 whitespace-pre-line">{p.description}</p>
         )}
-        <div className="mt-3 font-black text-lg" style={{ color: accent }}>{priceLabel(p.price_cents)}</div>
+        <div className="mt-3 font-black text-lg" style={{ color: accent }}>{priceLabel(p.price_cents, i18n.language)}</div>
       </div>
     </button>
   );
@@ -678,7 +681,7 @@ export default function ShopStorefront() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="mt-1 text-2xl font-black" style={{ color: accent }}>{priceLabel(selected.price_cents)}</div>
+              <div className="mt-1 text-2xl font-black" style={{ color: accent }}>{priceLabel(selected.price_cents, i18n.language)}</div>
               {/* Wave-4 #46: display-only local-currency rendering —
                   checkout still charges the USD price above. */}
               <LocalCurrencyPrice cents={selected.price_cents} className="text-xs mt-1" />
@@ -769,7 +772,7 @@ export default function ShopStorefront() {
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold truncate">{l.product!.name}</div>
-                      <div className="text-sm font-bold" style={{ color: accent }}>{priceLabel(l.product!.price_cents)}</div>
+                      <div className="text-sm font-bold" style={{ color: accent }}>{priceLabel(l.product!.price_cents, i18n.language)}</div>
                       <div className="mt-1.5 flex items-center gap-2">
                         <button className="rounded-lg border border-white/15 p-1 hover:bg-white/10" onClick={() => setQty(l.productId, l.qty - 1)} aria-label={t("shop.decreaseLabel")}>
                           <Minus className="w-3.5 h-3.5" />
@@ -819,7 +822,7 @@ export default function ShopStorefront() {
                 {bumpTotalCents > 0 && (
                   <div className="mb-1.5 flex justify-between text-sm">
                     <span className="text-amber-200/70">Add-ons</span>
-                    <span className="font-bold text-amber-200">{centsToDisplay(bumpTotalCents)}</span>
+                    <span className="font-bold text-amber-200">{centsToDisplay(bumpTotalCents, i18n.language)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
@@ -827,12 +830,12 @@ export default function ShopStorefront() {
                   {appliedCode || bumpTotalCents > 0 ? (
                     <span className="text-lg font-black">
                       {appliedCode && (
-                        <span className="mr-2 text-sm font-normal text-white/35 line-through">{centsToDisplay(cartTotal)}</span>
+                        <span className="mr-2 text-sm font-normal text-white/35 line-through">{centsToDisplay(cartTotal, i18n.language)}</span>
                       )}
-                      {centsToDisplay(displayTotalCents)}
+                      {centsToDisplay(displayTotalCents, i18n.language)}
                     </span>
                   ) : (
-                    <span className="text-lg font-black">{centsToDisplay(cartTotal)}</span>
+                    <span className="text-lg font-black">{centsToDisplay(cartTotal, i18n.language)}</span>
                   )}
                 </div>
                 {bumpTotalCents > 0 && appliedCode && (
@@ -882,7 +885,7 @@ export default function ShopStorefront() {
                   className="mt-3 w-full rounded-xl px-5 py-3.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
                   style={{ background: `linear-gradient(to bottom, ${accent}, ${accent}cc)` }}
                 >
-                  {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : t("shop.placeOrder", { total: centsToDisplay(displayTotalCents) })}
+                  {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : t("shop.placeOrder", { total: centsToDisplay(displayTotalCents, i18n.language) })}
                 </button>
                 <p className="mt-2 text-[11px] leading-relaxed text-white/50">
                   {/* Mode-aware note: when this build can mount the
@@ -917,9 +920,9 @@ export default function ShopStorefront() {
                 <h3 className="mt-3 font-black">{t("shop.orderRecorded")}</h3>
                 <p className="mt-1 text-xs text-white/50">{t("shop.orderRecordedDesc", { count: orderDone.lines })}</p>
                 <div className="mt-3 rounded-xl border border-white/10 bg-black/40 p-3 text-left text-xs">
-                  <div className="flex justify-between py-0.5"><span className="text-white/50">{t("shop.orderTotalLabel")}</span><span className="font-bold">{centsToDisplay(orderDone.gross)}</span></div>
-                  <div className="flex justify-between py-0.5"><span className="text-white/50">{t("shop.platformFeeLabel", { feePct })}</span><span>{centsToDisplay(orderDone.fee)}</span></div>
-                  <div className="flex justify-between border-t border-white/10 py-0.5 pt-1.5"><span className="font-bold">{t("shop.sellerReceivesLabel")}</span><span className="font-bold text-emerald-300">{centsToDisplay(orderDone.net)}</span></div>
+                  <div className="flex justify-between py-0.5"><span className="text-white/50">{t("shop.orderTotalLabel")}</span><span className="font-bold">{centsToDisplay(orderDone.gross, i18n.language)}</span></div>
+                  <div className="flex justify-between py-0.5"><span className="text-white/50">{t("shop.platformFeeLabel", { feePct })}</span><span>{centsToDisplay(orderDone.fee, i18n.language)}</span></div>
+                  <div className="flex justify-between border-t border-white/10 py-0.5 pt-1.5"><span className="font-bold">{t("shop.sellerReceivesLabel")}</span><span className="font-bold text-emerald-300">{centsToDisplay(orderDone.net, i18n.language)}</span></div>
                   {orderDone.orderId && (
                     <div className="flex justify-between border-t border-white/10 py-0.5 pt-1.5"><span className="text-white/50">{t("shop.orderIdLabel", { defaultValue: "Order ID" })}</span><span className="font-mono text-[11px] text-amber-200">{orderDone.orderId}</span></div>
                   )}

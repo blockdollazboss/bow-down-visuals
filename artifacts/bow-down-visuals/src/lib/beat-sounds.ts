@@ -262,6 +262,71 @@ export function listBeatSoundsBySource(source: BeatSoundSource): BeatSoundEntry[
   return listBeatSounds().filter((s) => s.source === source);
 }
 
+/* ─── Sound Bank picker grouping (Stack 300 item 99) ──────────────────
+ * The bank keeps its shape (beat-sounds header law): the picker's bank
+ * section groups by the bank's own category — drums, 808s, bass,
+ * melodic, FX, in that order — and within drums by the six kits
+ * (afrobeats, boombap, core, drill, house, trap). Input order is
+ * preserved inside every group, so the manifest's own ordering still
+ * reads top to bottom. Bank entries without a category (the seam
+ * tolerates foreign manifests) land in one trailing "other" bucket
+ * rather than vanishing from the picker. */
+
+export type BankSoundCategory = NonNullable<BeatSoundEntry["bankCategory"]>;
+
+export interface BankSoundGroup {
+  category: BankSoundCategory | "other";
+  /** Drum-kit sub-groups — non-empty only inside the drums group. */
+  kits: Array<{ kit: string; sounds: BeatSoundEntry[] }>;
+  /** The group's sounds when kits don't apply (every non-drums group,
+   *  plus drums entries that carry no kit). */
+  sounds: BeatSoundEntry[];
+}
+
+const BANK_CATEGORY_ORDER: BankSoundCategory[] = ["drums", "808", "bass", "melodic", "fx"];
+const BANK_KIT_ORDER = ["afrobeats", "boombap", "core", "drill", "house", "trap"];
+
+export function groupBankSounds(sounds: BeatSoundEntry[]): BankSoundGroup[] {
+  const byCategory = new Map<string, BeatSoundEntry[]>();
+  for (const s of sounds) {
+    const key = s.bankCategory ?? "other";
+    const bucket = byCategory.get(key);
+    if (bucket) bucket.push(s);
+    else byCategory.set(key, [s]);
+  }
+  const groups: BankSoundGroup[] = [];
+  for (const category of [...BANK_CATEGORY_ORDER, "other"] as const) {
+    const entries = byCategory.get(category);
+    if (!entries || entries.length === 0) continue;
+    if (category !== "drums") {
+      groups.push({ category, kits: [], sounds: entries });
+      continue;
+    }
+    const byKit = new Map<string, BeatSoundEntry[]>();
+    const kitless: BeatSoundEntry[] = [];
+    for (const s of entries) {
+      if (!s.kit) {
+        kitless.push(s);
+        continue;
+      }
+      const bucket = byKit.get(s.kit);
+      if (bucket) bucket.push(s);
+      else byKit.set(s.kit, [s]);
+    }
+    const kitNames = [...byKit.keys()].sort((a, b) => {
+      const ia = BANK_KIT_ORDER.indexOf(a);
+      const ib = BANK_KIT_ORDER.indexOf(b);
+      return (ia === -1 ? BANK_KIT_ORDER.length : ia) - (ib === -1 ? BANK_KIT_ORDER.length : ib) || a.localeCompare(b);
+    });
+    groups.push({
+      category,
+      kits: kitNames.map((kit) => ({ kit, sounds: byKit.get(kit)! })),
+      sounds: kitless,
+    });
+  }
+  return groups;
+}
+
 /** True once a bank manifest has been registered — AiAudio registers
  *  the rendered bank at module load, so the picker's bank section is
  *  populated wherever the sequencer is; before registration it renders

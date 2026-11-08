@@ -91,7 +91,7 @@ export function PaidSeriesDropsDesk({ isLight, isGuest }: { isLight: boolean; is
 /* ═══ Paid Series ═══════════════════════════════════════════════ */
 
 function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const problemStrings = {
     priceCeiling: t("worldCommerceStands.seriesProbCeiling"),
     priceValid: t("worldCommerceStands.seriesProbValid"),
@@ -203,7 +203,7 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
       const saved = parseSavedSeries(data);
       if (!saved) throw new Error(t("worldCommerceStands.seriesPriceEmpty"));
       setMine((m) => (m ? m.map((x) => (x.id === saved.id ? saved : x)) : m));
-      setSeriesNote(saved.priceCents ? t("worldCommerceStands.seriesPriceSetNote", { title: saved.title, price: centsToDisplay(saved.priceCents) }) : t("worldCommerceStands.seriesPriceFreeNote", { title: saved.title }));
+      setSeriesNote(saved.priceCents ? t("worldCommerceStands.seriesPriceSetNote", { title: saved.title, price: centsToDisplay(saved.priceCents, i18n.language) }) : t("worldCommerceStands.seriesPriceFreeNote", { title: saved.title }));
     } catch (e) {
       setSeriesError(plainErrorText(e, t("worldCommerceStands.seriesPriceFailed")));
     } finally {
@@ -401,12 +401,12 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
                   {unlockItem.artistName && <span className={`ml-2 text-xs font-semibold ${muted(isLight)}`}>{t("worldCommerceStands.seriesBy", { name: unlockItem.artistName })}</span>}
                 </p>
                 <p className={`text-xs ${muted(isLight)}`}>
-                  {t("worldCommerceStands.seriesUnlockSplit", { price: centsToDisplay(unlockItem.priceCents), creator: centsToDisplay(unlockItem.creatorCents), pct: unlockItem.platformFeePct })}
+                  {t("worldCommerceStands.seriesUnlockSplit", { price: centsToDisplay(unlockItem.priceCents, i18n.language), creator: centsToDisplay(unlockItem.creatorCents, i18n.language), pct: unlockItem.platformFeePct })}
                 </p>
                 {!embedded && (
                   <button type="button" data-testid="world-series-unlock-start" onClick={() => void startUnlock()} disabled={unlockBusy} className={goldBtn(unlockBusy)}>
                     {unlockBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    {checkoutTransferLabel(t)} · {centsToDisplay(unlockItem.priceCents)}
+                    {checkoutTransferLabel(t)} · {centsToDisplay(unlockItem.priceCents, i18n.language)}
                   </button>
                 )}
               </div>
@@ -471,7 +471,7 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
                   <div key={s.id} className="space-y-2 rounded-xl border border-[#d4af37]/25 px-3 py-2" data-testid="world-series-row">
                     <p className={`flex flex-wrap items-center gap-2 text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
                       <span className="min-w-0 flex-1 truncate">{s.title}</span>
-                      <span className="text-sm font-black text-[#d4af37]">{s.priceCents ? centsToDisplay(s.priceCents) : t("worldCommerceStands.seriesFree")}</span>
+                      <span className="text-sm font-black text-[#d4af37]">{s.priceCents ? centsToDisplay(s.priceCents, i18n.language) : t("worldCommerceStands.seriesFree")}</span>
                       <span className={`text-[11px] ${muted(isLight)}`}>{t(s.items.length === 1 ? "worldCommerceStands.seriesEpisodeOne" : "worldCommerceStands.seriesEpisodeMany", { count: s.items.length })}{s.isPublic ? "" : t("worldCommerceStands.seriesPrivateSuffix")}</span>
                     </p>
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -506,8 +506,8 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
                     </div>
                     {buyersById[s.id] && (
                       <p className={`text-xs ${muted(isLight)}`} data-testid="world-series-buyers-list">
-                        {t(buyersById[s.id]!.buyerCount === 1 ? "worldCommerceStands.seriesBuyersLineOne" : "worldCommerceStands.seriesBuyersLineMany", { count: buyersById[s.id]!.buyerCount, gross: centsToDisplay(buyersById[s.id]!.grossCents) })}
-                        {buyersById[s.id]!.buyers.slice(0, 5).map((b) => ` · ${b.displayName} (${centsToDisplay(b.amountCents)}${b.status !== "completed" ? `, ${b.status}` : ""})`).join("")}
+                        {t(buyersById[s.id]!.buyerCount === 1 ? "worldCommerceStands.seriesBuyersLineOne" : "worldCommerceStands.seriesBuyersLineMany", { count: buyersById[s.id]!.buyerCount, gross: centsToDisplay(buyersById[s.id]!.grossCents, i18n.language) })}
+                        {buyersById[s.id]!.buyers.slice(0, 5).map((b) => ` · ${b.displayName} (${centsToDisplay(b.amountCents, i18n.language)}${b.status !== "completed" ? `, ${b.status}` : ""})`).join("")}
                       </p>
                     )}
                     {buyersById[s.id] === null && <p className={`text-xs ${muted(isLight)}`}>{t("worldCommerceStands.seriesBuyersNoAnswer")}</p>}
@@ -543,7 +543,7 @@ function SeriesDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }
 /* ═══ Product Drops ═════════════════════════════════════════════ */
 
 function DropsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const problemStrings = {
     priceCeiling: t("worldCommerceStands.seriesProbCeiling"),
     priceValid: t("worldCommerceStands.seriesProbValid"),
@@ -686,7 +686,7 @@ function DropsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean })
             <div key={p.id} className="space-y-2 rounded-xl border border-[#d4af37]/25 px-3 py-2" data-testid="world-drop-product-row">
               <p className={`flex flex-wrap items-center gap-2 text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
                 <span className="min-w-0 flex-1 truncate">{p.title}</span>
-                <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(p.priceCents)}</span>
+                <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(p.priceCents, i18n.language)}</span>
                 {p.drop?.isUpcoming ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300"><CalendarClock className="h-3.5 w-3.5" /> {t("worldCommerceStands.dropsWhen", { when: formatDropLocal(p.drop.dropAt) ?? "" })}</span>
                 ) : p.drop ? (

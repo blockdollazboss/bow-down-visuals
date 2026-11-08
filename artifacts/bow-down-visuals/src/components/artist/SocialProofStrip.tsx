@@ -22,7 +22,7 @@ const PLATFORM_ICONS: Record<string, ComponentType<{ className?: string }>> = {
 };
 
 export default function SocialProofStrip({ figures }: { figures: SocialProofFigureDto[] | undefined }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const live = liveProofFigures(figures);
   if (live.length === 0) return null;
   return (
@@ -44,7 +44,7 @@ export default function SocialProofStrip({ figures }: { figures: SocialProofFigu
                 </div>
                 {updated && (
                   <div className="text-[10px] font-medium uppercase tracking-wider opacity-50">
-                    Updated {updated}
+                    {t("social-proof.updated", { date: updated })}
                   </div>
                 )}
               </div>

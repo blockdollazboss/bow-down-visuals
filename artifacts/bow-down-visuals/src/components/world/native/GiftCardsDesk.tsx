@@ -71,7 +71,7 @@ function CardRow({
   isLight: boolean;
   action?: ReactNode;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   return (
     <div
@@ -85,9 +85,9 @@ function CardRow({
         {card.storeName ?? t("worldRemainder.gcdCreatorStore")}
         {card.codeLast4 && <span className={`ml-2 text-xs font-semibold ${muted}`}>•••• {card.codeLast4}</span>}
       </span>
-      <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(card.availableCents)}</span>
+      <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(card.availableCents, i18n.language)}</span>
       <span className={`text-[11px] ${muted}`}>
-        {t("worldRemainder.gcdOfInitial", { amount: centsToDisplay(card.initialCents) })} · {card.status}
+        {t("worldRemainder.gcdOfInitial", { amount: centsToDisplay(card.initialCents, i18n.language) })} · {card.status}
       </span>
       {action}
     </div>
@@ -95,7 +95,7 @@ function CardRow({
 }
 
 function SoldCardRow({ card, isLight }: { card: GiftCardView; isLight: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
   return (
     <div
@@ -109,16 +109,16 @@ function SoldCardRow({ card, isLight }: { card: GiftCardView; isLight: boolean }
         {card.recipientEmail || card.storeName || t("worldRemainder.gcdAFan")}
         {card.codeLast4 && <span className={`ml-2 text-xs font-semibold ${muted}`}>•••• {card.codeLast4}</span>}
       </span>
-      <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(card.availableCents)}</span>
+      <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(card.availableCents, i18n.language)}</span>
       <span className={`text-[11px] ${muted}`}>
-        {t("worldRemainder.gcdOfInitial", { amount: centsToDisplay(card.initialCents) })} · {card.status}
+        {t("worldRemainder.gcdOfInitial", { amount: centsToDisplay(card.initialCents, i18n.language) })} · {card.status}
       </span>
     </div>
   );
 }
 
 export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const authHeaders = useAuthHeaders();
   const [code, setCode] = useState("");
   const [checking, setChecking] = useState(false);
@@ -243,7 +243,7 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
       setRefundNote(
         parsed.note ||
           t("worldGiftCardsDesk.refundDoneFallback", {
-            amount: parsed.refunded || centsToDisplay(parsed.refundedCents),
+            amount: parsed.refunded || centsToDisplay(parsed.refundedCents, i18n.language),
           }),
       );
       await Promise.all([loadMine(), loadSold()]);
@@ -277,7 +277,7 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             <Loader2 className="h-3 w-3 animate-spin" /> {t("worldGiftCardsDesk.refunding")}
           </>
         ) : armed ? (
-          t("worldGiftCardsDesk.refundArm", { amount: centsToDisplay(card.availableCents) })
+          t("worldGiftCardsDesk.refundArm", { amount: centsToDisplay(card.availableCents, i18n.language) })
         ) : (
           t("worldGiftCardsDesk.refundUnspent")
         )}
@@ -329,7 +329,7 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
             className={`rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
           >
             <p className={`flex flex-wrap items-baseline gap-x-2 text-sm ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-              <span className="text-lg font-black text-[#d4af37]">{balance.balance || centsToDisplay(balance.balanceCents)}</span>
+              <span className="text-lg font-black text-[#d4af37]">{balance.balance || centsToDisplay(balance.balanceCents, i18n.language)}</span>
               <span className="font-bold">
                 {t("worldRemainder.gcdOnTheCard")}{balance.codeLast4 ? ` •••• ${balance.codeLast4}` : ""}
               </span>
@@ -449,7 +449,7 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                       {t("worldGiftCardsDesk.soldAllTime")}
                     </span>
                     <span className="text-lg font-black text-[#d4af37]">
-                      {sold.liability.issued || centsToDisplay(sold.liability.issuedCents)}
+                      {sold.liability.issued || centsToDisplay(sold.liability.issuedCents, i18n.language)}
                     </span>
                     <span className={`text-xs ${muted}`}>
                       {t("worldGiftCardsDesk.soldCount", { count: sold.liability.cardCount })}
@@ -460,7 +460,7 @@ export function GiftCardsDesk({ isLight, isGuest }: { isLight: boolean; isGuest:
                       {t("worldGiftCardsDesk.stillOutThere")}
                     </span>
                     <span className="text-lg font-black text-[#d4af37]">
-                      {sold.liability.outstanding || centsToDisplay(sold.liability.outstandingCents)}
+                      {sold.liability.outstanding || centsToDisplay(sold.liability.outstandingCents, i18n.language)}
                     </span>
                   </p>
                   <p className={`text-xs ${muted}`}>{t("worldGiftCardsDesk.heldLine")}</p>

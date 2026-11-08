@@ -193,7 +193,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
           ...n,
           [req.id]: t("worldRemainder.shoDeclinedRefunded", {
             fan: req.fanName,
-            amount: centsToDisplay(req.priceCents),
+            amount: centsToDisplay(req.priceCents, i18n.language),
           }),
         }));
       }
@@ -315,8 +315,8 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
               {[
                 { label: t("shoutouts.statRequests"), value: String(revenue.total), icon: Inbox },
                 { label: t("shoutouts.statDelivered"), value: String(revenue.delivered), icon: CheckCircle2 },
-                { label: t("shoutouts.statGross"), value: centsToDisplay(revenue.grossCents), icon: BadgeDollarSign },
-                { label: t("shoutouts.statYouKeep"), value: centsToDisplay(revenue.netCents), icon: Sparkles },
+                { label: t("shoutouts.statGross"), value: centsToDisplay(revenue.grossCents, i18n.language), icon: BadgeDollarSign },
+                { label: t("shoutouts.statYouKeep"), value: centsToDisplay(revenue.netCents, i18n.language), icon: Sparkles },
               ].map((st) => (
                 <div
                   key={st.label}
@@ -392,7 +392,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
                         {"“"}{r.message}{"”"}
                       </p>
                       <p className={`mt-1 text-[11px] ${muted}`}>
-                        {centsToDisplay(r.priceCents)} ·{" "}
+                        {centsToDisplay(r.priceCents, i18n.language)} ·{" "}
                         {r.createdAt ? new Date(r.createdAt).toLocaleDateString(i18n.language) : ""}
                         {r.priceCents > 0
                           ? isPaidShoutout(r)
@@ -539,7 +539,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
                         {consequence.kind === "refund"
                           ? t("worldRemainder.shoDeclineRefund", {
                               fan: r.fanName,
-                              amount: centsToDisplay(consequence.amountCents),
+                              amount: centsToDisplay(consequence.amountCents, i18n.language),
                             })
                           : r.priceCents > 0
                             ? t("worldRemainder.shoDeclineUnpaid", { fan: r.fanName })
@@ -557,7 +557,7 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
                           ) : null}
                           {consequence.kind === "refund"
                             ? t("worldRemainder.shoDeclineRefundButton", {
-                                amount: centsToDisplay(consequence.amountCents),
+                                amount: centsToDisplay(consequence.amountCents, i18n.language),
                               })
                             : t("worldRemainder.shoDeclineButton")}
                         </button>

@@ -62,7 +62,7 @@ interface DraftProduct { name: string; price: string; description: string; }
 
 export default function StorefrontBuilder() {
   const isLight = useIsLightTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   usePageTitle(t("storefrontBuilder.pageTitle"), "Build your storefront: lay out your shop, arrange your products, and make your corner of Bow Down Visuals unmistakably yours.");
   const { user, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
@@ -367,7 +367,7 @@ export default function StorefrontBuilder() {
                       <input className={`${inputClass} mt-3`} aria-label={t("storefrontBuilder.productDescPlaceholder")} value={p.description} onChange={(e) => setProducts(products.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder={t("storefrontBuilder.productDescPlaceholder")} maxLength={500} />
                       {p.price && dollarsToCents(p.price) != null && (
                         <p className="mt-1.5 text-xs text-white/40">
-                          {t("storefrontBuilder.productFeeLine", { price: centsToDisplay(dollarsToCents(p.price)!), keep: centsToDisplay(Math.round(dollarsToCents(p.price)! * 0.95)) })}
+                          {t("storefrontBuilder.productFeeLine", { price: centsToDisplay(dollarsToCents(p.price)!, i18n.language), keep: centsToDisplay(Math.round(dollarsToCents(p.price)! * 0.95), i18n.language) })}
                         </p>
                       )}
                     </div>

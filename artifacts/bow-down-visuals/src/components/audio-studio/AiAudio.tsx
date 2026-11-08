@@ -1,5 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
-import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
+import { Fragment, useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -110,6 +110,7 @@ import {
   getSampleBuffer,
   hasSampleBuffer,
   isUnavailableSampleAssignment,
+  groupBankSounds,
   listBeatSoundsBySource,
   playSampleBuffer,
   registerUploadSound,
@@ -2930,17 +2931,50 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
                     </optgroup>
-                    <optgroup label={t("beatMaker.soundGroupBank", { defaultValue: "Sound Bank" })}>
-                      {bankSounds.length > 0 ? (
-                        bankSounds.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))
-                      ) : (
+                    {/* Stack 300 item 99: the bank no longer lists flat —
+                        groupBankSounds splits it by the bank's own category
+                        (drums · 808s · bass · melodic · FX) and, inside
+                        drums, by kit, so the 316 sounds read as shelves.
+                        Labels are locale keys like the other groups;
+                        the kit name is bank data, title-cased for display. */}
+                    {bankSounds.length > 0 ? (
+                      groupBankSounds(bankSounds).map((group) => {
+                        const groupLabel =
+                          group.category === "drums" ? t("beatMaker.soundBankGroupDrums", { defaultValue: "Sound Bank — Drums" })
+                          : group.category === "808" ? t("beatMaker.soundBankGroup808", { defaultValue: "Sound Bank — 808s" })
+                          : group.category === "bass" ? t("beatMaker.soundBankGroupBass", { defaultValue: "Sound Bank — Bass" })
+                          : group.category === "melodic" ? t("beatMaker.soundBankGroupMelodic", { defaultValue: "Sound Bank — Melodic" })
+                          : group.category === "fx" ? t("beatMaker.soundBankGroupFx", { defaultValue: "Sound Bank — FX" })
+                          : t("beatMaker.soundBankGroupOther", { defaultValue: "Sound Bank — Other" });
+                        return (
+                          <Fragment key={group.category}>
+                            {group.kits.map((kitGroup) => (
+                              <optgroup
+                                key={kitGroup.kit}
+                                label={t("beatMaker.soundBankKit", { kit: kitGroup.kit.charAt(0).toUpperCase() + kitGroup.kit.slice(1), defaultValue: "Sound Bank — {{kit}} kit" })}
+                              >
+                                {kitGroup.sounds.map((s) => (
+                                  <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                              </optgroup>
+                            ))}
+                            {group.sounds.length > 0 && (
+                              <optgroup label={groupLabel}>
+                                {group.sounds.map((s) => (
+                                  <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                              </optgroup>
+                            )}
+                          </Fragment>
+                        );
+                      })
+                    ) : (
+                      <optgroup label={t("beatMaker.soundGroupBank", { defaultValue: "Sound Bank" })}>
                         <option disabled value="__bank-empty">
                           {t("beatMaker.soundBankComing", { defaultValue: "Coming with the sound bank" })}
                         </option>
-                      )}
-                    </optgroup>
+                      </optgroup>
+                    )}
                     <optgroup label={t("beatMaker.soundGroupYours", { defaultValue: "Your sounds" })}>
                       {sessionUploads.length > 0 ? (
                         sessionUploads.map((s) => (

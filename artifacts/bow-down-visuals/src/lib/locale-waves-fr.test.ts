@@ -549,6 +549,13 @@ const W4_NAMESPACES = ["mastering", "samples", "vocalPolish", "vocalTune", "song
 const W4_LEGIT: ReadonlySet<string> = new Set([
   "beatMaker.soundBankComing",
   "beatMaker.soundGroupBank",
+  "beatMaker.soundBankGroupDrums",
+  "beatMaker.soundBankGroup808",
+  "beatMaker.soundBankGroupBass",
+  "beatMaker.soundBankGroupMelodic",
+  "beatMaker.soundBankGroupFx",
+  "beatMaker.soundBankGroupOther",
+  "beatMaker.soundBankKit",
   "beatMaker.soundGroupBuiltIn",
   "beatMaker.soundGroupYours",
   "beatMaker.soundLoadOwn",

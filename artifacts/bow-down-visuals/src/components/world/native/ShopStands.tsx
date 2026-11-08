@@ -196,7 +196,7 @@ export function ShopStand({ station, isLight, isGuest }: ShopStandProps) {
 /* ═══ 1. The Marketplace — shopfronts as stands ════════════════════ */
 
 function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const authHeaders = useAuthHeaders();
   const [shops, setShops] = useState<HubShopDto[] | null>(null);
   const [shopsFailed, setShopsFailed] = useState(false);
@@ -457,7 +457,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
           {shop?.tagline && <span className={`text-xs ${muted(isLight)}`}>{shop.tagline}</span>}
           {count > 0 && (
             <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#d4af37] px-3 py-1 text-xs font-black text-black">
-              <ShoppingBag className="h-3.5 w-3.5" /> {t("worldCommerceStands.shopCartPill", { count, total: centsToDisplay(total) })}
+              <ShoppingBag className="h-3.5 w-3.5" /> {t("worldCommerceStands.shopCartPill", { count, total: centsToDisplay(total, i18n.language) })}
             </span>
           )}
         </div>
@@ -484,7 +484,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                 <p className={`truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{p.name}</p>
                 {p.description && <p className={`mt-0.5 line-clamp-2 text-xs ${muted(isLight)}`}>{p.description}</p>}
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(p.price_cents)}</span>
+                  <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(p.price_cents, i18n.language)}</span>
                   <button
                     type="button"
                     data-testid="world-shop-add-to-cart"
@@ -525,7 +525,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
             {detailed.map((l) => (
               <div key={l.productId} className="flex flex-wrap items-center gap-2 py-1.5">
                 <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{l.product.name}</span>
-                <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(l.product.price_cents * l.qty)}</span>
+                <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(l.product.price_cents * l.qty, i18n.language)}</span>
                 <span className="inline-flex items-center gap-1.5">
                   <button type="button" aria-label={t("worldCommerceStands.shopOneLess")} onClick={() => setCart((c) => setCartLineQty(c, l.productId, l.qty - 1))} className={`${chipBtn(isLight)} bdv-touch-box`}><Minus className="h-3 w-3" /></button>
                   <span className="w-5 text-center text-sm font-bold">{l.qty}</span>
@@ -538,7 +538,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
               <div className="mt-2 space-y-2 border-t border-[#d4af37]/25 pt-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className={muted(isLight)}>{t("worldCommerceStands.shopTotal")}</span>
-                  <span className="text-lg font-black">{centsToDisplay(total)}</span>
+                  <span className="text-lg font-black">{centsToDisplay(total, i18n.language)}</span>
                 </div>
                 <input
                   value={buyerEmail}
@@ -563,7 +563,7 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                 {/* The ONE marked door out of this stand: payment. */}
                 <button type="button" data-testid="world-shop-checkout" onClick={() => void checkout()} disabled={placing} className={`${goldBtn(placing)} w-full`}>
                   {placing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
-                  {checkoutTransferLabel(t)} · {centsToDisplay(total)}
+                  {checkoutTransferLabel(t)} · {centsToDisplay(total, i18n.language)}
                 </button>
                 <p className={`text-[11px] ${muted(isLight)}`}>
                   {t("worldCommerceStands.shopFeeLine", { keep: 100 - feePct, fee: feePct })}
@@ -610,12 +610,12 @@ function MarketplaceStand({ isLight, isGuest }: { isLight: boolean; isGuest: boo
                       <span className={isLight ? "text-[#2a1e07]" : "text-white"}>
                         {l.quantity > 1 ? t("worldCommerceStands.shopQtyPrefix", { qty: l.quantity }) : ""}{l.productName ?? t("worldCommerceStands.shopYourItem")}
                       </span>
-                      <span className="text-[#d4af37]">{centsToDisplay(l.gross_cents)}</span>
+                      <span className="text-[#d4af37]">{centsToDisplay(l.gross_cents, i18n.language)}</span>
                     </p>
                   ))}
                 </div>
                 <p className={`mt-2 text-xs ${muted(isLight)}`}>
-                  {t("worldCommerceStands.shopPaidSummary", { gross: centsToDisplay(paidOrder.gross_cents), fee: feePct, feeAmount: centsToDisplay(paidOrder.platform_fee_cents), net: centsToDisplay(paidOrder.seller_net_cents) })}
+                  {t("worldCommerceStands.shopPaidSummary", { gross: centsToDisplay(paidOrder.gross_cents, i18n.language), fee: feePct, feeAmount: centsToDisplay(paidOrder.platform_fee_cents, i18n.language), net: centsToDisplay(paidOrder.seller_net_cents, i18n.language) })}
                 </p>
                 <button type="button" onClick={() => setPaidOrder(null)} className={`${chipBtn(isLight)} mt-2`}>{t("worldCommerceStands.shopKeepBrowsing")}</button>
               </div>
@@ -1615,7 +1615,7 @@ function StandManager({
               <div className="flex flex-wrap items-center gap-2">
                 <Wallet className="h-4 w-4 shrink-0 text-[#d4af37]" />
                 <span className={`text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
-                  {t("worldCommerceStands.shopEarnedLine", { total: centsToDisplay(earnings.totalCents) })}
+                  {t("worldCommerceStands.shopEarnedLine", { total: centsToDisplay(earnings.totalCents, i18n.language) })}
                 </span>
                 {earnings.partial && (
                   <span className={`text-[11px] font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>
@@ -1635,7 +1635,7 @@ function StandManager({
                       <span className={isLight ? "text-[#92600a]" : "text-amber-300"}>{t("worldCommerceStands.shopEarningsUnreadable")}</span>
                     ) : (
                       <span className={isLight ? "text-[#2a1e07]" : "text-white"}>
-                        {centsToDisplay(row.source.totalCents)} · {row.source.count}{" "}
+                        {centsToDisplay(row.source.totalCents, i18n.language)} · {row.source.count}{" "}
                         {row.source.count === 1 ? row.nounOne : row.noun}
                       </span>
                     )}
@@ -1660,7 +1660,7 @@ function StandManager({
               )}
               {earnings.tipJarPendingCount !== null && earnings.tipJarPendingCount > 0 && (
                 <p className={`text-[11px] ${muted(isLight)}`}>
-                  {t(earnings.tipJarPendingCount === 1 ? "worldCommerceStands.shopTipJarPendingOne" : "worldCommerceStands.shopTipJarPendingMany", { count: earnings.tipJarPendingCount, worthPart: earnings.tipJarPendingCents !== null ? t("worldCommerceStands.shopTipJarWorth", { amount: centsToDisplay(earnings.tipJarPendingCents) }) : "" })}
+                  {t(earnings.tipJarPendingCount === 1 ? "worldCommerceStands.shopTipJarPendingOne" : "worldCommerceStands.shopTipJarPendingMany", { count: earnings.tipJarPendingCount, worthPart: earnings.tipJarPendingCents !== null ? t("worldCommerceStands.shopTipJarWorth", { amount: centsToDisplay(earnings.tipJarPendingCents, i18n.language) }) : "" })}
                 </p>
               )}
               <p className={`text-[11px] ${muted(isLight)}`}>
@@ -1695,7 +1695,7 @@ function StandManager({
               className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}
             >
               <span className={`min-w-0 flex-1 truncate text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{p.name}</span>
-              <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(p.price_cents)}</span>
+              <span className="text-sm font-black text-[#d4af37]">{centsToDisplay(p.price_cents, i18n.language)}</span>
               {confirmingDeleteId === p.id ? (
                 <>
                   <span className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{t("worldCommerceStands.shopDeleteArmQ")}</span>
@@ -2009,8 +2009,8 @@ function StandManager({
                 {[
                   { label: t("worldCommerceStands.shopStatViews"), value: String(analytics.totals.views) },
                   { label: t("worldCommerceStands.shopStatSales"), value: String(analytics.totals.sales) },
-                  { label: t("worldCommerceStands.shopStatGross"), value: centsToDisplay(analytics.totals.gross_cents) },
-                  { label: t("worldCommerceStands.shopStatYouKeep"), value: centsToDisplay(analytics.totals.seller_net_cents), gold: true },
+                  { label: t("worldCommerceStands.shopStatGross"), value: centsToDisplay(analytics.totals.gross_cents, i18n.language) },
+                  { label: t("worldCommerceStands.shopStatYouKeep"), value: centsToDisplay(analytics.totals.seller_net_cents, i18n.language), gold: true },
                 ].map((s) => (
                   <div
                     key={s.label}
@@ -2067,8 +2067,8 @@ function StandManager({
                           </div>
                         </div>
                         <div className="shrink-0 text-right">
-                          <div className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{centsToDisplay(sale.amount_cents)}</div>
-                          <div className="text-[11px] font-semibold text-emerald-300">{t("worldCommerceStands.shopYouKeepLine", { net: centsToDisplay(sale.seller_net_cents) })}</div>
+                          <div className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{centsToDisplay(sale.amount_cents, i18n.language)}</div>
+                          <div className="text-[11px] font-semibold text-emerald-300">{t("worldCommerceStands.shopYouKeepLine", { net: centsToDisplay(sale.seller_net_cents, i18n.language) })}</div>
                         </div>
                       </div>
                     ))}
@@ -2093,7 +2093,7 @@ function StandManager({
                           <div className={`text-[11px] ${muted(isLight)}`}>{new Date(sale.created_at).toLocaleDateString(i18n.language)}</div>
                         </div>
                         <div className="shrink-0 text-right">
-                          <div className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{centsToDisplay(sale.amount_cents)}</div>
+                          <div className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{centsToDisplay(sale.amount_cents, i18n.language)}</div>
                           <div className="text-[11px] font-semibold text-amber-300">{sale.payment_status === "expired" ? t("worldCommerceStands.shopCheckoutExpired") : t("worldCommerceStands.shopPendingChip")}</div>
                         </div>
                       </div>

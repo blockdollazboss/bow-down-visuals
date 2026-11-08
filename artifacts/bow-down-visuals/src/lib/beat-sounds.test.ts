@@ -13,6 +13,7 @@ import {
   defaultSoundIdForTrack,
   ensureBeatSampleBuffer,
   getBeatSound,
+  groupBankSounds,
   getSampleBuffer,
   hasBankSounds,
   isKnownBeatSoundId,
@@ -292,5 +293,72 @@ describe("slice regions (W3b)", () => {
     const { ctx, starts } = fakeCtxWithStartArgs();
     expect(playSampleBuffer(ctx, entry, 0.5, {} as AudioNode, { offset: 9, duration: 1 })).toBe(true);
     expect(starts[0]!.args).toEqual([0.5]);
+  });
+});
+
+describe("sound bank picker grouping (Stack 300 item 99)", () => {
+  const bankEntry = (over: Partial<BeatSoundEntry>): BeatSoundEntry => ({
+    id: "bank:x",
+    name: "X",
+    kind: "kick",
+    source: "bank",
+    url: "/sound-bank/x.wav",
+    defaultVolume: 1,
+    ...over,
+  });
+
+  it("groups by bank category in bank order, kits inside drums in kit order", () => {
+    const sounds = [
+      bankEntry({ id: "bank:fx-1", bankCategory: "fx" }),
+      bankEntry({ id: "bank:trap-kick", bankCategory: "drums", kit: "trap" }),
+      bankEntry({ id: "bank:mel-1", bankCategory: "melodic" }),
+      bankEntry({ id: "bank:core-kick", bankCategory: "drums", kit: "core" }),
+      bankEntry({ id: "bank:808-1", bankCategory: "808" }),
+      bankEntry({ id: "bank:bass-1", bankCategory: "bass" }),
+      bankEntry({ id: "bank:core-snare", bankCategory: "drums", kit: "core" }),
+      bankEntry({ id: "bank:loose-drum", bankCategory: "drums" }),
+      bankEntry({ id: "bank:foreign" }),
+    ];
+    const groups = groupBankSounds(sounds);
+    expect(groups.map((g) => g.category)).toEqual(["drums", "808", "bass", "melodic", "fx", "other"]);
+    const drums = groups[0]!;
+    // Kit order follows the bank's kit order (core before trap), not input order.
+    expect(drums.kits.map((k) => k.kit)).toEqual(["core", "trap"]);
+    // Input order preserved inside a kit.
+    expect(drums.kits[0]!.sounds.map((s) => s.id)).toEqual(["bank:core-kick", "bank:core-snare"]);
+    // Kitless drums ride the drums group's own shelf.
+    expect(drums.sounds.map((s) => s.id)).toEqual(["bank:loose-drum"]);
+    // Non-drums groups carry no kits; a category-less entry lands in "other", never vanishes.
+    expect(groups[1]!.kits).toEqual([]);
+    expect(groups[1]!.sounds.map((s) => s.id)).toEqual(["bank:808-1"]);
+    expect(groups[5]!.sounds.map((s) => s.id)).toEqual(["bank:foreign"]);
+    // Nothing lost, nothing duplicated.
+    const total = groups.reduce((n, g) => n + g.sounds.length + g.kits.reduce((m, k) => m + k.sounds.length, 0), 0);
+    expect(total).toBe(sounds.length);
+  });
+
+  it("the real 316-sound bank groups to the bank ledger (drums kits of 12)", async () => {
+    const { BANK_SOUND_MANIFEST } = await import("@/lib/beat-sound-bank-manifest");
+    const entries = BANK_SOUND_MANIFEST.map((e) => ({ defaultVolume: 1, ...e }) as BeatSoundEntry);
+    const groups = groupBankSounds(entries);
+    const count = (g: (typeof groups)[number]) =>
+      g.sounds.length + g.kits.reduce((m, k) => m + k.sounds.length, 0);
+    expect(groups.map((g) => [g.category, count(g)])).toEqual([
+      ["drums", 72],
+      ["808", 24],
+      ["bass", 48],
+      ["melodic", 144],
+      ["fx", 28],
+    ]);
+    const drums = groups[0]!;
+    expect(drums.kits.map((k) => [k.kit, k.sounds.length])).toEqual([
+      ["afrobeats", 12],
+      ["boombap", 12],
+      ["core", 12],
+      ["drill", 12],
+      ["house", 12],
+      ["trap", 12],
+    ]);
+    expect(drums.sounds).toEqual([]);
   });
 });
