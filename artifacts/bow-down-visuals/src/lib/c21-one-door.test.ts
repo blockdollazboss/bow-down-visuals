@@ -133,7 +133,9 @@ describe("C-21: panel content parity with the retired pages", () => {
   });
 
   it("Post a Deal keeps the same rail, the same 500 charge, the same landing", () => {
-    expect(postPanel).toContain("const POST_COST = 500;");
+    /* Stack-300 A6: the 500 now reads the shared credit-cost registry
+       (pinned against the rail) instead of a second typed copy. */
+    expect(postPanel).toContain('const POST_COST = getCreditCost("/api/sponsors/deals")?.cost ?? 500;');
     expect(postPanel).toContain('confirmedFetch("/api/sponsors/deals"');
     expect(postPanel).toContain('fetch("/api/sponsors/can-spend"');
   });

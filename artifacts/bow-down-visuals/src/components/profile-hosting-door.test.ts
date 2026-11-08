@@ -85,7 +85,11 @@ describe("profile hosting door — reads the rail, buys embedded, never leaves t
     expect(pricing).toContain('import ProfileHosting from "@/components/ProfileHosting"');
     expect(pricing).toContain("<ProfileHosting isLight={isLight} />");
     const anchor = pricing.slice(pricing.indexOf('id="feature-site"'), pricing.indexOf('id="feature-streaming"'));
-    expect(anchor).toContain('t("profileHosting.siteAnchorNote", { price: 9 })');
+    /* Stack-300 A6: the anchor's price rides GET /creator-hosting/plan
+       (the same DTO the card reads) — no typed { price: 9 } copy. */
+    expect(pricing).toContain('fetch("/api/creator-hosting/plan")');
+    expect(anchor).toContain('t("profileHosting.siteAnchorNote", { price: hostingPriceLabel })');
+    expect(anchor).not.toContain("{ price: 9 }");
     expect(anchor).toContain('href="#profile-hosting"');
     expect(card).toContain('id="profile-hosting"');
   });

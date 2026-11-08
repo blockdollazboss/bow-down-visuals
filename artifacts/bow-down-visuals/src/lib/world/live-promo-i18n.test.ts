@@ -230,7 +230,7 @@ describe("Live/Promo extraction (unit 44)", () => {
       "Friends who join through it get {{reward}} Bucs to start — and you earn {{pct}}% of what they spend for {{days}} days.",
     );
     expect(enNs.ugcTipLine).toBe(
-      "Tip: Turbo writes the script free — the 400 Visual Bucs are only for filming the ad.",
+      "Tip: Turbo writes the script free — the {{cost}} Visual Bucs are only for filming the ad.",
     );
   });
 });

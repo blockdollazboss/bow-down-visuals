@@ -32,6 +32,7 @@ import {
   confirmUgcBriefFunding,
   ugcBriefMoneyNote,
   ugcBriefNetPreview,
+  ugcFeePct,
   recordUgcAdShare,
   ugcAdShareText,
   ugcAdStatusLabel,
@@ -751,7 +752,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
               <input aria-label={t("worldLivePromo.ugcBriefDeadlineAria")} type="date" className={inputCls(isLight)} style={{ colorScheme: isLight ? "light" : "dark" }} value={briefForm.deadline} onChange={(e) => setBriefForm({ ...briefForm, deadline: e.target.value })} />
               <input aria-label={t("worldLivePromo.ugcBriefPhotoAria")} className={`${inputCls(isLight)} sm:col-span-2`} placeholder={t("worldLivePromo.ugcBriefPhotoPlaceholder")} value={briefForm.productImageUrl} onChange={(e) => setBriefForm({ ...briefForm, productImageUrl: e.target.value })} maxLength={2048} />
               <input aria-label={t("worldLivePromo.ugcBriefPriceAria")} data-testid="world-ugc-brief-price" className={inputCls(isLight)} placeholder={t("worldLivePromo.ugcBriefPricePlaceholder")} value={briefForm.price ?? ""} onChange={(e) => setBriefForm({ ...briefForm, price: e.target.value })} inputMode="decimal" />
-              <p className={`self-center text-[11px] ${muted}`}>{t("worldLivePromo.ugcBriefPriceHelp")}</p>
+              <p className={`self-center text-[11px] ${muted}`}>{t("worldLivePromo.ugcBriefPriceHelp", { feePct: ugcFeePct(null) })}</p>
             </div>
             <textarea aria-label={t("worldLivePromo.ugcBriefDetailsAria")} className={`${inputCls(isLight)} mt-2`} rows={3} placeholder={t("worldLivePromo.ugcBriefDetailsPlaceholder")} value={briefForm.details} onChange={(e) => setBriefForm({ ...briefForm, details: e.target.value })} maxLength={2000} />
             <button type="button" data-testid="world-ugc-brief-post" onClick={() => void submitBrief()} disabled={postingBrief} className={`${goldBtn} mt-2`}>
@@ -816,7 +817,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
                           if (!preview || brief.escrowStatus === "released" || brief.escrowStatus === "refunded") return null;
                           return (
                             <span className={muted}>
-                              {t("worldLivePromo.ugcCreatorReceives", { net: money(preview.netCents), gross: money(brief.priceCents), fee: money(preview.feeCents) })}
+                              {t("worldLivePromo.ugcCreatorReceives", { net: money(preview.netCents), gross: money(brief.priceCents), fee: money(preview.feeCents), feePct: ugcFeePct(brief.feeBps) })}
                             </span>
                           );
                         })()}
@@ -907,7 +908,7 @@ export function UgcAdsStation({ isLight }: { isLight: boolean }) {
         </div>
 
         <p className={`text-[11px] ${muted}`}>
-          {scriptFromMaker(maker) ? t("worldLivePromo.ugcScriptReady") : t("worldLivePromo.ugcTipLine")}
+          {scriptFromMaker(maker) ? t("worldLivePromo.ugcScriptReady") : t("worldLivePromo.ugcTipLine", { cost: UGC_VIDEO_CREDIT_COST })}
         </p>
       </div>
     </NativeCard>

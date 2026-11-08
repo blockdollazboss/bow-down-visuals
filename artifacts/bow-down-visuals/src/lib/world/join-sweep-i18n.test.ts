@@ -118,7 +118,7 @@ const MONEY_KEYS = [
 const EN_VERBATIM: Record<string, string> = {
   tsbEmptyTitles: "The titles came back empty — a failed make is refunded. Try again.",
   tsbEmptyScript: "The script came back empty — a failed make is refunded. Try again.",
-  coachIntro: "The same ladder as Creator Plans, read from the one pricing source: every tier sells at the same flat 5% platform fee, and paid tiers earn their keep with features — your own domain, unlimited products, pro analytics, more AI promotion boosts. Upgrading happens right here in the palace: the card form opens in this desk, never on a hosted page.",
+  coachIntro: "The same ladder as Creator Plans, read from the one pricing source: every tier sells at the same flat 5% platform fee, and paid tiers earn their keep with features — pro analytics, more AI promotion boosts. Upgrading happens right here in the palace: the card form opens in this desk, never on a hosted page.",
   coachDoorNote: "Plan checkout isn't switched on inside the World right now — your plan is unchanged and nothing was charged.",
   coachNowLine: "Your plan is now {{name}} — switched in place on the same subscription.",
   coachPaymentPending: "Your payment went through — we're still applying your plan. Give it a moment, then check your standing here again.",

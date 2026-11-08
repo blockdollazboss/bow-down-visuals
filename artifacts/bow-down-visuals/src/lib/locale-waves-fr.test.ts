@@ -121,6 +121,12 @@ const W1_LEGIT: ReadonlySet<string> = new Set([
   "pricing.creditPacks.packs.150.price",
   "pricing.creditPacks.packs.50.price",
   "pricing.creditPacks.packs.500.price",
+  // Stack-300 A1: the hero subtitle is plan/fee money copy; its
+  // stale paid-tier claim ("your own domain, unlimited products")
+  // was struck Nov 7, 2026, so this catalog carries the corrected
+  // English source verbatim (money copy is never agent-translated)
+  // until a reviewed translation lands.
+  "pricing.hero.subtitle",
   "pricing.plans.crimeBoss.name",
   "pricing.plans.gangster.name",
   "pricing.plans.hustler.name",
@@ -905,6 +911,12 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "streamPack.theme.desert-dune.blurb",
   "streamPack.theme.midnight-jazz.name",
   "streamPack.theme.midnight-jazz.blurb",
+  // Stack-300 item 93 (A8): the corrected extension waitlist +
+  // title copy rides English verbatim (never agent-translated)
+  // until a reviewed translation lands.
+  "extension.metaTitle",
+  "extension.one_email_when_it_launches_no_sp",
+  "extension.we_ll_email_you_the_install_link",
 ]);
 describe("fr W5 (Stack-28 appendix) — namespaces closed whole", () => {
   const keys = Object.keys(EN).filter((k) => W5_NAMESPACES.some((ns) => k === ns || k.startsWith(`${ns}.`)));
@@ -1177,6 +1189,10 @@ const W6_LEGIT = new Set([
   "brandingKit.colorRole.accent",
   "brandingKit.colorRole.neutral",
   "brandingKit.colorRole.background",
+  // Stack-300 item 92 (A7): the corrected podcast dialogue
+  // headline rides English verbatim (never agent-translated)
+  // until a reviewed translation lands.
+  "podcast.dialogue.disabledTitle",
 ]);
 
 describe("fr W6 namespaces (Stack-28 appendix)", () => {

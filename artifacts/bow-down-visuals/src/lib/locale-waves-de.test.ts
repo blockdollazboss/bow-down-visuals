@@ -125,6 +125,12 @@ const W1_LEGIT_IDENTICAL = new Set([
   "pricing.creditPacks.packs.50.price",
   "pricing.creditPacks.packs.500.credits",
   "pricing.creditPacks.packs.500.price",
+  // Stack-300 A1: the hero subtitle is plan/fee money copy; its
+  // stale paid-tier claim ("your own domain, unlimited products")
+  // was struck Nov 7, 2026, so this catalog carries the corrected
+  // English source verbatim (money copy is never agent-translated)
+  // until a reviewed translation lands.
+  "pricing.hero.subtitle",
   "pricing.planCard.perMonth",
   "pricing.plans.crimeBoss.name",
   "pricing.plans.gangster.name",
@@ -1023,6 +1029,12 @@ const W5_LEGIT_IDENTICAL = new Set([
   "streamPack.theme.desert-dune.blurb",
   "streamPack.theme.midnight-jazz.name",
   "streamPack.theme.midnight-jazz.blurb",
+  // Stack-300 item 93 (A8): the corrected extension waitlist +
+  // title copy rides English verbatim (never agent-translated)
+  // until a reviewed translation lands.
+  "extension.metaTitle",
+  "extension.one_email_when_it_launches_no_sp",
+  "extension.we_ll_email_you_the_install_link",
 ]);
 describe("de locale wave W5 (Stack-28 appendix)", () => {
   it("every en key exists non-empty in de and no untranslated residue remains", () => checkWave(W5_NAMESPACES, W5_LEGIT_IDENTICAL));
@@ -1162,6 +1174,16 @@ const W6_LEGIT_IDENTICAL = new Set([
   "weekly_contest.entries",
   "weekly_contest.load_error",
   "weekly_contest.load_retry",
+  // Stack-300 item 92 (A7): the corrected podcast dialogue
+  // headline rides English verbatim (never agent-translated)
+  // until a reviewed translation lands.
+  "podcast.dialogue.disabledTitle",
+  // Stack-300 item 93 (A8): the corrected extension waitlist +
+  // title copy rides English verbatim (never agent-translated)
+  // until a reviewed translation lands.
+  "extension.metaTitle",
+  "extension.one_email_when_it_launches_no_sp",
+  "extension.we_ll_email_you_the_install_link",
 ]);
 describe("de W6 namespaces (Stack-28 appendix)", () => {
   it("every en key exists non-empty in de and no untranslated residue remains", () => checkWave(W6_NAMESPACES, W6_LEGIT_IDENTICAL));
@@ -1473,6 +1495,10 @@ const W7_LEGIT_IDENTICAL = new Set([
   "brandingKit.colorRole.accent",
   "brandingKit.colorRole.neutral",
   "brandingKit.colorRole.background",
+  // Stack-300 item 92 (A7): the corrected podcast dialogue
+  // headline rides English verbatim (never agent-translated)
+  // until a reviewed translation lands.
+  "podcast.dialogue.disabledTitle",
 ]);
 describe("de W7 namespaces (Stack-28 appendix)", () => {
   it("every en key exists non-empty in de and no untranslated residue remains", () => checkWave(W7_NAMESPACES, W7_LEGIT_IDENTICAL));

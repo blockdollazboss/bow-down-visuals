@@ -81,7 +81,7 @@ describe("the ladder — the shared source, the pages' CTA derivation", () => {
     expect(SWEEP.coachRetryLoad).toBe("Couldn’t load plans — tap to retry");
     expect(desk).toContain('cta === "coming-soon"');
     expect(desk).toContain('t("worldJoinSweep.coachPriceComingSoon"');
-    expect(SWEEP.coachPriceComingSoon).toBe("{{name}} — price coming soon");
+    expect(SWEEP.coachPriceComingSoon).toBe("{{name}} — checkout isn't switched on yet");
   });
 
   it("renders ALL of the shared source's inclusions as labels — no details links out of the World", () => {

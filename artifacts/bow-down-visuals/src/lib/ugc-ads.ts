@@ -26,6 +26,22 @@ import { apiErrorMessage } from "./api-error";
 export const UGC_VIDEO_CREDIT_COST = 400;
 export const UGC_PERSONA_CREDIT_COST = 100;
 
+/** The brief rail's platform fee when a brief DTO carries no feeBps
+    of its own: mirrors UGC_BRIEF_PLATFORM_FEE_BPS in
+    routes/ugc-briefs.ts (env-overridable, default 500 = 5%). The
+    brief DTO's feeBps always wins where a brief exists; this is the
+    one typed copy of the default, pinned against the rail by
+    ugc-ads.test.ts (Stack-300 A6 — the fee percent in copy now
+    interpolates from here / from the DTO, never a typed "5%"). */
+export const UGC_BRIEF_DEFAULT_FEE_BPS = 500;
+
+/** The brief fee as a display percent (500 bps → 5, 550 → 5.5),
+    sourced from the brief DTO's feeBps, falling back to the rail
+    default above. */
+export function ugcFeePct(feeBps: number | null | undefined): number {
+  return (feeBps ?? UGC_BRIEF_DEFAULT_FEE_BPS) / 100;
+}
+
 export const UGC_PAYMENT_NOTE =
   "Bow Down Visuals doesn't hold or move money for briefs — payment is arranged between the brand and the creator directly.";
 
@@ -367,7 +383,7 @@ export function escrowStatusLabel(escrowStatus: string | null, labels?: Partial<
     DTO from the server (500 = 5% unless the server says otherwise). */
 export function ugcBriefNetPreview(brief: UgcBrief): { feeCents: number; netCents: number } | null {
   if (brief.priceCents == null) return null;
-  const feeCents = Math.round((brief.priceCents * (brief.feeBps ?? 500)) / 10000);
+  const feeCents = Math.round((brief.priceCents * (brief.feeBps ?? UGC_BRIEF_DEFAULT_FEE_BPS)) / 10000);
   return { feeCents, netCents: brief.priceCents - feeCents };
 }
 

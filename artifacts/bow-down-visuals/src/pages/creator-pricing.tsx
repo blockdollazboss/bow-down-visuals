@@ -142,6 +142,41 @@ export default function CreatorPricing() {
     void loadPlans();
   }, [loadPlans]);
 
+  /* Stack-300 A6: the #feature-site anchor below names the Hosting
+     price twice (prose + the siteAnchorNote interpolation). The figure
+     now rides the rail — the same public GET /creator-hosting/plan the
+     Profile Hosting card reads — instead of a second typed copy that
+     would silently lie the day the server knob (HOSTING price env)
+     turns. The literal fallback is only the DTO's own ruled default,
+     shown until the plan lands or if the rail is unreachable; the
+     Hosting card above always shows the live configured price. */
+  const [hostingPriceUsd, setHostingPriceUsd] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/creator-hosting/plan");
+        if (!res.ok) return;
+        const data = (await res.json().catch(() => ({}))) as {
+          plan?: { priceUsdPerMonth?: number };
+        };
+        const price = data.plan?.priceUsdPerMonth;
+        if (!cancelled && typeof price === "number" && Number.isFinite(price)) {
+          setHostingPriceUsd(price);
+        }
+      } catch {
+        /* readout unreachable — the ruled-default fallback stands */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const hostingPrice = hostingPriceUsd ?? 9;
+  const hostingPriceLabel = Number.isInteger(hostingPrice)
+    ? String(hostingPrice)
+    : hostingPrice.toFixed(2);
+
   /* Embedded checkout (2026-10-26): the plan PaymentElement mounts on
      THIS page — no redirect to a Stripe-hosted page. The legacy hosted
      /creator-tiers/checkout endpoint stays server-side as fallback. */
@@ -341,7 +376,7 @@ export default function CreatorPricing() {
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-white/55">
             Free earns from day one at the same flat 5% platform fee every tier pays. Paid tiers add
-            your own domain, unlimited products, pro analytics and AI promotion boosts.
+            pro analytics and AI promotion boosts.
           </p>
           <div className="mt-4 flex justify-center"><TierBadge /></div>
           <SubscriptionHistory />
@@ -649,16 +684,16 @@ export default function CreatorPricing() {
         <section className="mt-12 space-y-8 text-sm text-white/60">
           <div id="feature-site" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">Your site</h3>
-            <p className="mt-1">Free gets you a subdomain on bowdownvisuals.com. Your own custom domain comes with the Hosting plan ($9/mo) — and it's included free while you're Creator Elite. Your brand, your URL, same checkout.</p>
+            <p className="mt-1">Free gets you a subdomain on bowdownvisuals.com. Your own custom domain comes with the Hosting plan (${hostingPriceLabel}/mo) — and it's included free while you're Creator Elite. Your brand, your URL, same checkout.</p>
             {/* Stack-200 A5: this anchor is where every Hosting plan
                 feature row points — it now names the plan itself.
                 The sentence is money copy (profileHosting.siteAnchorNote,
-                English verbatim in all 10 catalogs); the price figure is
-                the ruled standalone $9 (HOSTING_PRICE_USD_PER_MONTH in
-                lib/platform-fees) — the Hosting card above always
-                shows the live configured price. */}
+                English verbatim in all 10 catalogs). Stack-300 A6: the
+                price figure rides GET /creator-hosting/plan (fetched
+                above) — the same DTO the Hosting card reads — instead
+                of a typed copy of the ruled standalone price. */}
             <p className="mt-1">
-              {t("profileHosting.siteAnchorNote", { price: 9 })}{" "}
+              {t("profileHosting.siteAnchorNote", { price: hostingPriceLabel })}{" "}
               <a href="#profile-hosting" className={`whitespace-nowrap text-xs font-semibold ${isLight ? "text-[#7A5A12] hover:text-[#2A1E07]" : "text-amber-300/90 hover:text-amber-200"}`}>
                 See Profile Hosting ↓
               </a>

@@ -107,7 +107,9 @@ describe("rails + prices", () => {
     /* C-21: the posting form lives in the Brand Deals Post a Deal tab
        panel now — the 500 pin follows the form. */
     const postPage = read("../../components/sponsors/PostDealPanel.tsx");
-    expect(postPage).toContain("const POST_COST = 500;");
+    /* Stack-300 A6: the form's quote reads the registry entry pinned
+       just above, instead of a second typed copy of the 500. */
+    expect(postPage).toContain('const POST_COST = getCreditCost("/api/sponsors/deals")?.cost ?? 500;');
   });
 
   it("the fee preview mirrors the rail's default 1500 bps (15% / 85%) split", () => {

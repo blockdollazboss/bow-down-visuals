@@ -6,6 +6,7 @@ import { Megaphone, Loader2, ArrowLeft, BadgeDollarSign } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { getCreditCost } from "@/lib/credit-costs";
 import { useTranslation } from "react-i18next";
 
 /* ─── Post a Deal — the marketplace posting form, folded into Brand Deals ──
@@ -17,7 +18,13 @@ import { useTranslation } from "react-i18next";
    failure. On success the poster lands on the new deal's own page,
    /sponsors/:id, exactly as before. */
 
-const POST_COST = 500;
+/* Stack-300 A6: the quoted posting cost reads the shared credit-cost
+   registry — the same CREDIT_COSTS entry the confirmation dialog
+   itself prices from (getCreditCost inside useConfirmedApi) — instead
+   of a second typed copy that could drift from the rail's
+   SPONSOR_POST_CREDIT_COST under its env knob. The registry entry is
+   pinned against the rail by credit-costs-rail-truth. */
+const POST_COST = getCreditCost("/api/sponsors/deals")?.cost ?? 500;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
