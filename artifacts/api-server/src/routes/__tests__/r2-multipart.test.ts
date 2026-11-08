@@ -21,7 +21,8 @@ const h = vi.hoisted(() => ({
   create: vi.fn(async (_key: string, _ct: string) => "upload-id-1"),
   partUrl: vi.fn(async (_key: string, _up: string, part: number) => `https://r2.example/part-${part}`),
   listParts: vi.fn(async (_key: string, _up: string) => [
-    { partNumber: 1, etag: '"etag-1"', size: 8388608 },
+    { partNumber: 1, etag: '"e1"', size: 8388608 },
+    { partNumber: 2, etag: '"e2"', size: 8388608 },
   ]),
   complete: vi.fn(async (key: string, _up: string, _parts: unknown) => `https://cdn.example/${key}`),
   abort: vi.fn(async (_key: string, _up: string) => undefined),
@@ -32,6 +33,14 @@ vi.mock("../../middlewares/require-auth", () => ({
     req.userId = "user-1";
     next();
   },
+}));
+
+/* C-07 mounts the real publicApiLimiter on every door; rate pacing is
+   not what this suite pins, so the limiter is a pass-through here (the
+   house pattern). The caps themselves are pinned in
+   r2-storage-security.test.ts. */
+vi.mock("../../lib/rate-limit", () => ({
+  publicApiLimiter: (_req: any, _res: any, next: any) => next(),
 }));
 
 vi.mock("../../lib/r2-client", () => ({
@@ -143,7 +152,10 @@ describe("GET /api/r2/multipart/parts", () => {
     );
     expect(res.status).toBe(200);
     const json = (await res.json()) as any;
-    expect(json.parts).toEqual([{ partNumber: 1, etag: '"etag-1"', size: 8388608 }]);
+    expect(json.parts).toEqual([
+      { partNumber: 1, etag: '"e1"', size: 8388608 },
+      { partNumber: 2, etag: '"e2"', size: 8388608 },
+    ]);
     expect(h.listParts).toHaveBeenCalledWith("user-1/big.mp4", "upload-id-1");
   });
 
