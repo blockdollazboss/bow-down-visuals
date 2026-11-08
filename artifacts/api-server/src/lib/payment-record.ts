@@ -2,7 +2,7 @@ import { db } from "@workspace/db";
 import { stripePaymentsTable, creditUsageTable, generationHistoryTable } from "@workspace/db";
 import { eq, desc, and, or, lt } from "drizzle-orm";
 import { logger } from "./logger";
-import { isUniqueViolation } from "./pg-errors";
+import { isUniqueViolation, pgErrorText } from "./pg-errors";
 import { notifyUserEvent, type UserEventInput } from "./push-events";
 
 interface PaymentRecord {
@@ -308,14 +308,51 @@ export async function recordCreditUsage(record: CreditUsageRecord): Promise<void
 }
 
 /**
+ * Outcome of a strict ledger write: "recorded" = this call's row
+ * landed; "already-recorded" = the row was already there under the
+ * same idempotency key (a concurrent twin charge won the insert race),
+ * so the charge it belongs to is an idempotent REPLAY, not an error.
+ */
+export type CreditUsageStrictOutcome = "recorded" | "already-recorded";
+
+/**
+ * True when a ledger-insert failure is the idempotency-key UNIQUE
+ * index rejecting a duplicate key. The constraint name is matched
+ * when the driver surfaces it; a bare 23505 from THIS insert is the
+ * key index in practice — credit_usage's only other unique is its
+ * primary key, whose random UUID cannot collide.
+ */
+function isIdempotencyKeyConflict(err: unknown): boolean {
+  if (!isUniqueViolation(err)) return false;
+  const text = pgErrorText(err);
+  if (!text.includes("credit_usage_idempotency_key_uidx")) {
+    logger.warn(
+      { err },
+      "recordCreditUsageStrict: unique violation without the idempotency-index name — treating as key conflict (the only reachable unique on this insert besides the PK)",
+    );
+  }
+  return true;
+}
+
+/**
  * Record a credit ledger event, THROWING on failure.
  *
  * This is the money-integrity path: charge sites must use this (via
  * chargeCredits() in lib/credits.ts) so a failed ledger insert can never
  * silently leave a balance deduction without a ledger trace. Retries
  * transient failures 3 times with brief backoff before giving up.
+ *
+ * Race rule (Stack400 C-01): when the record carries an idempotency
+ * key and the insert loses the race to a concurrent identical charge,
+ * the UNIQUE index rejects the insert with 23505. That is NOT a
+ * failure — the charge already landed exactly once under that key, so
+ * the write returns "already-recorded" and the caller treats its own
+ * deduction as a replay (rolls it back, reports success), instead of
+ * burning 3 futile retries and throwing a false ledger error.
  */
-export async function recordCreditUsageStrict(record: CreditUsageRecord): Promise<void> {
+export async function recordCreditUsageStrict(
+  record: CreditUsageRecord,
+): Promise<CreditUsageStrictOutcome> {
   let lastErr: unknown = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -329,8 +366,15 @@ export async function recordCreditUsageStrict(record: CreditUsageRecord): Promis
         bonusCreditsUsed: record.bonusCreditsUsed ?? null,
         bonusExpiresAt: record.bonusExpiresAt ? new Date(record.bonusExpiresAt) : null,
       });
-      return;
+      return "recorded";
     } catch (err) {
+      if (record.idempotencyKey && isIdempotencyKeyConflict(err)) {
+        logger.info(
+          { userId: record.userId, action: record.action, idempotencyKey: record.idempotencyKey },
+          "recordCreditUsageStrict: idempotency key already recorded — concurrent replay, not an error",
+        );
+        return "already-recorded";
+      }
       lastErr = err;
       logger.warn({ err, attempt, ...record }, "recordCreditUsageStrict: insert failed, retrying");
       if (attempt < 3) await new Promise((r) => setTimeout(r, 150 * attempt));

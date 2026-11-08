@@ -1,8 +1,11 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { db, contractGenerationsTable } from "@workspace/db";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
+import { isMissingSchemaError } from "../../lib/pg-errors";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
@@ -32,11 +35,16 @@ import {
    Charging mirrors the analyzer exactly: charge-before-generate with
    auto-refund on failure — plus the house exactly-once key, so a
    double-tap or retry of one ask can never charge twice (a refunded
-   failure voids its key, so the next ask charges fresh). The price is NOT owner-ruled yet (the
-   analyzer-matching 300 is the standing recommendation) — it lives
-   in ONE env-overridable constant, and the price the surfaces show
-   comes from this rail's status endpoint, never a hardcoded figure,
-   so the owner's ruling sets the number with no rebuild. */
+   failure voids its key, so the next ask charges fresh).
+
+   Stored results (Stack400 C-02/C-33): every successful generation
+   is persisted in contract_generations keyed by that same charge
+   key, and a replayed submit is answered from the stored row — the
+   SAME draft the member already paid for — instead of running the
+   provider again for a different draft. The price was ruled 300 by
+   the owner (Nov 8, 2026, matching the analyzer); it lives in ONE
+   env-overridable constant, and the price the surfaces show comes
+   from this rail's status endpoint, never a hardcoded figure. */
 
 const router = Router();
 
@@ -105,6 +113,93 @@ export const generateSchema = z.object({
 
 export type GenerateInput = z.infer<typeof generateSchema>;
 
+/* ── Stored results (Stack400 C-02 / C-33) ────────────────────────
+   RESPONSE SHAPE CONTRACT — read by the FE surfaces today and by
+   lane s400-post-assist's C-36 helper copy at the join:
+
+   - A FRESH success answers the bare body, with NO `replayed` field:
+       { generation: { title, draft, summary },
+         contractType, creditsCharged, disclaimer }
+   - A REPLAY answers the stored body VERBATIM plus exactly one
+     added top-level field:  replayed: true.
+
+   Nothing else differs — same draft bytes, same creditsCharged, same
+   disclaimer — so one paid intent can never surface two different
+   contracts, and copy keyed on `replayed` can honestly say "this is
+   the draft you already made for this request".
+
+   Both reads and writes are FAIL-OPEN against a lagging database:
+   if the contract_generations table is not there yet (migration
+   0329 not applied), the rail generates exactly as it did before
+   C-02 — a stored result is an upgrade, never a gate on a paid ask. */
+export interface StoredContractResult {
+  generation: { title: string; draft: string; summary: string };
+  contractType: string;
+  creditsCharged: number;
+  disclaimer: string;
+}
+
+async function findStoredGeneration(
+  idempotencyKey: string,
+  userId: string,
+): Promise<StoredContractResult | null> {
+  try {
+    const [row] = await db
+      .select({
+        userId: contractGenerationsTable.userId,
+        result: contractGenerationsTable.result,
+      })
+      .from(contractGenerationsTable)
+      .where(eq(contractGenerationsTable.idempotencyKey, idempotencyKey))
+      .limit(1);
+    /* The key is user-scoped by construction; a row naming another
+       user is never served (defense in depth, not an expected path). */
+    if (!row || row.userId !== userId || !row.result) return null;
+    return row.result;
+  } catch (err) {
+    if (!isMissingSchemaError(err)) {
+      logger.warn(
+        { err, idempotencyKey },
+        "[contract-generator] stored-result lookup failed — generating fresh (fail-open)",
+      );
+    }
+    return null;
+  }
+}
+
+async function storeGeneration(
+  idempotencyKey: string,
+  userId: string,
+  contractType: string,
+  result: StoredContractResult,
+): Promise<void> {
+  try {
+    await db
+      .insert(contractGenerationsTable)
+      .values({ userId, idempotencyKey, contractType, result })
+      .onConflictDoNothing({ target: contractGenerationsTable.idempotencyKey });
+  } catch (err) {
+    /* Never fail a paid, successful generation over its bookkeeping:
+       the member holds their draft; the worst case is a later replay
+       generating fresh (the pre-C-02 behavior). Log loudly. */
+    logger.error(
+      { err, idempotencyKey },
+      "[contract-generator] failed to store the generation result — a replay of this intent would generate fresh",
+    );
+  }
+}
+
+/* In-flight generations, per idempotency key (Stack400 C-01/C-33).
+   The durable stored row answers a replay that arrives AFTER a
+   generation lands; this map answers the twin that arrives WHILE it
+   is still running — the twin waits for the one generation instead
+   of starting a second provider call. In-process by design (the
+   same pattern as the multi-ratio export dedup): a cross-process
+   twin still resolves through the ledger race fix (C-01) and the
+   stored-row checks — never a double charge, never a false 500.
+   Entries are removed the moment the generation settles. */
+const inflightGenerations = new Map<string, Promise<StoredContractResult>>();
+
 const SYSTEM_PROMPT = `You are an expert entertainment-contract drafter working for an AI creator platform. Your job is to turn a creator's deal points into a complete, plainly-written starting contract they can take into a negotiation.
 
 You are NOT a lawyer and your output is NOT legal advice. The draft MUST open with the disclaimer that this is an AI-generated draft, not legal advice, and that the creator should have an entertainment lawyer review before signing.
@@ -154,6 +249,49 @@ router.post("/generate", requireAuth, publicApiLimiter, async (req, res) => {
     dealIntent,
   );
 
+  /* C-02: a stored result under this key means this exact intent was
+     already paid for and answered — serve the stored draft verbatim.
+     No charge, no provider call (C-33): one paid intent, one draft. */
+  const prior = await findStoredGeneration(idempotencyKey, req.userId!);
+  if (prior) {
+    logger.info(
+      { userId: req.userId, idempotencyKey },
+      "[contract-generator] replay served from the stored result",
+    );
+    res.json({ ...prior, replayed: true });
+    return;
+  }
+
+  /* A twin of this exact intent is generating right now: wait for
+     its result instead of paying the provider twice for one draft. */
+  const twinInFlight = inflightGenerations.get(idempotencyKey);
+  if (twinInFlight) {
+    const twinResult = await twinInFlight.catch(() => null);
+    if (twinResult) {
+      res.json({ ...twinResult, replayed: true });
+      return;
+    }
+    /* The twin failed; its charge is refunded and its key voided by
+       its own failure path below — fall through and run this request
+       as the fresh attempt it now is. */
+  }
+
+  let settleInflight!: {
+    resolve: (r: StoredContractResult) => void;
+    reject: (e: unknown) => void;
+  };
+  const inflightPromise = new Promise<StoredContractResult>((resolve, reject) => {
+    settleInflight = { resolve, reject };
+  });
+  /* A rejection with no waiter attached must never surface unhandled. */
+  inflightPromise.catch(() => {});
+  inflightGenerations.set(idempotencyKey, inflightPromise);
+  const clearInflight = () => {
+    if (inflightGenerations.get(idempotencyKey) === inflightPromise) {
+      inflightGenerations.delete(idempotencyKey);
+    }
+  };
+
   let charged = false;
   try {
     await chargeCredits(
@@ -165,6 +303,18 @@ router.post("/generate", requireAuth, publicApiLimiter, async (req, res) => {
       { idempotencyKey },
     );
     charged = true;
+
+    /* The charge may have been a suppressed replay (or the C-01
+       concurrent-replay outcome) whose twin has since finished: if
+       its draft is stored by now, serve it instead of generating a
+       second, different draft for the same paid intent. */
+    const landed = await findStoredGeneration(idempotencyKey, req.userId!);
+    if (landed) {
+      settleInflight.resolve(landed);
+      clearInflight();
+      res.json({ ...landed, replayed: true });
+      return;
+    }
 
     const dealPoints = [
       `Contract type: ${CONTRACT_TYPE_LABELS[input.contractType]}`,
@@ -219,14 +369,32 @@ router.post("/generate", requireAuth, publicApiLimiter, async (req, res) => {
       ? draft
       : `${CONTRACT_DISCLAIMER}\n\n${draft}`;
 
-    res.json({
+    const responseBody: StoredContractResult = {
       generation: { title, draft: framedDraft, summary },
       contractType: input.contractType,
       creditsCharged: CONTRACT_GENERATION_CREDITS,
       disclaimer: CONTRACT_DISCLAIMER,
-    });
+    };
+    /* C-02: persist BEFORE answering, so any replay from this moment
+       on is served this exact draft. The write is fail-open (see
+       storeGeneration) — a storage hiccup never fails the paid ask. */
+    await storeGeneration(idempotencyKey, req.userId!, input.contractType, responseBody);
+    settleInflight.resolve(responseBody);
+    clearInflight();
+    res.json(responseBody);
   } catch (err) {
     if (charged) {
+      /* A concurrent twin may have finished and stored while this
+         attempt failed: its draft is the paid answer for this intent —
+         serve it and let the charge stand, instead of refunding a
+         charge whose draft the member is about to receive. */
+      const twin = await findStoredGeneration(idempotencyKey, req.userId!);
+      if (twin) {
+        settleInflight.resolve(twin);
+        clearInflight();
+        res.json({ ...twin, replayed: true });
+        return;
+      }
       try {
         await refundCredits(req.userId!, CONTRACT_GENERATION_CREDITS, {
           action: "Contract Generation (refund: generation failed)",
@@ -241,6 +409,11 @@ router.post("/generate", requireAuth, publicApiLimiter, async (req, res) => {
         logger.error({ err: refundErr }, "[contract-generator] refund failed");
       }
     }
+    /* The refund (when any) has landed and the key is voided, so a
+       twin waiting on this attempt may safely fall through and run
+       as a fresh attempt — settle only now, never before. */
+    settleInflight.reject(err);
+    clearInflight();
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits" });
       return;

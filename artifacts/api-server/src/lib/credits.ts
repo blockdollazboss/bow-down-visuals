@@ -505,21 +505,31 @@ export function buildChargeIdempotencyKey(
  * ledger row's id and teamId if found (teamId null = the original charge hit
  * the personal balance), null otherwise. The teamId lets the replay path
  * report the balance of the pool the original charge actually drew from.
+ *
+ * `lookupFailed` marks the fail-open path: the read itself errored (a
+ * lagging DB without the key column), so "no row found" is NOT proven —
+ * the caller logs that degradation at error level for keyed charges
+ * (Stack400 C-01) instead of silently charging without dedup.
  */
 async function findExistingCharge(
   idempotencyKey: string,
-): Promise<{ id: string; teamId: string | null } | null> {
+): Promise<
+  | { found: true; id: string; teamId: string | null }
+  | { found: false; lookupFailed: boolean }
+> {
   try {
     const [row] = await db
       .select({ id: creditUsageTable.id, teamId: creditUsageTable.teamId })
       .from(creditUsageTable)
       .where(eq(creditUsageTable.idempotencyKey, idempotencyKey))
       .limit(1);
-    return row ? { id: row.id, teamId: row.teamId ?? null } : null;
+    return row
+      ? { found: true, id: row.id, teamId: row.teamId ?? null }
+      : { found: false, lookupFailed: false };
   } catch {
     // Table/column missing on a lagging DB — fail open (no dedup) rather
-    // than blocking the charge. Logged by the caller.
-    return null;
+    // than blocking the charge. The caller logs the degradation.
+    return { found: false, lookupFailed: true };
   }
 }
 
@@ -627,7 +637,16 @@ export async function chargeCredits(
   const idempotencyKey = opts?.idempotencyKey?.trim() || null;
   if (idempotencyKey) {
     const existing = await findExistingCharge(idempotencyKey);
-    if (existing) {
+    if (!existing.found && existing.lookupFailed) {
+      // Fail-open stays (a lagging DB must never block a charge), but a
+      // degraded lookup on a KEYED charge means this charge runs with
+      // NO dedup — loud, not silent (Stack400 C-01).
+      logger.error(
+        { userId, cost, action: record.action, idempotencyKey },
+        "[credits] idempotency lookup failed — keyed charge proceeding WITHOUT dedup (fail-open)",
+      );
+    }
+    if (existing.found) {
       logger.info({ userId, cost, action: record.action, idempotencyKey }, "[credits] duplicate charge suppressed by idempotency key");
       // A replayed TEAM charge must report the pool balance — that's the
       // balance the original charge returned and the one the client is
@@ -686,8 +705,25 @@ export async function chargeCredits(
     chargeSplit = personal.split;
   }
   const rollback = opts?.rollbackOnLedgerFailure ?? true;
+  /* One deduction's undo, shared by the genuine ledger-failure path
+     and the concurrent-replay path below: restore exactly what this
+     call took, from exactly the pool it took it from. */
+  const undoDeduction = async (): Promise<void> => {
+    if (teamId) {
+      await db
+        .update(teamsTable)
+        .set({ credits: sql`${teamsTable.credits} + ${cost}`, updatedAt: new Date() })
+        .where(eq(teamsTable.id, teamId));
+    } else if (chargeSplit && chargeSplit.fromBonus > 0) {
+      // Restore the exact pools the deduction drew from.
+      await restoreCreditsSplit(userId, chargeSplit);
+    } else {
+      await addCreditsToProfile(userId, cost);
+    }
+  };
+  let ledgerOutcome: "recorded" | "already-recorded" = "recorded";
   try {
-    await recordCreditUsageStrict({
+    ledgerOutcome = await recordCreditUsageStrict({
       userId,
       action: record.action,
       creditsUsed: cost,
@@ -709,16 +745,7 @@ export async function chargeCredits(
         "[credits] ledger write failed after deduction — rolling back the charge",
       );
       try {
-        if (teamId) {
-          await db.update(teamsTable)
-            .set({ credits: sql`${teamsTable.credits} + ${cost}`, updatedAt: new Date() })
-            .where(eq(teamsTable.id, teamId));
-        } else if (chargeSplit && chargeSplit.fromBonus > 0) {
-          // Restore the exact pools the deduction drew from.
-          await restoreCreditsSplit(userId, chargeSplit);
-        } else {
-          await addCreditsToProfile(userId, cost);
-        }
+        await undoDeduction();
       } catch (rollbackErr) {
         logger.error(
           { userId, cost, action: record.action, rollbackErr },
@@ -734,6 +761,34 @@ export async function chargeCredits(
       );
     }
     throw new LedgerWriteError();
+  }
+  if (ledgerOutcome === "already-recorded") {
+    /* CONCURRENT REPLAY (Stack400 C-01): a twin request with the same
+       idempotency key landed its ledger row first — the charge already
+       exists exactly once under this key. This call's deduction is a
+       duplicate: put it back and answer as the idempotent success a
+       replay is (the same balance the replay lookup above returns),
+       instead of 500ing a charge that never failed. If the undo itself
+       fails we are in the same divergence class as a failed rollback —
+       log CRITICAL and still answer as a replay: the member must not
+       pay twice for the ledger's bookkeeping fault. */
+    try {
+      await undoDeduction();
+    } catch (undoErr) {
+      logger.error(
+        { userId, cost, action: record.action, idempotencyKey, undoErr },
+        "[credits] CRITICAL: concurrent-replay deduction undo failed — balance and ledger have diverged, manual reconciliation required",
+      );
+    }
+    logger.info(
+      { userId, cost, action: record.action, idempotencyKey },
+      "[credits] concurrent duplicate charge treated as idempotent replay",
+    );
+    if (teamId) {
+      const poolBalance = await readTeamPoolBalance(teamId);
+      if (poolBalance !== null) return poolBalance;
+    }
+    return readPersonalBalance(userId);
   }
   return creditsAfter;
 }

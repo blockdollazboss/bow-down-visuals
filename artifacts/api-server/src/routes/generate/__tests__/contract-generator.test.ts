@@ -37,7 +37,85 @@ const h = vi.hoisted(() => ({
      an idempotent success and records NO second charge. */
   landedKeys: new Set<string>(),
   providerMode: "ok" as "ok" | "fail" | "garbage" | "no-disclaimer" | "empty-draft",
+  /* Provider observability (Stack400 C-01/C-33): every call counts,
+     and each SUCCESSFUL generation carries a sequence marker in its
+     draft text — so two real generations are provably DIFFERENT
+     drafts, and "the replay returned the same draft" can only pass
+     if the stored result was actually served. */
+  providerCalls: 0,
+  providerSeq: 0,
+  /* One-shot failure for orchestrated interleavings: when armed,
+     the NEXT provider call fails and the flag clears itself — later
+     calls succeed on their own merits (a mode flag flipped from the
+     test body would race the very requests being orchestrated). */
+  failNextCall: false,
+  /* The contract_generations store, keyed by idempotency key — the
+     fake @workspace/db below reads/writes this map. */
+  stored: new Map<string, { userId: string; result: any }>(),
+  /* When "throw", the stored-result write fails (the rail's
+     fail-open pin: a paid success still answers 200). */
+  storeMode: "ok" as "ok" | "throw",
 }));
+
+/* The stored-result seam (C-02): @workspace/db is replaced with a
+   chainable fake over h.stored. The route's only db uses are the
+   contract-generations select-by-key and the conflict-do-nothing
+   insert, so the fake models exactly those two chains; the table
+   object itself is inert (the chains never inspect it — eq() output
+   is ignored, like the house's other db fakes). */
+/* The route always looks up BY KEY — but the per-key store must be
+   keyed for real, so the fake recovers the key from the eq() the
+   route built: drizzle parameterizes the value, and the key rides
+   the condition's queryChunks as a Param node. Walk to it. */
+function keyFromCondition(cond: unknown): string | null {
+  const walk = (node: unknown, depth: number): string | null => {
+    if (node === null || typeof node !== "object" || depth > 6) return null;
+    if ((node as { constructor?: { name?: string } }).constructor?.name === "Param") {
+      const v = (node as { value?: unknown }).value;
+      return typeof v === "string" ? v : null;
+    }
+    if (Array.isArray(node)) {
+      for (const child of node) {
+        const hit = walk(child, depth + 1);
+        if (hit !== null) return hit;
+      }
+      return null;
+    }
+    const chunks = (node as { queryChunks?: unknown }).queryChunks;
+    return Array.isArray(chunks) ? walk(chunks, depth + 1) : null;
+  };
+  return walk(cond, 0);
+}
+
+vi.mock("@workspace/db", async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  const fakeDb = {
+    select: () => ({
+      from: () => ({
+        where: (cond: unknown) => ({
+          limit: async () => {
+            const key = keyFromCondition(cond);
+            const row = key !== null ? h.stored.get(key) : undefined;
+            return row ? [row] : [];
+          },
+        }),
+      }),
+    }),
+    insert: () => ({
+      values: (v: { idempotencyKey: string; userId: string; result: any }) => ({
+        onConflictDoNothing: async () => {
+          h.events.push("store");
+          if (h.storeMode === "throw") throw new Error("store write failed");
+          if (!h.stored.has(v.idempotencyKey)) {
+            h.stored.set(v.idempotencyKey, { userId: v.userId, result: v.result });
+          }
+          return [];
+        },
+      }),
+    }),
+  };
+  return { ...actual, db: fakeDb };
+});
 
 vi.mock("../../../middlewares/require-auth", () => ({
   requireAuth: (req: any, _res: any, next: any) => {
@@ -92,6 +170,15 @@ vi.mock("../../../lib/ai-clients", () => ({
       completions: {
         create: async () => {
           h.events.push("ai");
+          h.providerCalls += 1;
+          /* Real-generation latency: a concurrent twin must be able
+             to ARRIVE while this call is still running — that is the
+             interleaving the in-flight map exists for. */
+          await new Promise((r) => setTimeout(r, 25));
+          if (h.failNextCall) {
+            h.failNextCall = false;
+            throw new Error("provider exploded (one-shot)");
+          }
           if (h.providerMode === "fail") throw new Error("provider exploded");
           if (h.providerMode === "garbage") {
             return { choices: [{ message: { content: "not json at all" } }] };
@@ -103,6 +190,8 @@ vi.mock("../../../lib/ai-clients", () => ({
               ],
             };
           }
+          h.providerSeq += 1;
+          const seq = h.providerSeq;
           const withDisclaimer = h.providerMode === "ok";
           return {
             choices: [
@@ -111,8 +200,8 @@ vi.mock("../../../lib/ai-clients", () => ({
                   content: JSON.stringify({
                     title: "Brand Sponsorship Agreement",
                     draft: withDisclaimer
-                      ? "This draft is not legal advice. Have an entertainment lawyer review before signing.\n\nBRAND SPONSORSHIP AGREEMENT\n\n1. Parties…"
-                      : "BRAND SPONSORSHIP AGREEMENT\n\n1. Parties…",
+                      ? `This draft is not legal advice. Have an entertainment lawyer review before signing.\n\nBRAND SPONSORSHIP AGREEMENT\n\n1. Parties… [generation #${seq}]`
+                      : `BRAND SPONSORSHIP AGREEMENT\n\n1. Parties… [generation #${seq}]`,
                     summary: "Drafted from your deal points; payment timing left blank.",
                   }),
                 },
@@ -170,6 +259,11 @@ beforeEach(() => {
   h.events = [];
   h.landedKeys.clear();
   h.providerMode = "ok";
+  h.providerCalls = 0;
+  h.providerSeq = 0;
+  h.failNextCall = false;
+  h.stored.clear();
+  h.storeMode = "ok";
 });
 
 async function postGenerate(body: unknown) {
@@ -217,7 +311,7 @@ describe("contract generator — charge / refund discipline", () => {
     expect(status).toBe(200);
     expect(h.charges).toEqual([{ cost: CONTRACT_GENERATION_CREDITS, action: "Contract Generation" }]);
     expect(h.refunds).toEqual([]);
-    expect(h.events).toEqual(["charge", "ai"]);
+    expect(h.events).toEqual(["charge", "ai", "store"]);
     expect(h.balance).toBe(1000 - CONTRACT_GENERATION_CREDITS);
     expect(data.creditsCharged).toBe(CONTRACT_GENERATION_CREDITS);
     expect(data.contractType).toBe("brand-deal");
@@ -325,6 +419,103 @@ describe("contract generator — exactly-once (idempotency)", () => {
     const retried = await postGenerate(body);
     expect(retried.status).toBe(200);
     expect(h.charges).toHaveLength(2);
+    expect(h.balance).toBe(1000 - CONTRACT_GENERATION_CREDITS);
+  });
+});
+
+describe("contract generator — stored results (Stack400 C-02 / C-33)", () => {
+  it("a sequential replay returns the STORED draft — provider called once, charged once (C-33 verification)", async () => {
+    const body = { ...GOOD_BODY, idempotencyKey: "gen-intent-stored-1" };
+    const first = await postGenerate(body);
+    expect(first.status).toBe(200);
+    expect(first.data.replayed).toBeUndefined();
+    expect(h.providerCalls).toBe(1);
+
+    const second = await postGenerate(body);
+    expect(second.status).toBe(200);
+    /* The provider's generations are sequence-marked, so an identical
+       draft here is only possible if the STORED result was served. */
+    expect(h.providerCalls).toBe(1);
+    expect(h.charges).toHaveLength(1);
+    expect(second.data.replayed).toBe(true);
+    expect(second.data.generation).toEqual(first.data.generation);
+    expect(second.data.generation.draft).toBe(first.data.generation.draft);
+    expect(second.data.creditsCharged).toBe(CONTRACT_GENERATION_CREDITS);
+    expect(h.refunds).toEqual([]);
+    expect(h.balance).toBe(1000 - CONTRACT_GENERATION_CREDITS);
+  });
+
+  it("a keyless identical retry also replays the stored draft (derived key)", async () => {
+    const first = await postGenerate(GOOD_BODY);
+    const second = await postGenerate(GOOD_BODY);
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(h.providerCalls).toBe(1);
+    expect(second.data.replayed).toBe(true);
+    expect(second.data.generation.draft).toBe(first.data.generation.draft);
+  });
+
+  it("a FAILED generation stores nothing — the retry after the refund generates fresh", async () => {
+    const body = { ...GOOD_BODY, idempotencyKey: "gen-intent-stored-fail" };
+    h.providerMode = "fail";
+    const failed = await postGenerate(body);
+    expect(failed.status).toBe(500);
+    expect(h.stored.size).toBe(0);
+    h.providerMode = "ok";
+    const retried = await postGenerate(body);
+    expect(retried.status).toBe(200);
+    expect(retried.data.replayed).toBeUndefined();
+    expect(h.providerSeq).toBe(1);
+    expect(h.stored.size).toBe(1);
+  });
+
+  it("a store-write failure never fails the paid ask (fail-open) — 200 with the fresh draft", async () => {
+    h.storeMode = "throw";
+    const { status, data } = await postGenerate(GOOD_BODY);
+    expect(status).toBe(200);
+    expect(data.generation.draft).toContain("BRAND SPONSORSHIP AGREEMENT");
+    expect(h.charges).toHaveLength(1);
+    expect(h.refunds).toEqual([]);
+  });
+});
+
+describe("contract generator — concurrent double-submit (Stack400 C-01)", () => {
+  it("two concurrent identical POSTs: one charge, one provider call, both 200 with the SAME draft", async () => {
+    const body = { ...GOOD_BODY, idempotencyKey: "gen-intent-concurrent-1" };
+    const [a, b] = await Promise.all([postGenerate(body), postGenerate(body)]);
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    expect(h.charges).toHaveLength(1);
+    expect(h.providerCalls).toBe(1);
+    expect(a.data.generation.draft).toBe(b.data.generation.draft);
+    /* Exactly one response is the fresh answer; the twin is the
+       replay of the same stored result. */
+    const replayFlags = [a.data.replayed === true, b.data.replayed === true];
+    expect(replayFlags.filter(Boolean)).toHaveLength(1);
+    expect(h.refunds).toEqual([]);
+    expect(h.balance).toBe(1000 - CONTRACT_GENERATION_CREDITS);
+  });
+
+  it("a concurrent twin of a FAILING generation is not stranded: it runs fresh after the refund voids the key", async () => {
+    const body = { ...GOOD_BODY, idempotencyKey: "gen-intent-concurrent-fail" };
+    /* The first attempt's provider call fails (one-shot — a mode
+       flag flipped mid-flight would race the twin's own call); the
+       twin arrives while it is in flight, waits, sees the failure,
+       and — the key now voided by the refund — charges and generates
+       as a fresh attempt, whose provider call succeeds. */
+    h.failNextCall = true;
+    const first = postGenerate(body);
+    /* Let the first attempt get in flight before the twin arrives. */
+    await new Promise((r) => setTimeout(r, 5));
+    const twin = postGenerate(body);
+    const [a, b] = await Promise.all([first, twin]);
+    expect(a.status).toBe(500);
+    expect(b.status).toBe(200);
+    expect(b.data.replayed).toBeUndefined();
+    expect(h.refunds).toHaveLength(1);
+    expect(h.charges).toHaveLength(2);
+    expect(h.providerCalls).toBe(2);
+    /* Money ends exactly right: one refunded failure + one paid success. */
     expect(h.balance).toBe(1000 - CONTRACT_GENERATION_CREDITS);
   });
 });
