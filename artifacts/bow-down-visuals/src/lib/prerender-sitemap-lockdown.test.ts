@@ -34,6 +34,7 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
 const prerenderSource = read("../../scripts/prerender.mjs");
 const entryServerSource = read("../entry-server.tsx");
 const sitemapSource = read("../../public/sitemap.xml");
+const robotsSource = read("../../public/robots.txt");
 
 /** Routes the task / audit §1.4 names as LOCKED (D4) — prefixes included. */
 const LOCKED_ROUTES = [
@@ -137,9 +138,41 @@ function expectNoLockedRoute(paths: string[], surface: string) {
   }
 }
 
+/* Stack-300 SEO #84 deliberate revisit (the W3/N10 pattern): the static
+   public set joins scripts/prerender.mjs as HEAD-ONLY entries — each
+   public page's crawler copy now carries its own title / description /
+   canonical instead of the homepage's. The lockdown substance is
+   unchanged: the set is still EXACTLY the static public set (no locked
+   route, no parameterized invention), and entry-server.tsx still
+   registers ONLY "/" — the added entries render no body server-side. */
+const PRERENDER_HEAD_ROUTES = [
+  "/world",
+  "/charts",
+  "/scenes",
+  "/shorts",
+  "/beats",
+  "/shoutouts",
+  "/memberships",
+  "/contests",
+  "/winners",
+  "/terms",
+  "/privacy",
+  "/refund-policy",
+  "/storefronts",
+  "/app",
+];
+
 describe("prerender list — trimmed to the static public set (Lane 4)", () => {
-  it("scripts/prerender.mjs prerenders ONLY the home page", () => {
-    expect(prerenderPaths()).toEqual(["/"]);
+  it("scripts/prerender.mjs prerenders the home page (SSR) plus the static public set (head-only)", () => {
+    expect([...prerenderPaths()].sort()).toEqual(
+      ["/", ...PRERENDER_HEAD_ROUTES].sort(),
+    );
+  });
+
+  it("every head-only prerender entry is also in the static sitemap set", () => {
+    for (const p of PRERENDER_HEAD_ROUTES) {
+      expect(SITEMAP_PUBLIC_SET).toContain(p);
+    }
   });
 
   it("src/entry-server.tsx registers ONLY the home page for prerendering", () => {
@@ -174,5 +207,77 @@ describe("sitemap — trimmed to the static public set (Lane 4)", () => {
 
   it("no locked route appears in the sitemap", () => {
     expectNoLockedRoute(sitemapPaths(), "sitemap.xml");
+  });
+});
+
+describe("robots.txt — private + token surfaces disallowed (Stack-300 SEO #85)", () => {
+  const disallows = [...robotsSource.matchAll(/^Disallow:\s*(\S+)\s*$/gm)].map((m) => m[1]);
+
+  it("disallows the API, the token shapes, and the auth/transactional roots", () => {
+    for (const required of [
+      "/api/",
+      "/review/",
+      "/sync-one-sheet/",
+      "/live/guest/",
+      "/overlay/",
+      "/login",
+      "/signup",
+      "/store/success",
+    ]) {
+      expect(disallows, `robots.txt should disallow ${required}`).toContain(required);
+    }
+  });
+
+  it("never disallows a public route or a public family's prefix", () => {
+    // Prefix semantics: a Disallow entry blocks everything under it, so
+    // no entry may equal or prefix-match a public path — /tips/:handle,
+    // /live/:id, /group/:slug and /shop/:slug must stay crawlable.
+    const publicSamples = [
+      "/",
+      "/world",
+      "/charts",
+      "/scenes",
+      "/scenes/atlanta",
+      "/shorts",
+      "/beats",
+      "/shoutouts",
+      "/memberships",
+      "/contests",
+      "/winners",
+      "/terms",
+      "/privacy",
+      "/refund-policy",
+      "/storefronts",
+      "/app",
+      "/artist/thy-cheat-code",
+      "/group/some-crew",
+      "/shop/some-shop",
+      "/tips/some-creator",
+      "/live/abc123",
+      "/track/abc123",
+      "/watch/abc123",
+      "/albums/some-album",
+      "/bio/some-creator",
+      "/presave/some-release",
+      "/unlock/some-gate",
+      "/c/some-card",
+      "/press/some-creator",
+      "/join/some-creator",
+      "/storefront/product/abc123",
+      "/challenge/some-contest",
+      "/challenge/some-contest/winners",
+    ];
+    for (const d of disallows) {
+      for (const p of publicSamples) {
+        expect(
+          p !== d && !p.startsWith(d),
+          `robots Disallow ${d} would block public path ${p}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("still points crawlers at the sitemap index", () => {
+    expect(robotsSource).toContain("Sitemap: https://bowdownvisuals.com/sitemap.xml");
   });
 });

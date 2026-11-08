@@ -26,6 +26,7 @@ import type { Request, Response, NextFunction } from "express";
 import { db } from "@workspace/db";
 import {
   creatorProfilesTable,
+  groupsTable,
   profileTracksTable,
   profileVideosTable,
   playlistsTable,
@@ -119,6 +120,16 @@ type ShareKind =
   | "shorts"
   | "charts"
   | "storefronts"
+  | "world"
+  | "beats"
+  | "scenes"
+  | "scene"
+  | "shoutouts"
+  | "memberships"
+  | "contests"
+  | "winners"
+  | "app"
+  | "group"
   | "artist"
   | "showcase"
   | "challenge"
@@ -175,6 +186,22 @@ const ROUTE_PATTERNS: Array<{ kind: ShareKind; re: RegExp }> = [
   { kind: "shorts", re: /^\/shorts\/?$/ },
   { kind: "charts", re: /^\/charts\/?$/ },
   { kind: "storefronts", re: /^\/storefronts\/?$/ },
+  /* Stack-300 SEO #83: public surfaces that had no bot card at all —
+     scrapers fell through to the generic homepage card. /world is one
+     of the two always-public surfaces by owner law; /beats, /scenes,
+     /shoutouts, /memberships, /contests, /winners and /app are the
+     public marketplace/app set in public-routes.ts; /scenes/:slug and
+     /group/:slug are their parameterized public neighbours. */
+  { kind: "world", re: /^\/world\/?$/ },
+  { kind: "beats", re: /^\/beats\/?$/ },
+  { kind: "scenes", re: /^\/scenes\/?$/ },
+  { kind: "scene", re: new RegExp(`^/scenes/(${SLUG_RE})$`) },
+  { kind: "shoutouts", re: /^\/shoutouts\/?$/ },
+  { kind: "memberships", re: /^\/memberships\/?$/ },
+  { kind: "contests", re: /^\/contests\/?$/ },
+  { kind: "winners", re: /^\/winners\/?$/ },
+  { kind: "app", re: /^\/app\/?$/ },
+  { kind: "group", re: new RegExp(`^/group/(${SLUG_RE})$`) },
   { kind: "artist", re: new RegExp(`^/artist/(${SLUG_RE})$`) },
   { kind: "showcase", re: new RegExp(`^/showcase/(${SLUG_RE})$`) },
   { kind: "challenge", re: new RegExp(`^/challenge/(${SLUG_RE})$`) },
@@ -286,6 +313,16 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     shorts: "/shorts",
     charts: "/charts",
     storefronts: "/storefronts",
+    world: "/world",
+    beats: "/beats",
+    scenes: "/scenes",
+    scene: `/scenes/${match.param}`,
+    shoutouts: "/shoutouts",
+    memberships: "/memberships",
+    contests: "/contests",
+    winners: "/winners",
+    app: "/app",
+    group: `/group/${match.param}`,
     artist: `/artist/${match.param}`,
     showcase: `/showcase/${match.param}`,
     challenge: `/challenge/${match.param}`,
@@ -327,6 +364,16 @@ export function genericCard(match: ShareMatch, origin: string): ShareCard {
     shorts: { title: "Shorts on Bow Down Visuals", description: "Watch creator shorts on Bow Down Visuals." },
     charts: { title: "Charts on Bow Down Visuals", description: "The hottest tracks, videos, and creators on Bow Down Visuals right now." },
     storefronts: { title: "Creator Storefronts — Bow Down Visuals", description: "Every creator gets their own shop on Bow Down Visuals — merch, music, and digital drops, all in one gold-standard storefront." },
+    world: { title: "The World — The King's Plaza | Bow Down Visuals", description: "Step into the King's Plaza, the palace's front square. Six districts stand open around it: Stage Grounds, Listening Gardens, Creation Row, The Ateliers, The Boardwalk and Creator Heights. Inside, palace desks mirror the site's Create, Brand, Promote and Money features." },
+    beats: { title: "Beat Marketplace | Bow Down Visuals", description: "Buy and sell beats: producers list instrumentals, and artists preview and license them by tier." },
+    scenes: { title: "Local Scenes | Bow Down Visuals", description: "Every city with a real scene — the creators who declared it, their real shows, and the city's own chart." },
+    scene: { title: "Local Scenes | Bow Down Visuals", description: "One city's scene page: the creators who declared the city, its real upcoming shows, and the city's own chart." },
+    shoutouts: { title: "Shoutouts | Bow Down Visuals", description: "Sell personalized video shoutouts to fans — set your price and manage requests in one place." },
+    memberships: { title: "Memberships | Bow Down Visuals", description: "Launch your fan club with paid membership tiers, member perks, and tracking." },
+    contests: { title: "Contests | Bow Down Visuals", description: "Run fan contests and giveaways with entry tracking and a provably fair winner draw." },
+    winners: { title: "Winners' Circle — Hall of Fame | Bow Down Visuals", description: "The Winners' Circle: meet the creators taking home Bow Down Visuals challenge crowns, and see the winning work that earned them." },
+    app: { title: "Get the App — Bow Down Visuals | Bow Down Visuals", description: "Get the Bow Down Visuals app — download the Android APK or the Chrome extension, or install the web app on iPhone, iPad, Windows and Mac." },
+    group: { title: "Group on Bow Down Visuals", description: "A creator community on Bow Down Visuals." },
     artist: { title: "Creator on Bow Down Visuals", description: "A creator profile on Bow Down Visuals — the content creator's cheat code." },
     showcase: { title: "Showcase on Bow Down Visuals", description: "Community showcase on Bow Down Visuals — the content creator's cheat code." },
     challenge: { title: "Challenge on Bow Down Visuals", description: "A creator challenge on Bow Down Visuals — join in and take the crown." },
@@ -758,6 +805,41 @@ async function resolveShorts(match: ShareMatch, origin: string): Promise<ShareCa
      the page the link opens, so its own card is the honest answer (the
      feed card, 200 — not a 404 generic). */
   return staticCard({ kind: "shorts", param: "" }, origin);
+}
+
+/* Stack-300 SEO #83: /group/:slug is public (public-routes.ts) but had
+   no bot card. Mirrors resolveArtist: the group's own cover is the card
+   image, its name + member count the copy. A private group returns
+   null — the route's guest read (routes/community.ts GET /groups/:slug)
+   refuses non-members, so the card rail must not leak its name or cover
+   either; the middleware then serves the typed generic card. */
+async function resolveGroup(slug: string, origin: string): Promise<ShareCard | null> {
+  const [g] = await db
+    .select()
+    .from(groupsTable)
+    .where(eq(groupsTable.slug, slug.toLowerCase()))
+    .limit(1);
+  if (!g || !g.isPublic) return null;
+  const image = absoluteMediaUrl(g.coverUrl, origin) ?? fallbackImage(origin);
+  const bits = [g.name];
+  if (g.memberCount) bits.push(`${formatCount(g.memberCount)} members`);
+  return {
+    title: `${g.name} — group on Bow Down Visuals`,
+    description: truncate(g.description ? `${bits.join(" · ")} — ${g.description}` : `${bits.join(" · ")} — a creator community on Bow Down Visuals.`, 200),
+    image,
+    imageAlt: `${g.name} — group cover`,
+    url: `${origin}/group/${g.slug}`,
+    ogType: "website",
+    twitterCard: "summary_large_image",
+    robots: "index, follow",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      name: g.name,
+      url: `${origin}/group/${g.slug}`,
+      ...(g.description ? { description: truncate(g.description, 200) } : {}),
+    },
+  };
 }
 
 async function resolveArtist(slug: string, origin: string): Promise<ShareCard | null> {
@@ -1335,7 +1417,7 @@ async function resolvePressKit(handle: string, origin: string): Promise<ShareCar
 
 function staticCard(match: ShareMatch, origin: string): ShareCard | null {
   const base = genericCard(match, origin);
-  const overrides: Partial<Record<ShareKind, { title: string; description: string }>> = {
+  const overrides: Partial<Record<ShareKind, { title: string; description: string; image?: string }>> = {
     templates: {
       title: "Creator Templates — Bow Down Visuals",
       description: "Free, remixable creator templates: thumbnails, hooks, captions, and video templates. Pick one, make it yours — Bow Down Visuals.",
@@ -1394,10 +1476,54 @@ function staticCard(match: ShareMatch, origin: string): ShareCard | null {
       title: "Creator Storefronts — Bow Down Visuals",
       description: "Every creator gets their own shop on Bow Down Visuals — merch, music, and digital drops, all in one gold-standard storefront.",
     },
+    /* Stack-300 SEO #83: the public surfaces that had no card at all.
+       Copy is each page's own words (its usePageTitle call), per the
+       P4 convention above. /world additionally carries the flagship
+       lockup card (/opengraph.jpg — the real logo lockup at 1200×630)
+       instead of the generic fallback: it is one of the two
+       always-public surfaces, and its share image now actually
+       differs per page instead of reusing the fallback everywhere. */
+    world: {
+      title: "The World — The King's Plaza | Bow Down Visuals",
+      description: "Step into the King's Plaza, the palace's front square. Six districts stand open around it: Stage Grounds, Listening Gardens, Creation Row, The Ateliers, The Boardwalk and Creator Heights. Inside, palace desks mirror the site's Create, Brand, Promote and Money features.",
+      image: `${origin}/opengraph.jpg`,
+    },
+    beats: {
+      title: "Beat Marketplace | Bow Down Visuals",
+      description: "Buy and sell beats: producers list instrumentals, and artists preview and license them by tier.",
+    },
+    scenes: {
+      title: "Local Scenes | Bow Down Visuals",
+      description: "Every city with a real scene — the creators who declared it, their real shows, and the city's own chart.",
+    },
+    scene: {
+      title: "Local Scenes | Bow Down Visuals",
+      description: "One city's scene page: the creators who declared the city, its real upcoming shows, and the city's own chart.",
+    },
+    shoutouts: {
+      title: "Shoutouts | Bow Down Visuals",
+      description: "Sell personalized video shoutouts to fans — set your price and manage requests in one place.",
+    },
+    memberships: {
+      title: "Memberships | Bow Down Visuals",
+      description: "Launch your fan club with paid membership tiers, member perks, and tracking.",
+    },
+    contests: {
+      title: "Contests | Bow Down Visuals",
+      description: "Run fan contests and giveaways with entry tracking and a provably fair winner draw.",
+    },
+    winners: {
+      title: "Winners' Circle — Hall of Fame | Bow Down Visuals",
+      description: "The Winners' Circle: meet the creators taking home Bow Down Visuals challenge crowns, and see the winning work that earned them.",
+    },
+    app: {
+      title: "Get the App — Bow Down Visuals | Bow Down Visuals",
+      description: "Get the Bow Down Visuals app — download the Android APK or the Chrome extension, or install the web app on iPhone, iPad, Windows and Mac.",
+    },
   };
   const o = overrides[match.kind];
   if (!o) return null;
-  return { ...base, title: o.title, description: o.description };
+  return { ...base, title: o.title, description: o.description, ...(o.image ? { image: o.image } : {}) };
 }
 
 /** Resolve a shareable route to its rich card. Returns null when the entity
@@ -1414,6 +1540,7 @@ export async function resolveShareCard(
     case "post": return resolvePost(match.param, origin);
     case "event": return resolveEvent(match.param, origin);
     case "shorts": return resolveShorts(match, origin);
+    case "group": return resolveGroup(match.param, origin);
     case "artist": return resolveArtist(match.param, origin);
     case "showcase": return resolveShowcase(match.param, origin);
     case "challenge": return resolveChallenge(match.param, origin);

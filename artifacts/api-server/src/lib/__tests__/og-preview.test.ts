@@ -99,11 +99,23 @@ describe("matchShareableRoute", () => {
     ["/splits/0123abcdef", { kind: "splits", param: "0123abcdef" }],
     ["/unlock/vip-drop", { kind: "unlock", param: "vip-drop" }],
     ["/challenge/summer-banger/winners", { kind: "challenge-winners", param: "summer-banger" }],
+    /* Stack-300 SEO #83: the public surfaces that fell through to the
+       homepage card. */
+    ["/world", { kind: "world", param: "" }],
+    ["/beats", { kind: "beats", param: "" }],
+    ["/scenes", { kind: "scenes", param: "" }],
+    ["/scenes/atlanta", { kind: "scene", param: "atlanta" }],
+    ["/shoutouts", { kind: "shoutouts", param: "" }],
+    ["/memberships", { kind: "memberships", param: "" }],
+    ["/contests", { kind: "contests", param: "" }],
+    ["/winners", { kind: "winners", param: "" }],
+    ["/app", { kind: "app", param: "" }],
+    ["/group/royal-crew", { kind: "group", param: "royal-crew" }],
   ])("matches %s", (path, expected) => {
     expect(matchShareableRoute(path)).toEqual(expected);
   });
 
-  it.each(["/", "/dashboard", "/api/media/track/abc", "/track", "/artist/", "/track/a", "/login", "/songs"])(
+  it.each(["/", "/dashboard", "/api/media/track/abc", "/track", "/artist/", "/track/a", "/login", "/songs", "/groups", "/events", "/post/550e8400-e29b-41d4-a716-446655440003/extra"])(
     "ignores non-shareable %s",
     (path) => {
       expect(matchShareableRoute(path)).toBeNull();
@@ -392,6 +404,51 @@ describe("buildShortCard + static surfaces (Stack1000 P4 share truth)", () => {
     expect(card?.title).toBe("Creator Storefronts — Bow Down Visuals");
     expect(card?.description).toContain("Every creator gets their own shop on Bow Down Visuals");
     expect(card?.url).toBe(`${ORIGIN}/storefronts`);
+  });
+});
+
+describe("Stack-300 SEO #83 — the public surfaces that had no card", () => {
+  it("/world resolves to the World card, with the flagship lockup image — not the fallback", async () => {
+    const card = await resolveShareCard({ kind: "world", param: "" }, ORIGIN);
+    expect(card?.title).toBe("The World — The King's Plaza | Bow Down Visuals");
+    expect(card?.description).toContain("King's Plaza");
+    expect(card?.url).toBe(`${ORIGIN}/world`);
+    expect(card?.image).toBe(`${ORIGIN}/opengraph.jpg`);
+    /* The per-page image promise: the World's share image differs from
+       the generic fallback every other static card starts from. */
+    expect(card?.image).not.toBe(`${ORIGIN}/og-fallback.png`);
+  });
+
+  it.each([
+    ["beats", "Beat Marketplace | Bow Down Visuals", "/beats"],
+    ["scenes", "Local Scenes | Bow Down Visuals", "/scenes"],
+    ["shoutouts", "Shoutouts | Bow Down Visuals", "/shoutouts"],
+    ["memberships", "Memberships | Bow Down Visuals", "/memberships"],
+    ["contests", "Contests | Bow Down Visuals", "/contests"],
+    ["winners", "Winners' Circle — Hall of Fame | Bow Down Visuals", "/winners"],
+    ["app", "Get the App — Bow Down Visuals | Bow Down Visuals", "/app"],
+  ])("/%s resolves to its own card in the page's own words", async (kind, title, path) => {
+    const card = await resolveShareCard({ kind: kind as never, param: "" }, ORIGIN);
+    expect(card?.title).toBe(title);
+    expect(card?.url).toBe(`${ORIGIN}${path}`);
+    expect(card?.robots).toBe("index, follow");
+  });
+
+  it("a scene page resolves to the scene card on its own URL", async () => {
+    const card = await resolveShareCard({ kind: "scene", param: "atlanta" }, ORIGIN);
+    expect(card?.title).toBe("Local Scenes | Bow Down Visuals");
+    expect(card?.url).toBe(`${ORIGIN}/scenes/atlanta`);
+  });
+
+  it("genericCard covers the new kinds with their own URLs", () => {
+    expect(genericCard({ kind: "world", param: "" }, ORIGIN).url).toBe(`${ORIGIN}/world`);
+    expect(genericCard({ kind: "group", param: "royal-crew" }, ORIGIN).url).toBe(
+      `${ORIGIN}/group/royal-crew`,
+    );
+    expect(genericCard({ kind: "scene", param: "atlanta" }, ORIGIN).url).toBe(
+      `${ORIGIN}/scenes/atlanta`,
+    );
+    expect(genericCard({ kind: "app", param: "" }, ORIGIN).url).toBe(`${ORIGIN}/app`);
   });
 });
 

@@ -5,7 +5,14 @@
      /login is a soft-404 risk. Parameterized public routes
      (/artist/:slug, /shop/:slug, /tips/:handle, media/funnel landings…)
      are dynamic and were never listed here. Pinned by
-     src/lib/prerender-sitemap-lockdown.test.ts. -->
+     src/lib/prerender-sitemap-lockdown.test.ts.
+     Stack-300 SEO #82: the LIVE /sitemap.xml is now the API's dynamic
+     sitemap index (lib/sitemap.ts in the api-server) — this static set
+     is its "static" child, and the dynamic families (artists, shops,
+     tracks, videos, albums, bio pages, tip jars, …) live in generated
+     sibling children. This file remains the set's source of truth for
+     the static child and the no-API fallback; the API mirrors it
+     exactly (STATIC_SITEMAP_PATHS) and the lockdown test pins both. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://bowdownvisuals.com/</loc></url>
   <!-- W3 lane 16 (D-11): /world is public by the owner's law (home +

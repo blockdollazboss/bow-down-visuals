@@ -13,6 +13,7 @@ import { resendWebhookHandler } from "./lib/resend-webhook";
 import { stagingGate } from "./lib/staging-gate";
 import { publicSubscribeCors, PUBLIC_SUBSCRIBE_PATH } from "./lib/public-subscribe-door";
 import { ogPreviewMiddleware, siteOrigin } from "./lib/og-preview";
+import { sitemapMiddleware } from "./lib/sitemap";
 import { cacheControlForFile, spaFallbackStatus } from "./lib/cache-policy";
 import { securityHeaders } from "./lib/security-headers";
 import { getWaitlistInvitePublic } from "./routes/waitlist";
@@ -120,6 +121,13 @@ app.use(stagingGate);
    JSON-LD. Humans pass through to the SPA untouched. Must run before the
    static/SPA fallback below. */
 app.use(ogPreviewMiddleware());
+
+/* Dynamic sitemap (Stack-300 SEO #82): /sitemap.xml is a sitemap index
+   (the static public set as one child + one generated child per public
+   content family), /sitemap-<family>.xml the live urlsets. Must run
+   before the static/SPA fallback below, which would otherwise serve
+   the FE's static public/sitemap.xml for /sitemap.xml. */
+app.use(sitemapMiddleware());
 
 app.use("/api", router);
 

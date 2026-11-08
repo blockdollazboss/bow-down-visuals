@@ -1,4 +1,51 @@
 User-agent: *
 Allow: /
 
+# Private + token surfaces (Stack-300 SEO #85): these paths are
+# members-only or carry an unguessable token in the URL. They rely on
+# the app gate + post-JS noindex today; robots states it up front so
+# non-rendering crawlers never index them. This mirrors the inverse of
+# the public allowlist (src/lib/public-routes.ts) — public fan landings
+# under the same prefixes (e.g. /tips/:handle, /live/:id,
+# /group/:slug) stay crawlable; only the bare private roots and the
+# token shapes are disallowed.
+Disallow: /api/
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /my-shop
+Disallow: /my-projects
+Disallow: /my-music
+Disallow: /my-clips
+Disallow: /earnings
+Disallow: /credit-history
+Disallow: /store/dashboard
+Disallow: /store/buy/
+Disallow: /creator/
+Disallow: /groups
+Disallow: /events
+Disallow: /community
+Disallow: /messages
+Disallow: /team
+Disallow: /referrals
+Disallow: /promote
+Disallow: /brand-deals
+Disallow: /sponsors/
+Disallow: /distribute
+Disallow: /publish
+Disallow: /create
+Disallow: /go-live
+Disallow: /video-editor
+Disallow: /audio-studio
+Disallow: /thumbnail-studio
+Disallow: /login
+Disallow: /signup
+Disallow: /reset-password
+Disallow: /qr-login
+Disallow: /store/success
+Disallow: /overlay/
+Disallow: /review/
+Disallow: /sync-one-sheet/
+Disallow: /live/guest/
+
 Sitemap: https://bowdownvisuals.com/sitemap.xml
