@@ -112,7 +112,9 @@ describe("#26 broadcast: channels and inbox settle independently (A3-F4)", () =>
   });
   it("the create form is reachable whenever channels are not loading — inbox state never gates it", () => {
     expect(page).toContain('!mine && channelsState !== "loading"');
-    const formAt = page.indexOf("Open your broadcast channel");
+    /* Stack 300 keyed the panel (broadcast.*): the form heading now
+       renders from the catalog, so the pin reads its key call. */
+    const formAt = page.indexOf('t("broadcast.openChannelTitle")');
     const inboxErrorAt = page.indexOf('data-testid="broadcast-inbox-error"');
     expect(formAt).toBeGreaterThan(-1);
     expect(inboxErrorAt).toBeGreaterThan(formAt);
