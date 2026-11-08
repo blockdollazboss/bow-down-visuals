@@ -22,6 +22,7 @@ import { ViralSpikeKitPanel } from "@/components/promote/ViralSpikeKitPanel";
 import { DropDayPanel } from "@/components/promote/DropDayPanel";
 import { AudienceAutoSegment } from "@/components/promote/AudienceAutoSegment";
 import { WidgetsDeskPanel } from "@/components/promote/WidgetsDeskPanel";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Promo Content Generator ─────────────────────────────────────────────
@@ -279,13 +280,17 @@ export default function Promote() {
           flow (never a standalone page). Visible in both tabs, like the
           Refer & Earn handoff above it. */}
       <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
-        <ResultsWallPanel />
+        <SectionBoundary name="promote-results-wall">
+          <ResultsWallPanel />
+        </SectionBoundary>
       </div>
       {/* Viral-spike response kit — visible in both tabs, above the panels.
           Renders only what the server measured: a fired kit's steps, an
           honest still-measuring note, or the opted-out state. */}
       <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
-        <ViralSpikeKitPanel />
+        <SectionBoundary name="promote-viral-spike">
+          <ViralSpikeKitPanel />
+        </SectionBoundary>
       </div>
       {/* Drop Day Kit (#169) — the kit's Promote home: every release,
           its kit state, and the release-day checklist the server
@@ -294,7 +299,9 @@ export default function Promote() {
           endpoints and never posts, sends, or schedules itself.
           Visible in both tabs, like the panels above it. */}
       <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
-        <DropDayPanel />
+        <SectionBoundary name="promote-drop-day">
+          <DropDayPanel />
+        </SectionBoundary>
       </div>
 
       {/* Widgets Desk (Stack900 C1) — the creator's embed widgets for
@@ -303,7 +310,9 @@ export default function Promote() {
           tablet / desktop widths and one-tap iframe code. Docked in
           Promote like every other panel — never a standalone page. */}
       <div className="mx-auto max-w-4xl px-5 md:px-8 mt-4">
-        <WidgetsDeskPanel />
+        <SectionBoundary name="promote-widgets-desk">
+          <WidgetsDeskPanel />
+        </SectionBoundary>
       </div>
 
       <section className="mx-auto max-w-4xl px-5 md:px-8 pb-20">
@@ -484,25 +493,33 @@ export default function Promote() {
         {/* Social Kit — the orphaned /api/social-kit backend, mounted here.
             Brand kit for the project's socials, prefilled from the hub. */}
         <div className="mt-10">
-          <SocialKitPanel />
+          <SectionBoundary name="promote-social-kit">
+            <SocialKitPanel />
+          </SectionBoundary>
         </div>
 
         {/* Release Promo Cards — DistroKid promo-cards parity, docked in the
             social-kit flow. Deep-linked from /distribute and /presave/:slug. */}
         <div className="mt-10">
-          <PromoCardsPanel />
+          <SectionBoundary name="promote-promo-cards">
+            <PromoCardsPanel />
+          </SectionBoundary>
         </div>
 
         {/* UGC Product Ads (owner order Oct 19, 2026) — creator-style video
             ads for products + the brand briefs board, in the same Promote
             family as Promo Clips and the promo cards above. */}
         <div className="mt-10">
-          <UgcAdsPanel />
+          <SectionBoundary name="promote-ugc-ads">
+            <UgcAdsPanel />
+          </SectionBoundary>
         </div>
 
         {/* Stack 11 #8 — generalized follow/share-to-unlock gates. */}
         <div className="mt-10">
-          <UnlockGatesPanel />
+          <SectionBoundary name="promote-unlock-gates">
+            <UnlockGatesPanel />
+          </SectionBoundary>
         </div>
 
         {/* Stream overlays (stack900 C2) — the widgets that live OUTSIDE
@@ -511,7 +528,9 @@ export default function Promote() {
             tools; when the embed-widgets desk (lane C1) lands, the two
             desks sit side by side here. */}
         <div className="mt-10">
-          <StreamOverlaysPanel />
+          <SectionBoundary name="promote-stream-overlays">
+            <StreamOverlaysPanel />
+          </SectionBoundary>
         </div>
           </>
         )}

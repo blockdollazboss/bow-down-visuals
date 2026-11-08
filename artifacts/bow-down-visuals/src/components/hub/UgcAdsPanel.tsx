@@ -1,4 +1,5 @@
 import { plainErrorText } from "../../lib/api-error";
+import { centsToDisplay } from "@/lib/shops";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -37,6 +38,7 @@ import {
   fundUgcBrief,
   confirmUgcBriefFunding,
   verifyUgcBriefFunding,
+  ugcErrorText,
   fetchUgcAd,
   recordUgcAdShare,
   type UgcAd,
@@ -68,7 +70,10 @@ import {
    truly-empty are distinct states; nothing here invents an ad, a
    brief, or a price the server didn't send. */
 
-const moneyCents = (cents: number): string => `$${(cents / 100).toFixed(2)}`;
+/* Money display (Stack-300 item 113b): every amount this panel shows
+   routes through the locale-aware formatter (the E-3 centsToDisplay
+   seam), never a hand-rolled $x.xx literal. */
+const moneyCents = (cents: number, locale?: string): string => centsToDisplay(cents, locale);
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
@@ -91,7 +96,7 @@ export function UgcAdsPanel() {
      helpers take the catalog-resolved bundles below — money-adjacent
      values (escrow labels, the money note) are the English source
      verbatim in every catalog. */
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const escrowLabels = {
     unfunded: t("worldLivePromo.ugcEscrowUnfunded"),
     funding: t("worldLivePromo.ugcEscrowFunding"),
@@ -223,7 +228,7 @@ export function UgcAdsPanel() {
       setScriptLines(script.lines.join("\n"));
       setCta(script.cta);
     } catch (err) {
-      setMakerError(plainErrorText(err, t("worldLivePromo.ugcScriptFailed")));
+      setMakerError(ugcErrorText(err, (key) => t(key), t("worldLivePromo.ugcScriptFailed")));
     } finally {
       setScriptBusy(false);
     }
@@ -247,7 +252,7 @@ export function UgcAdsPanel() {
       /* A failed attempt was refunded — the retry must be a NEW intent
          (fresh idempotency key), never a replay of the refunded one. */
       personaKeyRef.current = "";
-      setMakerError(plainErrorText(err, t("worldLivePromo.ugcPersonaFailed")));
+      setMakerError(ugcErrorText(err, (key) => t(key), t("worldLivePromo.ugcPersonaFailed")));
     } finally {
       setPersonaBusy(false);
     }
@@ -296,7 +301,7 @@ export function UgcAdsPanel() {
       refreshProfile();
       toast({ title: t("ugcAds.adReadyTitle"), description: t("ugcAds.adReadyDesc", { name: ready.productName }) });
     } catch (err) {
-      setMakerError(plainErrorText(err, t("worldLivePromo.ugcGenerationFailed")));
+      setMakerError(ugcErrorText(err, (key) => t(key), t("worldLivePromo.ugcGenerationFailed")));
       void loadAds();
     } finally {
       setGenerating(false);
@@ -311,7 +316,7 @@ export function UgcAdsPanel() {
       if (latestAd?.id === ready.id) setLatestAd(ready);
       refreshProfile();
     } catch (err) {
-      toast({ title: t("ugcAds.generationFailedTitle"), description: plainErrorText(err, t("ugcAds.refundedNote")), variant: "destructive" });
+      toast({ title: t("ugcAds.generationFailedTitle"), description: ugcErrorText(err, (key) => t(key), t("ugcAds.refundedNote")), variant: "destructive" });
       void loadAds();
     } finally {
       setBusyAdId(null);
@@ -339,7 +344,7 @@ export function UgcAdsPanel() {
           : t("ugcAds.unpinnedDesc", { name: ad.productName }),
       });
     } catch (err) {
-      toast({ title: action === "pin" ? t("ugcAds.pinFailed") : t("ugcAds.unpinFailed"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: action === "pin" ? t("ugcAds.pinFailed") : t("ugcAds.unpinFailed"), description: ugcErrorText(err, (key) => t(key), t(action === "pin" ? "ugcAds.pinAdFailed" : "ugcAds.unpinAdFailed")), variant: "destructive" });
     } finally {
       setBusyAdId(null);
     }
@@ -353,7 +358,7 @@ export function UgcAdsPanel() {
       if (latestAd?.id === ad.id) setLatestAd(null);
       setConfirmDeleteId(null);
     } catch (err) {
-      toast({ title: t("ugcAds.adDeleteFailed"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: t("ugcAds.adDeleteFailed"), description: ugcErrorText(err, (key) => t(key), t("ugcAds.deleteAdFailed")), variant: "destructive" });
     } finally {
       setBusyAdId(null);
     }
@@ -401,7 +406,7 @@ export function UgcAdsPanel() {
       setBriefsState("ready");
       toast({ title: t("ugcAds.briefPostedTitle"), description: t("ugcAds.briefPostedDesc") });
     } catch (err) {
-      toast({ title: t("ugcAds.briefPostFailed"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: t("ugcAds.briefPostFailed"), description: ugcErrorText(err, (key) => t(key), t("ugcAds.postBriefGenFailed")), variant: "destructive" });
     } finally {
       setPostingBrief(false);
     }
@@ -423,7 +428,7 @@ export function UgcAdsPanel() {
       if (action === "deliver") toast({ title: t("ugcAds.deliveredTitle"), description: t("ugcAds.deliveredDesc") });
       if (action === "approve") {
         if (updated.escrowStatus === "released" && updated.creatorPayoutCents != null) {
-          toast({ title: t("ugcAds.approveReleasedTitle"), description: t("ugcAds.approveReleasedDesc", { amount: moneyCents(updated.creatorPayoutCents) }) });
+          toast({ title: t("ugcAds.approveReleasedTitle"), description: t("ugcAds.approveReleasedDesc", { amount: moneyCents(updated.creatorPayoutCents, i18n.language) }) });
         } else {
           toast({ title: t("ugcAds.approveTitle"), description: t("ugcAds.approveCompleteDesc") });
         }
@@ -432,7 +437,7 @@ export function UgcAdsPanel() {
         toast({ title: t("ugcAds.closedRefundTitle"), description: t("ugcAds.closedRefundDesc") });
       }
     } catch (err) {
-      toast({ title: t("ugcAds.actionFailedTitle"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: t("ugcAds.actionFailedTitle"), description: ugcErrorText(err, (key) => t(key), t("ugcAds.briefActionGenFailed")), variant: "destructive" });
       void loadBriefs();
     } finally {
       setBusyBriefId(null);
@@ -458,7 +463,7 @@ export function UgcAdsPanel() {
         window.location.href = result.checkoutUrl;
       }
     } catch (err) {
-      toast({ title: t("ugcAds.fundStartFailed"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: t("ugcAds.fundStartFailed"), description: ugcErrorText(err, (key) => t(key), t("ugcAds.fundGenFailed")), variant: "destructive" });
       void loadBriefs();
     } finally {
       setBusyBriefId(null);
@@ -472,7 +477,7 @@ export function UgcAdsPanel() {
       setBriefs((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
       toast({ title: t("ugcAds.fundedTitle"), description: t("ugcAds.fundedDesc") });
     } catch (err) {
-      toast({ title: t("ugcAds.notFundedYetTitle"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: t("ugcAds.notFundedYetTitle"), description: ugcErrorText(err, (key) => t(key), t("ugcAds.fundVerifyGenFailed")), variant: "destructive" });
     } finally {
       setBusyBriefId(null);
     }
@@ -613,7 +618,7 @@ export function UgcAdsPanel() {
                     )}
                     <span className="min-w-0">
                       <span className="block truncate font-semibold">{p.name}</span>
-                      <span className="block text-xs font-normal text-white/40">${(p.priceCents / 100).toFixed(2)}</span>
+                      <span className="block text-xs font-normal text-white/40">{moneyCents(p.priceCents, i18n.language)}</span>
                     </span>
                   </button>
                 ))}
@@ -942,7 +947,7 @@ export function UgcAdsPanel() {
                   {brief.priceCents != null && (
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                       <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-1 font-bold text-white/85">
-                        {t("ugcAds.priceChip", { amount: moneyCents(brief.priceCents) })}
+                        {t("ugcAds.priceChip", { amount: moneyCents(brief.priceCents, i18n.language) })}
                       </span>
                       <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-1 font-semibold text-white/70">
                         {escrowStatusLabel(brief.escrowStatus, escrowLabels)}
@@ -951,12 +956,12 @@ export function UgcAdsPanel() {
                         const preview = ugcBriefNetPreview(brief);
                         if (!preview) return null;
                         if (brief.escrowStatus === "released" && brief.creatorPayoutCents != null) {
-                          return <span className="text-white/50">{t("ugcAds.wentToCreator", { amount: moneyCents(brief.creatorPayoutCents) })}</span>;
+                          return <span className="text-white/50">{t("ugcAds.wentToCreator", { amount: moneyCents(brief.creatorPayoutCents, i18n.language) })}</span>;
                         }
                         if (brief.escrowStatus === "refunded") return null;
                         return (
                           <span className="text-white/50">
-                            {t("worldLivePromo.ugcCreatorReceives", { net: moneyCents(preview.netCents), gross: moneyCents(brief.priceCents), fee: moneyCents(preview.feeCents) })}
+                            {t("worldLivePromo.ugcCreatorReceives", { net: moneyCents(preview.netCents, i18n.language), gross: moneyCents(brief.priceCents, i18n.language), fee: moneyCents(preview.feeCents, i18n.language) })}
                           </span>
                         );
                       })()}
@@ -1011,7 +1016,7 @@ export function UgcAdsPanel() {
                       )}
                       {actions.includes("fund") && (
                         <button onClick={() => void fundBrief(brief)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 px-3 py-1.5 text-xs font-bold text-black transition hover:brightness-110 disabled:opacity-50">
-                          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />} {t("worldLivePromo.ugcFundBrief", { amount: brief.priceCents != null ? moneyCents(brief.priceCents) : "" })}
+                          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />} {t("worldLivePromo.ugcFundBrief", { amount: brief.priceCents != null ? moneyCents(brief.priceCents, i18n.language) : "" })}
                         </button>
                       )}
                       {actions.includes("deliver") && (
@@ -1021,7 +1026,7 @@ export function UgcAdsPanel() {
                       )}
                       {actions.includes("approve") && (
                         <button onClick={() => void runBriefAction(brief, "approve")} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-yellow-500 px-3 py-1.5 text-xs font-bold text-black transition hover:brightness-110 disabled:opacity-50">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> {brief.priceCents != null && brief.escrowStatus === "funded" ? t("worldLivePromo.ugcApproveRelease", { amount: moneyCents(brief.priceCents) }) : t("worldLivePromo.ugcApproveDelivery")}
+                          <CheckCircle2 className="h-3.5 w-3.5" /> {brief.priceCents != null && brief.escrowStatus === "funded" ? t("worldLivePromo.ugcApproveRelease", { amount: moneyCents(brief.priceCents, i18n.language) }) : t("worldLivePromo.ugcApproveDelivery")}
                         </button>
                       )}
                       {actions.includes("release") && (

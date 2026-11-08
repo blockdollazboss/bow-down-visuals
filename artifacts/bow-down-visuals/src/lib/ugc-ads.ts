@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "./api-error";
+import { apiErrorMessage, plainErrorText } from "./api-error";
 /* ─── UGC Product Ads seam (owner order Oct 19, 2026) ──────────────────
    Pure shaping + the thin API client for the Promote-docked UGC ads
    panel, kept out of the component so the honesty rules are
@@ -385,6 +385,68 @@ export function ugcAdShareText(ad: UgcAd): string {
   return `${hook}— my UGC ad for ${ad.productName}, made with Bow Down Visuals`;
 }
 
+/* ── Client failure words (Stack-300 item 113) ────────────────────────
+   Every failure this client throws carries ONE of these keys as its
+   message. English source lives in the catalogs (ugcAds.* keys,
+   verbatim in every locale — UNREVIEWED); the server's own plain
+   message, when one came back, still wins inside apiErrorMessage
+   before the key is ever thrown. Surfaces render a caught lib error
+   through `ugcErrorText` below — never the raw message — so the key
+   itself never reaches a reader. */
+export type UgcErrorKey =
+  | "ugcAds.loadProductsFailed"
+  | "ugcAds.loadAdsFailed"
+  | "ugcAds.loadBriefsFailed"
+  | "ugcAds.loadAdFailed"
+  | "ugcAds.scriptGenFailed"
+  | "ugcAds.personaGenFailed"
+  | "ugcAds.createAdFailed"
+  | "ugcAds.videoGenFailed"
+  | "ugcAds.deleteAdFailed"
+  | "ugcAds.pinAdFailed"
+  | "ugcAds.unpinAdFailed"
+  | "ugcAds.postBriefGenFailed"
+  | "ugcAds.briefActionGenFailed"
+  | "ugcAds.fundGenFailed"
+  | "ugcAds.fundConfirmGenFailed"
+  | "ugcAds.fundVerifyGenFailed";
+
+const UGC_ERROR_KEYS: ReadonlySet<string> = new Set<UgcErrorKey>([
+  "ugcAds.loadProductsFailed",
+  "ugcAds.loadAdsFailed",
+  "ugcAds.loadBriefsFailed",
+  "ugcAds.loadAdFailed",
+  "ugcAds.scriptGenFailed",
+  "ugcAds.personaGenFailed",
+  "ugcAds.createAdFailed",
+  "ugcAds.videoGenFailed",
+  "ugcAds.deleteAdFailed",
+  "ugcAds.pinAdFailed",
+  "ugcAds.unpinAdFailed",
+  "ugcAds.postBriefGenFailed",
+  "ugcAds.briefActionGenFailed",
+  "ugcAds.fundGenFailed",
+  "ugcAds.fundConfirmGenFailed",
+  "ugcAds.fundVerifyGenFailed",
+]);
+
+/** The words a surface shows for a caught error from this client (or
+    anything thrown alongside it). A lib failure key resolves through
+    the caller's catalog (`resolve` — the surface's `t`); a server
+    plain message the client already preferred passes through
+    untouched; a raw server code collapses to `fallback` through
+    plainErrorText, never rendering raw. */
+export function ugcErrorText(
+  err: unknown,
+  resolve: (key: UgcErrorKey) => string,
+  fallback: string,
+): string {
+  if (err instanceof Error && UGC_ERROR_KEYS.has(err.message)) {
+    return resolve(err.message as UgcErrorKey);
+  }
+  return plainErrorText(err, fallback);
+}
+
 /* ── API client (thin; token passed in like the other hub panels) ───── */
 
 async function api<T>(
@@ -407,13 +469,13 @@ async function api<T>(
 
 export async function fetchMyShopProducts(token: string | null): Promise<UgcShopProduct[]> {
   const { status, data } = await api<unknown>(token, "GET", "/api/ugc-ads/products");
-  if (status !== 200) throw new Error("Could not load your shop products.");
+  if (status !== 200) throw new Error("ugcAds.loadProductsFailed");
   return normalizeUgcProducts(data);
 }
 
 export async function fetchMyUgcAds(token: string | null): Promise<UgcAd[]> {
   const { status, data } = await api<unknown>(token, "GET", "/api/ugc-ads");
-  if (status !== 200) throw new Error("Could not load your UGC ads.");
+  if (status !== 200) throw new Error("ugcAds.loadAdsFailed");
   return normalizeUgcAds(data);
 }
 
@@ -423,7 +485,7 @@ export async function generateUgcScript(
 ): Promise<UgcScript> {
   const { status, data } = await api<any>(token, "POST", "/api/ugc-ads/script", input);
   const script = status === 200 ? normalizeScript((data as any)?.script) : null;
-  if (!script) throw new Error(apiErrorMessage(data, "The script didn't come through — try again."));
+  if (!script) throw new Error(apiErrorMessage(data, "ugcAds.scriptGenFailed"));
   return script;
 }
 
@@ -434,7 +496,7 @@ export async function generateUgcPersona(
 ): Promise<{ personaUrl: string; creditsUsed: number }> {
   const { status, data } = await api<any>(token, "POST", "/api/ugc-ads/persona", { description, idempotencyKey });
   if (status !== 200 || typeof (data as any)?.personaUrl !== "string") {
-    throw new Error(apiErrorMessage(data, "The persona didn't come through — try again."));
+    throw new Error(apiErrorMessage(data, "ugcAds.personaGenFailed"));
   }
   return { personaUrl: (data as any).personaUrl, creditsUsed: num((data as any).creditsUsed) };
 }
@@ -456,7 +518,7 @@ export interface CreateUgcAdInput {
 export async function createUgcAd(token: string | null, input: CreateUgcAdInput): Promise<UgcAd> {
   const { status, data } = await api<any>(token, "POST", "/api/ugc-ads", input);
   const ad = status === 201 ? normalizeUgcAd((data as any)?.ad) : null;
-  if (!ad) throw new Error(apiErrorMessage(data, "Could not start that ad — try again."));
+  if (!ad) throw new Error(apiErrorMessage(data, "ugcAds.createAdFailed"));
   return ad;
 }
 
@@ -467,14 +529,14 @@ export async function generateUgcAdVideo(
   const { status, data } = await api<any>(token, "POST", `/api/ugc-ads/${adId}/generate`, {});
   const ad = normalizeUgcAd((data as any)?.ad);
   if (status !== 200 || !ad) {
-    throw new Error(apiErrorMessage(data, "Generation failed — any charge was refunded."));
+    throw new Error(apiErrorMessage(data, "ugcAds.videoGenFailed"));
   }
   return { ad, creditsUsed: num((data as any).creditsUsed), alreadyGenerated: (data as any).alreadyGenerated === true };
 }
 
 export async function deleteUgcAd(token: string | null, adId: string): Promise<void> {
   const { status, data } = await api<any>(token, "DELETE", `/api/ugc-ads/${adId}`);
-  if (status !== 200) throw new Error(apiErrorMessage(data, "Could not delete that ad."));
+  if (status !== 200) throw new Error(apiErrorMessage(data, "ugcAds.deleteAdFailed"));
 }
 
 /** Pin a finished ad to the shop product it advertises (0178). The
@@ -483,14 +545,14 @@ export async function deleteUgcAd(token: string | null, adId: string): Promise<v
 export async function pinUgcAd(token: string | null, adId: string): Promise<UgcAd> {
   const { status, data } = await api<any>(token, "POST", `/api/ugc-ads/${adId}/pin`, {});
   const ad = status === 200 ? normalizeUgcAd((data as any)?.ad) : null;
-  if (!ad) throw new Error(apiErrorMessage(data, "Could not pin that ad — try again."));
+  if (!ad) throw new Error(apiErrorMessage(data, "ugcAds.pinAdFailed"));
   return ad;
 }
 
 export async function unpinUgcAd(token: string | null, adId: string): Promise<UgcAd> {
   const { status, data } = await api<any>(token, "DELETE", `/api/ugc-ads/${adId}/pin`);
   const ad = status === 200 ? normalizeUgcAd((data as any)?.ad) : null;
-  if (!ad) throw new Error(apiErrorMessage(data, "Could not unpin that ad — try again."));
+  if (!ad) throw new Error(apiErrorMessage(data, "ugcAds.unpinAdFailed"));
   return ad;
 }
 
@@ -499,7 +561,7 @@ export async function fetchUgcBriefs(
   scope: "open" | "posted" | "claimed",
 ): Promise<UgcBriefPage> {
   const { status, data } = await api<unknown>(token, "GET", `/api/ugc-briefs?scope=${scope}`);
-  if (status !== 200) throw new Error("Could not load the briefs board.");
+  if (status !== 200) throw new Error("ugcAds.loadBriefsFailed");
   return normalizeUgcBriefs(data);
 }
 
@@ -509,7 +571,7 @@ export async function postUgcBrief(
 ): Promise<UgcBrief> {
   const { status, data } = await api<any>(token, "POST", "/api/ugc-briefs", input);
   const brief = status === 201 ? normalizeUgcBrief((data as any)?.brief) : null;
-  if (!brief) throw new Error(apiErrorMessage(data, "Could not post that brief — try again."));
+  if (!brief) throw new Error(apiErrorMessage(data, "ugcAds.postBriefGenFailed"));
   return brief;
 }
 
@@ -521,7 +583,7 @@ export async function briefAction(
 ): Promise<UgcBrief> {
   const { status, data } = await api<any>(token, "POST", `/api/ugc-briefs/${briefId}/${action}`, body ?? {});
   const brief = status === 200 ? normalizeUgcBrief((data as any)?.brief) : null;
-  if (!brief) throw new Error(apiErrorMessage(data, "That didn't land — refresh the board and try again."));
+  if (!brief) throw new Error(apiErrorMessage(data, "ugcAds.briefActionGenFailed"));
   return brief;
 }
 
@@ -560,7 +622,7 @@ export async function fundUgcBrief(
 ): Promise<UgcBriefFundResult> {
   const { status, data } = await api<any>(token, "POST", `/api/ugc-briefs/${briefId}/fund`, uiMode ? { uiMode } : {});
   const result = status === 200 ? normalizeUgcBriefFundResult(data) : null;
-  if (!result) throw new Error(apiErrorMessage(data, "Could not start the funding payment — try again."));
+  if (!result) throw new Error(apiErrorMessage(data, "ugcAds.fundGenFailed"));
   return result;
 }
 
@@ -572,7 +634,7 @@ export async function confirmUgcBriefFunding(
 ): Promise<UgcBrief> {
   const { status, data } = await api<any>(token, "POST", "/api/ugc-briefs/escrow/confirm", { briefId, sessionId });
   const brief = status === 200 ? normalizeUgcBrief((data as any)?.brief) : null;
-  if (!brief) throw new Error(apiErrorMessage(data, "Could not confirm that funding — try again."));
+  if (!brief) throw new Error(apiErrorMessage(data, "ugcAds.fundConfirmGenFailed"));
   return brief;
 }
 
@@ -583,14 +645,14 @@ export async function verifyUgcBriefFunding(
 ): Promise<{ brief: UgcBrief; duplicate: boolean }> {
   const { status, data } = await api<any>(token, "POST", `/api/ugc-briefs/${briefId}/verify`, {});
   const brief = status === 200 ? normalizeUgcBrief((data as any)?.brief) : null;
-  if (!brief) throw new Error(apiErrorMessage(data, "Could not verify that funding — try again."));
+  if (!brief) throw new Error(apiErrorMessage(data, "ugcAds.fundVerifyGenFailed"));
   return { brief, duplicate: (data as any)?.duplicate === true };
 }
 
 export async function fetchUgcAd(token: string | null, adId: string): Promise<UgcAd> {
   const { status, data } = await api<any>(token, "GET", `/api/ugc-ads/${adId}`);
   const ad = status === 200 ? normalizeUgcAd((data as any)?.ad) : null;
-  if (!ad) throw new Error("Could not load that ad.");
+  if (!ad) throw new Error("ugcAds.loadAdFailed");
   return ad;
 }
 
