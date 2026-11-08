@@ -239,6 +239,16 @@ const EmailListDesk = lazy(() => import("@/components/world/native/EmailListDesk
 const InterviewDesk = lazy(() => import("@/components/world/native/InterviewDesk").then((m) => ({ default: m.InterviewDesk })));
 const TrendsDesk = lazy(() => import("@/components/world/native/TrendsDesk").then((m) => ({ default: m.TrendsDesk })));
 const TrendsRadarDesk = lazy(() => import("@/components/world/native/TrendsRadarDesk").then((m) => ({ default: m.TrendsRadarDesk })));
+/* Stack 300 world parity (Lane B items 7–12): the six benches —
+   four stacked at the Hook Desk (Caption Styler, Randomizer,
+   Comment-to-Video, Lyric Stories), two at the My Studio board
+   (Dream Collab, Link To Hit). Lazy like every stacked bench. */
+const CaptionStylerBench = lazy(() => import("@/components/world/native/CaptionStylerBench").then((m) => ({ default: m.CaptionStylerBench })));
+const RandomizerBench = lazy(() => import("@/components/world/native/RandomizerBench").then((m) => ({ default: m.RandomizerBench })));
+const CommentToVideoBench = lazy(() => import("@/components/world/native/CommentToVideoBench").then((m) => ({ default: m.CommentToVideoBench })));
+const LyricStoriesBench = lazy(() => import("@/components/world/native/LyricStoriesBench").then((m) => ({ default: m.LyricStoriesBench })));
+const DreamCollabBench = lazy(() => import("@/components/world/native/DreamCollabBench").then((m) => ({ default: m.DreamCollabBench })));
+const LinkToHitBench = lazy(() => import("@/components/world/native/LinkToHitBench").then((m) => ({ default: m.LinkToHitBench })));
 
 /* ─── Round-4 doors (world-perf round 4, stack1200) ─────────────
    After round 3 the frame still statically carried every block
@@ -1138,16 +1148,62 @@ export default function StationPanel(props: StationPanelProps) {
         return (
           <PanelBoundary isLight={isLight} resetKey={station.id}>
             {resolution.pattern === "create" ? (
-              <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
-                <CreateDeskPanel
-                  station={station}
-                  isLight={isLight}
-                  onJukeboxAdd={props.onJukeboxAdd}
-                  onOpenEditor={props.onOpenEditorStation}
-                  shelfPlayer={shelfPlayer}
-                  panelPayload={target.payload ?? null}
-                />
-              </DeskDoor></PanelBoundary>
+              station.id === "hook-desk" ? (
+                <div className="flex flex-col gap-6">
+                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                    <CreateDeskPanel
+                      station={station}
+                      isLight={isLight}
+                      onJukeboxAdd={props.onJukeboxAdd}
+                      onOpenEditor={props.onOpenEditorStation}
+                      shelfPlayer={shelfPlayer}
+                      panelPayload={target.payload ?? null}
+                    />
+                  </DeskDoor></PanelBoundary>
+                  {/* Caption Styler (Stack 300 world parity,
+                      Lane B item 7): the burned-in captions
+                      bench — the Hooks page's styler tab is
+                      the cross-link home for it, and the
+                      styler's own job rail now runs natively
+                      under the Hook Desk it belongs to. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:caption-styler`}><DeskDoor isLight={isLight}>
+                    <CaptionStylerBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Randomizer (Stack 300 world parity, Lane B
+                      item 8): the dice — free rolls from the
+                      page's own lists, AI rolls on
+                      /api/randomizer — under the Hook Desk.
+                      (Not the giveaway draw in TailDesks.) */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:randomizer`}><DeskDoor isLight={isLight}>
+                    <RandomizerBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Comment-to-Video (Stack 300 world parity,
+                      Lane B item 9): the comments tab's
+                      response-script writer, native under
+                      the Hook Desk. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:comment-to-video`}><DeskDoor isLight={isLight}>
+                    <CommentToVideoBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Lyric Stories (Stack 300 world parity,
+                      Lane B item 10): the lyrics tab's
+                      story-card painter, native under the
+                      Hook Desk. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:lyric-stories`}><DeskDoor isLight={isLight}>
+                    <LyricStoriesBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                </div>
+              ) : (
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                  <CreateDeskPanel
+                    station={station}
+                    isLight={isLight}
+                    onJukeboxAdd={props.onJukeboxAdd}
+                    onOpenEditor={props.onOpenEditorStation}
+                    shelfPlayer={shelfPlayer}
+                    panelPayload={target.payload ?? null}
+                  />
+                </DeskDoor></PanelBoundary>
+              )
             ) : resolution.pattern === "shop" ? (
               <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                 <ShopStand station={station} isLight={isLight} isGuest={isGuest} />
@@ -1364,6 +1420,23 @@ export default function StationPanel(props: StationPanelProps) {
                     neighbours, per D5's per-desk isolation.) */}
                 <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <RemixDesk isLight={isLight} onOpenStation={props.onOpenStation} />
+                </DeskDoor></PanelBoundary>
+                {/* Dream Collab (Stack 300 world parity, Lane B
+                    item 11): the /create hub's Dream Collab
+                    panel native at the board — a style-blend
+                    collab concept on the /api/dream-collab rail,
+                    with its song hand-off opening the Song Desk
+                    in-world. */}
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                  <DreamCollabBench isLight={isLight} onOpenStation={props.onOpenStation} />
+                </DeskDoor></PanelBoundary>
+                {/* Link To Hit (Stack 300 world parity, Lane B
+                    item 12): the /create hub's comedy panel
+                    native at the board — link and/or a real
+                    upload in, the comedy package out, on the
+                    /api/upload-clip + /api/link-to-hit rails. */}
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                  <LinkToHitBench isLight={isLight} onOpenStation={props.onOpenStation} />
                 </DeskDoor></PanelBoundary>
                 {/* Catalog Import (stack1500 parity wave #3):
                     bring your catalog home — scan, fetch,

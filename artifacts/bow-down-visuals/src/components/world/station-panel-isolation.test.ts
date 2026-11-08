@@ -101,16 +101,21 @@ describe("StationPanel.tsx — census-31 structure (source pins)", () => {
     expect(panelSource).toContain("{boundedBody}");
   });
 
-  it("every DeskDoor in the Community Hall + native-stacks regions rides its own PanelBoundary (50 desks)", () => {
+  it("every DeskDoor in the Community Hall + native-stacks regions rides its own PanelBoundary (53 desks)", () => {
     /* 46 at the D5 lane; JOIN12: the four Stack-200 World-parity
        desks (Trend Radar bench, Remix feed, Repurpose, Video
        Studio) joined the same regions, each riding its own
-       boundary the same way — the honest joined count is 50. */
+       boundary the same way — the honest joined count was 50.
+       Stack 300 world-new-benches: Dream Collab + Link To Hit
+       joined the board on the same resetKey, and the Hook Desk
+       split (four benches stacked under it on their own keys)
+       duplicated the Create desk's render site into two
+       branches — the honest count is 53. */
     expect(
       panelSource.match(
         /<PanelBoundary isLight=\{isLight\} resetKey=\{station\.id\}><DeskDoor isLight=\{isLight\}>/g,
       ) ?? [],
-    ).toHaveLength(50);
+    ).toHaveLength(53);
   });
 
   it("NowPlayingCard is wrapped in its own boundary", () => {
