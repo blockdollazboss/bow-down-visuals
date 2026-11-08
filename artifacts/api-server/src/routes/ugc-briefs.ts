@@ -344,8 +344,27 @@ router.post("/ugc-briefs/:id/claim", requireAuth, publicApiLimiter, async (req, 
       res.status(409).json({ error: `This brief is ${row.status} — only an open brief can be claimed.` });
       return;
     }
-    const saved = await saveBrief(id, { status: "claimed", claimedByUserId: req.userId! });
-    res.json({ brief: await toDTO(saved!) });
+    /* C-11: the claim is a GUARDED flip, not a load-check-save. Two
+       creators claiming the same open brief in the same instant both
+       pass the in-memory check above, and an unguarded save lets the
+       second write silently steal the brief the first creator was
+       just told they had won — the escrow then funds against whoever
+       the row happens to name. The status predicate rides the UPDATE
+       itself, so exactly one claim lands; the loser reads the row
+       back and gets the same honest 409 copy with its real state. */
+    const [flipped] = await db
+      .update(ugcBriefsTable)
+      .set({ status: "claimed", claimedByUserId: req.userId!, updatedAt: new Date() })
+      .where(and(eq(ugcBriefsTable.id, id), eq(ugcBriefsTable.status, "open")))
+      .returning();
+    if (!flipped) {
+      const now = await loadBrief(id);
+      res.status(409).json({
+        error: `This brief is ${now?.status ?? "claimed"} — only an open brief can be claimed.`,
+      });
+      return;
+    }
+    res.json({ brief: await toDTO(flipped) });
   } catch (err) {
     logger.error({ err }, "[ugc-briefs] claim failed");
     res.status(500).json({ error: "Could not claim that brief — try again." });
@@ -379,8 +398,30 @@ router.post("/ugc-briefs/:id/release", requireAuth, publicApiLimiter, async (req
       });
       return;
     }
-    const saved = await saveBrief(id, { status: "open", claimedByUserId: null });
-    res.json({ brief: await toDTO(saved!) });
+    /* C-11 audit (same-treatment): release shared the claim's
+       load-check-save shape — a release whose save lands after a
+       fresh claim (or after the brand's fund claim flips the escrow)
+       clobbers state its checks never saw, silently un-claiming a
+       brief another creator was just told they won. CAS flip on
+       exactly the state validated above: still claimed, still by
+       this claimer, escrow exactly as read. */
+    const [flipped] = await db
+      .update(ugcBriefsTable)
+      .set({ status: "open", claimedByUserId: null, updatedAt: new Date() })
+      .where(
+        and(
+          eq(ugcBriefsTable.id, id),
+          eq(ugcBriefsTable.status, "claimed"),
+          eq(ugcBriefsTable.claimedByUserId, req.userId!),
+          eq(ugcBriefsTable.escrowStatus, row.escrowStatus),
+        ),
+      )
+      .returning();
+    if (!flipped) {
+      res.status(409).json({ error: "This brief changed while you were releasing it — refresh and check its state." });
+      return;
+    }
+    res.json({ brief: await toDTO(flipped) });
   } catch (err) {
     logger.error({ err }, "[ugc-briefs] release failed");
     res.status(500).json({ error: "Could not release that brief — try again." });
@@ -429,14 +470,35 @@ router.post("/ugc-briefs/:id/deliver", requireAuth, publicApiLimiter, async (req
       res.status(400).json({ error: "That ad was made for a different brief." });
       return;
     }
+    /* C-11 audit (same-treatment): deliver shared the load-check-save
+       shape too — a release or close landing between the checks and
+       the save was silently overwritten back to "delivered", against
+       a claim that no longer exists. Guarded flip first, on exactly
+       the state validated above; the ad's brief stamp lands only
+       after the delivery itself does, so a refused delivery never
+       pins the ad to a brief it was not delivered to. */
+    const [flipped] = await db
+      .update(ugcBriefsTable)
+      .set({ status: "delivered", deliveredAdId: ad.id, updatedAt: new Date() })
+      .where(
+        and(
+          eq(ugcBriefsTable.id, id),
+          eq(ugcBriefsTable.status, "claimed"),
+          eq(ugcBriefsTable.claimedByUserId, req.userId!),
+        ),
+      )
+      .returning();
+    if (!flipped) {
+      res.status(409).json({ error: "This brief changed while you were delivering — refresh and check its state." });
+      return;
+    }
     if (!ad.briefId) {
       await db
         .update(ugcAdsTable)
         .set({ briefId: id, updatedAt: new Date() })
         .where(eq(ugcAdsTable.id, ad.id));
     }
-    const saved = await saveBrief(id, { status: "delivered", deliveredAdId: ad.id });
-    res.json({ brief: await toDTO(saved!) });
+    res.json({ brief: await toDTO(flipped) });
   } catch (err) {
     logger.error({ err }, "[ugc-briefs] deliver failed");
     res.status(500).json({ error: "Could not deliver that ad — try again." });
@@ -701,7 +763,10 @@ export async function freeUgcBriefFundingForSession(
  *  brief can never be settled against. The nominal 5% split is
  *  stamped at funding (the sponsors pattern); the release overwrites
  *  it with the split of what was actually held. The claimer is told
- *  ONLY when the flip lands, so webhook replays stay silent. */
+ *  ONLY when the flip lands, so webhook replays stay silent.
+ *  C-34: a brief whose row names no session can ADOPT the completed
+ *  session (its metadata named the brief) while its funding claim is
+ *  still open — see the adoption branch inside. */
 export async function markUgcBriefFunded(
   briefId: string,
   sessionId: string,
@@ -717,6 +782,25 @@ export async function markUgcBriefFunded(
   }
   if (row.stripeSessionId && row.stripeSessionId !== sessionId) {
     return { ok: false, reason: "stale-session" };
+  }
+  /* C-34 adoption: the row names NO session — the wreckage shape of
+     a fund call whose session-id save failed after Stripe created
+     the session (persistUgcBriefFundingSessionId now guards that
+     save; this branch reconciles any session already out there).
+     The webhook dispatched here on the session's own metadata
+     naming this brief. Adopt it ONLY while the funding claim is
+     still open ('funding'): a completed session arriving against a
+     freed claim ('unfunded') is an orphan — refuse it and log it at
+     error level with both ids, so the paid session can be
+     reconciled (refunded) by hand. Money never settles against a
+     claim the brand already abandoned. */
+  const adopting = row.stripeSessionId == null;
+  if (adopting && row.escrowStatus !== "funding") {
+    logger.error(
+      { briefId, sessionId },
+      "[ugc-briefs] completed session matches no open funding claim — orphaned session, not settled",
+    );
+    return { ok: false, reason: "orphaned-session" };
   }
   if (row.escrowStatus !== "funding" && row.escrowStatus !== "unfunded") {
     return { ok: false, reason: `bad-state:${row.escrowStatus}` };
@@ -737,6 +821,13 @@ export async function markUgcBriefFunded(
         eq(ugcBriefsTable.id, briefId),
         inArray(ugcBriefsTable.escrowStatus, ["funding", "unfunded"]),
         inArray(ugcBriefsTable.status, ["claimed", "delivered"]),
+        /* The flip itself is session-bound, not just the load-time
+           checks above: the row must still carry THIS session — or,
+           adopting, still carry none with the claim still open — so
+           two different sessions can never both settle one brief. */
+        adopting
+          ? and(isNull(ugcBriefsTable.stripeSessionId), eq(ugcBriefsTable.escrowStatus, "funding"))
+          : eq(ugcBriefsTable.stripeSessionId, sessionId),
       ),
     )
     .returning();
@@ -747,6 +838,12 @@ export async function markUgcBriefFunded(
     }
     return { ok: false, reason: `bad-state:${now?.escrowStatus ?? "missing"}` };
   }
+  if (adopting) {
+    logger.warn(
+      { briefId, sessionId },
+      "[ugc-briefs] adopted an orphaned funding session — settled against the open funding claim",
+    );
+  }
   if (flipped.claimedByUserId && flipped.priceCents != null) {
     await tellUgcBriefParty({
       userId: flipped.claimedByUserId,
@@ -756,6 +853,27 @@ export async function markUgcBriefFunded(
     });
   }
   return { ok: true };
+}
+
+/** Persist a freshly created funding session's id — GUARDED on the
+ *  funding claim still being open (C-34). The unguarded saveBrief it
+ *  replaces could stamp the id onto a row whose claim had already
+ *  been freed or closed — or fail into the fund catch, which frees
+ *  the claim — stranding a live, payable Stripe session against a
+ *  row that does not name it: settlement then refuses it and the
+ *  paid money is unreconcilable without manual Stripe work. Returns
+ *  the row when the id landed; null when the claim had moved on, in
+ *  which case the caller must treat the session as orphaned and
+ *  never hand it to the client. */
+async function persistUgcBriefFundingSessionId(briefId: string, sessionId: string) {
+  const [row] = await db
+    .update(ugcBriefsTable)
+    .set({ stripeSessionId: sessionId, updatedAt: new Date() })
+    .where(
+      and(eq(ugcBriefsTable.id, briefId), eq(ugcBriefsTable.escrowStatus, "funding")),
+    )
+    .returning();
+  return row ?? null;
 }
 
 /** Base URL for Stripe return links. Loopback is refused on a
@@ -880,7 +998,10 @@ router.post("/ugc-briefs/:id/fund", requireAuth, publicApiLimiter, async (req, r
       /* Sandbox: no Stripe keys — the payment is simulated and the
          confirm endpoint below settles it (refused when configured). */
       const sessionId = `sandbox_${randomUUID()}`;
-      await saveBrief(id, { stripeSessionId: sessionId });
+      const persistedSandbox = await persistUgcBriefFundingSessionId(id, sessionId);
+      if (!persistedSandbox) {
+        throw new Error("sandbox funding session id could not be persisted — the funding claim had moved on");
+      }
       res.json({
         sandbox: true,
         sessionId,
@@ -935,7 +1056,22 @@ router.post("/ugc-briefs/:id/fund", requireAuth, publicApiLimiter, async (req, r
     if (embeddedRequested && !session.client_secret) {
       throw new Error("Embedded checkout requested but Stripe returned no client_secret");
     }
-    await saveBrief(id, { stripeSessionId: session.id });
+    /* C-34: the session id lands through the guarded persist, and a
+       miss is FATAL before the session ever reaches the client —
+       the brand must never hold a payable checkout this row cannot
+       name. The orphaned session id is logged at error level with
+       the brief id so the wreckage stays reconcilable by hand; if
+       the session is somehow paid anyway, markUgcBriefFunded's
+       adoption branch can still settle it while the funding claim
+       is open. */
+    const persisted = await persistUgcBriefFundingSessionId(id, session.id).catch(() => null);
+    if (!persisted) {
+      logger.error(
+        { briefId: id, sessionId: session.id },
+        "[ugc-briefs] funding session orphaned — its id could not be persisted against the open funding claim",
+      );
+      throw new Error("funding session id could not be persisted");
+    }
     if (embeddedRequested) {
       res.json({ sandbox: false, checkoutUrl: null, clientSecret: session.client_secret, uiMode: "embedded", sessionId: session.id });
     } else {
