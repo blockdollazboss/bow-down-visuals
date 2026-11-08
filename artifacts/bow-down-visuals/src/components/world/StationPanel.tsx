@@ -1144,6 +1144,7 @@ export default function StationPanel(props: StationPanelProps) {
                   isLight={isLight}
                   onJukeboxAdd={props.onJukeboxAdd}
                   onOpenEditor={props.onOpenEditorStation}
+                  onOpenStation={props.onOpenStation}
                   shelfPlayer={shelfPlayer}
                   panelPayload={target.payload ?? null}
                 />

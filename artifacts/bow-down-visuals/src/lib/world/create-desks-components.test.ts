@@ -43,9 +43,12 @@ describe("creation desk contracts (stack300)", () => {
     expect(desks).toContain("<ClipModelPicker");
     expect(desks).toContain("clipSettings={clipSettings}");
     expect(resultLeaf).toContain('data-testid="world-clip-model-picker"');
-    /* Generation through confirmedFetch at the plan's exact price. */
+    /* Generation through confirmedFetch at the plan's exact price.
+       The payload's prompt is the desk's generationPrompt — the
+       typed prompt, restyled by a picked Cartoon Studio style
+       when one is picked (stack300 item 106). */
     expect(desks).toContain('confirmedFetch("/api/generate-runway-clip"');
-    expect(desks).toContain("buildRunwayClipPayload(prompt, negativePrompt, clipSettings)");
+    expect(desks).toContain("buildRunwayClipPayload(generationPrompt, negativePrompt, clipSettings)");
     expect(desks).toContain("costVisualBucs={clipPlanCost(clipSettings)}");
     /* On success the clip is saved to My Clips with SceneStudio's
        body — the shared helper posts it, the desk says so. */
@@ -75,8 +78,11 @@ describe("creation desk contracts (stack300)", () => {
 
 describe("2.4 song+video wizard contracts", () => {
   it("auto-transcribes on upload, applies the edit plan, saves the finished package", () => {
-    expect(desks).toContain('fetch("/api/transcribe"');
-    expect(desks).toContain('fetch("/api/generate/ai-edit-plan"');
+    /* Stack300 items 77+80: both charged wizard calls ride the
+       confirmed rail (transcribe priced by probed length, the
+       edit plan at aiEditPlanCost) — never a bare fetch. */
+    expect(desks).toContain('confirmedFetch("/api/transcribe"');
+    expect(desks).toContain('confirmedFetch("/api/generate/ai-edit-plan"');
     expect(desks).toContain("applyAiTransitionsToClips");
     expect(desks).toContain("buildSongVideoProjectPayload");
     expect(desks).toContain('data-testid="world-song-video-wizard"');
@@ -108,7 +114,7 @@ describe("2.5 song desk tab contracts", () => {
     expect(songTabs).toContain('fetch("/api/hum-to-song"');
     expect(desks).toContain('fetch("/api/artist-vaults"');
     expect(desks).toContain("withArtistVault");
-    expect(desks).toContain('fetch("/api/transcribe"');
+    expect(desks).toContain('confirmedFetch("/api/transcribe"');
     /* Since stack1600 #37 the bench tab labels resolve through the
        worldCreateDesk catalog — the keys ride in the desk source and
        the en catalog carries the original wording verbatim. */
@@ -277,6 +283,78 @@ describe("§5(a) quest chip contracts", () => {
     expect(resultLeaf).toContain("if (lines.length === 0) return null");
     for (const src of [desks, storyboard, songTabs, thumbBenches, audioDesk]) {
       expect(src).toContain("useQuestProgressChip");
+    }
+  });
+});
+
+describe("stack300 — the six desks confirm before they charge (items 76–81)", () => {
+  it("song+video, video plan and thumbnail ride callGenerateApi through confirmedFetch at the desk's own price", () => {
+    expect(desks).toContain('callGenerateApi("/api/generate-song-video", payload, token, (input, init) =>');
+    expect(desks).toContain("overrideCost: songVideoDeskCost()");
+    expect(desks).toContain('callGenerateApi("/api/generate-video-plan", buildVideoPlanPayload(prompt), token, (input, init) =>');
+    expect(desks).toContain("overrideCost: videoPlanCost()");
+    expect(desks).toContain("overrideCost: thumbnailDeskCost()");
+    /* None of the three remains a bare, unconfirmed call. */
+    expect(desks).not.toContain('callGenerateApi("/api/generate-song-video", payload, token)');
+    expect(desks).not.toContain('callGenerateApi("/api/generate-video-plan", buildVideoPlanPayload(prompt), token)');
+  });
+
+  it("the cover desk's three charged calls ride confirmedFetch at their tier/model prices", () => {
+    expect(desks).toContain('confirmedFetch("/api/cover-art"');
+    expect(desks).toContain("overrideCost: coverArtCost(tier)");
+    expect(desks).toContain('confirmedFetch("/api/cover-in-motion/animate"');
+    expect(desks).toContain("overrideCost: coverInMotionCost()");
+    expect(desks).toContain('confirmedFetch("/api/generate-artist-image"');
+    expect(desks).toContain("overrideCost: artistImageCost(imageModel)");
+    expect(desks).not.toContain('fetch("/api/cover-art"');
+    expect(desks).not.toContain('fetch("/api/cover-in-motion/animate"');
+    expect(desks).not.toContain('fetch("/api/generate-artist-image"');
+  });
+
+  it("both transcribe intakes probe the file and quote the length schedule", () => {
+    const hits = desks.match(/overrideCost: transcribeCostForDurationSec\(durationSec\)/g) ?? [];
+    expect(hits.length).toBe(2);
+    expect(desks).toContain("probeMediaDurationSec(file)");
+    expect(desks).not.toContain('fetch("/api/transcribe"');
+  });
+
+  it("a declined confirmation returns the desk to idle — the start-failed errors are gone from the confirmed calls", () => {
+    expect(desks).not.toContain("songVideoStartFailed");
+    expect(desks).not.toContain("planStartFailed");
+    expect(desks).not.toContain("thumbnailStartFailed");
+  });
+});
+
+describe("stack300 — Video Desk bench isolation + the cover-art handoff (items 96, 106, 109)", () => {
+  it("each stacked bench sits behind its own PanelBoundary", () => {
+    for (const key of [
+      'resetKey="video-desk-storyboard"',
+      'resetKey="video-desk-storyboard-planner"',
+      'resetKey="video-desk-templates"',
+      'resetKey="video-desk-locations"',
+    ]) {
+      expect(desks, key).toContain(key);
+    }
+  });
+
+  it("the Cover Art desk seeds its prompt from a cover-art-scene payload with the page's words", () => {
+    expect(desks).toContain('parsePanelPayloadFor("cover-art-desk", props.panelPayload ?? null)');
+    expect(desks).toContain("Set against this saved location backdrop: ${scene}");
+    expect(desks).toContain("set against this saved location backdrop: ${scene}");
+  });
+
+  it("the Cartoon Studio family rides both desks, mirrored from the page's presets", () => {
+    expect(desks).toContain("CARTOON_STYLE_PRESETS");
+    expect(desks).toContain('data-testid="world-cartoon-style-strip"');
+    expect(desks).toContain("${prompt.trim()}, ${cartoon.direction}");
+    expect(desks).toContain("Cartoon character design sheet, ${cartoon.direction}. ");
+    for (const key of [
+      "cartoonStudio.styleAnimeName",
+      "cartoonStudio.style3dToonName",
+      "cartoonStudio.styleClassic2dName",
+      "cartoonStudio.styleComicName",
+    ]) {
+      expect(desks, key).toContain(key);
     }
   });
 });

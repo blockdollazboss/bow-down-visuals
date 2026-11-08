@@ -178,7 +178,10 @@ describe("source pins — the tabs ride the website's rails", () => {
 
   it("sound packs ride catalog → generate → zip, with the 402 told honestly", () => {
     expect(audioDeskTabs).toContain('fetch("/api/sample-pack/catalog"');
-    expect(audioDeskTabs).toContain('fetch("/api/sample-pack/generate"');
+    /* Stack300 item 81: the generate rides the confirmed rail,
+       priced per pack size — never a bare fetch. */
+    expect(audioDeskTabs).toContain('confirmedFetch("/api/sample-pack/generate"');
+    expect(audioDeskTabs).toContain("overrideCost: cost");
     expect(audioDeskTabs).toContain('fetch("/api/sample-pack/zip"');
     expect(audioDeskTabs).toContain("buildSamplePackPayload");
     expect(audioDeskTabs).toContain("parseGeneratedSamples");

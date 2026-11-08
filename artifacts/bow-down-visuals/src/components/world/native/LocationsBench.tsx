@@ -10,8 +10,11 @@
  * Locations tab share — places saved here are the places the
  * editor offers, because both read the one list. Gallery with
  * thumbnails, add-by-URL, upload, delete — the page's whole
- * manager, minus its cover-art cross-link (that door has no
- * in-World channel yet).
+ * manager, including its cover-art cross-link: each card's
+ * "Use in cover art" button (the page links to
+ * /cover-art?scene=<image_url>) opens the Cover Art desk
+ * in-World through the panel-payload channel (stack300
+ * item 96) — fullscreen never drops.
  *
  * Honesty rules ride the seam: a failed load shows the error
  * state with a retry — never the page's "No locations yet"
@@ -20,20 +23,32 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link2, Loader2, MapPin, Plus, Trash2, Upload } from "lucide-react";
+import { Disc3, Link2, Loader2, MapPin, Plus, Trash2, Upload } from "lucide-react";
 import { useDeskAuthHeaders } from "./CreateDeskLeaf";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
 import {
   LOCATIONS_PATH,
   LOCATIONS_UPLOAD_PATH,
   buildLocationBody,
+  coverArtSceneUrl,
   locationPath,
   locationUploadProblem,
   locationsOf,
   type SavedLocation,
 } from "@/lib/world/locations-desk";
+import { coverArtScenePayload, type PanelPayload } from "@/lib/world/panel-payload";
 
-export function LocationsBench({ isLight }: { isLight: boolean }) {
+export interface LocationsBenchProps {
+  isLight: boolean;
+  /** Opens another station in the room (the host's panel swap),
+   *  carrying an optional panel payload — the cover-art door
+   *  rides it. Absent only when a host mounts the bench without
+   *  the room around it; the button then still renders, because
+   *  the desk's own host always supplies it. */
+  onOpenStation?: (stationId: string, payload?: PanelPayload | null) => void;
+}
+
+export function LocationsBench({ isLight, onOpenStation }: LocationsBenchProps) {
   const { t } = useTranslation();
   const authHeaders = useDeskAuthHeaders();
   const [locations, setLocations] = useState<SavedLocation[] | null>(null);
@@ -265,6 +280,18 @@ export function LocationsBench({ isLight }: { isLight: boolean }) {
                   ) : (
                     <Trash2 className="h-4 w-4" />
                   )}
+                </button>
+                <button
+                  type="button"
+                  data-testid={`world-locations-bench-cover-art-${l.id}`}
+                  onClick={() =>
+                    onOpenStation?.("cover-art-desk", coverArtScenePayload(coverArtSceneUrl(l)))
+                  }
+                  title={t("locations.useInCoverArt")}
+                  aria-label={t("locations.useInCoverArt")}
+                  className="bdv-touch-target absolute bottom-2 left-2 rounded-lg border border-white/10 bg-black/70 p-1.5 text-[#d4af37] transition hover:border-[#d4af37]/60 hover:text-[#f7dd7f]"
+                >
+                  <Disc3 className="h-4 w-4" />
                 </button>
               </div>
               <p className={`truncate px-3 py-2 text-sm font-semibold ${strong}`}>{l.label}</p>

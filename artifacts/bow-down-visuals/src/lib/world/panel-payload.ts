@@ -10,7 +10,7 @@
    This module is the general channel, kept deliberately small:
    a payload is a TEMPLATE/STATE REFERENCE — a slug the receiving
    desk resolves against its own libraries — never money, never a
-   price, never a charge. Four kinds exist because four desks
+   price, never a charge. The kinds that exist are the desks that
    can honestly prefill today:
 
      hook-template       → the Hook Desk, hooks mode, filled from
@@ -52,6 +52,14 @@
                            kind instead — the desk's seam mirrors
                            each preset's OWN params, never a
                            translation of them.
+     cover-art-scene     → the Cover Art desk (stack300 item 96):
+                           the Locations bench's "Use in cover art"
+                           door, carrying the saved location's
+                           imageUrl — the exact reference the 2D
+                           door carries in /cover-art?scene=. The
+                           desk seeds its prompt from the URL the
+                           same way the page does. Still a state
+                           reference — never money.
 
    A desk applies a payload ONLY through parsePanelPayloadFor with
    its OWN station id: a payload addressed to another desk, a kind
@@ -77,6 +85,13 @@ export type PanelPayload =
       /** A trending-preset slug from data/trending-presets — the
        *  editor's remix deep-link reader resolves it there. */
       slug: string;
+    }
+  | {
+      kind: "cover-art-scene";
+      /** A saved location's image URL (locations-desk.ts
+       *  coverArtSceneUrl) — the reference the Cover Art desk
+       *  seeds its prompt from, mirroring /cover-art?scene=. */
+      sceneUrl: string;
     };
 
 type PanelPayloadKind = PanelPayload["kind"];
@@ -88,6 +103,7 @@ const PAYLOAD_KINDS: ReadonlySet<string> = new Set([
   "video-template",
   "library-preset",
   "remix-preset",
+  "cover-art-scene",
 ]);
 
 /** Which payload kinds each station's desk can honestly apply.
@@ -98,6 +114,7 @@ const STATION_PAYLOAD_KINDS: Readonly<Record<string, ReadonlySet<PanelPayloadKin
   "thumbnail-desk": new Set<PanelPayloadKind>(["thumbnail-template"]),
   "video-desk": new Set<PanelPayloadKind>(["video-template"]),
   "visual-vibes-editor": new Set<PanelPayloadKind>(["library-preset", "remix-preset"]),
+  "cover-art-desk": new Set<PanelPayloadKind>(["cover-art-scene"]),
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -127,6 +144,11 @@ export function parsePanelPayloadFor(stationId: string, raw: unknown): PanelPayl
     const slug = raw["slug"];
     if (typeof slug !== "string" || slug.trim().length === 0) return null;
     return { kind: "remix-preset", slug };
+  }
+  if (kind === "cover-art-scene") {
+    const sceneUrl = raw["sceneUrl"];
+    if (typeof sceneUrl !== "string" || sceneUrl.trim().length === 0) return null;
+    return { kind: "cover-art-scene", sceneUrl };
   }
   const slug = raw["templateSlug"];
   if (typeof slug !== "string" || slug.trim().length === 0) return null;
@@ -177,4 +199,13 @@ export function libraryPresetPayload(
  *  the editor's own remix reader resolves it there. */
 export function remixPresetPayload(slug: string): PanelPayload {
   return { kind: "remix-preset", slug };
+}
+
+/** The cover-art-scene payload (the Locations bench's "Use in
+ *  cover art", stack300 item 96): the URL is a saved location's
+ *  imageUrl — the same reference the page's cover-art door
+ *  carries in ?scene= — resolved by the Cover Art desk into its
+ *  prompt seed, exactly as the page seeds from the param. */
+export function coverArtScenePayload(sceneUrl: string): PanelPayload {
+  return { kind: "cover-art-scene", sceneUrl };
 }

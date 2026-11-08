@@ -16,6 +16,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   captionPackPayload,
+  coverArtScenePayload,
   hookTemplatePayload,
   libraryPresetPayload,
   parsePanelPayloadFor,
@@ -228,6 +229,44 @@ describe("library-preset — the fifth kind (stack100 phase-2 join repair)", () 
       });
     }
     expect(LIBRARY_PRESETS.length).toBeGreaterThan(0);
+  });
+});
+
+describe("cover-art-scene — the seventh kind (stack300 item 96)", () => {
+  it("builds from a scene URL and nothing else — no money ever", () => {
+    expect(coverArtScenePayload("https://cdn.example/scene.jpg")).toEqual({
+      kind: "cover-art-scene",
+      sceneUrl: "https://cdn.example/scene.jpg",
+    });
+    expect(
+      Object.values(coverArtScenePayload("https://cdn.example/scene.jpg")).some(
+        (v) => typeof v === "number",
+      ),
+    ).toBe(false);
+  });
+
+  it("parses only at the Cover Art desk — every other desk rejects it", () => {
+    expect(parsePanelPayloadFor("cover-art-desk", coverArtScenePayload("https://x/y.jpg"))).toEqual({
+      kind: "cover-art-scene",
+      sceneUrl: "https://x/y.jpg",
+    });
+    expect(parsePanelPayloadFor("video-desk", coverArtScenePayload("https://x/y.jpg"))).toBeNull();
+    expect(parsePanelPayloadFor("hook-desk", coverArtScenePayload("https://x/y.jpg"))).toBeNull();
+    expect(parsePanelPayloadFor("thumbnail-desk", coverArtScenePayload("https://x/y.jpg"))).toBeNull();
+    /* …and the Cover Art desk takes none of the older kinds. */
+    expect(parsePanelPayloadFor("cover-art-desk", hookTemplatePayload("a"))).toBeNull();
+    expect(parsePanelPayloadFor("cover-art-desk", videoTemplatePayload("a"))).toBeNull();
+    expect(parsePanelPayloadFor("cover-art-desk", libraryPresetPayload("fx", "a"))).toBeNull();
+  });
+
+  it("rejects garbage wholesale — absent, drifted, empty scene URL", () => {
+    expect(parsePanelPayloadFor("cover-art-desk", null)).toBeNull();
+    expect(parsePanelPayloadFor("cover-art-desk", undefined)).toBeNull();
+    expect(parsePanelPayloadFor("cover-art-desk", { kind: "cover-art-scene" })).toBeNull();
+    expect(parsePanelPayloadFor("cover-art-desk", { kind: "cover-art-scene", sceneUrl: "" })).toBeNull();
+    expect(parsePanelPayloadFor("cover-art-desk", { kind: "cover-art-scene", sceneUrl: "   " })).toBeNull();
+    expect(parsePanelPayloadFor("cover-art-desk", { kind: "cover-art-scene", sceneUrl: 42 })).toBeNull();
+    expect(parsePanelPayloadFor("cover-art-desk", { kind: "cover-art-scene", templateSlug: "a" })).toBeNull();
   });
 });
 

@@ -15,6 +15,7 @@ import {
   LOCATIONS_PATH,
   LOCATIONS_UPLOAD_PATH,
   buildLocationBody,
+  coverArtSceneUrl,
   locationPath,
   locationUploadProblem,
   locationsOf,
@@ -25,8 +26,7 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
 const route = read("../../../../api-server/src/routes/locations.ts");
 
 describe("paths — the page's own rails", () => {
-  it("list, upload and delete paths match the route file", () => {
-    expect(LOCATIONS_PATH).toBe("/api/locations");
+  it("list, upload and delete paths match the route file", () => {    expect(LOCATIONS_PATH).toBe("/api/locations");
     expect(LOCATIONS_UPLOAD_PATH).toBe("/api/locations/upload");
     expect(locationPath("abc 123")).toBe("/api/locations/abc%20123");
     expect(route).toContain('router.get("/locations"');
@@ -91,5 +91,17 @@ describe("the page's bars", () => {
     expect(locationUploadProblem("", 1024)).toBe("name-first");
     expect(locationUploadProblem("  ", 1024)).toBe("name-first");
     expect(locationUploadProblem("Stage", LOCATION_MAX_IMAGE_BYTES)).toBeNull();
+  });
+});
+
+describe("the cover-art door (stack300 item 96)", () => {
+  it("the scene reference is the saved place's image URL, exactly — the page's ?scene= value", () => {
+    const loc = { id: "1", label: "Palace", imageUrl: "https://x/p.jpg", createdAt: null };
+    expect(coverArtSceneUrl(loc)).toBe("https://x/p.jpg");
+    /* The page's door carries the same field, unencoded at the
+       source (the link encodes it for the URL; the payload
+       channel carries the raw reference). */
+    const page = read("../../pages/locations.tsx");
+    expect(page).toContain("/cover-art?scene=${encodeURIComponent(l.image_url)}");
   });
 });

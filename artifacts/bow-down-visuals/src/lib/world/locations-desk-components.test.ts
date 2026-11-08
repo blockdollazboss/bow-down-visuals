@@ -2,10 +2,14 @@
  * locations-desk-components — stack200 world parity lane B1,
  * census item 3 source-contract pins. The Locations bench
  * must sit inside the Video Desk (beside the template bench)
- * as an ({ isLight }) bench, with:
+ * as an ({ isLight, onOpenStation }) bench, with:
  * - the page's whole manager: gallery, add-by-URL, upload,
  *   delete — on the seam's rails, with plain bearer fetches
  *   (free rails, no charge seam, no confirm spend);
+ * - the page's cover-art cross-link (stack300 item 96): each
+ *   card's "Use in cover art" button opens the Cover Art desk
+ *   through the panel-payload channel carrying the saved
+ *   place's image URL — the ?scene= reference, in-World;
  * - the empty-lie law in the render order: error state,
  *   then loading, then the page's empty copy, then the
  *   gallery — a failed load can never reach the empty copy;
@@ -21,15 +25,26 @@ const bench = read("../../components/world/native/LocationsBench.tsx");
 const desks = read("../../components/world/native/CreateDesks.tsx");
 
 describe("the bench shape + the Video Desk mount", () => {
-  it("is an ({ isLight }) bench rooted at its testid", () => {
-    expect(bench).toContain("export function LocationsBench({ isLight }: { isLight: boolean })");
+  it("is an ({ isLight, onOpenStation }) bench rooted at its testid", () => {
+    expect(bench).toContain("export function LocationsBench({ isLight, onOpenStation }: LocationsBenchProps)");
     expect(bench).toContain('data-testid="world-locations-bench"');
   });
 
-  it("CreateDesks stacks it inside VideoDesk after the template bench", () => {
+  it("CreateDesks stacks it inside VideoDesk after the template bench, behind its own error boundary", () => {
     expect(desks).toContain('import { LocationsBench } from "./LocationsBench";');
-    expect(desks).toContain("<LocationsBench isLight={isLight} />");
+    expect(desks).toContain("<LocationsBench isLight={isLight} onOpenStation={props.onOpenStation} />");
     expect(desks.indexOf("<LocationsBench")).toBeGreaterThan(desks.indexOf("<VideoTemplateBench"));
+  });
+});
+
+describe("the cover-art door (stack300 item 96)", () => {
+  it("each card carries the page's door — the saved place's image URL through the payload channel", () => {
+    expect(bench).toContain("coverArtScenePayload(coverArtSceneUrl(l))");
+    expect(bench).toContain('onOpenStation?.("cover-art-desk"');
+    expect(bench).toContain("world-locations-bench-cover-art-");
+    expect(bench).toContain('t("locations.useInCoverArt")');
+    /* The door is navigation, not a charge — the free-rails
+       rule still holds (confirmedFetch/getCreditCost stay out). */
   });
 });
 
@@ -91,6 +106,7 @@ describe("copy — the page's own catalog keys, nothing invented", () => {
       't("locations.errUpload")',
       't("locations.errDelete")',
       't("locations.removeLocationTitle")',
+      't("locations.useInCoverArt")',
     ]) {
       expect(bench, key).toContain(key);
     }

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, ListPlus, Loader2, Pause, Play, Scissors } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { recordPlay } from "@/lib/streaming";
 import { creditsForSize, formatDuration, originBadge, PACK_SIZE_OPTIONS } from "@/lib/sample-pack";
 import {
@@ -181,6 +182,7 @@ export function SoundPacksTab({
   const { t, i18n } = useTranslation();
   const { refreshProfile } = useAuth();
   const authHeaders = useDeskAuthHeaders();
+  const { confirmedFetch } = useConfirmedApi();
   const quest = useQuestProgressChip();
   const [catalog, setCatalog] = useState<SamplePackCatalog | null>(null);
   const [genre, setGenre] = useState("trap");
@@ -237,11 +239,20 @@ export function SoundPacksTab({
     setNote(null);
     void quest.snapshot();
     try {
-      const res = await fetch("/api/sample-pack/generate", {
+      /* Stack300 item 81: the generate rides the confirmed rail
+         priced by the picked pack size (creditsForSize — the
+         registry entry is the smallest pack's 500, so the
+         override is what makes the confirmation name the real
+         500 / 1,200 / 2,000 for the size picked), mirroring the
+         2D AiAudio bench. A decline runs nothing; the 402 path
+         below still tells an out-of-credits member honestly. */
+      const res = await confirmedFetch("/api/sample-pack/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify(buildSamplePackPayload({ genre, bpm, musicalKey, packSize, types: [...selectedTypes] })),
+        overrideCost: cost,
       });
+      if (!res) return; // the member declined the price — nothing ran
       const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
       if (res.status === 402) {
         setOutOfCredits(apiErrorMessage(data, t("worldAudioDesk.packOutOfCredits", { cost: cost.toLocaleString(i18n.language) })));

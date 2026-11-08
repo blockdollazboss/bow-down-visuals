@@ -28,6 +28,15 @@
  *
  * Copy rides the page's own locations.* catalog keys; nothing
  * is charged anywhere on these rails.
+ *
+ * The cover-art door (stack300 item 96): the page's gallery
+ * card links each saved place to /cover-art?scene=<image_url>
+ * and the cover-art page seeds its backdrop line from that
+ * param. In the World the same door rides the panel-payload
+ * channel instead of a URL — coverArtSceneUrl below is the
+ * reference the bench's "Use in cover art" button carries
+ * (panel-payload.ts cover-art-scene kind), and the Cover Art
+ * desk seeds its prompt from it with the page's exact words.
  */
 
 export const LOCATIONS_PATH = "/api/locations";
@@ -106,4 +115,13 @@ export function locationUploadProblem(
   if (fileSizeBytes > LOCATION_MAX_IMAGE_BYTES) return "too-large";
   if (!label.trim()) return "name-first";
   return null;
+}
+
+/** The cover-art scene reference for a saved place — the exact
+ *  value the page's cover-art door carries in ?scene= (the
+ *  saved location's image URL, nothing derived or rewritten).
+ *  The bench sends it through the panel-payload channel and
+ *  the Cover Art desk seeds from it with the page's own words. */
+export function coverArtSceneUrl(location: SavedLocation): string {
+  return location.imageUrl;
 }
