@@ -186,7 +186,13 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
       const start = src.indexOf(`router.post("${spec.handler}"`);
       expect(start, `${spec.handler} in ${spec.file}`).toBeGreaterThanOrEqual(0);
       const rest = src.slice(start);
-      const next = rest.slice(1).search(/\n\s*router\.(get|post|put|patch|delete)\(/);
+      // The handler slice ends at the START of the next router registration.
+      // CA lanes extracted charge helpers as top-level `async function`s
+      // declared BETWEEN route registrations (e.g. jewelry.ts's
+      // runJewelryConsult sits between /jewelry/estimate and
+      // /jewelry/consult), so a top-level function declaration also ends
+      // this handler's text. The handler body itself never declares one.
+      const next = rest.slice(1).search(/\n\s*(?:router\.(get|post|put|patch|delete)\(|async function\s|function\s)/);
       const slice = next < 0 ? rest : rest.slice(0, next + 1);
       expect(slice).not.toMatch(/chargeCredits\s*\(|deductCredits\s*\(/);
       expect(CREDIT_COSTS[spec.endpoint]?.cost).toBe(0);

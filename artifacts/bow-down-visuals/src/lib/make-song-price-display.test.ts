@@ -38,6 +38,6 @@ describe("make-song price: footnote == button == rail (400 VB)", () => {
     expect(rail).not.toContain("const CREDIT_COST = 400;");
     expect(rail).toContain("creditCostForLength");
     expect(rail).toMatch(/from\s+"\.\/music-audio"/);
-    expect(rail).toContain('chargeCredits(req.userId!, creditCost, { action: "Make a Song" })');
+    expect(rail).toContain('chargeCredits(req.userId!, creditCost, { action: "Make a Song" }, { idempotencyKey })');
   });
 });
