@@ -6,12 +6,13 @@ import { promisify } from "util";
 import { writeFile, readFile, unlink } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import { analyzeMelody } from "../../lib/melody-analysis";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { r2Upload, r2PublicUrl } from "../../lib/r2-client";
@@ -172,6 +173,16 @@ router.post("/finish-my-song/complete", requireAuth, publicApiLimiter, upload.si
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "finish-my-song", req.userId!, undefined,
+    { notes: parsed.data.notes, demoSha256: createHash("sha256").update(req.file.buffer).digest("hex") },
+  );
+  const storedReplay = await findStoredGenerationResult("finish-my-song", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const apiKey = process.env["ELEVENLABS_API_KEY"];
   if (!apiKey) {
     res.status(503).json({
@@ -194,7 +205,7 @@ router.post("/finish-my-song/complete", requireAuth, publicApiLimiter, upload.si
   try {
     creditsRemaining = await chargeCredits(req.userId!, FINISH_CREDIT_COST, {
       action: "Finish My Song",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -209,6 +220,7 @@ router.post("/finish-my-song/complete", requireAuth, publicApiLimiter, upload.si
   const refundAndFail = async (status: number, message: string) => {
     try {
       await refundCredits(req.userId!, FINISH_CREDIT_COST, { action: "Finish My Song — Refund" });
+      await voidChargeIdempotencyKey(idempotencyKey);
     } catch (refundErr) {
       logger.error({ err: refundErr, userId: req.userId }, "[finish-my-song] refund failed after generation error");
     }
@@ -289,7 +301,7 @@ router.post("/finish-my-song/complete", requireAuth, publicApiLimiter, upload.si
       durationSec: analysis.durationSec,
     });
 
-    res.json({
+    const responseBody = {
       songUrl,
       songId: librarySongId,
       lyrics: parts.lyrics,
@@ -301,7 +313,9 @@ router.post("/finish-my-song/complete", requireAuth, publicApiLimiter, upload.si
           : "This ElevenLabs account can't take audio references, so the finished song was built from your demo's extracted melody (tempo, key, phrasing) plus the completed lyrics as a detailed brief.",
       creditsUsed: FINISH_CREDIT_COST,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("finish-my-song", idempotencyKey, req.userId!, responseBody as Record<string, unknown>);
+    res.json(responseBody);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Finish My Song failed";
     logger.error({ err, userId: req.userId }, "[finish-my-song] generation failed");

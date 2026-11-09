@@ -7,7 +7,14 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { isUniqueViolation } from "../../lib/pg-errors";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError,
+  buildChargeIdempotencyKey, voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { sendEmail, emailShell, emailButton, escapeHtml, isEmailConfigured, baseUrlForEmail, EMAIL_COLORS } from "../../lib/email";
@@ -265,33 +272,136 @@ const updateReleaseSchema = createReleaseSchema.partial();
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 
-function outOfCredits(res: Response, action: string) {
-  res.status(402).json({
-    error: "out_of_credits",
-    message: `You're out of Visual Bucs — top up to ${action}.`,
-  });
-}
+/* CA-2: chargeOr402 now threads the caller's idempotency key into the
+   charge and returns its failure as an outcome value instead of
+   writing the response itself — so both AI handlers can run it inside
+   the in-flight twin map (below) and answer exactly once. Response
+   bodies are byte-identical to the pre-CA-2 res writes. ONLY the two
+   AI callers (metadata + strategy) use this helper; the release-submit
+   charge further down is a separate, already-guarded path and is not
+   touched. */
+type ChargeOr402Result =
+  | { ok: true; creditsRemaining: number }
+  | { ok: false; status: number; body: Record<string, unknown> };
 
 async function chargeOr402(
   req: Request,
-  res: Response,
   cost: number,
   action: string,
   actionLabel: string,
-): Promise<number | null> {
+  idempotencyKey: string,
+): Promise<ChargeOr402Result> {
   const balance = (req as Request & { userCredits?: number }).userCredits ?? 0;
   if (balance < cost) {
-    outOfCredits(res, action);
-    return null;
+    return {
+      ok: false,
+      status: 402,
+      body: {
+        error: "out_of_credits",
+        message: `You're out of Visual Bucs — top up to ${action}.`,
+      },
+    };
   }
   try {
-    return await chargeCredits((req as Request & { userId?: string }).userId!, cost, { action: actionLabel });
+    const creditsRemaining = await chargeCredits(
+      (req as Request & { userId?: string }).userId!,
+      cost,
+      { action: actionLabel },
+      { idempotencyKey },
+    );
+    return { ok: true, creditsRemaining };
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      outOfCredits(res, action);
-      return null;
+      return {
+        ok: false,
+        status: 402,
+        body: {
+          error: "out_of_credits",
+          message: `You're out of Visual Bucs — top up to ${action}.`,
+        },
+      };
     }
     throw err;
+  }
+}
+
+/* ─── CA-2 replay plumbing (AI metadata + AI strategy only) ───────────
+   One helper serves TWO products at the same price, so each product
+   gets its OWN scope/rail and its intent carries the product name plus
+   that product's inputs. The durable stored result is checked per
+   handler before any funding; an in-flight twin map closes the
+   concurrent window (two identical simultaneous POSTs share ONE run —
+   one charge, one provider call). */
+interface DistributionOutcome {
+  status: number;
+  body: Record<string, unknown>;
+}
+
+const distributionInFlight = new Map<string, Promise<DistributionOutcome>>();
+
+async function runDistributionOnce(
+  idempotencyKey: string,
+  work: () => Promise<DistributionOutcome>,
+): Promise<DistributionOutcome & { replayed: boolean }> {
+  const pending = distributionInFlight.get(idempotencyKey);
+  if (pending) {
+    const twin = await pending.catch(() => null);
+    if (twin && twin.status === 200) return { ...twin, replayed: true };
+    /* The twin failed (refunded + key voided) — run this request fresh. */
+  }
+  const run = work();
+  distributionInFlight.set(idempotencyKey, run);
+  try {
+    const outcome = await run;
+    return { ...outcome, replayed: false };
+  } finally {
+    if (distributionInFlight.get(idempotencyKey) === run) {
+      distributionInFlight.delete(idempotencyKey);
+    }
+  }
+}
+
+/** Answer an AI outcome: a fresh success is stored BEFORE it is sent;
+    a replay serves the stored / twin body verbatim + replayed: true. */
+async function answerDistribution(
+  res: Response,
+  rail: string,
+  idempotencyKey: string,
+  userId: string,
+  outcome: DistributionOutcome & { replayed: boolean },
+): Promise<void> {
+  const { status, body, replayed } = outcome;
+  if (status === 200) {
+    if (replayed) {
+      res.json({ ...body, replayed: true });
+      return;
+    }
+    await storeGenerationResult(rail, idempotencyKey, userId, body);
+    res.json(body);
+    return;
+  }
+  res.status(status).json(body);
+}
+
+/** Refund a failed AI charge, then VOID its idempotency key — only
+    when the refund actually landed (a failed refund is logged exactly
+    as before and leaves the key standing for reconciliation). */
+async function refundAiCharge(
+  userId: string,
+  cost: number,
+  actionLabel: string,
+  idempotencyKey: string,
+  logLabel: string,
+): Promise<void> {
+  let refunded = true;
+  try {
+    await refundCredits(userId, cost, { action: `${actionLabel} — Refund (provider failed)` });
+  } catch (refundErr) {
+    refunded = false;
+    logger.error({ err: refundErr }, `[distribution] ${logLabel} refund failed`);
+  }
+  if (refunded) {
+    await voidChargeIdempotencyKey(idempotencyKey);
   }
 }
 
@@ -551,10 +661,32 @@ router.post("/distribution/metadata", requireAuth, publicApiLimiter, async (req,
   }
   const { vibe, lyrics, artistName, workingTitle } = parsed.data;
 
-  const creditsRemaining = await chargeOr402(req, res, AI_CREDIT_COST, "generate release metadata", "Distribution AI Metadata");
-  if (creditsRemaining === null) return;
+  /* Idempotency (CA-2): server-derived key on EVERY call — the schema
+     accepts no client key, so the intent hash IS the key. The intent
+     names the PRODUCT (metadata) plus its inputs: the shared
+     chargeOr402 helper also serves strategy, and their keys must
+     never collide. */
+  const idempotencyKey = buildChargeIdempotencyKey("distribution-ai-metadata", req.userId!, undefined, {
+    product: "metadata",
+    vibe,
+    lyrics,
+    artistName,
+    workingTitle,
+  });
 
-  try {
+  /* Stored-result pre-check BEFORE any funding. */
+  const storedResult = await findStoredGenerationResult("distribution-ai-metadata", idempotencyKey, req.userId!);
+  if (storedResult) {
+    res.json({ ...storedResult, replayed: true });
+    return;
+  }
+
+  const outcome = await runDistributionOnce(idempotencyKey, async (): Promise<DistributionOutcome> => {
+    const charged = await chargeOr402(req, AI_CREDIT_COST, "generate release metadata", "Distribution AI Metadata", idempotencyKey);
+    if (!charged.ok) return { status: charged.status, body: charged.body };
+    const creditsRemaining = charged.creditsRemaining;
+
+    try {
     const completion = await getOpenAI().chat.completions.create({
       model: getTextModel(),
       messages: [
@@ -614,23 +746,24 @@ router.post("/distribution/metadata", requireAuth, publicApiLimiter, async (req,
       throw new Error("Model returned no usable metadata");
     }
 
-    res.json({ titleOptions, description, genreTags, creditsUsed: AI_CREDIT_COST, creditsRemaining });
-  } catch (err) {
-    /* Provider failed after the charge — refund so the creator pays only for
-       metadata they actually received. */
-    try {
-      await refundCredits(req.userId!, AI_CREDIT_COST, { action: "Distribution AI Metadata — Refund (provider failed)" });
-    } catch (refundErr) {
-      logger.error({ err: refundErr }, "[distribution] metadata refund failed");
+    return {
+      status: 200,
+      body: { titleOptions, description, genreTags, creditsUsed: AI_CREDIT_COST, creditsRemaining },
+    };
+    } catch (err) {
+      /* Provider failed after the charge — refund so the creator pays only for
+         metadata they actually received. Refund landed → key voided. */
+      await refundAiCharge(req.userId!, AI_CREDIT_COST, "Distribution AI Metadata", idempotencyKey, "metadata");
+      if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
+        logger.warn({ err }, "[distribution] OpenAI rate limit / quota");
+        return { status: 503, body: { error: "The studio is catching its breath — try again in a moment." } };
+      }
+      logger.error({ err }, "[distribution] metadata generation failed");
+      return { status: 502, body: { error: "Metadata generation hiccupped — your Visual Buc was refunded, try again." } };
     }
-    if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
-      logger.warn({ err }, "[distribution] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The studio is catching its breath — try again in a moment." });
-      return;
-    }
-    logger.error({ err }, "[distribution] metadata generation failed");
-    res.status(502).json({ error: "Metadata generation hiccupped — your Visual Buc was refunded, try again." });
-  }
+  });
+
+  await answerDistribution(res, "distribution-ai-metadata", idempotencyKey, req.userId!, outcome);
 });
 
 /* ─── AI: pre-release strategy ─────────────────────────────────────────────
@@ -648,10 +781,30 @@ router.post("/distribution/strategy", requireAuth, publicApiLimiter, async (req,
   }
   const { title, artistName, genreTags, releaseDate, platforms } = parsed.data;
 
-  const creditsRemaining = await chargeOr402(req, res, AI_CREDIT_COST, "generate a release strategy", "Distribution AI Strategy");
-  if (creditsRemaining === null) return;
+  /* Idempotency (CA-2): same shape as /distribution/metadata above —
+     own scope/rail, intent names the PRODUCT (strategy) + its inputs. */
+  const idempotencyKey = buildChargeIdempotencyKey("distribution-ai-strategy", req.userId!, undefined, {
+    product: "strategy",
+    title,
+    artistName,
+    genreTags,
+    releaseDate,
+    platforms,
+  });
 
-  try {
+  /* Stored-result pre-check BEFORE any funding. */
+  const storedResult = await findStoredGenerationResult("distribution-ai-strategy", idempotencyKey, req.userId!);
+  if (storedResult) {
+    res.json({ ...storedResult, replayed: true });
+    return;
+  }
+
+  const outcome = await runDistributionOnce(idempotencyKey, async (): Promise<DistributionOutcome> => {
+    const charged = await chargeOr402(req, AI_CREDIT_COST, "generate a release strategy", "Distribution AI Strategy", idempotencyKey);
+    if (!charged.ok) return { status: charged.status, body: charged.body };
+    const creditsRemaining = charged.creditsRemaining;
+
+    try {
     const completion = await getOpenAI().chat.completions.create({
       model: getTextModel(),
       messages: [
@@ -705,21 +858,23 @@ router.post("/distribution/strategy", requireAuth, publicApiLimiter, async (req,
       throw new Error("Model returned no usable strategy");
     }
 
-    res.json({ timing, promoPlan, checklist, creditsUsed: AI_CREDIT_COST, creditsRemaining });
-  } catch (err) {
-    try {
-      await refundCredits(req.userId!, AI_CREDIT_COST, { action: "Distribution AI Strategy — Refund (provider failed)" });
-    } catch (refundErr) {
-      logger.error({ err: refundErr }, "[distribution] strategy refund failed");
+    return {
+      status: 200,
+      body: { timing, promoPlan, checklist, creditsUsed: AI_CREDIT_COST, creditsRemaining },
+    };
+    } catch (err) {
+      /* Refund landed → key voided (refundAiCharge). */
+      await refundAiCharge(req.userId!, AI_CREDIT_COST, "Distribution AI Strategy", idempotencyKey, "strategy");
+      if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
+        logger.warn({ err }, "[distribution] OpenAI rate limit / quota");
+        return { status: 503, body: { error: "The studio is catching its breath — try again in a moment." } };
+      }
+      logger.error({ err }, "[distribution] strategy generation failed");
+      return { status: 502, body: { error: "Strategy generation hiccupped — your Visual Buc was refunded, try again." } };
     }
-    if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
-      logger.warn({ err }, "[distribution] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The studio is catching its breath — try again in a moment." });
-      return;
-    }
-    logger.error({ err }, "[distribution] strategy generation failed");
-    res.status(502).json({ error: "Strategy generation hiccupped — your Visual Buc was refunded, try again." });
-  }
+  });
+
+  await answerDistribution(res, "distribution-ai-strategy", idempotencyKey, req.userId!, outcome);
 });
 
 /* Load royalty splits for a release (newest table — may not exist in old test DDLs). */

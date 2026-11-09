@@ -5,7 +5,14 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError,
+  buildChargeIdempotencyKey, voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 /* ─── Copyright Filing Assistant ──────────────────────────────────────────
    AI layer for the /copyright page (per the standing "everything AI-powered"
@@ -132,7 +139,8 @@ async function chargeOr402(
   userId: string,
   balance: number,
   cost: number,
-  res: Response
+  res: Response,
+  idempotencyKey: string
 ): Promise<number | null> {
   if (balance < cost) {
     res.status(402).json({
@@ -142,7 +150,7 @@ async function chargeOr402(
     return null;
   }
   try {
-    return await chargeCredits(userId, cost, { action: "Copyright Assistant" });
+    return await chargeCredits(userId, cost, { action: "Copyright Assistant" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -166,7 +174,25 @@ router.post("/copyright/draft", requireAuth, publicApiLimiter, async (req, res) 
     return;
   }
 
-  const creditsRemaining = await chargeOr402(req.userId!, req.userCredits ?? 0, COPYRIGHT_DRAFT_CREDITS, res);
+  /* Idempotency (CA-2, house pattern): one helper serves TWO products,
+     so the key's SCOPE names the product — "copyright-draft" here,
+     "copyright-ask" below — and the intent hash carries the inputs.
+     The schemas accept no client key, so the intent hash IS the key.
+     A replay is answered from the stored result with no charge and
+     no provider call; a refunded failure voids the key (below) so a
+     genuine retry charges fresh. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "copyright-draft", req.userId!, undefined, parsed.data,
+  );
+
+  /* Stored-result pre-check BEFORE any funding (migration 0333). */
+  const stored = await findStoredGenerationResult("copyright-draft", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true });
+    return;
+  }
+
+  const creditsRemaining = await chargeOr402(req.userId!, req.userCredits ?? 0, COPYRIGHT_DRAFT_CREDITS, res, idempotencyKey);
   if (creditsRemaining === null) return;
 
   try {
@@ -201,11 +227,15 @@ router.post("/copyright/draft", requireAuth, publicApiLimiter, async (req, res) 
       throw new Error("Model returned no usable description");
     }
 
-    res.json({ description, filingNotes, creditsUsed: COPYRIGHT_DRAFT_CREDITS, creditsRemaining });
+    const body = { description, filingNotes, creditsUsed: COPYRIGHT_DRAFT_CREDITS, creditsRemaining };
+    /* Store BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("copyright-draft", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
+    /* Refund landed → void the charge key so a retry charges fresh. */
     await refundCredits(req.userId!, COPYRIGHT_DRAFT_CREDITS, {
       action: "Copyright Assistant Draft (provider failure refund)",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[copyright] OpenAI rate limit / quota");
       res.status(503).json({ error: "The assistant is catching its breath — try again in a moment. (Visual Buc refunded.)" });
@@ -227,7 +257,21 @@ router.post("/copyright/ask", requireAuth, publicApiLimiter, async (req, res) =>
     return;
   }
 
-  const creditsRemaining = await chargeOr402(req.userId!, req.userCredits ?? 0, COPYRIGHT_ASK_CREDITS, res);
+  /* Product-discriminating scope: "copyright-ask" (see the draft
+     handler for the full CA-2 note). Intent = question + full history
+     as sent, so a follow-up in a grown conversation is a fresh ask. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "copyright-ask", req.userId!, undefined, parsed.data,
+  );
+
+  /* Stored-result pre-check BEFORE any funding (migration 0333). */
+  const storedAsk = await findStoredGenerationResult("copyright-ask", idempotencyKey, req.userId!);
+  if (storedAsk) {
+    res.json({ ...storedAsk, replayed: true });
+    return;
+  }
+
+  const creditsRemaining = await chargeOr402(req.userId!, req.userCredits ?? 0, COPYRIGHT_ASK_CREDITS, res, idempotencyKey);
   if (creditsRemaining === null) return;
 
   try {
@@ -247,11 +291,15 @@ router.post("/copyright/ask", requireAuth, publicApiLimiter, async (req, res) =>
       throw new Error("Model returned no answer");
     }
 
-    res.json({ answer, creditsUsed: COPYRIGHT_ASK_CREDITS, creditsRemaining });
+    const body = { answer, creditsUsed: COPYRIGHT_ASK_CREDITS, creditsRemaining };
+    /* Store BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("copyright-ask", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
+    /* Refund landed → void the charge key so a retry charges fresh. */
     await refundCredits(req.userId!, COPYRIGHT_ASK_CREDITS, {
       action: "Copyright Assistant Ask (provider failure refund)",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[copyright] OpenAI rate limit / quota");
       res.status(503).json({ error: "The assistant is catching its breath — try again in a moment. (Visual Buc refunded.)" });

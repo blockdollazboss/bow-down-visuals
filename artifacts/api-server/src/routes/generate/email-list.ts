@@ -7,7 +7,14 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { isAdminUserId } from "../../lib/admin";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { queueWelcomeSequence } from "../../lib/email-campaign-sender";
 import { EMAIL_LOGO_URL } from "../../lib/email";
 import {
@@ -766,6 +773,29 @@ router.post("/email-list/newsletter", requireAuth, publicApiLimiter, async (req,
     return;
   }
 
+  /* Idempotency (CA-2, newsletter charge only): server-derived key on
+     EVERY call — the schema accepts no client key, so the intent hash
+     IS the key. Intent = the draft's defining inputs. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "email-list-newsletter", req.userId!, undefined,
+    {
+      topic: parsed.data.topic,
+      tone: parsed.data.tone,
+      creatorName: parsed.data.creatorName,
+      listName: parsed.data.listName,
+      callToAction: parsed.data.callToAction,
+    },
+  );
+
+  /* Stored-result pre-check BEFORE any funding: a replay is answered
+     from the durable row — stored body verbatim + replayed: true —
+     with no charge and no provider call. Fail-open. */
+  const durable = await findStoredGenerationResult("email-list-newsletter", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < EMAIL_NEWSLETTER_CREDIT_COST) {
     res.status(402).json({
@@ -779,7 +809,7 @@ router.post("/email-list/newsletter", requireAuth, publicApiLimiter, async (req,
   try {
     creditsRemaining = await chargeCredits(req.userId!, EMAIL_NEWSLETTER_CREDIT_COST, {
       action: "AI Newsletter Draft",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -818,16 +848,27 @@ router.post("/email-list/newsletter", requireAuth, publicApiLimiter, async (req,
 
     /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
 
-    res.json({ ...draft, creditsUsed: EMAIL_NEWSLETTER_CREDIT_COST, creditsRemaining });
+    const body: Record<string, unknown> = { ...draft, creditsUsed: EMAIL_NEWSLETTER_CREDIT_COST, creditsRemaining };
+    /* Store BEFORE answering: a retry after this response is served
+       from the stored draft. Fail-open inside the helper. */
+    await storeGenerationResult("email-list-newsletter", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     /* Provider failure after charging — refund so the user never pays
        for a draft they didn't get. */
+    let refunded = false;
     try {
       await refundCredits(req.userId!, EMAIL_NEWSLETTER_CREDIT_COST, {
         action: "AI Newsletter Draft — Refund (provider failed)",
       });
+      refunded = true;
     } catch (refundErr) {
       logger.error({ err: refundErr }, "[email-list] refund failed after provider error");
+    }
+    /* Void the refunded attempt's key so a genuine retry can
+       re-charge instead of being suppressed as a replay. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
     }
     logger.error({ err }, "[email-list] newsletter generation failed");
     res.status(502).json({

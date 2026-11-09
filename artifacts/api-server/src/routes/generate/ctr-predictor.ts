@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -100,6 +101,16 @@ router.post("/predict-ctr", requireAuth, async (req, res) => {
   }
   const { thumbnailUrl, title, platform } = parsed.data;
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "ctr-predictor", req.userId!, undefined,
+    { thumbnailUrl: parsed.data.thumbnailUrl, title: parsed.data.title, platform: parsed.data.platform },
+  );
+  const storedReplay = await findStoredGenerationResult("ctr-predictor", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < CTR_PREDICTOR_COST) {
     res.status(402).json({
@@ -113,7 +124,7 @@ router.post("/predict-ctr", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, CTR_PREDICTOR_COST, {
       action: "Thumbnail CTR Predictor",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -151,18 +162,20 @@ router.post("/predict-ctr", requireAuth, async (req, res) => {
       throw new Error("AI returned an unparsable analysis.");
     }
 
-    res.json({
+    const body = {
       ok: true,
       platform,
       title,
       ...(typeof result === "object" && result !== null ? result : { raw }),
       creditsCharged: CTR_PREDICTOR_COST,
       creditsAfter,
-    });
+    };
+    await storeGenerationResult("ctr-predictor", idempotencyKey, req.userId!, body as Record<string, unknown>);
+    res.json(body);
   } catch (err) {
     await refundCredits(req.userId!, CTR_PREDICTOR_COST, {
       action: "Thumbnail CTR Predictor (failure refund)",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     const status = (err as { status?: number })?.status === 429 ? 503 : 500;
     const message = err instanceof Error ? err.message : "CTR prediction failed.";
     res.status(status).json({ error: status === 503 ? "provider_rate_limited" : "ctr_prediction_failed", message });

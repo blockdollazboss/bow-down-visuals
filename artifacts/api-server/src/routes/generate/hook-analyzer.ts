@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -74,6 +75,16 @@ router.post("/analyze-hook", requireAuth, async (req, res) => {
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "hook-analyzer", req.userId!, undefined,
+    { transcript: parsed.data.transcript, platform: parsed.data.platform, niche: parsed.data.niche, mode: parsed.data.mode },
+  );
+  const storedReplay = await findStoredGenerationResult("hook-analyzer", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (!process.env.OPENAI_API_KEY) {
     res.status(503).json({
@@ -93,7 +104,7 @@ router.post("/analyze-hook", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, HOOK_ANALYZE_COST, {
       action: "Hook Analysis",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -153,7 +164,7 @@ router.post("/analyze-hook", requireAuth, async (req, res) => {
         .map((s) => s.slice(0, len))
         .slice(0, max);
 
-    res.json({
+    const body = {
       analysis: {
         curiosityGap: clamp10(analysis.curiosityGap, 5),
         patternInterrupt: clamp10(analysis.patternInterrupt, 5),
@@ -167,13 +178,15 @@ router.post("/analyze-hook", requireAuth, async (req, res) => {
       },
       platform,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("hook-analyzer", idempotencyKey, req.userId!, body as Record<string, unknown>);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Hook analysis failed.";
     req.log.error({ err: message }, "[analyze-hook] failed");
     await refundCredits(req.userId!, HOOK_ANALYZE_COST, {
       action: "Hook Analysis — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   }
 });

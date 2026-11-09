@@ -4,7 +4,14 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 /* ─── Contract Analyzer ──────────────────────────────────────────────────
    AI contract review for creators: paste a record deal, brand deal, sync
@@ -88,11 +95,29 @@ router.post("/analyze", requireAuth, publicApiLimiter, async (req, res) => {
   }
   const { contractText, contractType, context } = parsed.data;
 
+  /* Idempotency (CA-2): server-derived key on EVERY call — this rail's
+     schema accepts no client key, so the intent hash IS the key.
+     Intent = the request's defining inputs. (This is the ANALYZER rail;
+     the contract-GENERATOR rail is a separate, already-closed rail.) */
+  const idempotencyKey = buildChargeIdempotencyKey("contract-analyzer", req.userId!, undefined, {
+    contractText,
+    contractType,
+    context,
+  });
+
+  /* Stored-result pre-check BEFORE any funding: a replay under a landed
+     key is answered from the stored body — no charge, no provider call. */
+  const storedResult = await findStoredGenerationResult("contract-analyzer", idempotencyKey, req.userId!);
+  if (storedResult) {
+    res.json({ ...storedResult, replayed: true });
+    return;
+  }
+
   let charged = false;
   try {
     await chargeCredits(req.userId!, CONTRACT_ANALYSIS_CREDITS, {
       action: "Contract Analysis",
-    });
+    }, { idempotencyKey });
     charged = true;
 
     const openai = getOpenAI();
@@ -117,19 +142,26 @@ router.post("/analyze", requireAuth, publicApiLimiter, async (req, res) => {
       throw new Error("AI returned unparseable analysis");
     }
 
-    res.json({
+    const body: Record<string, unknown> = {
       analysis,
       contractType,
       creditsCharged: CONTRACT_ANALYSIS_CREDITS,
       disclaimer:
         "This is an AI reading, not legal advice. Have an entertainment lawyer review before signing anything.",
-    });
+    };
+    /* Store BEFORE answering: a retry after this response is served
+       from the stored body. Fail-open inside the helper. */
+    await storeGenerationResult("contract-analyzer", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     if (charged) {
       try {
         await refundCredits(req.userId!, CONTRACT_ANALYSIS_CREDITS, {
           action: "Contract Analysis (refund: analysis failed)",
         });
+        /* The refund landed — VOID the charge's idempotency key so a
+           retry charges fresh instead of running FREE as a replay. */
+        await voidChargeIdempotencyKey(idempotencyKey);
       } catch (refundErr) {
         logger.error({ err: refundErr }, "[contract-analyzer] refund failed");
       }

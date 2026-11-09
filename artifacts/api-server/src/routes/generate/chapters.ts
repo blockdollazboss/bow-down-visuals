@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { transcribeAudioTimed } from "../../lib/transcription";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 
 const router = Router();
@@ -194,6 +195,16 @@ router.post("/chapters", requireAuth, async (req, res) => {
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "chapters", req.userId!, undefined,
+    { videoUrl: parsed.data.videoUrl, silenceThresholdDb: parsed.data.silenceThresholdDb, minSilenceSec: parsed.data.minSilenceSec, maxChapters: parsed.data.maxChapters, minChapterSec: parsed.data.minChapterSec },
+  );
+  const storedReplay = await findStoredGenerationResult("chapters", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < CHAPTERS_COST) {
     res.status(402).json({
@@ -207,7 +218,7 @@ router.post("/chapters", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, CHAPTERS_COST, {
       action: "Video Chapters",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -257,19 +268,21 @@ router.post("/chapters", requireAuth, async (req, res) => {
 
     const titles = await titleChapters(starts, segments, durationSec);
 
-    res.json({
+    const body = {
       chapters: starts.map((startTime, i) => ({
         startTime,
         title: titles[i] ?? `Chapter ${i + 1}`,
       })),
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("chapters", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Chapter detection failed.";
     req.log.error({ err: message }, "[chapters] failed");
     await refundCredits(req.userId!, CHAPTERS_COST, {
       action: "Video Chapters — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     await unlink(inputPath).catch(() => {});

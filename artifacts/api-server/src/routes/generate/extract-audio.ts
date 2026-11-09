@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -48,6 +49,16 @@ router.post("/extract-audio", requireAuth, async (req, res) => {
   const format: FormatKey = parsed.data.format;
   const fmt = FORMATS[format];
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "extract-audio", req.userId!, undefined,
+    { videoUrl: parsed.data.videoUrl, format: parsed.data.format },
+  );
+  const storedReplay = await findStoredGenerationResult("extract-audio", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < EXTRACT_COST) {
     res.status(402).json({
@@ -62,7 +73,7 @@ router.post("/extract-audio", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, EXTRACT_COST, {
       action: `Extract Audio (${fmt.label})`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -94,7 +105,7 @@ router.post("/extract-audio", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, fmt.mime);
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       format,
@@ -103,13 +114,15 @@ router.post("/extract-audio", requireAuth, async (req, res) => {
       durationSec: Math.round(durationSec * 10) / 10,
       sizeBytes: buffer.length,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("extract-audio", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Audio extraction failed.";
     req.log.error({ err: message }, "[extract-audio] failed");
     await refundCredits(req.userId!, EXTRACT_COST, {
       action: "Extract Audio — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});

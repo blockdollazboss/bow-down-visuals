@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -94,6 +95,16 @@ router.post("/color-grade", requireAuth, async (req, res) => {
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "color-grade", req.userId!, undefined,
+    { videoUrl: parsed.data.videoUrl, preset: parsed.data.preset },
+  );
+  const storedReplay = await findStoredGenerationResult("color-grade", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < GRADE_COST) {
     res.status(402).json({
@@ -107,7 +118,7 @@ router.post("/color-grade", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, GRADE_COST, {
       action: `Color grade (${parsed.data.preset})`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -155,18 +166,20 @@ router.post("/color-grade", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       preset: parsed.data.preset,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("color-grade", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Color grading failed.";
     req.log.error({ err: message }, "[color-grade] failed");
     await refundCredits(req.userId!, GRADE_COST, {
       action: "Color grade — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     await unlink(inputPath).catch(() => {});

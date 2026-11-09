@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -132,6 +133,16 @@ router.post("/end-screen", requireAuth, async (req, res) => {
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "end-screen", req.userId!, undefined,
+    { videoUrl: parsed.data.videoUrl, channelName: parsed.data.channelName, ctaText: parsed.data.ctaText },
+  );
+  const storedReplay = await findStoredGenerationResult("end-screen", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < END_SCREEN_COST) {
     res.status(402).json({
@@ -145,7 +156,7 @@ router.post("/end-screen", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, END_SCREEN_COST, {
       action: "Video end screen",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -190,18 +201,20 @@ router.post("/end-screen", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       durationSeconds: DURATION,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("end-screen", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "End screen generation failed.";
     req.log.error({ err: message }, "[end-screen] failed");
     await refundCredits(req.userId!, END_SCREEN_COST, {
       action: "Video end screen — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     const { rm } = await import("fs/promises");

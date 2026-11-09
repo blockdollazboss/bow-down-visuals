@@ -12,7 +12,14 @@ import { randomUUID } from "crypto";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { uploadPublicMediaFileToR2 } from "../../lib/objectStorage";
 
 const execFileAsync = promisify(execFile);
@@ -135,6 +142,24 @@ router.post("/cover-in-motion/animate", requireAuth, publicApiLimiter, async (re
     return;
   }
 
+  /* Idempotency (CA-2): server-derived key on EVERY call — this rail's
+     schema accepts no client key, so the intent hash IS the key.
+     Intent = the request's defining inputs. A retry of a SUCCEEDED
+     render used to re-charge 400 and re-run the whole Runway render. */
+  const idempotencyKey = buildChargeIdempotencyKey("cover-in-motion", req.userId!, undefined, {
+    imageUrl: parsed.data.imageUrl,
+    style: parsed.data.style,
+    durationSec: parsed.data.durationSec,
+  });
+
+  /* Stored-result pre-check BEFORE any funding: a replay under a landed
+     key is answered from the stored body — no charge, no provider call. */
+  const storedResult = await findStoredGenerationResult("cover-in-motion", idempotencyKey, req.userId!);
+  if (storedResult) {
+    res.json({ ...storedResult, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < MOTION_CREDIT_COST) {
     res.status(402).json({
@@ -147,7 +172,7 @@ router.post("/cover-in-motion/animate", requireAuth, publicApiLimiter, async (re
   try {
     creditsRemaining = await chargeCredits(req.userId!, MOTION_CREDIT_COST, {
       action: "Cover in Motion",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -162,6 +187,9 @@ router.post("/cover-in-motion/animate", requireAuth, publicApiLimiter, async (re
   const refundAndFail = async (status: number, message: string) => {
     try {
       await refundCredits(req.userId!, MOTION_CREDIT_COST, { action: "Cover in Motion — Refund" });
+      /* The refund landed — VOID the charge's idempotency key so a
+         retry charges fresh instead of running FREE as a replay. */
+      await voidChargeIdempotencyKey(idempotencyKey);
     } catch (refundErr) {
       logger.error({ err: refundErr, userId: req.userId }, "[cover-in-motion] refund failed after render error");
     }
@@ -196,11 +224,15 @@ router.post("/cover-in-motion/animate", requireAuth, publicApiLimiter, async (re
       await unlink(finalPath).catch(() => {});
     }
 
-    res.json({
+    const body: Record<string, unknown> = {
       videoUrl: publicUrl,
       creditsUsed: MOTION_CREDIT_COST,
       creditsRemaining,
-    });
+    };
+    /* Store BEFORE answering: a retry after this response is served
+       from the stored body. Fail-open inside the helper. */
+    await storeGenerationResult("cover-in-motion", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Cover animation failed";
     logger.error({ err, userId: req.userId }, "[cover-in-motion] render failed");

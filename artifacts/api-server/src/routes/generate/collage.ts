@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -94,6 +95,16 @@ router.post("/collage", requireAuth, async (req, res) => {
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "collage", req.userId!, undefined,
+    { videoUrls: parsed.data.videoUrls, layout: parsed.data.layout },
+  );
+  const storedReplay = await findStoredGenerationResult("collage", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < COLLAGE_COST) {
     res.status(402).json({
@@ -107,7 +118,7 @@ router.post("/collage", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, COLLAGE_COST, {
       action: `Video Collage (${parsed.data.layout})`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -180,18 +191,20 @@ router.post("/collage", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       layout: parsed.data.layout,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("collage", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Collage creation failed.";
     req.log.error({ err: message }, "[collage] failed");
     await refundCredits(req.userId!, COLLAGE_COST, {
       action: "Video Collage — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     await Promise.all(inputPaths.map((p) => unlink(p).catch(() => {})));

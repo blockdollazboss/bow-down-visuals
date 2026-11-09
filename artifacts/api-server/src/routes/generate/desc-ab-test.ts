@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -84,6 +85,16 @@ router.post("/test-descriptions", requireAuth, async (req, res) => {
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "desc-ab-test", req.userId!, undefined,
+    { topic: parsed.data.topic, variantA: parsed.data.variantA, variantB: parsed.data.variantB, keywords: parsed.data.keywords },
+  );
+  const storedReplay = await findStoredGenerationResult("desc-ab-test", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < DESC_AB_TEST_COST) {
     res.status(402).json({
@@ -97,7 +108,7 @@ router.post("/test-descriptions", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, DESC_AB_TEST_COST, {
       action: "Description A/B Test",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -175,16 +186,18 @@ router.post("/test-descriptions", requireAuth, async (req, res) => {
       verdict: String(parsedContent["verdict"] ?? "").trim().slice(0, 400),
     };
 
-    res.json({
+    const body = {
       result,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("desc-ab-test", idempotencyKey, req.userId!, body as Record<string, unknown>);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Description A/B test failed.";
     req.log.error({ err: message }, "[desc-ab-test] failed");
     await refundCredits(req.userId!, DESC_AB_TEST_COST, {
       action: "Description A/B Test — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   }
 });

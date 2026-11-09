@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -84,6 +85,16 @@ router.post("/generate-community-post", requireAuth, async (req, res) => {
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "community-post", req.userId!, undefined,
+    { topic: parsed.data.topic, platform: parsed.data.platform, tone: parsed.data.tone, cta: parsed.data.cta ?? null, niche: parsed.data.niche ?? null },
+  );
+  const storedReplay = await findStoredGenerationResult("community-post", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < COMMUNITY_POST_COST) {
     res.status(402).json({
@@ -97,7 +108,7 @@ router.post("/generate-community-post", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, COMMUNITY_POST_COST, {
       action: "Community Post Generator",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -180,19 +191,21 @@ router.post("/generate-community-post", requireAuth, async (req, res) => {
       reason: String(bt.reason ?? "").trim() || "—",
     };
 
-    res.json({
+    const body = {
       posts: variants,
       bestTime,
       platform: { id: platform, label: meta.label, charLimit: meta.limit },
       tone,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("community-post", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Community post generation failed.";
     req.log.error({ err: message }, "[community-post] failed");
     await refundCredits(req.userId!, COMMUNITY_POST_COST, {
       action: "Community Post Generator — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   }
 });

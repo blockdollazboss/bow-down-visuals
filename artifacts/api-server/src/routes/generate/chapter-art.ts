@@ -5,7 +5,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import { getOpenAI } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
@@ -97,6 +98,16 @@ router.post("/chapter-art", requireAuth, async (req, res) => {
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "chapter-art", req.userId!, undefined,
+    { chapterTitle: parsed.data.chapterTitle, videoTopic: parsed.data.videoTopic, style: parsed.data.style },
+  );
+  const storedReplay = await findStoredGenerationResult("chapter-art", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < CHAPTER_ART_COST) {
     res.status(402).json({
@@ -110,7 +121,7 @@ router.post("/chapter-art", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, CHAPTER_ART_COST, {
       action: "Chapter Art",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -139,19 +150,21 @@ router.post("/chapter-art", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "image/png");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       chapterTitle,
       style: chosen.id,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("chapter-art", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Chapter art generation failed.";
     req.log.error({ err: message }, "[chapter-art] failed");
     await refundCredits(req.userId!, CHAPTER_ART_COST, {
       action: "Chapter Art — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     const { rm } = await import("fs/promises");

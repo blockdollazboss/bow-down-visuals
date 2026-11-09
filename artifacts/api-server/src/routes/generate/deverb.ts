@@ -27,16 +27,23 @@
  * generates and nothing moves.
  * ─────────────────────────────────────────────────────────────────────
  */
-import { randomUUID } from "crypto";
+import { createHash } from "crypto";
 import { execFile } from "child_process";
-import { promises as fs } from "fs";
+import { promises as fs, createReadStream } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { promisify } from "util";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError,
+  buildChargeIdempotencyKey, voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import {
   uploadMediaToSupabaseStorage,
@@ -170,6 +177,10 @@ interface DeverbJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /* CA-2 replay plumbing (Pattern B): the charge's idempotency key and
+     the exact POST body served at creation. */
+  chargeKey?: string;
+  replayBody?: Record<string, unknown>;
 }
 
 const jobs = new Map<string, DeverbJob>();
@@ -204,21 +215,82 @@ async function runDeverbJob(
     job.status = "done";
     job.outputUrl = url;
     job.outputRef = ref;
+    /* CA-2: persist the creation result under the charge key once the
+       job has COMPLETED — a replay after the in-memory job is gone is
+       served from the durable row instead of charging again. */
+    if (job.chargeKey && job.replayBody) {
+      await storeGenerationResult("deverb", job.chargeKey, job.userId, job.replayBody);
+    }
   } catch (err) {
-    job.status = "failed";
     job.error = err instanceof Error ? err.message : "De-reverb failed";
-    // Refund: the user paid for an output they didn't get.
+    // Refund: the user paid for an output they didn't get. The refund
+    // lands (and the key is voided) BEFORE the job reads "failed", so
+    // a retry that sees the failed job always charges fresh.
+    let refunded = true;
     try {
       await refundCredits(job.userId, job.creditsCharged, {
         action: "De-Reverb — Refund (job failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       // Logged inside refundCredits; don't mask the original failure.
       void refundErr;
     }
+    if (refunded && job.chargeKey) {
+      try {
+        await voidChargeIdempotencyKey(job.chargeKey);
+      } catch {
+        /* void is best-effort here; a failed void is logged in credits */
+      }
+    }
+    job.status = "failed";
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
     await fs.unlink(uploadedPath).catch(() => {});
+  }
+}
+
+/* ── CA-2 replay plumbing (Pattern B, avatar-presenter shape) ──────────
+   The job's identity derives from the charge idempotency key: the key
+   is built from the request intent (mode + a sha256 of the uploaded
+   bytes — the file IS the defining input), and the job id is that
+   key's hash. A replay of the same ask lands on the SAME job: no
+   second charge, no second provider run. An in-flight twin map
+   closes the concurrent window between charge and job-mint. */
+async function hashFileSha256(path: string): Promise<string> {
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(path)) {
+    hash.update(chunk as Buffer);
+  }
+  return hash.digest("hex");
+}
+
+interface DeverbCreationOutcome {
+  status: number;
+  body: Record<string, unknown>;
+}
+
+const deverbCreationsInFlight = new Map<string, Promise<DeverbCreationOutcome>>();
+
+async function runDeverbCreationOnce(
+  idempotencyKey: string,
+  work: () => Promise<DeverbCreationOutcome>,
+): Promise<DeverbCreationOutcome & { replayed: boolean }> {
+  const pending = deverbCreationsInFlight.get(idempotencyKey);
+  if (pending) {
+    const twin = await pending.catch(() => null);
+    if (twin && twin.status === 202) return { ...twin, replayed: true };
+    /* The twin failed — run this request fresh. */
+  }
+  const run = work();
+  deverbCreationsInFlight.set(idempotencyKey, run);
+  try {
+    const outcome = await run;
+    return { ...outcome, replayed: false };
+  } finally {
+    if (deverbCreationsInFlight.get(idempotencyKey) === run) {
+      deverbCreationsInFlight.delete(idempotencyKey);
+    }
   }
 }
 
@@ -276,6 +348,44 @@ router.post("/deverb", requireAuth, upload.single("audio"), async (req: Request,
     return;
   }
 
+  /* Idempotency (CA-2, Pattern B): server-derived key on EVERY call —
+     the schema accepts no client key, so the intent hash IS the key.
+     Intent = the mode + sha256 of the uploaded bytes. */
+  const fileSha256 = await hashFileSha256(req.file.path);
+  const idempotencyKey = buildChargeIdempotencyKey("deverb", req.userId!, undefined, {
+    mode,
+    fileSha256,
+  });
+  const jobId = createHash("sha256").update(idempotencyKey).digest("hex").slice(0, 32);
+
+  /* Replay, in-memory first: the same ask returns the SAME job. A
+     FAILED job (refunded + key voided by the runner) is dropped so
+     this request runs fresh below. */
+  const existing = jobs.get(jobId);
+  if (existing && existing.userId === req.userId) {
+    if (existing.status !== "failed") {
+      res.status(202).json({
+        ...(existing.replayBody ?? {
+          jobId: existing.id,
+          status: existing.status,
+          mode: existing.mode,
+          creditsCharged: existing.creditsCharged,
+        }),
+        replayed: true,
+      });
+      return;
+    }
+    jobs.delete(jobId);
+  }
+
+  /* Stored-result pre-check BEFORE any funding: serves a COMPLETED
+     job's creation result after the in-memory job has been evicted. */
+  const storedResult = await findStoredGenerationResult("deverb", idempotencyKey, req.userId!);
+  if (storedResult) {
+    res.status(202).json({ ...storedResult, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < DEVERB_CREDIT_COST) {
     res.status(402).json({
@@ -285,50 +395,64 @@ router.post("/deverb", requireAuth, upload.single("audio"), async (req: Request,
     return;
   }
 
-  let creditsRemaining = balance;
-  try {
-    creditsRemaining = await chargeCredits(req.userId!, DEVERB_CREDIT_COST, {
-      action: `De-Reverb (${MODE_LABELS[mode]})`,
-    });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
-        error: "out_of_credits",
-        message: "You're out of Visual Bucs — top up to de-reverb audio.",
-      });
-      return;
+  const uploadedPath = req.file.path;
+  const originalName = req.file.originalname;
+  const outcome = await runDeverbCreationOnce(idempotencyKey, async (): Promise<DeverbCreationOutcome> => {
+    let creditsRemaining = balance;
+    try {
+      creditsRemaining = await chargeCredits(req.userId!, DEVERB_CREDIT_COST, {
+        action: `De-Reverb (${MODE_LABELS[mode]})`,
+      }, { idempotencyKey });
+    } catch (err) {
+      if (err instanceof OutOfCreditsError) {
+        return {
+          status: 402,
+          body: {
+            error: "out_of_credits",
+            message: "You're out of Visual Bucs — top up to de-reverb audio.",
+          },
+        };
+      }
+      if (err instanceof LedgerWriteError) {
+        return { status: 500, body: { error: "Could not record the Visual Buc charge. Please try again." } };
+      }
+      throw err;
     }
-    if (err instanceof LedgerWriteError) {
-      res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
-      return;
-    }
-    throw err;
-  }
 
-  const job: DeverbJob = {
-    id: randomUUID(),
-    userId: req.userId!,
-    status: "queued",
-    mode,
-    sourceName: req.file.originalname,
-    outputUrl: null,
-    outputRef: null,
-    error: null,
-    creditsCharged: DEVERB_CREDIT_COST,
-    createdAt: Date.now(),
-  };
-  jobs.set(job.id, job);
+    const job: DeverbJob = {
+      id: jobId,
+      userId: req.userId!,
+      status: "queued",
+      mode,
+      sourceName: originalName,
+      outputUrl: null,
+      outputRef: null,
+      error: null,
+      creditsCharged: DEVERB_CREDIT_COST,
+      createdAt: Date.now(),
+      chargeKey: idempotencyKey,
+    };
+    const body: Record<string, unknown> = {
+      jobId: job.id,
+      status: job.status,
+      mode: job.mode,
+      creditsCharged: DEVERB_CREDIT_COST,
+      creditsRemaining,
+    };
+    job.replayBody = body;
+    jobs.set(job.id, job);
 
-  // Server-owned: runs detached from the request/tab lifecycle.
-  void runDeverbJob(job, req.file.path, req.file.originalname);
+    // Server-owned: runs detached from the request/tab lifecycle.
+    void runDeverbJob(job, uploadedPath, originalName);
 
-  res.status(202).json({
-    jobId: job.id,
-    status: job.status,
-    mode: job.mode,
-    creditsCharged: DEVERB_CREDIT_COST,
-    creditsRemaining,
+    return { status: 202, body };
   });
+
+  if (outcome.replayed && outcome.status === 202) {
+    res.status(202).json({ ...outcome.body, replayed: true });
+    return;
+  }
+  res.status(outcome.status).json(outcome.body);
 });
 
 /**

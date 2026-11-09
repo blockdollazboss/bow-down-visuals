@@ -1,7 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -37,6 +44,22 @@ router.post("/hashtags", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Idempotency (CA-2): server-derived key on EVERY call — the schema
+     accepts no client key, so the intent hash IS the key. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "hashtags", req.userId!, undefined,
+    { topic: parsed.data.topic, platform: parsed.data.platform },
+  );
+
+  /* Stored-result pre-check BEFORE any funding: a replay is answered
+     from the durable row — stored body verbatim + replayed: true —
+     with no charge and no provider call. Fail-open. */
+  const durable = await findStoredGenerationResult("hashtags", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < HASHTAG_COST) {
     res.status(402).json({
@@ -50,7 +73,7 @@ router.post("/hashtags", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, HASHTAG_COST, {
       action: "Hashtag Generator",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -117,17 +140,21 @@ router.post("/hashtags", requireAuth, async (req, res) => {
       niche: clean(grouped.data.niche),
     };
 
-    res.json({
+    const body: Record<string, unknown> = {
       hashtags,
       platform,
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Store BEFORE answering. Fail-open inside the helper. */
+    await storeGenerationResult("hashtags", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Hashtag generation failed.";
     req.log.error({ err: message }, "[hashtags] failed");
+    /* Refund, then VOID the key so a genuine retry can re-charge. */
     await refundCredits(req.userId!, HASHTAG_COST, {
       action: "Hashtag Generator — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   }
 });

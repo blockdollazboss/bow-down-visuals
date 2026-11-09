@@ -5,9 +5,16 @@ import { promisify } from "util";
 import { writeFile, readFile, mkdtemp, rm, access } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError,
+  buildChargeIdempotencyKey, voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -85,6 +92,10 @@ interface FreezeMaskJob {
   storageRef?: string;
   error?: string;
   createdAt: number;
+  /* CA-2 replay plumbing (Pattern B): the charge's idempotency key and
+     the exact POST body served at creation. */
+  chargeKey?: string;
+  replayBody?: Record<string, unknown>;
 }
 
 const jobs = new Map<string, FreezeMaskJob>();
@@ -356,12 +367,23 @@ async function runJob(job: FreezeMaskJob, params: Record<string, unknown>, log: 
     job.status = "done";
     job.url = url;
     job.storageRef = storageRef;
+    /* CA-2: persist the creation result under the charge key once the
+       render has COMPLETED — a replay after the in-memory job is gone
+       is served from the durable row instead of charging again. */
+    if (job.chargeKey && job.replayBody) {
+      await storeGenerationResult(job.kind, job.chargeKey, job.userId, job.replayBody);
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Render failed.";
     log({ err: message }, `[freeze-mask] ${job.kind} job ${job.id} failed`);
+    /* Refund landed → VOID the charge's idempotency key (fire-and-forget
+       chain, response behavior unchanged): without the void a retry
+       would be suppressed as a replay and render free. */
     await refundCredits(job.userId, job.cost, {
       action: `${job.kind === "freeze-frame" ? "Freeze frame" : "Mask effect"} — Refund`,
-    }).catch(() => {});
+    })
+      .then(() => (job.chargeKey ? voidChargeIdempotencyKey(job.chargeKey) : undefined))
+      .catch(() => {});
     job.status = "failed";
     job.error = message;
   } finally {
@@ -373,6 +395,42 @@ function badRequest(res: { status: (c: number) => { json: (b: unknown) => void }
   res.status(400).json({ error: "Invalid request.", details: issues });
 }
 
+/* ── CA-2 replay plumbing (Pattern B, avatar-presenter shape) ──────────
+   One helper serves TWO products (freeze frame / mask), so each kind
+   gets its OWN scope/rail and the intent carries the kind plus its
+   full params. The job's identity derives from the charge key (the
+   job id is the key's hash): a replay of the same ask lands on the
+   SAME job — no second charge, no second render. An in-flight twin
+   map closes the concurrent window between charge and job-mint. */
+interface FreezeCreationOutcome {
+  status: number;
+  body: Record<string, unknown>;
+}
+
+const freezeCreationsInFlight = new Map<string, Promise<FreezeCreationOutcome>>();
+
+async function runFreezeCreationOnce(
+  idempotencyKey: string,
+  work: () => Promise<FreezeCreationOutcome>,
+): Promise<FreezeCreationOutcome & { replayed: boolean }> {
+  const pending = freezeCreationsInFlight.get(idempotencyKey);
+  if (pending) {
+    const twin = await pending.catch(() => null);
+    if (twin && twin.status === 202) return { ...twin, replayed: true };
+    /* The twin failed — run this request fresh. */
+  }
+  const run = work();
+  freezeCreationsInFlight.set(idempotencyKey, run);
+  try {
+    const outcome = await run;
+    return { ...outcome, replayed: false };
+  } finally {
+    if (freezeCreationsInFlight.get(idempotencyKey) === run) {
+      freezeCreationsInFlight.delete(idempotencyKey);
+    }
+  }
+}
+
 async function startJob(
   req: { userId?: string; userCredits?: number; log: { error: (o: object, m: string) => void } },
   res: { status: (c: number) => { json: (b: unknown) => void }; json: (b: unknown) => void },
@@ -381,6 +439,37 @@ async function startJob(
   label: string,
   params: Record<string, unknown>,
 ) {
+  /* Idempotency (CA-2, Pattern B): server-derived key on EVERY call —
+     the schemas accept no client key, so the intent hash IS the key. */
+  const idempotencyKey = buildChargeIdempotencyKey(kind, req.userId!, undefined, {
+    kind,
+    ...params,
+  });
+  const jobId = createHash("sha256").update(idempotencyKey).digest("hex").slice(0, 32);
+
+  /* Replay, in-memory first: the same ask returns the SAME job. A
+     FAILED job (refunded + key voided by the runner) is dropped so
+     this request runs fresh below. */
+  const existing = jobs.get(jobId);
+  if (existing && existing.userId === req.userId) {
+    if (existing.status !== "failed") {
+      res.status(202).json({
+        ...(existing.replayBody ?? { jobId: existing.id, status: existing.status, cost: existing.cost }),
+        replayed: true,
+      });
+      return;
+    }
+    jobs.delete(jobId);
+  }
+
+  /* Stored-result pre-check BEFORE any funding: serves a COMPLETED
+     job's creation result after the in-memory job has been evicted. */
+  const storedResult = await findStoredGenerationResult(kind, idempotencyKey, req.userId!);
+  if (storedResult) {
+    res.status(202).json({ ...storedResult, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < cost) {
     res.status(402).json({
@@ -389,29 +478,40 @@ async function startJob(
     });
     return;
   }
-  try {
-    await chargeCredits(req.userId!, cost, { action: label });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
-    }
-    throw err;
-  }
 
-  pruneJobs();
-  const job: FreezeMaskJob = {
-    id: randomUUID(),
-    userId: req.userId!,
-    kind,
-    cost,
-    status: "processing",
-    createdAt: Date.now(),
-  };
-  jobs.set(job.id, job);
-  // Fire and forget — the client polls for completion.
-  void runJob(job, params, req.log.error.bind(req.log));
-  res.status(202).json({ jobId: job.id, status: "processing", cost });
+  const outcome = await runFreezeCreationOnce(idempotencyKey, async (): Promise<FreezeCreationOutcome> => {
+    try {
+      await chargeCredits(req.userId!, cost, { action: label }, { idempotencyKey });
+    } catch (err) {
+      if (err instanceof OutOfCreditsError) {
+        return { status: 402, body: { error: "out_of_credits", message: "Not enough Visual Bucs." } };
+      }
+      throw err;
+    }
+
+    pruneJobs();
+    const job: FreezeMaskJob = {
+      id: jobId,
+      userId: req.userId!,
+      kind,
+      cost,
+      status: "processing",
+      createdAt: Date.now(),
+      chargeKey: idempotencyKey,
+    };
+    const body: Record<string, unknown> = { jobId: job.id, status: "processing", cost };
+    job.replayBody = body;
+    jobs.set(job.id, job);
+    // Fire and forget — the client polls for completion.
+    void runJob(job, params, req.log.error.bind(req.log));
+    return { status: 202, body };
+  });
+
+  if (outcome.replayed && outcome.status === 202) {
+    res.status(202).json({ ...outcome.body, replayed: true });
+    return;
+  }
+  res.status(outcome.status).json(outcome.body);
 }
 
 /* ─── Routes ─── */

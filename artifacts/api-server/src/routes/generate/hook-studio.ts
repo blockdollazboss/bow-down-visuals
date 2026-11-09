@@ -5,7 +5,14 @@ import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clie
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError,
+  buildChargeIdempotencyKey, voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
@@ -64,14 +71,14 @@ const hookStudioSchema = z.discriminatedUnion("mode", [hooksSchema, preflightSch
 /* The charge lands BEFORE the model call; any failure after it refunds
    the exact charged amount (D5 sweep G10 — the refundOnFailure pattern
    from academy.ts). One charge covers all three modes. */
-async function refundOnFailure(userId: string, action: string): Promise<void> {
-  try {
-    await refundCredits(userId, HOOK_STUDIO_CREDITS, {
-      action: `${action} — Refund (generation failed)`,
-    });
-  } catch (refundErr) {
-    /* Logged inside refundCredits; don't mask the original failure. */
-    void refundErr;
+async function refundOnFailure(userId: string, action: string, idempotencyKey: string): Promise<void> {
+  const refunded = await refundCredits(userId, HOOK_STUDIO_CREDITS, {
+    action: `${action} — Refund (generation failed)`,
+  }).then(() => true).catch(() => false);
+  /* Void the refunded attempt's key so a genuine retry can re-charge
+     instead of being suppressed as a replay. */
+  if (refunded) {
+    await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
   }
 }
 
@@ -89,6 +96,30 @@ router.post("/hook-studio", requireAuth, publicApiLimiter, async (req, res) => {
     return;
   }
 
+  const actionName =
+    parsed.data.mode === "hooks" ? "Hook Generator"
+    : parsed.data.mode === "captions" ? "Caption & Hashtag Generator"
+    : "Virality Pre-flight";
+
+  /* Idempotency (CA-2): server-derived key on EVERY call — the schema
+     accepts no client key, so the intent hash IS the key. The intent
+     MUST carry the mode/action name plus that mode's inputs: hooks,
+     captions and preflight are different products, so the same text
+     under a different mode is a different key, never a replay. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "hook-studio", req.userId!, undefined,
+    { ...parsed.data, action: actionName },
+  );
+
+  /* Stored-result pre-check BEFORE any funding: a replay is answered
+     from the durable row — stored body verbatim + replayed: true —
+     with no charge and no provider call. Fail-open. */
+  const durable = await findStoredGenerationResult("hook-studio", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < HOOK_STUDIO_CREDITS) {
     res.status(402).json({
@@ -98,12 +129,8 @@ router.post("/hook-studio", requireAuth, publicApiLimiter, async (req, res) => {
     return;
   }
   let creditsRemaining = balance;
-  const actionName =
-    parsed.data.mode === "hooks" ? "Hook Generator"
-    : parsed.data.mode === "captions" ? "Caption & Hashtag Generator"
-    : "Virality Pre-flight";
   try {
-    creditsRemaining = await chargeCredits(req.userId!, HOOK_STUDIO_CREDITS, { action: actionName });
+    creditsRemaining = await chargeCredits(req.userId!, HOOK_STUDIO_CREDITS, { action: actionName }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -161,7 +188,10 @@ router.post("/hook-studio", requireAuth, publicApiLimiter, async (req, res) => {
         throw new Error("Model returned no usable hooks");
       }
 
-      res.json({ hooks, creditsUsed: HOOK_STUDIO_CREDITS, creditsRemaining });
+      const body: Record<string, unknown> = { hooks, creditsUsed: HOOK_STUDIO_CREDITS, creditsRemaining };
+      /* Store BEFORE answering. Fail-open inside the helper. */
+      await storeGenerationResult("hook-studio", idempotencyKey, req.userId!, body);
+      res.json(body);
       return;
     }
 
@@ -233,7 +263,10 @@ router.post("/hook-studio", requireAuth, publicApiLimiter, async (req, res) => {
         throw new Error("Model returned no usable captions");
       }
 
-      res.json({ captions, hashtags, cta, creditsUsed: HOOK_STUDIO_CREDITS, creditsRemaining });
+      const body: Record<string, unknown> = { captions, hashtags, cta, creditsUsed: HOOK_STUDIO_CREDITS, creditsRemaining };
+      /* Store BEFORE answering. Fail-open inside the helper. */
+      await storeGenerationResult("hook-studio", idempotencyKey, req.userId!, body);
+      res.json(body);
       return;
     }
 
@@ -310,16 +343,19 @@ router.post("/hook-studio", requireAuth, publicApiLimiter, async (req, res) => {
       throw new Error("Model returned no usable scorecard");
     }
 
-    res.json({
+    const body: Record<string, unknown> = {
       score,
       verdict,
       disclaimer,
       checks,
       creditsUsed: HOOK_STUDIO_CREDITS,
       creditsRemaining,
-    });
+    };
+    /* Store BEFORE answering. Fail-open inside the helper. */
+    await storeGenerationResult("hook-studio", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
-    await refundOnFailure(req.userId!, actionName);
+    await refundOnFailure(req.userId!, actionName, idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err, mode: parsed.data.mode }, "[hook-studio] OpenAI rate limit / quota");
       res.status(503).json({ error: "The studio is catching its breath — try again in a moment." });

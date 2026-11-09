@@ -4,7 +4,14 @@ import { z } from "zod";
 import { eq, and, asc, desc, sql, isNull } from "drizzle-orm";
 import { db, contestsTable, contestEntriesTable } from "@workspace/db";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError,
+  buildChargeIdempotencyKey, voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { getOpenAI } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
@@ -469,6 +476,194 @@ router.post("/contests/:id/draw", requireAuth, async (req, res) => {
   }));
 });
 
+/* ─── Contest announce — exactly-once (CA-2, Pattern C) ───────────────
+   The announce charge used to be unkeyed, and the handler carried NO
+   already-announced check at all: a retried announce re-charged 100
+   and OVERWROTE announcement_image_url with a second graphic. The
+   fix is the house pattern plus the missing state check:
+   - a server-derived idempotency key per (contest, winner) intent —
+     the graphic is a pure function of that pair;
+   - a durable stored-result pre-check (migration 0333) before any
+     funding: a replay serves the stored body + replayed: true;
+   - the state check: a contest whose announcement_image_url is
+     already set serves its standing announcement — never re-charges,
+     never overwrites (covers announcements made before this fix and
+     any storage degradation);
+   - the write is conditional on announcement_image_url still being
+     NULL, so even a cross-process race cannot overwrite the first
+     announcement;
+   - every refund voids the key, so a genuine retry charges fresh. */
+const CONTEST_ANNOUNCE_RAIL = "contest-announce";
+
+const announceInFlight = new Map<string, Promise<Record<string, unknown>>>();
+
+/** Test hook: forget every in-flight announce run. */
+export function __resetContestAnnounceReplayState(): void {
+  announceInFlight.clear();
+}
+
+async function runContestAnnounce(args: {
+  userId: string;
+  contest: typeof contestsTable.$inferSelect;
+  idempotencyKey: string;
+  log?: {
+    info?: (...a: any[]) => void;
+    error?: (...a: any[]) => void;
+  };
+}): Promise<Record<string, unknown>> {
+  const { userId, contest, idempotencyKey, log } = args;
+
+  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
+     The charge lands BEFORE the image call, keyed (CA-2) so a replay
+     can never land it twice. A refused charge refuses the request
+     before any provider money moves; every failure below refunds
+     AND voids the key. Same price, same action name. */
+  let chargeLive = false;
+  try {
+    await chargeCredits(
+      userId,
+      CONTEST_ANNOUNCE_CREDIT_COST,
+      { action: `Contest announcement: ${contest.title}` },
+      { idempotencyKey },
+    );
+    chargeLive = true;
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      return {
+        __status: 402,
+        error: "out_of_credits",
+        message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
+      };
+    }
+    if (err instanceof LedgerWriteError) {
+      return {
+        __status: 500,
+        error: "ledger_write_failed",
+        message: "Credit ledger write failed — no Visual Bucs were charged. Please try again.",
+      };
+    }
+    return {
+      __status: 500,
+      error: err instanceof Error ? err.message : "Announcement generation failed",
+    };
+  }
+  const refundCharge = async (action: string) => {
+    if (!chargeLive) return;
+    chargeLive = false;
+    const refunded = await refundCredits(userId, CONTEST_ANNOUNCE_CREDIT_COST, {
+      action,
+    })
+      .then(() => true)
+      .catch(() => false);
+    /* Void the refunded attempt's key: without the void, the key
+       still reads as "already charged", so the retry is suppressed
+       as a replay and generates FREE (Lane V3 F1 leak). */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
+  };
+
+  const winnerRows = await db
+    .select()
+    .from(contestEntriesTable)
+    .where(eq(contestEntriesTable.id, contest.winner_entry_id!))
+    .limit(1);
+  const winnerHandle = winnerRows[0]?.handle ?? "our winner";
+  const prompt = buildAnnouncePrompt({
+    contestTitle: contest.title,
+    prize: contest.prize,
+    winnerHandle,
+  });
+  log?.info?.(
+    { userId, contestId: contest.id },
+    "[contests] announcement graphic generation started",
+  );
+
+  try {
+    const imageResp = await getOpenAI().images.generate({
+      model: IMAGE_MODEL,
+      prompt,
+      size: "1024x1024",
+      quality: "high",
+      n: 1,
+    });
+    const b64 = imageResp.data?.[0]?.b64_json;
+    if (!b64) {
+      await refundCharge("Contest announcement — Refund (generation failed)");
+      return { __status: 500, error: "Image generation returned no image data." };
+    }
+
+    /* ── Store; refund if the upload fails after charging ── */
+    try {
+      const objectName = `contests/${userId}/${randomUUID()}.png`;
+      const storageRef = await uploadMediaToSupabaseStorage(
+        objectName,
+        Buffer.from(b64, "base64"),
+        "image/png",
+      );
+      const url = await refreshSupabaseStorageUrl(storageRef);
+      /* Mirror-on-save (2026-10-13 law): persist the permanent storage
+         ref, not the 24h signed URL — presenters re-sign per read.
+         The write is conditional on the slot still being empty: a
+         concurrent announce (another process) that landed first keeps
+         its graphic; this run refunds and serves the standing one. */
+      const [updated] = await db
+        .update(contestsTable)
+        .set({ announcement_image_url: storageRef, updated_at: new Date() })
+        .where(
+          and(
+            eq(contestsTable.id, contest.id),
+            isNull(contestsTable.announcement_image_url),
+          ),
+        )
+        .returning();
+      if (!updated) {
+        await refundCharge("Contest announcement — Refund (generation failed)");
+        const fresh = await loadContestForUser(contest.id, userId).catch(() => null);
+        const standingRef = fresh?.announcement_image_url ?? storageRef;
+        const standingBody: Record<string, unknown> = {
+          url: await refreshSupabaseStorageUrl(standingRef),
+          path: normalizeToStorageRef(standingRef),
+          creditCost: CONTEST_ANNOUNCE_CREDIT_COST,
+        };
+        await storeGenerationResult(
+          CONTEST_ANNOUNCE_RAIL,
+          idempotencyKey,
+          userId,
+          standingBody,
+        );
+        return { ...standingBody, __replayed: true };
+      }
+      const body: Record<string, unknown> = {
+        url,
+        path: normalizeToStorageRef(storageRef),
+        creditCost: CONTEST_ANNOUNCE_CREDIT_COST,
+      };
+      /* Store BEFORE answering (contracts/post-assist pattern): a
+         retry that arrives after this response is served from the
+         durable row. Fail-open inside the helper — a storage failure
+         never fails the paid ask. */
+      await storeGenerationResult(CONTEST_ANNOUNCE_RAIL, idempotencyKey, userId, body);
+      return body;
+    } catch (uploadErr) {
+      await refundCharge("Contest announcement — Refund (storage failed)");
+      log?.error?.(
+        { err: uploadErr },
+        "[contests] storage upload failed — Visual Buc refunded",
+      );
+      return {
+        __status: 500,
+        error: "Could not save the announcement graphic. Your Visual Buc was refunded.",
+      };
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Announcement generation failed";
+    await refundCharge("Contest announcement — Refund (generation failed)");
+    log?.error?.({ err: msg }, "[contests] generation failed — reserve refunded");
+    return { __status: 500, error: msg };
+  }
+}
+
 /* ─────────────────────────────────────────────────────────────────────
    POST /api/contests/:id/announce — AI winner-announcement graphic.
    1 credit, charged only on success. 400 on bad state before credits are
@@ -503,6 +698,67 @@ router.post("/contests/:id/announce", requireAuth, async (req, res) => {
     return;
   }
 
+  /* ── Exactly-once (CA-2): key + stored result + the state check ──
+     The intent is the (contest, winner) pair — the graphic is a pure
+     function of them, so one derived key serves every retry. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    CONTEST_ANNOUNCE_RAIL,
+    r.userId!,
+    undefined,
+    { contestId: contest.id, winnerEntryId: contest.winner_entry_id },
+  );
+
+  /* Stored-result pre-check BEFORE any funding: a replay under a
+     landed key is answered from the durable row — no charge, no
+     provider call, no overwrite. Fail-open on storage trouble. */
+  const durable = await findStoredGenerationResult(
+    CONTEST_ANNOUNCE_RAIL,
+    idempotencyKey,
+    r.userId!,
+  );
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
+  /* The missing state check: a contest that already has its
+     announcement serves the standing graphic. Never re-charge,
+     never overwrite. */
+  if (contest.announcement_image_url) {
+    const standingBody: Record<string, unknown> = {
+      url: await refreshSupabaseStorageUrl(contest.announcement_image_url),
+      path: normalizeToStorageRef(contest.announcement_image_url),
+      creditCost: CONTEST_ANNOUNCE_CREDIT_COST,
+    };
+    await storeGenerationResult(
+      CONTEST_ANNOUNCE_RAIL,
+      idempotencyKey,
+      r.userId!,
+      standingBody,
+    );
+    res.json({ ...standingBody, replayed: true });
+    return;
+  }
+
+  /* Concurrent twin: a simultaneous identical announce waits on the
+     in-flight run and is served its body as a replay (checked twice —
+     once before the credit pre-check so a twin never trips the
+     balance snapshot, and again immediately before starting a run,
+     with no await between that check and the map write). A failed
+     twin (refunded + key voided) falls through and runs fresh. */
+  const serveFromTwin = async (): Promise<boolean> => {
+    const pending = announceInFlight.get(idempotencyKey);
+    if (!pending) return false;
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      const { __replayed: _ignored, ...rest } = twinBody;
+      res.json({ ...rest, replayed: true });
+      return true;
+    }
+    return false;
+  };
+  if (await serveFromTwin()) return;
+
   /* ── Credit pre-check — always enforced ── */
   const currentCredits = r.userCredits ?? 0;
   if (currentCredits < CONTEST_ANNOUNCE_CREDIT_COST) {
@@ -513,115 +769,37 @@ router.post("/contests/:id/announce", requireAuth, async (req, res) => {
     return;
   }
 
-  /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
-     The charge lands BEFORE the image call. This handler used to
-     generate first and charge after success — and swallowed a failed
-     charge, delivering the graphic free ("graphic delivered without
-     charge" was its own log line). The pre-check above reads the
-     auth-time snapshot, so concurrent announces each burned a
-     high-quality image call against one balance. Now a refused
-     charge refuses the request before any provider money moves, and
-     every failure below refunds. Same price, same action name. */
-  let chargeLive = false;
+  if (await serveFromTwin()) return;
+
+  const run = runContestAnnounce({
+    userId: r.userId!,
+    contest,
+    idempotencyKey,
+    log: req.log,
+  });
+  announceInFlight.set(idempotencyKey, run);
+  let body: Record<string, unknown>;
   try {
-    await chargeCredits(
-      r.userId!,
-      CONTEST_ANNOUNCE_CREDIT_COST,
-      { action: `Contest announcement: ${contest.title}` },
-    );
-    chargeLive = true;
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
-        error: "out_of_credits",
-        message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
-      });
-      return;
+    body = await run;
+  } finally {
+    if (announceInFlight.get(idempotencyKey) === run) {
+      announceInFlight.delete(idempotencyKey);
     }
-    if (err instanceof LedgerWriteError) {
-      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
-      return;
-    }
-    res.status(500).json({ error: err instanceof Error ? err.message : "Announcement generation failed" });
+  }
+
+  const status =
+    typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _s, __replayed: _r, ...errorBody } = body;
+    res.status(status).json(errorBody);
     return;
   }
-  const refundCharge = async () => {
-    if (!chargeLive) return;
-    chargeLive = false;
-    await refundCredits(r.userId!, CONTEST_ANNOUNCE_CREDIT_COST, {
-      action: "Contest announcement — Refund (generation failed)",
-    }).catch(() => {});
-  };
-
-  const winnerRows = await db
-    .select()
-    .from(contestEntriesTable)
-    .where(eq(contestEntriesTable.id, contest.winner_entry_id))
-    .limit(1);
-  const winnerHandle = winnerRows[0]?.handle ?? "our winner";
-  const prompt = buildAnnouncePrompt({
-    contestTitle: contest.title,
-    prize: contest.prize,
-    winnerHandle,
-  });
-  req.log?.info?.(
-    { userId: r.userId, contestId: contest.id },
-    "[contests] announcement graphic generation started",
-  );
-
-  try {
-    const imageResp = await getOpenAI().images.generate({
-      model: IMAGE_MODEL,
-      prompt,
-      size: "1024x1024",
-      quality: "high",
-      n: 1,
-    });
-    const b64 = imageResp.data?.[0]?.b64_json;
-    if (!b64) {
-      await refundCharge();
-      res.status(500).json({ error: "Image generation returned no image data." });
-      return;
-    }
-
-    /* (The charge already landed at reserve-at-start, above.) */
-
-    /* ── Store; refund if the upload fails after charging ── */
-    try {
-      const objectName = `contests/${r.userId}/${randomUUID()}.png`;
-      const storageRef = await uploadMediaToSupabaseStorage(
-        objectName,
-        Buffer.from(b64, "base64"),
-        "image/png",
-      );
-      const url = await refreshSupabaseStorageUrl(storageRef);
-      /* Mirror-on-save (2026-10-13 law): persist the permanent storage
-         ref, not the 24h signed URL — presenters re-sign per read. */
-      await db
-        .update(contestsTable)
-        .set({ announcement_image_url: storageRef, updated_at: new Date() })
-        .where(eq(contestsTable.id, contest.id));
-      res.json({
-        url,
-        path: normalizeToStorageRef(storageRef),
-        creditCost: CONTEST_ANNOUNCE_CREDIT_COST,
-      });
-    } catch (uploadErr) {
-      if (chargeLive) {
-        chargeLive = false;
-        await refundCredits(r.userId!, CONTEST_ANNOUNCE_CREDIT_COST, {
-          action: `Contest announcement — Refund (storage failed)`,
-        }).catch(() => {});
-      }
-      req.log?.error?.({ err: uploadErr }, "[contests] storage upload failed — Visual Buc refunded");
-      res.status(500).json({ error: "Could not save the announcement graphic. Your Visual Buc was refunded." });
-    }
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Announcement generation failed";
-    await refundCharge();
-    req.log?.error?.({ err: msg }, "[contests] generation failed — reserve refunded");
-    res.status(500).json({ error: msg });
+  if (body["__replayed"]) {
+    const { __replayed: _ignored, ...replayBody } = body;
+    res.json({ ...replayBody, replayed: true });
+    return;
   }
+  res.json(body);
 });
 
 export default router;

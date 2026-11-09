@@ -246,6 +246,7 @@ const routeState = vi.hoisted(() => ({
     title: string;
     prize: string;
     winner_entry_id: string | null;
+    announcement_image_url: string | null;
   },
   winnerHandle: "@sharkfan",
   imageB64: "aGVsbG8=" as string | null, // "hello"
@@ -253,6 +254,13 @@ const routeState = vi.hoisted(() => ({
   failUpload: false,
   charged: [] as number[],
   refunded: [] as number[],
+  /* CA-2 exactly-once state: ledger keys already landed, keys voided
+     by refunds, provider image calls, and the durable stored-result
+     table (keyed by idempotency key). */
+  chargedKeys: new Set<string>(),
+  voids: [] as string[],
+  imageCalls: 0,
+  stored: new Map<string, Record<string, unknown>>(),
 }));
 
 vi.mock("../../../middlewares/require-auth", () => ({
@@ -268,24 +276,73 @@ vi.mock("../../../middlewares/require-auth", () => ({
 }));
 
 vi.mock("../../../lib/credits", () => ({
-  chargeCredits: vi.fn(async () => {
-    if (routeState.chargeImpl) return routeState.chargeImpl();
-    routeState.charged.push(100);
-    return routeState.credits - 100;
-  }),
+  /* Key-aware (CA-2): a charge under an already-landed key is
+     suppressed by the ledger — it returns the balance without
+     recording a second charge, mirroring chargeCredits' real
+     idempotency behavior. Voiding deletes the key so a retry after
+     a refund charges fresh. */
+  buildChargeIdempotencyKey: (
+    scope: string,
+    userId: string,
+    clientKey: unknown,
+    intent: unknown,
+  ) =>
+    typeof clientKey === "string" && clientKey.trim().length >= 8
+      ? `${scope}:${userId}:client:${clientKey.trim()}`
+      : `${scope}:${userId}:${JSON.stringify(intent)}`,
+  chargeCredits: vi.fn(
+    async (
+      _userId: string,
+      _amount: number,
+      _meta: unknown,
+      opts?: { idempotencyKey?: string },
+    ) => {
+      if (routeState.chargeImpl) return routeState.chargeImpl();
+      const key = opts?.idempotencyKey ?? "";
+      if (key && routeState.chargedKeys.has(key)) {
+        return routeState.credits; // ledger replay suppression
+      }
+      if (key) routeState.chargedKeys.add(key);
+      routeState.charged.push(100);
+      return routeState.credits - 100;
+    },
+  ),
   refundCredits: vi.fn(async () => {
     routeState.refunded.push(100);
+  }),
+  voidChargeIdempotencyKey: vi.fn(async (key: string) => {
+    routeState.voids.push(key);
+    return routeState.chargedKeys.delete(key);
   }),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
 }));
 
+/* The durable stored-result layer (migration 0333), faked in-memory:
+   the lib itself is proven against a fake db in
+   generation-stored-results.test.ts; here it is the seam the route
+   composes with. */
+vi.mock("../../../lib/generation-stored-results", () => ({
+  findStoredGenerationResult: vi.fn(
+    async (_rail: string, key: string, _userId: string) =>
+      routeState.stored.get(key) ?? null,
+  ),
+  storeGenerationResult: vi.fn(
+    async (_rail: string, key: string, _userId: string, result: Record<string, unknown>) => {
+      if (!routeState.stored.has(key)) routeState.stored.set(key, result);
+    },
+  ),
+}));
+
 vi.mock("../../../lib/ai-clients", () => ({
   getOpenAI: () => ({
     images: {
-      generate: vi.fn(async () => ({
-        data: routeState.imageB64 ? [{ b64_json: routeState.imageB64 }] : [],
-      })),
+      generate: vi.fn(async () => {
+        routeState.imageCalls++;
+        return {
+          data: routeState.imageB64 ? [{ b64_json: routeState.imageB64 }] : [],
+        };
+      }),
     },
   }),
   LOW_REASONING_PARAMS: { reasoning_effort: "low" },
@@ -324,8 +381,26 @@ vi.mock("@workspace/db", () => {
     }
     return [];
   });
-  chain.set = vi.fn(() => chain);
-  chain.returning = vi.fn(async () => []);
+  chain.set = vi.fn((v: any) => {
+    chain._setValues = v;
+    return chain;
+  });
+  /* The announce write is conditional (announcement_image_url IS
+     NULL): the fake applies it only while the slot is empty and
+     reports the updated row, or [] when the slot was already taken —
+     the cross-process race outcome. Other updates keep the old
+     returning-[] behavior. */
+  chain.returning = vi.fn(async () => {
+    const v = chain._setValues;
+    chain._setValues = undefined;
+    if (v && "announcement_image_url" in v) {
+      const c: any = routeState.contest;
+      if (!c || c.announcement_image_url) return [];
+      c.announcement_image_url = v.announcement_image_url;
+      return [c];
+    }
+    return [];
+  });
   const valuesChain: any = {};
   valuesChain.returning = vi.fn(async () => []);
   return {
@@ -334,7 +409,13 @@ vi.mock("@workspace/db", () => {
       update: vi.fn(() => chain),
       insert: vi.fn(() => ({ values: vi.fn(() => valuesChain) })),
     },
-    contestsTable: { __table: "contests", id: "id", user_id: "user_id" },
+    contestsTable: {
+      __table: "contests",
+      id: "id",
+      user_id: "user_id",
+      announcement_image_url: "announcement_image_url",
+      winner_entry_id: "winner_entry_id",
+    },
     contestEntriesTable: { __table: "contest_entries", id: "id" },
   };
 });
@@ -357,6 +438,7 @@ beforeEach(() => {
     title: "Gold Chain Giveaway",
     prize: "24k gold chain",
     winner_entry_id: "entry-7",
+    announcement_image_url: null,
   };
   routeState.winnerHandle = "@sharkfan";
   routeState.imageB64 = "aGVsbG8=";
@@ -364,6 +446,10 @@ beforeEach(() => {
   routeState.failUpload = false;
   routeState.charged = [];
   routeState.refunded = [];
+  routeState.chargedKeys = new Set();
+  routeState.voids = [];
+  routeState.imageCalls = 0;
+  routeState.stored = new Map();
 });
 
 async function startServer() {
@@ -463,6 +549,108 @@ describe("POST /api/contests/:id/announce (money flow)", () => {
       expect(routeState.charged).toEqual([100]);
       expect(routeState.refunded).toEqual([100]);
       expect(vi.mocked(refundCredits)).toHaveBeenCalled();
+    } finally {
+      await stopServer();
+    }
+  });
+});
+
+/* ─── CA-2 exactly-once: the announce replay ──────────────────────────
+   The pre-fix handler had NO already-announced check and an unkeyed
+   charge: a repeat announce re-charged 100 AND overwrote
+   announcement_image_url. These tests pin the fix: one charge, one
+   announcement, the original image intact on replay. */
+describe("POST /api/contests/:id/announce (CA-2 exactly-once)", () => {
+  async function announce() {
+    const res = await fetch(`${baseUrl}/api/contests/contest-1/announce`, {
+      method: "POST",
+    });
+    return { status: res.status, body: (await res.json()) as Record<string, any> };
+  }
+
+  it("a repeat announce serves the stored announcement — one charge, one image, original intact", async () => {
+    await startServer();
+    try {
+      const a = await announce();
+      expect(a.status).toBe(200);
+      expect(a.body["replayed"]).toBeUndefined(); // fresh answers stay bare
+      expect(a.body["url"]).toBe("https://cdn.example/announce.png");
+      expect(routeState.charged).toEqual([100]);
+      expect(routeState.imageCalls).toBe(1);
+      expect(routeState.contest!.announcement_image_url).toBe("storage-ref");
+      expect(routeState.stored.size).toBe(1);
+
+      const b = await announce();
+      expect(b.status).toBe(200);
+      expect(b.body["replayed"]).toBe(true);
+      expect(b.body["url"]).toBe(a.body["url"]);
+      expect(b.body["creditCost"]).toBe(100);
+      expect(routeState.charged).toEqual([100]); // NO second charge
+      expect(routeState.imageCalls).toBe(1); // NO second provider call
+      /* The original announcement was NOT overwritten. */
+      expect(routeState.contest!.announcement_image_url).toBe("storage-ref");
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it("two simultaneous announces charge once and generate once", async () => {
+    await startServer();
+    try {
+      const [a, b] = await Promise.all([announce(), announce()]);
+      expect(a.status).toBe(200);
+      expect(b.status).toBe(200);
+      expect(routeState.charged).toEqual([100]);
+      expect(routeState.imageCalls).toBe(1);
+      expect(routeState.contest!.announcement_image_url).toBe("storage-ref");
+      /* Exactly one of the pair is the fresh answer; the twin is
+         served as an honest replay of the same announcement. */
+      const replayedCount = [a.body, b.body].filter(
+        (x) => x["replayed"] === true,
+      ).length;
+      expect(replayedCount).toBe(1);
+      expect(a.body["url"]).toBe(b.body["url"]);
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it("an already-announced contest (pre-fix) serves its standing announcement — no charge, no overwrite", async () => {
+    await startServer();
+    try {
+      routeState.contest!.announcement_image_url = "storage-ref-original";
+      const res = await announce();
+      expect(res.status).toBe(200);
+      expect(res.body["replayed"]).toBe(true);
+      expect(res.body["url"]).toBe("https://cdn.example/announce.png");
+      expect(routeState.charged).toEqual([]); // never charged
+      expect(routeState.imageCalls).toBe(0); // never generated
+      expect(routeState.contest!.announcement_image_url).toBe(
+        "storage-ref-original",
+      );
+    } finally {
+      await stopServer();
+    }
+  });
+
+  it("a failed announce refunds AND voids its key — the retry charges fresh", async () => {
+    await startServer();
+    try {
+      routeState.imageB64 = null;
+      const failed = await announce();
+      expect(failed.status).toBe(500);
+      expect(routeState.charged).toEqual([100]);
+      expect(routeState.refunded).toEqual([100]);
+      expect(routeState.voids).toHaveLength(1);
+      expect(routeState.voids[0]).toMatch(/^contest-announce:user-1:/);
+      expect(routeState.stored.size).toBe(0); // failures never persist
+
+      routeState.imageB64 = "aGVsbG8=";
+      const retry = await announce();
+      expect(retry.status).toBe(200);
+      expect(retry.body["replayed"]).toBeUndefined();
+      expect(routeState.charged).toEqual([100, 100]); // retry paid again
+      expect(routeState.contest!.announcement_image_url).toBe("storage-ref");
     } finally {
       await stopServer();
     }

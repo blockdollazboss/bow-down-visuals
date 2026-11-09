@@ -7,7 +7,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { recordCanvasHistory } from "../../lib/payment-record";
 import {
   uploadMediaToSupabaseStorage,
@@ -229,6 +236,30 @@ router.post("/canvas/generate", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Idempotency (CA-2): the server derives the key itself on EVERY call —
+     this rail's schema accepts no client key, so the intent hash IS the
+     key. Intent = the request's defining inputs. A client retry /
+     double-tap of a SUCCEEDED render used to re-charge 150 and re-run
+     the whole ffmpeg render. */
+  const idempotencyKey = buildChargeIdempotencyKey("canvas", req.userId!, undefined, {
+    coverUrl,
+    audioUrl: audioUrl ?? null,
+    style,
+    overlayText: overlayText ?? null,
+    songTitle: songTitle ?? null,
+    artistName: artistName ?? null,
+    attribution,
+  });
+
+  /* Stored-result pre-check BEFORE any funding: a replay under a landed
+     key is answered from the stored body — no charge, no render, and no
+     second history row (recordCanvasHistory stays in the fresh path). */
+  const storedResult = await findStoredGenerationResult("canvas", idempotencyKey, req.userId!);
+  if (storedResult) {
+    res.json({ ...storedResult, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < CANVAS_COST) {
     res.status(402).json({
@@ -242,7 +273,7 @@ router.post("/canvas/generate", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, CANVAS_COST, {
       action: "Spotify Canvas Generator",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -368,20 +399,29 @@ router.post("/canvas/generate", requireAuth, async (req, res) => {
       style,
     });
 
-    res.json({
+    const body: Record<string, unknown> = {
       url,
       storageRef,
       style,
       attribution,
       spec: { width: CANVAS_W, height: CANVAS_H, seconds: CANVAS_SECONDS, silent: true },
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Store BEFORE answering: a retry after this response is served
+       from the stored body. Fail-open inside the helper. */
+    await storeGenerationResult("canvas", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Canvas generation failed.";
     req.log.error({ err: message }, "[canvas] failed");
+    /* Refund, then VOID the charge's idempotency key — without the void
+       the refunded attempt's key still reads as "already charged", so
+       the retry would be suppressed as a replay and render FREE. */
     await refundCredits(req.userId!, CANVAS_COST, {
       action: "Spotify Canvas — Refund",
-    }).catch(() => {});
+    })
+      .then(() => voidChargeIdempotencyKey(idempotencyKey))
+      .catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     const { rm } = await import("fs/promises");

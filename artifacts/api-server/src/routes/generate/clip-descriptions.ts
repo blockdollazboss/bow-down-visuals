@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -82,6 +83,16 @@ router.post("/clip-description", requireAuth, async (req, res) => {
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "clip-descriptions", req.userId!, undefined,
+    { topic: parsed.data.topic, style: parsed.data.style, videoLengthSec: parsed.data.videoLengthSec ?? null, keywords: parsed.data.keywords, links: parsed.data.links },
+  );
+  const storedReplay = await findStoredGenerationResult("clip-descriptions", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < DESCRIPTIONS_COST) {
     res.status(402).json({
@@ -95,7 +106,7 @@ router.post("/clip-description", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, DESCRIPTIONS_COST, {
       action: "Clip Description Generator",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -204,16 +215,18 @@ router.post("/clip-description", requireAuth, async (req, res) => {
       fullDescription,
     };
 
-    res.json({
+    const responseBody = {
       description: result,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("clip-descriptions", idempotencyKey, req.userId!, responseBody);
+    res.json(responseBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Description generation failed.";
     req.log.error({ err: message }, "[clip-descriptions] failed");
     await refundCredits(req.userId!, DESCRIPTIONS_COST, {
       action: "Clip Description Generator — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   }
 });

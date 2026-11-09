@@ -7,7 +7,13 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { r2Upload } from "../../lib/r2-client";
 import { logger } from "../../lib/logger";
 import { attributionOptIn, burnAttributionIntoImage } from "../../lib/attribution";
@@ -477,6 +483,36 @@ router.post("/cover-art", requireAuth, async (req, res) => {
   const input = parsed.data;
   const creditCost = resolveCoverArtCredits(input.tier);
 
+  /* Idempotency (CA-2): server-derived key on EVERY call — the schema
+     accepts no client key, so the intent hash IS the key. The intent
+     carries EVERY input that changes the artwork: song title, artist,
+     mood, style preset, aspect ratio AND its resolved pixel size,
+     layout template, tier (which also drives image quality), and the
+     attribution opt-in (which burns a credit line into the image). */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "cover-art", req.userId!, undefined,
+    {
+      songTitle: input.songTitle,
+      artistName: input.artistName,
+      mood: input.mood,
+      style: input.style,
+      aspectRatio: input.aspectRatio,
+      size: resolveCoverArtSize(input.aspectRatio),
+      layout: input.layout ?? null,
+      tier: input.tier,
+      attribution: input.attribution ?? null,
+    },
+  );
+
+  /* Stored-result pre-check BEFORE any funding: a replay is answered
+     from the durable row — stored body verbatim + replayed: true —
+     with no charge and no provider call. Fail-open. */
+  const durable = await findStoredGenerationResult("cover-art", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < creditCost) {
     res.status(402).json({
@@ -490,7 +526,7 @@ router.post("/cover-art", requireAuth, async (req, res) => {
   try {
     creditsRemaining = await chargeCredits(req.userId!, creditCost, {
       action: `Cover Art (${input.tier})`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -505,15 +541,22 @@ router.post("/cover-art", requireAuth, async (req, res) => {
   /* Refund helper: any failure after the charge returns the credits. */
   const refundAndFail = async (status: number, message: string, logCtx: object) => {
     logger.error(logCtx, "[cover-art] generation failed — refunding credits");
+    let refunded = false;
     try {
       await refundCredits(req.userId!, creditCost, {
         action: `Cover Art (${input.tier}) — Refund`,
       });
+      refunded = true;
     } catch (refundErr) {
       logger.error(
         { userId: req.userId, creditCost, refundErr },
         "[cover-art] CRITICAL: refund failed after generation failure",
       );
+    }
+    /* Void the refunded attempt's key so a genuine retry can
+       re-charge instead of being suppressed as a replay. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
     }
     res.status(status).json({ error: message, refunded: true });
   };
@@ -570,7 +613,7 @@ router.post("/cover-art", requireAuth, async (req, res) => {
       },
       "[cover-art] generation succeeded",
     );
-    res.json({
+    const body: Record<string, unknown> = {
       url: stored.url,
       path: stored.path,
       attribution: input.attribution,
@@ -578,7 +621,11 @@ router.post("/cover-art", requireAuth, async (req, res) => {
       typography: artDirection.typography,
       creditsUsed: creditCost,
       creditsRemaining,
-    });
+    };
+    /* Store BEFORE answering: a retry after this response is served
+       from the stored cover. Fail-open inside the helper. */
+    await storeGenerationResult("cover-art", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Cover art generation failed";
     await refundAndFail(500, msg, { userId: req.userId, err: msg, input });

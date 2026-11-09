@@ -5,7 +5,8 @@ import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clie
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 
 const router = Router();
 
@@ -92,6 +93,16 @@ router.post("/guest-questions", requireAuth, publicApiLimiter, async (req, res) 
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "guest-questions", req.userId!, undefined,
+    { guestName: parsed.data.guestName, topic: parsed.data.topic, bio: parsed.data.bio },
+  );
+  const storedReplay = await findStoredGenerationResult("guest-questions", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < GUEST_QUESTIONS_CREDIT_COST) {
     res.status(402).json({
@@ -104,7 +115,7 @@ router.post("/guest-questions", requireAuth, publicApiLimiter, async (req, res) 
   try {
     creditsRemaining = await chargeCredits(req.userId!, GUEST_QUESTIONS_CREDIT_COST, {
       action: "Podcast Guest Questions",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -158,7 +169,7 @@ router.post("/guest-questions", requireAuth, publicApiLimiter, async (req, res) 
     }
 
     charged = false; // success — no refund
-    res.json({
+    const body = {
       guestName: input.guestName.trim(),
       topic: input.topic.trim(),
       warmup,
@@ -168,13 +179,16 @@ router.post("/guest-questions", requireAuth, publicApiLimiter, async (req, res) 
       total,
       creditsUsed: GUEST_QUESTIONS_CREDIT_COST,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("guest-questions", idempotencyKey, req.userId!, body as Record<string, unknown>);
+    res.json(body);
   } catch (err) {
     if (charged) {
       try {
         await refundCredits(req.userId!, GUEST_QUESTIONS_CREDIT_COST, {
           action: "Podcast Guest Questions — Refund (generation failed)",
         });
+        await voidChargeIdempotencyKey(idempotencyKey);
         creditsRemaining = balance;
       } catch (refundErr) {
         // Logged inside refundCredits; don't mask the original failure.

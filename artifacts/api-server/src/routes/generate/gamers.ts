@@ -5,7 +5,8 @@ import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clie
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 
 /* ─── Home of Gamers: AI Stream Title & Idea Generator ─────────────────────
    Game + niche + content-type → click-ready stream titles, video ideas, and
@@ -38,11 +39,12 @@ export const gamersIdeasSchema = z.object({
 
 const router = Router();
 
-async function refundOnFailure(userId: string, action: string): Promise<void> {
+async function refundOnFailure(userId: string, action: string, idempotencyKey: string): Promise<void> {
   try {
     await refundCredits(userId, GAMERS_CREDIT_COST, {
       action: `${action} — Refund (generation failed)`,
     });
+    await voidChargeIdempotencyKey(idempotencyKey);
   } catch (refundErr) {
     /* Logged inside refundCredits; don't mask the original failure. */
     void refundErr;
@@ -62,6 +64,16 @@ router.post("/gamers/ideas", requireAuth, publicApiLimiter, async (req, res) => 
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "gamers", req.userId!, undefined,
+    { game: parsed.data.game, niche: parsed.data.niche, contentType: parsed.data.contentType },
+  );
+  const storedReplay = await findStoredGenerationResult("gamers", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < GAMERS_CREDIT_COST) {
     res.status(402).json({
@@ -74,7 +86,7 @@ router.post("/gamers/ideas", requireAuth, publicApiLimiter, async (req, res) => 
   const actionName = "Gamers AI: Stream Title & Idea Generator";
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, GAMERS_CREDIT_COST, { action: actionName });
+    creditsRemaining = await chargeCredits(req.userId!, GAMERS_CREDIT_COST, { action: actionName }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -141,10 +153,12 @@ router.post("/gamers/ideas", requireAuth, publicApiLimiter, async (req, res) => 
       throw new Error("Model returned no usable ideas");
     }
 
-    res.json({ titles, videoIdeas, tags, creditsUsed: GAMERS_CREDIT_COST, creditsRemaining });
+    const body = { titles, videoIdeas, tags, creditsUsed: GAMERS_CREDIT_COST, creditsRemaining };
+    await storeGenerationResult("gamers", idempotencyKey, req.userId!, body as Record<string, unknown>);
+    res.json(body);
     return;
   } catch (err) {
-    await refundOnFailure(req.userId!, actionName);
+    await refundOnFailure(req.userId!, actionName, idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[gamers] OpenAI rate limit / quota");
       res.status(503).json({ error: "The arena is packed — try again in a moment." });
