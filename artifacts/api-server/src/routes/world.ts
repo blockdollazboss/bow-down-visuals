@@ -1262,7 +1262,7 @@ router.get("/world/creator-rooms", publicApiLimiter, async (_req, res) => {
     const rooms = profiles.map((p, i) =>
       creatorRoomSummaryFromProfile(p, {
         hasContent: home.has(p.id),
-        occupantCount: activePalace?.creatorRoom(p.slug)?.size() ?? 0,
+        occupantCount: activePalace?.creatorRoom(p.slug)?.presentPeers().length ?? 0,
         evolution: evolutions[i] ?? null,
       }),
     );
@@ -1388,7 +1388,7 @@ router.get("/world/creator-rooms/:slug", publicApiLimiter, async (req, res) => {
       bannerUrl: profile.bannerUrl ?? null,
       theme: creatorRoomThemeFromConfig(profile.themeConfig),
       followerCount: profile.followerCount ?? 0,
-      occupantCount: room?.size() ?? 0,
+      occupantCount: room?.presentPeers().length ?? 0,
       featuredVideo: pickFeaturedVideo(profile, videos.filter((v) => v.videoUrl)),
       featuredTrack: pickFeaturedTrack(profile, tracks.filter((t) => t.audioUrl)),
       tracks: tracks.filter((t) => t.audioUrl).map(creatorRoomTrackFromRow),
