@@ -6,7 +6,22 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { getOpenAI } from "../../lib/ai-clients";
 import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../../lib/rail-core";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the stream-pack charge. */
+const REPLAY_NOTE =
+  "This is the stream graphic you already made for this request — change the asset, theme or channel name for a fresh one.";
 import { saveGeneration } from "../../lib/save-generation";
 import {
   uploadMediaToSupabaseStorage,
@@ -579,6 +594,18 @@ const generateStreamPackHandler = async (req: Request, res: Response) => {
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the graphic already made (and skips the generations-library
+     record too — saveGeneration runs only on the fresh path). */
+  const idempotencyKey = buildChargeIdempotencyKey("stream-pack", req.userId!, null, {
+    ...parsed.data,
+  });
+  const durable = await findStoredGenerationResult("stream-pack", idempotencyKey, req.userId!);
+  if (durable && typeof durable["url"] === "string" && durable["url"] !== "") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   /* ── Credit pre-check — always enforced ── */
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < plan.creditCost) {
@@ -604,6 +631,7 @@ const generateStreamPackHandler = async (req: Request, res: Response) => {
       req.userId!,
       plan.creditCost,
       { action: `Stream Pack: ${plan.asset.label}` },
+      { idempotencyKey },
     );
     chargedAmount = plan.creditCost;
   } catch (err) {
@@ -625,9 +653,18 @@ const generateStreamPackHandler = async (req: Request, res: Response) => {
     if (chargedAmount <= 0) return;
     const amount = chargedAmount;
     chargedAmount = 0;
-    await refundCredits(req.userId!, amount, {
-      action: `Stream Pack: ${plan.asset.label} — Refund (generation failed)`,
-    }).catch(() => {});
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let refunded = true;
+    try {
+      await refundCredits(req.userId!, amount, {
+        action: `Stream Pack: ${plan.asset.label} — Refund (generation failed)`,
+      });
+    } catch {
+      refunded = false;
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
   };
 
   const prompt = buildStreamPackPrompt(plan);
@@ -668,12 +705,18 @@ const generateStreamPackHandler = async (req: Request, res: Response) => {
       url = await refreshSupabaseStorageUrl(storageRef);
     } catch (uploadErr) {
       if (chargedAmount > 0) {
+        /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+        let deliveryRefunded = true;
         try {
           await refundCredits(req.userId!, chargedAmount, {
             action: `Stream Pack: ${plan.asset.label} — Refund (delivery failed)`,
           });
         } catch (refundErr) {
+          deliveryRefunded = false;
           req.log.error({ err: refundErr }, "[stream-pack] CRITICAL: refund failed after delivery failure — manual reconciliation required");
+        }
+        if (deliveryRefunded) {
+          await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
         }
         chargedAmount = 0;
         req.log.error({ err: uploadErr }, "[stream-pack] delivery failed after charge — credits refunded");
@@ -701,13 +744,16 @@ const generateStreamPackHandler = async (req: Request, res: Response) => {
       metadata: streamPackGenerationMetadata(plan, normalizeToStorageRef(storageRef)),
     });
 
-    res.json({
+    const body = {
       asset: plan.asset.key,
       label: plan.asset.label,
       url,
       path: normalizeToStorageRef(storageRef),
       creditCost: plan.creditCost,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("stream-pack", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Stream pack image generation failed";
     await refundCharge();
