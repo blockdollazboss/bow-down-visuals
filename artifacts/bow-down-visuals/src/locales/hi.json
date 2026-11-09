@@ -3721,7 +3721,8 @@
         "blurb": "7–30 ट्रैक्स — पूरा प्रोजेक्ट"
       }
     },
-    "trackTitle": "ट्रैक {{n}} टाइटल"
+    "trackTitle": "ट्रैक {{n}} टाइटल",
+    "releases_load_error": "We couldn't load your releases — your releases are safe, this just couldn't reach them."
   },
   "download": {
     "get_bow_down_visuals_everywhere": "हर जगह Bow Down Visuals पाएं",
@@ -5283,7 +5284,8 @@
     "save": "सेव करें",
     "subtitle": "अपने संगीत वीडियो के लिए स्थान सहेजें - सिंहासन कक्ष, मंच, सड़कें, आसमान। जब आप दृश्य बनाते हैं तो विवरण टाइप करने के बजाय उन्हें दृष्टिगत रूप से चुनें।",
     "uploadImage": "छवि अपलोड करें",
-    "useInCoverArt": "कवर आर्ट में उपयोग करें"
+    "useInCoverArt": "कवर आर्ट में उपयोग करें",
+    "retryLoad": "Try again"
   },
   "logoMaker": {
     "back": "वापस",
@@ -5370,7 +5372,9 @@
     "downloadMp4": "MP4 डाउनलोड करें",
     "queued": "कतार में — आपका वीडियो अगला है…",
     "renderingStatus": "रेंडर हो रहा है — एनिमेटेड बैकग्राउंड, काराओके टेक्स्ट, आपका ऑडियो…",
-    "signInPrompt": "लिरिक वीडियो बनाने के लिए साइन इन करें।"
+    "signInPrompt": "लिरिक वीडियो बनाने के लिए साइन इन करें।",
+    "songsLoadError": "We couldn't load your song library — your songs are safe, this just couldn't reach them.",
+    "retryLoad": "Try again"
   },
   "makeSong": {
     "artistNameLabel": "Artist का नाम",

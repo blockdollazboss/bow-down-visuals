@@ -133,7 +133,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "distribute.luxury_gold_and_black_album_cove",
     "distribute.dark_luxury_trap_anthem_heavy_80",
     "distribute.isrc_2",
-    "distribute.visual_bucs",
+    "distribute.visual_bucs", "distribute.releases_load_error",
     "distribute.100_visual_bucs",
     "distribute.tier.ep.label",
     "liveShopping.crossLinkEnd",
@@ -409,7 +409,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "myProjects.visualBucsUsed", "mashup.priceBadge",
     // proper-noun / example placeholders (incl. example lyrics)
     "beatMaker.titlePlaceholder", "beatMaker.bpmValue", "beatMaker.presetRnB", "beatMaker.presetJerseyClub", "beatMaker.presetLofi", "beatMaker.presetPop", "beatMaker.presetEdm", "beatMaker.presetDancehall", "beatMaker.presetAmapiano", "beatMaker.presetPhonk", "beats.titlePlaceholder",
-    "beats.keyPlaceholder", "beats.moodTagsPlaceholder", "lyricVideo.lyricsPlaceholder",
+    "beats.keyPlaceholder", "beats.moodTagsPlaceholder", "lyricVideo.lyricsPlaceholder", "lyricVideo.songsLoadError", "lyricVideo.retryLoad",
     // brand fragment / house mode names / punctuation
     "beatMaker.soundBankComing",
     "beatMaker.soundGroupBank",
@@ -503,7 +503,7 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "linkInBio.theme.mintAtelierBlurb",
     "linkInBio.theme.onyxMinimal",
     "linkInBio.tipJar.placeholder",
-    "locations.errImageTooLarge",
+    "locations.errImageTooLarge", "locations.retryLoad",
     "myClips.extractAudioCost",
     "nfcCardProfile.poweredBy",
     "nfcCards.qrSvg",

@@ -3721,7 +3721,8 @@
         "blurb": "7–30개 트랙 — 정규 프로젝트"
       }
     },
-    "trackTitle": "트랙 {{n}} 제목"
+    "trackTitle": "트랙 {{n}} 제목",
+    "releases_load_error": "We couldn't load your releases — your releases are safe, this just couldn't reach them."
   },
   "download": {
     "get_bow_down_visuals_everywhere": "어디서든 Bow Down Visuals를 만나보세요",
@@ -5283,7 +5284,8 @@
     "save": "저장",
     "subtitle": "뮤직비디오용 장소를 저장하세요 — 왕좌의 방, 무대, 거리, 하늘. 장면을 만들 때 설명을 입력하는 대신 시각적으로 선택하세요.",
     "uploadImage": "이미지 업로드",
-    "useInCoverArt": "커버 아트에 사용"
+    "useInCoverArt": "커버 아트에 사용",
+    "retryLoad": "Try again"
   },
   "logoMaker": {
     "pageTitle": "로고 메이커",
@@ -5370,7 +5372,9 @@
     "downloadMp4": "MP4 다운로드",
     "queued": "대기 중 — 비디오가 곧 시작됩니다…",
     "renderingStatus": "렌더링 중 — 애니메이션 배경, 가라오케 텍스트, 오디오…",
-    "signInPrompt": "로그인하고 가사 비디오를 만드세요."
+    "signInPrompt": "로그인하고 가사 비디오를 만드세요.",
+    "songsLoadError": "We couldn't load your song library — your songs are safe, this just couldn't reach them.",
+    "retryLoad": "Try again"
   },
   "makeSong": {
     "pageTitle": "노래 만들기",

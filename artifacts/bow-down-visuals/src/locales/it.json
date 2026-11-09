@@ -3728,7 +3728,8 @@
         "blurb": "7–30 tracce — un progetto completo"
       }
     },
-    "trackTitle": "Titolo traccia {{n}}"
+    "trackTitle": "Titolo traccia {{n}}",
+    "releases_load_error": "We couldn't load your releases — your releases are safe, this just couldn't reach them."
   },
   "download": {
     "ai_chat_on_any_page": "Chat AI su qualsiasi pagina",
@@ -5292,7 +5293,8 @@
     "save": "Salva",
     "subtitle": "Salva i luoghi per i tuoi video musicali — sale del trono, palchi, strade, cieli. Sceglili visivamente quando costruisci le scene invece di digitare descrizioni.",
     "uploadImage": "Carica immagine",
-    "useInCoverArt": "Usa nella cover art"
+    "useInCoverArt": "Usa nella cover art",
+    "retryLoad": "Try again"
   },
   "logoMaker": {
     "back": "Indietro",
@@ -5382,7 +5384,9 @@
     "downloadMp4": "Scarica MP4",
     "queued": "In coda — il tuo video è il prossimo…",
     "renderingStatus": "Render in corso — sfondo animato, testo karaoke, il tuo audio…",
-    "signInPrompt": "Accedi per creare lyric video."
+    "signInPrompt": "Accedi per creare lyric video.",
+    "songsLoadError": "We couldn't load your song library — your songs are safe, this just couldn't reach them.",
+    "retryLoad": "Try again"
   },
   "makeSong": {
     "artistNameLabel": "Nome dell'artista",

@@ -3930,7 +3930,8 @@
         "blurb": "7–30 tracks — a full project"
       }
     },
-    "trackTitle": "Track {{n}} title"
+    "trackTitle": "Track {{n}} title",
+    "releases_load_error": "We couldn't load your releases — your releases are safe, this just couldn't reach them."
   },
   "download": {
     "get_bow_down_visuals_everywhere": "Get Bow Down Visuals everywhere",
@@ -5544,7 +5545,8 @@
     "save": "Save",
     "subtitle": "Save places for your music videos — throne rooms, stages, streets, skies. Pick them visually when you build scenes instead of typing descriptions.",
     "uploadImage": "Upload image",
-    "useInCoverArt": "Use in cover art"
+    "useInCoverArt": "Use in cover art",
+    "retryLoad": "Try again"
   },
   "logoMaker": {
     "pageTitle": "Logo Maker",
@@ -5631,7 +5633,9 @@
     "downloadMp4": "Download MP4",
     "queued": "Queued — your video is up next…",
     "renderingStatus": "Rendering — animated background, karaoke text, your audio…",
-    "signInPrompt": "Sign in to make lyric videos."
+    "signInPrompt": "Sign in to make lyric videos.",
+    "songsLoadError": "We couldn't load your song library — your songs are safe, this just couldn't reach them.",
+    "retryLoad": "Try again"
   },
   "makeSong": {
     "pageTitle": "Make a Song",
