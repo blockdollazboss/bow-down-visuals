@@ -250,6 +250,20 @@ export function bgGenerateUrlOf(data: unknown): string | null {
   return typeof url === "string" && url.length > 0 ? url : null;
 }
 
+/** A REPLAYED plate answer carries { replayed: true, replayNote }:
+ *  the rail served the stored plate for an identical re-ask instead
+ *  of charging again, and the note is the server's own explanation,
+ *  read verbatim (server copy is the single source — the FE never
+ *  writes its own version). A fresh answer carries neither field;
+ *  any drift (flag without a note, note without the flag) yields
+ *  null — no note shown. */
+export function bgGenerateReplayNoteOf(data: unknown): string | null {
+  if (!data || typeof data !== "object") return null;
+  const d = data as { replayed?: unknown; replayNote?: unknown };
+  if (d.replayed !== true) return null;
+  return typeof d.replayNote === "string" && d.replayNote.length > 0 ? d.replayNote : null;
+}
+
 /** The status gate's closed-door error code. */
 export const BG_GENERATE_NOT_CONFIGURED_CODE = "BG_IMAGE_PROVIDER_NOT_CONFIGURED";
 

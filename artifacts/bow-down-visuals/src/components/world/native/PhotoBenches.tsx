@@ -66,6 +66,7 @@ import {
   backdropStatusOf,
   bgGenerateCost,
   bgGenerateStatusOf,
+  bgGenerateReplayNoteOf,
   bgGenerateUrlOf,
   buildBgGeneratePayload,
   buildHeadshotPayload,
@@ -634,6 +635,9 @@ export function BgPlateBench({ isLight }: { isLight: boolean }) {
   const [style, setStyle] = useState<BgGenerateStyle>("studio");
   const [state, setState] = useState<RunState>("idle");
   const [resultUrl, setResultUrl] = useState<string | null>(null);
+  /* The server's replay note when an identical re-ask is served the
+     stored plate instead of a fresh charge — shown verbatim. */
+  const [replayNote, setReplayNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const cost = bgGenerateCost();
@@ -680,6 +684,7 @@ export function BgPlateBench({ isLight }: { isLight: boolean }) {
     setError(null);
     setOutOfCredits(false);
     setResultUrl(null);
+    setReplayNote(null);
     try {
       if (!attemptKey.current) {
         attemptKey.current = mintBgGenerateIdempotencyKey(Date.now(), Math.random());
@@ -723,6 +728,7 @@ export function BgPlateBench({ isLight }: { isLight: boolean }) {
       }
       attemptKey.current = null;
       setResultUrl(url);
+      setReplayNote(bgGenerateReplayNoteOf(data));
       setState("done");
       try {
         addAsset({ kind: "image", url, label: "Background plate", detail: "Photo Desk · Background plate" });
@@ -775,6 +781,9 @@ export function BgPlateBench({ isLight }: { isLight: boolean }) {
       {state === "failed" && error ? <NativeErrorState isLight={isLight} message={error} onRetry={() => void run()} /> : null}
       {state === "done" && resultUrl ? (
         <ImageResult url={resultUrl} title={t("wave9.bgReplace.ai.generatedTitle", { defaultValue: "Background generated" })} />
+      ) : null}
+      {state === "done" && replayNote ? (
+        <p data-testid="world-photo-plate-replay-note" className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{replayNote}</p>
       ) : null}
     </div>
   );

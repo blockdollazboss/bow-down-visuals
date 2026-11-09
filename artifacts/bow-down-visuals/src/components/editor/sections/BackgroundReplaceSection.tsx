@@ -220,6 +220,9 @@ export function BackgroundReplaceSection({
   const [aiGenerating, setAiGenerating] = useState(false);
   /** The AI-generated plate (HTMLImage) feeding the existing composite pipeline. */
   const [aiBg, setAiBg] = useState<HTMLImageElement | null>(null);
+  /** The server's replay note when an identical re-ask is served the
+      stored plate instead of a fresh charge — shown verbatim. */
+  const [aiReplayNote, setAiReplayNote] = useState<string | null>(null);
   /** Idempotency key for the current AI generate attempt (Stack 7 #4). */
   const aiAttemptKey = useRef<string | null>(null);
 
@@ -312,6 +315,7 @@ export function BackgroundReplaceSection({
     }
     setAiGenerating(true);
     setMessage(null);
+    setAiReplayNote(null);
     try {
       // Price comes from the status endpoint — the server's
       // BG_GENERATE_CREDIT_COST (200), which is exactly what is charged.
@@ -353,7 +357,7 @@ export function BackgroundReplaceSection({
           t(`${ns}.ai.generateError`, { defaultValue: "Couldn't generate that background — try again." }),
         );
       }
-      const data = (await res.json()) as { imageUrl?: string };
+      const data = (await res.json()) as { imageUrl?: string; replayed?: boolean; replayNote?: string };
       if (!data?.imageUrl) {
         throw new Error(
           t(`${ns}.ai.generateError`, { defaultValue: "Couldn't generate that background — try again." }),
@@ -363,6 +367,9 @@ export function BackgroundReplaceSection({
       aiAttemptKey.current = null; // success — next Generate is a new attempt
       setAiBg(img);
       setMessage(null);
+      /* A replayed answer (the stored plate for an identical re-ask)
+         carries the server's own note — surface it verbatim. */
+      if (data.replayed && data.replayNote) setAiReplayNote(data.replayNote);
       toast({
         title: t(`${ns}.ai.generatedTitle`, { defaultValue: "Background generated" }),
         description: t(`${ns}.ai.readyNote`, {
@@ -743,6 +750,11 @@ export function BackgroundReplaceSection({
                           })}
                         </p>
                       </div>
+                    )}
+                    {aiReplayNote && (
+                      <p data-testid="wave9b-bg-ai-replay-note" className="text-[11px] leading-relaxed text-[#e8c96a]/80">
+                        {aiReplayNote}
+                      </p>
                     )}
                   </>
                 )}

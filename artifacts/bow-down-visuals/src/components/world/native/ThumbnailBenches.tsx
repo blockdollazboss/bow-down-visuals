@@ -22,6 +22,7 @@ import {
   thumbnailImproveFields,
   thumbnailImprovedUrlOfResponse,
   thumbnailPartialImagesOfResponse,
+  thumbnailReplayNoteOfResponse,
   THUMBNAIL_TEST_FIELD,
   THUMBNAIL_TEST_MAX_FILES,
   THUMBNAIL_TEST_MIN_FILES,
@@ -130,6 +131,9 @@ export function ThumbnailBenches({
      the server stopped partway. */
   const [failedCount, setFailedCount] = useState(0);
   const [batchNote, setBatchNote] = useState<string | null>(null);
+  /* The server's replay note when an identical re-ask is served the
+     stored batch instead of a fresh charge — shown verbatim. */
+  const [replayNote, setReplayNote] = useState<string | null>(null);
   const [variants, setVariants] = useState<Array<{ url: string; label: string; prompt: string }>>([]);
   /* The image the current A/B pair was generated from — the
      head-to-head's "original" card, frozen at run time so changing
@@ -160,6 +164,7 @@ export function ThumbnailBenches({
     if (busy || prompt.trim().length < 3) return;
     setBusy("maker");
     setError(null);
+    setReplayNote(null);
     void quest.snapshot();
     let landedThisRun = false;
     try {
@@ -206,6 +211,7 @@ export function ThumbnailBenches({
       setSelected(parsed[0]!.variation);
       setFailedCount(THUMBNAIL_BATCH_SIZE - parsed.length);
       setBatchNote(null);
+      setReplayNote(thumbnailReplayNoteOfResponse(data));
       setWinner(null);
       setVariants([]);
       setVariantsSource(null);
@@ -408,6 +414,7 @@ export function ThumbnailBenches({
             )}
           </div>
           {batchNote ? <p className={`text-xs ${muted}`}>{batchNote}</p> : null}
+          {replayNote ? <p data-testid="world-thumbnail-replay-note" className={`text-xs ${muted}`}>{replayNote}</p> : null}
           {failedCount > 0 ? (
             <button type="button" data-testid="world-thumbnail-fresh-batch" onClick={() => void runMaker()} disabled={busy !== null || prompt.trim().length < 3} className={chipBtn(isLight)}>
               {busy === "maker" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}

@@ -37,6 +37,7 @@ import {
   backdropStatusOf,
   bgGenerateCost,
   bgGenerateStatusOf,
+  bgGenerateReplayNoteOf,
   bgGenerateUrlOf,
   buildBgGeneratePayload,
   buildCartoonizePayload,
@@ -196,6 +197,22 @@ describe("bg-generate — the editor section's rail", () => {
     expect(bgGenerateUrlOf({ imageUrl: "https://cdn/p.png" })).toBe("https://cdn/p.png");
     expect(bgGenerateUrlOf({ url: "https://cdn/p.png" })).toBeNull();
     expect(bgGenerateUrlOf(null)).toBeNull();
+  });
+
+  it("the replay note is the server's, verbatim — a fresh answer carries none", () => {
+    /* The rail's exact words (bg-generate.ts REPLAY_NOTE): a replayed
+       answer serves the stored plate and explains itself; the FE
+       reader passes the note through untouched and invents nothing
+       for fresh or drifted answers. */
+    const note =
+      "This is the background plate you already made for this request — tweak the prompt or style for a fresh one.";
+    expect(bgGenerateReplayNoteOf({ imageUrl: "https://cdn/p.png", replayed: true, replayNote: note })).toBe(note);
+    expect(bgGenerateReplayNoteOf({ imageUrl: "https://cdn/p.png" })).toBeNull();
+    expect(bgGenerateReplayNoteOf({ replayed: true })).toBeNull();
+    expect(bgGenerateReplayNoteOf({ replayNote: note })).toBeNull();
+    expect(bgGenerateReplayNoteOf({ replayed: true, replayNote: "" })).toBeNull();
+    expect(bgGenerateReplayNoteOf({ replayed: "true", replayNote: note })).toBeNull();
+    expect(bgGenerateReplayNoteOf(null)).toBeNull();
   });
 
   it("the status parser reads configured + creditCost, registry as the fallback", () => {
