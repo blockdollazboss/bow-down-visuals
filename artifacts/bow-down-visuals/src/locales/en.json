@@ -24799,7 +24799,9 @@
     "liveSrDeskOffLong": "Song requests aren’t switched on yet — your rules will save once the queue is live.",
     "liveSrRuleTipsRun": "Request tips run {{min}}–{{max}}.",
     "liveSrRuleNotRequestable": "Songs marked “not requestable” have been taken out of requests by the creator.",
-    "liveVoiceHeldPending": "{{label}} will be on your voice when you start the camera."
+    "liveVoiceHeldPending": "{{label}} will be on your voice when you start the camera.",
+    "liveSrQueueLoadFailed": "The request queue couldn't load — it's unreachable, not empty. It keeps retrying on its own.",
+    "liveSrQueueStale": "The request queue stopped updating — what you see may be out of date. It keeps retrying on its own."
   },
   "worldThemePacks": {
     "goldenMarbleName": "Golden Marble",
@@ -25085,5 +25087,8 @@
     "plans": "Creator Plans",
     "creditsCaption": "Creator Plans add pro analytics and AI boosts — that's the subscription side.",
     "plansCaption": "Need credits right now? Credit Packs top up your Visual Bucs."
+  },
+  "themeKitPanel": {
+    "kitSavedMixLoadFailed": "Your saved choices couldn't be loaded. The kit may not match your latest picks."
   }
 }

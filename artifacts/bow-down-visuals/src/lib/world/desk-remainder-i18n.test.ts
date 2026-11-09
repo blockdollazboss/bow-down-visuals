@@ -13,7 +13,7 @@ import ko from "../../locales/ko.json";
 
 /* ─── Stack 100 FINAL LOCALE REMAINDER — the nine wave desks'
    English-only strings speak through the catalogs
-   (worldDeskRemainder, 683 keys).
+   (worldDeskRemainder, 685 keys).
 
    The join2 report's named deferral: the desks that landed in
    the waves after the locale units (36–54) ran — LiveDesk,
@@ -202,8 +202,8 @@ const tokensOf = (value: string): string[] => {
 const digitsOf = (value: string): string[] => value.match(/[0-9][0-9,]*/g) ?? [];
 
 describe("desk remainder — the nine wave desks resolve through the catalog", () => {
-  it("the en namespace carries the full remainder set (683 keys)", () => {
-    expect(Object.keys(EN)).toHaveLength(683);
+  it("the en namespace carries the full remainder set (685 keys)", () => {
+    expect(Object.keys(EN)).toHaveLength(685);
   });
 
   it("referenced keys == catalog keys (zero orphans, zero missing) across the nine desks", () => {

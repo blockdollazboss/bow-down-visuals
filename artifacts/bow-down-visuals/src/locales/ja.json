@@ -24816,7 +24816,9 @@
     "liveSrDeskOffLong": "曲リクエストはまだオンになっていません — キューがライブになるとルールが保存されます。",
     "liveSrRuleTipsRun": "リクエストのチップは {{min}}〜{{max}} です。",
     "liveSrRuleNotRequestable": "「リクエスト不可」とマークされた曲は、クリエイターによってリクエストから外されています。",
-    "liveVoiceHeldPending": "カメラを開始すると{{label}}があなたの声にかかります。"
+    "liveVoiceHeldPending": "カメラを開始すると{{label}}があなたの声にかかります。",
+    "liveSrQueueLoadFailed": "The request queue couldn't load — it's unreachable, not empty. It keeps retrying on its own.",
+    "liveSrQueueStale": "The request queue stopped updating — what you see may be out of date. It keeps retrying on its own."
   },
   "worldThemePacks": {
     "goldenMarbleName": "ゴールデン・マーブル",
@@ -25102,5 +25104,8 @@
     "plans": "Creator Plans",
     "creditsCaption": "Creator Plans add pro analytics and AI boosts — that's the subscription side.",
     "plansCaption": "Need credits right now? Credit Packs top up your Visual Bucs."
+  },
+  "themeKitPanel": {
+    "kitSavedMixLoadFailed": "Your saved choices couldn't be loaded. The kit may not match your latest picks."
   }
 }
