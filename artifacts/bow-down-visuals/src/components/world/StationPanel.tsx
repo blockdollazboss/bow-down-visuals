@@ -249,6 +249,19 @@ const CommentToVideoBench = lazy(() => import("@/components/world/native/Comment
 const LyricStoriesBench = lazy(() => import("@/components/world/native/LyricStoriesBench").then((m) => ({ default: m.LyricStoriesBench })));
 const DreamCollabBench = lazy(() => import("@/components/world/native/DreamCollabBench").then((m) => ({ default: m.DreamCollabBench })));
 const LinkToHitBench = lazy(() => import("@/components/world/native/LinkToHitBench").then((m) => ({ default: m.LinkToHitBench })));
+/* Stack 400 world parity (census B-18): the Wave9 family's
+   eight benches — Structure + Lyrics stacked at the Song
+   Desk, Beats / Recipes / Background charge / Direct /
+   Camera / Director stacked at the Video Desk. Lazy like
+   every stacked bench. */
+const Wave9StructureBench = lazy(() => import("@/components/world/native/Wave9SongBenches").then((m) => ({ default: m.Wave9StructureBench })));
+const Wave9LyricsBench = lazy(() => import("@/components/world/native/Wave9SongBenches").then((m) => ({ default: m.Wave9LyricsBench })));
+const Wave9BeatsBench = lazy(() => import("@/components/world/native/Wave9VideoBenches").then((m) => ({ default: m.Wave9BeatsBench })));
+const Wave9TemplatesBench = lazy(() => import("@/components/world/native/Wave9VideoBenches").then((m) => ({ default: m.Wave9TemplatesBench })));
+const Wave9BgChargeBench = lazy(() => import("@/components/world/native/Wave9VideoBenches").then((m) => ({ default: m.Wave9BgChargeBench })));
+const Wave9DirectBench = lazy(() => import("@/components/world/native/Wave9VideoBenches").then((m) => ({ default: m.Wave9DirectBench })));
+const Wave9CameraBench = lazy(() => import("@/components/world/native/Wave9VideoBenches").then((m) => ({ default: m.Wave9CameraBench })));
+const Wave9DirectorBench = lazy(() => import("@/components/world/native/Wave9VideoBenches").then((m) => ({ default: m.Wave9DirectorBench })));
 
 /* ─── Round-4 doors (world-perf round 4, stack1200) ─────────────
    After round 3 the frame still statically carried every block
@@ -1191,6 +1204,88 @@ export default function StationPanel(props: StationPanelProps) {
                       Hook Desk. */}
                   <PanelBoundary isLight={isLight} resetKey={`${station.id}:lyric-stories`}><DeskDoor isLight={isLight}>
                     <LyricStoriesBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                </div>
+              ) : station.id === "song-desk" ? (
+                <div className="flex flex-col gap-6">
+                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                    <CreateDeskPanel
+                      station={station}
+                      isLight={isLight}
+                      onJukeboxAdd={props.onJukeboxAdd}
+                      onOpenEditor={props.onOpenEditorStation}
+                      onOpenStation={props.onOpenStation}
+                      shelfPlayer={shelfPlayer}
+                      panelPayload={target.payload ?? null}
+                    />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 music family (Stack 400 world parity,
+                      census B-18): the Song Structure Builder
+                      bench — the Music Studio panel's own rail,
+                      native under the Song Desk it belongs to. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-structure`}><DeskDoor isLight={isLight}>
+                    <Wave9StructureBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 music family (Stack 400, B-18): the
+                      Lyrics-to-Timeline bench — timed lyric
+                      lines on the panel's own rail, native
+                      under the Song Desk. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-lyrics`}><DeskDoor isLight={isLight}>
+                    <Wave9LyricsBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                </div>
+              ) : station.id === "video-desk" ? (
+                <div className="flex flex-col gap-6">
+                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                    <CreateDeskPanel
+                      station={station}
+                      isLight={isLight}
+                      onJukeboxAdd={props.onJukeboxAdd}
+                      onOpenEditor={props.onOpenEditorStation}
+                      onOpenStation={props.onOpenStation}
+                      shelfPlayer={shelfPlayer}
+                      panelPayload={target.payload ?? null}
+                    />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 editor family (Stack 400 world
+                      parity, census B-18): Beat-Sync Cuts —
+                      beat markers on the section's own rail,
+                      native under the Video Desk. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-beats`}><DeskDoor isLight={isLight}>
+                    <Wave9BeatsBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 editor family (Stack 400, B-18):
+                      Timeline Edit Recipes — compiled edit
+                      plans on the section's own rail. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-templates`}><DeskDoor isLight={isLight}>
+                    <Wave9TemplatesBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 editor family (Stack 400, B-18):
+                      Background Replace — the delivery charge
+                      on the section's own rail (the composite
+                      itself runs free on-device in the editor). */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-bg`}><DeskDoor isLight={isLight}>
+                    <Wave9BgChargeBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 direct family (Stack 400, B-18):
+                      Voice-Directed Edits — the planned op
+                      list on the section's own rail. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-direct`}><DeskDoor isLight={isLight}>
+                    <Wave9DirectBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 director family (Stack 400, B-18):
+                      the Director's Camera Deck — stacked
+                      moves woven into a scene prompt on the
+                      planner's own rail. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-camera`}><DeskDoor isLight={isLight}>
+                    <Wave9CameraBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 director family (Stack 400, B-18):
+                      the Character Director — per-shot
+                      generation prompts on the director's own
+                      rail. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-director`}><DeskDoor isLight={isLight}>
+                    <Wave9DirectorBench isLight={isLight} />
                   </DeskDoor></PanelBoundary>
                 </div>
               ) : (
