@@ -49,6 +49,20 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 vi.mock("../../lib/credits", () => ({
+  /* CA-2 added the key builder + void to the AI handlers' imports —
+     the fake carries them too (key = scope:user:intent-json, matching
+     the other lane fakes; void is a no-op here since this fake's
+     chargeCredits doesn't suppress by key). */
+  buildChargeIdempotencyKey: (
+    scope: string,
+    userId: string,
+    clientKey: unknown,
+    intent: unknown,
+  ) =>
+    typeof clientKey === "string" && clientKey.trim().length >= 8
+      ? `${scope}:${userId}:client:${clientKey.trim()}`
+      : `${scope}:${userId}:${JSON.stringify(intent)}`,
+  voidChargeIdempotencyKey: vi.fn(async () => true),
   chargeCredits: vi.fn(async (userId: string, cost: number, record: any) => {
     if (testState.chargeImpl) return testState.chargeImpl(userId, cost, record);
     return 100 - cost;
@@ -58,6 +72,13 @@ vi.mock("../../lib/credits", () => ({
   }),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
+}));
+
+/* CA-2: the stored-result seam — no landed rows in this suite, so
+   every request runs the fresh path exactly as before. */
+vi.mock("../../lib/generation-stored-results", () => ({
+  findStoredGenerationResult: vi.fn(async () => null),
+  storeGenerationResult: vi.fn(async () => {}),
 }));
 
 vi.mock("../../lib/ai-clients", () => ({

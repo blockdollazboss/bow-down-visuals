@@ -9,7 +9,13 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 /* ─── Comment to Video ────────────────────────────────────────────────────
    /api/comment-to-video/scripts — 200 credits: the creator pastes comments
@@ -67,11 +73,14 @@ function parseScript(e: Record<string, unknown>): ScriptItem | null {
   };
 }
 
-async function refundOnFailure(userId: string, amount: number, label: string) {
+async function refundOnFailure(userId: string, amount: number, label: string, idempotencyKey: string) {
   try {
     await refundCredits(userId, amount, {
       action: `${label} — Refund (generation failed)`,
     });
+    /* The refund landed — VOID the charge's idempotency key so a retry
+       charges fresh instead of running FREE as a replay. */
+    await voidChargeIdempotencyKey(idempotencyKey);
   } catch (refundErr) {
     logger.error({ err: refundErr, userId }, "[comment-to-video] refund failed after generation error");
   }
@@ -91,6 +100,23 @@ router.post("/comment-to-video/scripts", requireAuth, publicApiLimiter, async (r
     return;
   }
 
+  /* Idempotency (CA-2): server-derived key on EVERY call — this rail's
+     schema accepts no client key, so the intent hash IS the key.
+     Intent = the request's defining inputs. */
+  const idempotencyKey = buildChargeIdempotencyKey("comment-to-video", req.userId!, undefined, {
+    comments: parsed.data.comments,
+    niche: parsed.data.niche,
+    count: parsed.data.count,
+  });
+
+  /* Stored-result pre-check BEFORE any funding: a replay under a landed
+     key is answered from the stored body — no charge, no provider call. */
+  const storedResult = await findStoredGenerationResult("comment-to-video", idempotencyKey, req.userId!);
+  if (storedResult) {
+    res.json({ ...storedResult, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < SCRIPTS_CREDITS) {
     res.status(402).json({
@@ -101,7 +127,7 @@ router.post("/comment-to-video/scripts", requireAuth, publicApiLimiter, async (r
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, SCRIPTS_CREDITS, { action: "Comment to Video — Scripts" });
+    creditsRemaining = await chargeCredits(req.userId!, SCRIPTS_CREDITS, { action: "Comment to Video — Scripts" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -166,13 +192,17 @@ router.post("/comment-to-video/scripts", requireAuth, publicApiLimiter, async (r
       throw new Error("Model returned no usable scripts");
     }
 
-    res.json({
+    const body: Record<string, unknown> = {
       scripts,
       creditsUsed: SCRIPTS_CREDITS,
       creditsRemaining,
-    });
+    };
+    /* Store BEFORE answering: a retry after this response is served
+       from the stored body. Fail-open inside the helper. */
+    await storeGenerationResult("comment-to-video", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
-    await refundOnFailure(req.userId!, SCRIPTS_CREDITS, "Comment to Video — Scripts");
+    await refundOnFailure(req.userId!, SCRIPTS_CREDITS, "Comment to Video — Scripts", idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[comment-to-video] OpenAI rate limit / quota");
       res.status(503).json({ error: "Comment to video is catching its breath — try again in a moment." });

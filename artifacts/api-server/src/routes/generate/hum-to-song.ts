@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { NextFunction, Request, Response, Router } from "express";
 import multer from "multer";
 import { z } from "zod";
@@ -9,7 +9,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError,
+  buildChargeIdempotencyKey, voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { r2Upload, r2PublicUrl, r2Download } from "../../lib/r2-client";
 import { analyzeMelody, type MelodyAnalysis } from "../../lib/melody-analysis";
 import { recordLibrarySong } from "../../lib/library-song";
@@ -332,6 +339,47 @@ router.post("/hum-to-song", requireAuth, upload.single("hum"), async (req, res) 
     return;
   }
 
+  /* Idempotency (CA-2, hum special): server-derived key on EVERY
+     call — the schema accepts no client key, so the intent hash IS
+     the key. The intent MUST mark the hum being consumed: the humRef
+     of the previously analyzed hum row — or, for a fresh upload in
+     this same request, the sha256 of the uploaded bytes (thumbnail
+     precedent) — plus every generation-shaping field. A replay with
+     the same humRef therefore keys identically to the original ask. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "hum-to-song", req.userId!, undefined,
+    {
+      humRef: fields.humRef ?? null,
+      humFileHash: req.file?.buffer
+        ? createHash("sha256").update(req.file.buffer).digest("hex")
+        : null,
+      mode: fields.mode,
+      stylePrompt: fields.stylePrompt ?? null,
+      vocalGender: fields.vocalGender ?? null,
+      instrumental: fields.instrumental === true,
+      lyrics: fields.lyrics ?? null,
+      songTitle: fields.songTitle ?? null,
+      artistName: fields.artistName ?? null,
+    },
+  );
+
+  /* Stored-result pre-check BEFORE any funding AND before the hum is
+     resolved/consumed: a replay under a landed key is answered from
+     the durable row — stored body verbatim + replayed: true — with
+     no charge, no provider call, no hum re-download, no second
+     storeHum row, and no re-run of the hum row's songUrl update,
+     generation history, or library write. (The row today carries no
+     consumed flag — songUrl is simply overwritten on a repeat — so
+     this pre-check, placed ahead of hum resolution, IS the
+     exactly-once gate; a genuinely different request reusing the
+     humRef keys differently and keeps today's behavior.) Fail-open:
+     a storage miss or failure falls through to the fresh path. */
+  const durable = await findStoredGenerationResult("hum-to-song", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   const isDev = process.env["NODE_ENV"] === "development";
   if (!isDev && currentCredits < HUM_CREDIT_COST) {
@@ -392,7 +440,7 @@ router.post("/hum-to-song", requireAuth, upload.single("hum"), async (req, res) 
     let charged = false;
     let creditsAfter = currentCredits;
     try {
-      creditsAfter = await chargeCredits(req.userId!, HUM_CREDIT_COST, { action: "Hum to Song" });
+      creditsAfter = await chargeCredits(req.userId!, HUM_CREDIT_COST, { action: "Hum to Song" }, { idempotencyKey });
       charged = true;
     } catch (chargeErr) {
       if (chargeErr instanceof OutOfCreditsError) {
@@ -477,7 +525,7 @@ router.post("/hum-to-song", requireAuth, upload.single("hum"), async (req, res) 
         durationSec: Math.round(RESULT_LENGTH_MS / 1000),
       });
 
-      res.json({
+      const body: Record<string, unknown> = {
         url: songUrl,
         storagePath: songPath,
         librarySongId,
@@ -493,16 +541,28 @@ router.post("/hum-to-song", requireAuth, upload.single("hum"), async (req, res) 
             : "This ElevenLabs account can't take audio references, so the arrangement was built from your hum's extracted melody (tempo, key, phrasing) as a detailed text brief. The hum is saved to your project and can be re-referenced.",
         creditsRemaining: creditsAfter,
         genHistoryId,
-      });
+      };
+      /* Store BEFORE answering: a replay with the same humRef is
+         served from this row instead of re-charging or re-consuming
+         the hum. Fail-open inside the helper. */
+      await storeGenerationResult("hum-to-song", idempotencyKey, req.userId!, body);
+      res.json(body);
     } catch (genErr) {
       // Auto-refund on failure — credits never burn on a failed generation.
       if (charged) {
+        let refunded = false;
         try {
           await refundCredits(req.userId!, HUM_CREDIT_COST, {
             action: "Hum to Song (refund: generation failed)",
           });
+          refunded = true;
         } catch (refundErr) {
           req.log.error({ err: refundErr }, "[hum-to-song] refund failed");
+        }
+        /* Void the refunded attempt's key so a genuine retry can
+           re-charge instead of being suppressed as a replay. */
+        if (refunded) {
+          await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
         }
       }
       throw genErr;

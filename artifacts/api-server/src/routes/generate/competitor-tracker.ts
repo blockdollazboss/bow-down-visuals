@@ -5,7 +5,14 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 /* ─── Competitor Tracker ─────────────────────────────────────────────────
    AI competitor analysis: the creator names a competitor (name and/or
@@ -83,11 +90,14 @@ function outOfCreditsJson() {
   };
 }
 
-async function refundOnFailure(userId: string): Promise<void> {
+async function refundOnFailure(userId: string, idempotencyKey: string): Promise<void> {
   try {
     await refundCredits(userId, COMPETITOR_CREDITS, {
       action: "Competitor Tracker — Refund (generation failed)",
     });
+    /* The refund landed — VOID the charge's idempotency key so a retry
+       charges fresh instead of running FREE as a replay. */
+    await voidChargeIdempotencyKey(idempotencyKey);
   } catch (refundErr) {
     logger.error({ err: refundErr, userId }, "[competitor-tracker] refund failed after generation error");
   }
@@ -225,6 +235,24 @@ router.post("/competitor-analysis", requireAuth, publicApiLimiter, async (req, r
     return;
   }
 
+  /* Idempotency (CA-2): server-derived key on EVERY call — this rail's
+     schema accepts no client key, so the intent hash IS the key.
+     Intent = the request's defining inputs. */
+  const idempotencyKey = buildChargeIdempotencyKey("competitor-tracker", req.userId!, undefined, {
+    competitorName: parsed.data.competitorName,
+    channelUrl: parsed.data.channelUrl,
+    niche: parsed.data.niche,
+    notes: parsed.data.notes,
+  });
+
+  /* Stored-result pre-check BEFORE any funding: a replay under a landed
+     key is answered from the stored body — no charge, no provider call. */
+  const storedResult = await findStoredGenerationResult("competitor-tracker", idempotencyKey, req.userId!);
+  if (storedResult) {
+    res.json({ ...storedResult, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < COMPETITOR_CREDITS) {
     res.status(402).json(outOfCreditsJson());
@@ -234,7 +262,7 @@ router.post("/competitor-analysis", requireAuth, publicApiLimiter, async (req, r
   try {
     creditsRemaining = await chargeCredits(req.userId!, COMPETITOR_CREDITS, {
       action: "Competitor Tracker — Analysis",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json(outOfCreditsJson());
@@ -306,13 +334,13 @@ router.post("/competitor-analysis", requireAuth, publicApiLimiter, async (req, r
     const analysis = parseCompetitorJson(raw, name, niche.trim());
 
     if (!analysis.usable) {
-      await refundOnFailure(req.userId!);
+      await refundOnFailure(req.userId!, idempotencyKey);
       logger.warn("[competitor-tracker] model returned unusable output — refunded");
       res.status(502).json({ error: "The analysis came back empty — Visual Bucs refunded, try again." });
       return;
     }
 
-    res.json({
+    const body: Record<string, unknown> = {
       competitorName: analysis.competitorName,
       niche: analysis.niche,
       contentPillars: analysis.contentPillars,
@@ -330,9 +358,13 @@ router.post("/competitor-analysis", requireAuth, publicApiLimiter, async (req, r
       ],
       creditsUsed: COMPETITOR_CREDITS,
       creditsRemaining,
-    });
+    };
+    /* Store BEFORE answering: a retry after this response is served
+       from the stored body. Fail-open inside the helper. */
+    await storeGenerationResult("competitor-tracker", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
-    await refundOnFailure(req.userId!);
+    await refundOnFailure(req.userId!, idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[competitor-tracker] OpenAI rate limit / quota");
       res.status(503).json({ error: "The studio is catching its breath — Visual Bucs refunded, try again in a moment." });

@@ -4,7 +4,8 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 
 const router = Router();
 
@@ -84,6 +85,16 @@ router.post("/fan-decoder/decode", requireAuth, publicApiLimiter, async (req, re
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "fan-decoder", req.userId!, undefined,
+    { comments: parsed.data.comments, niche: parsed.data.niche },
+  );
+  const storedReplay = await findStoredGenerationResult("fan-decoder", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < DECODE_CREDITS) {
     res.status(402).json({
@@ -96,7 +107,7 @@ router.post("/fan-decoder/decode", requireAuth, publicApiLimiter, async (req, re
   try {
     creditsRemaining = await chargeCredits(req.userId!, DECODE_CREDITS, {
       action: "Fan Decoder",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -111,6 +122,7 @@ router.post("/fan-decoder/decode", requireAuth, publicApiLimiter, async (req, re
   const refundAndFail = async (status: number, message: string) => {
     try {
       await refundCredits(req.userId!, DECODE_CREDITS, { action: "Fan Decoder — Refund" });
+      await voidChargeIdempotencyKey(idempotencyKey);
     } catch (refundErr) {
       logger.error({ err: refundErr, userId: req.userId }, "[fan-decoder] refund failed after decode error");
     }
@@ -169,13 +181,15 @@ router.post("/fan-decoder/decode", requireAuth, publicApiLimiter, async (req, re
       throw new Error("The decoder found no usable audience signal in those comments.");
     }
 
-    res.json({
+    const body = {
       wants,
       contentDirections,
       toneNotes,
       creditsUsed: DECODE_CREDITS,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("fan-decoder", idempotencyKey, req.userId!, body as Record<string, unknown>);
+    res.json(body);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Fan Decoder failed";
     logger.error({ err, userId: req.userId }, "[fan-decoder] decode failed");

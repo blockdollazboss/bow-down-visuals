@@ -7,7 +7,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -246,6 +253,25 @@ router.post("/cinematic-fx", requireAuth, async (req, res) => {
   }
   const { videoUrl, effects, intensity, attribution } = parsed.data;
 
+  /* Idempotency (CA-2): server-derived key on EVERY call — this rail's
+     schema accepts no client key, so the intent hash IS the key.
+     Intent = the request's defining inputs. A retry of a SUCCEEDED
+     render used to re-charge and re-run the whole ffmpeg render. */
+  const idempotencyKey = buildChargeIdempotencyKey("cinematic-fx", req.userId!, undefined, {
+    videoUrl,
+    effects,
+    intensity,
+    attribution,
+  });
+
+  /* Stored-result pre-check BEFORE any funding: a replay under a landed
+     key is answered from the stored body — no charge, no render. */
+  const storedResult = await findStoredGenerationResult("cinematic-fx", idempotencyKey, req.userId!);
+  if (storedResult) {
+    res.json({ ...storedResult, replayed: true });
+    return;
+  }
+
   if ((req.userCredits ?? 0) < CINEMATIC_FX_COST) {
     res.status(402).json({
       error: "out_of_credits",
@@ -258,7 +284,7 @@ router.post("/cinematic-fx", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, CINEMATIC_FX_COST, {
       action: "Cinematic FX Render",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -342,7 +368,7 @@ router.post("/cinematic-fx", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body: Record<string, unknown> = {
       url,
       storageRef,
       effects,
@@ -350,13 +376,21 @@ router.post("/cinematic-fx", requireAuth, async (req, res) => {
       attribution,
       cost: CINEMATIC_FX_COST,
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Store BEFORE answering: a retry after this response is served
+       from the stored body. Fail-open inside the helper. */
+    await storeGenerationResult("cinematic-fx", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Cinematic FX render failed.";
     req.log.error({ err: message }, "[cinematic-fx] failed");
+    /* Refund, then VOID the charge's idempotency key so the retry
+       charges fresh instead of being suppressed as a free replay. */
     await refundCredits(req.userId!, CINEMATIC_FX_COST, {
       action: "Cinematic FX Render — Refund",
-    }).catch(() => {});
+    })
+      .then(() => voidChargeIdempotencyKey(idempotencyKey))
+      .catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});

@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
@@ -12,7 +12,13 @@ import {
   refundCredits,
   OutOfCreditsError,
   LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { transcribeAudioTimed } from "../../lib/transcription";
 import {
   uploadMediaToSupabaseStorage,
@@ -536,6 +542,10 @@ interface FillerAnalyzeJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /* CA-2 replay plumbing (Pattern B): the analyze charge's idempotency
+     key and the exact POST body served at creation. */
+  chargeKey?: string;
+  replayBody?: Record<string, unknown>;
 }
 
 type FillerRenderStatus =
@@ -578,11 +588,27 @@ async function refundJob(
   userId: string,
   creditsCharged: number,
   action: string,
+  idempotencyKey?: string,
 ): Promise<void> {
+  let refunded = true;
   try {
     await refundCredits(userId, creditsCharged, { action });
   } catch {
+    refunded = false;
     /* logged inside refundCredits — don't mask the original failure */
+  }
+  /* CA-2: a landed refund VOIDS the charge's idempotency key so a
+     genuine retry charges fresh instead of being suppressed as a
+     replay and running free. Only the ANALYZE job's refunds carry a
+     key: the render job is uncharged (covered by the analyze charge),
+     and its failure refund must not void the key of the analyze
+     result the user already received and may render again. */
+  if (refunded && idempotencyKey) {
+    try {
+      await voidChargeIdempotencyKey(idempotencyKey);
+    } catch {
+      /* void is best-effort here; a failed void is logged in credits */
+    }
   }
 }
 
@@ -629,10 +655,18 @@ async function runFillerAnalyzeJob(job: FillerAnalyzeJob): Promise<void> {
     job.durationSec = duration ?? null;
     job.timeSavedSec = Math.round(timeSaved * 10) / 10;
     job.status = "done";
+    /* CA-2: persist the creation result under the charge key once the
+       analysis has COMPLETED — a replay after the in-memory job is
+       gone is served from the durable row instead of charging again. */
+    if (job.chargeKey && job.replayBody) {
+      await storeGenerationResult("filler-removal-analyze", job.chargeKey, job.userId, job.replayBody);
+    }
   } catch (err) {
-    job.status = "failed";
     job.error = err instanceof Error ? err.message : "Filler analysis failed.";
-    await refundJob(job.userId, job.creditsCharged, "Filler-Word Remover — Refund (analysis failed)");
+    /* Refund (+ key void) lands BEFORE the job reads "failed", so a
+       retry that sees the failed job always charges fresh. */
+    await refundJob(job.userId, job.creditsCharged, "Filler-Word Remover — Refund (analysis failed)", job.chargeKey);
+    job.status = "failed";
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
@@ -693,32 +727,79 @@ async function runFillerRenderJob(
   }
 }
 
-function chargeForAnalyze(req: Request, res: Response): Promise<number | null> {
-  return (async () => {
-    const balance = req.userCredits ?? 0;
-    if (balance < FILLER_REMOVAL_CREDIT_COST) {
-      res.status(402).json({
+/* CA-2: the charge helper no longer writes the response itself — it
+   returns the failure as an outcome value so the caller can run it
+   inside the in-flight twin map (below) and answer exactly once.
+   Response bodies are byte-identical to the pre-CA-2 res writes. */
+type AnalyzeChargeResult =
+  | { ok: true; creditsRemaining: number }
+  | { ok: false; status: number; body: Record<string, unknown> };
+
+async function chargeForAnalyze(
+  req: Request,
+  idempotencyKey: string,
+): Promise<AnalyzeChargeResult> {
+  const balance = req.userCredits ?? 0;
+  if (balance < FILLER_REMOVAL_CREDIT_COST) {
+    return {
+      ok: false,
+      status: 402,
+      body: {
         error: "out_of_credits",
         message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
-      });
-      return null;
+      },
+    };
+  }
+  try {
+    const creditsRemaining = await chargeCredits(req.userId!, FILLER_REMOVAL_CREDIT_COST, {
+      action: "AI Filler-Word Remover",
+    }, { idempotencyKey });
+    return { ok: true, creditsRemaining };
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      return { ok: false, status: 402, body: { error: "out_of_credits", message: "Not enough Visual Bucs." } };
     }
-    try {
-      return await chargeCredits(req.userId!, FILLER_REMOVAL_CREDIT_COST, {
-        action: "AI Filler-Word Remover",
-      });
-    } catch (err) {
-      if (err instanceof OutOfCreditsError) {
-        res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-        return null;
-      }
-      if (err instanceof LedgerWriteError) {
-        res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
-        return null;
-      }
-      throw err;
+    if (err instanceof LedgerWriteError) {
+      return { ok: false, status: 500, body: { error: "Could not record the Visual Buc charge. Please try again." } };
     }
-  })();
+    throw err;
+  }
+}
+
+/* ── CA-2 replay plumbing (Pattern B, avatar-presenter shape) ──────────
+   The analyze job's identity derives from the charge idempotency key:
+   the key is built from the analyze intent (media URL + detection
+   options), and the job id is that key's hash. A replay of the same
+   ask lands on the SAME job: no second charge, no second analysis.
+   The render phase is uncharged and keyed by the analyze job, so it
+   needs no key of its own. */
+interface AnalyzeCreationOutcome {
+  status: number;
+  body: Record<string, unknown>;
+}
+
+const analyzeCreationsInFlight = new Map<string, Promise<AnalyzeCreationOutcome>>();
+
+async function runAnalyzeCreationOnce(
+  idempotencyKey: string,
+  work: () => Promise<AnalyzeCreationOutcome>,
+): Promise<AnalyzeCreationOutcome & { replayed: boolean }> {
+  const pending = analyzeCreationsInFlight.get(idempotencyKey);
+  if (pending) {
+    const twin = await pending.catch(() => null);
+    if (twin && twin.status === 202) return { ...twin, replayed: true };
+    /* The twin failed — run this request fresh. */
+  }
+  const run = work();
+  analyzeCreationsInFlight.set(idempotencyKey, run);
+  try {
+    const outcome = await run;
+    return { ...outcome, replayed: false };
+  } finally {
+    if (analyzeCreationsInFlight.get(idempotencyKey) === run) {
+      analyzeCreationsInFlight.delete(idempotencyKey);
+    }
+  }
 }
 
 /* ─── Routes ──────────────────────────────────────────────────────────── */
@@ -740,39 +821,90 @@ router.post("/remove-fillers/analyze", requireAuth, async (req: Request, res: Re
     return;
   }
 
-  const creditsRemaining = await chargeForAnalyze(req, res);
-  if (creditsRemaining == null) return; // 402 / 500 already sent
-
   const d = parsed.data;
-  const job: FillerAnalyzeJob = {
-    id: randomUUID(),
-    userId: req.userId!,
-    status: "queued",
+
+  /* Idempotency (CA-2, Pattern B): server-derived key on EVERY call —
+     the schema accepts no client key, so the intent hash IS the key.
+     Intent = the media URL + every detection option. */
+  const idempotencyKey = buildChargeIdempotencyKey("filler-removal-analyze", req.userId!, undefined, {
     mediaUrl: d.mediaUrl,
     fillerWords: d.fillerWords,
     removeSilences: d.removeSilences,
     silenceThresholdDb: d.silenceThresholdDb,
     minSilenceDuration: d.minSilenceDuration,
-    cuts: [],
-    transcript: null,
-    words: [],
-    durationSec: null,
-    timeSavedSec: 0,
-    error: null,
-    creditsCharged: FILLER_REMOVAL_CREDIT_COST,
-    createdAt: Date.now(),
-  };
-  analyzeJobs.set(job.id, job);
-
-  // Server-owned: runs detached from the request/tab lifecycle.
-  void runFillerAnalyzeJob(job);
-
-  res.status(202).json({
-    jobId: job.id,
-    status: job.status,
-    creditsCharged: FILLER_REMOVAL_CREDIT_COST,
-    creditsRemaining,
   });
+  const jobId = createHash("sha256").update(idempotencyKey).digest("hex").slice(0, 32);
+
+  /* Replay, in-memory first: the same ask returns the SAME job. A
+     FAILED job (refunded + key voided by the runner) is dropped so
+     this request runs fresh below. */
+  const existing = analyzeJobs.get(jobId);
+  if (existing && existing.userId === req.userId) {
+    if (existing.status !== "failed") {
+      res.status(202).json({
+        ...(existing.replayBody ?? {
+          jobId: existing.id,
+          status: existing.status,
+          creditsCharged: existing.creditsCharged,
+        }),
+        replayed: true,
+      });
+      return;
+    }
+    analyzeJobs.delete(jobId);
+  }
+
+  /* Stored-result pre-check BEFORE any funding: serves a COMPLETED
+     analysis's creation result after the in-memory job is evicted. */
+  const storedResult = await findStoredGenerationResult("filler-removal-analyze", idempotencyKey, req.userId!);
+  if (storedResult) {
+    res.status(202).json({ ...storedResult, replayed: true });
+    return;
+  }
+
+  const outcome = await runAnalyzeCreationOnce(idempotencyKey, async (): Promise<AnalyzeCreationOutcome> => {
+    const charged = await chargeForAnalyze(req, idempotencyKey);
+    if (!charged.ok) return { status: charged.status, body: charged.body }; // 402 / 500
+
+    const job: FillerAnalyzeJob = {
+      id: jobId,
+      userId: req.userId!,
+      status: "queued",
+      mediaUrl: d.mediaUrl,
+      fillerWords: d.fillerWords,
+      removeSilences: d.removeSilences,
+      silenceThresholdDb: d.silenceThresholdDb,
+      minSilenceDuration: d.minSilenceDuration,
+      cuts: [],
+      transcript: null,
+      words: [],
+      durationSec: null,
+      timeSavedSec: 0,
+      error: null,
+      creditsCharged: FILLER_REMOVAL_CREDIT_COST,
+      createdAt: Date.now(),
+      chargeKey: idempotencyKey,
+    };
+    const body: Record<string, unknown> = {
+      jobId: job.id,
+      status: job.status,
+      creditsCharged: FILLER_REMOVAL_CREDIT_COST,
+      creditsRemaining: charged.creditsRemaining,
+    };
+    job.replayBody = body;
+    analyzeJobs.set(job.id, job);
+
+    // Server-owned: runs detached from the request/tab lifecycle.
+    void runFillerAnalyzeJob(job);
+
+    return { status: 202, body };
+  });
+
+  if (outcome.replayed && outcome.status === 202) {
+    res.status(202).json({ ...outcome.body, replayed: true });
+    return;
+  }
+  res.status(outcome.status).json(outcome.body);
 });
 
 /** GET /api/remove-fillers/analyze/:jobId — poll analysis progress. */

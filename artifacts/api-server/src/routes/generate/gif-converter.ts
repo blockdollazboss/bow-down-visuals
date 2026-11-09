@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -52,6 +53,16 @@ router.post("/video-to-gif", requireAuth, async (req, res) => {
 
   const { videoUrl, startTime, duration, attribution } = parsed.data;
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "gif-converter", req.userId!, undefined,
+    { videoUrl: parsed.data.videoUrl, startTime: parsed.data.startTime, duration: parsed.data.duration, attribution: parsed.data.attribution },
+  );
+  const storedReplay = await findStoredGenerationResult("gif-converter", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < GIF_COST) {
     res.status(402).json({
@@ -65,7 +76,7 @@ router.post("/video-to-gif", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, GIF_COST, {
       action: "Video to GIF",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -119,20 +130,22 @@ router.post("/video-to-gif", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "image/gif");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       startTime,
       duration,
       attribution,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("gif-converter", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "GIF conversion failed.";
     req.log.error({ err: message }, "[gif-converter] failed");
     await refundCredits(req.userId!, GIF_COST, {
       action: "Video to GIF — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     await unlink(inputPath).catch(() => {});

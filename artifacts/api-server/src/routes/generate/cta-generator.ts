@@ -5,7 +5,8 @@ import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clie
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 
 const router = Router();
 
@@ -62,6 +63,16 @@ router.post("/generate-cta", requireAuth, publicApiLimiter, async (req, res) => 
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "cta-generator", req.userId!, undefined,
+    { videoTopic: parsed.data.videoTopic, ctaGoal: parsed.data.ctaGoal, platform: parsed.data.platform, tone: parsed.data.tone },
+  );
+  const storedReplay = await findStoredGenerationResult("cta-generator", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < CTA_GENERATOR_CREDITS) {
     res.status(402).json({
@@ -75,7 +86,7 @@ router.post("/generate-cta", requireAuth, publicApiLimiter, async (req, res) => 
   try {
     creditsRemaining = await chargeCredits(req.userId!, CTA_GENERATOR_CREDITS, {
       action: "CTA Generator",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -150,11 +161,13 @@ router.post("/generate-cta", requireAuth, publicApiLimiter, async (req, res) => 
     }
     ctas.sort((a, b) => b.strength - a.strength);
 
-    res.json({ ctas, creditsUsed: CTA_GENERATOR_CREDITS, creditsRemaining });
+    const body = { ctas, creditsUsed: CTA_GENERATOR_CREDITS, creditsRemaining };
+    await storeGenerationResult("cta-generator", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     await refundCredits(req.userId!, CTA_GENERATOR_CREDITS, {
       action: "CTA Generator — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[cta-generator] OpenAI rate limit / quota");
       res.status(503).json({ error: "The studio is catching its breath — try again in a moment." });

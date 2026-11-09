@@ -9,7 +9,10 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 
 /* ─── Dream Collab ────────────────────────────────────────────────────────
    /api/dream-collab/concept — 200 credits: "what if I collabed with X" —
@@ -50,11 +53,12 @@ function parsePrompts(raw: unknown): string[] {
     .slice(0, 8);
 }
 
-async function refundOnFailure(userId: string, amount: number, label: string) {
+async function refundOnFailure(userId: string, amount: number, label: string, idempotencyKey: string) {
   try {
     await refundCredits(userId, amount, {
       action: `${label} — Refund (generation failed)`,
     });
+    await voidChargeIdempotencyKey(idempotencyKey);
   } catch (refundErr) {
     logger.error({ err: refundErr, userId }, "[dream-collab] refund failed after generation error");
   }
@@ -74,6 +78,16 @@ router.post("/dream-collab/concept", requireAuth, publicApiLimiter, async (req, 
     return;
   }
 
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "dream-collab", req.userId!, undefined,
+    { collaborator: parsed.data.collaborator, userStyle: parsed.data.userStyle, songTheme: parsed.data.songTheme },
+  );
+  const storedReplay = await findStoredGenerationResult("dream-collab", idempotencyKey, req.userId!);
+  if (storedReplay) {
+    res.json({ ...storedReplay, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < CONCEPT_CREDITS) {
     res.status(402).json({
@@ -84,7 +98,7 @@ router.post("/dream-collab/concept", requireAuth, publicApiLimiter, async (req, 
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, CONCEPT_CREDITS, { action: "Dream Collab — Concept" });
+    creditsRemaining = await chargeCredits(req.userId!, CONCEPT_CREDITS, { action: "Dream Collab — Concept" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -156,7 +170,7 @@ router.post("/dream-collab/concept", requireAuth, publicApiLimiter, async (req, 
       throw new Error("Model returned no usable collab concept");
     }
 
-    res.json({
+    const body = {
       logline,
       concept,
       styleBlend,
@@ -164,9 +178,11 @@ router.post("/dream-collab/concept", requireAuth, publicApiLimiter, async (req, 
       songConcept,
       creditsUsed: CONCEPT_CREDITS,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("dream-collab", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
-    await refundOnFailure(req.userId!, CONCEPT_CREDITS, "Dream Collab — Concept");
+    await refundOnFailure(req.userId!, CONCEPT_CREDITS, "Dream Collab — Concept", idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[dream-collab] OpenAI rate limit / quota");
       res.status(503).json({ error: "The dream collab is catching its breath — try again in a moment." });

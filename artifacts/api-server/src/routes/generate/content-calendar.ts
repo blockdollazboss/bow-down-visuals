@@ -5,7 +5,14 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 /* ─── AI Content Calendar ────────────────────────────────────────────────
    Creators input their niche + platforms, GPT-6 generates a 30-day posting
@@ -139,6 +146,24 @@ router.post("/content-calendar", requireAuth, publicApiLimiter, async (req, res)
   }
   const { niche, platforms, postsPerWeek, startDate } = parsed.data;
 
+  /* Idempotency (CA-2): server-derived key on EVERY call — the schema
+     accepts no client key, so the intent hash IS the key. Intent = the
+     request's defining inputs. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "content-calendar", req.userId!, undefined,
+    { niche, platforms, postsPerWeek, startDate },
+  );
+
+  /* Stored-result pre-check BEFORE any funding: a replay under a
+     landed key is answered from the durable row — stored body
+     verbatim + replayed: true — with no charge and no provider call.
+     Fail-open: a storage miss or failure falls through. */
+  const durable = await findStoredGenerationResult("content-calendar", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < CALENDAR_CREDIT_COST) {
     res.status(402).json({
@@ -151,7 +176,7 @@ router.post("/content-calendar", requireAuth, publicApiLimiter, async (req, res)
   try {
     creditsRemaining = await chargeCredits(req.userId!, CALENDAR_CREDIT_COST, {
       action: "AI Content Calendar",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -164,12 +189,13 @@ router.post("/content-calendar", requireAuth, publicApiLimiter, async (req, res)
   }
 
   async function refund() {
-    try {
-      await refundCredits(req.userId!, CALENDAR_CREDIT_COST, {
-        action: "AI Content Calendar — Refund (generation failed)",
-      });
-    } catch (refundErr) {
-      void refundErr; // logged inside refundCredits; don't mask the original failure
+    const refunded = await refundCredits(req.userId!, CALENDAR_CREDIT_COST, {
+      action: "AI Content Calendar — Refund (generation failed)",
+    }).then(() => true).catch(() => false);
+    /* Void the refunded attempt's key so a genuine retry can
+       re-charge instead of being suppressed as a replay. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
     }
   }
 
@@ -215,7 +241,11 @@ router.post("/content-calendar", requireAuth, publicApiLimiter, async (req, res)
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const days = parseCalendarDays(raw, dates, platforms);
 
-    res.json({ days, creditsUsed: CALENDAR_CREDIT_COST, creditsRemaining });
+    const body: Record<string, unknown> = { days, creditsUsed: CALENDAR_CREDIT_COST, creditsRemaining };
+    /* Store BEFORE answering: a retry after this response is served
+       from the stored calendar. Fail-open inside the helper. */
+    await storeGenerationResult("content-calendar", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
     await refund();
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {

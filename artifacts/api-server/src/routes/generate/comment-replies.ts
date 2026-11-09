@@ -9,7 +9,13 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 const router = Router();
 
@@ -85,6 +91,24 @@ router.post(
       return;
     }
 
+    /* Idempotency (CA-2): server-derived key on EVERY call — this rail's
+       schema accepts no client key, so the intent hash IS the key.
+       Intent = the request's defining inputs. */
+    const idempotencyKey = buildChargeIdempotencyKey("comment-replies", req.userId!, undefined, {
+      comments: parsed.data.comments,
+      tone: parsed.data.tone,
+      voiceNotes: parsed.data.voiceNotes,
+    });
+
+    /* Stored-result pre-check BEFORE any funding: a replay under a
+       landed key is answered from the stored body — no charge, no
+       provider call. */
+    const storedResult = await findStoredGenerationResult("comment-replies", idempotencyKey, req.userId!);
+    if (storedResult) {
+      res.json({ ...storedResult, replayed: true });
+      return;
+    }
+
     const balance = req.userCredits ?? 0;
     if (balance < COMMENT_REPLIES_CREDITS) {
       res.status(402).json({
@@ -98,7 +122,7 @@ router.post(
     try {
       creditsRemaining = await chargeCredits(req.userId!, COMMENT_REPLIES_CREDITS, {
         action: "Comment Reply Assistant",
-      });
+      }, { idempotencyKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -116,6 +140,9 @@ router.post(
         await refundCredits(req.userId!, COMMENT_REPLIES_CREDITS, {
           action: "Comment Reply Assistant — Refund (generation failed)",
         });
+        /* The refund landed — VOID the charge's idempotency key so a
+           retry charges fresh instead of running FREE as a replay. */
+        await voidChargeIdempotencyKey(idempotencyKey);
       } catch (refundErr) {
         logger.error(
           { err: refundErr, userId: req.userId },
@@ -180,11 +207,15 @@ router.post(
         throw new Error("Model returned an incomplete set of replies");
       }
 
-      res.json({
+      const body: Record<string, unknown> = {
         replies,
         creditsUsed: COMMENT_REPLIES_CREDITS,
         creditsRemaining,
-      });
+      };
+      /* Store BEFORE answering: a retry after this response is served
+         from the stored body. Fail-open inside the helper. */
+      await storeGenerationResult("comment-replies", idempotencyKey, req.userId!, body);
+      res.json(body);
     } catch (err) {
       await refundOnFailure();
       if (

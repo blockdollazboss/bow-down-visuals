@@ -7,7 +7,14 @@ import { introForViewer, detectMutualIntro, mutualAcceptedStatus, type CollabReq
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError,
+  buildChargeIdempotencyKey, voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   db,
   collabProfilesTable,
@@ -175,6 +182,7 @@ async function chargeOr402(
   balance: number,
   cost: number,
   res: Response,
+  idempotencyKey: string,
 ): Promise<number | null> {
   if (balance < cost) {
     res.status(402).json({
@@ -184,7 +192,7 @@ async function chargeOr402(
     return null;
   }
   try {
-    return await chargeCredits(userId, cost, { action: "Collab Finder match report" });
+    return await chargeCredits(userId, cost, { action: "Collab Finder match report" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -336,7 +344,25 @@ router.post("/collabs/match", requireAuth, publicApiLimiter, async (req, res) =>
     return;
   }
 
-  const creditsRemaining = await chargeOr402(req.userId!, req.userCredits ?? 0, COLLAB_MATCH_CREDITS, res);
+  /* Idempotency (CA-2, house pattern): the server derives the key on
+     EVERY call from the match intent — the schema accepts no client
+     key, so the {targetUserId} intent hash IS the key. A replay of
+     the same match ask is answered from the stored report below with
+     no charge and no provider call; a refunded failure voids the key
+     so a genuine retry charges fresh. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "collabs-match", req.userId!, undefined,
+    { targetUserId: parsed.data.targetUserId },
+  );
+
+  /* Stored-result pre-check BEFORE any funding (migration 0333). */
+  const stored = await findStoredGenerationResult("collabs-match", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true });
+    return;
+  }
+
+  const creditsRemaining = await chargeOr402(req.userId!, req.userCredits ?? 0, COLLAB_MATCH_CREDITS, res, idempotencyKey);
   if (creditsRemaining === null) return;
 
   try {
@@ -369,15 +395,21 @@ router.post("/collabs/match", requireAuth, publicApiLimiter, async (req, res) =>
       throw new Error("Model returned no usable match report");
     }
 
-    res.json({
+    const body = {
       report: { ...report, targetDisplayName: them.display_name },
       creditsUsed: COLLAB_MATCH_CREDITS,
       creditsRemaining,
-    });
+    };
+    /* Store BEFORE answering: a retry after this response is served
+       from the stored report. Fail-open inside the helper. */
+    await storeGenerationResult("collabs-match", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
+    /* Refund landed → void the charge key so a retry charges fresh
+       instead of being suppressed as a replay and running free. */
     await refundCredits(req.userId!, COLLAB_MATCH_CREDITS, {
       action: "Collab Finder match report (provider failure refund)",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     const status = (err as { status?: number }).status;
     if (status === 400) {
       res.status(400).json({ error: "Set up your collab profile first — it takes 30 seconds. (Visual Buc refunded.)" });

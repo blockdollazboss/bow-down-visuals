@@ -5,7 +5,14 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 /* ─── Channel Audit ────────────────────────────────────────────────────────
    AI channel/content audit: the creator tells us about their channel (handle,
@@ -85,11 +92,15 @@ function outOfCreditsJson() {
   };
 }
 
-async function refundOnFailure(userId: string): Promise<void> {
+async function refundOnFailure(userId: string, idempotencyKey: string): Promise<void> {
   try {
     await refundCredits(userId, CHANNEL_AUDIT_CREDITS, {
       action: "Channel Audit — Refund (generation failed)",
     });
+    /* The refund landed — VOID the charge's idempotency key so a retry
+       charges fresh instead of being suppressed as a replay (which
+       would re-run the audit FREE). */
+    await voidChargeIdempotencyKey(idempotencyKey);
   } catch (refundErr) {
     logger.error({ err: refundErr, userId }, "[channel-audit] refund failed after generation error");
   }
@@ -220,6 +231,26 @@ router.post("/channel-audit", requireAuth, publicApiLimiter, async (req, res) =>
     return;
   }
 
+  /* Idempotency (CA-2): server-derived key on EVERY call — this rail's
+     schema accepts no client key, so the intent hash IS the key.
+     Intent = the request's defining inputs. */
+  const idempotencyKey = buildChargeIdempotencyKey("channel-audit", req.userId!, undefined, {
+    niche: parsed.data.niche,
+    handle: parsed.data.handle,
+    platform: parsed.data.platform,
+    bio: parsed.data.bio,
+    postsPerWeek: parsed.data.postsPerWeek,
+    recentPosts: parsed.data.recentPosts,
+  });
+
+  /* Stored-result pre-check BEFORE any funding: a replay under a landed
+     key is answered from the stored body — no charge, no provider call. */
+  const storedResult = await findStoredGenerationResult("channel-audit", idempotencyKey, req.userId!);
+  if (storedResult) {
+    res.json({ ...storedResult, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < CHANNEL_AUDIT_CREDITS) {
     res.status(402).json(outOfCreditsJson());
@@ -229,7 +260,7 @@ router.post("/channel-audit", requireAuth, publicApiLimiter, async (req, res) =>
   try {
     creditsRemaining = await chargeCredits(req.userId!, CHANNEL_AUDIT_CREDITS, {
       action: "Channel Audit",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json(outOfCreditsJson());
@@ -301,7 +332,7 @@ router.post("/channel-audit", requireAuth, publicApiLimiter, async (req, res) =>
     const audit = parseAuditJson(raw);
 
     if (!audit.usable) {
-      await refundOnFailure(req.userId!);
+      await refundOnFailure(req.userId!, idempotencyKey);
       logger.warn("[channel-audit] model returned unusable output — refunded");
       res.status(502).json({ error: "The audit came back empty — Visual Bucs refunded, try again." });
       return;
@@ -309,7 +340,7 @@ router.post("/channel-audit", requireAuth, publicApiLimiter, async (req, res) =>
 
     const { overallGrade, overallScore, verdict, disclaimer, dimensions, topPriorities } = audit;
 
-    res.json({
+    const body: Record<string, unknown> = {
       overallGrade,
       overallScore,
       verdict,
@@ -327,9 +358,13 @@ router.post("/channel-audit", requireAuth, publicApiLimiter, async (req, res) =>
       ],
       creditsUsed: CHANNEL_AUDIT_CREDITS,
       creditsRemaining,
-    });
+    };
+    /* Store BEFORE answering: a retry after this response is served
+       from the stored body. Fail-open inside the helper. */
+    await storeGenerationResult("channel-audit", idempotencyKey, req.userId!, body);
+    res.json(body);
   } catch (err) {
-    await refundOnFailure(req.userId!);
+    await refundOnFailure(req.userId!, idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[channel-audit] OpenAI rate limit / quota");
       res.status(503).json({ error: "The auditor is catching its breath — Visual Bucs refunded, try again in a moment." });
