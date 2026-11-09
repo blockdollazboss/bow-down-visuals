@@ -5,7 +5,17 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 const router = Router();
 
@@ -52,16 +62,31 @@ const aiCoachSchema = z.object({
 /* The charge lands BEFORE the model call; any failure after it refunds
    the exact charged amount (D5 sweep G9 — the refundOnFailure pattern
    from academy.ts). */
-async function refundOnFailure(userId: string, action: string): Promise<void> {
+async function refundOnFailure(
+  userId: string,
+  action: string,
+  idempotencyKey?: string,
+): Promise<void> {
+  let refunded = true;
   try {
     await refundCredits(userId, AI_COACH_CREDITS, {
       action: `${action} — Refund (generation failed)`,
     });
   } catch (refundErr) {
+    refunded = false;
     /* Logged inside refundCredits; don't mask the original failure. */
     void refundErr;
   }
+  /* CA-1: a landed refund VOIDS the charge's key so the retry charges
+     fresh instead of replay-suppressing into a free run. */
+  if (refunded && idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey);
+  }
 }
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const AI_COACH_REPLAY_NOTE =
+  "This is the coaching you already got for this request — change the posts or niche for a fresh session.";
 
 /* POST /api/ai-coach { platform, posts[], niche }
    → 200 { insights, patterns[], mistakes[], nextSteps[], creditsUsed, creditsRemaining }
@@ -78,6 +103,17 @@ router.post("/ai-coach", requireAuth, publicApiLimiter, async (req, res) => {
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "ai-coach", req.userId!, undefined,
+    { platform: parsed.data.platform, posts: parsed.data.posts, niche: parsed.data.niche },
+  );
+  const stored = await findStoredGenerationResult("ai-coach", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: AI_COACH_REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < AI_COACH_CREDITS) {
     res.status(402).json({
@@ -88,7 +124,7 @@ router.post("/ai-coach", requireAuth, publicApiLimiter, async (req, res) => {
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, AI_COACH_CREDITS, { action: "AI Performance Coach" });
+    creditsRemaining = await chargeCredits(req.userId!, AI_COACH_CREDITS, { action: "AI Performance Coach" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -192,16 +228,18 @@ router.post("/ai-coach", requireAuth, publicApiLimiter, async (req, res) => {
       throw new Error("Model returned no usable performance insights");
     }
 
-    res.json({
+    const resultBody = {
       insights,
       patterns,
       mistakes,
       nextSteps,
       creditsUsed: AI_COACH_CREDITS,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("ai-coach", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
-    await refundOnFailure(req.userId!, "AI Performance Coach");
+    await refundOnFailure(req.userId!, "AI Performance Coach", idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[ai-coach] OpenAI rate limit / quota");
       res.status(503).json({ error: "The coach is catching its breath — try again in a moment." });

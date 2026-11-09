@@ -69,6 +69,10 @@ vi.mock("../../lib/credits", () => ({
   }),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
+  /* CA-1: brand-kit derives a key per generation and voids it on the
+     refund path — inert stubs keep this suite on its own harness. */
+  buildChargeIdempotencyKey: (scope: string, userId: string) => `${scope}:${userId}:test-key`,
+  voidChargeIdempotencyKey: vi.fn(async () => true),
 }));
 
 vi.mock("../../lib/ai-clients", () => ({

@@ -5,7 +5,21 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const BRAND_DEALS_REPLAY_NOTE =
+  "This is the result you already got for this request — change the details for a fresh one.";
 
 const router = Router();
 
@@ -135,6 +149,7 @@ async function preCharge(
   cost: number,
   action: string,
   res: Response,
+  idempotencyKey: string,
 ): Promise<number | null> {
   const balance = req.userCredits ?? 0;
   if (balance < cost) {
@@ -142,7 +157,7 @@ async function preCharge(
     return null;
   }
   try {
-    return await chargeCredits(req.userId!, cost, { action });
+    return await chargeCredits(req.userId!, cost, { action }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to keep hunting." });
@@ -152,11 +167,17 @@ async function preCharge(
   }
 }
 
-async function refund(userId: string, cost: number, action: string) {
+async function refund(userId: string, cost: number, action: string, idempotencyKey?: string) {
+  let refunded = true;
   try {
     await refundCredits(userId, cost, { action: `${action} — Refund (generation failed)` });
   } catch (refundErr) {
+    refunded = false;
     void refundErr; // logged inside refundCredits; don't mask the original failure
+  }
+  /* CA-1: a landed refund VOIDS the charge's key so the retry charges fresh. */
+  if (refunded && idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey);
   }
 }
 
@@ -178,7 +199,18 @@ router.post("/brand-deals", requireAuth, publicApiLimiter, async (req, res) => {
     return;
   }
 
-  const creditsRemaining = await preCharge(req, BRAND_DEAL_CREDIT_COST, "Brand Deal Finder", res);
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding.
+     The scope/intent includes WHICH product (finder vs outreach). */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "brand-deals-finder", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("brand-deals-finder", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: BRAND_DEALS_REPLAY_NOTE });
+    return;
+  }
+
+  const creditsRemaining = await preCharge(req, BRAND_DEAL_CREDIT_COST, "Brand Deal Finder", res, idempotencyKey);
   if (creditsRemaining === null) return;
 
   const d = parsed.data;
@@ -229,7 +261,7 @@ router.post("/brand-deals", requireAuth, publicApiLimiter, async (req, res) => {
     const raw = completion.choices[0]?.message?.content ?? "";
     const deals = parseDeals(raw);
     if (deals.length === 0) {
-      await refund(req.userId!, BRAND_DEAL_CREDIT_COST, "Brand Deal Finder");
+      await refund(req.userId!, BRAND_DEAL_CREDIT_COST, "Brand Deal Finder", idempotencyKey);
       res.status(502).json({
         error: "generation_failed",
         message: "The scout came back empty — your Visual Bucs were refunded. Try broadening the filters.",
@@ -238,19 +270,21 @@ router.post("/brand-deals", requireAuth, publicApiLimiter, async (req, res) => {
     }
 
     /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
-    res.json({
+    const resultBody = {
       deals,
       disclaimer: VERIFY_DISCLAIMER,
       creditsUsed: BRAND_DEAL_CREDIT_COST,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("brand-deals-finder", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[brand-deals] OpenAI rate limit / quota");
       res.status(503).json({ error: "The scout is catching its breath — try again in a moment." });
       return;
     }
-    await refund(req.userId!, BRAND_DEAL_CREDIT_COST, "Brand Deal Finder");
+    await refund(req.userId!, BRAND_DEAL_CREDIT_COST, "Brand Deal Finder", idempotencyKey);
     logger.error({ err }, "[brand-deals] generation failed, Visual Bucs refunded");
     res.status(502).json({ error: "The scout hiccupped — Visual Bucs refunded, try again." });
   }
@@ -269,7 +303,17 @@ router.post("/brand-deals/outreach", requireAuth, publicApiLimiter, async (req, 
     return;
   }
 
-  const creditsRemaining = await preCharge(req, BRAND_DEAL_OUTREACH_CREDIT_COST, "Brand Deal Outreach", res);
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "brand-deals-outreach", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("brand-deals-outreach", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: BRAND_DEALS_REPLAY_NOTE });
+    return;
+  }
+
+  const creditsRemaining = await preCharge(req, BRAND_DEAL_OUTREACH_CREDIT_COST, "Brand Deal Outreach", res, idempotencyKey);
   if (creditsRemaining === null) return;
 
   try {
@@ -324,7 +368,7 @@ router.post("/brand-deals/outreach", requireAuth, publicApiLimiter, async (req, 
       /* fall through to the empty check below */
     }
     if (!outreach.subject || !outreach.message) {
-      await refund(req.userId!, BRAND_DEAL_OUTREACH_CREDIT_COST, "Brand Deal Outreach");
+      await refund(req.userId!, BRAND_DEAL_OUTREACH_CREDIT_COST, "Brand Deal Outreach", idempotencyKey);
       res.status(502).json({
         error: "generation_failed",
         message: "The draft came back unusable — your Visual Buc was refunded. Try again.",
@@ -333,14 +377,16 @@ router.post("/brand-deals/outreach", requireAuth, publicApiLimiter, async (req, 
     }
 
     /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
-    res.json({ outreach, tips, creditsUsed: BRAND_DEAL_OUTREACH_CREDIT_COST, creditsRemaining });
+    const resultBody = { outreach, tips, creditsUsed: BRAND_DEAL_OUTREACH_CREDIT_COST, creditsRemaining };
+    await storeGenerationResult("brand-deals-outreach", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[brand-deals/outreach] OpenAI rate limit / quota");
       res.status(503).json({ error: "The writer is catching its breath — try again in a moment." });
       return;
     }
-    await refund(req.userId!, BRAND_DEAL_OUTREACH_CREDIT_COST, "Brand Deal Outreach");
+    await refund(req.userId!, BRAND_DEAL_OUTREACH_CREDIT_COST, "Brand Deal Outreach", idempotencyKey);
     logger.error({ err }, "[brand-deals/outreach] generation failed, Visual Bucs refunded");
     res.status(502).json({ error: "The writer hiccupped — Visual Buc refunded, try again." });
   }

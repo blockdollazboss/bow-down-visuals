@@ -1,8 +1,22 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { getTextModel } from "../../lib/ai-clients";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const AI_COPILOT_REPLAY_NOTE =
+  "This is the analysis you already got for this timeline — change the timeline for a fresh one.";
 
 const router = Router();
 
@@ -92,6 +106,16 @@ router.post("/analyze", requireAuth, async (req, res) => {
   }
   const input = parsed.data;
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "ai-copilot", req.userId!, undefined, input,
+  );
+  const stored = await findStoredGenerationResult("ai-copilot", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: AI_COPILOT_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < COPILOT_COST) {
     res.status(402).json({
@@ -112,7 +136,7 @@ router.post("/analyze", requireAuth, async (req, res) => {
   }
 
   try {
-    await chargeCredits(req.userId!, COPILOT_COST, { action: "AI Copilot analysis" });
+    await chargeCredits(req.userId!, COPILOT_COST, { action: "AI Copilot analysis" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -203,16 +227,24 @@ router.post("/analyze", requireAuth, async (req, res) => {
       }];
     }
 
-    res.json({ suggestions, creditsCharged: COPILOT_COST });
+    const resultBody = { suggestions, creditsCharged: COPILOT_COST };
+    await storeGenerationResult("ai-copilot", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     /* Everything in this try runs AFTER the charge — refund the exact
-       charged amount on any failure (D5 sweep G14). */
+       charged amount on any failure (D5 sweep G14). CA-1: a landed
+       refund VOIDS the key so the retry charges fresh. */
+    let refunded = true;
     try {
       await refundCredits(req.userId!, COPILOT_COST, {
         action: "AI Copilot analysis — Refund (analysis failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       console.error("[ai-copilot] CRITICAL: refund failed after analysis failure:", refundErr);
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
     }
     console.error("[ai-copilot] analyze failed:", err);
     res.status(500).json({ error: "analysis_failed", message: "Copilot analysis failed. Try again." });

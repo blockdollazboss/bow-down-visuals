@@ -7,7 +7,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const BEAT_SYNC_REPLAY_NOTE =
+  "This is the beat-synced video you already made for this request — change the video, audio, or transition for a fresh one.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -175,6 +189,16 @@ router.post("/beat-sync", requireAuth, async (req, res) => {
 
   const { videoUrl, audioUrl, transition, sensitivity, maxCuts } = parsed.data;
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "beat-sync", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("beat-sync", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: BEAT_SYNC_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < BEAT_SYNC_COST) {
     res.status(402).json({
@@ -188,7 +212,7 @@ router.post("/beat-sync", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, BEAT_SYNC_COST, {
       action: "Beat Sync Editor",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -321,7 +345,7 @@ router.post("/beat-sync", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const resultBody = {
       url,
       storageRef,
       beatsDetected: beats.length,
@@ -331,13 +355,16 @@ router.post("/beat-sync", requireAuth, async (req, res) => {
       transition,
       duration: Number(outDur.toFixed(2)),
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("beat-sync", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Beat sync failed.";
     req.log.error({ err: message }, "[beat-sync] failed");
+    /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
     await refundCredits(req.userId!, BEAT_SYNC_COST, {
       action: "Beat Sync Editor — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     await unlink(videoPath).catch(() => {});

@@ -7,7 +7,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const AUDIOGRAM_REPLAY_NOTE =
+  "This is the audiogram you already made for this request — change the audio, cover, or style for a fresh one.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -152,6 +166,16 @@ router.post("/audiogram", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "audiogram", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("audiogram", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: AUDIOGRAM_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < AUDIOGRAM_COST) {
     res.status(402).json({
@@ -165,7 +189,7 @@ router.post("/audiogram", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, AUDIOGRAM_COST, {
       action: "Podcast Audiogram",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -226,20 +250,23 @@ router.post("/audiogram", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const resultBody = {
       url,
       storageRef,
       waveColor: parsed.data.waveColor,
       style: parsed.data.style,
       attribution: parsed.data.attribution,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("audiogram", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Audiogram generation failed.";
     req.log.error({ err: message }, "[audiogram] failed");
+    /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
     await refundCredits(req.userId!, AUDIOGRAM_COST, {
       action: "Podcast Audiogram — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     await unlink(audioPath).catch(() => {});

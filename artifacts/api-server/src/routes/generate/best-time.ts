@@ -1,7 +1,21 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const BEST_TIME_REPLAY_NOTE =
+  "These are the posting times you already got for this request — change the platforms, niche, or timezone for fresh ones.";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { logger } from "../../lib/logger";
 
@@ -414,6 +428,19 @@ router.post("/best-time", requireAuth, async (req, res) => {
   }
   const { platforms, niche, timezone, analytics } = parsed.data;
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding.
+     The slot math is time-relative (next-7-days windows), so the stored
+     body replays only an identical re-ask of the same request — the
+     honest duplicate-suppression this rail was missing. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "best-time", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("best-time", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: BEST_TIME_REPLAY_NOTE });
+    return;
+  }
+
   /* 402 pre-check */
   const balance = req.userCredits ?? 0;
   if (balance < BEST_TIME_CREDIT_COST) {
@@ -426,7 +453,7 @@ router.post("/best-time", requireAuth, async (req, res) => {
 
   /* charge */
   try {
-    await chargeCredits(req.userId!, BEST_TIME_CREDIT_COST, { action: "Best Time to Post" });
+    await chargeCredits(req.userId!, BEST_TIME_CREDIT_COST, { action: "Best Time to Post" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs for best-time optimization." });
@@ -436,10 +463,16 @@ router.post("/best-time", requireAuth, async (req, res) => {
   }
 
   const refund = async () => {
+    let refunded = true;
     try {
       await refundCredits(req.userId!, BEST_TIME_CREDIT_COST, { action: "Best Time to Post Refund" });
     } catch (refundErr) {
+      refunded = false;
       logger.error({ err: refundErr, userId: req.userId }, "[best-time] FAILED to refund best-time credits");
+    }
+    /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
     }
   };
 
@@ -449,7 +482,7 @@ router.post("/best-time", requireAuth, async (req, res) => {
     const { heatmap, slots } = buildScoredCells(platforms, timezone, niche, analytics, nicheWindows);
     const usedHistory = analytics.length > 0 && slots.some((s) => s.source === "personalized");
 
-    res.json({
+    const resultBody = {
       slots,
       heatmap,
       platforms,
@@ -459,7 +492,9 @@ router.post("/best-time", requireAuth, async (req, res) => {
       aiNicheTuning: nicheWindows.length > 0,
       benchmarkNote: BENCHMARK_NOTE,
       creditsUsed: BEST_TIME_CREDIT_COST,
-    });
+    };
+    await storeGenerationResult("best-time", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     await refund();
     logger.error({ err, userId: req.userId }, "[best-time] optimization failed");

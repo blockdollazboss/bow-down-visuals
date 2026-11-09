@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
@@ -7,7 +7,22 @@ import { promisify } from "util";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const AUDIO_CLEANUP_REPLAY_NOTE =
+  "This is the cleanup job you already started for this audio — it's the same job, not a new charge.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -142,6 +157,9 @@ interface AudioCleanupJob {
   sourceSongId: string | null;
   /** Library row recorded for the finished output (DE-6 round-trip). */
   librarySongId: string | null;
+  /** CA-1: the charge's idempotency key — the async job-failure refund
+   *  VOIDS it so a retry after a failed job charges fresh. */
+  idempotencyKey: string | null;
 }
 
 const jobs = new Map<string, AudioCleanupJob>();
@@ -219,13 +237,20 @@ async function runAudioCleanupJob(
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Audio cleanup failed";
     // Refund: the user paid for an output they didn't get.
+    let refunded = true;
     try {
       await refundCredits(job.userId, job.creditsCharged, {
         action: "Audio Cleanup — Refund (job failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       // Logged inside refundCredits; don't mask the original failure.
       void refundErr;
+    }
+    /* CA-1: a landed refund VOIDS the charge's key so the retry charges
+       fresh instead of replay-suppressing into a free run. */
+    if (refunded && job.idempotencyKey) {
+      await voidChargeIdempotencyKey(job.idempotencyKey);
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
@@ -262,6 +287,51 @@ router.post("/audio-cleanup", requireAuth, upload.single("audio"), async (req: R
     return;
   }
 
+  /* CA-1 (Pattern B): the charge's defining input is the uploaded audio
+     itself — hash its bytes so the same file + mode maps to the same
+     key. A stored result means this exact cleanup was already charged
+     and its job minted: answer with the ORIGINAL job body, no second
+     charge, no second job. */
+  let fileHash = "";
+  try {
+    const fileBytes = await fs.readFile(req.file.path);
+    fileHash = createHash("sha256").update(fileBytes).digest("hex");
+  } catch {
+    fileHash = "";
+  }
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "audio-cleanup", req.userId!, undefined,
+    {
+      fileHash,
+      mode,
+      sourceSongId: parsed.data.sourceSongId ?? null,
+      originalName: req.file.originalname,
+    },
+  );
+  const stored = await findStoredGenerationResult("audio-cleanup", idempotencyKey, req.userId!);
+  const storedJob = stored && typeof stored["jobId"] === "string" ? jobs.get(stored["jobId"]) : undefined;
+  const storedIsFailedTombstone = !!storedJob && storedJob.userId === req.userId && storedJob.status === "failed";
+  if (stored && !storedIsFailedTombstone) {
+    if (storedJob && storedJob.userId === req.userId) {
+      res.status(202).json({ ...stored, replayed: true, replayNote: AUDIO_CLEANUP_REPLAY_NOTE });
+    } else {
+      /* The job already left the in-memory map (finished + TTL-evicted);
+         its result is still polled from library/storage — answer with
+         the original job id honestly marked done. */
+      res.status(202).json({
+        ...stored,
+        status: "done",
+        replayed: true,
+        replayNote: AUDIO_CLEANUP_REPLAY_NOTE,
+      });
+    }
+    return;
+  }
+  /* storedIsFailedTombstone: the stored job FAILED and its charge was
+     refunded + key voided (see runAudioCleanupJob) — the stored body is
+     a tombstone, not a result; fall through and mint a fresh job on a
+     fresh charge. */
+
   const balance = req.userCredits ?? 0;
   if (balance < AUDIO_CLEANUP_CREDIT_COST) {
     res.status(402).json({
@@ -275,7 +345,7 @@ router.post("/audio-cleanup", requireAuth, upload.single("audio"), async (req: R
   try {
     creditsRemaining = await chargeCredits(req.userId!, AUDIO_CLEANUP_CREDIT_COST, {
       action: `Audio Cleanup (${MODE_LABELS[mode]})`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -305,19 +375,24 @@ router.post("/audio-cleanup", requireAuth, upload.single("audio"), async (req: R
     createdAt: Date.now(),
     sourceSongId: parsed.data.sourceSongId ?? null,
     librarySongId: null,
+    idempotencyKey,
   };
   jobs.set(job.id, job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
   void runAudioCleanupJob(job, req.file.path, req.file.originalname);
 
-  res.status(202).json({
+  const resultBody = {
     jobId: job.id,
     status: job.status,
     mode: job.mode,
     creditsCharged: AUDIO_CLEANUP_CREDIT_COST,
     creditsRemaining,
-  });
+  };
+  /* CA-1: store the minted job's body under the key BEFORE answering so
+     a duplicate POST replays this same job instead of charging again. */
+  await storeGenerationResult("audio-cleanup", idempotencyKey, req.userId!, resultBody);
+  res.status(202).json(resultBody);
 });
 
 /**

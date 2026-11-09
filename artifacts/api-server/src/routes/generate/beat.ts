@@ -2,7 +2,22 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const BEAT_REPLAY_NOTE =
+  "This is the beat you already made for this request — change the vibe or settings for a fresh one.";
 import { r2Upload, r2PublicUrl } from "../../lib/r2-client";
 
 const router = Router();
@@ -83,6 +98,26 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding.
+     Intent uses the same clamped values the provider call is built from,
+     so two requests that would generate the same beat share one key. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "beat-generate", req.userId!, undefined,
+    {
+      vibe: vibe.trim(),
+      genre: genre ?? null,
+      bpm: clampBpm(bpm),
+      musicalKey: musicalKey ?? null,
+      lengthMs: clampLengthMs(lengthSeconds),
+      beatTitle: beatTitle ?? null,
+    },
+  );
+  const stored = await findStoredGenerationResult("beat-generate", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: BEAT_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   const isDev = process.env["NODE_ENV"] === "development";
   if (!isDev && currentCredits < CREDIT_COST) {
@@ -102,7 +137,7 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
      the first charge failed. Same price, same action name. */
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Generate Beat" });
+    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Generate Beat" }, { idempotencyKey });
   } catch (deductErr) {
     if (deductErr instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -122,7 +157,10 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    await refundCredits(req.userId!, CREDIT_COST, { action: "Generate Beat — Refund" }).catch(() => {});
+    /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
+    await refundCredits(req.userId!, CREDIT_COST, { action: "Generate Beat — Refund" })
+      .then(() => voidChargeIdempotencyKey(idempotencyKey))
+      .catch(() => {});
   };
 
   const prompt = buildBeatPrompt({
@@ -194,13 +232,15 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
     // Step 3: Fire-and-forget — mark charged + log usage
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
-    res.json({
+    const resultBody = {
       url: beatUrl,
       storagePath: path,
       durationMs: musicLengthMs,
       creditsRemaining: creditsAfter,
       genHistoryId,
-    });
+    };
+    await storeGenerationResult("beat-generate", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     req.log.error({ err }, "beat/generate: unexpected error");

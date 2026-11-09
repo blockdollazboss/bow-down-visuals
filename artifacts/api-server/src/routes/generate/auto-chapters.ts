@@ -5,7 +5,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { transcribeAudioTimed } from "../../lib/transcription";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const AUTO_CHAPTERS_REPLAY_NOTE =
+  "These are the chapters you already got for this request — change the transcript or audio for fresh ones.";
 import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 
 const router = Router();
@@ -272,6 +286,16 @@ router.post("/auto-chapters", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "auto-chapters", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("auto-chapters", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: AUTO_CHAPTERS_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < AUTO_CHAPTERS_COST) {
     res.status(402).json({
@@ -285,7 +309,7 @@ router.post("/auto-chapters", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, AUTO_CHAPTERS_COST, {
       action: "Auto Chapters",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -325,16 +349,19 @@ router.post("/auto-chapters", requireAuth, async (req, res) => {
       }
     }
 
-    res.json({
+    const resultBody = {
       chapters,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("auto-chapters", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Auto chapter generation failed.";
     req.log.error({ err: message }, "[auto-chapters] failed");
+    /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
     await refundCredits(req.userId!, AUTO_CHAPTERS_COST, {
       action: "Auto Chapters — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   }
 });

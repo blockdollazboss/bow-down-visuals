@@ -1,7 +1,21 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const BG_MUSIC_REPLAY_NOTE =
+  "This is the background music you already made for this request — change the mood, genre, or length for a fresh one.";
 
 const router = Router();
 
@@ -45,6 +59,16 @@ router.post("/bg-music", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "bg-music", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("bg-music", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: BG_MUSIC_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < BG_MUSIC_COST) {
     res.status(402).json({
@@ -58,7 +82,7 @@ router.post("/bg-music", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, BG_MUSIC_COST, {
       action: "Background Music",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -101,19 +125,22 @@ router.post("/bg-music", requireAuth, async (req, res) => {
     const url = musicData.url || musicData.audioUrl;
     if (!url) throw new Error("No audio URL returned.");
 
-    res.json({
+    const resultBody = {
       url,
       mood,
       genre,
       durationSec,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("bg-music", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Background music generation failed.";
     req.log.error({ err: message }, "[bg-music] failed");
+    /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
     await refundCredits(req.userId!, BG_MUSIC_COST, {
       action: "Background Music — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   }
 });

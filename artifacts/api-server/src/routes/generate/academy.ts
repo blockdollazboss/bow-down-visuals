@@ -9,12 +9,26 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   ACADEMY_COURSES,
   getAcademyCourse,
   getAcademyLesson,
 } from "../../lib/academy-courses";
+
+/* CA-1 in-flight twin join (bg-generate pattern): two identical asks
+   landing at the same moment share ONE charge and ONE provider run —
+   the second waits for the first's stored body and answers it as a
+   replay; if the first failed (refunded + key voided) the waiter
+   falls through and runs fresh. Process-local by design: the durable
+   stored-result pre-check above covers cross-process replays. */
+const inFlightAsks = new Map<string, Promise<Record<string, unknown> | null>>();
 
 const router = Router();
 
@@ -40,16 +54,34 @@ function outOfCreditsJson() {
   };
 }
 
-async function refundOnFailure(userId: string, action: string): Promise<void> {
+async function refundOnFailure(
+  userId: string,
+  action: string,
+  idempotencyKey?: string,
+): Promise<void> {
+  let refunded = true;
   try {
     await refundCredits(userId, ACADEMY_CREDIT_COST, {
       action: `${action} — Refund (generation failed)`,
     });
   } catch (refundErr) {
+    refunded = false;
     /* Logged inside refundCredits; don't mask the original failure. */
     void refundErr;
   }
+  /* CA-1: a landed refund VOIDS the charge's key — otherwise the
+     refunded attempt still reads as "already charged" and its retry
+     is suppressed as a replay, generating free (Lane V3 F1 leak). */
+  if (refunded && idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey);
+  }
 }
+
+/* CA-1 replay note (CA-KEY wording pattern): identical asks are the
+   same purchase by construction of the server-derived key, so a
+   replay is served the stored result and told so, never re-charged. */
+const ACADEMY_REPLAY_NOTE =
+  "This is the result you already made for this request — tweak the words for a fresh one.";
 
 /* ─── POST /api/academy/learning-path ────────────────────────────────────
    AI learning path generator: goals + niche + level + platforms → a
@@ -73,6 +105,19 @@ router.post("/academy/learning-path", requireAuth, publicApiLimiter, async (req,
     return;
   }
 
+  const { goals, niche, level, platforms, hoursPerWeek } = parsed.data;
+
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "academy-learning-path", req.userId!, undefined,
+    { goals, niche, level, platforms, hoursPerWeek },
+  );
+  const stored = await findStoredGenerationResult("academy-learning-path", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: ACADEMY_REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < ACADEMY_CREDIT_COST) {
     res.status(402).json(outOfCreditsJson());
@@ -82,7 +127,7 @@ router.post("/academy/learning-path", requireAuth, publicApiLimiter, async (req,
   try {
     creditsRemaining = await chargeCredits(req.userId!, ACADEMY_CREDIT_COST, {
       action: "Academy Learning Path",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json(outOfCreditsJson());
@@ -90,8 +135,6 @@ router.post("/academy/learning-path", requireAuth, publicApiLimiter, async (req,
     }
     throw err;
   }
-
-  const { goals, niche, level, platforms, hoursPerWeek } = parsed.data;
   const catalog = ACADEMY_COURSES.map(
     (c) => `- ${c.id}: "${c.title}" (${c.level}, ${c.duration}) — ${c.tagline}`,
   ).join("\n");
@@ -172,9 +215,11 @@ router.post("/academy/learning-path", requireAuth, publicApiLimiter, async (req,
       throw new Error("Model returned no usable learning path");
     }
 
-    res.json({ path, weeklyPlan, firstStep, creditsUsed: ACADEMY_CREDIT_COST, creditsRemaining });
+    const resultBody = { path, weeklyPlan, firstStep, creditsUsed: ACADEMY_CREDIT_COST, creditsRemaining };
+    await storeGenerationResult("academy-learning-path", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
-    await refundOnFailure(req.userId!, "Academy Learning Path");
+    await refundOnFailure(req.userId!, "Academy Learning Path", idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[academy] OpenAI rate limit / quota");
       res.status(503).json({ error: "The academy is catching its breath — try again in a moment." });
@@ -210,8 +255,35 @@ router.post("/academy/ask", requireAuth, publicApiLimiter, async (req, res) => {
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "academy-ask", req.userId!, undefined,
+    { courseId: parsed.data.courseId, question: parsed.data.question },
+  );
+  const stored = await findStoredGenerationResult("academy-ask", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: ACADEMY_REPLAY_NOTE });
+    return;
+  }
+
+  /* Twin join: an identical ask already in flight shares its run. */
+  const pendingAsk = inFlightAsks.get(idempotencyKey);
+  if (pendingAsk) {
+    const twinBody = await pendingAsk.catch(() => null);
+    if (twinBody) {
+      res.json({ ...twinBody, replayed: true, replayNote: ACADEMY_REPLAY_NOTE });
+      return;
+    }
+    /* The twin failed (refunded + key voided) — run this ask fresh. */
+  }
+  let settleAsk!: (body: Record<string, unknown> | null) => void;
+  const askRun = new Promise<Record<string, unknown> | null>((resolve) => { settleAsk = resolve; });
+  inFlightAsks.set(idempotencyKey, askRun);
+
   const balance = req.userCredits ?? 0;
   if (balance < ACADEMY_CREDIT_COST) {
+    inFlightAsks.delete(idempotencyKey);
+    settleAsk(null);
     res.status(402).json(outOfCreditsJson());
     return;
   }
@@ -219,8 +291,10 @@ router.post("/academy/ask", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     creditsRemaining = await chargeCredits(req.userId!, ACADEMY_CREDIT_COST, {
       action: "Academy Ask the Coach",
-    });
+    }, { idempotencyKey });
   } catch (err) {
+    inFlightAsks.delete(idempotencyKey);
+    settleAsk(null);
     if (err instanceof OutOfCreditsError) {
       res.status(402).json(outOfCreditsJson());
       return;
@@ -267,14 +341,20 @@ router.post("/academy/ask", requireAuth, publicApiLimiter, async (req, res) => {
       throw new Error("Model returned no usable answer");
     }
 
-    res.json({
+    const resultBody = {
       answer,
       courseTitle: course.title,
       creditsUsed: ACADEMY_CREDIT_COST,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("academy-ask", idempotencyKey, req.userId!, resultBody);
+    inFlightAsks.delete(idempotencyKey);
+    settleAsk(resultBody);
+    res.json(resultBody);
   } catch (err) {
-    await refundOnFailure(req.userId!, "Academy Ask the Coach");
+    inFlightAsks.delete(idempotencyKey);
+    settleAsk(null);
+    await refundOnFailure(req.userId!, "Academy Ask the Coach", idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[academy] OpenAI rate limit / quota");
       res.status(503).json({ error: "The coach is catching its breath — try again in a moment." });
@@ -314,6 +394,17 @@ router.post("/academy/lesson", requireAuth, publicApiLimiter, async (req, res) =
   }
   const { course, lesson } = found;
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "academy-lesson", req.userId!, undefined,
+    { courseId: parsed.data.courseId, lessonId: parsed.data.lessonId },
+  );
+  const stored = await findStoredGenerationResult("academy-lesson", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: ACADEMY_REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < ACADEMY_CREDIT_COST) {
     res.status(402).json(outOfCreditsJson());
@@ -323,7 +414,7 @@ router.post("/academy/lesson", requireAuth, publicApiLimiter, async (req, res) =
   try {
     creditsRemaining = await chargeCredits(req.userId!, ACADEMY_CREDIT_COST, {
       action: "Academy Lesson",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json(outOfCreditsJson());
@@ -394,7 +485,7 @@ router.post("/academy/lesson", requireAuth, publicApiLimiter, async (req, res) =
       throw new Error("Model returned no usable lesson");
     }
 
-    res.json({
+    const resultBody = {
       lesson: {
         courseId: course.id,
         courseTitle: course.title,
@@ -407,9 +498,11 @@ router.post("/academy/lesson", requireAuth, publicApiLimiter, async (req, res) =
       },
       creditsUsed: ACADEMY_CREDIT_COST,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("academy-lesson", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
-    await refundOnFailure(req.userId!, "Academy Lesson");
+    await refundOnFailure(req.userId!, "Academy Lesson", idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[academy] OpenAI rate limit / quota");
       res.status(503).json({ error: "The academy is catching its breath — try again in a moment." });
