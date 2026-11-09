@@ -361,6 +361,9 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
     "splitScreen.modeSimple",
   ],
   W3: [
+    // Stack 400 scene packs — English-verbatim UNREVIEWED until real translations land
+    "photoShoot.scenePacks.packs.desertMirage.name", "photoShoot.scenePacks.packs.desertMirage.blurb",
+    "photoShoot.scenePacks.packs.galleryOpening.name", "photoShoot.scenePacks.packs.galleryOpening.blurb",
     // brand currency / placeholder-only / punctuation
     "headshotStudio.visualBucs", "makeVideo.priceBadge", "makeVideo.unknownStep",
     "makeVideo.refundedNoticeSuffix", "songAndVideo.costBadge", "harmony.buttonCost",

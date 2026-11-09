@@ -14900,6 +14900,14 @@
         "studioNoir": {
           "blurb": "Stimmungsvolles Schwarz-Studio-Porträt — der eine für dein Profilbild und Stream-Branding.",
           "name": "Studio Noir"
+        },
+        "desertMirage": {
+          "name": "Desert Mirage",
+          "blurb": "Golden-dunes editorial — full-body heat-haze shot, made for the album campaign."
+        },
+        "galleryOpening": {
+          "name": "Gallery Opening",
+          "blurb": "White-wall gallery portrait — clean, cultured, press-ready."
         }
       },
       "tags": {

@@ -14799,6 +14799,14 @@
         "palaceThrone": {
           "name": "Palace Throne",
           "blurb": "Full Bow Down royalty — throne, gold hall, god-rays. The hero-branding shot."
+        },
+        "desertMirage": {
+          "name": "Desert Mirage",
+          "blurb": "Golden-dunes editorial — full-body heat-haze shot, made for the album campaign."
+        },
+        "galleryOpening": {
+          "name": "Gallery Opening",
+          "blurb": "White-wall gallery portrait — clean, cultured, press-ready."
         }
       },
       "tags": {

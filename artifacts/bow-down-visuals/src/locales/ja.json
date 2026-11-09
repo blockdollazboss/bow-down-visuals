@@ -14704,6 +14704,14 @@
         "palaceThrone": {
           "name": "宮殿の玉座",
           "blurb": "完全なBow Downの王族 — 玉座、金のホール、神の光線。ヒーローブランディングのショット。"
+        },
+        "desertMirage": {
+          "name": "Desert Mirage",
+          "blurb": "Golden-dunes editorial — full-body heat-haze shot, made for the album campaign."
+        },
+        "galleryOpening": {
+          "name": "Gallery Opening",
+          "blurb": "White-wall gallery portrait — clean, cultured, press-ready."
         }
       },
       "tags": {

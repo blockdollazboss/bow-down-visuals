@@ -15245,6 +15245,14 @@
         "palaceThrone": {
           "name": "Trono del palacio",
           "blurb": "Realeza total de Bow Down: trono, salón dorado, rayos de luz. La toma de marca heroica."
+        },
+        "desertMirage": {
+          "name": "Desert Mirage",
+          "blurb": "Golden-dunes editorial — full-body heat-haze shot, made for the album campaign."
+        },
+        "galleryOpening": {
+          "name": "Gallery Opening",
+          "blurb": "White-wall gallery portrait — clean, cultured, press-ready."
         }
       },
       "tags": {

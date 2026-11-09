@@ -14708,6 +14708,14 @@
         "palaceThrone": {
           "name": "궁전 왕좌",
           "blurb": "완전한 Bow Down 로열티 — 왕좌, 금 홀, 신의 광선. 히어로 브랜딩 샷."
+        },
+        "desertMirage": {
+          "name": "Desert Mirage",
+          "blurb": "Golden-dunes editorial — full-body heat-haze shot, made for the album campaign."
+        },
+        "galleryOpening": {
+          "name": "Gallery Opening",
+          "blurb": "White-wall gallery portrait — clean, cultured, press-ready."
         }
       },
       "tags": {

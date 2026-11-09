@@ -76,9 +76,9 @@ describe("photoShoot scene packs point at keys that exist in every catalog", () 
   const nameKeys = [...dataSrc.matchAll(/nameKey:\s*"([^"]+)"/g)].map((m) => m[1]!);
   const blurbKeys = [...dataSrc.matchAll(/blurbKey:\s*"([^"]+)"/g)].map((m) => m[1]!);
 
-  it("the data file declares 5 packs, each with a name and blurb key", () => {
-    expect(nameKeys).toHaveLength(5);
-    expect(blurbKeys).toHaveLength(5);
+  it("the data file declares 7 packs, each with a name and blurb key (5 original + Stack 400's desert-mirage / gallery-opening, English-verbatim UNREVIEWED in the non-en catalogs)", () => {
+    expect(nameKeys).toHaveLength(7);
+    expect(blurbKeys).toHaveLength(7);
   });
 
   it("no key points at the retired photoShoot.packs.* path", () => {

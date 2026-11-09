@@ -15062,6 +15062,14 @@
         "palaceThrone": {
           "name": "पैलेस थ्रोन",
           "blurb": "पूर्ण Bow Down रॉयल्टी — सिंहासन, सोने का हॉल, गॉड-रे। हीरो-ब्रांडिंग शॉट।"
+        },
+        "desertMirage": {
+          "name": "Desert Mirage",
+          "blurb": "Golden-dunes editorial — full-body heat-haze shot, made for the album campaign."
+        },
+        "galleryOpening": {
+          "name": "Gallery Opening",
+          "blurb": "White-wall gallery portrait — clean, cultured, press-ready."
         }
       },
       "tags": {

@@ -14729,6 +14729,14 @@
         "studioNoir": {
           "blurb": "Retrato sombrio de estúdio preto — aquele para sua foto de perfil e identidade de stream.",
           "name": "Estúdio Noir"
+        },
+        "desertMirage": {
+          "name": "Desert Mirage",
+          "blurb": "Golden-dunes editorial — full-body heat-haze shot, made for the album campaign."
+        },
+        "galleryOpening": {
+          "name": "Gallery Opening",
+          "blurb": "White-wall gallery portrait — clean, cultured, press-ready."
         }
       },
       "tags": {

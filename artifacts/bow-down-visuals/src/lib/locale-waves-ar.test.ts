@@ -340,6 +340,10 @@ const W3_NS = [
   "deverb", "fillerRemover", "lrcExport", "mastering", "samples",
 ];
 const W3_ALLOW = new Set([
+  "photoShoot.scenePacks.packs.desertMirage.name",
+  "photoShoot.scenePacks.packs.desertMirage.blurb",
+  "photoShoot.scenePacks.packs.galleryOpening.name",
+  "photoShoot.scenePacks.packs.galleryOpening.blurb",
   "captionStyler.styles.hormozi.label",
   "harmony.buttonCost",
   "harmony.partsLine",

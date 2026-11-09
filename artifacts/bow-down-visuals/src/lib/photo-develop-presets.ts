@@ -148,6 +148,19 @@ export const PHOTO_DEVELOP_PRESETS: readonly PhotoDevelopPreset[] = [
     ["#7fb0e8", "#0a1626"],
     { exposure: -0.55, brightness: -4, contrast: 20, temperature: -62, hue: 6, saturation: -6, lightness: -6 },
   ),
+  /* ── Stack 400 upgrade wave: the rose region. Every warm grade on
+     the shelf is gold, amber, dusk or neutral — none of the eleven
+     pushes pink. rose-film is the rose grade: warm temperature with
+     a rose hue lean and the color kept ALIVE (positive saturation —
+     where warm-film fades below zero), contrast just softened the
+     film way. ── */
+  look(
+    "rose-film",
+    "Rose Film",
+    "Warm rose film — pink-kissed light, soft color, a dreamy glow.",
+    ["#f4a7b9", "#7a2e3f"],
+    { exposure: 0.2, brightness: 6, contrast: -8, temperature: 24, hue: -8, saturation: 14, lightness: 6 },
+  ),
 ];
 
 export function photoDevelopPresetById(id: string): PhotoDevelopPreset | null {

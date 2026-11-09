@@ -383,6 +383,10 @@ const W2_LEGIT: ReadonlySet<string> = new Set([
 
 const W3_NAMESPACES = ["avatarPresenter", "bgStudio", "captionStyler", "captionTemplates", "cartoonStudio", "clipMaker", "colorGrade", "deverb", "fillerRemover", "harmony", "headshotStudio", "logoMaker", "lrcExport", "makeVideo", "mixMaster", "photoEnhance", "photoShoot", "songAndVideo", "speedRamp", "thumbnail", "thumbnailMaker", "thumbnailStudio", "thumbnailTest", "thumbnails", "upscale", "videoTemplatesPage", "watermarkRemoval"] as const;
 const W3_LEGIT: ReadonlySet<string> = new Set([
+  "photoShoot.scenePacks.packs.desertMirage.name",
+  "photoShoot.scenePacks.packs.desertMirage.blurb",
+  "photoShoot.scenePacks.packs.galleryOpening.name",
+  "photoShoot.scenePacks.packs.galleryOpening.blurb",
   "avatarPresenter.avatarLabel",
   "captionStyler.positionLabel",
   "captionStyler.styles.hormozi.label",
