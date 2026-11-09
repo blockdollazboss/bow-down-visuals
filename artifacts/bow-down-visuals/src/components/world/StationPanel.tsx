@@ -1229,6 +1229,46 @@ export default function StationPanel(props: StationPanelProps) {
                   <PanelBoundary isLight={isLight} resetKey={`${station.id}:avatar-presenter`}><DeskDoor isLight={isLight}>
                     <AvatarPresenterBench isLight={isLight} />
                   </DeskDoor></PanelBoundary>
+{/* Wave9 editor family (Stack 400 world
+                      parity, census B-18): Beat-Sync Cuts —
+                      beat markers on the section's own rail,
+                      native under the Video Desk. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-beats`}><DeskDoor isLight={isLight}>
+                    <Wave9BeatsBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 editor family (Stack 400, B-18):
+                      Timeline Edit Recipes — compiled edit
+                      plans on the section's own rail. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-templates`}><DeskDoor isLight={isLight}>
+                    <Wave9TemplatesBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 editor family (Stack 400, B-18):
+                      Background Replace — the delivery charge
+                      on the section's own rail (the composite
+                      itself runs free on-device in the editor). */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-bg`}><DeskDoor isLight={isLight}>
+                    <Wave9BgChargeBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 direct family (Stack 400, B-18):
+                      Voice-Directed Edits — the planned op
+                      list on the section's own rail. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-direct`}><DeskDoor isLight={isLight}>
+                    <Wave9DirectBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 director family (Stack 400, B-18):
+                      the Director's Camera Deck — stacked
+                      moves woven into a scene prompt on the
+                      planner's own rail. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-camera`}><DeskDoor isLight={isLight}>
+                    <Wave9CameraBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Wave9 director family (Stack 400, B-18):
+                      the Character Director — per-shot
+                      generation prompts on the director's own
+                      rail. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-director`}><DeskDoor isLight={isLight}>
+                    <Wave9DirectorBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
                 </div>
               ) : station.id === "hook-desk" ? (
                 <div className="flex flex-col gap-6">
@@ -1298,6 +1338,25 @@ export default function StationPanel(props: StationPanelProps) {
                   <PanelBoundary isLight={isLight} resetKey={`${station.id}:diagnostics`}><DeskDoor isLight={isLight}>
                     <DiagnosticsBenches isLight={isLight} />
                   </DeskDoor></PanelBoundary>
+{/* Hook Rewriter (Stack 400 world parity,
+                      census B-19): the Wave8 single on
+                      /api/wave8/hook-rewriter/rewrite at the
+                      registry's 50 Bucs, native under the Hook
+                      Desk it belongs to. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave8-hook-rewriter`}><DeskDoor isLight={isLight}>
+                    <HookRewriterBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Styled Caption Burn-in (Stack 400 world
+                      parity, census B-19): the Wave8 transcript
+                      timing rail /api/wave8/caption-styler/burn
+                      at the registry's 100 Bucs — NOT the
+                      Caption Styler bench's /api/caption-styler
+                      video job (300) stacked above; the two
+                      caption rails sit side by side here, each
+                      on its own price. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave8-caption-burn`}><DeskDoor isLight={isLight}>
+                    <CaptionBurnBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
                 </div>
               ) : station.id === "song-desk" ? (
                 <div className="flex flex-col gap-6">
@@ -1325,77 +1384,6 @@ export default function StationPanel(props: StationPanelProps) {
                       under the Song Desk. */}
                   <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-lyrics`}><DeskDoor isLight={isLight}>
                     <Wave9LyricsBench isLight={isLight} />
-                  </DeskDoor></PanelBoundary>
-                </div>
-              ) : station.id === "video-desk" ? (
-                <div className="flex flex-col gap-6">
-                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
-                    <CreateDeskPanel
-                      station={station}
-                      isLight={isLight}
-                      onJukeboxAdd={props.onJukeboxAdd}
-                      onOpenEditor={props.onOpenEditorStation}
-                      onOpenStation={props.onOpenStation}
-                      shelfPlayer={shelfPlayer}
-                      panelPayload={target.payload ?? null}
-                    />
-                  </DeskDoor></PanelBoundary>
-                  {/* Wave9 editor family (Stack 400 world
-                      parity, census B-18): Beat-Sync Cuts —
-                      beat markers on the section's own rail,
-                      native under the Video Desk. */}
-                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-beats`}><DeskDoor isLight={isLight}>
-                    <Wave9BeatsBench isLight={isLight} />
-                  </DeskDoor></PanelBoundary>
-                  {/* Wave9 editor family (Stack 400, B-18):
-                      Timeline Edit Recipes — compiled edit
-                      plans on the section's own rail. */}
-                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-templates`}><DeskDoor isLight={isLight}>
-                    <Wave9TemplatesBench isLight={isLight} />
-                  </DeskDoor></PanelBoundary>
-                  {/* Wave9 editor family (Stack 400, B-18):
-                      Background Replace — the delivery charge
-                      on the section's own rail (the composite
-                      itself runs free on-device in the editor). */}
-                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-bg`}><DeskDoor isLight={isLight}>
-                    <Wave9BgChargeBench isLight={isLight} />
-                  </DeskDoor></PanelBoundary>
-                  {/* Wave9 direct family (Stack 400, B-18):
-                      Voice-Directed Edits — the planned op
-                      list on the section's own rail. */}
-                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-direct`}><DeskDoor isLight={isLight}>
-                    <Wave9DirectBench isLight={isLight} />
-                  </DeskDoor></PanelBoundary>
-                  {/* Wave9 director family (Stack 400, B-18):
-                      the Director's Camera Deck — stacked
-                      moves woven into a scene prompt on the
-                      planner's own rail. */}
-                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-camera`}><DeskDoor isLight={isLight}>
-                    <Wave9CameraBench isLight={isLight} />
-                  </DeskDoor></PanelBoundary>
-                  {/* Wave9 director family (Stack 400, B-18):
-                      the Character Director — per-shot
-                      generation prompts on the director's own
-                      rail. */}
-                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave9-director`}><DeskDoor isLight={isLight}>
-                    <Wave9DirectorBench isLight={isLight} />                  {/* Hook Rewriter (Stack 400 world parity,
-                      census B-19): the Wave8 single on
-                      /api/wave8/hook-rewriter/rewrite at the
-                      registry's 50 Bucs, native under the Hook
-                      Desk it belongs to. */}
-                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave8-hook-rewriter`}><DeskDoor isLight={isLight}>
-                    <HookRewriterBench isLight={isLight} />
-                  </DeskDoor></PanelBoundary>
-                  {/* Styled Caption Burn-in (Stack 400 world
-                      parity, census B-19): the Wave8 transcript
-                      timing rail /api/wave8/caption-styler/burn
-                      at the registry's 100 Bucs — NOT the
-                      Caption Styler bench's /api/caption-styler
-                      video job (300) stacked above; the two
-                      caption rails sit side by side here, each
-                      on its own price. */}
-                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave8-caption-burn`}><DeskDoor isLight={isLight}>
-                    <CaptionBurnBench isLight={isLight} />
                   </DeskDoor></PanelBoundary>
                 </div>
               ) : (
