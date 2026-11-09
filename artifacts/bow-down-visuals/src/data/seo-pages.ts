@@ -50,7 +50,7 @@ export const TOOL_PAGES: ToolSeo[] = [
     h1Gold: "Maker",
     intro: [
       "Your thumbnail decides the click before your title gets a chance. Bow Down Visuals' AI Thumbnail Maker turns a one-line description of your video into a bold, high-contrast thumbnail built on styles that actually earn clicks — expressive faces, punchy overlay text, and compositions tuned for tiny mobile screens.",
-      "Start from one of 30 proven template styles — fitness transformations, gaming, podcasts, finance, vlogs, tech reviews and more — or describe your own look. Browsing is free; credits only apply when you generate.",
+      "Start from one of 30 proven template styles — fitness transformations, gaming, podcasts, finance, vlogs, tech reviews and more — or describe your own look. Members browse free; credits only apply when you generate.",
     ],
     features: [
       {
@@ -105,7 +105,7 @@ export const TOOL_PAGES: ToolSeo[] = [
     faqs: [
       {
         q: "Is the AI thumbnail maker free?",
-        a: "Browsing all 30 template styles is completely free — no account needed. You only spend credits when you generate a thumbnail, and you can preview the style before committing.",
+        a: "Members browse all 30 template styles free. You only spend credits when you generate a thumbnail, and you can preview the style before committing.",
       },
       {
         q: "What size thumbnails does it make?",
@@ -133,7 +133,7 @@ export const TOOL_PAGES: ToolSeo[] = [
     h1Gold: "Generator",
     intro: [
       "The first two seconds decide everything. Bow Down Visuals' AI Hook Generator writes opening hooks engineered for retention — pattern interrupts, curiosity gaps, and bold claims matched to your video type, from single releases to tutorials to announcements.",
-      "Choose from 30 hook templates across 16 categories, each with a preloaded topic you can rewrite in your own words. Free to browse; credits apply when you generate.",
+      "Choose from 30 hook templates across 16 categories, each with a preloaded topic you can rewrite in your own words. Members browse free; credits apply when you generate.",
     ],
     features: [
       {
@@ -216,7 +216,7 @@ export const TOOL_PAGES: ToolSeo[] = [
     h1Gold: "Generator",
     intro: [
       "A great post dies with a lazy caption. Bow Down Visuals' AI Caption Generator writes post copy with a real voice — release announcements that build hype, engagement-bait questions that pull comments, behind-the-scenes captions that make followers feel like insiders.",
-      "Thirty caption packs cover the moments creators actually post about: singles, videos, albums, tours, merch drops, milestones. Each pack ships with hashtag sets tuned for reach. Free to browse; credits apply when you generate.",
+      "Thirty caption packs cover the moments creators actually post about: singles, videos, albums, tours, merch drops, milestones. Each pack ships with hashtag sets tuned for reach. Members browse free; credits apply when you generate.",
     ],
     features: [
       {
@@ -299,7 +299,7 @@ export const TOOL_PAGES: ToolSeo[] = [
     h1Gold: "Maker",
     intro: [
       "A song without a visual is half a release. Bow Down Visuals' AI music video pipeline turns your track into a real video: generate cinematic clips from text or reference images, cut them to your structure, burn lyric lines across the frame, and export in the aspect ratio each platform wants.",
-      "Start from a video template — lyric sync cuts, photo montages, promo teasers — or generate raw clips and assemble them in the editor. Browsing templates is free; generation spends credits.",
+      "Start from a video template — lyric sync cuts, photo montages, promo teasers — or generate raw clips and assemble them in the editor. Members browse templates free; generation spends credits.",
     ],
     features: [
       {
@@ -358,7 +358,7 @@ export const TOOL_PAGES: ToolSeo[] = [
       },
       {
         q: "What does it cost to make a music video?",
-        a: "Browsing templates is free. Clip generation and exports spend credits — the exact cost is shown before you confirm, so there are no surprises.",
+        a: "Members browse templates free. Clip generation and exports spend credits — the exact cost is shown before you confirm, so there are no surprises.",
       },
       {
         q: "Can I use my own footage?",
@@ -378,7 +378,7 @@ export const TOOL_PAGES: ToolSeo[] = [
     h1Gold: "Maker",
     intro: [
       "Your best moment is buried at minute 47. Bow Down Visuals' AI Clip Maker finds it — analyzing long videos and streams for the laugh, the drop, the hot take, then cutting vertical clips sized for Shorts, Reels, and TikTok with captions burned in.",
-      "Streamers get highlight detection built for live moments; podcasters get quotable-segment cutting; vloggers get rapid montage templates. Free to explore; credits apply when you cut and export.",
+      "Streamers get highlight detection built for live moments; podcasters get quotable-segment cutting; vloggers get rapid montage templates. Members explore free; credits apply when you cut and export.",
     ],
     features: [
       {

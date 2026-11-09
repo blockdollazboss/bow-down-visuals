@@ -149,8 +149,8 @@ export function VerticalHubSeo({ vertical }: { vertical: VerticalSeo }) {
       <SeoSiblingNav heading="More creator hubs" links={siblings} />
 
       <SeoCtaBanner
-        heading={`${vertical.audience} — start free`}
-        blurb="Browse every template free, no account needed. Open a tool when you're ready — credits only apply when you generate."
+        heading={`${vertical.audience} — start today`}
+        blurb="Members browse every template free. Open a tool when you're ready — credits only apply when you generate."
         cta={{
           label: tools[0] ? `Open the ${tools[0].label}` : "Explore AI tools",
           href: tools[0]?.href ?? "/tools",

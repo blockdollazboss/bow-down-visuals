@@ -54,6 +54,8 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { ExpandSidebarButton } from "@/components/layout/expand-sidebar-button";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { useSidebarAutoCollapse } from "@/hooks/use-sidebar-auto-collapse";
+import { isRegisteredRoutePath } from "@/lib/guest-gate-verdict";
+import WittyLoader from "@/components/delight/witty-loader";
 
 /*
  * Stack-28 #49 (A5-P3): the marketing/SEO page modules that used to be
@@ -118,7 +120,7 @@ const Login         = lazyWithRetry(() => import("@/pages/login"));
 const Signup        = lazyWithRetry(() => import("@/pages/signup"));
 const QRLoginApprove = lazyWithRetry(() => import("@/pages/qr-login"));
 const ResetPassword  = lazyWithRetry(() => import("@/pages/reset-password"));
-const NotFound      = lazyWithRetry(() => import("@/pages/not-found"));
+const NotFoundPage  = lazyWithRetry(() => import("@/pages/not-found"));
 const CreditHistory = lazyWithRetry(() => import("@/pages/credit-history"));
 const Admin         = lazyWithRetry(() => import("@/pages/admin"));
 const Terms         = lazyWithRetry(() => import("@/pages/terms"));
@@ -510,6 +512,30 @@ function AuthedLayout({ children }: { children: ReactNode }) {
       </div>
     </SidebarProvider>
   );
+}
+
+/**
+ * NotFound — the router catch-all, with the C-14 (Stack 400) re-check.
+ *
+ * The Switch lands here when no declared route matched the location it
+ * evaluated. On a cold load that evaluation can run against a mid-auth-
+ * flip location and fall through for a page that EXISTS (the transient
+ * /tools/* 404s of Nov 8): the gate now holds its settled verdict
+ * through flips (GuestGate + holdGateVerdict), and this wrapper is the
+ * second half — before painting the 404, re-check the path against the
+ * route matrix (isRegisteredRoutePath, lib/guest-gate-verdict.ts). A
+ * REGISTERED path is a real page, so the catch-all shows the house
+ * loader instead of the 404: the fallback is transient by construction,
+ * because the moment the tree re-renders on the settled location the
+ * real route matches and this unmounts. A genuinely unknown path is
+ * not registered and keeps the honest 404 immediately.
+ */
+function NotFound() {
+  const [location] = useLocation();
+  if (isRegisteredRoutePath(location)) {
+    return <WittyLoader />;
+  }
+  return <NotFoundPage />;
 }
 
 function AppShell() {
