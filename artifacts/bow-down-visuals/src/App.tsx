@@ -41,6 +41,7 @@ import { MysteryCrate } from "@/components/MysteryCrate";
 import { CustomCursor } from "@/components/CustomCursor";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { SiteFooter } from "@/components/layout/footer";
+import { MarbleTopStrip, MarbleFootStrip } from "@/components/layout/marble-strips";
 import { VideoBanner } from "@/components/layout/video-banner";
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
 import { FloatingStarLevel } from "@/components/layout/floating-star-level";
@@ -590,6 +591,11 @@ function AppShell() {
   }
   return (
     <>
+      {/* Marble Splash (owner ruling, Nov 8, 2026): the slim stone
+          strip is the shell's first in-flow element, riding every
+          route this shell renders. The /overlay/* early return above
+          keeps stream overlays shell-less, as designed. */}
+      <MarbleTopStrip />
       <PushSubscriptionRepair />
       <ScrollToTop />
       {typeof window !== "undefined" && <FloatingThemeToggle />}
@@ -996,7 +1002,16 @@ function AppShell() {
         </GuestGate>
         </RouteErrorBoundary>
       </Suspense>
-      {!hideFooter && <SiteFooter />}
+      {!hideFooter && (
+        <>
+          <SiteFooter />
+          {/* Marble Splash foot strip — closes the shell wherever the
+              shell has a foot. Where the footer is suppressed by
+              design (the full-viewport video editor, the client
+              review surface) the strip is suppressed with it. */}
+          <MarbleFootStrip />
+        </>
+      )}
     </>
   );
 }
