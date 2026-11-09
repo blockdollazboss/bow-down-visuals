@@ -15,6 +15,7 @@ import SubscriptionHistory from "@/components/SubscriptionHistory";
 import { SocialProofBand } from "@/components/SocialProofBand";
 import GiftMembership from "@/components/GiftMembership";
 import ProfileHosting from "@/components/ProfileHosting";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { useTranslation } from "react-i18next";
 import { EmbeddedPaymentForm } from "@/components/checkout/EmbeddedCheckout";
 import { checkoutFailureCopy, postJsonWithTransportRetry } from "@/lib/checkout-fetch";
@@ -367,6 +368,7 @@ export default function CreatorPricing() {
         )}
 
         {/* hero */}
+        <SectionBoundary name="creator-pricing-hero">
         <div className="mt-8 text-center">
           <div className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-widest ${isLight ? "border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#7A5A12]" : "border-amber-400/30 bg-amber-400/10 text-amber-300"}`}>
             <Crown className="h-3.5 w-3.5" /> Creator plans
@@ -381,6 +383,7 @@ export default function CreatorPricing() {
           <div className="mt-4 flex justify-center"><TierBadge /></div>
           <SubscriptionHistory />
         </div>
+        </SectionBoundary>
 
         {/* Phase 3: cross-link to the other pricing product (credit packs). */}
         <div className="mt-8 flex justify-center">
@@ -388,9 +391,12 @@ export default function CreatorPricing() {
         </div>
 
         {/* Live social proof — real platform numbers, musicians flavor */}
-        <SocialProofBand vertical="music" className="mt-10 rounded-3xl" />
+        <SectionBoundary name="creator-pricing-proof">
+          <SocialProofBand vertical="music" className="mt-10 rounded-3xl" />
+        </SectionBoundary>
 
         {/* money math — the cheat code, spelled out */}
+        <SectionBoundary name="creator-pricing-money-math">
         <section id="money-math" className={`mt-12 rounded-3xl border p-6 sm:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-br from-[#C9A84C]/[0.10] via-[#FBF6E9] to-[#F4E7C3] text-[#2A1E07]" : "border-amber-400/25 bg-gradient-to-br from-amber-400/10 via-black to-black"}`}>
           <h2 className="text-2xl font-black">
             <Sparkles className={`mr-2 inline h-5 w-5 ${isLight ? "text-[#7A5A12]" : "text-amber-300"}`} />
@@ -454,12 +460,13 @@ export default function CreatorPricing() {
             Real USD via Stripe (test mode). Prices approved 2026-10-07 — Stripe stays in test mode until launch.
           </p>
         </section>
+        </SectionBoundary>
 
         {/* tier cards */}
         <div className="mt-10 grid gap-5 md:grid-cols-3">
           {plans.map((p) => (
+            <SectionBoundary key={p.tier} variant="compact" name={`creator-pricing-tier-${p.tier}`}>
             <div
-              key={p.tier}
               className={`flex flex-col rounded-3xl border p-6 ${
                 p.tier === "pro"
                   ? isLight
@@ -557,6 +564,7 @@ export default function CreatorPricing() {
                 )}
               </div>
             </div>
+            </SectionBoundary>
           ))}
         </div>
         {error && (
@@ -566,12 +574,16 @@ export default function CreatorPricing() {
 
         {/* gift a membership — docks here on the upgrade path: embedded
             checkout on this page, one-time payment, no auto-renew */}
-        <GiftMembership isLight={isLight} />
+        <SectionBoundary name="creator-pricing-gift">
+          <GiftMembership isLight={isLight} />
+        </SectionBoundary>
 
         {/* profile hosting — the $9/mo plan's door (Stack-200 A5):
             docks here in the money flow; embedded checkout on this
             page, state read live from /creator-hosting/me */}
-        <ProfileHosting isLight={isLight} />
+        <SectionBoundary name="creator-pricing-hosting">
+          <ProfileHosting isLight={isLight} />
+        </SectionBoundary>
 
         {embeddedDone && (
           <div className="mt-4 rounded-2xl border border-emerald-400/40 bg-emerald-400/10 p-5">
@@ -584,6 +596,7 @@ export default function CreatorPricing() {
           </div>
         )}
         {changeConfirm && (
+          <SectionBoundary name="creator-pricing-change-confirm">
           <div data-testid="pricing-change-confirm" className="mx-auto mt-6 max-w-md rounded-2xl border border-amber-400/40 bg-amber-400/10 p-5">
             <p className="font-black">Switch to {changeConfirm.toPlanName}?</p>
             {changeConfirm.amountDueTodayCents > 0 ? (
@@ -627,8 +640,10 @@ export default function CreatorPricing() {
               </button>
             </div>
           </div>
+          </SectionBoundary>
         )}
         {embedded && (
+          <SectionBoundary name="creator-pricing-checkout">
           <div className="mx-auto mt-6 max-w-md">
             <p className="mb-2 text-center text-sm font-bold">
               Finish your {embedded.tier === "elite" ? "Elite" : "Pro"} upgrade — right here:
@@ -646,9 +661,11 @@ export default function CreatorPricing() {
               Cancel — no charge
             </button>
           </div>
+          </SectionBoundary>
         )}
 
         {/* earned rank — stars come from work, never from a tier */}
+        <SectionBoundary name="creator-pricing-stars">
         <section id="stars" className={`mt-12 rounded-3xl border p-6 sm:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#2A1E07] shadow-[0_10px_30px_rgba(122,90,18,0.12)]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h2 className="text-2xl font-black">Stars are earned — never sold</h2>
           <p className="mt-2 max-w-2xl text-sm text-white/55">
@@ -679,8 +696,10 @@ export default function CreatorPricing() {
             })}
           </div>
         </section>
+        </SectionBoundary>
 
         {/* feature detail anchors — link targets for "details →" rows */}
+        <SectionBoundary name="creator-pricing-features">
         <section className="mt-12 space-y-8 text-sm text-white/60">
           <div id="feature-site" className={`scroll-mt-24 rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/30 bg-[#FBF6E9]/70" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h3 className="font-black text-white">Your site</h3>
@@ -720,8 +739,10 @@ export default function CreatorPricing() {
             <p className="mt-1">Dedicated support badge on your profile and priority support when something breaks before a drop.</p>
           </div>
         </section>
+        </SectionBoundary>
 
         {/* FAQ */}
+        <SectionBoundary name="creator-pricing-faq">
         <section className="mx-auto mt-12 max-w-3xl space-y-4">
           <h2 className="text-center text-2xl font-black">Quick answers</h2>
           {[
@@ -737,6 +758,7 @@ export default function CreatorPricing() {
             </div>
           ))}
         </section>
+        </SectionBoundary>
 
         <div className="mt-12 text-center">
           <Link href={returnTo} className="inline-flex items-center gap-1.5 text-sm text-white/50 hover:text-white">
