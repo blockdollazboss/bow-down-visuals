@@ -25,6 +25,14 @@ export const exportJobsTable = pgTable("export_jobs", {
   progress: integer("progress").notNull().default(0),
   /** Full export request body — everything needed to (re)run the render. */
   params: jsonb("params").notNull(),
+  /**
+   * Duplicate-submit guard key (migration 0331, stack400 C-05): the
+   * item-64 attempt key lifted out of the params jsonb into a real
+   * column so the partial UNIQUE index on (user_id, attempt_key) for
+   * in-flight states can make the database the guard. The key still
+   * also rides inside params, where the render pipeline reads it.
+   */
+  attempt_key: text("attempt_key"),
   /** executeExport result payload (url, objectPath, …) on success. */
   result: jsonb("result"),
   /** Normalized error payload on failure. */
