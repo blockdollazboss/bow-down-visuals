@@ -24976,7 +24976,9 @@
     "liveSrDeskOffLong": "Songwünsche sind noch nicht eingeschaltet — deine Regeln werden gespeichert, sobald die Warteschlange live ist.",
     "liveSrRuleTipsRun": "Wunsch-Trinkgelder laufen von {{min}} bis {{max}}.",
     "liveSrRuleNotRequestable": "Songs, die als „nicht wünschbar“ markiert sind, wurden vom Creator aus den Wünschen genommen.",
-    "liveVoiceHeldPending": "{{label}} wird auf deiner Stimme sein, wenn du die Kamera startest."
+    "liveVoiceHeldPending": "{{label}} wird auf deiner Stimme sein, wenn du die Kamera startest.",
+    "liveSrQueueLoadFailed": "The request queue couldn't load — it's unreachable, not empty. It keeps retrying on its own.",
+    "liveSrQueueStale": "The request queue stopped updating — what you see may be out of date. It keeps retrying on its own."
   },
   "worldThemePacks": {
     "goldenMarbleName": "Goldener Marmor",
@@ -25357,5 +25359,8 @@
     "stop": "Stop",
     "listenAgain": "Listen again — free",
     "failed": "Thy Cheat Code couldn't speak that reply — please try again."
+  },
+  "themeKitPanel": {
+    "kitSavedMixLoadFailed": "Your saved choices couldn't be loaded. The kit may not match your latest picks."
   }
 }

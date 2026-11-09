@@ -110,12 +110,25 @@ export function ThemeKitPanel({
     }
   };
 
+  /* Whether the saved-mix READ ever failed (C-30): fetchSavedMix
+     collapses "no mix saved" ({}) and "the read failed" (null) into
+     answers the panel could not tell apart, so a failed read quietly
+     shipped the DEFAULT mix as if it were the member's own. Tracked
+     apart from `error` (downloads clear that) so the notice below
+     survives until a read succeeds — download included. */
+  const [savedMixLoadFailed, setSavedMixLoadFailed] = useState(false);
   useEffect(() => {
     // Load the buyer's saved customization for this pack.
     let cancelled = false;
     (async () => {
       const saved = await fetchSavedMix();
-      if (!cancelled && saved && Object.keys(saved).length > 0) setMix(saved);
+      if (cancelled) return;
+      if (saved === null) {
+        setSavedMixLoadFailed(true);
+        return;
+      }
+      setSavedMixLoadFailed(false);
+      if (Object.keys(saved).length > 0) setMix(saved);
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,7 +146,13 @@ export function ThemeKitPanel({
       // sent by the client: the server ships the pack's approved
       // designed art (icons, app icon, per-device wallpapers) from
       // the library itself.
-      const savedMix = (await fetchSavedMix()) ?? mix;
+      /* A null here is a FAILED read (C-30): the notice below says
+         so out loud; the fallback to the panel's mix stays, but it
+         is never silent again. */
+      const saved = await fetchSavedMix();
+      if (saved === null) setSavedMixLoadFailed(true);
+      else setSavedMixLoadFailed(false);
+      const savedMix = saved ?? mix;
       const res = await fetch(`/api/theme-packs/kit/${pack.id}/download`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -429,6 +448,13 @@ export function ThemeKitPanel({
       )}
       {error ? (
         <p role="alert" className="mt-2 text-[11px] text-destructive">{error}</p>
+      ) : null}
+      {/* The saved-mix read failed (C-30): the mix in play may be
+          the panel's default, not yours — say so out loud. */}
+      {savedMixLoadFailed ? (
+        <p role="alert" className="mt-2 text-[11px] text-destructive">
+          {t("themeKitPanel.kitSavedMixLoadFailed", { defaultValue: "Your saved choices couldn't be loaded. The kit may not match your latest picks." })}
+        </p>
       ) : null}
     </div>
   );

@@ -24972,7 +24972,9 @@
     "liveSrDeskOffLong": "曲リクエストはまだオンになっていません — キューがライブになるとルールが保存されます。",
     "liveSrRuleTipsRun": "リクエストのチップは {{min}}〜{{max}} です。",
     "liveSrRuleNotRequestable": "「リクエスト不可」とマークされた曲は、クリエイターによってリクエストから外されています。",
-    "liveVoiceHeldPending": "カメラを開始すると{{label}}があなたの声にかかります。"
+    "liveVoiceHeldPending": "カメラを開始すると{{label}}があなたの声にかかります。",
+    "liveSrQueueLoadFailed": "The request queue couldn't load — it's unreachable, not empty. It keeps retrying on its own.",
+    "liveSrQueueStale": "The request queue stopped updating — what you see may be out of date. It keeps retrying on its own."
   },
   "worldThemePacks": {
     "goldenMarbleName": "ゴールデン・マーブル",
@@ -25353,5 +25355,8 @@
     "stop": "Stop",
     "listenAgain": "Listen again — free",
     "failed": "Thy Cheat Code couldn't speak that reply — please try again."
+  },
+  "themeKitPanel": {
+    "kitSavedMixLoadFailed": "Your saved choices couldn't be loaded. The kit may not match your latest picks."
   }
 }

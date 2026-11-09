@@ -2754,6 +2754,11 @@ export function LiveWatchDesk({ isLight, screen }: { isLight: boolean; screen: {
    A request placed on either face is the same row on the same
    rail: the desk and the 2D surfaces read and move one queue. */
 
+/** Consecutive queue-load failures before a World face says the
+ *  queue couldn't load (C-30): silent for a blip, honest for an
+ *  outage — a down endpoint must never dress up as an empty queue. */
+const SONG_REQUEST_QUEUE_FAILURE_LIMIT = 3;
+
 /** The queue rows both faces render — the 2D QueueList's rows,
  *  word for word: title, requester, the tip, the honest status
  *  label (refunds stated), and — on the creator face only — the
@@ -2836,14 +2841,21 @@ export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: b
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const intentKeyRef = useRef("");
+  /* The queue load's failure count (C-30, twin of the 2D panel's):
+     silent for a blip, honest for an outage — after
+     SONG_REQUEST_QUEUE_FAILURE_LIMIT consecutive failures the panel
+     says the queue couldn't load instead of rendering nothing (or a
+     stale queue) forever. Any success resets it. */
+  const [queueLoadFailures, setQueueLoadFailures] = useState(0);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch(SONG_REQUESTS_PATH(streamId));
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("queue load");
       setView(normalizeSongRequestQueuePayload(await res.json()));
+      setQueueLoadFailures(0);
     } catch {
-      /* the next poll retries */
+      setQueueLoadFailures((n) => n + 1);
     }
   }, [streamId]);
 
@@ -2854,6 +2866,22 @@ export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: b
     return () => clearInterval(t);
   }, [load, isLive]);
 
+  /* Sustained queue-load failure with nothing ever loaded: the panel
+     says the queue couldn't load (still retrying on the poll) instead
+     of rendering nothing at all. */
+  if (!view && queueLoadFailures >= SONG_REQUEST_QUEUE_FAILURE_LIMIT) {
+    return (
+      <div className="space-y-2" data-testid="world-live-songreq-panel">
+        <p className={`inline-flex items-center gap-2 text-sm font-black ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+          <ListMusic className="h-4 w-4 text-[#d4af37]" /> {t("worldDeskRemainder.liveSrPanelHeading")}
+        </p>
+        <p className="text-xs font-semibold text-red-400" role="alert">
+          {t("worldDeskRemainder.liveSrQueueLoadFailed")}
+        </p>
+      </div>
+    );
+  }
+
   if (!view) return null;
 
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
@@ -2863,6 +2891,15 @@ export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: b
       <ListMusic className="h-4 w-4 text-[#d4af37]" /> {t("worldDeskRemainder.liveSrPanelHeading")}
     </p>
   );
+
+  /* A sustained outage with a stale queue on screen: the rows below
+     may be out of date — say so instead of letting them pose as the
+     live queue. */
+  const queueStaleNote = queueLoadFailures >= SONG_REQUEST_QUEUE_FAILURE_LIMIT ? (
+    <p className="text-xs font-semibold text-red-400" role="alert">
+      {t("worldDeskRemainder.liveSrQueueStale")}
+    </p>
+  ) : null;
 
   if (!view.available) {
     return (
@@ -2934,6 +2971,8 @@ export function LiveSongRequestPanel({ isLight, streamId, isLive }: { isLight: b
           <p>{t("worldDeskRemainder.liveSrClosedLine")}</p>
         )}
       </div>
+
+      {queueStaleNote}
 
       <SongRequestQueueRows isLight={isLight} queue={view.queue} myUserId={user?.id ?? null} />
 
@@ -3051,14 +3090,21 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
   useEffect(() => { void loadRules(); }, [loadRules]);
 
   const liveStreamId = view?.liveStreamId ?? null;
+  /* The live queue's failure count (C-30, same rule as the fan
+     faces): silent for a blip, honest for an outage — after
+     SONG_REQUEST_QUEUE_FAILURE_LIMIT consecutive failures the desk
+     says the queue couldn't load instead of showing "No requests
+     yet" (or a stale queue) while the endpoint is down. */
+  const [queueLoadFailures, setQueueLoadFailures] = useState(0);
   const loadQueue = useCallback(async () => {
     if (!liveStreamId) return;
     try {
       const res = await fetch(SONG_REQUESTS_PATH(liveStreamId));
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("queue load");
       setQueueView(normalizeSongRequestQueuePayload(await res.json()));
+      setQueueLoadFailures(0);
     } catch {
-      /* the next poll retries */
+      setQueueLoadFailures((n) => n + 1);
     }
   }, [liveStreamId]);
 
@@ -3289,12 +3335,20 @@ export function LiveSongRequestsDesk({ isLight }: { isLight: boolean }) {
                 </button>
               </div>
               <div className="mt-3">
-                <SongRequestQueueRows
-                  isLight={isLight}
-                  queue={queueView?.queue ?? []}
-                  onSkip={(r) => void skip(r)}
-                  skippingId={skippingId}
-                />
+                {queueLoadFailures >= SONG_REQUEST_QUEUE_FAILURE_LIMIT ? (
+                  <p className="text-xs font-semibold text-red-400" role="alert">
+                    {queueView === null
+                      ? t("worldDeskRemainder.liveSrQueueLoadFailed")
+                      : t("worldDeskRemainder.liveSrQueueStale")}
+                  </p>
+                ) : (
+                  <SongRequestQueueRows
+                    isLight={isLight}
+                    queue={queueView?.queue ?? []}
+                    onSkip={(r) => void skip(r)}
+                    skippingId={skippingId}
+                  />
+                )}
               </div>
             </div>
           ) : (

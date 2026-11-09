@@ -110,6 +110,10 @@ function QueueList({
   );
 }
 
+/* Consecutive queue-load failures before the panel says the queue is
+   unreachable (C-30): silent for a blip, honest for an outage. */
+const QUEUE_LOAD_FAILURE_LIMIT = 3;
+
 /* ── The fan surface (live-watch) ─────────────────────────────────────── */
 export function SongRequestPanel({ streamId, isLive }: { streamId: string; isLive: boolean }) {
   const isLight = useIsLightTheme();
@@ -123,15 +127,22 @@ export function SongRequestPanel({ streamId, isLive }: { streamId: string; isLiv
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const intentKeyRef = useRef("");
+  /* The queue load's failure count (C-30): a blip stays silent — the
+     next poll retries — but SUSTAINED failure is an outage, not an
+     empty queue: after QUEUE_LOAD_FAILURE_LIMIT consecutive failures
+     the panel's existing error state raises, so a DOWN queue endpoint
+     never reads as "no requests" forever. Any success resets it. */
+  const [queueLoadFailures, setQueueLoadFailures] = useState(0);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/live/${streamId}/song-requests`);
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("queue load");
       const d = (await res.json()) as QueuePayload;
       setData(d);
+      setQueueLoadFailures(0);
     } catch {
-      /* the next poll retries */
+      setQueueLoadFailures((n) => n + 1);
     }
   }, [streamId]);
 
@@ -142,6 +153,22 @@ export function SongRequestPanel({ streamId, isLive }: { streamId: string; isLiv
     return () => clearInterval(t);
   }, [load, isLive]);
 
+  /* Sustained queue-load failure with nothing ever loaded: say the
+     queue is unreachable instead of rendering nothing at all (the
+     pre-C-30 shape returned null here forever on a down endpoint). */
+  if (!data && queueLoadFailures >= QUEUE_LOAD_FAILURE_LIMIT) {
+    return (
+      <section className={`mt-5 p-4 ${shell(isLight)}`} data-testid="song-requests-panel">
+        <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wider">
+          <ListMusic className="h-4 w-4 text-amber-500" /> Song requests
+        </h2>
+        <p className="mt-2 text-xs font-semibold text-red-400" role="alert">
+          The request queue couldn't load — we're still retrying. If it stays down, the queue isn't
+          empty; it's unreachable.
+        </p>
+      </section>
+    );
+  }
   if (!data) return null;
   if (!data.available) {
     return (
@@ -221,6 +248,15 @@ export function SongRequestPanel({ streamId, isLive }: { streamId: string; isLiv
           <p>Song requests are closed for this stream — the creator has them off.</p>
         )}
       </div>
+
+      {/* A sustained outage with a stale queue on screen: the rows
+          below may be out of date — say so instead of letting them
+          pose as the live queue. */}
+      {queueLoadFailures >= QUEUE_LOAD_FAILURE_LIMIT && (
+        <p className="mt-3 text-xs font-semibold text-red-400" role="alert">
+          The request queue stopped updating — what you see may be out of date. We're still retrying.
+        </p>
+      )}
 
       <div className="mt-3">
         <QueueList queue={data.queue} myUserId={user?.id ?? null} isLight={isLight} />

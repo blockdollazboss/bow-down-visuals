@@ -24976,7 +24976,9 @@
     "liveSrDeskOffLong": "गाने के अनुरोध अभी चालू नहीं हैं — कतार लाइव होते ही आपके नियम सहेजे जाएंगे।",
     "liveSrRuleTipsRun": "अनुरोध टिप {{min}}–{{max}} तक चलते हैं।",
     "liveSrRuleNotRequestable": "“अनुरोध योग्य नहीं” चिह्नित गाने क्रिएटर द्वारा अनुरोधों से हटा दिए गए हैं।",
-    "liveVoiceHeldPending": "जब आप कैमरा शुरू करेंगे तो {{label}} आपकी आवाज़ पर होगा।"
+    "liveVoiceHeldPending": "जब आप कैमरा शुरू करेंगे तो {{label}} आपकी आवाज़ पर होगा।",
+    "liveSrQueueLoadFailed": "The request queue couldn't load — it's unreachable, not empty. It keeps retrying on its own.",
+    "liveSrQueueStale": "The request queue stopped updating — what you see may be out of date. It keeps retrying on its own."
   },
   "worldThemePacks": {
     "goldenMarbleName": "सुनहरा संगमरमर",
@@ -25357,5 +25359,8 @@
     "stop": "Stop",
     "listenAgain": "Listen again — free",
     "failed": "Thy Cheat Code couldn't speak that reply — please try again."
+  },
+  "themeKitPanel": {
+    "kitSavedMixLoadFailed": "Your saved choices couldn't be loaded. The kit may not match your latest picks."
   }
 }

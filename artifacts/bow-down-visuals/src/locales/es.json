@@ -25005,7 +25005,9 @@
     "liveSrDeskOffLong": "Las solicitudes de canciones aún no están activadas: tus reglas se guardarán cuando la cola esté en vivo.",
     "liveSrRuleTipsRun": "Las propinas por solicitud van de {{min}} a {{max}}.",
     "liveSrRuleNotRequestable": "Las canciones marcadas como «no solicitables» fueron retiradas de las solicitudes por el creador.",
-    "liveVoiceHeldPending": "{{label}} estará en tu voz cuando arranques la cámara."
+    "liveVoiceHeldPending": "{{label}} estará en tu voz cuando arranques la cámara.",
+    "liveSrQueueLoadFailed": "The request queue couldn't load — it's unreachable, not empty. It keeps retrying on its own.",
+    "liveSrQueueStale": "The request queue stopped updating — what you see may be out of date. It keeps retrying on its own."
   },
   "worldThemePacks": {
     "goldenMarbleName": "Mármol Dorado",
@@ -25386,5 +25388,8 @@
     "stop": "Stop",
     "listenAgain": "Listen again — free",
     "failed": "Thy Cheat Code couldn't speak that reply — please try again."
+  },
+  "themeKitPanel": {
+    "kitSavedMixLoadFailed": "Your saved choices couldn't be loaded. The kit may not match your latest picks."
   }
 }

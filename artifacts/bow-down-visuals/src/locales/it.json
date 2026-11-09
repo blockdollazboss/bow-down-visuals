@@ -25005,7 +25005,9 @@
     "liveSrDeskOffLong": "Le richieste di canzoni non sono ancora attivate — le tue regole si salveranno quando la coda sarà live.",
     "liveSrRuleTipsRun": "Le mance per richiesta vanno da {{min}} a {{max}}.",
     "liveSrRuleNotRequestable": "Le canzoni segnate come «non richiedibili» sono state tolte dalle richieste dal creatore.",
-    "liveVoiceHeldPending": "{{label}} sarà sulla tua voce quando avvii la fotocamera."
+    "liveVoiceHeldPending": "{{label}} sarà sulla tua voce quando avvii la fotocamera.",
+    "liveSrQueueLoadFailed": "The request queue couldn't load — it's unreachable, not empty. It keeps retrying on its own.",
+    "liveSrQueueStale": "The request queue stopped updating — what you see may be out of date. It keeps retrying on its own."
   },
   "worldThemePacks": {
     "goldenMarbleName": "Marmo Dorato",
@@ -25386,5 +25388,8 @@
     "stop": "Stop",
     "listenAgain": "Listen again — free",
     "failed": "Thy Cheat Code couldn't speak that reply — please try again."
+  },
+  "themeKitPanel": {
+    "kitSavedMixLoadFailed": "Your saved choices couldn't be loaded. The kit may not match your latest picks."
   }
 }

@@ -24976,7 +24976,9 @@
     "liveSrDeskOffLong": "노래 요청이 아직 켜지지 않았습니다 — 대기열이 라이브가 되면 규칙이 저장됩니다.",
     "liveSrRuleTipsRun": "요청 팁은 {{min}}~{{max}}입니다.",
     "liveSrRuleNotRequestable": "“요청 불가”로 표시된 곡은 크리에이터가 요청에서 제외했습니다.",
-    "liveVoiceHeldPending": "카메라를 시작하면 {{label}}이(가) 목소리에 걸립니다."
+    "liveVoiceHeldPending": "카메라를 시작하면 {{label}}이(가) 목소리에 걸립니다.",
+    "liveSrQueueLoadFailed": "The request queue couldn't load — it's unreachable, not empty. It keeps retrying on its own.",
+    "liveSrQueueStale": "The request queue stopped updating — what you see may be out of date. It keeps retrying on its own."
   },
   "worldThemePacks": {
     "goldenMarbleName": "골든 마블",
@@ -25357,5 +25359,8 @@
     "stop": "Stop",
     "listenAgain": "Listen again — free",
     "failed": "Thy Cheat Code couldn't speak that reply — please try again."
+  },
+  "themeKitPanel": {
+    "kitSavedMixLoadFailed": "Your saved choices couldn't be loaded. The kit may not match your latest picks."
   }
 }
