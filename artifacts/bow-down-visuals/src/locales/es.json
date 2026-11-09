@@ -3726,7 +3726,8 @@
         "blurb": "7–30 pistas — un proyecto completo"
       }
     },
-    "trackTitle": "Título de la pista {{n}}"
+    "trackTitle": "Título de la pista {{n}}",
+    "releases_load_error": "We couldn't load your releases — your releases are safe, this just couldn't reach them."
   },
   "download": {
     "get_bow_down_visuals_everywhere": "Lleva Bow Down Visuals a todas partes",
@@ -5290,7 +5291,8 @@
     "save": "Guardar",
     "subtitle": "Guarda lugares para tus videos musicales — salas de tronos, escenarios, calles, cielos. Elígelos visualmente al construir escenas en lugar de escribir descripciones.",
     "uploadImage": "Subir imagen",
-    "useInCoverArt": "Usar en la portada"
+    "useInCoverArt": "Usar en la portada",
+    "retryLoad": "Try again"
   },
   "logoMaker": {
     "pageTitle": "Creador de logos",
@@ -5380,7 +5382,9 @@
     "downloadMp4": "Descargar MP4",
     "queued": "En cola — tu video es el siguiente…",
     "renderingStatus": "Renderizando — fondo animado, texto karaoke, tu audio…",
-    "signInPrompt": "Inicia sesión para crear videos de letras."
+    "signInPrompt": "Inicia sesión para crear videos de letras.",
+    "songsLoadError": "We couldn't load your song library — your songs are safe, this just couldn't reach them.",
+    "retryLoad": "Try again"
   },
   "makeSong": {
     "artistNameLabel": "Nombre del Artista",

@@ -3719,7 +3719,8 @@
     "type": "Typ:",
     "us_xxx_26_00001": "US-XXX-26-00001",
     "visual_bucs": "Visual Bucs",
-    "where_should_this_release_land_e": "Wo soll dieser Release landen? Jede Plattform ist im Tierpreis enthalten."
+    "where_should_this_release_land_e": "Wo soll dieser Release landen? Jede Plattform ist im Tierpreis enthalten.",
+    "releases_load_error": "We couldn't load your releases — your releases are safe, this just couldn't reach them."
   },
   "download": {
     "ai_chat_on_any_page": "KI-Chat auf jeder Seite",
@@ -5281,7 +5282,8 @@
     "save": "Speichern",
     "subtitle": "Speichern Sie Orte für Ihre Musikvideos — Thronsäle, Bühnen, Straßen, Himmel. Wählen Sie sie beim Szenenbau visuell statt Beschreibungen zu tippen.",
     "uploadImage": "Bild hochladen",
-    "useInCoverArt": "In Cover-Art verwenden"
+    "useInCoverArt": "In Cover-Art verwenden",
+    "retryLoad": "Try again"
   },
   "logoMaker": {
     "pageTitle": "Logo-Maker",
@@ -5368,7 +5370,9 @@
     "downloadMp4": "MP4 herunterladen",
     "queued": "In der Warteschlange — Ihr Video ist als Nächstes dran…",
     "renderingStatus": "Wird gerendert — animierter Hintergrund, Karaoke-Text, Ihr Audio…",
-    "signInPrompt": "Melden Sie sich an, um Lyric-Videos zu erstellen."
+    "signInPrompt": "Melden Sie sich an, um Lyric-Videos zu erstellen.",
+    "songsLoadError": "We couldn't load your song library — your songs are safe, this just couldn't reach them.",
+    "retryLoad": "Try again"
   },
   "makeSong": {
     "pageTitle": "Song erstellen",

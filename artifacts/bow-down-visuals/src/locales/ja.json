@@ -3719,7 +3719,8 @@
         "blurb": "7–30トラック — フルプロジェクト"
       }
     },
-    "trackTitle": "トラック{{n}}のタイトル"
+    "trackTitle": "トラック{{n}}のタイトル",
+    "releases_load_error": "We couldn't load your releases — your releases are safe, this just couldn't reach them."
   },
   "download": {
     "get_bow_down_visuals_everywhere": "Bow Down Visuals をどこでも",
@@ -5281,7 +5282,8 @@
     "save": "保存",
     "subtitle": "ミュージックビデオ用の場所を保存 — 玉座の間、ステージ、ストリート、空。シーン作りでは文字を打つ代わりに視覚的に選べます。",
     "uploadImage": "画像をアップロード",
-    "useInCoverArt": "カバーアートに使う"
+    "useInCoverArt": "カバーアートに使う",
+    "retryLoad": "Try again"
   },
   "logoMaker": {
     "pageTitle": "ロゴメーカー",
@@ -5368,7 +5370,9 @@
     "downloadMp4": "MP4をダウンロード",
     "queued": "キューに追加 — あなたの動画は次の番です…",
     "renderingStatus": "レンダリング中 — アニメーション背景、カラオケテキスト、あなたの音声…",
-    "signInPrompt": "リリックビデオを作るにはサインインしてください。"
+    "signInPrompt": "リリックビデオを作るにはサインインしてください。",
+    "songsLoadError": "We couldn't load your song library — your songs are safe, this just couldn't reach them.",
+    "retryLoad": "Try again"
   },
   "makeSong": {
     "pageTitle": "楽曲制作",

@@ -114,6 +114,7 @@ export default function Publish() {
   /* Drafts + editing */
   const [drafts, setDrafts] = useState<DraftItem[]>([]);
   const [draftsLoading, setDraftsLoading] = useState(true);
+  const [draftsError, setDraftsError] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -286,7 +287,7 @@ export default function Publish() {
          other's drafts (the old Promise.all lost both on one reject). */
       const loadTracks = async (): Promise<DraftItem[]> => {
         const tr = await fetch("/api/publish/tracks", { headers });
-        if (!tr.ok) return [];
+        if (!tr.ok) throw new Error();
         const j = await tr.json() as { tracks?: Record<string, unknown>[] };
         return (j.tracks ?? []).map((t) => ({
           id: String(t.id), kind: "audio" as const, title: String(t.title ?? "Untitled"),
@@ -300,7 +301,7 @@ export default function Publish() {
       };
       const loadVideos = async (): Promise<DraftItem[]> => {
         const vr = await fetch("/api/publish/videos", { headers });
-        if (!vr.ok) return [];
+        if (!vr.ok) throw new Error();
         const j = await vr.json() as { videos?: Record<string, unknown>[] };
         return (j.videos ?? []).map((v) => ({
           id: String(v.id), kind: "video" as const, title: String(v.title ?? "Untitled"),
@@ -318,8 +319,12 @@ export default function Publish() {
         ...(tracksSettled.status === "fulfilled" ? tracksSettled.value : []),
         ...(videosSettled.status === "fulfilled" ? videosSettled.value : []),
       ]);
+      /* A failed load is NOT an empty content list — any rejected leg
+         raises the error state so the "nothing here yet" copy only ever
+         renders after a load that actually succeeded. */
+      setDraftsError(tracksSettled.status === "rejected" || videosSettled.status === "rejected");
     } catch {
-      /* drafts are a bonus — form still works */
+      setDraftsError(true);
     } finally {
       setDraftsLoading(false);
     }
@@ -1346,12 +1351,38 @@ export default function Publish() {
           <h2 className="text-xs font-bold uppercase tracking-widest text-white/40">My content</h2>
           {draftsLoading ? (
             <div className="mt-3 flex items-center gap-2 text-sm text-white/40"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+          ) : draftsError && drafts.length === 0 ? (
+            <div className={`mt-3 rounded-2xl border p-4 text-sm flex flex-wrap items-center gap-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#8A7A56]" : "border-white/10 bg-black/40 text-white/50"}`}>
+              <span className="flex-1">We couldn&apos;t load your content — your drafts are safe, this just couldn&apos;t reach them.</span>
+              <button
+                type="button"
+                onClick={() => void loadDrafts()}
+                className="font-semibold text-primary hover:underline shrink-0"
+                data-testid="btn-retry-drafts"
+              >
+                Try again
+              </button>
+            </div>
           ) : drafts.length === 0 ? (
             <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-center text-sm text-white/40">
               Nothing here yet — drop your first file above and go live.
             </p>
           ) : (
-            <div className="mt-3 space-y-2">
+            <>
+              {draftsError && (
+                <div className={`mt-3 rounded-2xl border p-4 text-sm flex flex-wrap items-center gap-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#8A7A56]" : "border-white/10 bg-black/40 text-white/50"}`}>
+                  <span className="flex-1">Some of your content couldn&apos;t load — what&apos;s shown below is safe, and retrying can bring the rest back.</span>
+                  <button
+                    type="button"
+                    onClick={() => void loadDrafts()}
+                    className="font-semibold text-primary hover:underline shrink-0"
+                    data-testid="btn-retry-drafts"
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
+              <div className="mt-3 space-y-2">
               {drafts.map((d) => (
                 <div key={`${d.kind}-${d.id}`} className={`flex items-center gap-3 rounded-2xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   {d.artwork_url
@@ -1389,7 +1420,8 @@ export default function Publish() {
                   </button>
                 </div>
               ))}
-            </div>
+              </div>
+            </>
           )}
         </div>
 

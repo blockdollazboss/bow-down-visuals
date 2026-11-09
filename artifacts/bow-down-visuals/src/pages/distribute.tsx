@@ -3345,6 +3345,7 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
   const [releases, setReleases] = useState<Release[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [listLoading, setListLoading] = useState(true);
+  const [releasesError, setReleasesError] = useState(false);
   const [pricing, setPricing] = useState<PricingInfo | null>(null);
 
   const [error, setError] = useState<string | null>(null);
@@ -3376,12 +3377,14 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
     try {
       const res = await authFetch("/api/distribution/releases");
       const data = (await res.json().catch(() => ({}))) as { releases?: Release[] };
-      if (res.ok && Array.isArray(data.releases)) {
-        setReleases(data.releases);
-        if (!selectedId && data.releases.length > 0) setSelectedId(data.releases[0]!.id);
-      }
+      if (!res.ok || !Array.isArray(data.releases)) throw new Error();
+      /* A failed load is NOT an empty release list — the error state
+         below keeps the "no releases yet" copy honest. */
+      setReleases(data.releases);
+      setReleasesError(false);
+      if (!selectedId && data.releases.length > 0) setSelectedId(data.releases[0]!.id);
     } catch {
-      /* non-fatal — the page still renders the wizard */
+      setReleasesError(true);
     } finally {
       setListLoading(false);
     }
@@ -3580,6 +3583,18 @@ export default function Distribute({ initialTab }: { initialTab?: "releases" | "
 
                     {listLoading ? (
                       <p className="py-6 text-center text-sm text-white/40">{t("distribute.loading_releases")}</p>
+                    ) : releasesError ? (
+                      <div className={`rounded-2xl border p-4 text-sm flex flex-wrap items-center gap-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#8A7A56]" : "border-white/10 bg-black/40 text-white/50"}`}>
+                        <span className="flex-1">{t("distribute.releases_load_error", { defaultValue: "We couldn't load your releases — your releases are safe, this just couldn't reach them." })}</span>
+                        <button
+                          type="button"
+                          onClick={() => void loadReleases()}
+                          className="font-semibold text-primary hover:underline shrink-0"
+                          data-testid="btn-retry-releases"
+                        >
+                          {t("distribute.retry_load", { defaultValue: "Try again" })}
+                        </button>
+                      </div>
                     ) : releases.length === 0 ? (
                       <p className="py-6 text-center text-sm text-white/40">{t("distribute.no_releases_yet_hit")}<strong className="text-white/70">{t("distribute.new_release")}</strong>{t("distribute.setup_is_free")}</p>
                     ) : (

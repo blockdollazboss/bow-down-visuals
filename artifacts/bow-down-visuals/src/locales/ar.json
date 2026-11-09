@@ -3747,7 +3747,8 @@
     "type": "النوع:",
     "us_xxx_26_00001": "US-XXX-26-00001",
     "visual_bucs": "Visual Bucs",
-    "where_should_this_release_land_e": "أين يجب أن يصل هذا الإصدار؟ كل منصة مشمولة في سعر الباقة."
+    "where_should_this_release_land_e": "أين يجب أن يصل هذا الإصدار؟ كل منصة مشمولة في سعر الباقة.",
+    "releases_load_error": "We couldn't load your releases — your releases are safe, this just couldn't reach them."
   },
   "download": {
     "get_bow_down_visuals_everywhere": "احصل على Bow Down Visuals في كل مكان",
@@ -5317,7 +5318,8 @@
     "save": "حفظ",
     "subtitle": "احفظ أماكن فيديوهاتك الموسيقية — قاعات العروش والمسارح والشوارع والسماء. اخترها بصرياً عند بناء المشاهد بدل كتابة الوصف.",
     "uploadImage": "رفع صورة",
-    "useInCoverArt": "الاستخدام في الغلاف الفني"
+    "useInCoverArt": "الاستخدام في الغلاف الفني",
+    "retryLoad": "Try again"
   },
   "logoMaker": {
     "back": "رجوع",
@@ -5416,7 +5418,9 @@
     "unmatchedLines_many": "تعذّرت مطابقة {{count}} سطر بثقة — تحقق من توقيته أدناه.",
     "unmatchedLines_other": "تعذّرت مطابقة {{count}} سطر بثقة — تحقق من توقيته أدناه.",
     "uploadAudio": "ارفع الصوت (MP3/WAV، ≤25 MB)",
-    "videoReady": "فيديو الكلمات جاهز"
+    "videoReady": "فيديو الكلمات جاهز",
+    "songsLoadError": "We couldn't load your song library — your songs are safe, this just couldn't reach them.",
+    "retryLoad": "Try again"
   },
   "makeSong": {
     "artistNameLabel": "اسم الفنان",

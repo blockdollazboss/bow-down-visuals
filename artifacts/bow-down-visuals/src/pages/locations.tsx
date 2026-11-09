@@ -26,6 +26,9 @@ export default function LocationsPage({ embedded }: { embedded?: boolean } = {})
   const [label, setLabel] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /* Load-only error: the shared `error` state also serves add/upload/delete,
+     so the gallery gates its empty copy on this dedicated load flag instead. */
+  const [loadError, setLoadError] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const authHeaders = useCallback(async (): Promise<HeadersInit> => {
@@ -39,8 +42,10 @@ export default function LocationsPage({ embedded }: { embedded?: boolean } = {})
       const data = (await res.json()) as { locations?: LocationRecord[]; error?: string };
       if (!res.ok) throw new Error(apiErrorMessage(data, t("locations.errLoad")));
       setLocations(data.locations ?? []);
+      setLoadError(false);
     } catch (e) {
       setError(plainErrorText(e, t("locations.errLoad")));
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -195,6 +200,18 @@ export default function LocationsPage({ embedded }: { embedded?: boolean } = {})
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+        </div>
+      ) : loadError && locations.length === 0 ? (
+        <div className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm flex flex-wrap items-center gap-3 text-white/50">
+          <span className="flex-1">{t("locations.errLoad")}</span>
+          <button
+            type="button"
+            onClick={() => void loadLocations()}
+            className="font-semibold text-primary hover:underline shrink-0"
+            data-testid="btn-retry-locations"
+          >
+            {t("locations.retryLoad", { defaultValue: "Try again" })}
+          </button>
         </div>
       ) : locations.length === 0 ? (
         <p className="text-sm text-white/40 py-12 text-center">

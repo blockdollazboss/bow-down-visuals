@@ -74,6 +74,7 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [songs, setSongs] = useState<SongEntry[]>([]);
   const [songsLoading, setSongsLoading] = useState(false);
+  const [songsError, setSongsError] = useState(false);
   const [selectedSongId, setSelectedSongId] = useState<string>("");
 
   /* step 2: lyrics + alignment */
@@ -134,9 +135,13 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
     try {
       const res = await authedFetch("/api/songs", { method: "GET" });
       const data = (await res.json().catch(() => ({}))) as { songs?: SongEntry[] };
-      if (res.ok && Array.isArray(data.songs)) setSongs(data.songs);
+      if (!res.ok || !Array.isArray(data.songs)) throw new Error();
+      /* A failed load is NOT an empty library — the error state below
+         keeps the "no songs" copy honest. Upload still works either way. */
+      setSongs(data.songs);
+      setSongsError(false);
     } catch {
-      /* library is optional — upload still works */
+      setSongsError(true);
     } finally {
       setSongsLoading(false);
     }
@@ -319,6 +324,18 @@ export default function LyricVideo({ embedded }: { embedded?: boolean } = {}) {
               {songsLoading ? (
                 <div className="flex items-center gap-2 text-xs text-white/40">
                   <Loader2 className="h-4 w-4 animate-spin" /> {t("lyricVideo.loadingSongs")}
+                </div>
+              ) : songsError ? (
+                <div className={`rounded-2xl border p-4 text-sm flex flex-wrap items-center gap-3 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 text-[#8A7A56]" : "border-white/10 bg-black/40 text-white/50"}`}>
+                  <span className="flex-1">{t("lyricVideo.songsLoadError", { defaultValue: "We couldn't load your song library — your songs are safe, this just couldn't reach them." })}</span>
+                  <button
+                    type="button"
+                    onClick={() => void loadSongs()}
+                    className="font-semibold text-primary hover:underline shrink-0"
+                    data-testid="btn-retry-songs"
+                  >
+                    {t("lyricVideo.retryLoad", { defaultValue: "Try again" })}
+                  </button>
                 </div>
               ) : songs.length === 0 ? (
                 <p className="text-xs text-white/40">{t("lyricVideo.noSongs")}</p>
