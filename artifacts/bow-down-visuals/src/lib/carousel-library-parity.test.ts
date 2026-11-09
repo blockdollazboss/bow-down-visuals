@@ -21,7 +21,8 @@
  *  - every template in the registry is reachable: seed-resolved, or
  *    one of the named maker-native extras (minimal-luxe, plus the
  *    Stack 200 U2 formats timeline-journey / pros-cons, plus the
- *    Stack 300 formats event-agenda / wrapped-recap), and both
+ *    Stack 300 formats event-agenda / wrapped-recap, plus the
+ *    Stack 400 formats red-flags-green-flags / this-or-that), and both
  *    pickers (the maker gallery and the World Carousel Desk) render
  *    the whole registry from CAROUSEL_TEMPLATES;
  *  - every template is complete: a real painter, a distinct
@@ -112,9 +113,9 @@ describe("resolution is exact — the fuzzy fallback is dead", () => {
 });
 
 describe("every template is reachable and complete", () => {
-  it("the registry is the 8 originals + the 13 Library completions + the 2 Stack 200 U2 formats + the 2 Stack 300 formats", () => {
-    expect(CAROUSEL_TEMPLATES).toHaveLength(25);
-    expect(new Set(CAROUSEL_TEMPLATES.map((t) => t.id)).size).toBe(25);
+  it("the registry is the 8 originals + the 13 Library completions + the 2 Stack 200 U2 formats + the 2 Stack 300 formats + the 2 Stack 400 formats", () => {
+    expect(CAROUSEL_TEMPLATES).toHaveLength(27);
+    expect(new Set(CAROUSEL_TEMPLATES.map((t) => t.id)).size).toBe(27);
     expect(CAROUSEL_TEMPLATES[0]!.id).toBe("bold-statement"); // default unchanged
   });
 
@@ -125,8 +126,9 @@ describe("every template is reachable and complete", () => {
        and pros-cons (Stack 200 Lane U2) are maker-native the same way —
        no Library seed, but both pickers render the whole registry, so
        nothing here is hidden. event-agenda and wrapped-recap
-       (Stack 300) join them on the same terms. */
-    expect(unseeded).toEqual(["minimal-luxe", "timeline-journey", "pros-cons", "event-agenda", "wrapped-recap"]);
+       (Stack 300) join them on the same terms, and red-flags-green-flags
+       and this-or-that (Stack 400) join on the same terms again. */
+    expect(unseeded).toEqual(["minimal-luxe", "timeline-journey", "pros-cons", "event-agenda", "wrapped-recap", "red-flags-green-flags", "this-or-that"]);
   });
 
   it("the two Stack 200 U2 formats resolve exactly, bare and prefixed", () => {
@@ -148,6 +150,18 @@ describe("every template is reachable and complete", () => {
     expect(resolveCarouselTemplate("carousel-event")).toBeNull();
     expect(resolveCarouselTemplate("carousel-agenda")).toBeNull();
     expect(resolveCarouselTemplate("carousel-wrapped")).toBeNull();
+  });
+
+  it("the two Stack 400 formats resolve exactly, bare and prefixed", () => {
+    expect(resolveCarouselTemplate("red-flags-green-flags")!.id).toBe("red-flags-green-flags");
+    expect(resolveCarouselTemplate("carousel-red-flags-green-flags")!.id).toBe("red-flags-green-flags");
+    expect(resolveCarouselTemplate("this-or-that")!.id).toBe("this-or-that");
+    expect(resolveCarouselTemplate("carousel-this-or-that")!.id).toBe("this-or-that");
+    /* near-misses stay misses — the exact-resolution contract holds */
+    expect(resolveCarouselTemplate("red-flags")).toBeNull();
+    expect(resolveCarouselTemplate("carousel-flags")).toBeNull();
+    expect(resolveCarouselTemplate("carousel-this")).toBeNull();
+    expect(resolveCarouselTemplate("carousel-that")).toBeNull();
   });
 
   it("both pickers render the whole registry — nothing is maker-only by hiding", () => {

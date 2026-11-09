@@ -883,6 +883,8 @@ export const BIO_PAGE_THEMES = [
   { key: "amber-dusk", label: "Amber Dusk" },
   { key: "violet-reign", label: "Violet Reign" },
   { key: "sky-atrium", label: "Sky Atrium" },
+  { key: "sandstone-dune", label: "Sandstone Dune" },
+  { key: "graphite-pro", label: "Graphite Pro" },
 ] as const;
 
 export const BIO_SOCIAL_FIELDS = [

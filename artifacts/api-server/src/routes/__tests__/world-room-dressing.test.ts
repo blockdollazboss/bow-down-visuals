@@ -3,7 +3,7 @@
  * catalog / gate / resolution / write-decision contract.
  *
  * Pinned:
- * - the catalog is 6 bands × 5 template variants, named with the
+ * - the catalog is 6 bands × 6 template variants, named with the
  *   ladder's own rung names (lib/creator-rank STAR_TITLES — the
  *   single source), and every band's "classic" carries exactly
  *   the Phase 5 dressing parameters (house / bar / flank), so an
@@ -36,8 +36,8 @@ import {
 } from "../../lib/world-room-dressing";
 
 describe("the dressing catalog", () => {
-  it("offers exactly five template variants per rung, thirty in all", () => {
-    expect(ROOM_DRESSING_VARIANTS).toHaveLength(30);
+  it("offers exactly six template variants per rung, thirty-six in all", () => {
+    expect(ROOM_DRESSING_VARIANTS).toHaveLength(36);
     for (let band = 1; band <= 6; band++) {
       const inBand = ROOM_DRESSING_VARIANTS.filter((v) => v.band === band);
       expect(inBand.map((v) => v.id)).toEqual([
@@ -46,6 +46,7 @@ describe("the dressing catalog", () => {
         `t${band}-regal`,
         `t${band}-shadow`,
         `t${band}-gallery`,
+        `t${band}-velvet`,
       ]);
     }
   });
@@ -61,6 +62,8 @@ describe("the dressing catalog", () => {
     expect(roomDressingVariantById("t6-shadow")?.name).toBe("Kingpin Shadow");
     expect(roomDressingVariantById("t1-gallery")?.name).toBe("Street Punk Gallery");
     expect(roomDressingVariantById("t6-gallery")?.name).toBe("Kingpin Gallery");
+    expect(roomDressingVariantById("t1-velvet")?.name).toBe("Street Punk Velvet");
+    expect(roomDressingVariantById("t6-velvet")?.name).toBe("Kingpin Velvet");
   });
 
   it("the classic of every band IS the Phase 5 dressing (default-equivalence)", () => {
@@ -94,6 +97,13 @@ describe("the dressing catalog", () => {
     expect(gallery.palette).toBe("house");
     expect(gallery.trimStyle).toBe("bar");
     expect(gallery.bannerStyle).toBe("trio");
+    /* Velvet is the plush look (Stack 400): regal's gilded gold
+     * and trio of banners, worn with the single classic bar
+     * instead of the crown. */
+    const velvet = roomDressingVariantById("t3-velvet")!;
+    expect(velvet.palette).toBe("gilded");
+    expect(velvet.trimStyle).toBe("bar");
+    expect(velvet.bannerStyle).toBe("trio");
   });
 
   it("the default clamps out-of-range stars to the ladder", () => {
@@ -202,6 +212,19 @@ describe("resolution — what a visitor's room read carries", () => {
     expect(dto?.name).toBe("Shot Caller Gallery");
     expect(dto?.picked).toBe(true);
     expect(dto?.palette).toBe("house");
+    expect(dto?.trimStyle).toBe("bar");
+    expect(dto?.bannerStyle).toBe("trio");
+  });
+
+  it("a stored velvet pick resolves with its plush tuple", () => {
+    const dto = resolveRoomDressing({
+      themeConfig: { [ROOM_DRESSING_CONFIG_KEY]: "t4-velvet" },
+      earnedStars: 4,
+    });
+    expect(dto?.variantId).toBe("t4-velvet");
+    expect(dto?.name).toBe("Shot Caller Velvet");
+    expect(dto?.picked).toBe(true);
+    expect(dto?.palette).toBe("gilded");
     expect(dto?.trimStyle).toBe("bar");
     expect(dto?.bannerStyle).toBe("trio");
   });

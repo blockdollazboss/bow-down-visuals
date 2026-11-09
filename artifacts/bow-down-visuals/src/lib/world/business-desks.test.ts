@@ -395,7 +395,8 @@ describe("promote desk — link-in-bio full editing (#59)", () => {
       "velvet-noir", "emerald-court", "smoke-platinum",
       "golden-marble", "ivory-pearl", "rose-champagne",
       "cobalt-stage", "mint-atelier", "amber-dusk",
-      "violet-reign", "sky-atrium",
+      "violet-reign", "sky-atrium", "sandstone-dune",
+      "graphite-pro",
     ]);
   });
 

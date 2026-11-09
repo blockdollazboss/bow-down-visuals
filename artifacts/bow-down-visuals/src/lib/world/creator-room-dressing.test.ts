@@ -42,14 +42,14 @@ import {
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
 describe("the mirror catalog", () => {
-  it("is the server's list: thirty variants, five per rung, classic first", () => {
+  it("is the server's list: thirty-six variants, six per rung, classic first", () => {
     expect(CREATOR_ROOM_DRESSING_VARIANTS.map((v) => v.id)).toEqual([
-      "t1-classic", "t1-bold", "t1-regal", "t1-shadow", "t1-gallery",
-      "t2-classic", "t2-bold", "t2-regal", "t2-shadow", "t2-gallery",
-      "t3-classic", "t3-bold", "t3-regal", "t3-shadow", "t3-gallery",
-      "t4-classic", "t4-bold", "t4-regal", "t4-shadow", "t4-gallery",
-      "t5-classic", "t5-bold", "t5-regal", "t5-shadow", "t5-gallery",
-      "t6-classic", "t6-bold", "t6-regal", "t6-shadow", "t6-gallery",
+      "t1-classic", "t1-bold", "t1-regal", "t1-shadow", "t1-gallery", "t1-velvet",
+      "t2-classic", "t2-bold", "t2-regal", "t2-shadow", "t2-gallery", "t2-velvet",
+      "t3-classic", "t3-bold", "t3-regal", "t3-shadow", "t3-gallery", "t3-velvet",
+      "t4-classic", "t4-bold", "t4-regal", "t4-shadow", "t4-gallery", "t4-velvet",
+      "t5-classic", "t5-bold", "t5-regal", "t5-shadow", "t5-gallery", "t5-velvet",
+      "t6-classic", "t6-bold", "t6-regal", "t6-shadow", "t6-gallery", "t6-velvet",
     ]);
     expect(creatorRoomDressingVariantById("t4-regal")).toEqual({
       id: "t4-regal",
@@ -80,6 +80,14 @@ describe("the mirror catalog", () => {
       band: 2,
       name: "Hustler Gallery",
       palette: "house",
+      trimStyle: "bar",
+      bannerStyle: "trio",
+    });
+    expect(creatorRoomDressingVariantById("t3-velvet")).toEqual({
+      id: "t3-velvet",
+      band: 3,
+      name: "Gangster Velvet",
+      palette: "gilded",
       trimStyle: "bar",
       bannerStyle: "trio",
     });
@@ -118,6 +126,11 @@ describe("the mirror catalog", () => {
     expect(roomDressingStyleWords(creatorRoomDressingVariantById("t1-gallery")!)).toBe(
       "House hues · Single trim · Three banners",
     );
+    /* Velvet's words likewise: gilded banners, the single trim,
+     * three banners — no new picker string for this style either. */
+    expect(roomDressingStyleWords(creatorRoomDressingVariantById("t1-velvet")!)).toBe(
+      "Gilded banners · Single trim · Three banners",
+    );
   });
 });
 
@@ -130,9 +143,10 @@ describe("the picker gate", () => {
       "t1-regal",
       "t1-shadow",
       "t1-gallery",
+      "t1-velvet",
     ]);
     const locked = options.filter((o) => o.locked);
-    expect(locked).toHaveLength(25);
+    expect(locked).toHaveLength(30);
     expect(locked[0]!.lockReason).toContain("★2 Hustler");
     expect(options.find((o) => o.variant.id === "t6-regal")!.lockReason).toContain("★6 Kingpin");
   });
@@ -141,7 +155,7 @@ describe("the picker gate", () => {
     const open = roomDressingOptions(4).filter((o) => !o.locked).map((o) => o.variant.id);
     expect(open).toContain("t4-regal");
     expect(open).toContain("t1-classic");
-    expect(open).toHaveLength(20);
+    expect(open).toHaveLength(24);
   });
 
   it("the grandfather rule flows through the house gate: max(earned, saved dial)", () => {
@@ -166,7 +180,7 @@ describe("the picker gate", () => {
 
   it("an out-of-range gate clamps to the ladder", () => {
     expect(roomDressingOptions(99).every((o) => !o.locked)).toBe(true);
-    expect(roomDressingOptions(0).filter((o) => !o.locked)).toHaveLength(5);
+    expect(roomDressingOptions(0).filter((o) => !o.locked)).toHaveLength(6);
   });
 });
 
