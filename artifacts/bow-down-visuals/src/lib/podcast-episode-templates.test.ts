@@ -48,12 +48,14 @@ const EXPECTED_IDS = [
   "co-host-duo",
   "the-debate",
   "workshop-episode",
+  "true-crime-case",
+  "daily-briefing",
 ] as const;
 
 describe("A7 — podcast episode template registry", () => {
-  it("carries exactly the twelve named templates, in shelf order, with unique ids", () => {
+  it("carries exactly the fourteen named templates, in shelf order, with unique ids", () => {
     expect(PODCAST_EPISODE_TEMPLATES.map((t) => t.id)).toEqual([...EXPECTED_IDS]);
-    expect(new Set(PODCAST_EPISODE_TEMPLATES.map((t) => t.id)).size).toBe(12);
+    expect(new Set(PODCAST_EPISODE_TEMPLATES.map((t) => t.id)).size).toBe(14);
     for (const tpl of PODCAST_EPISODE_TEMPLATES) {
       expect(getPodcastEpisodeTemplate(tpl.id)).toBe(tpl);
       expect(tpl.name.length).toBeGreaterThan(0);
@@ -113,6 +115,8 @@ describe("A7 — template shapes match the form they prefill", () => {
       "review-desk",
       "co-host-duo",
       "workshop-episode",
+      "true-crime-case",
+      "daily-briefing",
     ]);
     for (const tpl of scriptTpls) {
       // Solo starters select the single-host format; the co-host duo is

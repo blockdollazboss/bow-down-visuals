@@ -160,6 +160,13 @@ JORDAN: That's free game right there. Try it on your next upload and watch the r
    existing two were cooperative), and `workshop-episode` adds the
    teach-by-doing job the explainer never did (its segments are
    practice steps with pause-and-do cues, not explanations).
+
+   Stack-400 census-D additions: `true-crime-case` gives the shelf its
+   narrated case-file format (story-episode invents its fiction; this
+   one works a real case from its record — the incident, the people,
+   the timeline, the evidence, the turn, where it stands), and
+   `daily-briefing` adds the short daily job the weekly roundup never
+   did (five lean segments built to record fast and ship every day).
 ------------------------------------------------------------------------ */
 
 export type PodcastSegmentKind = "intro" | "hook" | "segment" | "interview" | "outro";
@@ -206,7 +213,9 @@ export type PodcastTemplateId =
   | "review-desk"
   | "co-host-duo"
   | "the-debate"
-  | "workshop-episode";
+  | "workshop-episode"
+  | "true-crime-case"
+  | "daily-briefing";
 
 export interface PodcastEpisodeTemplate {
   id: PodcastTemplateId;
@@ -1363,6 +1372,186 @@ export const PODCAST_EPISODE_TEMPLATES: PodcastEpisodeTemplate[] = [
           {
             speaker: "HOST",
             line: "You made [the finished thing] — that's yours now. Share it [where to share], follow the show, and next time we're making [the next project].",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "true-crime-case",
+    name: "True Crime Case",
+    tagline: "One case, told from the file",
+    description:
+      "Switches to Script mode with a solo host and seeds the script with a seven-segment case-file structure — the incident first, then the people, the timeline, the evidence, the turn, and where the case stands today. Title, description, voice and music bed stay yours.",
+    mode: "script",
+    format: "single",
+    speakers: [],
+    segments: [
+      {
+        kind: "hook",
+        title: "The Call",
+        guidance:
+          "Open on the moment the case began — the call, the discovery, the knock on the door — told plainly and in order. End on the one detail that still doesn't fit; that detail is the thread the whole episode pulls.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "On [the night], at [the place], [what was found] — and to this day, nobody can explain [the detail that doesn't fit].",
+          },
+        ],
+      },
+      {
+        kind: "intro",
+        title: "The Case File",
+        guidance:
+          "Name the show and the case, and say where your account comes from — court records, reporting, interviews. Where the record runs out, say so out loud; listeners trust a host who marks the edge of what's known.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Welcome to [show name]. This is the case of [the case] — everything ahead comes from [the public record], and where that record runs out, I'll tell you.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The People",
+        guidance:
+          "The victim as a person first: their life, their people, what an ordinary week looked like before the case had a name. The people around them come next. Nobody in this episode is only a role in somebody else's story.",
+        minutes: 5,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Before anything else: [the victim] was [who they were] — [the details that make them a person, not a headline].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Timeline",
+        guidance:
+          "Rebuild the window hour by hour, in order, with the source of each beat named as you go. When accounts disagree, give both and say which one the record supports. The timeline is the spine — every later segment hangs on it.",
+        minutes: 8,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Let's walk it in order. At [the first time], [what happened]. Then, at [the next time] — [what happened next].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Evidence",
+        guidance:
+          "Piece by piece: what investigators found, what each item actually proves, and what it cannot prove. Keep fact and interpretation in separate sentences — the gap between them is where this genre earns or loses its credibility.",
+        minutes: 7,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Investigators pointed to [the key evidence]. What it proves is [what it proves] — what it doesn't prove is [the gap].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Turn",
+        guidance:
+          "The moment the case changed direction: the suspect named, the arrest, the alibi that broke, or the theory that took over. Show what was believed the day before the turn and why it couldn't survive it.",
+        minutes: 6,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Then the case turned on [the discovery] — and suddenly [what changed] was the only thing anyone could talk about.",
+          },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "Where It Stands",
+        guidance:
+          "Close with the case as it stands today: verdict, sentence, appeals, or still open — stated exactly, no speculation dressed as fact. End respectfully, tell listeners where real information about the case goes, and tease the next file.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "As of today, [where the case stands]. If you know something about [the case], it belongs with [where to bring it]. Next time on [show name]: [the next case].",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "daily-briefing",
+    name: "Daily Briefing",
+    tagline: "Your world, in five minutes flat",
+    description:
+      "Switches to Script mode with a solo host and seeds the script with a five-segment daily-brief structure — the top story, two quick hits, one number that matters, and what to watch today, all built to record fast and ship every day. Title, description, voice and music bed stay yours.",
+    mode: "script",
+    format: "single",
+    speakers: [],
+    segments: [
+      {
+        kind: "intro",
+        title: "Good Morning",
+        guidance:
+          "Same greeting shape every day — the ritual is the brand. Day, date, show name, and exactly how many things today's brief carries. If yesterday's big story moved overnight, promise the update and pay it off in the top story.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Good morning — it's [the day and date], and this is your [show name] briefing: [the number] things to know in about five minutes.",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Top Story",
+        guidance:
+          "The one story that matters most today, told in three moves: what happened, the fact that changes it, and why it lands today instead of yesterday. No throat-clearing — the brief lives or dies on this segment's pace.",
+        minutes: 2,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "First: [the headline]. What happened: [the facts]. Why it lands today: [the impact].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "Two Quick Hits",
+        guidance:
+          "Two more stories at one or two sentences each — headline, the single fact that matters, done. If a hit needs a third sentence, it isn't a quick hit; it goes in tomorrow's notebook instead.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Quickly: [headline two, with its one key fact]. And [headline three, with its one key fact].",
+          },
+        ],
+      },
+      {
+        kind: "segment",
+        title: "The Number That Matters",
+        guidance:
+          "One figure your listeners will repeat today — a price, a count, a streak, a deadline — with the one sentence that gives it meaning. Pick the number the day will be remembered by, not the loudest one.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Today's number: [the figure]. It matters because [what it changes].",
+          },
+        ],
+      },
+      {
+        kind: "outro",
+        title: "What to Watch Today",
+        guidance:
+          "Close forward: the one development, release, or deadline landing today that your listener should have an eye on — then the sign-off and tomorrow's time, identical every day so it becomes a habit cue.",
+        minutes: 1,
+        starterLines: [
+          {
+            speaker: "HOST",
+            line: "Watch for [what develops today]. That's your briefing — [show name] is back tomorrow at [the time].",
           },
         ],
       },

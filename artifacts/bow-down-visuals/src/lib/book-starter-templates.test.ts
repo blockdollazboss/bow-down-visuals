@@ -82,7 +82,7 @@ describe("Stack-300 census-D — fiction's first starters + the guided journal",
     expect(bookTemplateById("novel")?.genre).toBe("Fiction");
     expect(bookTemplateById("short-story-collection")?.genre).toBe("Short Stories");
     expect(bookTemplateById("guided-journal")?.genre).toBe("Journal");
-    expect(BOOK_TEMPLATES.length).toBe(11);
+    expect(BOOK_TEMPLATES.length).toBe(13);
   });
 
   it("the novel's chapters follow a real story arc, front and back matter around them", () => {
@@ -114,6 +114,37 @@ describe("Stack-300 census-D — fiction's first starters + the guided journal",
     expect(runs[0]!.title).toBe("Week One — Where You Stand");
     expect(runs[5]!.title).toBe("Week Six — Where You're Headed");
     expect(journal.chapters[journal.chapters.length - 2]!.title).toBe("Looking Back");
+  });
+});
+
+describe("Stack-400 census-D — the shelf's first script formats", () => {
+  it("carries the two named additions with their genres", () => {
+    expect(bookTemplateById("screenplay")?.genre).toBe("Screenplay");
+    expect(bookTemplateById("comic-book-script")?.genre).toBe("Comic Book Script");
+    expect(BOOK_TEMPLATES.length).toBe(13);
+  });
+
+  it("the screenplay is structured in sequences and acts, not prose chapters", () => {
+    const sp = bookTemplateById("screenplay")!;
+    expect(sp.chapters.filter((c) => c.kind === "front").length).toBe(2);
+    expect(sp.chapters.filter((c) => c.kind === "back").length).toBe(1);
+    expect(sp.chapters.filter((c) => c.kind === "chapter").map((c) => c.title)).toEqual([
+      "Sequence One — The Ordinary World",
+      "Sequence Two — The Inciting Incident",
+      "Act Two, Part One — Tests and Allies",
+      "The Midpoint Turn",
+      "Act Two, Part Two — The Squeeze",
+      "Act Three — The Climax",
+      "The Final Image",
+    ]);
+  });
+
+  it("the comic script is broken into page runs a panel artist can draw from", () => {
+    const comic = bookTemplateById("comic-book-script")!;
+    expect(comic.chapters.filter((c) => c.kind === "front").length).toBe(1);
+    expect(comic.chapters.filter((c) => c.kind === "chapter").length).toBe(9);
+    expect(comic.chapters[1]!.title).toBe("Page One — The Splash");
+    expect(comic.chapters[comic.chapters.length - 2]!.title).toBe("Page 20 — The Cliffhanger");
   });
 });
 
