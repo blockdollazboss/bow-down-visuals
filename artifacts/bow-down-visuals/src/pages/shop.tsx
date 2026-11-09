@@ -31,6 +31,7 @@ import {
   type CommercePixels,
 } from "@/lib/commerce-pixels";
 import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Public storefront — /shop/:handle ───────────────────────────────────
@@ -462,8 +463,8 @@ export default function ShopStorefront() {
      layout's supporting rail renders these identical cards under its
      featured card, so a layout never forks the card itself. */
   const productCard = (p: PublicProduct) => (
+    <SectionBoundary key={p.id} variant="compact" name="shop-product-card">
     <button
-      key={p.id}
       onClick={() => setSelected(p)}
       className={`relative flex flex-col text-left rounded-2xl border overflow-hidden hover:border-white/25 transition group ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
     >
@@ -495,6 +496,7 @@ export default function ShopStorefront() {
         <div className="mt-auto pt-1 font-black" style={{ color: accent }}>{priceLabel(p.price_cents, i18n.language)}</div>
       </div>
     </button>
+    </SectionBoundary>
   );
 
   /* The Hero layout's featured card (stack200 U3): the shop's first
@@ -502,8 +504,8 @@ export default function ShopStorefront() {
      its story on the card, since the hero product IS the pitch. It
      opens the same detail view as every other card. */
   const heroCard = (p: PublicProduct) => (
+    <SectionBoundary key={p.id} variant="compact" name="shop-hero-card">
     <button
-      key={p.id}
       onClick={() => setSelected(p)}
       className={`relative flex w-full flex-col text-left rounded-2xl border overflow-hidden hover:border-white/25 transition group ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
     >
@@ -527,6 +529,7 @@ export default function ShopStorefront() {
         <div className="mt-3 font-black text-lg" style={{ color: accent }}>{priceLabel(p.price_cents, i18n.language)}</div>
       </div>
     </button>
+    </SectionBoundary>
   );
 
   return (
@@ -701,13 +704,15 @@ export default function ShopStorefront() {
               {/* Wave 4 #43: make-an-offer, docked in the product
                   detail — accepted offers check out at the agreed
                   price through the shops checkout above. */}
-              <ProductOfferPanel
-                itemKind="shop_product"
-                itemId={selected.id}
-                listPriceCents={selected.price_cents}
-                onCheckoutOffer={buyWithOffer}
-                className="mt-4"
-              />
+              <SectionBoundary name="shop-offer-panel">
+                <ProductOfferPanel
+                  itemKind="shop_product"
+                  itemId={selected.id}
+                  listPriceCents={selected.price_cents}
+                  onCheckoutOffer={buyWithOffer}
+                  className="mt-4"
+                />
+              </SectionBoundary>
               {selected.description && (
                 <p className="mt-3 text-sm text-white/60 whitespace-pre-line">{selected.description}</p>
               )}
@@ -720,7 +725,9 @@ export default function ShopStorefront() {
               </button>
               {/* Verified-purchase reviews for this shop product,
                   docked in its detail view (Stack-100 #3, #14). */}
-              <ProductReviews productType="shop_product" productId={selected.id} />
+              <SectionBoundary name="shop-reviews">
+                <ProductReviews productType="shop_product" productId={selected.id} />
+              </SectionBoundary>
             </div>
           </div>
         </div>
@@ -762,7 +769,8 @@ export default function ShopStorefront() {
                 <p className="text-sm text-white/40 text-center py-12">{t("shop.cartEmpty")}</p>
               ) : (
                 cartDetailed.map((l) => (
-                  <div key={l.productId} className="flex gap-3 rounded-xl border border-white/10 bg-black/40 p-3">
+                  <SectionBoundary key={l.productId} variant="compact" name="shop-cart-line">
+                  <div className="flex gap-3 rounded-xl border border-white/10 bg-black/40 p-3">
                     {l.product!.image_url ? (
                       <img src={l.product!.image_url} onError={(e) => { e.currentTarget.style.display = "none"; }} alt={l.product!.image_alt_text ?? l.product!.name} className="h-14 w-14 rounded-lg object-cover shrink-0" />
                     ) : (
@@ -814,10 +822,12 @@ export default function ShopStorefront() {
                       )}
                     </div>
                   </div>
+                  </SectionBoundary>
                 ))
               )}
               </div>
             {cartDetailed.length > 0 && !orderDone && !embeddedSecret && (
+              <SectionBoundary name="shop-checkout">
               <div className="mt-4 border-t border-white/10 pt-4">
                 {bumpTotalCents > 0 && (
                   <div className="mb-1.5 flex justify-between text-sm">
@@ -895,8 +905,10 @@ export default function ShopStorefront() {
                   {t(hasStripePublishableKey() ? "shop.checkoutNoteOnSite" : "shop.checkoutNote", { feePct })}
                 </p>
               </div>
+              </SectionBoundary>
             )}
             {embeddedSecret && !orderDone && (
+              <SectionBoundary name="shop-embedded-checkout">
               <div className="mt-4 border-t border-white/10 pt-4" data-testid="shop-embedded-checkout">
                 <p className="text-xs leading-relaxed text-white/60">
                   {t("shop.embeddedPendingNote", { defaultValue: "Your order is saved as pending — finish paying right here. It only counts as a sale once the payment confirms, and your download lands in your Library." })}
@@ -911,8 +923,10 @@ export default function ShopStorefront() {
                   {t("shop.embeddedCancel", { defaultValue: "Not now — nothing is charged until you pay" })}
                 </button>
               </div>
+              </SectionBoundary>
             )}
             {orderDone && (
+              <SectionBoundary name="shop-order-done">
               <div className="mt-4 border-t border-white/10 pt-4 text-center" role="status">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400/15">
                   <Check className="h-6 w-6 text-emerald-300" />
@@ -947,6 +961,7 @@ export default function ShopStorefront() {
                   {t("shop.continueShopping")}
                 </button>
               </div>
+              </SectionBoundary>
             )}
             </div>
           </aside>
