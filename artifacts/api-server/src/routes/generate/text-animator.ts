@@ -7,7 +7,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -176,24 +183,36 @@ router.post("/animated-text", requireAuth, async (req, res) => {
   const fontSize = parsed.data.fontSize ?? autoFontSize(text);
   const transparent = background === "transparent";
 
+  /* CA-6 replay protection (charge audit B6): key derived from the
+     request intent; the guard's stored-result pre-check runs before
+     the balance gate and any funding. A failed render refunds as
+     before and voids the key, so a genuine retry can re-charge. */
+  const idempotencyKey = buildChargeIdempotencyKey("animated-text", req.userId!, null, {
+    text,
+    style,
+    background,
+    textColor,
+    fontSize,
+  });
+
+  try {
+    const outcome = await withReplayProtection("animated-text", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < TEXT_ANIMATOR_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
     });
-    return;
   }
 
   let creditsAfter: number;
   try {
     creditsAfter = await chargeCredits(req.userId!, TEXT_ANIMATOR_COST, {
       action: `Animated Text (${style})`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "Not enough Visual Bucs." });
     }
     throw err;
   }
@@ -234,7 +253,7 @@ router.post("/animated-text", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, mime);
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    return {
       url,
       storageRef,
       style,
@@ -243,17 +262,32 @@ router.post("/animated-text", requireAuth, async (req, res) => {
       durationSeconds: DURATION,
       transparent,
       creditsRemaining: creditsAfter,
-    });
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Animated text creation failed.";
     req.log.error({ err: message }, "[text-animator] failed");
+    let refunded = true;
     await refundCredits(req.userId!, TEXT_ANIMATOR_COST, {
       action: "Animated Text — Refund",
-    }).catch(() => {});
-    res.status(500).json({ error: message });
+    }).catch(() => { refunded = false; });
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
   } finally {
     await unlink(outputPath).catch(() => {});
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Animated text creation failed.";
+    res.status(500).json({ error: message });
   }
 });
 

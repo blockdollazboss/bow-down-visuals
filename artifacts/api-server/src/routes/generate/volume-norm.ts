@@ -7,7 +7,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -49,24 +56,34 @@ router.post("/normalize-volume", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the video + preset/format ask; the guard's stored-result
+     pre-check runs before the balance gate and any funding. A failed
+     normalization refunds as before and voids the key. */
+  const idempotencyKey = buildChargeIdempotencyKey("volume-norm", req.userId!, null, {
+    videoUrl: parsed.data.videoUrl,
+    preset: parsed.data.preset,
+    format: parsed.data.format,
+  });
+
+  try {
+    const outcome = await withReplayProtection("volume-norm", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < NORM_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
     });
-    return;
   }
 
   let creditsAfter: number;
   try {
     creditsAfter = await chargeCredits(req.userId!, NORM_COST, {
       action: "Video Volume Normalizer",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "Not enough Visual Bucs." });
     }
     throw err;
   }
@@ -130,7 +147,7 @@ router.post("/normalize-volume", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, contentType);
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    return {
       url,
       storageRef,
       preset,
@@ -141,19 +158,33 @@ router.post("/normalize-volume", requireAuth, async (req, res) => {
         loudnessRange: measuredLRA,
       },
       creditsRemaining: creditsAfter,
-    });
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Volume normalization failed.";
     req.log.error({ err: message }, "[normalize-volume] failed");
-    await refundCredits(req.userId!, NORM_COST, {
+    const refunded = await refundCredits(req.userId!, NORM_COST, {
       action: "Video Volume Normalizer — Refund",
-    }).catch(() => {});
-    res.status(500).json({ error: message });
+    }).then(() => true).catch(() => false);
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
   } finally {
     await unlink(inputPath).catch(() => {});
     await unlink(outputPath).catch(() => {});
     const { rm } = await import("fs/promises");
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Volume normalization failed.";
+    res.status(500).json({ error: message });
   }
 });
 

@@ -21,9 +21,9 @@
  * Honest framing (also in the UI): this is AI dubbing, not human
  * translation — users should review before publishing.
  */
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { execFile } from "child_process";
-import { promises as fs } from "fs";
+import { createReadStream, promises as fs } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { promisify } from "util";
@@ -36,7 +36,10 @@ import {
   refundCredits,
   OutOfCreditsError,
   LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import { deterministicJobId, findJobCreateReplay, storeCompletedJobResult } from "./ca6-replay-guard";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -205,6 +208,11 @@ export interface TranslateJob {
   createdAt: number;
   /** Virality: opt-in "Made with Bow Down Visuals" tag burned into the dubbed videos (paid export → opt-in). */
   attribution?: boolean;
+  /* CA-6: the charge's idempotency key + the create-time balance, so
+     the async runner can void on refund and the create body can be
+     stored/replayed verbatim. */
+  idempotencyKey?: string;
+  creditsRemaining?: number;
 }
 
 const jobs = new Map<string, TranslateJob>();
@@ -465,6 +473,20 @@ export async function runTranslateJob(
       throw new Error(job.outputs[0]?.error ?? "Translation failed for all languages.");
     }
     job.status = "done";
+    /* CA-6: persist the create body durably at success (a partial
+       success still landed the job) so a replayed create after a
+       restart is served from the store. Fail-open. Partial refunds
+       below do NOT void the key — the charge partly stands. */
+    if (job.idempotencyKey) {
+      await storeCompletedJobResult("video-translator", job.idempotencyKey, job.userId, {
+        jobId: job.id,
+        status: "queued",
+        languages: job.languages,
+        attribution: job.attribution,
+        creditsCharged: job.creditsCharged,
+        creditsRemaining: job.creditsRemaining,
+      });
+    }
     if (succeeded.length < job.outputs.length) {
       // Partial success: refund proportionally for failed languages.
       const failedCount = job.outputs.length - succeeded.length;
@@ -479,12 +501,20 @@ export async function runTranslateJob(
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Translation failed";
+    let refunded = true;
     try {
       await refundCredits(job.userId, job.creditsCharged, {
         action: "AI Video Translator — Refund (job failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       void refundErr;
+    }
+    /* CA-6: a landed full refund voids the key, so the retry
+       re-charges. (Partial-success refunds above never void.) */
+    if (refunded && job.idempotencyKey) {
+      await voidChargeIdempotencyKey(job.idempotencyKey).catch(() => false);
+      await storeCompletedJobResult("video-translator", job.idempotencyKey, job.userId, null);
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
@@ -578,6 +608,40 @@ router.post(
     }
     const uniqueLangs = [...new Set(languages)];
 
+    /* CA-6 replay protection (charge audit B6, Pattern B): server-derived
+       key over the uploaded video's bytes (streamed hash — the upload
+       is disk-backed) + the language/voice/duration ask (which fixes
+       the estimate price); the job id is DETERMINISTIC from the key,
+       so a replayed create finds the existing job instead of minting
+       (and charging for) a second one. A failed job's full refund
+       voids the key in the runner. Fresh responses are byte-identical. */
+    const fileHash = await new Promise<string>((resolve, reject) => {
+      const hash = createHash("sha256");
+      const stream = createReadStream(req.file!.path);
+      stream.on("data", (chunk) => hash.update(chunk as Buffer));
+      stream.on("end", () => resolve(hash.digest("hex")));
+      stream.on("error", reject);
+    });
+    const idempotencyKey = buildChargeIdempotencyKey("video-translator", req.userId!, null, {
+      languages: uniqueLangs,
+      voiceId: voiceId ?? null,
+      durationSec: durationSec ?? null,
+      attribution: attribution ?? null,
+      fileHash,
+    });
+    const replay = await findJobCreateReplay("video-translator", idempotencyKey, req.userId!, jobs, (j) => ({
+      jobId: j.id,
+      status: j.status,
+      languages: j.languages,
+      attribution: j.attribution,
+      creditsCharged: j.creditsCharged,
+      creditsRemaining: j.creditsRemaining,
+    }));
+    if (replay) {
+      res.status(202).json({ ...replay, replayed: true });
+      return;
+    }
+
     // Estimate from client-reported duration when available, else assume 1 min
     // floor and true-up is impossible pre-probe — the charge uses the estimate;
     // over-estimates are the honest direction (no surprise mid-job charges).
@@ -597,7 +661,7 @@ router.post(
     try {
       creditsRemaining = await chargeCredits(req.userId!, estimate.credits, {
         action: `AI Video Translator (${uniqueLangs.map(languageLabel).join(", ")})`,
-      });
+      }, { idempotencyKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -614,8 +678,24 @@ router.post(
       throw err;
     }
 
+    /* Concurrent twin: the ledger deduped this charge — answer with
+       the twin's job instead of starting a second run. */
+    const twin = jobs.get(deterministicJobId(idempotencyKey));
+    if (twin && twin.userId === req.userId! && twin.status !== "failed") {
+      res.status(202).json({
+        jobId: twin.id,
+        status: twin.status,
+        languages: twin.languages,
+        attribution: twin.attribution,
+        creditsCharged: twin.creditsCharged,
+        creditsRemaining: twin.creditsRemaining,
+        replayed: true,
+      });
+      return;
+    }
+
     const job: TranslateJob = {
-      id: randomUUID(),
+      id: deterministicJobId(idempotencyKey),
       userId: req.userId!,
       status: "queued",
       languages: uniqueLangs,
@@ -634,6 +714,8 @@ router.post(
       creditsCharged: estimate.credits,
       createdAt: Date.now(),
       attribution,
+      idempotencyKey,
+      creditsRemaining,
     };
     jobs.set(job.id, job);
 

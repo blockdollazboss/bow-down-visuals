@@ -45,6 +45,13 @@ vi.mock("../../middlewares/require-auth", () => ({
 
 vi.mock("../../lib/credits", () => ({
   OutOfCreditsError: class OutOfCreditsError extends Error {},
+  /* CA-6: the rails now derive charge idempotency keys — deterministic
+     test double mirroring the fake-ledger shape used across the CA suites. */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) =>
+    typeof clientKey === "string" && clientKey.trim().length >= 8
+      ? `${scope}:${userId}:client:${clientKey.trim()}`
+      : `${scope}:${userId}:${JSON.stringify(intent)}`,
+  voidChargeIdempotencyKey: async (_key: string) => true,
   chargeCredits: vi.fn(async (userId: string, amount: number) => {
     testState.chargeCalls.push({ userId, amount });
     testState.userCredits -= amount;
@@ -81,6 +88,7 @@ vi.mock("../../lib/rate-limit", () => ({
 }));
 
 import router from "../generate/trend-predictor";
+import { __resetCa6ReplayCache } from "../generate/ca6-replay-guard";
 
 let server: any;
 let baseUrl: string;
@@ -100,6 +108,7 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
+  __resetCa6ReplayCache(); // CA-6: the guard's in-process store must not leak across tests
   testState.userId = "user-1";
   testState.userCredits = 1000;
   testState.chargeCalls = [];

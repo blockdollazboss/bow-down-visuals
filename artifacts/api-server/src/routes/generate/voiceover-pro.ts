@@ -7,7 +7,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -163,24 +170,35 @@ router.post("/voiceover-pro", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the text/voice/speed/pitch ask; the guard's stored-result
+     pre-check runs before the balance gate and any funding. A failed
+     generation refunds as before and voids the key. */
+  const idempotencyKey = buildChargeIdempotencyKey("voiceover-pro", req.userId!, null, {
+    text: parsed.data.text,
+    voice: parsed.data.voice,
+    speed: parsed.data.speed,
+    pitch: parsed.data.pitch,
+  });
+
+  try {
+    const outcome = await withReplayProtection("voiceover-pro", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < VOICEOVER_PRO_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
     });
-    return;
   }
 
   let creditsAfter: number;
   try {
     creditsAfter = await chargeCredits(req.userId!, VOICEOVER_PRO_COST, {
       action: "Voiceover Pro",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "Not enough Visual Bucs." });
     }
     throw err;
   }
@@ -228,7 +246,7 @@ router.post("/voiceover-pro", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "audio/mpeg");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    return {
       url,
       storageRef,
       voice,
@@ -236,16 +254,30 @@ router.post("/voiceover-pro", requireAuth, async (req, res) => {
       pitch,
       segments: segments.length,
       creditsRemaining: creditsAfter,
-    });
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Voiceover generation failed.";
     req.log.error({ err: message }, "[voiceover-pro] failed");
-    await refundCredits(req.userId!, VOICEOVER_PRO_COST, {
+    const refunded = await refundCredits(req.userId!, VOICEOVER_PRO_COST, {
       action: "Voiceover Pro — Refund",
-    }).catch(() => {});
-    res.status(500).json({ error: message });
+    }).then(() => true).catch(() => false);
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Voiceover generation failed.";
+    res.status(500).json({ error: message });
   }
 });
 

@@ -7,7 +7,15 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreation } from "../../lib/retention";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordThumbnailHistory } from "../../lib/payment-record";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl, normalizeToStorageRef } from "../../lib/objectStorage";
 import { isAllowedStemUrl } from "../../lib/audioExport";
 
@@ -267,15 +275,34 @@ router.post("/generate-thumbnail", requireAuth, async (req, res) => {
 
   const artistVault = parsed.data.artistVault;
 
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the package ask; the guard's stored-result pre-check runs before
+     the balance gate and any funding. The reserve/refund structure
+     below is unchanged; the failure path voids the key only once the
+     reserve is fully refunded (a partial no-image settlement keeps
+     the text charge, and its stored success body replays verbatim). */
+  const idempotencyKey = buildChargeIdempotencyKey("thumbnail", req.userId!, null, {
+    artistName,
+    songTitle,
+    platform,
+    artStyle,
+    colorTheme,
+    mood,
+    featuredText,
+    specialRequests: specialRequests ?? null,
+    artistVaultId: artistVault?.vaultId ?? artistVault?.id ?? null,
+  });
+
+  try {
+    const outcome = await withReplayProtection("thumbnail", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
   const isDev = process.env["NODE_ENV"] === "development";
   req.log.info({ userId: req.userId, currentCredits, required: CREDIT_COST }, "[generate-thumbnail] request received");
   if (!isDev && currentCredits < CREDIT_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
     });
-    return;
   }
 
   /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
@@ -289,18 +316,15 @@ router.post("/generate-thumbnail", requireAuth, async (req, res) => {
      against one balance. Same prices, same action name. */
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Thumbnail Maker" });
+    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Thumbnail Maker" }, { idempotencyKey });
   } catch (chargeErr) {
     if (chargeErr instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating." });
-      return;
+      throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating." });
     }
     if (chargeErr instanceof LedgerWriteError) {
-      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
-      return;
+      throw new ReplayShortCircuit(500, { error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
     }
-    res.status(500).json({ error: chargeErr instanceof Error ? chargeErr.message : "Generation failed" });
-    return;
+    throw new ReplayShortCircuit(500, { error: chargeErr instanceof Error ? chargeErr.message : "Generation failed" });
   }
   let chargeLive = true;
   let refundedSoFar = 0;
@@ -409,18 +433,33 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
       "[generate-thumbnail] success",
     );
 
-    res.json({
+    const successBody = {
       result: content,
       thumbnailImageUrl,
       imageError: thumbnailImageUrl ? null : imageError,
       creditsUsed,
       creditsRemaining,
-    });
+    };
     // Retention hook: counts as a creation day + feeds the thumbnail quest.
     void recordCreation(req.userId!, "thumbnail");
+    return successBody;
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Generation failed";
     await refundCharge();
+    /* CA-6: void only once the reserve is fully refunded (chargeLive
+       flips false exactly then) — the retry then re-charges fresh. */
+    if (!chargeLive) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Generation failed";
     res.status(500).json({ error: message });
   }
 });

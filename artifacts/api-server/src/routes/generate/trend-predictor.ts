@@ -9,7 +9,10 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 
 /* ─── Trend Predictor ────────────────────────────────────────────────────
    /api/trend-predictor/forecast — 200 credits: AI analyzes the creator's niche
@@ -79,13 +82,15 @@ function parseTrend(e: Record<string, unknown>): TrendItem | null {
   };
 }
 
-async function refundOnFailure(userId: string, amount: number, label: string) {
+async function refundOnFailure(userId: string, amount: number, label: string): Promise<boolean> {
   try {
     await refundCredits(userId, amount, {
       action: `${label} — Refund (generation failed)`,
     });
+    return true;
   } catch (refundErr) {
     logger.error({ err: refundErr, userId }, "[trend-predictor] refund failed after generation error");
+    return false;
   }
 }
 
@@ -103,24 +108,34 @@ router.post("/trend-predictor/forecast", requireAuth, publicApiLimiter, async (r
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the niche/platforms/audience ask; the guard's stored-result
+     pre-check runs before the balance gate and any funding. A failed
+     forecast refunds as before and voids the key. */
+  const forecastKey = buildChargeIdempotencyKey("trend-predictor-forecast", req.userId!, null, {
+    niche: parsed.data.niche,
+    platforms: parsed.data.platforms,
+    audienceSize: parsed.data.audienceSize,
+  });
+
+  try {
+    const outcome = await withReplayProtection("trend-predictor-forecast", forecastKey, req.userId!, async () => {
   const balance = req.userCredits ?? 0;
   if (balance < FORECAST_CREDITS) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "You're out of Visual Bucs — top up to predict your trends.",
     });
-    return;
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, FORECAST_CREDITS, { action: "Trend Predictor — Forecast" });
+    creditsRemaining = await chargeCredits(req.userId!, FORECAST_CREDITS, { action: "Trend Predictor — Forecast" }, { idempotencyKey: forecastKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to predict your trends.",
       });
-      return;
     }
     throw err;
   }
@@ -188,14 +203,27 @@ router.post("/trend-predictor/forecast", requireAuth, publicApiLimiter, async (r
       throw new Error("Model returned no usable trends");
     }
 
-    res.json({
+    return {
       trends,
       disclaimer,
       creditsUsed: FORECAST_CREDITS,
       creditsRemaining,
-    });
+    };
   } catch (err) {
-    await refundOnFailure(req.userId!, FORECAST_CREDITS, "Trend Predictor — Forecast");
+    const refunded = await refundOnFailure(req.userId!, FORECAST_CREDITS, "Trend Predictor — Forecast");
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(forecastKey).catch(() => false);
+    }
+    throw err;
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[trend-predictor] OpenAI rate limit / quota");
       res.status(503).json({ error: "The predictor is catching its breath — try again in a moment." });
@@ -219,24 +247,34 @@ router.post("/trend-predictor/ideas", requireAuth, publicApiLimiter, async (req,
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the niche/trend ask; the guard's stored-result pre-check runs
+     before the balance gate and any funding. A failed pack refunds as
+     before and voids the key. */
+  const ideasKey = buildChargeIdempotencyKey("trend-predictor-ideas", req.userId!, null, {
+    niche: parsed.data.niche,
+    trend: parsed.data.trend,
+    trendWhy: parsed.data.trendWhy ?? null,
+  });
+
+  try {
+    const outcome = await withReplayProtection("trend-predictor-ideas", ideasKey, req.userId!, async () => {
   const balance = req.userCredits ?? 0;
   if (balance < IDEAS_CREDITS) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "You're out of Visual Bucs — top up to get content ideas.",
     });
-    return;
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, IDEAS_CREDITS, { action: "Trend Predictor — Content Ideas" });
+    creditsRemaining = await chargeCredits(req.userId!, IDEAS_CREDITS, { action: "Trend Predictor — Content Ideas" }, { idempotencyKey: ideasKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to get content ideas.",
       });
-      return;
     }
     throw err;
   }
@@ -289,13 +327,26 @@ router.post("/trend-predictor/ideas", requireAuth, publicApiLimiter, async (req,
       throw new Error("Model returned no usable ideas");
     }
 
-    res.json({
+    return {
       ideas,
       creditsUsed: IDEAS_CREDITS,
       creditsRemaining,
-    });
+    };
   } catch (err) {
-    await refundOnFailure(req.userId!, IDEAS_CREDITS, "Trend Predictor — Content Ideas");
+    const refunded = await refundOnFailure(req.userId!, IDEAS_CREDITS, "Trend Predictor — Content Ideas");
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(ideasKey).catch(() => false);
+    }
+    throw err;
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[trend-predictor] OpenAI rate limit / quota");
       res.status(503).json({ error: "The predictor is catching its breath — try again in a moment." });

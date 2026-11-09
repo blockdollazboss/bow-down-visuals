@@ -9,7 +9,14 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -139,24 +146,40 @@ router.post("/testimonial-video", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6): the key is derived
+     from the request intent; the guard's stored-result pre-check
+     runs BEFORE the balance gate and any funding, so a replay of a
+     landed build is served from the store — no second charge, no
+     second render. A failed render refunds as before and voids the
+     key, so a genuine retry can re-charge. */
+  const idempotencyKey = buildChargeIdempotencyKey("testimonial-video", req.userId!, null, {
+    quote: parsed.data.quote,
+    name: parsed.data.name,
+    photoUrl: parsed.data.photoUrl,
+    company: parsed.data.company,
+    style: parsed.data.style,
+    musicUrl: parsed.data.musicUrl,
+    durationSec: parsed.data.durationSec,
+  });
+
+  try {
+    const outcome = await withReplayProtection("testimonial-video", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < TESTIMONIAL_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
     });
-    return;
   }
 
   let creditsAfter: number;
   try {
     creditsAfter = await chargeCredits(req.userId!, TESTIMONIAL_COST, {
       action: "Testimonial Video",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "Not enough Visual Bucs." });
     }
     throw err;
   }
@@ -276,26 +299,41 @@ router.post("/testimonial-video", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    return {
       url,
       storageRef,
       style,
       durationSec: D,
       creditsRemaining: creditsAfter,
-    });
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Testimonial video failed.";
     req.log.error({ err: message }, "[testimonial-video] failed");
+    let refunded = true;
     await refundCredits(req.userId!, TESTIMONIAL_COST, {
       action: "Testimonial Video — Refund",
-    }).catch(() => {});
-    res.status(500).json({ error: message });
+    }).catch(() => { refunded = false; });
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
   } finally {
     await unlink(photoPath).catch(() => {});
     await unlink(musicPath).catch(() => {});
     await unlink(outputPath).catch(() => {});
     const { rm } = await import("fs/promises");
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Testimonial video failed.";
+    res.status(500).json({ error: message });
   }
 });
 

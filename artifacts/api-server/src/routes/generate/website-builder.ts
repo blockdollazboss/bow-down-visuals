@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 import {
@@ -12,7 +12,14 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection } from "./ca6-replay-guard";
 import {
   loadCreatorSeed,
   buildSeedContext,
@@ -562,11 +569,31 @@ router.post("/generate", requireAuth, publicApiLimiter, async (req, res) => {
   if (target === null) return; // 404/500 already sent — before any charge
   const targetProject = target ?? null;
 
+  /* CA-6 replay protection (charge audit B6): at 3,000 Bucs this was
+     the single largest exposed charge in the census — nothing gated
+     it, so a retried build charged again AND built (and saved) a
+     second site. The server now derives the key from the build's
+     intent; the guard's stored-result pre-check runs before any
+     funding, and the stored body carries the built site's identity
+     (projectId + version + files), so a replay returns the SAME site
+     and never builds again. A failed build refunds as before and
+     voids the key, so a genuine retry can re-charge. */
+  const idempotencyKey = buildChargeIdempotencyKey("website-builder-build", req.userId!, null, {
+    template: input.template,
+    businessName: input.businessName,
+    description: input.description,
+    style: input.style ?? "",
+    colorScheme: input.colorScheme ?? "",
+    projectId: input.projectId ?? null,
+    clientRef: input.clientRef ?? null,
+  });
+
   let charged = false;
   try {
+    const outcome = await withReplayProtection("website-builder-build", idempotencyKey, req.userId!, async () => {
     await chargeCredits(req.userId!, WEBSITE_BUILD_CREDITS, {
       action: `Website Build (${TEMPLATE_LABELS[input.template]})`,
-    });
+    }, { idempotencyKey });
     charged = true;
 
     /* Seed from the creator's real material (brand kit, catalog, store,
@@ -620,7 +647,7 @@ router.post("/generate", requireAuth, publicApiLimiter, async (req, res) => {
       logger.error({ err: persistErr }, "[website-builder] failed to persist build");
     }
 
-    res.json({
+    return {
       files,
       template: input.template,
       templateLabel: TEMPLATE_LABELS[input.template],
@@ -633,15 +660,25 @@ router.post("/generate", requireAuth, publicApiLimiter, async (req, res) => {
       projectId: savedProjectId,
       version: savedVersion,
       saved,
+    };
     });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
   } catch (err) {
     if (charged) {
+      let refunded = true;
       try {
         await refundCredits(req.userId!, WEBSITE_BUILD_CREDITS, {
           action: "Website Build (refund: generation failed)",
         });
       } catch (refundErr) {
+        refunded = false;
         logger.error({ err: refundErr }, "[website-builder] refund failed");
+      }
+      /* CA-6: a landed refund VOIDS the charge's key — without the
+         void, the refunded attempt's retry is suppressed as a replay
+         and the rebuild would run free. */
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
       }
     }
     if (err instanceof OutOfCreditsError) {
@@ -681,11 +718,25 @@ router.post("/edit", requireAuth, publicApiLimiter, async (req, res) => {
   if (target === null) return; // 404/500 already sent — before any charge
   const targetProject = target ?? null;
 
+  /* CA-6 replay protection (charge audit B6): the edit charge is
+     keyed the same way as the build — the intent is the edit request
+     against the exact current file set (hashed), so a retried edit
+     returns the stored result instead of charging 200 again and
+     appending a duplicate version. */
+  const idempotencyKey = buildChargeIdempotencyKey("website-builder-edit", req.userId!, null, {
+    template,
+    businessName,
+    editRequest,
+    projectId: parsed.data.projectId ?? null,
+    filesHash: createHash("sha256").update(JSON.stringify(currentFiles)).digest("hex"),
+  });
+
   let charged = false;
   try {
+    const outcome = await withReplayProtection("website-builder-edit", idempotencyKey, req.userId!, async () => {
     await chargeCredits(req.userId!, WEBSITE_EDIT_CREDITS, {
       action: "Website Edit",
-    });
+    }, { idempotencyKey });
     charged = true;
 
     const openai = getOpenAI();
@@ -739,22 +790,30 @@ router.post("/edit", requireAuth, publicApiLimiter, async (req, res) => {
       }
     }
 
-    res.json({
+    return {
       files,
       creditsCharged: WEBSITE_EDIT_CREDITS,
       fileCount: Object.keys(files).length,
       ...(targetProject
         ? { projectId: targetProject.id, version: savedVersion, saved }
         : {}),
+    };
     });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
   } catch (err) {
     if (charged) {
+      let refunded = true;
       try {
         await refundCredits(req.userId!, WEBSITE_EDIT_CREDITS, {
           action: "Website Edit (refund: edit failed)",
         });
       } catch (refundErr) {
+        refunded = false;
         logger.error({ err: refundErr }, "[website-builder] edit refund failed");
+      }
+      /* CA-6: a landed refund voids the key (see the build rail). */
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
       }
     }
     if (err instanceof OutOfCreditsError) {

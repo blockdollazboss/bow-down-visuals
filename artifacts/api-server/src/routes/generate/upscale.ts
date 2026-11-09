@@ -1,6 +1,6 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { execFile } from "child_process";
-import { promises as fs } from "fs";
+import { createReadStream, promises as fs } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { promisify } from "util";
@@ -8,7 +8,16 @@ import { NextFunction, Request, Response, Router } from "express";
 import multer from "multer";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { findStoredGenerationResult } from "../../lib/generation-stored-results";
+import { deterministicJobId, storeCompletedJobResult } from "./ca6-replay-guard";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -102,6 +111,11 @@ export interface UpscaleJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /* CA-6: the charge's idempotency key + the create-time balance, so
+     the async runner can void on refund and the create body can be
+     stored/replayed verbatim. */
+  idempotencyKey?: string;
+  creditsRemaining?: number;
 }
 
 const jobs = new Map<string, UpscaleJob>();
@@ -168,17 +182,36 @@ export async function runUpscaleJob(job: UpscaleJob, uploadedPath: string, origi
     job.status = "done";
     job.outputUrl = url;
     job.outputRef = ref;
+    /* CA-6: the job landed — persist the create body durably so a
+       replayed create after a restart is served from the store,
+       never re-charged or re-run. Fail-open. */
+    if (job.idempotencyKey) {
+      await storeCompletedJobResult("upscale", job.idempotencyKey, job.userId, {
+        jobId: job.id,
+        status: "queued",
+        target: job.target,
+        creditsCharged: job.creditsCharged,
+        creditsRemaining: job.creditsRemaining,
+      });
+    }
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Upscale failed";
     // Refund: the user paid for an output they didn't get.
+    let refunded = true;
     try {
       await refundCredits(job.userId, job.creditsCharged, {
         action: "Video Upscale — Refund (job failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       // Logged inside refundCredits; don't mask the original failure.
       void refundErr;
+    }
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded && job.idempotencyKey) {
+      await voidChargeIdempotencyKey(job.idempotencyKey).catch(() => false);
+      await storeCompletedJobResult("upscale", job.idempotencyKey, job.userId, null);
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
@@ -211,6 +244,45 @@ router.post("/upscale", requireAuth, upload.single("video"), async (req, res) =>
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6, Pattern B): the intent
+     is the uploaded video's bytes (streamed hash — the upload is
+     disk-backed and never buffered whole) + the target ask. The job
+     id is DETERMINISTIC from the server-derived charge key, so a
+     replayed create finds the existing job instead of minting (and
+     charging for) a second one; a durable stored result covers the
+     after-restart case once the job has succeeded. A failed job's
+     refund voids the key (in runUpscaleJob), so a genuine retry
+     falls through and re-charges. Fresh responses are byte-identical. */
+  const fileHash = await new Promise<string>((resolve, reject) => {
+    const hash = createHash("sha256");
+    const stream = createReadStream(req.file!.path);
+    stream.on("data", (chunk) => hash.update(chunk as Buffer));
+    stream.on("end", () => resolve(hash.digest("hex")));
+    stream.on("error", reject);
+  });
+  const idempotencyKey = buildChargeIdempotencyKey("upscale", req.userId!, null, {
+    target,
+    fileHash,
+  });
+  const jobId = deterministicJobId(idempotencyKey);
+  const createBodyOf = (j: UpscaleJob): Record<string, unknown> => ({
+    jobId: j.id,
+    status: j.status,
+    target: j.target,
+    creditsCharged: UPSCALE_CREDIT_COST,
+    creditsRemaining: j.creditsRemaining,
+  });
+  const existing = jobs.get(jobId);
+  if (existing && existing.userId === req.userId! && existing.status !== "failed") {
+    res.status(202).json({ ...createBodyOf(existing), replayed: true });
+    return;
+  }
+  const storedCreate = await findStoredGenerationResult("upscale", idempotencyKey, req.userId!);
+  if (storedCreate) {
+    res.status(202).json({ ...storedCreate, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < UPSCALE_CREDIT_COST) {
     res.status(402).json({
@@ -224,7 +296,7 @@ router.post("/upscale", requireAuth, upload.single("video"), async (req, res) =>
   try {
     creditsRemaining = await chargeCredits(req.userId!, UPSCALE_CREDIT_COST, {
       action: `Video Upscale (${target})`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -240,8 +312,17 @@ router.post("/upscale", requireAuth, upload.single("video"), async (req, res) =>
     throw err;
   }
 
+  /* A concurrent twin may have created the job while this charge was
+     in flight — the ledger deduped the charge, so answer with the
+     twin's job instead of starting a second ffmpeg run. */
+  const twin = jobs.get(jobId);
+  if (twin && twin.userId === req.userId! && twin.status !== "failed") {
+    res.status(202).json({ ...createBodyOf(twin), replayed: true });
+    return;
+  }
+
   const job: UpscaleJob = {
-    id: randomUUID(),
+    id: jobId,
     userId: req.userId!,
     status: "queued",
     target: target as UpscaleTarget,
@@ -251,6 +332,8 @@ router.post("/upscale", requireAuth, upload.single("video"), async (req, res) =>
     error: null,
     creditsCharged: UPSCALE_CREDIT_COST,
     createdAt: Date.now(),
+    idempotencyKey,
+    creditsRemaining,
   };
   jobs.set(job.id, job);
 

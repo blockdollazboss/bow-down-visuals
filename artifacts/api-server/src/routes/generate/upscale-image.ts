@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
@@ -8,7 +8,15 @@ import { NextFunction, Request, Response, Router } from "express";
 import multer from "multer";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -94,14 +102,25 @@ router.post("/upscale/image", requireAuth, upload.single("image"), async (req, r
     res.status(400).json({ error: "No image file provided" });
     return;
   }
+  const file = req.file;
 
+  /* CA-6 replay protection (charge audit B6): the intent is the
+     uploaded image's bytes + the scale ask; the guard's stored-result
+     pre-check runs before the balance gate and any funding. A failed
+     upscale refunds as before and voids the key. */
+  const idempotencyKey = buildChargeIdempotencyKey("upscale-image", req.userId!, null, {
+    scale,
+    fileHash: createHash("sha256").update(file.buffer).digest("hex"),
+  });
+
+  try {
+    const outcome = await withReplayProtection("upscale-image", idempotencyKey, req.userId!, async () => {
   const balance = req.userCredits ?? 0;
   if (balance < UPSCALE_IMAGE_CREDIT_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "You're out of Visual Bucs — top up to upscale images.",
     });
-    return;
   }
 
   let creditsRemaining = balance;
@@ -109,19 +128,17 @@ router.post("/upscale/image", requireAuth, upload.single("image"), async (req, r
   try {
     creditsRemaining = await chargeCredits(req.userId!, UPSCALE_IMAGE_CREDIT_COST, {
       action: `Image Upscale (${scale})`,
-    });
+    }, { idempotencyKey });
     charged = true;
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to upscale images.",
       });
-      return;
     }
     if (err instanceof LedgerWriteError) {
-      res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
-      return;
+      throw new ReplayShortCircuit(500, { error: "Could not record the Visual Buc charge. Please try again." });
     }
     throw err;
   }
@@ -129,12 +146,12 @@ router.post("/upscale/image", requireAuth, upload.single("image"), async (req, r
   const factor = SCALE_FACTORS[scale];
   const workDir = await fs.mkdtemp(join(tmpdir(), "upscale-image-"));
   const jobId = randomUUID();
-  const ext = (req.file.originalname.split(".").pop() ?? "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+  const ext = (file.originalname.split(".").pop() ?? "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
   const inputPath = join(workDir, `input.${ext}`);
   const outputPath = join(workDir, `upscaled-${scale}.png`);
 
   try {
-    await fs.writeFile(inputPath, req.file.buffer);
+    await fs.writeFile(inputPath, file.buffer);
 
     await execFileAsync("ffmpeg", buildImageFfmpegArgs(inputPath, outputPath, factor), {
       timeout: 300_000, // 5 min cap for CPU image upscale
@@ -145,29 +162,45 @@ router.post("/upscale/image", requireAuth, upload.single("image"), async (req, r
     const ref = await uploadMediaToSupabaseStorage(objectName, outBuffer, "image/png");
     const url = await refreshSupabaseStorageUrl(ref);
 
-    res.json({
+    return {
       status: "done",
       url,
       creditsRemaining,
-    });
+    };
   } catch (err) {
     // Refund: the user paid for an output they didn't get.
+    let refundedFlag = false;
     if (charged) {
       try {
         await refundCredits(req.userId!, UPSCALE_IMAGE_CREDIT_COST, {
           action: "Image Upscale — Refund (job failed)",
         });
+        refundedFlag = true;
       } catch (refundErr) {
         // Logged inside refundCredits; don't mask the original failure.
         void refundErr;
       }
     }
-    res.status(500).json({
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refundedFlag) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    /* Preserve the original failure body ({error, refunded}) verbatim. */
+    throw new ReplayShortCircuit(500, {
       error: err instanceof Error ? err.message : "Image upscale failed",
       refunded: charged,
     });
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
+    throw err;
   }
 });
 

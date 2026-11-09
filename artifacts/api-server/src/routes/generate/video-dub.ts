@@ -9,7 +9,14 @@ import { randomUUID } from "crypto";
 import { transcribeAudioTimed } from "../../lib/transcription";
 import { DUB_CAPTION_LANGUAGES } from "../../lib/dub-caption-languages";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import { getTextModel } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
@@ -210,29 +217,47 @@ router.post("/dub-video", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the video + language/mix ask; the guard's stored-result pre-check
+     runs before the balance gate and any funding. Every refund below
+     goes through fail(), which now also voids the key when the refund
+     lands, so a genuine retry re-charges. */
+  const idempotencyKey = buildChargeIdempotencyKey("video-dub", req.userId!, null, {
+    videoUrl,
+    targetLanguage,
+    sourceLanguage: sourceLanguage ?? null,
+    keepOriginalMix,
+  });
+
+  try {
+    const outcome = await withReplayProtection("video-dub", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < DUB_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
     });
-    return;
   }
 
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, DUB_COST, { action: `Video Dubbing (${lang.label})` });
+    creditsAfter = await chargeCredits(req.userId!, DUB_COST, { action: `Video Dubbing (${lang.label})` }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "Not enough Visual Bucs." });
     }
     throw err;
   }
 
   const fail = async (status: number, message: string) => {
-    await refundCredits(req.userId!, DUB_COST, { action: "Video Dubbing — Refund" }).catch(() => {});
-    res.status(status).json({ error: message });
+    const refunded = await refundCredits(req.userId!, DUB_COST, { action: "Video Dubbing — Refund" })
+      .then(() => true)
+      .catch(() => false);
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw new ReplayShortCircuit(status, { error: message });
   };
 
   const workDir = await mkdtemp(join(tmpdir(), "video-dub-"));
@@ -273,9 +298,11 @@ router.post("/dub-video", requireAuth, async (req, res) => {
     // 3. Transcribe with word-level segment timing.
     const segments = await transcribeWithSegments(audioPath, sourceLanguage);
     if (segments.length === 0) {
-      await fail(400, "No speech detected in this video — nothing to dub.");
-      await cleanup();
-      return;
+      try {
+        await fail(400, "No speech detected in this video — nothing to dub.");
+      } finally {
+        await cleanup();
+      }
     }
     // Cap at 120 segments to bound TTS calls.
     const work = segments.slice(0, 120);
@@ -376,7 +403,7 @@ router.post("/dub-video", requireAuth, async (req, res) => {
     const url = await refreshSupabaseStorageUrl(storageRef);
 
     await cleanup();
-    res.json({
+    return {
       url,
       storageRef,
       targetLanguage: lang.code,
@@ -384,12 +411,23 @@ router.post("/dub-video", requireAuth, async (req, res) => {
       segmentsDubbed: work.length,
       voiceSource: clonedVoiceId ? "cloned-speaker" : "standard",
       creditsRemaining: creditsAfter,
-    });
+    };
   } catch (err) {
+    if (err instanceof ReplayShortCircuit) throw err;
     await cleanup();
     const message = err instanceof Error ? err.message : "Video dubbing failed.";
     const status = /transcri|translat|synthesis/i.test(message) ? 502 : 500;
     await fail(status, message);
+    throw err; // unreachable — fail() always throws; keeps the compiler honest
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
+    throw err;
   }
 });
 

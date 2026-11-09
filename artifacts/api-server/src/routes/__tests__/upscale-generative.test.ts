@@ -41,6 +41,13 @@ vi.mock("../../lib/credits", () => {
   return {
     OutOfCreditsError,
     LedgerWriteError,
+  /* CA-6: the rails now derive charge idempotency keys — deterministic
+     test double mirroring the fake-ledger shape used across the CA suites. */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) =>
+    typeof clientKey === "string" && clientKey.trim().length >= 8
+      ? `${scope}:${userId}:client:${clientKey.trim()}`
+      : `${scope}:${userId}:${JSON.stringify(intent)}`,
+  voidChargeIdempotencyKey: async (_key: string) => true,
     chargeCredits: async (_userId: string, cost: number) => {
       if (state.balance < cost) throw new OutOfCreditsError("out_of_credits");
       state.balance -= cost;

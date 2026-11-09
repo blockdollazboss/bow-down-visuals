@@ -1,8 +1,16 @@
-import { randomUUID } from "crypto";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { findStoredGenerationResult } from "../../lib/generation-stored-results";
+import { deterministicJobId, storeCompletedJobResult } from "./ca6-replay-guard";
 import {
   generativeUpscaleConfigured,
   GenerativeUpscaleNotConfiguredError,
@@ -42,6 +50,11 @@ interface GenerativeUpscaleJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /* CA-6: the charge's idempotency key + the create-time balance, so
+     the async runner can void on refund and the create body can be
+     stored/replayed verbatim. */
+  idempotencyKey?: string;
+  creditsRemaining?: number;
 }
 
 const jobs = new Map<string, GenerativeUpscaleJob>();
@@ -95,6 +108,36 @@ router.post("/ai-upscale", requireAuth, async (req: Request, res: Response) => {
   }
   const target: GenerativeUpscaleTarget = parsed.data.target ?? "1080p";
 
+  /* CA-6 replay protection (charge audit B6, Pattern B): the intent
+     is the source video + target/creativity ask. The job id is
+     DETERMINISTIC from the server-derived charge key, so a replayed
+     create finds the existing job instead of minting (and charging
+     for) a second one; a durable stored result covers the
+     after-restart case once the job has succeeded. A failed job's
+     refund voids the key (in the runner below), so a genuine retry
+     falls through and re-charges. Fresh responses are byte-identical. */
+  const idempotencyKey = buildChargeIdempotencyKey("upscale-generative", req.userId!, null, {
+    sourceVideoUrl: parsed.data.sourceVideoUrl,
+    target,
+    creativity: parsed.data.creativity ?? null,
+  });
+  const jobId = deterministicJobId(idempotencyKey);
+  const existing = jobs.get(jobId);
+  if (existing && existing.userId === req.userId! && existing.status !== "failed") {
+    res.status(202).json({
+      jobId: existing.id,
+      status: existing.status,
+      creditsRemaining: existing.creditsRemaining,
+      replayed: true,
+    });
+    return;
+  }
+  const storedCreate = await findStoredGenerationResult("upscale-generative", idempotencyKey, req.userId!);
+  if (storedCreate) {
+    res.status(202).json({ ...storedCreate, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < GENERATIVE_UPSCALE_CREDIT_COST) {
     res.status(402).json({
@@ -110,7 +153,7 @@ router.post("/ai-upscale", requireAuth, async (req: Request, res: Response) => {
   try {
     creditsRemaining = await chargeCredits(req.userId!, GENERATIVE_UPSCALE_CREDIT_COST, {
       action: "Generative AI Upscale",
-    });
+    }, { idempotencyKey });
   } catch (e) {
     if (e instanceof OutOfCreditsError) {
       res.status(402).json({ error: "OUT_OF_CREDITS", message: e.message });
@@ -123,8 +166,22 @@ router.post("/ai-upscale", requireAuth, async (req: Request, res: Response) => {
     throw e;
   }
 
+  /* A concurrent twin may have created the job while this charge was
+     in flight — the ledger deduped the charge, so answer with the
+     twin's job instead of starting a second provider run. */
+  const twin = jobs.get(jobId);
+  if (twin && twin.userId === req.userId! && twin.status !== "failed") {
+    res.status(202).json({
+      jobId: twin.id,
+      status: twin.status,
+      creditsRemaining: twin.creditsRemaining,
+      replayed: true,
+    });
+    return;
+  }
+
   const job: GenerativeUpscaleJob = {
-    id: randomUUID(),
+    id: jobId,
     userId: req.userId!,
     status: "queued",
     target,
@@ -133,6 +190,8 @@ router.post("/ai-upscale", requireAuth, async (req: Request, res: Response) => {
     error: null,
     creditsCharged: GENERATIVE_UPSCALE_CREDIT_COST,
     createdAt: Date.now(),
+    idempotencyKey,
+    creditsRemaining,
   };
   jobs.set(job.id, job);
 
@@ -148,15 +207,30 @@ router.post("/ai-upscale", requireAuth, async (req: Request, res: Response) => {
       });
       job.status = result.status === "done" ? "done" : "processing";
       job.outputUrl = result.videoUrl ?? null;
+      /* CA-6: the job landed — persist the create body durably so a
+         replayed create after a restart is served from the store,
+         never re-charged or re-submitted. Fail-open. */
+      await storeCompletedJobResult("upscale-generative", idempotencyKey, job.userId, {
+        jobId: job.id,
+        status: "queued",
+        creditsRemaining: job.creditsRemaining,
+      });
     } catch (err) {
       job.status = "failed";
       job.error = err instanceof Error ? err.message : "Generative upscale failed";
+      let refunded = true;
       try {
         await refundCredits(job.userId, job.creditsCharged, {
           action: "Generative AI Upscale — Refund (job failed)",
         });
       } catch {
+        refunded = false;
         /* logged inside refundCredits */
+      }
+      /* CA-6: a landed refund voids the key, so the retry re-charges. */
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+        await storeCompletedJobResult("upscale-generative", idempotencyKey, job.userId, null);
       }
     }
   })();

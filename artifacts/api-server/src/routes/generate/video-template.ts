@@ -7,7 +7,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { deterministicJobId, findJobCreateReplay, storeCompletedJobResult } from "./ca6-replay-guard";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -62,6 +69,11 @@ interface TemplateJob {
   };
   error?: string;
   createdAt: number;
+  /* CA-6: the charge's idempotency key + the create-time balance, so
+     the async runner can void on refund and the create body can be
+     stored/replayed verbatim. */
+  idempotencyKey?: string;
+  creditsRemaining?: number;
 }
 
 const jobs = new Map<string, TemplateJob>();
@@ -248,6 +260,16 @@ async function renderTemplateVideo(job: TemplateJob, input: ApplyInput): Promise
     job.state = "done";
     job.result = { url, storageRef, durationSec: Math.round(totalSec * 10) / 10, template: recipe.key };
     setProgress(job, "done", 100);
+    /* CA-6: persist the create body durably at success so a replayed
+       create after a restart is served from the store. Fail-open. */
+    if (job.idempotencyKey) {
+      await storeCompletedJobResult("video-template", job.idempotencyKey, job.userId, {
+        jobId: job.id,
+        state: "queued",
+        price: TEMPLATE_COST,
+        creditsRemaining: job.creditsRemaining,
+      });
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Template render failed.";
     logger.error({ err: message, template: input.template }, "[video-template] render failed");
@@ -255,11 +277,17 @@ async function renderTemplateVideo(job: TemplateJob, input: ApplyInput): Promise
     job.error = message;
     setProgress(job, "failed", 100);
     /* Auto-refund: the user paid for a video they didn't get. */
-    await refundCredits(job.userId, TEMPLATE_COST, {
+    const refunded = await refundCredits(job.userId, TEMPLATE_COST, {
       action: "Video Template — Refund",
-    }).catch((refundErr) => {
+    }).then(() => true).catch((refundErr) => {
       logger.error({ err: refundErr instanceof Error ? refundErr.message : refundErr }, "[video-template] refund failed");
+      return false;
     });
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded && job.idempotencyKey) {
+      await voidChargeIdempotencyKey(job.idempotencyKey).catch(() => false);
+      await storeCompletedJobResult("video-template", job.idempotencyKey, job.userId, null);
+    }
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
@@ -327,6 +355,38 @@ router.post("/video-template/apply", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6, Pattern B): server-derived
+     key over the template + slots/overlays/music/title/end-card ask;
+     the job id is DETERMINISTIC from the key, so a replayed create
+     finds the existing job instead of minting (and charging for) a
+     second one. A failed job's refund voids the key in the runner.
+     Fresh responses are byte-identical. */
+  const idempotencyKey = buildChargeIdempotencyKey("video-template", req.userId!, null, {
+    template: parsed.data.template,
+    slots: parsed.data.slots,
+    overlays: parsed.data.overlays ?? null,
+    musicBedUrl: parsed.data.musicBedUrl ?? null,
+    title: parsed.data.title ?? null,
+    endCard: parsed.data.endCard ?? null,
+  });
+  const replay = await findJobCreateReplay(
+    "video-template",
+    idempotencyKey,
+    req.userId!,
+    jobs,
+    (j) => ({
+      jobId: j.id,
+      state: j.state,
+      price: TEMPLATE_COST,
+      creditsRemaining: j.creditsRemaining,
+    }),
+    (j) => j.state,
+  );
+  if (replay) {
+    res.status(202).json({ ...replay, replayed: true });
+    return;
+  }
+
   /* 402 pre-check before charging */
   if ((req.userCredits ?? 0) < TEMPLATE_COST) {
     res.status(402).json({
@@ -340,7 +400,7 @@ router.post("/video-template/apply", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, TEMPLATE_COST, {
       action: `Video Template (${recipe.name})`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -349,13 +409,29 @@ router.post("/video-template/apply", requireAuth, async (req, res) => {
     throw err;
   }
 
+  /* Concurrent twin: the ledger deduped this charge — answer with
+     the twin's job instead of queueing a second render. */
+  const twin = jobs.get(deterministicJobId(idempotencyKey));
+  if (twin && twin.userId === req.userId! && twin.state !== "failed") {
+    res.status(202).json({
+      jobId: twin.id,
+      state: twin.state,
+      price: TEMPLATE_COST,
+      creditsRemaining: twin.creditsRemaining,
+      replayed: true,
+    });
+    return;
+  }
+
   const job: TemplateJob = {
-    id: randomUUID(),
+    id: deterministicJobId(idempotencyKey),
     userId: req.userId!,
     state: "queued",
     stage: "queued",
     progress: 0,
     createdAt: Date.now(),
+    idempotencyKey,
+    creditsRemaining: creditsAfter,
   };
   jobs.set(job.id, job);
 

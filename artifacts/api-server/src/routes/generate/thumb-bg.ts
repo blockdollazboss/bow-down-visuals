@@ -5,7 +5,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import { getOpenAI } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
@@ -100,24 +107,34 @@ router.post("/thumb-background", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6): key derived from the
+     request intent; the guard's stored-result pre-check runs before
+     the balance gate and any funding. A failed generation refunds
+     as before and voids the key, so a genuine retry can re-charge. */
+  const idempotencyKey = buildChargeIdempotencyKey("thumb-background", req.userId!, null, {
+    theme: parsed.data.theme,
+    mood: parsed.data.mood ?? null,
+    aspectRatio: parsed.data.aspectRatio ?? null,
+  });
+
+  try {
+    const outcome = await withReplayProtection("thumb-background", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < THUMB_BG_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
     });
-    return;
   }
 
   let creditsAfter: number;
   try {
     creditsAfter = await chargeCredits(req.userId!, THUMB_BG_COST, {
       action: "Thumbnail Backgrounds (3)",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "Not enough Visual Bucs." });
     }
     throw err;
   }
@@ -159,21 +176,36 @@ router.post("/thumb-background", requireAuth, async (req, res) => {
       })
     );
 
-    res.json({
+    return {
       backgrounds: results,
       theme,
       creditsRemaining: creditsAfter,
-    });
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Thumbnail background generation failed.";
     req.log.error({ err: message }, "[thumb-background] failed");
+    let refunded = true;
     await refundCredits(req.userId!, THUMB_BG_COST, {
       action: "Thumbnail Backgrounds — Refund",
-    }).catch(() => {});
-    res.status(500).json({ error: message });
+    }).catch(() => { refunded = false; });
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
   } finally {
     const { rm } = await import("fs/promises");
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Thumbnail background generation failed.";
+    res.status(500).json({ error: message });
   }
 });
 

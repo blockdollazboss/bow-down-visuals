@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
@@ -8,7 +8,15 @@ import { NextFunction, Request, Response, Router } from "express";
 import { z } from "zod";
 import multer from "multer";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { deterministicJobId, findJobCreateReplay, storeCompletedJobResult } from "./ca6-replay-guard";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -50,6 +58,11 @@ export interface VocalRemovalJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /* CA-6: the charge's idempotency key + the create-time balance, so
+     the async runner can void on refund and the create body can be
+     stored/replayed verbatim. */
+  idempotencyKey?: string;
+  creditsRemaining?: number;
 }
 
 const jobs = new Map<string, VocalRemovalJob>();
@@ -196,17 +209,35 @@ export async function runVocalRemovalJob(
     }
 
     job.status = "done";
+    /* CA-6: persist the create body durably at success so a replayed
+       create after a restart is served from the store. Fail-open. */
+    if (job.idempotencyKey) {
+      await storeCompletedJobResult("vocal-removal", job.idempotencyKey, job.userId, {
+        jobId: job.id,
+        status: "queued",
+        karaokeRequested: job.karaokeRequested,
+        creditsCharged: job.creditsCharged,
+        creditsRemaining: job.creditsRemaining,
+      });
+    }
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Vocal removal failed";
     // Refund: the user paid for stems they didn't get.
+    let refunded = true;
     try {
       await refundCredits(job.userId, job.creditsCharged, {
         action: "Vocal Removal — Refund (job failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       // Logged inside refundCredits; don't mask the original failure.
       void refundErr;
+    }
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded && job.idempotencyKey) {
+      await voidChargeIdempotencyKey(job.idempotencyKey).catch(() => false);
+      await storeCompletedJobResult("vocal-removal", job.idempotencyKey, job.userId, null);
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
@@ -261,6 +292,28 @@ router.post("/vocal-removal", requireAuth, upload.single("audio"), async (req, r
   const karaoke = bodyParsed.data.karaoke;
   const karaokeRequested = karaoke === "true" || karaoke === true;
 
+  /* CA-6 replay protection (charge audit B6, Pattern B): server-derived
+     key over the uploaded audio's bytes + the karaoke flag; the job id
+     is DETERMINISTIC from the key, so a replayed create finds the
+     existing job instead of minting (and charging for) a second one.
+     A failed job's refund voids the key in the runner. Fresh
+     responses are byte-identical. */
+  const idempotencyKey = buildChargeIdempotencyKey("vocal-removal", req.userId!, null, {
+    karaokeRequested,
+    fileHash: createHash("sha256").update(req.file.buffer).digest("hex"),
+  });
+  const replay = await findJobCreateReplay("vocal-removal", idempotencyKey, req.userId!, jobs, (j) => ({
+    jobId: j.id,
+    status: j.status,
+    karaokeRequested: j.karaokeRequested,
+    creditsCharged: VOCAL_REMOVAL_CREDIT_COST,
+    creditsRemaining: j.creditsRemaining,
+  }));
+  if (replay) {
+    res.status(202).json({ ...replay, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < VOCAL_REMOVAL_CREDIT_COST) {
     res.status(402).json({
@@ -274,7 +327,7 @@ router.post("/vocal-removal", requireAuth, upload.single("audio"), async (req, r
   try {
     creditsRemaining = await chargeCredits(req.userId!, VOCAL_REMOVAL_CREDIT_COST, {
       action: `Vocal Removal${karaokeRequested ? " + Karaoke" : ""}`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -290,8 +343,23 @@ router.post("/vocal-removal", requireAuth, upload.single("audio"), async (req, r
     throw err;
   }
 
+  /* Concurrent twin: the ledger deduped this charge — answer with
+     the twin's job instead of starting a second run. */
+  const twin = jobs.get(deterministicJobId(idempotencyKey));
+  if (twin && twin.userId === req.userId! && twin.status !== "failed") {
+    res.status(202).json({
+      jobId: twin.id,
+      status: twin.status,
+      karaokeRequested: twin.karaokeRequested,
+      creditsCharged: VOCAL_REMOVAL_CREDIT_COST,
+      creditsRemaining: twin.creditsRemaining,
+      replayed: true,
+    });
+    return;
+  }
+
   const job: VocalRemovalJob = {
-    id: randomUUID(),
+    id: deterministicJobId(idempotencyKey),
     userId: req.userId!,
     status: "queued",
     sourceName: req.file.originalname,
@@ -305,6 +373,8 @@ router.post("/vocal-removal", requireAuth, upload.single("audio"), async (req, r
     error: null,
     creditsCharged: VOCAL_REMOVAL_CREDIT_COST,
     createdAt: Date.now(),
+    idempotencyKey,
+    creditsRemaining,
   };
   jobs.set(job.id, job);
 

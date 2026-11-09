@@ -1,7 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import { getTextModel } from "../../lib/ai-clients";
 import {
   DUB_CAPTION_LANGUAGES,
@@ -58,24 +65,34 @@ router.post("/translate-captions", requireAuth, async (req, res) => {
   const targetLanguages = [...new Set(parsed.data.targetLanguages)];
 
   const totalCost = TRANSLATE_COST_PER_LANG * targetLanguages.length;
+
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the caption set + the deduped language set (the price driver); the
+     guard's stored-result pre-check runs before the balance gate and
+     any funding. A failed translation refunds as before and voids. */
+  const idempotencyKey = buildChargeIdempotencyKey("translate-captions", req.userId!, null, {
+    captions: parsed.data.captions,
+    targetLanguages,
+  });
+
+  try {
+    const outcome = await withReplayProtection("translate-captions", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < totalCost) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
     });
-    return;
   }
 
   let creditsAfter: number;
   try {
     creditsAfter = await chargeCredits(req.userId!, totalCost, {
       action: `Caption Translation (${targetLanguages.length} langs)`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "Not enough Visual Bucs." });
     }
     throw err;
   }
@@ -126,16 +143,30 @@ router.post("/translate-captions", requireAuth, async (req, res) => {
       }));
     }));
 
-    res.json({
+    return {
       translations,
       creditsRemaining: creditsAfter,
-    });
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Translation failed.";
     req.log.error({ err: message }, "[translate-captions] failed");
-    await refundCredits(req.userId!, totalCost, {
+    const refunded = await refundCredits(req.userId!, totalCost, {
       action: "Caption Translation — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Translation failed.";
     res.status(500).json({ error: message });
   }
 });
