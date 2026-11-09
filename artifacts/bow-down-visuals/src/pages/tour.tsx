@@ -27,6 +27,7 @@ import type { TourDate, TourPlan, OptimizedStop } from "@/lib/tour";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── Tour Planner ────────────────────────────────────────────────────────
    Plan tours and live shows:
@@ -303,6 +304,7 @@ export default function Tour() {
         </div>
 
         {/* hero */}
+        <SectionBoundary name="tour-hero">
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
             <MapPin className="h-3 w-3" aria-hidden="true" />{t("tour.heroBadge")}</p>
@@ -312,12 +314,16 @@ export default function Tour() {
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">{t("tour.heroSubtitle")}</p>
           <Link href="/setlist" className="mt-3 inline-block text-xs font-semibold text-primary hover:underline">{t("tour.setlistLink", { defaultValue: "Build your setlist →" })}</Link>
         </div>
+        </SectionBoundary>
 
         {!user && (
-          <p className={`relative mt-8 rounded-2xl border p-5 text-center text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/55"}`}>{t("tour.signInPrompt")}</p>
+          <SectionBoundary name="tour-sign-in-prompt">
+            <p className={`relative mt-8 rounded-2xl border p-5 text-center text-sm ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3] text-[#6B5B36]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] text-white/55"}`}>{t("tour.signInPrompt")}</p>
+          </SectionBoundary>
         )}
 
         {/* ── composer ─────────────────────────────────────────────── */}
+        <SectionBoundary name="tour-composer">
         <div
           id="tour-composer"
           className={`${isLight ? "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}
@@ -417,8 +423,10 @@ export default function Tour() {
             )}
           </div>
         </div>
+        </SectionBoundary>
 
         {/* ── date list ────────────────────────────────────────────── */}
+        <SectionBoundary name="tour-date-list">
         <div className={`relative mt-8 overflow-hidden rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <h2 className="text-lg font-bold">{t("tour.yourDates")}{" "}
             <span className="text-sm font-semibold text-white/40">
@@ -447,8 +455,8 @@ export default function Tour() {
               {sorted.map((d) => {
                 const until = daysUntil(d.show_date);
                 return (
+                  <SectionBoundary key={d.id} name="tour-date-row" variant="compact">
                   <div
-                    key={d.id}
                     className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5"
                   >
                     <div className="min-w-0">
@@ -494,13 +502,16 @@ export default function Tour() {
                       </button>
                     </div>
                   </div>
+                  </SectionBoundary>
                 );
               })}
             </div>
           )}
         </div>
+        </SectionBoundary>
 
         {/* ── optimizer ────────────────────────────────────────────── */}
+        <SectionBoundary name="tour-optimizer">
         <div className={`${isLight ? "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
@@ -586,6 +597,7 @@ export default function Tour() {
           )}
           <p className="mt-4 text-center text-xs leading-relaxed text-white/35">{t("tour.estimateDisclaimer")}</p>
         </div>
+        </SectionBoundary>
 
         {outOfCredits && (
           <div className="mt-6">
@@ -597,6 +609,7 @@ export default function Tour() {
         {plan && (
           <div id="tour-plan" className="relative mt-8 space-y-8">
             {/* routing */}
+            <SectionBoundary name="tour-plan-routing">
             <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
               <div className="flex items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-xl font-bold">
@@ -642,8 +655,10 @@ export default function Tour() {
                 ))}
               </ol>
             </div>
+            </SectionBoundary>
 
             {/* budget */}
+            <SectionBoundary name="tour-plan-budget">
             <div className={`${isLight ? "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#F7ECD2] to-[#FCF7EA] p-6 md:p-10" : "overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04] p-6 md:p-10"}`}>
               <h2 className="flex items-center gap-2 text-xl font-bold">
                 <Wallet className="h-5 w-5 text-primary" aria-hidden="true" />{t("tour.budgetTitle")}</h2>
@@ -680,11 +695,13 @@ export default function Tour() {
                 {t("tour.planGenerated", { date: new Date(plan.created_at).toLocaleString() })}
               </p>
             </div>
+            </SectionBoundary>
           </div>
         )}
 
         {/* ── promo checklist ──────────────────────────────────────── */}
         {dates.length > 0 && (
+          <SectionBoundary name="tour-promo-checklist">
           <div className={`relative mt-8 overflow-hidden rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <h2 className="text-lg font-bold">{t("tour.promoTitle")}</h2>
             <p className="mt-1 text-sm text-white/45">{t("tour.promoSub")}</p>
@@ -694,8 +711,8 @@ export default function Tour() {
                 const items = buildPromoChecklist(d.city, showDateLabel(d.show_date));
                 const done = items.filter((it) => checkedItems[`${d.id}:${it.id}`]).length;
                 return (
+                  <SectionBoundary key={d.id} name="tour-promo-city" variant="compact">
                   <div
-                    key={d.id}
                     className="overflow-hidden rounded-2xl border border-white/10 bg-black/40"
                   >
                     <button
@@ -760,10 +777,12 @@ export default function Tour() {
                       </div>
                     )}
                   </div>
+                  </SectionBoundary>
                 );
               })}
             </div>
           </div>
+          </SectionBoundary>
         )}
 
         {/* Dead-end fix (org wave, audit §1d): the tour ended here —
@@ -777,6 +796,7 @@ export default function Tour() {
             pages/dead-end-handoffs.test.ts. The container reuses this
             page's own themed section classes, so both themes get the
             same doors. */}
+        <SectionBoundary name="tour-next-steps">
         <div
           data-testid="tour-next-steps"
           className={`relative mt-8 overflow-hidden rounded-3xl border p-6 md:p-8 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}
@@ -816,6 +836,7 @@ export default function Tour() {
             </Link>
           </div>
         </div>
+        </SectionBoundary>
       </main>
 
 
