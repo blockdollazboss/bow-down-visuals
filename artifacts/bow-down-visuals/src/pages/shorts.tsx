@@ -30,6 +30,7 @@ import {
   shortSoundEditorHref,
 } from "@/lib/short-publish";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── Shorts — the For You feed, but you own it ─────────────────────────────
    /shorts — vertical full-screen snap feed. Every element is tappable to
@@ -311,34 +312,37 @@ export default function ShortsFeed() {
   return (
     <div className="relative h-[calc(100dvh-4rem)] bg-black">
       {/* header */}
-      <div className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 pb-8 pt-3">
-        <div>
-          <h1 className="text-xl font-black tracking-tight text-white">⚡ Shorts</h1>
-          <p className="text-xs text-white/50">your For You page, but you own it</p>
+      <SectionBoundary name="shorts-header">
+        <div className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 pb-8 pt-3">
+          <div>
+            <h1 className="text-xl font-black tracking-tight text-white">⚡ Shorts</h1>
+            <p className="text-xs text-white/50">your For You page, but you own it</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <KingDuetPanel isHouse={myIsOfficial} authHeaders={authHeaders} />
+            <ShortsMenu />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <KingDuetPanel isHouse={myIsOfficial} authHeaders={authHeaders} />
-          <ShortsMenu />
-        </div>
-      </div>
+      </SectionBoundary>
 
       {/* feed */}
       <div ref={containerRef} className="h-full snap-y snap-mandatory overflow-y-scroll">
         {items.map((item, i) => (
-          <ShortCard
-            key={item.id}
-            idx={i}
-            item={item}
-            muted={muted}
-            setMuted={setMuted}
-            refCb={(el) => { itemRefs.current[i] = el; }}
-            videoRefCb={(el) => { videoRefs.current[i] = el; }}
-            onUpdate={(patch) => setItems((prev) => prev.map((p) => (p.id === item.id ? { ...p, ...patch } : p)))}
-            authHeaders={authHeaders}
-            isAuthed={!!user}
-            isOwn={!!myProfileId && item.profile_id === myProfileId}
-            refCode={refCode}
-          />
+          <SectionBoundary key={item.id} name="shorts-card" variant="compact">
+            <ShortCard
+              idx={i}
+              item={item}
+              muted={muted}
+              setMuted={setMuted}
+              refCb={(el) => { itemRefs.current[i] = el; }}
+              videoRefCb={(el) => { videoRefs.current[i] = el; }}
+              onUpdate={(patch) => setItems((prev) => prev.map((p) => (p.id === item.id ? { ...p, ...patch } : p)))}
+              authHeaders={authHeaders}
+              isAuthed={!!user}
+              isOwn={!!myProfileId && item.profile_id === myProfileId}
+              refCode={refCode}
+            />
+          </SectionBoundary>
         ))}
         {loadingMore && (
           <div className="flex h-24 snap-start items-center justify-center">

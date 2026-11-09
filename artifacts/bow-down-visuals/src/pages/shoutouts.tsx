@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
 import { useTranslation } from "react-i18next";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── Fan Shoutouts ─────────────────────────────────────────────────────────
    Creators sell personalized video shoutouts to fans.
@@ -472,10 +473,12 @@ export default function Shoutouts() {
         <p className="text-white/50 mb-3 max-w-2xl">
           {t("shoutouts.pageDescription")}
         </p>
-        <div className="flex items-start gap-2 mb-8 p-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] text-sm text-amber-200/90">
-          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{t("shoutouts.paymentsNotice")}</span>
-        </div>
+        <SectionBoundary name="shoutouts-payments-notice">
+          <div className="flex items-start gap-2 mb-8 p-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] text-sm text-amber-200/90">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{t("shoutouts.paymentsNotice")}</span>
+          </div>
+        </SectionBoundary>
 
         <div className="flex gap-2 mb-8">
           {tabs.map((tb) => (
@@ -491,13 +494,15 @@ export default function Shoutouts() {
         </div>
 
         {tab === "request" && (
-          <>
+          <SectionBoundary key="request" name="shoutouts-tab-request">
             {paidConfirmed && (
-              <div className="max-w-xl mx-auto text-center py-10 mb-6 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.05] p-8">
-                <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-emerald-400" />
-                <h2 className="text-xl font-bold mb-2">{t("shoutouts.paidTitle")}</h2>
-                <p className="text-white/50 text-sm">{t("shoutouts.paidDesc")}</p>
-              </div>
+              <SectionBoundary name="shoutouts-paid-confirmed">
+                <div className="max-w-xl mx-auto text-center py-10 mb-6 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.05] p-8">
+                  <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-emerald-400" />
+                  <h2 className="text-xl font-bold mb-2">{t("shoutouts.paidTitle")}</h2>
+                  <p className="text-white/50 text-sm">{t("shoutouts.paidDesc")}</p>
+                </div>
+              </SectionBoundary>
             )}
             {creatorsLoading ? (
               <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-[#C9A84C]" /></div>
@@ -524,7 +529,8 @@ export default function Shoutouts() {
             ) : !selected ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {creators.map((c) => (
-                  <button key={c.id} onClick={() => { setSelected(c); setSubmitted(false); setError(""); }}
+                  <SectionBoundary key={c.id} name="shoutouts-creator-card" variant="compact">
+                  <button onClick={() => { setSelected(c); setSubmitted(false); setError(""); }}
                     className={`text-left rounded-2xl border p-5 hover:border-yellow-500/40 transition-colors ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <h3 className="font-bold text-lg">{c.displayName}</h3>
                     <p className="text-[#E3C566] font-bold mt-1">{money(c.priceDollars)} <span className="text-white/40 text-xs font-normal">{t("shoutouts.perShoutout")}</span></p>
@@ -532,9 +538,11 @@ export default function Shoutouts() {
                     {c.guidelines && <p className="text-xs text-white/50 mt-2 line-clamp-2">{c.guidelines}</p>}
                     <span className="inline-flex items-center gap-1 mt-3 text-sm text-[#E3C566] font-semibold">{t("shoutouts.requestButton")} <Send className="w-3.5 h-3.5" /></span>
                   </button>
+                  </SectionBoundary>
                 ))}
               </div>
             ) : paySecret ? (
+              <SectionBoundary name="shoutouts-checkout">
               <div className="max-w-xl mx-auto rounded-2xl border border-[#C9A84C]/40 bg-[#14100a] p-6" data-testid="shoutouts-embedded-checkout">
                 <h2 className="text-xl font-bold mb-2">Your request is in — finish paying right here</h2>
                 <p className="text-white/50 text-sm mb-4">
@@ -546,7 +554,9 @@ export default function Shoutouts() {
                   {t("shoutouts.requestAnother")}
                 </button>
               </div>
+              </SectionBoundary>
             ) : submitted ? (
+              <SectionBoundary name="shoutouts-submitted">
               <div className="max-w-xl mx-auto text-center py-12 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.05] p-8">
                 <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-emerald-400" />
                 <h2 className="text-xl font-bold mb-2">{t("shoutouts.requestSentTitle", { name: selected.displayName })}</h2>
@@ -558,7 +568,9 @@ export default function Shoutouts() {
                   {t("shoutouts.requestAnother")}
                 </button>
               </div>
+              </SectionBoundary>
             ) : (
+              <SectionBoundary name="shoutouts-request-form">
               <div className={`max-w-xl mx-auto rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                 <button onClick={() => setSelected(null)} className="text-xs text-white/40 hover:text-white mb-4">{t("shoutouts.allCreators")}</button>
                 <h2 className="text-xl font-bold mb-1">{t("shoutouts.shoutoutFrom", { name: selected.displayName })}</h2>
@@ -611,12 +623,13 @@ export default function Shoutouts() {
                   <p className="text-[11px] text-white/35 text-center">{t("shoutouts.noChargeNote")}</p>
                 </div>
               </div>
+              </SectionBoundary>
             )}
-          </>
+          </SectionBoundary>
         )}
 
         {tab === "creator" && (
-          <>
+          <SectionBoundary key="creator" name="shoutouts-tab-creator">
             {!user ? (
               <div className="text-center py-16 text-white/40">
                 <Settings2 className="w-10 h-10 mx-auto mb-3 opacity-40" />
@@ -641,6 +654,7 @@ export default function Shoutouts() {
               </div>
             ) : (
               <div className="grid lg:grid-cols-3 gap-6">
+                <SectionBoundary name="shoutouts-settings">
                 <div className={`rounded-2xl border p-5 h-fit ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   <h2 className="font-bold mb-4 flex items-center gap-2"><Settings2 className="w-4 h-4 text-[#C9A84C]" /> {t("shoutouts.yourShoutoutPage")}</h2>
                   {settingsError ? sectionErrorNote(() => void fetchSettingsSection()) : (
@@ -677,8 +691,10 @@ export default function Shoutouts() {
                   </div>
                   )}
                 </div>
+                </SectionBoundary>
 
                 <div className="lg:col-span-2 space-y-6">
+                  <SectionBoundary name="shoutouts-revenue">
                   <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <h2 className="font-bold mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#C9A84C]" /> {t("shoutouts.revenueTitle")}</h2>
                     {revenueError ? sectionErrorNote(() => void fetchRevenueSection()) : revenue ? (
@@ -701,7 +717,9 @@ export default function Shoutouts() {
                     )}
                     <p className="text-[11px] text-white/35 mt-3">{t("shoutouts.revenueDisclaimer")}</p>
                   </div>
+                  </SectionBoundary>
 
+                  <SectionBoundary name="shoutouts-requests">
                   <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="font-bold flex items-center gap-2"><Inbox className="w-4 h-4 text-[#C9A84C]" /> {t("shoutouts.incomingRequests")}</h2>
@@ -718,7 +736,8 @@ export default function Shoutouts() {
                     ) : (
                       <div className="space-y-3">
                         {requests.map((r) => (
-                          <div key={r.id} className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
+                          <SectionBoundary key={r.id} name="shoutouts-request-row" variant="compact">
+                          <div className={`rounded-xl border p-4 ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70" : "border-white/10 bg-black/40"}`}>
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="font-semibold">{r.fanName} <span className="text-white/40 font-normal text-sm">· {r.occasion}</span></p>
@@ -766,14 +785,16 @@ export default function Shoutouts() {
                               )}
                             </div>
                           </div>
+                          </SectionBoundary>
                         ))}
                       </div>
                     )}
                   </div>
+                  </SectionBoundary>
                 </div>
               </div>
             )}
-          </>
+          </SectionBoundary>
         )}
       </main>
 

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { StageRooms } from "@/components/trust/StageRooms";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── Go Live — Discord stream dashboard ──────────────────────────────────
    The user's community hub is their Discord server (they stream via Go Live).
@@ -264,18 +265,21 @@ function GoLiveMain() {
         </div>
 
         {status && !status.configured && (
-          <div className="relative rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-300 shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-bold text-amber-200">{t("goLive.noWebhookTitle")}</p>
-              <p className="text-white/50 mt-1">
-                {t("goLive.webhookHelpBefore")}<Link href="/settings" className="text-amber-300 underline underline-offset-2">{t("goLive.webhookHelpLink")}</Link>{t("goLive.webhookHelpAfter")}
-              </p>
+          <SectionBoundary name="go-live-setup-warning">
+            <div className="relative rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-4 flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-300 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-bold text-amber-200">{t("goLive.noWebhookTitle")}</p>
+                <p className="text-white/50 mt-1">
+                  {t("goLive.webhookHelpBefore")}<Link href="/settings" className="text-amber-300 underline underline-offset-2">{t("goLive.webhookHelpLink")}</Link>{t("goLive.webhookHelpAfter")}
+                </p>
+              </div>
             </div>
-          </div>
+          </SectionBoundary>
         )}
 
         {/* ── Announce panel ── */}
+        <SectionBoundary name="go-live-announce">
         <section className="relative rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 md:p-6 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -371,8 +375,10 @@ function GoLiveMain() {
             {t("goLive.announceNote")}
           </p>
         </section>
+        </SectionBoundary>
 
         {/* ── Schedule ── */}
+        <SectionBoundary name="go-live-schedule">
         <section className="relative rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 md:p-6 space-y-4">
           <div>
             <p className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-widest ${isLight ? "text-[#7A5A12]" : "text-[#fbbf24]"}`}>
@@ -437,7 +443,8 @@ function GoLiveMain() {
                 </p>
               )}
               {upcoming.map((s) => (
-                <div key={s.id} className="flex items-center justify-between rounded-xl border border-amber-400/20 bg-amber-400/[0.04] px-4 py-3 transition hover:border-amber-400/40">
+                <SectionBoundary key={s.id} name="go-live-upcoming-stream" variant="compact">
+                <div className="flex items-center justify-between rounded-xl border border-amber-400/20 bg-amber-400/[0.04] px-4 py-3 transition hover:border-amber-400/40">
                   <div className="min-w-0">
                     <p className="font-bold text-sm truncate">{s.title}</p>
                     <p className="text-xs text-white/50 flex items-center gap-1.5 mt-0.5">
@@ -455,6 +462,7 @@ function GoLiveMain() {
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
+                </SectionBoundary>
               ))}
             </div>
           ) : (
@@ -465,9 +473,11 @@ function GoLiveMain() {
             </div>
           )}
         </section>
+        </SectionBoundary>
 
         {/* ── Recent ── */}
         {recent.length > 0 && (
+          <SectionBoundary name="go-live-recent">
           <section className="relative rounded-2xl border border-white/10 bg-[#0a0a0a] p-5 md:p-6 space-y-3">
             <div>
               <p className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-widest ${isLight ? "text-[#7A5A12]" : "text-[#fbbf24]"}`}>
@@ -477,7 +487,8 @@ function GoLiveMain() {
               <h2 className="text-lg font-black mt-1">{t("goLive.recentStreams")}</h2>
             </div>
             {recent.map((s) => (
-              <div key={s.id} className={`flex items-center justify-between rounded-xl border px-4 py-3 transition ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/5 bg-black/40 hover:border-white/15"}`}>
+              <SectionBoundary key={s.id} name="go-live-recent-stream" variant="compact">
+              <div className={`flex items-center justify-between rounded-xl border px-4 py-3 transition ${isLight ? "border-[#C9A84C]/30 bg-[#F7ECD2]/70 hover:border-[#C9A84C]/50" : "border-white/5 bg-black/40 hover:border-white/15"}`}>
                 <div className="min-w-0">
                   <p className="font-bold text-sm truncate">{s.title}</p>
                   <p className="text-xs text-white/50 mt-0.5">
@@ -491,8 +502,10 @@ function GoLiveMain() {
                   </a>
                 )}
               </div>
+              </SectionBoundary>
             ))}
           </section>
+          </SectionBoundary>
         )}
       </div>
     </div>
@@ -581,6 +594,7 @@ export default function GoLive() {
           the palace together (and a live stream takes the big screen
           while it's on). ── */}
       <div className="mx-auto max-w-5xl px-4 pt-4">
+        <SectionBoundary name="go-live-world-entry">
         <Link
           href="/world"
           className={`group flex flex-wrap items-center gap-3 rounded-2xl border px-5 py-4 transition hover:border-[#d4af37]/70 ${
@@ -605,16 +619,25 @@ export default function GoLive() {
             Enter the World
           </span>
         </Link>
+        </SectionBoundary>
       </div>
       <div id="golive-panel" role="tabpanel" aria-labelledby={`golive-tab-${tab}`} tabIndex={0}>
         <Suspense fallback={<LiveTabFallback />}>
-          {tab === "broadcast" ? <><BroadcastStudio /><BroadcastChannelsPanel /><SongRequestDesk /><GuestPanel /><LiveBattlesPanel showMine /><IngestKeyPanel /><DestinationKeysPanel /><LoyaltySettingsPanel /></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+          <SectionBoundary key={tab} name={`go-live-tab-${tab}`}>
+          {tab === "broadcast" ? <><SectionBoundary name="go-live-broadcast-studio"><BroadcastStudio /></SectionBoundary><SectionBoundary name="go-live-broadcast-channels"><BroadcastChannelsPanel /></SectionBoundary><SectionBoundary name="go-live-song-requests"><SongRequestDesk /></SectionBoundary><SectionBoundary name="go-live-guest-panel"><GuestPanel /></SectionBoundary><SectionBoundary name="go-live-battles"><LiveBattlesPanel showMine /></SectionBoundary><SectionBoundary name="go-live-ingest-keys"><IngestKeyPanel /></SectionBoundary><SectionBoundary name="go-live-destination-keys"><DestinationKeysPanel /></SectionBoundary><SectionBoundary name="go-live-loyalty-settings"><LoyaltySettingsPanel /></SectionBoundary></> : tab === "golive" ? <GoLiveMain /> : tab === "shows" ? <ShowFinder /> : tab === "discord" ? <DiscordBotSetup /> : tab === "gamers" ? <GamersHub /> : <StreamCopilotSection />}
+          </SectionBoundary>
         </Suspense>
       </div>
-      <div className="mt-6"><StageRooms /></div>
+      <div className="mt-6">
+        <SectionBoundary name="go-live-stage-rooms">
+          <StageRooms />
+        </SectionBoundary>
+      </div>
 
       {/* Rank 6a: every creation ends in the Get Paid finale. */}
-      <CreationFinale surfaceId="go-live" />
+      <SectionBoundary name="go-live-finale">
+        <CreationFinale surfaceId="go-live" />
+      </SectionBoundary>
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { AltTextField } from "@/components/accessibility/AltTextField";
 import { GetPaidFinale } from "@/components/player/GetPaidFinale";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import {
   buildShortPostBody,
   SHORT_MAX_DURATION_SEC,
@@ -784,6 +785,7 @@ export default function Publish() {
     <div ref={topRef} className="min-h-screen bg-[#0a0a0c] text-white">
       <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
         {/* Header + the cheat-code chain */}
+        <SectionBoundary name="publish-header">
         <div className="text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/[0.07] px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-amber-300">
             <Rocket className="h-3.5 w-3.5" /> The unfair advantage
@@ -806,6 +808,7 @@ export default function Publish() {
             ))}
           </div>
         </div>
+        </SectionBoundary>
 
         {/* Deep-link back to the creation tool we came from */}
         {fromTool && (
@@ -822,6 +825,7 @@ export default function Publish() {
         {/* Shorts intent — arrived from a "post a short" surface: the
             save routes through POST /api/shorts and lands in the feed. */}
         {shortMode && (
+          <SectionBoundary name="publish-short-intent">
           <div className={`mt-6 flex items-start justify-between gap-3 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
             <div className="flex items-start gap-2.5">
               <Zap className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
@@ -840,9 +844,11 @@ export default function Publish() {
               Regular video
             </button>
           </div>
+          </SectionBoundary>
         )}
 
         {/* Profile status — one-click creation, no dead ends */}
+        <SectionBoundary name="publish-profile-status">
         <div className={`mt-8 rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           {profileLoading ? (
             <div className="flex items-center gap-2 text-sm text-white/50">
@@ -901,8 +907,10 @@ export default function Publish() {
             </div>
           )}
         </div>
+        </SectionBoundary>
 
         {/* Vertical picker — all nine */}
+        <SectionBoundary name="publish-vertical-picker">
         <div className="mt-8">
           <h2 className="text-xs font-bold uppercase tracking-widest text-white/40">What kind of creator are you?</h2>
           <div className="mt-3 grid grid-cols-3 gap-2">
@@ -929,8 +937,10 @@ export default function Publish() {
             })}
           </div>
         </div>
+        </SectionBoundary>
 
         {/* Audio / video toggle */}
+        <SectionBoundary name="publish-media-toggle">
         <div className="mt-6 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/[0.02] p-1.5">
           {([
             { v: "audio" as ContentType, label: "Audio content", icon: AudioLines, hint: "Episodes, tracks, lessons" },
@@ -953,8 +963,10 @@ export default function Publish() {
             </button>
           ))}
         </div>
+        </SectionBoundary>
 
         {/* Drop zone / prefill */}
+        <SectionBoundary name="publish-dropzone">
         <div className="mt-6">
           {prefillUrl ? (
             <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.05] p-4">
@@ -1034,8 +1046,10 @@ export default function Publish() {
             </div>
           )}
         </div>
+        </SectionBoundary>
 
         {/* Metadata */}
+        <SectionBoundary name="publish-metadata">
         <div className={`mt-6 space-y-4 rounded-2xl border p-4 sm:p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-white/40">Title</label>
@@ -1216,6 +1230,7 @@ export default function Publish() {
             </div>
           )}
         </div>
+        </SectionBoundary>
 
         {/* Errors */}
         {formError && (
@@ -1225,6 +1240,7 @@ export default function Publish() {
         )}
 
         {/* Save / publish */}
+        <SectionBoundary name="publish-actions">
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button
             onClick={() => handleSave(false)}
@@ -1243,6 +1259,7 @@ export default function Publish() {
             )}
           </button>
         </div>
+        </SectionBoundary>
         {editingId && (
           <button onClick={resetForm} className="mt-2 w-full text-xs font-bold text-white/40 hover:text-white">
             Cancel editing — start fresh
@@ -1250,6 +1267,7 @@ export default function Publish() {
         )}
         {/* Success state: profile + live item + share — never a dead "done" */}
         {publishedItem && (
+          <SectionBoundary name="publish-success">
           <div className="mt-4 rounded-2xl border border-emerald-400/30 bg-emerald-400/[0.06] p-4">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-emerald-300" />
@@ -1328,20 +1346,24 @@ export default function Publish() {
               </div>
             )}
           </div>
+          </SectionBoundary>
         )}
 
         {/* Rank 6a: a publish is a creation too — it ends in the Get
             Paid finale (price → promote → tips), not a dead panel. */}
         {publishedItem && (
-          <GetPaidFinale
-            title={publishedItem.title}
-            isOwner
-            sharePath={liveItemUrl() ?? `/artist/${publishedItem.slug}`}
-            manageHref="/publish"
-          />
+          <SectionBoundary name="publish-finale">
+            <GetPaidFinale
+              title={publishedItem.title}
+              isOwner
+              sharePath={liveItemUrl() ?? `/artist/${publishedItem.slug}`}
+              manageHref="/publish"
+            />
+          </SectionBoundary>
         )}
 
         {/* My content — drafts + published */}
+        <SectionBoundary name="publish-my-content">
         <div className="mt-10">
           <h2 className="text-xs font-bold uppercase tracking-widest text-white/40">My content</h2>
           {draftsLoading ? (
@@ -1353,7 +1375,8 @@ export default function Publish() {
           ) : (
             <div className="mt-3 space-y-2">
               {drafts.map((d) => (
-                <div key={`${d.kind}-${d.id}`} className={`flex items-center gap-3 rounded-2xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                <SectionBoundary key={`${d.kind}-${d.id}`} name="publish-content-row" variant="compact">
+                <div className={`flex items-center gap-3 rounded-2xl border p-3 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                   {d.artwork_url
                     ? <img src={d.artwork_url} alt="" className="h-12 w-12 rounded-xl object-cover border border-white/10 shrink-0" />
                     : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-white/30">
@@ -1388,10 +1411,12 @@ export default function Publish() {
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
+                </SectionBoundary>
               ))}
             </div>
           )}
         </div>
+        </SectionBoundary>
 
         <p className="mt-8 text-center text-[11px] text-white/50">
           Uploading and publishing are free — it's your content. Only AI extras like generated artwork cost Visual Bucs.

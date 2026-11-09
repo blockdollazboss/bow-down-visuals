@@ -16,6 +16,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { PublishToProfileButton } from "@/components/publish/PublishToProfileButton";
 import { ShareForReviewButton, ReviewFeedbackBadge } from "@/components/ShareForReview";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 interface GeneratedClip {
   id: string;
@@ -1125,6 +1126,7 @@ export default function MyClips() {
       <div className="relative z-10 max-w-5xl mx-auto px-5 md:px-8 py-10 md:py-14">
 
         {/* Header */}
+        <SectionBoundary name="my-clips-header">
         <Link href="/my-projects" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
           {t("myClips.backToProjects")}
@@ -1148,16 +1150,19 @@ export default function MyClips() {
             </Button>
           </Link>
         </div>
+        </SectionBoundary>
 
         {/* Explainer */}
         {!loading && clips.length > 0 && (
-          <div className="mb-6 flex items-start gap-3 p-3.5 rounded-xl border border-primary/15 bg-primary/5">
-            <Link2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-            <p className="text-[12px] text-white/50 leading-relaxed">
-              Use <span className="text-primary font-semibold">Attach to Project Scene</span> on any clip to link it to a scene in Visual Vibes — no Visual Bucs charged.
-              Open Visual Vibes afterwards to see <span className="text-green-400 font-semibold">Clip Ready</span> on the scene card.
-            </p>
-          </div>
+          <SectionBoundary name="my-clips-explainer">
+            <div className="mb-6 flex items-start gap-3 p-3.5 rounded-xl border border-primary/15 bg-primary/5">
+              <Link2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <p className="text-[12px] text-white/50 leading-relaxed">
+                Use <span className="text-primary font-semibold">Attach to Project Scene</span> on any clip to link it to a scene in Visual Vibes — no Visual Bucs charged.
+                Open Visual Vibes afterwards to see <span className="text-green-400 font-semibold">Clip Ready</span> on the scene card.
+              </p>
+            </div>
+          </SectionBoundary>
         )}
 
         {/* Loading */}
@@ -1197,14 +1202,15 @@ export default function MyClips() {
         {!loading && clips.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {clips.map((clip) => (
-              <ClipCard
-                key={clip.id}
-                clip={clip}
-                characterName={clip.artist_vault_id ? vaultNames[clip.artist_vault_id] ?? null : null}
-                onDelete={handleDelete}
-                onAttach={setAttachingClip}
-                onSeoScore={setSeoClip}
-              />
+              <SectionBoundary key={clip.id} name="my-clips-clip-card" variant="compact">
+                <ClipCard
+                  clip={clip}
+                  characterName={clip.artist_vault_id ? vaultNames[clip.artist_vault_id] ?? null : null}
+                  onDelete={handleDelete}
+                  onAttach={setAttachingClip}
+                  onSeoScore={setSeoClip}
+                />
+              </SectionBoundary>
             ))}
           </div>
         )}

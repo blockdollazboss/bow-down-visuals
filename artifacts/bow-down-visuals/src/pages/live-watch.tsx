@@ -17,6 +17,7 @@ import { replayStateFor } from "@/lib/live-replay";
 import PartyTableSection from "@/components/artist/PartyTableSection";
 import { SongRequestPanel } from "@/components/live/SongRequests";
 import { publicOnStageGuests } from "@/lib/go-live/guest-api";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── /live/:id — watch a native broadcast ────────────────────────────────
    Playback is WebRTC (WHEP) where the transport offers it; streams from
@@ -458,6 +459,7 @@ export default function LiveWatch() {
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-8">
         <div className="flex flex-col gap-5 lg:flex-row">
           <div className="min-w-0 flex-1">
+        <SectionBoundary name="live-watch-player">
         <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-[#C9A84C]/25 bg-black">
           {isLive && doorLocked ? (
             <TicketDoor
@@ -544,10 +546,18 @@ export default function LiveWatch() {
             </div>
           )}
         </div>
+        </SectionBoundary>
 
-        {!isLive && <StreamSummaryCard streamId={stream.id} />}
-        <ReachWatchPanel streamId={stream.id} profileId={stream.creator?.id ?? null} isLive={!!isLive} isOwner={false} />
+        {!isLive && (
+          <SectionBoundary name="live-watch-summary">
+            <StreamSummaryCard streamId={stream.id} />
+          </SectionBoundary>
+        )}
+        <SectionBoundary name="live-watch-reach">
+          <ReachWatchPanel streamId={stream.id} profileId={stream.creator?.id ?? null} isLive={!!isLive} isOwner={false} />
+        </SectionBoundary>
 
+        <SectionBoundary name="live-watch-header">
         <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="truncate text-2xl font-black tracking-tight">{stream.title}</h1>
@@ -577,25 +587,38 @@ export default function LiveWatch() {
             </div>
           )}
         </div>
-        {isLive && <OnStageGuests streamId={stream.id} />}
+        </SectionBoundary>
+        {isLive && (
+          <SectionBoundary name="live-watch-on-stage">
+            <OnStageGuests streamId={stream.id} />
+          </SectionBoundary>
+        )}
         {/* A party table homed to THIS stream stands at the stream
             (program 2.25) — the host's table, opened from in-world
             through the same summons door as the profile and the
             Kingdom Board. Renders nothing when no table is homed
             here. */}
         {creator && (
-          <PartyTableSection slug={creator.slug} streamId={stream.id} className="mt-5" />
+          <SectionBoundary name="live-watch-party-table">
+            <PartyTableSection slug={creator.slug} streamId={stream.id} className="mt-5" />
+          </SectionBoundary>
         )}
         {/* Song Requests (N18) — docked into the watch surface: the
             creator's rules + the refund deal up front, the catalog,
             the tipped request form, and the live queue. */}
-        <SongRequestPanel streamId={stream.id} isLive={!!isLive} />
+        <SectionBoundary name="live-watch-song-requests">
+          <SongRequestPanel streamId={stream.id} isLive={!!isLive} />
+        </SectionBoundary>
         {/* Live Battles (#154) docked on the watch surface: the battle
             riding THIS stream, its recorded-vote tally and the crown.
             Renders the crown strip alone when no battle rides here. */}
-        <LiveBattlesPanel streamId={stream.id} />
+        <SectionBoundary name="live-watch-battles">
+          <LiveBattlesPanel streamId={stream.id} />
+        </SectionBoundary>
           </div>
-          <LiveChatPanel streamId={stream.id} className="h-[440px] shrink-0 lg:h-auto lg:w-[340px]" />
+          <SectionBoundary name="live-watch-chat">
+            <LiveChatPanel streamId={stream.id} className="h-[440px] shrink-0 lg:h-auto lg:w-[340px]" />
+          </SectionBoundary>
         </div>
       </div>
     </div>

@@ -15,6 +15,7 @@ import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/c
 import { buildAlertText } from "@/lib/live-shopping";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── Live Shopping ─────────────────────────────────────────────────────
    Sell products during live streams: a product catalog, a live overlay
@@ -506,6 +507,7 @@ export default function LiveShopping() {
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-6xl px-5 md:px-8 pb-24">
         {/* hero */}
+        <SectionBoundary name="live-shopping-hero">
         <section className="pt-14 pb-8 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
             <ShoppingBag className="h-3.5 w-3.5" aria-hidden="true" />
@@ -524,6 +526,7 @@ export default function LiveShopping() {
             </p>
           </div>
         </section>
+        </SectionBoundary>
 
         {!user ? (
           <div className={`mx-auto max-w-md rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
@@ -587,6 +590,7 @@ export default function LiveShopping() {
               <>
                 {/* ── PRODUCTS ── */}
                 {tab === "products" && (
+                  <SectionBoundary key="products" name="live-shopping-tab-products">
                   <section className="mt-8">
                     <div className="flex items-center justify-between">
                       <h2 className="text-xl font-bold">{t("liveShopping.catalogTitle")}</h2>
@@ -596,6 +600,7 @@ export default function LiveShopping() {
                     </div>
 
                     {formOpen && (
+                      <SectionBoundary name="live-shopping-product-form">
                       <div className={`mt-4 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                         <h3 className="font-bold">{editing ? t("liveShopping.editProduct") : t("liveShopping.newProduct")}</h3>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -622,12 +627,14 @@ export default function LiveShopping() {
                           <button onClick={resetForm} className={ghostBtn}>{t("liveShopping.cancel")}</button>
                         </div>
                       </div>
+                      </SectionBoundary>
                     )}
 
                     {catalogError ? sectionErrorCard(() => void loadCatalogSection()) : (<>
                     <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {products.map((p) => (
-                        <div key={p.id} className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
+                        <SectionBoundary key={p.id} name="live-shopping-product-card" variant="compact">
+                        <div className={`rounded-2xl border p-5 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
                           {p.image_url ? (
                             <img src={p.image_url} alt={p.name} className="h-32 w-full rounded-xl object-cover" loading="lazy" />
                           ) : (
@@ -649,6 +656,7 @@ export default function LiveShopping() {
                             </button>
                           </div>
                         </div>
+                        </SectionBoundary>
                       ))}
                     </div>
                     {products.length === 0 && !formOpen && (
@@ -656,10 +664,12 @@ export default function LiveShopping() {
                     )}
                     </>)}
                   </section>
+                  </SectionBoundary>
                 )}
 
                 {/* ── OVERLAY ── */}
                 {tab === "overlay" && (
+                  <SectionBoundary key="overlay" name="live-shopping-tab-overlay">
                   <section className="mt-8">
                     {streamsError ? sectionErrorCard(() => void loadStreamsSection()) : !activeStream ? (
                       <div className={`mx-auto max-w-md rounded-2xl border p-8 text-center ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
@@ -674,6 +684,7 @@ export default function LiveShopping() {
                     ) : (
                       <div className="grid gap-6 lg:grid-cols-2">
                         {/* overlay preview */}
+                        <SectionBoundary name="live-shopping-overlay-preview">
                         <div>
                           <div className="flex items-center justify-between">
                             <h2 className="text-xl font-bold">{t("liveShopping.overlayPreview")}</h2>
@@ -735,8 +746,10 @@ export default function LiveShopping() {
                             </div>
                           )}
                         </div>
+                        </SectionBoundary>
 
                         {/* controls */}
+                        <SectionBoundary name="live-shopping-overlay-controls">
                         <div>
                           <h2 className="text-xl font-bold">{t("liveShopping.streamControls")}</h2>
                           <p className="mt-1 text-xs text-white/45">{t("liveShopping.streamIsLive", { title: activeStream.title })}</p>
@@ -777,14 +790,17 @@ export default function LiveShopping() {
                             ))}
                           </div>
                         </div>
+                        </SectionBoundary>
                       </div>
                     )}
                   </section>
+                  </SectionBoundary>
                 )}
 
                 {/* ── DASHBOARD ── */}
                 {tab === "dashboard" && !dashboard && dashboardError && sectionErrorCard(() => void loadDashboardSection())}
                 {tab === "dashboard" && dashboard && (
+                  <SectionBoundary key="dashboard" name="live-shopping-tab-dashboard">
                   <section className="mt-8">
                     <div className="flex items-center gap-2">
                       <h2 className="text-xl font-bold">{t("liveShopping.dashboardTitle")}</h2>
@@ -842,6 +858,7 @@ export default function LiveShopping() {
                       )}
                     </div>
                   </section>
+                  </SectionBoundary>
                 )}
               </>
             )}

@@ -261,6 +261,14 @@ describe("G — /go-live's off-console tabs ride lazy doors", () => {
        stack when the orphaned broadcast surface docked here — still a
        static import rendered with the console, never a lazy door. */
     expect(goLive).toContain('import BroadcastChannelsPanel from "@/components/go-live/BroadcastChannelsPanel";');
-    expect(goLive).toContain("<BroadcastStudio /><BroadcastChannelsPanel /><SongRequestDesk /><GuestPanel /><LiveBattlesPanel showMine />");
+    /* Stack 400 C-27: the five console panels still render together in
+       the broadcast branch as static imports — each now sits inside its
+       own SectionBoundary so one panel's throw can't take the console
+       down. The pin follows the wrapped shape. */
+    expect(goLive).toContain('<SectionBoundary name="go-live-broadcast-studio"><BroadcastStudio /></SectionBoundary>');
+    expect(goLive).toContain('<SectionBoundary name="go-live-broadcast-channels"><BroadcastChannelsPanel /></SectionBoundary>');
+    expect(goLive).toContain('<SectionBoundary name="go-live-song-requests"><SongRequestDesk /></SectionBoundary>');
+    expect(goLive).toContain('<SectionBoundary name="go-live-guest-panel"><GuestPanel /></SectionBoundary>');
+    expect(goLive).toContain('<SectionBoundary name="go-live-battles"><LiveBattlesPanel showMine /></SectionBoundary>');
   });
 });
