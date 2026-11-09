@@ -167,7 +167,7 @@ const EARNINGS_KEYS = Object.keys(EN).filter((k) => k.startsWith("earnings."));
 
 describe("D6 · earnings keying (items 48–49)", () => {
   it("the earnings namespace exists in all 10 catalogs, English-verbatim (money labels)", () => {
-    expect(EARNINGS_KEYS.length).toBe(32);
+    expect(EARNINGS_KEYS.length).toBe(39);
     for (const k of EARNINGS_KEYS) expectVerbatimEverywhere(k);
   });
 
@@ -244,6 +244,37 @@ describe("D6 · earnings keying (items 48–49)", () => {
     expect(page).toContain("earnings.ledgerTipJarTip");
     expect(read("../components/trust/TrustPanels.tsx")).toContain("statementStringsFrom");
     expect(read("../components/world/native/boards/EarningsBoard.tsx")).toContain("statementStringsFrom(t)");
+  });
+
+  /* Stack-400 A-04/A-05/A-06 (lane s400-earnings-labels): one label
+     per source across cards + statement, the two tip sources named
+     apart, and both headline figures keyed with coverage words. */
+  it("A-05: statement labels are single-sourced from the card titles", () => {
+    expect(EN["earnings.stmtBeats"]).toBe(EN["earnings.beatsTitle"]);
+    expect(EN["earnings.stmtBrandDeals"]).toBe(EN["earnings.brandDealsTitle"]);
+    expect(EN["earnings.stmtBookings"]).toBe(EN["earnings.bookingsTitle"]);
+    expect(EN["earnings.stmtTipJar"]).toBe(EN["earnings.tipJarTitle"]);
+    expect(EN["earnings.stmtStoreSales"]).toBe(EN["earnings.storeSalesTitle"]);
+    expect(EN["earnings.stmtMemberships"]).toBe(EN["earnings.membershipsTitle"]);
+    expect(EN["earnings.stmtShoutouts"]).toBe(EN["earnings.shoutoutsTitle"]);
+  });
+
+  it("A-04 + A-06: the VB tips card and both headlines are keyed, coverage in plain words", () => {
+    expect(EN["earnings.tipsBucsTitle"]).toBe("Stream & stage tips (Visual Bucs)");
+    expect(EN["earnings.totalEarnedTitle"]).toBe("Total earned (USD) — the sources below");
+    expect(EN["earnings.pendingPayoutTitle"]).toBe("Pending payout — your payable balance");
+    const page = read("../pages/earnings.tsx");
+    expect(page).toContain('t("earnings.tipsBucsTitle")');
+    expect(page).toContain('t("earnings.totalEarnedTitle")');
+    expect(page).toContain('t("earnings.totalEarnedNote")');
+    expect(page).toContain('t("earnings.pendingPayoutTitle")');
+    expect(page).toContain('t("earnings.pendingPayoutNote")');
+    /* The hard-coded literals the census flagged are gone. */
+    expect(page).not.toContain(">Tips</div>");
+    expect(page).not.toContain("Total earned (USD)</div>");
+    expect(page).not.toContain(">Pending payout</div>");
+    /* A-04: the USD tip-jar pending line no longer duplicates inside the VB card. */
+    expect(page).not.toContain("tipJarPendingCents");
   });
 });
 

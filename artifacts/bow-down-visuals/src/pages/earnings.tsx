@@ -118,7 +118,7 @@ const LEDGER_KIND_KEY: Record<string, string> = {
   tip_jar_tip: "earnings.ledgerTipJarTip",
 };
 
-function PendingPayoutCard({ getToken }: { getToken: () => Promise<string | null> }) {
+function PendingPayoutCard({ getToken, title, note }: { getToken: () => Promise<string | null>; title: string; note: string }) {
   const { t } = useTranslation();
   const ledgerLabel = (kind: string) =>
     LEDGER_KIND_KEY[kind] ? t(LEDGER_KIND_KEY[kind]) : (LEDGER_KIND_LABEL[kind] ?? kind);
@@ -146,7 +146,8 @@ function PendingPayoutCard({ getToken }: { getToken: () => Promise<string | null
 
   return (
     <div className="mt-4 rounded-xl border border-border bg-card p-5" data-testid="pending-payout-card">
-      <div className="text-sm text-muted-foreground">Pending payout</div>
+      <div className="text-sm text-muted-foreground">{title}</div>
+      <p className="mt-1 text-xs text-muted-foreground">{note}</p>
       {failed ? (
         <>
           <div className="mt-2 text-lg font-semibold text-destructive">Couldn&apos;t load — try again</div>
@@ -245,7 +246,11 @@ export default function Earnings() {
   const independentSections = (
     <>
       <SectionBoundary name="earnings-pending-payout">
-        <PendingPayoutCard getToken={() => getAccessToken()} />
+        <PendingPayoutCard
+          getToken={() => getAccessToken()}
+          title={t("earnings.pendingPayoutTitle")}
+          note={t("earnings.pendingPayoutNote")}
+        />
       </SectionBoundary>
 
       {/* Lane 5 (stack400): the payout door docks directly under the
@@ -321,8 +326,9 @@ export default function Earnings() {
 
       <SectionBoundary name="earnings-total">
         <div className="mt-6 rounded-xl border border-border bg-card p-5">
-        <div className="text-sm text-muted-foreground">Total earned (USD)</div>
+        <div className="text-sm text-muted-foreground">{t("earnings.totalEarnedTitle")}</div>
         <div className="mt-1 text-3xl font-bold">{usd(data.totalCents)}</div>
+        <p className="mt-1 text-xs text-muted-foreground">{t("earnings.totalEarnedNote")}</p>
         {data.partial && (
           <div className="mt-1 text-xs text-destructive">Some sources couldn&apos;t load — this total covers the ones that did.</div>
         )}
@@ -453,7 +459,7 @@ export default function Earnings() {
         </SectionBoundary>
         <SectionBoundary name="earnings-tips-card">
         <div className="rounded-xl border border-border bg-card p-5">
-          <div className="text-sm text-muted-foreground">Tips</div>
+          <div className="text-sm text-muted-foreground">{t("earnings.tipsBucsTitle")}</div>
           {sources.tips.status === "error" ? (
             <>
               <div className="mt-2 text-lg font-semibold text-destructive">Couldn&apos;t load — try again</div>
@@ -478,8 +484,7 @@ export default function Earnings() {
                 Stage tips: {(sources.tips.stageTipsVb ?? 0).toLocaleString("en-US")} VB ({sources.tips.stageTipCount ?? 0} credited)
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                tip jar:{" "}
-                {usd(sources.tips.tipJarPendingCents ?? 0)} pending payment ({sources.tips.tipJarPendingCount ?? 0} fans) — not yet earnings
+                Tip jar money waiting on a fan&apos;s payment lives on the Tip jar tips card above — not counted here.
               </div>
             </>
           )}
