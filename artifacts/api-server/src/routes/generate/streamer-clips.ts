@@ -586,6 +586,10 @@ interface CutJob {
   /* CA-5: the charge's idempotency key — the detached cut-failure refund
      VOIDS it so a failed cut's re-ask charges fresh. */
   chargeKey?: string;
+  /* CA-5: the exact 202 body answered at creation (HTTP starts only).
+     Stored durably ONLY when the cut completes (runCutJob) — a failed
+     cut refunds + voids and must never leave a stored body behind. */
+  chargeBody?: Record<string, unknown>;
 }
 
 const cutJobs = new Map<string, CutJob>();
@@ -623,6 +627,12 @@ async function runCutJob(job: CutJob, videoRef: string): Promise<void> {
       clip.outputUrl = await refreshSupabaseStorageUrl(ref);
     }
     job.status = "done";
+    /* CA-5: persist the creation body ONLY now that the cut actually
+       landed — a replay from here on rejoins this job free. A failed cut
+       stores nothing, so its refunded + voided key re-asks fresh. */
+    if (job.chargeKey && job.chargeBody) {
+      await storeGenerationResult("streamer-clips-cut", job.chargeKey, job.userId, { ...job.chargeBody });
+    }
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Clip cutting failed";
@@ -783,9 +793,14 @@ router.post("/streamer-clips/cut", requireAuth, publicApiLimiter, async (req: Re
     creditsCharged: started.creditsCharged,
     creditsRemaining: started.creditsRemaining,
   };
-  /* Persist BEFORE answering (fail-open inside the helper) — the stored
-     body carries the SAME cut job id. */
-  await storeGenerationResult("streamer-clips-cut", cutKey, req.userId!, { ...cutBody });
+  /* Attach the creation body to a NEWLY minted job — runCutJob stores it
+     durably when the cut lands, so a failed cut (refunded + voided)
+     never leaves a stored body behind for its key. A dedupe-hit job
+     already carries its own body from its original start. */
+  const mintedHere = started.job.chargeBody === undefined;
+  if (mintedHere) {
+    started.job.chargeBody = cutBody;
+  }
   res.status(202).json(cutBody);
 });
 

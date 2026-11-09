@@ -292,6 +292,10 @@ export interface StemJob {
   /* CA-5: the charge's idempotency key — the detached job-failure refund
      VOIDS it so a failed split's re-ask charges fresh. */
   chargeKey?: string;
+  /* CA-5: the exact 202 body answered at creation. Stored durably ONLY
+     when the job completes (runStemJob) — a job that fails refunds +
+     voids and must never leave a stored body behind for its key. */
+  chargeBody?: Record<string, unknown>;
 }
 
 const jobs = new Map<string, StemJob>();
@@ -483,6 +487,12 @@ export async function runStemJob(job: StemJob, inputBuffer: Buffer, originalName
     }
 
     job.status = "done";
+    /* CA-5: persist the creation body ONLY now that the split actually
+       landed — a replay from here on rejoins this job free. A failed job
+       stores nothing, so its refunded + voided key re-asks fresh. */
+    if (job.chargeKey && job.chargeBody) {
+      await storeGenerationResult("stem-splitter", job.chargeKey, job.userId, { ...job.chargeBody });
+    }
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Stem splitting failed";
@@ -605,6 +615,17 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
     res.status(202).json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
     return;
   }
+  /* CA-5: a split for this exact file is already running (or finished
+     in this process) — rejoin it instead of charging for a second one.
+     Failed jobs are skipped: they refunded + voided, so a re-ask falls
+     through and charges fresh. */
+  const existingJob = [...jobs.values()].find(
+    (j) => j.chargeKey === idempotencyKey && j.userId === req.userId! && j.status !== "failed",
+  );
+  if (existingJob?.chargeBody) {
+    res.status(202).json({ ...existingJob.chargeBody, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
 
   const balance = req.userCredits ?? 0;
   if (balance < cost) {
@@ -635,6 +656,14 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
     throw err;
   }
 
+  const body = {
+    jobId: "",
+    status: "queued",
+    mode,
+    stemsTier: pro ? ("pro" as const) : ("standard" as const),
+    creditsCharged: cost,
+    creditsRemaining,
+  };
   const job: StemJob = {
     id: randomUUID(),
     userId: req.userId!,
@@ -651,23 +680,15 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
     creditsCharged: cost,
     createdAt: Date.now(),
     chargeKey: idempotencyKey,
+    chargeBody: body,
   };
+  body.jobId = job.id;
   jobs.set(job.id, job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
+  // runStemJob stores the creation body durably when the split lands.
   void runStemJob(job, req.file.buffer, req.file.originalname);
 
-  const body = {
-    jobId: job.id,
-    status: job.status,
-    mode: job.mode,
-    stemsTier: job.pro ? ("pro" as const) : ("standard" as const),
-    creditsCharged: cost,
-    creditsRemaining,
-  };
-  /* Persist BEFORE answering (fail-open inside the helper) — the stored
-     body carries the SAME job id, so a replay rejoins this split. */
-  await storeGenerationResult("stem-splitter", idempotencyKey, req.userId!, { ...body });
   res.status(202).json(body);
 });
 

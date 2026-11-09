@@ -114,6 +114,10 @@ interface SplitScreenJob {
   /* CA-5: the charge's idempotency key, so the detached render's refund
      can void it (a refunded job must not replay as a stored result). */
   chargeKey?: string;
+  /* CA-5: the exact 202 body answered at creation. Stored durably ONLY
+     when the render completes (renderSplitScreen) — a failed render
+     refunds + voids and must never leave a stored body behind. */
+  chargeBody?: Record<string, unknown>;
   state: SplitScreenJobState;
   stage: string;
   progress: number;
@@ -414,6 +418,12 @@ async function renderSplitScreen(job: SplitScreenJob, input: ApplyInput): Promis
       layout: input.layout,
     };
     setProgress(job, "done", 100);
+    /* CA-5: persist the creation body ONLY now that the render actually
+       landed — a replay from here on rejoins this job free. A failed
+       render stores nothing, so its refunded + voided key re-asks fresh. */
+    if (job.chargeKey && job.chargeBody) {
+      await storeGenerationResult("split-screen", job.chargeKey, job.userId, { ...job.chargeBody });
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Split-screen render failed.";
     logger.error({ err: message, layout: input.layout }, "[split-screen] render failed");
@@ -523,6 +533,17 @@ router.post("/split-screen/apply", requireAuth, async (req, res) => {
     res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
     return;
   }
+  /* CA-5: a render for these exact inputs is already queued/running (or
+     finished in this process) — rejoin it instead of charging for a
+     second one. Failed jobs are skipped: they refunded + voided, so a
+     re-ask falls through and charges fresh. */
+  const existingJob = [...jobs.values()].find(
+    (j) => j.chargeKey === idempotencyKey && j.userId === req.userId! && j.state !== "failed",
+  );
+  if (existingJob?.chargeBody) {
+    res.json({ ...existingJob.chargeBody, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
 
   /* 402 pre-check before charging */
   if ((req.userCredits ?? 0) < SPLIT_SCREEN_COST) {
@@ -546,15 +567,23 @@ router.post("/split-screen/apply", requireAuth, async (req, res) => {
     throw err;
   }
 
+  const body = {
+    jobId: "",
+    state: "queued",
+    price: SPLIT_SCREEN_COST,
+    creditsRemaining: creditsAfter,
+  };
   const job: SplitScreenJob = {
     id: randomUUID(),
     userId: req.userId!,
     chargeKey: idempotencyKey,
+    chargeBody: body,
     state: "queued",
     stage: "queued",
     progress: 0,
     createdAt: Date.now(),
   };
+  body.jobId = job.id;
   jobs.set(job.id, job);
 
   const input: ApplyInput = {
@@ -568,16 +597,9 @@ router.post("/split-screen/apply", requireAuth, async (req, res) => {
   renderQueue.push(() => renderSplitScreen(job, input));
   pumpQueue();
 
-  const body = {
-    jobId: job.id,
-    state: job.state,
-    price: SPLIT_SCREEN_COST,
-    creditsRemaining: creditsAfter,
-  };
-  /* Persist BEFORE answering (fail-open inside the helper) — the stored
-     body carries the SAME job id, so a replay rejoins this render instead
-     of minting a second one. */
-  await storeGenerationResult("split-screen", idempotencyKey, req.userId!, { ...body });
+  /* The body is stored durably by renderSplitScreen when the render
+     lands — not here — so a failed render never leaves a stored body
+     behind for its refunded + voided key. */
   res.status(202).json(body);
 });
 
