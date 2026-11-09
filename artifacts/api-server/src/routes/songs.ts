@@ -17,7 +17,18 @@ import { randomUUID } from "crypto";
 import { db, songsTable, artistVaultsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+  OutOfCreditsError,
+  LedgerWriteError,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -44,6 +55,34 @@ const upload = multer({
 
 /** Site credits for a vocal-remix (Demucs + ElevenLabs STS, no music gen). */
 const REMIX_CREDIT_COST = 300;
+
+/* Replay safety (CA-7): the POST /songs/:id/remix charge keys on a
+   server-derived idempotency key over the request intent (song +
+   artist vault), so a re-ask of the same remix (double-tap, retry,
+   timeout resend) is answered from the stored result instead of
+   charging again and re-swapping vocals. Dev mode (no charge) skips
+   keying entirely. The refund path VOIDS the key once the refund
+   lands, so a refunded remix always runs fresh on retry. Fresh
+   responses are byte-identical to before; stored lookups fail open.
+   (Scope "songs-remix" — distinct from song-remix.ts's "song-remix"
+   rail, a different surface with a different price.) */
+const SONGS_REMIX_SCOPE = "songs-remix";
+const REPLAY_STORE_MAX = 500;
+const storedSongsRemixResults = new Map<string, Record<string, unknown>>();
+const inFlightSongsRemixes = new Map<string, Promise<Record<string, unknown>>>();
+
+function storeSongsRemixInProcess(key: string, body: Record<string, unknown>): void {
+  if (storedSongsRemixResults.size >= REPLAY_STORE_MAX) {
+    const first = storedSongsRemixResults.keys().next().value;
+    if (first !== undefined) storedSongsRemixResults.delete(first);
+  }
+  storedSongsRemixResults.set(key, body);
+}
+
+export function __resetSongsRemixReplayCache(): void {
+  storedSongsRemixResults.clear();
+  inFlightSongsRemixes.clear();
+}
 
 function extOf(name: string): string {
   const m = /\.([a-z0-9]+)$/i.exec(name || "");
@@ -254,13 +293,64 @@ router.post("/songs/:id/remix", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Replay safety (CA-7): key from the request intent (song + vault
+     identity, both server-side); a re-ask is answered from the stored
+     remix — no second charge, no second vocal swap, no second row. */
+  let songsRemixKey: string | null = null;
+  if (!isDev) {
+    songsRemixKey = buildChargeIdempotencyKey(SONGS_REMIX_SCOPE, req.userId!, undefined, {
+      songId: String(req.params["id"]),
+      artistVaultId: String(artistVaultId),
+    });
+    const durable = await findStoredGenerationResult(SONGS_REMIX_SCOPE, songsRemixKey, req.userId!);
+    if (durable) {
+      res.json({ ...durable, replayed: true });
+      return;
+    }
+    const local = storedSongsRemixResults.get(songsRemixKey);
+    if (local) {
+      res.json({ ...local, replayed: true });
+      return;
+    }
+    const pending = inFlightSongsRemixes.get(songsRemixKey);
+    if (pending) {
+      try {
+        const twinBody = await pending;
+        const stored = storedSongsRemixResults.get(songsRemixKey) ?? twinBody;
+        res.json({ ...stored, replayed: true });
+        return;
+      } catch {
+        /* The twin failed and refunded (voiding the key) — run fresh. */
+      }
+    }
+  }
+
+  let songsRemixResolve: (body: Record<string, unknown>) => void = () => {};
+  let songsRemixReject: (err: unknown) => void = () => {};
+  let songsRemixFlight: Promise<Record<string, unknown>> | null = null;
+  if (songsRemixKey) {
+    songsRemixFlight = new Promise<Record<string, unknown>>((resolve, reject) => {
+      songsRemixResolve = resolve;
+      songsRemixReject = reject;
+    });
+    songsRemixFlight.catch(() => {});
+    inFlightSongsRemixes.set(songsRemixKey, songsRemixFlight);
+  }
+  const failSongsRemixFlight = (err: unknown) => {
+    if (songsRemixKey && songsRemixFlight) {
+      songsRemixReject(err);
+      if (inFlightSongsRemixes.get(songsRemixKey) === songsRemixFlight) inFlightSongsRemixes.delete(songsRemixKey);
+    }
+  };
+
   // Charge upfront: the Demucs + STS work starts immediately.
   // chargeCredits(): deduct + strict ledger write. A ledger failure rolls the
   // deduction back and throws LedgerWriteError (loud) — no untraceable charge.
   if (!isDev) {
     try {
-      await chargeCredits(req.userId!, REMIX_CREDIT_COST, { action: "Song Remix" });
+      await chargeCredits(req.userId!, REMIX_CREDIT_COST, { action: "Song Remix" }, { idempotencyKey: songsRemixKey ?? undefined });
     } catch (chargeErr) {
+      failSongsRemixFlight(chargeErr);
       if (chargeErr instanceof OutOfCreditsError) {
         res.status(402).json({ error: "out_of_credits", message: `Remixing a song costs ${REMIX_CREDIT_COST} credits — top up to remix.` });
         return;
@@ -299,15 +389,35 @@ router.post("/songs/:id/remix", requireAuth, async (req, res) => {
       .returning();
 
     // The ledger entry was written atomically by chargeCredits() above.
-    res.json({ song: remix, creditsAfter: isDev ? currentCredits : currentCredits - REMIX_CREDIT_COST });
+    const songsRemixBody: Record<string, unknown> = {
+      song: remix,
+      creditsAfter: isDev ? currentCredits : currentCredits - REMIX_CREDIT_COST,
+    };
+    if (songsRemixKey && songsRemixFlight) {
+      storeSongsRemixInProcess(songsRemixKey, songsRemixBody);
+      await storeGenerationResult(SONGS_REMIX_SCOPE, songsRemixKey, req.userId!, songsRemixBody);
+      songsRemixResolve(songsRemixBody);
+      if (inFlightSongsRemixes.get(songsRemixKey) === songsRemixFlight) inFlightSongsRemixes.delete(songsRemixKey);
+      const storedBody = storedSongsRemixResults.get(songsRemixKey);
+      if (storedBody && storedBody !== songsRemixBody) {
+        res.json({ ...storedBody, replayed: true });
+        return;
+      }
+    }
+    res.json(songsRemixBody);
   } catch (err) {
+    failSongsRemixFlight(err);
     req.log.error({ err }, "songs: remix failed");
-    // Refund with a ledger trace: the remix produced nothing.
+    // Refund with a ledger trace: the remix produced nothing. The key
+    // is voided when the refund lands, so a retry charges fresh.
     if (!isDev) {
+      let songsRemixRefunded = true;
       await refundCredits(req.userId!, REMIX_CREDIT_COST, { action: "Song Remix — Refund (provider failure)" })
         .catch((refundErr) => {
+          songsRemixRefunded = false;
           req.log.error({ userId: req.userId, err: refundErr }, "[songs] failed to refund remix credits");
         });
+      if (songsRemixRefunded && songsRemixKey) await voidChargeIdempotencyKey(songsRemixKey);
     }
     res.status(500).json({
       error: "Remix failed — your Visual Bucs were refunded. Please try again.",

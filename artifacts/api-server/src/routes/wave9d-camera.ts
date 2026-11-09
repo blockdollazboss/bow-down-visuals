@@ -4,7 +4,14 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter, freeAiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import {
   CAMERA_CATEGORIES,
   CAMERA_INTENSITIES,
@@ -49,6 +56,20 @@ import {
 const router = Router();
 
 const CAMERA_PROMPT_CREDITS = 100;
+
+const REPLAY_NOTE =
+  "This is the camera prompt you already made for this request — tweak the prompt or move for a fresh one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetWave9dCameraReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
 
 const moveSchema = z.enum(LEGACY_MOVE_IDS);
 const intensitySchema = z.enum(CAMERA_INTENSITIES);
@@ -106,6 +127,108 @@ router.get("/wave9d/camera/presets", requireAuth, publicApiLimiter, (_req, res) 
   });
 });
 
+interface CameraPromptRun {
+  entries: ResolvedCameraEntry[];
+  stacked: boolean;
+  single: ResolvedCameraEntry | null;
+  effectiveIntensity: CameraIntensity;
+  intensity: CameraIntensity;
+  basePrompt: string;
+  sceneContext: string;
+}
+
+async function runCameraPrompt(
+  userId: string,
+  ctx: CameraPromptRun,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  /* Charge BEFORE the model call, under the CA-KEY idempotency key. */
+  let remaining: number;
+  try {
+    remaining = await chargeCredits(userId, CAMERA_PROMPT_CREDITS, {
+      action: "Camera Move Planner",
+    }, { idempotencyKey });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      return {
+        __status: 402,
+        error: "out_of_credits",
+        message: "Not enough Visual Bucs — top up to build a camera prompt.",
+      };
+    }
+    throw err;
+  }
+
+  const { entries, stacked, single, effectiveIntensity, intensity, basePrompt, sceneContext } = ctx;
+  try {
+    const cameraBlock = stacked
+      ? buildStackBlock(entries, intensity)
+      : `Camera move: ${single!.preset.direction}\nIntensity: ${INTENSITY_DIRECTION[effectiveIntensity]}`;
+    const completion = await getOpenAI().chat.completions.create({
+      model: getTextModel(),
+      messages: [
+        {
+          role: "system",
+          content: stacked ? SYSTEM_PROMPT + STACK_SYSTEM_ADDENDUM : SYSTEM_PROMPT,
+        },
+        {
+          role: "user",
+          content:
+            `${cameraBlock}\n` +
+            (sceneContext ? `Scene context: ${sceneContext}\n` : "") +
+            `Base prompt:\n${basePrompt}\n\n` +
+            (stacked
+              ? "Enrich the base prompt with the camera stack."
+              : "Enrich the base prompt with the camera move."),
+        },
+      ],
+      max_completion_tokens: 400,
+    });
+
+    const enrichedPrompt = (completion.choices[0]?.message?.content ?? "").trim();
+    if (!enrichedPrompt) throw new Error("Model returned an empty camera prompt");
+
+    return {
+      enrichedPrompt,
+      move: entries[0].preset.id,
+      moves: entries.map((e) => ({
+        preset: e.preset.id,
+        name: e.preset.name,
+        intensity: e.intensity ?? intensity,
+      })),
+      stacked,
+      intensity: effectiveIntensity,
+      creditsUsed: CAMERA_PROMPT_CREDITS,
+      creditsRemaining: remaining,
+    };
+  } catch (err) {
+    /* Refund on ANY failure — no charge without delivery. When the
+       refund lands, VOID the charge's idempotency key so the retry
+       charges fresh instead of being suppressed as a replay. */
+    logger.error({ err, userId }, "[wave9d-camera] prompt failed — refunding");
+    let refunded = true;
+    try {
+      await refundCredits(userId, CAMERA_PROMPT_CREDITS, {
+        action: "Camera Move Planner — Refund",
+      });
+    } catch (refundErr) {
+      refunded = false;
+      logger.error(
+        { userId, refundErr },
+        "[wave9d-camera] CRITICAL: refund failed after prompt failure"
+      );
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    return {
+      __status: 500,
+      error: "The camera planner hiccupped — your Visual Bucs were refunded.",
+      refunded: true,
+    };
+  }
+}
+
 /* ─── POST /wave9d/camera/prompt — 100 VB ─── */
 router.post("/wave9d/camera/prompt", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = cameraPromptRequestSchema.safeParse(req.body ?? {});
@@ -158,82 +281,82 @@ router.post("/wave9d/camera/prompt", requireAuth, publicApiLimiter, async (req, 
     return;
   }
 
-  /* 2) Charge BEFORE the model call. */
-  let remaining: number;
-  try {
-    remaining = await chargeCredits(req.userId!, CAMERA_PROMPT_CREDITS, {
-      action: "Camera Move Planner",
-    });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
-        error: "out_of_credits",
-        message: "Not enough Visual Bucs — top up to build a camera prompt.",
-      });
+  /* CA-KEY: the server derives the key itself on EVERY call — this
+     schema accepts no client idempotencyKey, so the key is the
+     {move, moves, intensity, basePrompt, sceneContext} intent hash.
+     An identical ask can never be re-bought: a replay serves the
+     stored prompt with replayed: true and REPLAY_NOTE instead of
+     charging again. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "wave9d-camera", req.userId!, undefined,
+    {
+      move: move ?? null,
+      moves: moves ?? null,
+      intensity,
+      basePrompt,
+      sceneContext,
+    },
+  );
+
+  /* Stored-result pre-check (migration 0333) BEFORE any funding:
+     durable first, then the in-process cache, then an in-flight twin. */
+  const durable = await findStoredGenerationResult("wave9d-camera", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json({ ...twinBody, replayed: true, replayNote: REPLAY_NOTE });
       return;
     }
-    throw err;
+    /* The twin failed (refunded + key voided) — fall through fresh. */
   }
 
+  const run = runCameraPrompt(
+    req.userId!,
+    { entries, stacked, single, effectiveIntensity, intensity, basePrompt, sceneContext },
+    idempotencyKey,
+  );
+  inFlight.set(idempotencyKey, run);
+  let body: Record<string, unknown>;
   try {
-    const cameraBlock = stacked
-      ? buildStackBlock(entries, intensity)
-      : `Camera move: ${single!.preset.direction}\nIntensity: ${INTENSITY_DIRECTION[effectiveIntensity]}`;
-    const completion = await getOpenAI().chat.completions.create({
-      model: getTextModel(),
-      messages: [
-        {
-          role: "system",
-          content: stacked ? SYSTEM_PROMPT + STACK_SYSTEM_ADDENDUM : SYSTEM_PROMPT,
-        },
-        {
-          role: "user",
-          content:
-            `${cameraBlock}\n` +
-            (sceneContext ? `Scene context: ${sceneContext}\n` : "") +
-            `Base prompt:\n${basePrompt}\n\n` +
-            (stacked
-              ? "Enrich the base prompt with the camera stack."
-              : "Enrich the base prompt with the camera move."),
-        },
-      ],
-      max_completion_tokens: 400,
-    });
-
-    const enrichedPrompt = (completion.choices[0]?.message?.content ?? "").trim();
-    if (!enrichedPrompt) throw new Error("Model returned an empty camera prompt");
-
-    res.json({
-      enrichedPrompt,
-      move: entries[0].preset.id,
-      moves: entries.map((e) => ({
-        preset: e.preset.id,
-        name: e.preset.name,
-        intensity: e.intensity ?? intensity,
-      })),
-      stacked,
-      intensity: effectiveIntensity,
-      creditsUsed: CAMERA_PROMPT_CREDITS,
-      creditsRemaining: remaining,
-    });
-  } catch (err) {
-    /* 3) Refund on ANY failure — no charge without delivery. */
-    logger.error({ err, userId: req.userId }, "[wave9d-camera] prompt failed — refunding");
-    try {
-      await refundCredits(req.userId!, CAMERA_PROMPT_CREDITS, {
-        action: "Camera Move Planner — Refund",
-      });
-    } catch (refundErr) {
-      logger.error(
-        { userId: req.userId, refundErr },
-        "[wave9d-camera] CRITICAL: refund failed after prompt failure"
-      );
-    }
-    res.status(500).json({
-      error: "The camera planner hiccupped — your Visual Bucs were refunded.",
-      refunded: true,
-    });
+    body = await run;
+  } finally {
+    if (inFlight.get(idempotencyKey) === run) inFlight.delete(idempotencyKey);
   }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  /* Store BEFORE answering, fail-open. */
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult("wave9d-camera", idempotencyKey, req.userId!, { ...body });
+  } catch { /* storing is best-effort */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json({ ...postCharge.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  res.json(body);
 });
 
 /* ─── POST /wave9d/camera/design — free (Turbo Shot Designer) ──────────────

@@ -21,7 +21,18 @@ import { db, artistVaultsTable, songsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { freeExpensiveAiLimiter } from "../lib/rate-limit";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError, buildChargeIdempotencyKey } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -352,6 +363,37 @@ router.delete("/artist-vaults/:id/voice", requireAuth, async (req, res) => {
 const FROM_SONG_CREDIT_COST = 200;
 const FROM_SONG_DEMUCS_MODEL = process.env["FROM_SONG_DEMUCS_MODEL"] ?? "htdemucs";
 
+/* Replay safety (CA-7): the from-song charge keys on a server-derived
+   idempotency key over the request intent (vault + song reference +
+   uploaded-file hash), derived BEFORE the charge and before the song
+   is even loaded — so a re-ask of the same request (double-tap,
+   retry, timeout resend) is answered from the stored result instead
+   of re-charging, re-uploading vocals, or re-cloning. Every refund
+   path VOIDS the key (see the refund closure in the handler), so a
+   refunded request always runs fresh on retry. Dev mode (no charge)
+   skips keying entirely. Fresh responses are byte-identical to
+   before; stored lookups fail open. The :170 clone charge in this
+   file is keyed already and untouched. */
+const FROM_SONG_SCOPE = "artist-voice-from-song";
+const FROM_SONG_REPLAY_NOTE =
+  "This is the voice you already built from this song — pick a different song for a fresh clone.";
+const REPLAY_STORE_MAX = 500;
+const storedFromSongResults = new Map<string, Record<string, unknown>>();
+const inFlightFromSong = new Map<string, Promise<Record<string, unknown>>>();
+
+function storeFromSongInProcess(key: string, body: Record<string, unknown>): void {
+  if (storedFromSongResults.size >= REPLAY_STORE_MAX) {
+    const first = storedFromSongResults.keys().next().value;
+    if (first !== undefined) storedFromSongResults.delete(first);
+  }
+  storedFromSongResults.set(key, body);
+}
+
+export function __resetFromSongReplayCache(): void {
+  storedFromSongResults.clear();
+  inFlightFromSong.clear();
+}
+
 /**
  * Env override for the pre-Demucs window selection strategy: "vocal"
  * (default — picks the 90s with the most vocal activity, best for IVC)
@@ -462,12 +504,52 @@ router.post(
         });
         return;
       }
+
+      /* Replay safety (CA-7): derive the key from the request intent
+         BEFORE the charge and before the song is loaded, and answer a
+         re-ask from the stored result — no second charge, no second
+         vocals upload, no second clone. */
+      const uploadFile = (req as any).file as Express.Multer.File | undefined;
+      const fromSongBody = req.body as { songId?: string; songUrl?: string };
+      let fromSongKey: string | null = null;
+      if (!isDev) {
+        fromSongKey = buildChargeIdempotencyKey(FROM_SONG_SCOPE, req.userId!, undefined, {
+          vaultId: vault.id,
+          songId: fromSongBody.songId ?? null,
+          songUrl: fromSongBody.songUrl ?? null,
+          fileHash: uploadFile?.buffer?.length
+            ? createHash("sha256").update(uploadFile.buffer).digest("hex")
+            : null,
+        });
+        const durable = await findStoredGenerationResult(FROM_SONG_SCOPE, fromSongKey, req.userId!);
+        if (durable) {
+          res.json({ ...durable, replayed: true, replayNote: FROM_SONG_REPLAY_NOTE });
+          return;
+        }
+        const local = storedFromSongResults.get(fromSongKey);
+        if (local) {
+          res.json({ ...local, replayed: true, replayNote: FROM_SONG_REPLAY_NOTE });
+          return;
+        }
+        const pending = inFlightFromSong.get(fromSongKey);
+        if (pending) {
+          try {
+            const twinBody = await pending;
+            const stored = storedFromSongResults.get(fromSongKey) ?? twinBody;
+            res.json({ ...stored, replayed: true, replayNote: FROM_SONG_REPLAY_NOTE });
+            return;
+          } catch {
+            /* The twin failed and refunded (voiding the key) — run fresh. */
+          }
+        }
+      }
+
       // chargeCredits(): deduct + strict ledger write. A ledger failure rolls
       // the deduction back and throws LedgerWriteError (loud) — the 2-credit
       // loss this route is known for can never be untraceable again.
       if (!isDev) {
         try {
-          await chargeCredits(req.userId!, FROM_SONG_CREDIT_COST, { action: "Voice From Song" });
+          await chargeCredits(req.userId!, FROM_SONG_CREDIT_COST, { action: "Voice From Song" }, { idempotencyKey: fromSongKey ?? undefined });
         } catch (chargeErr) {
           if (chargeErr instanceof LedgerWriteError) {
             res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
@@ -477,14 +559,40 @@ router.post(
         }
       }
 
-      // Refund with a ledger trace if isolation fails (the failure mode that
-      // lost 2 credits without a trace before this fix).
-      refund = () =>
-        !isDev
-          ? refundCredits(req.userId!, FROM_SONG_CREDIT_COST, { action: "Voice From Song — Refund (isolation failure)" })
-          : Promise.resolve();
+      /* Register the in-flight run so a same-key twin waits for this
+         result instead of starting its own isolation + clone. */
+      let resolveFromSongFlight: (body: Record<string, unknown>) => void = () => {};
+      let rejectFromSongFlight: (err: unknown) => void = () => {};
+      let fromSongFlight: Promise<Record<string, unknown>> | null = null;
+      if (fromSongKey) {
+        fromSongFlight = new Promise<Record<string, unknown>>((resolve, reject) => {
+          resolveFromSongFlight = resolve;
+          rejectFromSongFlight = reject;
+        });
+        fromSongFlight.catch(() => {});
+        inFlightFromSong.set(fromSongKey, fromSongFlight);
+      }
+      const failFromSongFlight = (err: unknown) => {
+        if (fromSongKey && fromSongFlight) {
+          rejectFromSongFlight(err);
+          if (inFlightFromSong.get(fromSongKey) === fromSongFlight) inFlightFromSong.delete(fromSongKey);
+        }
+      };
 
-      const file = (req as any).file as Express.Multer.File | undefined;
+      // Refund with a ledger trace if isolation fails (the failure mode that
+      // lost 2 credits without a trace before this fix). The key is
+      // voided whenever the refund runs, so a retry charges fresh.
+      refund = () => {
+        failFromSongFlight(new Error("voice from song failed"));
+        return !isDev
+          ? refundCredits(req.userId!, FROM_SONG_CREDIT_COST, { action: "Voice From Song — Refund (isolation failure)" })
+              .then(async () => {
+                if (fromSongKey) await voidChargeIdempotencyKey(fromSongKey);
+              })
+          : Promise.resolve();
+      };
+
+      const file = uploadFile;
       const { buffer: songBuffer, label } = await loadSongBuffer(
         file,
         req.body as { songId?: string; songUrl?: string },
@@ -574,14 +682,26 @@ router.post(
         .where(and(eq(artistVaultsTable.id, vault.id), eq(artistVaultsTable.user_id, req.userId!)));
 
         // The ledger entry was written atomically by chargeCredits() above.
-      res.json({
+      const successBody: Record<string, unknown> = {
         voice_id: data.voice_id,
         voice_name: voiceName,
         voice_preview_url: previewUrl,
         vocals_preview_url: vocalsPreviewUrl,
         requires_verification: data.requires_verification ?? false,
         creditsAfter: isDev ? currentCredits : currentCredits - FROM_SONG_CREDIT_COST,
-      });
+      };
+      if (fromSongKey && fromSongFlight) {
+        storeFromSongInProcess(fromSongKey, successBody);
+        await storeGenerationResult(FROM_SONG_SCOPE, fromSongKey, req.userId!, successBody);
+        resolveFromSongFlight(successBody);
+        if (inFlightFromSong.get(fromSongKey) === fromSongFlight) inFlightFromSong.delete(fromSongKey);
+        const storedBody = storedFromSongResults.get(fromSongKey);
+        if (storedBody && storedBody !== successBody) {
+          res.json({ ...storedBody, replayed: true, replayNote: FROM_SONG_REPLAY_NOTE });
+          return;
+        }
+      }
+      res.json(successBody);
     } catch (err: any) {
       req.log.error({ err }, "artist-voices: from-song error");
       await refund();

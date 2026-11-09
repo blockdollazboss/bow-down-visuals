@@ -12,7 +12,17 @@ import {
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../lib/ai-clients";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+  OutOfCreditsError,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
@@ -989,6 +999,33 @@ router.get("/live-shopping/dashboard", requireAuth, async (req: Request, res: Re
 /* ── AI product description (1 credit, charged before the model call,
      refunded on provider failure — the standing rule for AI features) ── */
 
+/* Replay safety (CA-7): the description charge keys on a server-derived
+   idempotency key over the parsed request intent, so a re-ask of the
+   same request (double-tap, retry, timeout resend) is answered from
+   the stored result instead of charging again. The refund path VOIDS
+   the key (after the refund attempt, exactly as the refund runs today),
+   so a refunded request always runs fresh on retry. Fresh responses
+   are byte-identical to before; stored lookups fail open. */
+const AI_DESCRIPTION_SCOPE = "live-shopping-ai-description";
+const AI_DESCRIPTION_REPLAY_NOTE =
+  "This is the description you already wrote for this product — tweak the name or selling points for a fresh one.";
+const REPLAY_STORE_MAX = 500;
+const storedAiDescriptions = new Map<string, Record<string, unknown>>();
+const inFlightAiDescriptions = new Map<string, Promise<Record<string, unknown>>>();
+
+function storeAiDescriptionInProcess(key: string, body: Record<string, unknown>): void {
+  if (storedAiDescriptions.size >= REPLAY_STORE_MAX) {
+    const first = storedAiDescriptions.keys().next().value;
+    if (first !== undefined) storedAiDescriptions.delete(first);
+  }
+  storedAiDescriptions.set(key, body);
+}
+
+export function __resetLiveShoppingDescriptionReplayCache(): void {
+  storedAiDescriptions.clear();
+  inFlightAiDescriptions.clear();
+}
+
 router.post(
   "/live-shopping/ai-description",
   requireAuth,
@@ -1010,11 +1047,38 @@ router.post(
       });
       return;
     }
+
+    const key = buildChargeIdempotencyKey(AI_DESCRIPTION_SCOPE, req.userId!, undefined, {
+      name: parsed.data.name,
+      selling_points: parsed.data.selling_points ?? null,
+    });
+    const durable = await findStoredGenerationResult(AI_DESCRIPTION_SCOPE, key, req.userId!);
+    if (durable) {
+      res.json({ ...durable, replayed: true, replayNote: AI_DESCRIPTION_REPLAY_NOTE });
+      return;
+    }
+    const local = storedAiDescriptions.get(key);
+    if (local) {
+      res.json({ ...local, replayed: true, replayNote: AI_DESCRIPTION_REPLAY_NOTE });
+      return;
+    }
+    const pending = inFlightAiDescriptions.get(key);
+    if (pending) {
+      try {
+        const twinBody = await pending;
+        const stored = storedAiDescriptions.get(key) ?? twinBody;
+        res.json({ ...stored, replayed: true, replayNote: AI_DESCRIPTION_REPLAY_NOTE });
+        return;
+      } catch {
+        /* The twin failed and refunded (voiding the key) — run fresh. */
+      }
+    }
+
     let creditsRemaining = balance;
     try {
       creditsRemaining = await chargeCredits(req.userId!, AI_DESCRIPTION_CREDIT_COST, {
         action: "Live Shopping — AI Product Description",
-      });
+      }, { idempotencyKey: key });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -1025,6 +1089,16 @@ router.post(
       }
       throw err;
     }
+
+    let resolveFlight: (body: Record<string, unknown>) => void = () => {};
+    let rejectFlight: (err: unknown) => void = () => {};
+    const flight = new Promise<Record<string, unknown>>((resolve, reject) => {
+      resolveFlight = resolve;
+      rejectFlight = reject;
+    });
+    flight.catch(() => {});
+    inFlightAiDescriptions.set(key, flight);
+
     const sellingPoints = parsed.data.selling_points?.trim();
     try {
       const completion = await getOpenAI().chat.completions.create({
@@ -1063,13 +1137,27 @@ router.post(
       if (!description) {
         throw new Error("Model returned no usable description");
       }
-      res.json({ description, creditsUsed: AI_DESCRIPTION_CREDIT_COST, creditsRemaining });
+      const body: Record<string, unknown> = { description, creditsUsed: AI_DESCRIPTION_CREDIT_COST, creditsRemaining };
+      storeAiDescriptionInProcess(key, body);
+      await storeGenerationResult(AI_DESCRIPTION_SCOPE, key, req.userId!, body);
+      resolveFlight(body);
+      if (inFlightAiDescriptions.get(key) === flight) inFlightAiDescriptions.delete(key);
+      const storedBody = storedAiDescriptions.get(key);
+      if (storedBody && storedBody !== body) {
+        res.json({ ...storedBody, replayed: true, replayNote: AI_DESCRIPTION_REPLAY_NOTE });
+        return;
+      }
+      res.json(body);
     } catch (err) {
+      rejectFlight(err);
+      if (inFlightAiDescriptions.get(key) === flight) inFlightAiDescriptions.delete(key);
       /* Provider failed — refund the charge so failures are free. */
       logger.error({ err, userId: req.userId }, "[live-shopping] AI description failed — refunding");
       await refundCredits(req.userId!, AI_DESCRIPTION_CREDIT_COST, {
         action: "Live Shopping — AI Product Description — Refund (provider failed)",
       });
+      /* Void the charge key so a retry of this request charges fresh. */
+      await voidChargeIdempotencyKey(key);
       res.status(500).json({ error: "AI description failed — your Visual Buc was refunded." });
     }
   },

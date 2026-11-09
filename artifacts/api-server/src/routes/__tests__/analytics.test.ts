@@ -8,10 +8,20 @@
  * 1-credit AI pricing constants.
  */
 import { describe, expect, it, vi, beforeEach, beforeAll, afterAll } from "vitest";
+import { createHash } from "crypto";
 import express from "express";
 import type { AddressInfo } from "node:net";
 
 vi.mock("../../lib/credits", () => ({
+  /* CA-7: routes now derive charge keys via lib/credits —
+     deterministic sha256 over the JSON intent, same as the real helper. */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+      return `${scope}:${userId}:client:${clientKey.trim()}`;
+    }
+    return `${scope}:${userId}:${createHash("sha256").update(JSON.stringify(intent ?? null)).digest("hex").slice(0, 32)}`;
+  },
+  voidChargeIdempotencyKey: vi.fn(async () => true),
   chargeCredits: vi.fn(),
   refundCredits: vi.fn(),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
@@ -66,6 +76,17 @@ vi.mock("@workspace/db", () => ({
   db: {},
   socialAccountsTable: {},
   socialStatSnapshotsTable: {},
+  /* CA-7: analytics routes now pre-check the durable replay store via
+     lib/generation-stored-results, which destructures this table from
+     @workspace/db at import. A column-shaped stub lets the helper
+     build its query; the empty db above makes the lookup fail, and the
+     helper fails open (fresh run) exactly as designed. */
+  generationStoredResultsTable: {
+    userId: "user_id",
+    rail: "rail",
+    result: "result",
+    idempotencyKey: "idempotency_key",
+  },
 }));
 
 import router, {
@@ -79,6 +100,7 @@ import router, {
   summarizeStatsForAI,
   type FetchImpl,
 } from "../analytics";
+import { __resetAnalyticsReplayCache } from "../analytics";
 import { chargeCredits, refundCredits } from "../../lib/credits";
 
 const mockCharge = vi.mocked(chargeCredits);
@@ -310,6 +332,9 @@ function postJson(path: string, body: unknown) {
 
 describe("AI endpoints — refund on provider failure", () => {
   beforeEach(() => {
+    /* CA-7: replay stores are module-level — reset between tests so a
+       prior success can't answer a later balance-gate case. */
+    __resetAnalyticsReplayCache();
     vi.clearAllMocks();
     aiState.authedUserId = "user-1";
     aiState.userCredits = 1000;

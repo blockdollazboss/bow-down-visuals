@@ -9,7 +9,17 @@ import { join } from "path";
 import { randomUUID } from "crypto";
 import { ZipArchive } from "archiver";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+  OutOfCreditsError,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -38,6 +48,108 @@ const CLEAN_RENDER_COST = Number(process.env["WALLPAPER_CLEAN_CREDITS"]) || 400;
 // pack is the bulk deal between them.
 const PACK_OF_10_COST = Number(process.env["WALLPAPER_PACK10_CREDITS"]) || 500;
 export const PACK_OF_10_COUNT = 10;
+
+/* Replay safety (CA-7): the three charged rails in this file (clean
+   render, screensaver loop, pack of 10) key on a server-derived
+   idempotency key over the parsed request intent, so a re-ask of the
+   same render (double-tap, retry, timeout resend) is answered from
+   the stored result instead of charging again and re-rendering.
+   Branded single renders are FREE and stay completely untouched (no
+   key, no store). Every refund path VOIDS its key, so a refunded
+   render always runs fresh on retry. Fresh responses are
+   byte-identical to before; stored lookups fail open. */
+const CLEAN_RENDER_SCOPE = "wallpaper-clean-render";
+const SCREENSAVER_SCOPE = "wallpaper-screensaver-loop";
+const PACK_10_SCOPE = "wallpaper-pack-10";
+const REPLAY_STORE_MAX = 500;
+const storedWallpaperResults = new Map<string, Record<string, unknown>>();
+const inFlightWallpapers = new Map<string, Promise<Record<string, unknown>>>();
+
+function storeWallpaperInProcess(key: string, body: Record<string, unknown>): void {
+  if (storedWallpaperResults.size >= REPLAY_STORE_MAX) {
+    const first = storedWallpaperResults.keys().next().value;
+    if (first !== undefined) storedWallpaperResults.delete(first);
+  }
+  storedWallpaperResults.set(key, body);
+}
+
+export function __resetWallpaperReplayCache(): void {
+  storedWallpaperResults.clear();
+  inFlightWallpapers.clear();
+}
+
+/** Shared replay pre-check for this file's charged rails: serves the
+ *  stored body (+ `replayed: true`) and returns true when the request
+ *  has been answered — durable store, in-process store, or a twin
+ *  still in flight. A failed twin falls through to a fresh run. */
+async function serveWallpaperReplayIfAny(
+  scope: string,
+  key: string,
+  userId: string,
+  res: { json: (b: unknown) => void },
+): Promise<boolean> {
+  const durable = await findStoredGenerationResult(scope, key, userId);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return true;
+  }
+  const local = storedWallpaperResults.get(key);
+  if (local) {
+    res.json({ ...local, replayed: true });
+    return true;
+  }
+  const pending = inFlightWallpapers.get(key);
+  if (pending) {
+    try {
+      const twinBody = await pending;
+      const stored = storedWallpaperResults.get(key) ?? twinBody;
+      res.json({ ...stored, replayed: true });
+      return true;
+    } catch {
+      /* The twin failed and refunded (voiding the key) — run fresh. */
+    }
+  }
+  return false;
+}
+
+/** Register an in-flight run for same-key twins; returns the finishers. */
+function beginWallpaperFlight(key: string): {
+  flight: Promise<Record<string, unknown>>;
+  resolve: (body: Record<string, unknown>) => void;
+  reject: (err: unknown) => void;
+  cleanup: () => void;
+} {
+  let resolve: (body: Record<string, unknown>) => void = () => {};
+  let reject: (err: unknown) => void = () => {};
+  const flight = new Promise<Record<string, unknown>>((res, rej) => { resolve = res; reject = rej; });
+  flight.catch(() => {});
+  inFlightWallpapers.set(key, flight);
+  return {
+    flight,
+    resolve,
+    reject,
+    cleanup: () => { if (inFlightWallpapers.get(key) === flight) inFlightWallpapers.delete(key); },
+  };
+}
+
+/** Store a fresh success (in-process + durable) and answer it — or
+ *  the stored body, if a twin's store landed first. */
+async function serveWallpaperSuccess(
+  scope: string,
+  key: string,
+  userId: string,
+  body: Record<string, unknown>,
+  res: { json: (b: unknown) => void },
+): Promise<void> {
+  storeWallpaperInProcess(key, body);
+  await storeGenerationResult(scope, key, userId, body);
+  const stored = storedWallpaperResults.get(key);
+  if (stored && stored !== body) {
+    res.json({ ...stored, replayed: true });
+    return;
+  }
+  res.json(body);
+}
 
 export const BRAND_FONT_CANDIDATES = [
   "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -399,7 +511,22 @@ router.post("/wallpapers/render", requireAuth, async (req, res) => {
   const branded = parsed.data.branded ?? true;
   const creditCost = branded ? 0 : CLEAN_RENDER_COST;
   let chargedClean = false;
+  /* Replay safety (CA-7): keyed only on the clean (charged) path —
+     the free branded path is untouched. A re-ask of the same clean
+     render is answered from the stored result. */
+  let cleanKey: string | null = null;
+  let cleanFlight: ReturnType<typeof beginWallpaperFlight> | null = null;
   if (!branded) {
+    cleanKey = buildChargeIdempotencyKey(CLEAN_RENDER_SCOPE, req.userId!, undefined, {
+      sourceUrl: parsed.data.sourceUrl,
+      presetKey: parsed.data.presetKey,
+      logoUrl: parsed.data.logoUrl ?? null,
+      branded,
+      brandName: parsed.data.brandName ?? null,
+      aiDisclosure: parsed.data.aiDisclosure ?? null,
+    });
+    if (await serveWallpaperReplayIfAny(CLEAN_RENDER_SCOPE, cleanKey, req.userId!, res)) return;
+
     const currentCredits = req.userCredits ?? 0;
     if (currentCredits < CLEAN_RENDER_COST) {
       res.status(402).json({
@@ -411,7 +538,7 @@ router.post("/wallpapers/render", requireAuth, async (req, res) => {
     try {
       await chargeCredits(req.userId!, CLEAN_RENDER_COST, {
         action: "Wallpaper Clean Render",
-      });
+      }, { idempotencyKey: cleanKey });
       chargedClean = true;
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
@@ -420,6 +547,7 @@ router.post("/wallpapers/render", requireAuth, async (req, res) => {
       }
       throw err;
     }
+    cleanFlight = beginWallpaperFlight(cleanKey);
   }
 
   const workDir = await mkdtemp(join(tmpdir(), "wallpaper-"));
@@ -478,14 +606,26 @@ router.post("/wallpapers/render", requireAuth, async (req, res) => {
       creditsSpent: branded ? 0 : CLEAN_RENDER_COST,
     });
 
-    res.json({ url, presetKey: preset.key, width: preset.width, height: preset.height, branded, creditCost, aiDisclosure: aiDisclosureState });
+    const renderBody: Record<string, unknown> = { url, presetKey: preset.key, width: preset.width, height: preset.height, branded, creditCost, aiDisclosure: aiDisclosureState };
+    if (cleanKey && cleanFlight) {
+      await serveWallpaperSuccess(CLEAN_RENDER_SCOPE, cleanKey, req.userId!, renderBody, res);
+      cleanFlight.resolve(renderBody);
+      cleanFlight.cleanup();
+    } else {
+      res.json(renderBody);
+    }
   } catch (err) {
+    if (cleanFlight) {
+      cleanFlight.reject(err);
+      cleanFlight.cleanup();
+    }
     const message = err instanceof Error ? err.message : "Wallpaper render failed.";
     req.log?.error?.({ err: message }, "[wallpapers] render failed");
     if (chargedClean) {
       await refundCredits(req.userId!, CLEAN_RENDER_COST, {
         action: "Wallpaper Clean Render — Refund",
       }).catch(() => {});
+      if (cleanKey) await voidChargeIdempotencyKey(cleanKey);
     }
     res.status(502).json({ error: message });
   } finally {
@@ -509,6 +649,20 @@ router.post("/wallpapers/screensaver-render", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Replay safety (CA-7): key from the parsed intent; a re-ask is
+     answered from the stored loop — no second charge, no second
+     render. */
+  const screensaverKey = buildChargeIdempotencyKey(SCREENSAVER_SCOPE, req.userId!, undefined, {
+    videoUrl: parsed.data.videoUrl,
+    presetKey: parsed.data.presetKey,
+    seconds: parsed.data.seconds,
+    logoUrl: parsed.data.logoUrl ?? null,
+    branded: parsed.data.branded ?? null,
+    brandName: parsed.data.brandName ?? null,
+    aiDisclosure: parsed.data.aiDisclosure ?? null,
+  });
+  if (await serveWallpaperReplayIfAny(SCREENSAVER_SCOPE, screensaverKey, req.userId!, res)) return;
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < SCREENSAVER_RENDER_COST) {
     res.status(402).json({
@@ -522,7 +676,7 @@ router.post("/wallpapers/screensaver-render", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, SCREENSAVER_RENDER_COST, {
       action: "Screensaver Loop Render",
-    });
+    }, { idempotencyKey: screensaverKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -531,6 +685,7 @@ router.post("/wallpapers/screensaver-render", requireAuth, async (req, res) => {
     throw err;
   }
   void creditsAfter;
+  const screensaverFlight = beginWallpaperFlight(screensaverKey);
 
   // Branded by default, same as the wallpaper render — but the charge
   // stays 300 flat regardless (this is a video render; no clean charge).
@@ -595,7 +750,7 @@ router.post("/wallpapers/screensaver-render", requireAuth, async (req, res) => {
       creditsSpent: SCREENSAVER_RENDER_COST,
     });
 
-    res.json({
+    const screensaverBody: Record<string, unknown> = {
       url,
       presetKey: preset.key,
       width: preset.width,
@@ -604,13 +759,19 @@ router.post("/wallpapers/screensaver-render", requireAuth, async (req, res) => {
       creditCost: SCREENSAVER_RENDER_COST,
       branded,
       aiDisclosure: aiDisclosureState,
-    });
+    };
+    await serveWallpaperSuccess(SCREENSAVER_SCOPE, screensaverKey, req.userId!, screensaverBody, res);
+    screensaverFlight.resolve(screensaverBody);
+    screensaverFlight.cleanup();
   } catch (err) {
+    screensaverFlight.reject(err);
+    screensaverFlight.cleanup();
     const message = err instanceof Error ? err.message : "Screensaver render failed.";
     req.log?.error?.({ err: message }, "[wallpapers] screensaver failed");
     await refundCredits(req.userId!, SCREENSAVER_RENDER_COST, {
       action: "Screensaver Loop Render — Refund",
     }).catch(() => {});
+    await voidChargeIdempotencyKey(screensaverKey);
     res.status(502).json({ error: message });
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
@@ -639,6 +800,15 @@ router.post("/wallpapers/pack-of-10", requireAuth, async (req, res) => {
     presets.push(preset);
   }
 
+  /* Replay safety (CA-7): key from the parsed intent (the ten items);
+     a re-ask is answered from the stored pack — no second charge, no
+     re-render of any of the ten. */
+  const packKey = buildChargeIdempotencyKey(PACK_10_SCOPE, req.userId!, undefined, {
+    items: parsed.data.items,
+    aiDisclosure: parsed.data.aiDisclosure ?? null,
+  });
+  if (await serveWallpaperReplayIfAny(PACK_10_SCOPE, packKey, req.userId!, res)) return;
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < PACK_OF_10_COST) {
     res.status(402).json({
@@ -650,7 +820,7 @@ router.post("/wallpapers/pack-of-10", requireAuth, async (req, res) => {
   try {
     await chargeCredits(req.userId!, PACK_OF_10_COST, {
       action: "Wallpaper Pack of 10",
-    });
+    }, { idempotencyKey: packKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -658,6 +828,7 @@ router.post("/wallpapers/pack-of-10", requireAuth, async (req, res) => {
     }
     throw err;
   }
+  const packFlight = beginWallpaperFlight(packKey);
 
   const workDir = await mkdtemp(join(tmpdir(), "wallpaper-pack10-"));
   try {
@@ -698,13 +869,19 @@ router.post("/wallpapers/pack-of-10", requireAuth, async (req, res) => {
       });
       renders.push({ url, presetKey: preset.key, width: preset.width, height: preset.height });
     }
-    res.json({ renders, count: renders.length, creditCost: PACK_OF_10_COST, branded: false });
+    const packBody: Record<string, unknown> = { renders, count: renders.length, creditCost: PACK_OF_10_COST, branded: false };
+    await serveWallpaperSuccess(PACK_10_SCOPE, packKey, req.userId!, packBody, res);
+    packFlight.resolve(packBody);
+    packFlight.cleanup();
   } catch (err) {
+    packFlight.reject(err);
+    packFlight.cleanup();
     const message = err instanceof Error ? err.message : "Wallpaper pack failed.";
     req.log?.error?.({ err: message }, "[wallpapers] pack of 10 failed");
     await refundCredits(req.userId!, PACK_OF_10_COST, {
       action: "Wallpaper Pack of 10 — Refund",
     }).catch(() => {});
+    await voidChargeIdempotencyKey(packKey);
     res.status(502).json({ error: message });
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});

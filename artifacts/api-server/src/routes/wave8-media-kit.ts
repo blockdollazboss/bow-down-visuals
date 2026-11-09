@@ -4,7 +4,8 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../lib/generation-stored-results";
 import { db, artistVaultsTable } from "@workspace/db";
 import { eq, and, isNull, desc } from "drizzle-orm";
 
@@ -19,6 +20,20 @@ const router = Router();
    Pricing: 100 Visual Bucs per generated kit. */
 
 const MEDIA_KIT_GENERATE_CREDIT_COST = Number(process.env["MEDIA_KIT_GENERATE_CREDIT_COST"]) || 100;
+
+const REPLAY_NOTE =
+  "This is the media kit you already made for this request — pick a different vault for a fresh one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetWave8MediaKitReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
 
 const generateSchema = z.object({
   vaultId: z.string().uuid().optional(),
@@ -120,64 +135,55 @@ function aiUnavailable(res: { status: (c: number) => { json: (b: unknown) => voi
   }
 }
 
-/* POST /api/wave8/media-kit/generate — 100 VB. Reads the user's artist
-   vault (optional specific vault) and returns a structured media kit. */
-router.post("/wave8/media-kit/generate", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = generateSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid media kit request.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
-    return;
-  }
-
-  if (aiUnavailable(res)) return;
-
-  const balance = req.userCredits ?? 0;
-  if (balance < MEDIA_KIT_GENERATE_CREDIT_COST) {
-    res.status(402).json({
-      error: "out_of_credits",
-      message: "You're out of Visual Bucs — top up to build your media kit.",
-    });
-    return;
-  }
-  let creditsRemaining = balance;
+async function runWave8MediaKit(
+  userId: string,
+  parsedData: z.infer<typeof generateSchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  let creditsRemaining: number;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, MEDIA_KIT_GENERATE_CREDIT_COST, {
+    creditsRemaining = await chargeCredits(userId, MEDIA_KIT_GENERATE_CREDIT_COST, {
       action: "AI Media Kit Builder",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      return {
+        __status: 402,
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to build your media kit.",
-      });
-      return;
+      };
     }
     throw err;
   }
 
+  let refundDone = false;
   async function refund() {
+    if (refundDone) return;
+    refundDone = true;
+    let refunded = true;
     try {
-      await refundCredits(req.userId!, MEDIA_KIT_GENERATE_CREDIT_COST, {
+      await refundCredits(userId, MEDIA_KIT_GENERATE_CREDIT_COST, {
         action: "AI Media Kit Builder — Refund (generation failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       void refundErr; // logged inside refundCredits; don't mask the original failure
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
     }
   }
 
   try {
     /* Load the vault: a specific one when vaultId is given, otherwise the
        most recent active vault. Soft-deleted vaults never count. */
-    const vaultWhere = parsed.data.vaultId
+    const vaultWhere = parsedData.vaultId
       ? and(
-          eq(artistVaultsTable.id, parsed.data.vaultId),
-          eq(artistVaultsTable.user_id, req.userId!),
+          eq(artistVaultsTable.id, parsedData.vaultId),
+          eq(artistVaultsTable.user_id, userId),
           isNull(artistVaultsTable.deleted_at),
         )
-      : and(eq(artistVaultsTable.user_id, req.userId!), isNull(artistVaultsTable.deleted_at));
+      : and(eq(artistVaultsTable.user_id, userId), isNull(artistVaultsTable.deleted_at));
 
     const vaults = await db
       .select()
@@ -227,22 +233,106 @@ router.post("/wave8/media-kit/generate", requireAuth, publicApiLimiter, async (r
     const kit = parseMediaKit(raw, vault?.artist_name ?? "Independent Creator");
     if (!kit) {
       await refund();
-      res.status(502).json({
+      return {
+        __status: 502,
         error: "generation_failed",
         message: "The media kit came back unusable — your Visual Bucs were refunded. Try again.",
-      });
-      return;
+      };
     }
 
-    res.json({ kit, creditsUsed: MEDIA_KIT_GENERATE_CREDIT_COST, creditsRemaining });
+    return { kit, creditsUsed: MEDIA_KIT_GENERATE_CREDIT_COST, creditsRemaining };
   } catch (err) {
     await refund();
     logger.error({ err }, "wave8-media-kit: generation failed, Visual Bucs refunded");
-    res.status(502).json({
+    return {
+      __status: 502,
       error: "generation_failed",
       message: "Something went wrong building your media kit — your Visual Bucs were refunded.",
-    });
+    };
   }
+}
+
+/* POST /api/wave8/media-kit/generate — 100 VB. Reads the user's artist
+   vault (optional specific vault) and returns a structured media kit. */
+router.post("/wave8/media-kit/generate", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = generateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid media kit request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  if (aiUnavailable(res)) return;
+
+  const balance = req.userCredits ?? 0;
+  if (balance < MEDIA_KIT_GENERATE_CREDIT_COST) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "You're out of Visual Bucs — top up to build your media kit.",
+    });
+    return;
+  }
+
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "wave8-media-kit", req.userId!, undefined,
+    { vaultId: parsed.data.vaultId ?? null },
+  );
+
+  const durable = await findStoredGenerationResult("wave8-media-kit", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json({ ...twinBody, replayed: true, replayNote: REPLAY_NOTE });
+      return;
+    }
+  }
+
+  const run = runWave8MediaKit(req.userId!, parsed.data, idempotencyKey);
+  inFlight.set(idempotencyKey, run);
+  let body: Record<string, unknown>;
+  try {
+    body = await run;
+  } finally {
+    if (inFlight.get(idempotencyKey) === run) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult("wave8-media-kit", idempotencyKey, req.userId!, { ...body });
+  } catch { /* storing is best-effort */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json({ ...postCharge.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  res.json(body);
 });
 
 export default router;

@@ -4,7 +4,8 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../lib/generation-stored-results";
 import { db, wave8MerchDropsTable, wave8CalendarSlotsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 
@@ -18,6 +19,20 @@ const router = Router();
    Pricing: 100 Visual Bucs for the AI plan. Saving + listing are free. */
 
 export const MERCH_DROP_PLAN_CREDIT_COST = Number(process.env["MERCH_DROP_PLAN_CREDIT_COST"]) || 100;
+
+const REPLAY_NOTE =
+  "This is the merch drop plan you already made for this request — tweak the niche or price band for a fresh one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetWave8MerchDropReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
 
 const planSchema = z.object({
   niche: z.string().min(1, "Niche is required.").max(100),
@@ -125,6 +140,94 @@ const PRICE_BAND_GUIDANCE: Record<string, string> = {
   premium: "premium pricing — statement pieces, quality-first buyers",
 };
 
+async function runWave8MerchDrop(
+  userId: string,
+  parsedData: z.infer<typeof planSchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  let creditsRemaining: number;
+  try {
+    creditsRemaining = await chargeCredits(userId, MERCH_DROP_PLAN_CREDIT_COST, {
+      action: "Merch Drop Planner",
+    }, { idempotencyKey });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      return {
+        __status: 402,
+        error: "out_of_credits",
+        message: "You're out of Visual Bucs — top up to plan your merch drop.",
+      };
+    }
+    throw err;
+  }
+
+  let refundDone = false;
+  async function refund() {
+    if (refundDone) return;
+    refundDone = true;
+    let refunded = true;
+    try {
+      await refundCredits(userId, MERCH_DROP_PLAN_CREDIT_COST, {
+        action: "Merch Drop Planner — Refund (generation failed)",
+      });
+    } catch (refundErr) {
+      refunded = false;
+      void refundErr; // logged inside refundCredits; don't mask the original failure
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
+    }
+  }
+
+  try {
+    const d = parsedData;
+    const audienceLine = d.audience.trim() ? ` Audience: ${d.audience.trim()}.` : "";
+
+    const completion = await getOpenAI().chat.completions.create({
+      model: getTextModel(),
+      max_completion_tokens: 2500,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a merch strategist for independent creators. Plan drops that fans actually buy: wearable designs with a story, prices matched to the band, and a launch week that builds momentum day by day. Every concept must be producible via print-on-demand (tees, hoodies, hats, mugs, posters, phone cases, totes). No emojis. Respond with JSON only.",
+        },
+        {
+          role: "user",
+          content:
+            `Creator niche: ${d.niche.trim()}.${audienceLine} Price band: ${d.priceBand} (${PRICE_BAND_GUIDANCE[d.priceBand]}).\n\n` +
+            `Plan a merch drop as JSON with exactly these keys:\n` +
+            `- "concepts": array of EXACTLY 3 objects, each { "name": string (drop-worthy product name), "product": string (one of: tee, hoodie, snapback, mug, poster, phone case, tote), "description": string (under 60 words: the design + what makes it theirs), "pricePoint": string (e.g. "$29" or "$29\u2013$39"), "why": string (under 40 words: why their audience buys it) }\n` +
+            `- "launchPosts": array of EXACTLY 5 objects covering day offsets 0 through 4, each { "dayOffset": number (0, 1, 2, 3, or 4), "title": string (post title), "caption": string (under 60 words, written in the creator's voice, no hashtags overload), "cta": string (one clear call to action) }\n` +
+            `The launch posts must tell a 5-day story: tease \u2192 reveal \u2192 social proof \u2192 urgency \u2192 last call.`,
+        },
+      ],
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "";
+    const plan = parseMerchDropPlan(raw);
+    if (!plan) {
+      await refund();
+      return {
+        __status: 502,
+        error: "generation_failed",
+        message: "The merch plan came back unusable — your Visual Bucs were refunded. Try again.",
+      };
+    }
+
+    return { plan, creditsUsed: MERCH_DROP_PLAN_CREDIT_COST, creditsRemaining };
+  } catch (err) {
+    await refund();
+    logger.error({ err }, "wave8-merch-drop: plan generation failed, Visual Bucs refunded");
+    return {
+      __status: 502,
+      error: "generation_failed",
+      message: "Something went wrong planning your merch drop — your Visual Bucs were refunded.",
+    };
+  }
+}
+
 /* POST /api/wave8/merch-drop/plan — 100 VB. AI writes 3 merch concepts + 5 launch posts. */
 router.post("/wave8/merch-drop/plan", requireAuth, publicApiLimiter, async (req, res) => {
   const parsed = planSchema.safeParse(req.body ?? {});
@@ -146,78 +249,65 @@ router.post("/wave8/merch-drop/plan", requireAuth, publicApiLimiter, async (req,
     });
     return;
   }
-  let creditsRemaining = balance;
-  try {
-    creditsRemaining = await chargeCredits(req.userId!, MERCH_DROP_PLAN_CREDIT_COST, {
-      action: "Merch Drop Planner",
-    });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
-        error: "out_of_credits",
-        message: "You're out of Visual Bucs — top up to plan your merch drop.",
-      });
+
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "wave8-merch-drop", req.userId!, undefined,
+    { niche: parsed.data.niche, audience: parsed.data.audience, priceBand: parsed.data.priceBand },
+  );
+
+  const durable = await findStoredGenerationResult("wave8-merch-drop", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json({ ...twinBody, replayed: true, replayNote: REPLAY_NOTE });
       return;
     }
-    throw err;
   }
 
-  async function refund() {
-    try {
-      await refundCredits(req.userId!, MERCH_DROP_PLAN_CREDIT_COST, {
-        action: "Merch Drop Planner — Refund (generation failed)",
-      });
-    } catch (refundErr) {
-      void refundErr; // logged inside refundCredits; don't mask the original failure
-    }
+  const run = runWave8MerchDrop(req.userId!, parsed.data, idempotencyKey);
+  inFlight.set(idempotencyKey, run);
+  let body: Record<string, unknown>;
+  try {
+    body = await run;
+  } finally {
+    if (inFlight.get(idempotencyKey) === run) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
   }
 
   try {
-    const d = parsed.data;
-    const audienceLine = d.audience.trim() ? ` Audience: ${d.audience.trim()}.` : "";
-
-    const completion = await getOpenAI().chat.completions.create({
-      model: getTextModel(),
-      max_completion_tokens: 2500,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a merch strategist for independent creators. Plan drops that fans actually buy: wearable designs with a story, prices matched to the band, and a launch week that builds momentum day by day. Every concept must be producible via print-on-demand (tees, hoodies, hats, mugs, posters, phone cases, totes). No emojis. Respond with JSON only.",
-        },
-        {
-          role: "user",
-          content:
-            `Creator niche: ${d.niche.trim()}.${audienceLine} Price band: ${d.priceBand} (${PRICE_BAND_GUIDANCE[d.priceBand]}).\n\n` +
-            `Plan a merch drop as JSON with exactly these keys:\n` +
-            `- "concepts": array of EXACTLY 3 objects, each { "name": string (drop-worthy product name), "product": string (one of: tee, hoodie, snapback, mug, poster, phone case, tote), "description": string (under 60 words: the design + what makes it theirs), "pricePoint": string (e.g. "$29" or "$29–$39"), "why": string (under 40 words: why their audience buys it) }\n` +
-            `- "launchPosts": array of EXACTLY 5 objects covering day offsets 0 through 4, each { "dayOffset": number (0, 1, 2, 3, or 4), "title": string (post title), "caption": string (under 60 words, written in the creator's voice, no hashtags overload), "cta": string (one clear call to action) }\n` +
-            `The launch posts must tell a 5-day story: tease → reveal → social proof → urgency → last call.`,
-        },
-      ],
-    });
-
-    const raw = completion.choices[0]?.message?.content ?? "";
-    const plan = parseMerchDropPlan(raw);
-    if (!plan) {
-      await refund();
-      res.status(502).json({
-        error: "generation_failed",
-        message: "The merch plan came back unusable — your Visual Bucs were refunded. Try again.",
-      });
-      return;
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
     }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult("wave8-merch-drop", idempotencyKey, req.userId!, { ...body });
+  } catch { /* storing is best-effort */ }
 
-    res.json({ plan, creditsUsed: MERCH_DROP_PLAN_CREDIT_COST, creditsRemaining });
-  } catch (err) {
-    await refund();
-    logger.error({ err }, "wave8-merch-drop: plan generation failed, Visual Bucs refunded");
-    res.status(502).json({
-      error: "generation_failed",
-      message: "Something went wrong planning your merch drop — your Visual Bucs were refunded.",
-    });
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json({ ...postCharge.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
   }
+
+  res.json(body);
 });
 
 const saveSchema = z.object({

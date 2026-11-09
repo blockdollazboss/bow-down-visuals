@@ -3,7 +3,8 @@ import { z } from "zod";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../lib/generation-stored-results";
 import { db, wave8RoyaltySplitsTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 
@@ -22,6 +23,20 @@ const router = Router();
    POST   /api/wave8/splits/pdf  — 50 VB: finalize + return the audited sheet */
 
 const PDF_CREDITS = 50;
+
+const REPLAY_NOTE =
+  "This is the split sheet you already finalized for this request \u2014 it has not been charged again.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetWave8SplitsReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
 /* Allow tiny float drift (e.g. 33.33 + 33.33 + 33.34) without forcing
    the creator to type 100.000001. */
 const PCT_EPSILON = 0.001;
@@ -200,10 +215,87 @@ router.delete("/wave8/splits/:id", requireAuth, async (req: Request, res: Respon
   }
 });
 
-/* POST /api/wave8/splits/pdf — 50 Visual Bucs: final validation + audited
+async function runWave8SplitsPdf(
+  userId: string,
+  parsedData: z.infer<typeof pdfSchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  let creditsRemaining: number;
+  try {
+    creditsRemaining = await chargeCredits(userId, PDF_CREDITS, {
+      action: "Royalty Split Sheet PDF \u2014 finalization",
+    }, { idempotencyKey });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      return {
+        __status: 402,
+        error: "out_of_credits",
+        message: "You're out of Visual Bucs \u2014 top up to finalize a split sheet PDF.",
+      };
+    }
+    throw err;
+  }
+
+  try {
+    const sheet = await loadOwnedSheet(userId, parsedData.splitId);
+    if (!sheet) {
+      throw Object.assign(new Error("Split sheet not found."), { status: 404 });
+    }
+    const collaborators = (Array.isArray(sheet.collaborators) ? sheet.collaborators : []) as Collaborator[];
+    if (!pctSumsToHundred(collaborators)) {
+      throw Object.assign(
+        new Error("This sheet no longer sums to 100% \u2014 edit it so the splits total 100%."),
+        { status: 422 },
+      );
+    }
+    const finalizedAt = new Date().toISOString();
+    return {
+      songTitle: sheet.song_title,
+      collaborators,
+      totalPct: Number(totalPct(collaborators).toFixed(2)),
+      finalizedAt,
+      sheetCode: sheetCode(sheet.id),
+      creditsUsed: PDF_CREDITS,
+      creditsRemaining,
+    };
+  } catch (err) {
+    /* The charge was taken before finalization \u2014 give it back so a failed
+       finalization never costs the creator. */
+    let refunded = true;
+    try {
+      await refundCredits(userId, PDF_CREDITS, {
+        action: "Royalty Split Sheet PDF \u2014 Refund (finalization failed)",
+      });
+    } catch (refundErr) {
+      refunded = false;
+      logger.error(
+        { err: refundErr, userId },
+        "[wave8-splits] refund failed after PDF finalization failure",
+      );
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
+    }
+    const status = (err as { status?: number }).status;
+    if (status === 404) {
+      return { __status: 404, error: "Split sheet not found." };
+    }
+    if (status === 422) {
+      return { __status: 422, error: (err as Error).message };
+    }
+    logger.error({ err }, "[wave8-splits] pdf finalization failed");
+    return { __status: 502, error: "Could not finalize the split sheet \u2014 try again." };
+  }
+}
+
+/* POST /api/wave8/splits/pdf \u2014 50 Visual Bucs: final validation + audited
    sheet data. The frontend renders the PDF from this payload (client-side
    jspdf), so the server never stores binary. Charge upfront, refund on any
-   failure — the creator never pays for a failed finalization. */
+   failure \u2014 the creator never pays for a failed finalization.
+   CA-7 note: the charge fires BEFORE the sheet is loaded/validated (as
+   today), so the replay pre-check also sits at the charge point, before
+   that validation \u2014 a replay serves the stored finalization and the
+   sheet is not re-loaded. */
 router.post("/wave8/splits/pdf", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
   const parsed = pdfSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -218,73 +310,69 @@ router.post("/wave8/splits/pdf", requireAuth, publicApiLimiter, async (req: Requ
   if (balance < PDF_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of Visual Bucs — top up to finalize a split sheet PDF.",
+      message: "You're out of Visual Bucs \u2014 top up to finalize a split sheet PDF.",
     });
     return;
   }
-  let creditsRemaining = balance;
-  try {
-    creditsRemaining = await chargeCredits(req.userId!, PDF_CREDITS, {
-      action: "Royalty Split Sheet PDF — finalization",
-    });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
-        error: "out_of_credits",
-        message: "You're out of Visual Bucs — top up to finalize a split sheet PDF.",
-      });
+
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "wave8-splits", req.userId!, undefined,
+    { splitId: parsed.data.splitId },
+  );
+
+  const durable = await findStoredGenerationResult("wave8-splits", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json({ ...twinBody, replayed: true, replayNote: REPLAY_NOTE });
       return;
     }
-    throw err;
+  }
+
+  const run = runWave8SplitsPdf(req.userId!, parsed.data, idempotencyKey);
+  inFlight.set(idempotencyKey, run);
+  let body: Record<string, unknown>;
+  try {
+    body = await run;
+  } finally {
+    if (inFlight.get(idempotencyKey) === run) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
   }
 
   try {
-    const sheet = await loadOwnedSheet(req.userId!, parsed.data.splitId);
-    if (!sheet) {
-      throw Object.assign(new Error("Split sheet not found."), { status: 404 });
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
     }
-    const collaborators = (Array.isArray(sheet.collaborators) ? sheet.collaborators : []) as Collaborator[];
-    if (!pctSumsToHundred(collaborators)) {
-      throw Object.assign(
-        new Error("This sheet no longer sums to 100% — edit it so the splits total 100%."),
-        { status: 422 },
-      );
-    }
-    const finalizedAt = new Date().toISOString();
-    res.json({
-      songTitle: sheet.song_title,
-      collaborators,
-      totalPct: Number(totalPct(collaborators).toFixed(2)),
-      finalizedAt,
-      sheetCode: sheetCode(sheet.id),
-      creditsUsed: PDF_CREDITS,
-      creditsRemaining,
-    });
-  } catch (err) {
-    /* The charge was taken before finalization — give it back so a failed
-       finalization never costs the creator. */
-    try {
-      await refundCredits(req.userId!, PDF_CREDITS, {
-        action: "Royalty Split Sheet PDF — Refund (finalization failed)",
-      });
-    } catch (refundErr) {
-      logger.error(
-        { err: refundErr, userId: req.userId },
-        "[wave8-splits] refund failed after PDF finalization failure",
-      );
-    }
-    const status = (err as { status?: number }).status;
-    if (status === 404) {
-      res.status(404).json({ error: "Split sheet not found." });
-      return;
-    }
-    if (status === 422) {
-      res.status(422).json({ error: (err as Error).message });
-      return;
-    }
-    logger.error({ err }, "[wave8-splits] pdf finalization failed");
-    res.status(502).json({ error: "Could not finalize the split sheet — try again." });
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult("wave8-splits", idempotencyKey, req.userId!, { ...body });
+  } catch { /* storing is best-effort */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json({ ...postCharge.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
   }
+
+  res.json(body);
 });
 
 export default router;

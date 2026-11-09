@@ -4,9 +4,15 @@ import { requireAuth } from "../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
   OutOfCreditsError,
   LedgerWriteError,
 } from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -336,6 +342,33 @@ const importBodySchema = z.object({
  * project so captions/templates/export treat it like any other clip.
  * Auto-refunds if the import can't be completed after the charge.
  */
+/* Replay safety (CA-7): the import charge keys on a server-derived
+   idempotency key over the parsed request intent, so a re-ask of the
+   same import (double-tap, retry, timeout resend) is answered from
+   the stored result instead of charging again. The refund path VOIDS
+   the key (only when the refund landed), so a refunded import always
+   runs fresh on retry. Fresh responses are byte-identical to before;
+   stored lookups fail open. */
+const STOCK_IMPORT_SCOPE = "stock-import";
+const STOCK_IMPORT_REPLAY_NOTE =
+  "This stock file was already imported for this request — it is in your project.";
+const REPLAY_STORE_MAX = 500;
+const storedStockImports = new Map<string, Record<string, unknown>>();
+const inFlightStockImports = new Map<string, Promise<Record<string, unknown>>>();
+
+function storeStockImportInProcess(key: string, body: Record<string, unknown>): void {
+  if (storedStockImports.size >= REPLAY_STORE_MAX) {
+    const first = storedStockImports.keys().next().value;
+    if (first !== undefined) storedStockImports.delete(first);
+  }
+  storedStockImports.set(key, body);
+}
+
+export function __resetStockImportReplayCache(): void {
+  storedStockImports.clear();
+  inFlightStockImports.clear();
+}
+
 router.post("/stock/import", requireAuth, async (req, res) => {
   const parsed = importBodySchema.safeParse(req.body);
   if (!parsed.success) {
@@ -344,13 +377,48 @@ router.post("/stock/import", requireAuth, async (req, res) => {
   }
   const body = parsed.data;
 
+  const key = buildChargeIdempotencyKey(STOCK_IMPORT_SCOPE, req.userId!, undefined, {
+    itemId: body.itemId,
+    type: body.type,
+    title: body.title,
+    previewUrl: body.previewUrl,
+    fileUrl: body.fileUrl,
+    photographer: body.photographer,
+    photographerUrl: body.photographerUrl,
+    width: body.width ?? null,
+    height: body.height ?? null,
+    durationSec: body.durationSec ?? null,
+    projectId: body.projectId ?? null,
+  });
+  const durable = await findStoredGenerationResult(STOCK_IMPORT_SCOPE, key, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: STOCK_IMPORT_REPLAY_NOTE });
+    return;
+  }
+  const local = storedStockImports.get(key);
+  if (local) {
+    res.json({ ...local, replayed: true, replayNote: STOCK_IMPORT_REPLAY_NOTE });
+    return;
+  }
+  const pending = inFlightStockImports.get(key);
+  if (pending) {
+    try {
+      const twinBody = await pending;
+      const stored = storedStockImports.get(key) ?? twinBody;
+      res.json({ ...stored, replayed: true, replayNote: STOCK_IMPORT_REPLAY_NOTE });
+      return;
+    } catch {
+      /* The twin failed and refunded (voiding the key) — run fresh. */
+    }
+  }
+
   // 402 pre-check + charge happen atomically inside chargeCredits.
   let creditsRemaining: number;
   try {
     creditsRemaining = await chargeCredits(req.userId!, STOCK_IMPORT_CREDIT_COST, {
       action: "Stock Media Import",
       projectId: body.projectId ?? null,
-    });
+    }, { idempotencyKey: key });
   } catch (chargeErr) {
     if (chargeErr instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -367,12 +435,21 @@ router.post("/stock/import", requireAuth, async (req, res) => {
     throw chargeErr;
   }
 
+  let resolveFlight: (body: Record<string, unknown>) => void = () => {};
+  let rejectFlight: (err: unknown) => void = () => {};
+  const flight = new Promise<Record<string, unknown>>((resolve, reject) => {
+    resolveFlight = resolve;
+    rejectFlight = reject;
+  });
+  flight.catch(() => {});
+  inFlightStockImports.set(key, flight);
+
   try {
     // Refuse to complete the import for anything the provider didn't hand us.
     if (!isProviderFileUrl(body.fileUrl)) {
       throw new Error("file_url_not_from_stock_provider");
     }
-    res.json({
+    const responseBody: Record<string, unknown> = {
       success: true,
       item: {
         id: body.itemId,
@@ -387,17 +464,33 @@ router.post("/stock/import", requireAuth, async (req, res) => {
         photographerUrl: body.photographerUrl || "https://www.pexels.com",
       },
       creditsRemaining,
-    });
+    };
+    storeStockImportInProcess(key, responseBody);
+    await storeGenerationResult(STOCK_IMPORT_SCOPE, key, req.userId!, responseBody);
+    resolveFlight(responseBody);
+    if (inFlightStockImports.get(key) === flight) inFlightStockImports.delete(key);
+    const storedBody = storedStockImports.get(key);
+    if (storedBody && storedBody !== responseBody) {
+      res.json({ ...storedBody, replayed: true, replayNote: STOCK_IMPORT_REPLAY_NOTE });
+      return;
+    }
+    res.json(responseBody);
   } catch (importErr) {
+    rejectFlight(importErr);
+    if (inFlightStockImports.get(key) === flight) inFlightStockImports.delete(key);
     // Import failed after the charge — refund so the user never pays for nothing.
+    let refunded = false;
     try {
       await refundCredits(req.userId!, STOCK_IMPORT_CREDIT_COST, {
         action: "Stock Media Import — refund (import failed)",
         projectId: body.projectId ?? null,
       });
+      refunded = true;
     } catch (refundErr) {
       logger.error({ refundErr }, "[stock] import failed AND refund failed — needs manual reconciliation");
     }
+    /* The refund landed — void the charge key so a retry charges fresh. */
+    if (refunded) await voidChargeIdempotencyKey(key);
     logger.error({ err: importErr }, "[stock] import failed after charge — refunded");
     res.status(500).json({ error: "Could not import that stock file. Your credits were refunded." });
   }

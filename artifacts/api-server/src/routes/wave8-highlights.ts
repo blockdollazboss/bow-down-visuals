@@ -4,7 +4,8 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../lib/generation-stored-results";
 
 /* ─── Wave 8 — Stream Highlight Auto-Editor ──────────────────────────────────
    HONEST DESIGN: this endpoint does NOT cut video. It scores moments from a
@@ -23,6 +24,20 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits"
 const router = Router();
 
 const HIGHLIGHT_CREDITS = 300;
+
+const REPLAY_NOTE =
+  "This is the highlight plan you already made for this request — tweak the source material for a fresh one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetWave8HighlightsReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
 
 const highlightsRequestSchema = z.object({
   vodUrl: z.string().trim().max(2000).optional().default(""),
@@ -57,58 +72,29 @@ const highlightsResponseSchema = z.object({
 
 type HighlightsResponse = z.infer<typeof highlightsResponseSchema>;
 
-/* ─── POST /wave8/highlights/cut — 300 VB ─── */
-router.post("/wave8/highlights/cut", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = highlightsRequestSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid highlight request.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
-    return;
-  }
-
-  const { vodUrl, vodTitle, chatLog, transcript, targetSeconds } = parsed.data;
-
-  /* We score from provided material only — never hallucinate a VOD. */
-  if (!vodUrl && !chatLog && !transcript) {
-    res.status(400).json({
-      error:
-        "Give the editor something to work with: a VOD URL, a pasted chat log, or a transcript.",
-    });
-    return;
-  }
-
-  /* 1) AI availability check BEFORE charging. */
-  try {
-    getOpenAI();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    res.status(503).json({
-      error: "ai_unavailable",
-      message: msg.includes("OPENAI_API_KEY")
-        ? "OPENAI_API_KEY is not configured — the Stream Highlight Auto-Editor is unavailable."
-        : "The Stream Highlight Auto-Editor is unavailable right now.",
-    });
-    return;
-  }
-
+async function runWave8Highlights(
+  userId: string,
+  parsedData: z.infer<typeof highlightsRequestSchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
   /* 2) Charge BEFORE the model call. */
   let remaining: number;
   try {
-    remaining = await chargeCredits(req.userId!, HIGHLIGHT_CREDITS, {
+    remaining = await chargeCredits(userId, HIGHLIGHT_CREDITS, {
       action: "Stream Highlight Auto-Editor",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      return {
+        __status: 402,
         error: "out_of_credits",
         message: "Not enough Visual Bucs — top up to cut a highlight reel plan.",
-      });
-      return;
+      };
     }
     throw err;
   }
+
+  const { vodUrl, vodTitle, chatLog, transcript, targetSeconds } = parsedData;
 
   try {
     const sources: string[] = [];
@@ -183,29 +169,131 @@ router.post("/wave8/highlights/cut", requireAuth, publicApiLimiter, async (req, 
       throw new Error("Model returned an empty highlight plan");
     }
 
-    res.json({
+    return {
       ...plan,
       creditsUsed: HIGHLIGHT_CREDITS,
       creditsRemaining: remaining,
-    });
+    };
   } catch (err) {
     /* 3) Refund on ANY failure — no charge without delivery. */
-    logger.error({ err, userId: req.userId }, "[wave8-highlights] cut failed — refunding");
+    logger.error({ err, userId }, "[wave8-highlights] cut failed — refunding");
+    let refunded = true;
     try {
-      await refundCredits(req.userId!, HIGHLIGHT_CREDITS, {
+      await refundCredits(userId, HIGHLIGHT_CREDITS, {
         action: "Stream Highlight Auto-Editor — Refund",
       });
     } catch (refundErr) {
+      refunded = false;
       logger.error(
-        { userId: req.userId, refundErr },
+        { userId, refundErr },
         "[wave8-highlights] CRITICAL: refund failed after generation failure"
       );
     }
-    res.status(500).json({
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
+    }
+    return {
+      __status: 500,
       error: "The highlight editor hiccupped — your Visual Bucs were refunded.",
       refunded: true,
-    });
+    };
   }
+}
+
+/* ─── POST /wave8/highlights/cut — 300 VB ─── */
+router.post("/wave8/highlights/cut", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = highlightsRequestSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid highlight request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  const { vodUrl, chatLog, transcript } = parsed.data;
+
+  /* We score from provided material only — never hallucinate a VOD. */
+  if (!vodUrl && !chatLog && !transcript) {
+    res.status(400).json({
+      error:
+        "Give the editor something to work with: a VOD URL, a pasted chat log, or a transcript.",
+    });
+    return;
+  }
+
+  /* 1) AI availability check BEFORE charging. */
+  try {
+    getOpenAI();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(503).json({
+      error: "ai_unavailable",
+      message: msg.includes("OPENAI_API_KEY")
+        ? "OPENAI_API_KEY is not configured — the Stream Highlight Auto-Editor is unavailable."
+        : "The Stream Highlight Auto-Editor is unavailable right now.",
+    });
+    return;
+  }
+
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "wave8-highlights", req.userId!, undefined,
+    { vodUrl: parsed.data.vodUrl, vodTitle: parsed.data.vodTitle, chatLog: parsed.data.chatLog, transcript: parsed.data.transcript, targetSeconds: parsed.data.targetSeconds },
+  );
+
+  const durable = await findStoredGenerationResult("wave8-highlights", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json({ ...twinBody, replayed: true, replayNote: REPLAY_NOTE });
+      return;
+    }
+  }
+
+  const run = runWave8Highlights(req.userId!, parsed.data, idempotencyKey);
+  inFlight.set(idempotencyKey, run);
+  let body: Record<string, unknown>;
+  try {
+    body = await run;
+  } finally {
+    if (inFlight.get(idempotencyKey) === run) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult("wave8-highlights", idempotencyKey, req.userId!, { ...body });
+  } catch { /* storing is best-effort */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json({ ...postCharge.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  res.json(body);
 });
 
 export default router;

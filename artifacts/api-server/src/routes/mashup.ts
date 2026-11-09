@@ -34,9 +34,15 @@ import { requireAuth } from "../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
   OutOfCreditsError,
   LedgerWriteError,
 } from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -49,6 +55,32 @@ const execFileAsync = promisify(execFile);
 
 /** Visual Bucs for one mashup (x100 scale). */
 const MASHUP_CREDIT_COST = 400;
+
+/* Replay safety (CA-7): the mashup charge keys on a server-derived
+   idempotency key over the parsed request intent, so a re-ask of the
+   same mashup (double-tap, retry, timeout resend) is answered from
+   the stored result instead of charging again and re-rendering. Dev
+   mode (no charge) skips keying entirely. Both refund paths (render
+   failure and bad-input) VOID the key once their refund lands, so a
+   refunded mashup always runs fresh on retry. Fresh responses are
+   byte-identical to before; stored lookups fail open. */
+const MASHUP_SCOPE = "song-mashup";
+const REPLAY_STORE_MAX = 500;
+const storedMashupResults = new Map<string, Record<string, unknown>>();
+const inFlightMashups = new Map<string, Promise<Record<string, unknown>>>();
+
+function storeMashupInProcess(key: string, body: Record<string, unknown>): void {
+  if (storedMashupResults.size >= REPLAY_STORE_MAX) {
+    const first = storedMashupResults.keys().next().value;
+    if (first !== undefined) storedMashupResults.delete(first);
+  }
+  storedMashupResults.set(key, body);
+}
+
+export function __resetMashupReplayCache(): void {
+  storedMashupResults.clear();
+  inFlightMashups.clear();
+}
 
 const BLEND_STYLES = {
   "crossfade": {
@@ -336,13 +368,69 @@ router.post("/mashup", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Replay safety (CA-7): key from the parsed intent; a re-ask is
+     answered from the stored mashup — no second charge, no second
+     render, no second song row. */
+  let mashupKey: string | null = null;
+  if (!isDev) {
+    mashupKey = buildChargeIdempotencyKey(MASHUP_SCOPE, req.userId!, undefined, {
+      songA,
+      songB,
+      style,
+      blendPointSec: blendPointSec ?? null,
+      crossfadeSec,
+      balance,
+      title: title ?? null,
+    });
+    const durable = await findStoredGenerationResult(MASHUP_SCOPE, mashupKey, req.userId!);
+    if (durable) {
+      res.json({ ...durable, replayed: true });
+      return;
+    }
+    const local = storedMashupResults.get(mashupKey);
+    if (local) {
+      res.json({ ...local, replayed: true });
+      return;
+    }
+    const pending = inFlightMashups.get(mashupKey);
+    if (pending) {
+      try {
+        const twinBody = await pending;
+        const stored = storedMashupResults.get(mashupKey) ?? twinBody;
+        res.json({ ...stored, replayed: true });
+        return;
+      } catch {
+        /* The twin failed and refunded (voiding the key) — run fresh. */
+      }
+    }
+  }
+
+  let mashupResolve: (body: Record<string, unknown>) => void = () => {};
+  let mashupReject: (err: unknown) => void = () => {};
+  let mashupFlight: Promise<Record<string, unknown>> | null = null;
+  if (mashupKey) {
+    mashupFlight = new Promise<Record<string, unknown>>((resolve, reject) => {
+      mashupResolve = resolve;
+      mashupReject = reject;
+    });
+    mashupFlight.catch(() => {});
+    inFlightMashups.set(mashupKey, mashupFlight);
+  }
+  const failMashupFlight = (err: unknown) => {
+    if (mashupKey && mashupFlight) {
+      mashupReject(err);
+      if (inFlightMashups.get(mashupKey) === mashupFlight) inFlightMashups.delete(mashupKey);
+    }
+  };
+
   // Charge upfront — chargeCredits() deducts + writes the ledger atomically,
   // throwing OutOfCreditsError (402) or LedgerWriteError (loud 500).
   let creditsAfter = req.userCredits ?? 0;
   if (!isDev) {
     try {
-      creditsAfter = await chargeCredits(req.userId!, MASHUP_CREDIT_COST, { action: "Song Mashup" });
+      creditsAfter = await chargeCredits(req.userId!, MASHUP_CREDIT_COST, { action: "Song Mashup" }, { idempotencyKey: mashupKey ?? undefined });
     } catch (chargeErr) {
+      failMashupFlight(chargeErr);
       if (chargeErr instanceof OutOfCreditsError) {
         res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs for a mashup." });
         return;
@@ -357,11 +445,17 @@ router.post("/mashup", requireAuth, async (req, res) => {
 
   const workDir = await mkdtemp(join(tmpdir(), "mashup-"));
   const fail = async (message: string, code = "mashup_failed") => {
+    failMashupFlight(new Error(message));
     req.log.error({ err: message }, "mashup: failed");
     if (!isDev) {
+      let mashupRefunded = true;
       await refundCredits(req.userId!, MASHUP_CREDIT_COST, { action: "Song Mashup — Refund (render failure)" }).catch(
-        (refundErr) => req.log.error({ userId: req.userId, err: refundErr }, "[mashup] failed to refund credits"),
+        (refundErr) => {
+          mashupRefunded = false;
+          req.log.error({ userId: req.userId, err: refundErr }, "[mashup] failed to refund credits");
+        },
       );
+      if (mashupRefunded && mashupKey) await voidChargeIdempotencyKey(mashupKey);
     }
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
     res.status(500).json({ error: `${message} Your Visual Bucs were refunded.`, code });
@@ -458,7 +552,7 @@ router.post("/mashup", requireAuth, async (req, res) => {
       .returning();
 
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
-    res.json({
+    const mashupBody: Record<string, unknown> = {
       song: mashup,
       analysis: {
         bpmA,
@@ -470,12 +564,29 @@ router.post("/mashup", requireAuth, async (req, res) => {
         durationSec: Math.round(plan.durationSec * 10) / 10,
       },
       creditsAfter: isDev ? creditsAfter : creditsAfter,
-    });
+    };
+    if (mashupKey && mashupFlight) {
+      storeMashupInProcess(mashupKey, mashupBody);
+      await storeGenerationResult(MASHUP_SCOPE, mashupKey, req.userId!, mashupBody);
+      mashupResolve(mashupBody);
+      if (inFlightMashups.get(mashupKey) === mashupFlight) inFlightMashups.delete(mashupKey);
+      const storedBody = storedMashupResults.get(mashupKey);
+      if (storedBody && storedBody !== mashupBody) {
+        res.json({ ...storedBody, replayed: true });
+        return;
+      }
+    }
+    res.json(mashupBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Mashup render failed.";
     if (/not found in your library|song not found/i.test(message)) {
+      failMashupFlight(err);
       if (!isDev) {
-        await refundCredits(req.userId!, MASHUP_CREDIT_COST, { action: "Song Mashup — Refund (bad input)" }).catch(() => {});
+        let mashupRefunded = true;
+        await refundCredits(req.userId!, MASHUP_CREDIT_COST, { action: "Song Mashup — Refund (bad input)" }).catch(() => {
+          mashupRefunded = false;
+        });
+        if (mashupRefunded && mashupKey) await voidChargeIdempotencyKey(mashupKey);
       }
       await rm(workDir, { recursive: true, force: true }).catch(() => {});
       res.status(400).json({ error: message, code: "bad_input" });

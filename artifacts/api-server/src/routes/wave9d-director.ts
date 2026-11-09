@@ -4,7 +4,14 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import { db, wave9dDirectorPlansTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 
@@ -26,6 +33,20 @@ import { eq, desc } from "drizzle-orm";
 const router = Router();
 
 const DIRECTOR_PLAN_CREDITS = 150;
+
+const REPLAY_NOTE =
+  "This is the shot plan you already made for this request — tweak the cast or shots for a fresh one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetWave9dDirectorReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
 
 const castMemberSchema = z.object({
   vaultId: z.string().max(100).optional().default(""),
@@ -58,49 +79,29 @@ const directorPlanResponseSchema = z.object({
 
 type PlannedShot = z.infer<typeof plannedShotSchema>;
 
-/* ─── POST /wave9d/director/plan — 150 VB ─── */
-router.post("/wave9d/director/plan", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = directorPlanRequestSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid director plan request.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
-    return;
-  }
-
-  /* 1) AI availability check BEFORE charging. */
-  try {
-    getOpenAI();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    res.status(503).json({
-      error: "ai_unavailable",
-      message: msg.includes("OPENAI_API_KEY")
-        ? "OPENAI_API_KEY is not configured — the Character Director is unavailable."
-        : "The Character Director is unavailable right now.",
-    });
-    return;
-  }
-
-  /* 2) Charge BEFORE the model call. */
+async function runDirectorPlan(
+  userId: string,
+  data: z.infer<typeof directorPlanRequestSchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  /* Charge BEFORE the model call, under the CA-KEY idempotency key. */
   let remaining: number;
   try {
-    remaining = await chargeCredits(req.userId!, DIRECTOR_PLAN_CREDITS, {
+    remaining = await chargeCredits(userId, DIRECTOR_PLAN_CREDITS, {
       action: "Character Director — Shot Plan",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      return {
+        __status: 402,
         error: "out_of_credits",
         message: "Not enough Visual Bucs — top up to plan your shots.",
-      });
-      return;
+      };
     }
     throw err;
   }
 
-  const { name, cast, shots, sceneStyle } = parsed.data;
+  const { name, cast, shots, sceneStyle } = data;
 
   try {
     const castBlock = cast
@@ -175,37 +176,145 @@ router.post("/wave9d/director/plan", requireAuth, publicApiLimiter, async (req, 
     const [saved] = await db
       .insert(wave9dDirectorPlansTable)
       .values({
-        user_id: req.userId!,
+        user_id: userId,
         name: name || `Director Plan — ${new Date().toISOString().slice(0, 10)}`,
         castMembers: cast,
         shots: mergedShots,
       })
       .returning({ id: wave9dDirectorPlansTable.id });
 
-    res.json({
+    return {
       planId: saved?.id ?? null,
       shots: mergedShots,
       creditsUsed: DIRECTOR_PLAN_CREDITS,
       creditsRemaining: remaining,
-    });
+    };
   } catch (err) {
-    /* 3) Refund on ANY failure — no charge without delivery. */
-    logger.error({ err, userId: req.userId }, "[wave9d-director] plan failed — refunding");
+    /* Refund on ANY failure — no charge without delivery. When the
+       refund lands, VOID the charge's idempotency key so the retry
+       charges fresh instead of being suppressed as a replay. */
+    logger.error({ err, userId }, "[wave9d-director] plan failed — refunding");
+    let refunded = true;
     try {
-      await refundCredits(req.userId!, DIRECTOR_PLAN_CREDITS, {
+      await refundCredits(userId, DIRECTOR_PLAN_CREDITS, {
         action: "Character Director — Refund",
       });
     } catch (refundErr) {
+      refunded = false;
       logger.error(
-        { userId: req.userId, refundErr },
+        { userId, refundErr },
         "[wave9d-director] CRITICAL: refund failed after plan failure"
       );
     }
-    res.status(500).json({
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    return {
+      __status: 500,
       error: "The director hiccupped — your Visual Bucs were refunded.",
       refunded: true,
-    });
+    };
   }
+}
+
+/* ─── POST /wave9d/director/plan — 150 VB ─── */
+router.post("/wave9d/director/plan", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = directorPlanRequestSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid director plan request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  /* 1) AI availability check BEFORE charging. */
+  try {
+    getOpenAI();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(503).json({
+      error: "ai_unavailable",
+      message: msg.includes("OPENAI_API_KEY")
+        ? "OPENAI_API_KEY is not configured — the Character Director is unavailable."
+        : "The Character Director is unavailable right now.",
+    });
+    return;
+  }
+
+  /* CA-KEY: the server derives the key itself on EVERY call — this
+     schema accepts no client idempotencyKey, so the key is the
+     {name, cast, shots, sceneStyle} intent hash (cast is free-text on
+     this surface and hashes as written). An identical ask can never
+     be re-bought: a replay serves the stored plan with replayed: true
+     and REPLAY_NOTE instead of charging again. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "wave9d-director", req.userId!, undefined,
+    {
+      name: parsed.data.name,
+      cast: parsed.data.cast,
+      shots: parsed.data.shots,
+      sceneStyle: parsed.data.sceneStyle,
+    },
+  );
+
+  /* Stored-result pre-check (migration 0333) BEFORE any funding:
+     durable first, then the in-process cache, then an in-flight twin. */
+  const durable = await findStoredGenerationResult("wave9d-director", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json({ ...twinBody, replayed: true, replayNote: REPLAY_NOTE });
+      return;
+    }
+    /* The twin failed (refunded + key voided) — fall through fresh. */
+  }
+
+  const run = runDirectorPlan(req.userId!, parsed.data, idempotencyKey);
+  inFlight.set(idempotencyKey, run);
+  let body: Record<string, unknown>;
+  try {
+    body = await run;
+  } finally {
+    if (inFlight.get(idempotencyKey) === run) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  /* Store BEFORE answering, fail-open. (The plan row itself is also
+     persisted by the run, exactly as before; this replay row is keyed
+     by the charge key so a re-ask never pays or plans twice.) */
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult("wave9d-director", idempotencyKey, req.userId!, { ...body });
+  } catch { /* storing is best-effort */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json({ ...postCharge.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  res.json(body);
 });
 
 /* ─── GET /wave9d/director/plans — free (saved plans list) ─── */

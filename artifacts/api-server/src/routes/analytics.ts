@@ -3,7 +3,17 @@ import { z } from "zod";
 import { eq, desc } from "drizzle-orm";
 import { db, socialAccountsTable, socialStatSnapshotsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+  OutOfCreditsError,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import { decryptToken, encryptToken } from "../lib/social-crypto";
 import { refreshTikTokTokens, TikTokApiError } from "../lib/social-tiktok";
 import { getOpenAI, getTextModel } from "../lib/ai-clients";
@@ -513,12 +523,76 @@ export function summarizeStatsForAI(
     .join("\n");
 }
 
+/* Replay safety (CA-7): both AI analytics rails key their charge on a
+   server-derived idempotency key over the parsed request intent,
+   derived here at the shared helper so every caller is covered at
+   once. A re-ask of the same request (double-tap, retry, timeout
+   resend) is answered from the stored result instead of charging
+   again. Refund paths VOID the key (see the handlers), so a refunded
+   request always runs fresh on retry. Fresh responses are
+   byte-identical to before; stored lookups fail open. */
+export const ANALYTICS_INSIGHTS_SCOPE = "analytics-insights";
+export const ANALYTICS_SUGGESTIONS_SCOPE = "analytics-suggestions";
+const ANALYTICS_REPLAY_NOTE =
+  "This is the answer you already got for this request — change the stats or niche for a fresh one.";
+const REPLAY_STORE_MAX = 500;
+const storedAnalyticsResults = new Map<string, Record<string, unknown>>();
+const inFlightAnalytics = new Map<string, Promise<Record<string, unknown>>>();
+
+function storeAnalyticsInProcess(key: string, body: Record<string, unknown>): void {
+  if (storedAnalyticsResults.size >= REPLAY_STORE_MAX) {
+    const first = storedAnalyticsResults.keys().next().value;
+    if (first !== undefined) storedAnalyticsResults.delete(first);
+  }
+  storedAnalyticsResults.set(key, body);
+}
+
+export function __resetAnalyticsReplayCache(): void {
+  storedAnalyticsResults.clear();
+  inFlightAnalytics.clear();
+}
+
+export interface AnalyticsCharge {
+  remaining: number;
+  key: string;
+}
+
+/**
+ * Replay pre-check + keyed charge, shared by the insights and
+ * suggestions rails. Returns null when the request has been fully
+ * answered here: a 402 (out of credits, as before) or a replay of the
+ * stored result (with `replayed: true` + the replay note).
+ */
 async function chargeOr402(
   req: Request,
   res: Response,
   credits: number,
   action: string,
-): Promise<number | null> {
+  scope: string,
+  intent: unknown,
+): Promise<AnalyticsCharge | null> {
+  const key = buildChargeIdempotencyKey(scope, req.userId!, undefined, intent);
+  const durable = await findStoredGenerationResult(scope, key, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: ANALYTICS_REPLAY_NOTE });
+    return null;
+  }
+  const local = storedAnalyticsResults.get(key);
+  if (local) {
+    res.json({ ...local, replayed: true, replayNote: ANALYTICS_REPLAY_NOTE });
+    return null;
+  }
+  const pending = inFlightAnalytics.get(key);
+  if (pending) {
+    try {
+      const twinBody = await pending;
+      const stored = storedAnalyticsResults.get(key) ?? twinBody;
+      res.json({ ...stored, replayed: true, replayNote: ANALYTICS_REPLAY_NOTE });
+      return null;
+    } catch {
+      /* The twin failed and refunded (voiding the key) — run fresh. */
+    }
+  }
   const balance = req.userCredits ?? 0;
   if (balance < credits) {
     res.status(402).json({
@@ -528,7 +602,8 @@ async function chargeOr402(
     return null;
   }
   try {
-    return await chargeCredits(req.userId!, credits, { action });
+    const remaining = await chargeCredits(req.userId!, credits, { action }, { idempotencyKey: key });
+    return { remaining, key };
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -539,6 +614,44 @@ async function chargeOr402(
     }
     throw err;
   }
+}
+
+/**
+ * Begin tracking an analytics run for same-key twins, and finish it:
+ * on success the body is stored (in-process + durable) so later
+ * re-asks replay it; the returned `serve` closure answers the fresh
+ * request — or the stored body, if a twin landed first.
+ */
+function beginAnalyticsRun(scope: string, key: string, userId: string): {
+  serve: (res: Response, body: Record<string, unknown>) => Promise<void>;
+  fail: () => void;
+} {
+  let resolveFlight: (body: Record<string, unknown>) => void = () => {};
+  let rejectFlight: (err: unknown) => void = () => {};
+  const flight = new Promise<Record<string, unknown>>((resolve, reject) => {
+    resolveFlight = resolve;
+    rejectFlight = reject;
+  });
+  flight.catch(() => {});
+  inFlightAnalytics.set(key, flight);
+  return {
+    serve: async (res, body) => {
+      storeAnalyticsInProcess(key, body);
+      await storeGenerationResult(scope, key, userId, body);
+      resolveFlight(body);
+      if (inFlightAnalytics.get(key) === flight) inFlightAnalytics.delete(key);
+      const stored = storedAnalyticsResults.get(key);
+      if (stored && stored !== body) {
+        res.json({ ...stored, replayed: true, replayNote: ANALYTICS_REPLAY_NOTE });
+        return;
+      }
+      res.json(body);
+    },
+    fail: () => {
+      rejectFlight(new Error("analytics run failed"));
+      if (inFlightAnalytics.get(key) === flight) inFlightAnalytics.delete(key);
+    },
+  };
 }
 
 function parseModelJson(raw: string): any {
@@ -565,8 +678,10 @@ router.post(
       });
       return;
     }
-    const creditsRemaining = await chargeOr402(req, res, ANALYTICS_INSIGHTS_CREDITS, "Analytics AI Insights");
-    if (creditsRemaining === null) return;
+    const charge = await chargeOr402(req, res, ANALYTICS_INSIGHTS_CREDITS, "Analytics AI Insights", ANALYTICS_INSIGHTS_SCOPE, parsed.data);
+    if (charge === null) return;
+    const { remaining: creditsRemaining, key } = charge;
+    const run = beginAnalyticsRun(ANALYTICS_INSIGHTS_SCOPE, key, req.userId!);
 
     const summary = summarizeStatsForAI(parsed.data.platforms);
     try {
@@ -599,7 +714,7 @@ router.post(
         throw new Error("Model returned malformed insights JSON");
       }
       /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
-      res.json({
+      await run.serve(res, {
         insights: {
           headline: typeof data.headline === "string" ? data.headline : "",
           movers: Array.isArray(data.movers) ? data.movers : [],
@@ -610,12 +725,15 @@ router.post(
         creditsRemaining,
       });
     } catch (err) {
+      run.fail();
       logger.error({ err }, "[analytics] insights generation failed");
       /* Refund: the user paid for an AI answer they didn't get. */
       try {
         await refundCredits(req.userId!, ANALYTICS_INSIGHTS_CREDITS, {
           action: "Analytics AI Insights — Refund (provider failed)",
         });
+        /* The refund landed — void the charge key so a retry charges fresh. */
+        await voidChargeIdempotencyKey(key);
       } catch (refundErr) {
         // Logged inside refundCredits; don't mask the original failure.
         void refundErr;
@@ -643,8 +761,10 @@ router.post(
       });
       return;
     }
-    const creditsRemaining = await chargeOr402(req, res, ANALYTICS_SUGGESTIONS_CREDITS, "Analytics AI Suggestions");
-    if (creditsRemaining === null) return;
+    const charge = await chargeOr402(req, res, ANALYTICS_SUGGESTIONS_CREDITS, "Analytics AI Suggestions", ANALYTICS_SUGGESTIONS_SCOPE, parsed.data);
+    if (charge === null) return;
+    const { remaining: creditsRemaining, key } = charge;
+    const run = beginAnalyticsRun(ANALYTICS_SUGGESTIONS_SCOPE, key, req.userId!);
 
     const summary = summarizeStatsForAI(parsed.data.platforms);
     try {
@@ -675,7 +795,7 @@ router.post(
         throw new Error("Model returned malformed suggestions JSON");
       }
       /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
-      res.json({
+      await run.serve(res, {
         suggestions: data.suggestions.slice(0, 5).map((s: any) => ({
           title: typeof s.title === "string" ? s.title : "",
           format: typeof s.format === "string" ? s.format : "video",
@@ -686,12 +806,15 @@ router.post(
         creditsRemaining,
       });
     } catch (err) {
+      run.fail();
       logger.error({ err }, "[analytics] suggestions generation failed");
       /* Refund: the user paid for AI ideas they didn't get. */
       try {
         await refundCredits(req.userId!, ANALYTICS_SUGGESTIONS_CREDITS, {
           action: "Analytics AI Suggestions — Refund (provider failed)",
         });
+        /* The refund landed — void the charge key so a retry charges fresh. */
+        await voidChargeIdempotencyKey(key);
       } catch (refundErr) {
         // Logged inside refundCredits; don't mask the original failure.
         void refundErr;

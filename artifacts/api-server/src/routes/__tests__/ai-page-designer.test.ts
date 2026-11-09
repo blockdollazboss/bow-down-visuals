@@ -10,6 +10,7 @@
  *  - POST /banner: 402 pre-check (upload/storage mocked out of scope)
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
+import { createHash } from "crypto";
 import express from "express";
 import type { AddressInfo } from "node:net";
 
@@ -32,6 +33,15 @@ vi.mock("../../middlewares/require-auth", () => ({
 }));
 
 vi.mock("../../lib/credits", () => ({
+  /* CA-7: routes now derive charge keys via lib/credits —
+     deterministic sha256 over the JSON intent, same as the real helper. */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+      return `${scope}:${userId}:client:${clientKey.trim()}`;
+    }
+    return `${scope}:${userId}:${createHash("sha256").update(JSON.stringify(intent ?? null)).digest("hex").slice(0, 32)}`;
+  },
+  voidChargeIdempotencyKey: vi.fn(async () => true),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   chargeCredits: vi.fn(async (userId: string, amount: number) => {
     testState.chargeCalls.push({ userId, amount });
@@ -70,7 +80,7 @@ vi.mock("../../lib/supabase-admin", () => ({
   },
 }));
 
-import router from "../ai-page-designer";
+import router, { __resetPageDesignerReplayCache } from "../ai-page-designer";
 
 let server: any;
 let baseUrl: string;
@@ -108,6 +118,9 @@ const VALID_DESIGN = {
 };
 
 beforeEach(() => {
+  /* CA-7: replay stores are module-level — reset between tests so a
+     prior success can't answer a later failure case. */
+  __resetPageDesignerReplayCache();
   testState.userId = "user-1";
   testState.userCredits = 1000;
   testState.chargeCalls = [];

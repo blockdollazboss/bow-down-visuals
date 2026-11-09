@@ -5,7 +5,8 @@ import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../lib/ai-clients
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../lib/generation-stored-results";
 
 const router = Router();
 
@@ -18,6 +19,20 @@ const router = Router();
 
 const WAVE8_HOOK_REWRITE_CREDITS =
   Number(process.env["WAVE8_HOOK_REWRITE_CREDITS"]) || 50;
+
+const REPLAY_NOTE =
+  "These are the hook rewrites you already made for this request — tweak the post for a fresh set.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetWave8HookRewriterReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
 
 const rewriteSchema = z.object({
   post: z
@@ -40,51 +55,29 @@ const aiResponseSchema = z.object({
 
 type Variant = z.infer<typeof variantSchema>;
 
-/* POST /api/wave8/hook-rewriter/rewrite { post, niche }
-   → 200 { variants, creditsUsed, creditsRemaining }. Paid: 50 VB. */
-router.post("/wave8/hook-rewriter/rewrite", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = rewriteSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid rewrite request.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
-    return;
-  }
-
+async function runWave8HookRewriter(
+  userId: string,
+  parsedData: z.infer<typeof rewriteSchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  let creditsRemaining: number;
   try {
-    getOpenAI();
-  } catch {
-    res.status(503).json({ error: "ai_unavailable" });
-    return;
-  }
-
-  const balance = req.userCredits ?? 0;
-  if (balance < WAVE8_HOOK_REWRITE_CREDITS) {
-    res.status(402).json({
-      error: "out_of_credits",
-      message: "You're out of Visual Bucs — top up to rewrite your hook.",
-    });
-    return;
-  }
-  let creditsRemaining = balance;
-  try {
-    creditsRemaining = await chargeCredits(req.userId!, WAVE8_HOOK_REWRITE_CREDITS, {
+    creditsRemaining = await chargeCredits(userId, WAVE8_HOOK_REWRITE_CREDITS, {
       action: "Hook Rewriter",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      return {
+        __status: 402,
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to rewrite your hook.",
-      });
-      return;
+      };
     }
     throw err;
   }
 
   try {
-    const { post, niche } = parsed.data;
+    const { post, niche } = parsedData;
 
     let variants: Variant[] | null = null;
     /* Two attempts: a malformed first response gets one retry before we
@@ -130,33 +123,128 @@ router.post("/wave8/hook-rewriter/rewrite", requireAuth, publicApiLimiter, async
     }
     if (!variants) throw new Error("Model returned no usable hook variants");
 
-    res.json({
+    return {
       variants,
       creditsUsed: WAVE8_HOOK_REWRITE_CREDITS,
       creditsRemaining,
-    });
+    };
   } catch (err) {
     /* The charge was taken before the model call — give it back so a
        provider failure never costs the creator. */
+    let refunded = true;
     try {
-      await refundCredits(req.userId!, WAVE8_HOOK_REWRITE_CREDITS, {
+      await refundCredits(userId, WAVE8_HOOK_REWRITE_CREDITS, {
         action: "Hook Rewriter — Refund (rewrite failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       logger.error(
-        { err: refundErr, userId: req.userId },
+        { err: refundErr, userId },
         "[wave8-hook-rewriter] refund failed after generation failure"
       );
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
     }
 
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[wave8-hook-rewriter] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The studio is catching its breath — try again in a moment." });
-      return;
+      return {
+        __status: 503,
+        error: "The studio is catching its breath — try again in a moment.",
+      };
     }
     logger.error({ err }, "[wave8-hook-rewriter] rewrite failed");
-    res.status(502).json({ error: "The studio hiccupped — try again." });
+    return { __status: 502, error: "The studio hiccupped — try again." };
   }
+}
+
+/* POST /api/wave8/hook-rewriter/rewrite { post, niche }
+   → 200 { variants, creditsUsed, creditsRemaining }. Paid: 50 VB. */
+router.post("/wave8/hook-rewriter/rewrite", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = rewriteSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid rewrite request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  try {
+    getOpenAI();
+  } catch {
+    res.status(503).json({ error: "ai_unavailable" });
+    return;
+  }
+
+  const balance = req.userCredits ?? 0;
+  if (balance < WAVE8_HOOK_REWRITE_CREDITS) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "You're out of Visual Bucs — top up to rewrite your hook.",
+    });
+    return;
+  }
+
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "wave8-hook-rewriter", req.userId!, undefined,
+    { post: parsed.data.post, niche: parsed.data.niche },
+  );
+
+  const durable = await findStoredGenerationResult("wave8-hook-rewriter", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json({ ...twinBody, replayed: true, replayNote: REPLAY_NOTE });
+      return;
+    }
+  }
+
+  const run = runWave8HookRewriter(req.userId!, parsed.data, idempotencyKey);
+  inFlight.set(idempotencyKey, run);
+  let body: Record<string, unknown>;
+  try {
+    body = await run;
+  } finally {
+    if (inFlight.get(idempotencyKey) === run) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult("wave8-hook-rewriter", idempotencyKey, req.userId!, { ...body });
+  } catch { /* storing is best-effort */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json({ ...postCharge.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  res.json(body);
 });
 
 export default router;

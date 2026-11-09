@@ -4,7 +4,14 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 
 /* ─── Wave 9C — Voice-Directed Edits ──────────────────────────────────────────
    A natural-language edit director: the creator types (or speaks) a command
@@ -29,6 +36,20 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits"
 const router = Router();
 
 const DIRECT_EDIT_CREDITS = 150;
+
+const REPLAY_NOTE =
+  "This is the edit plan you already made for this request — tweak the command or timeline for a fresh one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetWave9cReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
 
 /* ── Fixed op vocabulary ─────────────────────────────────────────────────
    split        — cut one clip into two at an absolute timeline second
@@ -118,49 +139,29 @@ const directEditRequestSchema = z.object({
   projectTitle: z.string().trim().max(200).optional().default(""),
 });
 
-/* ── POST /wave9c/direct/edit — 150 VB ─────────────────────────────────────── */
-router.post("/wave9c/direct/edit", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = directEditRequestSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid edit command.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
-    return;
-  }
-
-  /* 1) AI availability check BEFORE charging. */
-  try {
-    getOpenAI();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    res.status(503).json({
-      error: "ai_unavailable",
-      message: msg.includes("OPENAI_API_KEY")
-        ? "OPENAI_API_KEY is not configured — Voice-Directed Edits is unavailable."
-        : "Voice-Directed Edits is unavailable right now.",
-    });
-    return;
-  }
-
-  /* 2) Charge BEFORE the model call. */
+async function runDirectEdit(
+  userId: string,
+  data: z.infer<typeof directEditRequestSchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  /* Charge BEFORE the model call, under the CA-KEY idempotency key. */
   let remaining: number;
   try {
-    remaining = await chargeCredits(req.userId!, DIRECT_EDIT_CREDITS, {
+    remaining = await chargeCredits(userId, DIRECT_EDIT_CREDITS, {
       action: "Voice-Directed Edits",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      return {
+        __status: 402,
         error: "out_of_credits",
         message: "Not enough Visual Bucs — top up to use Voice-Directed Edits.",
-      });
-      return;
+      };
     }
     throw err;
   }
 
-  const { command, timeline, totalDurationSec, projectTitle } = parsed.data;
+  const { command, timeline, totalDurationSec, projectTitle } = data;
   const knownIds = new Set(timeline.map((c) => c.id));
 
   const timelineBlock = timeline
@@ -242,29 +243,135 @@ router.post("/wave9c/direct/edit", requireAuth, publicApiLimiter, async (req, re
       }
     }
 
-    res.json({
+    return {
       ...plan,
       creditsUsed: DIRECT_EDIT_CREDITS,
       creditsRemaining: remaining,
-    });
+    };
   } catch (err) {
-    /* 3) Refund on ANY failure — no charge without delivery. */
-    logger.error({ err, userId: req.userId }, "[wave9c-direct-edit] plan failed — refunding");
+    /* Refund on ANY failure — no charge without delivery. When the
+       refund lands, VOID the charge's idempotency key so the retry
+       charges fresh instead of being suppressed as a replay. */
+    logger.error({ err, userId }, "[wave9c-direct-edit] plan failed — refunding");
+    let refunded = true;
     try {
-      await refundCredits(req.userId!, DIRECT_EDIT_CREDITS, {
+      await refundCredits(userId, DIRECT_EDIT_CREDITS, {
         action: "Voice-Directed Edits — Refund",
       });
     } catch (refundErr) {
+      refunded = false;
       logger.error(
-        { userId: req.userId, refundErr },
+        { userId, refundErr },
         "[wave9c-direct-edit] CRITICAL: refund failed after plan failure"
       );
     }
-    res.status(500).json({
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    return {
+      __status: 500,
       error: "Voice-Directed Edits hiccupped — your Visual Bucs were refunded.",
       refunded: true,
-    });
+    };
   }
+}
+
+/* ── POST /wave9c/direct/edit — 150 VB ─────────────────────────────────────── */
+router.post("/wave9c/direct/edit", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = directEditRequestSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid edit command.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  /* 1) AI availability check BEFORE charging. */
+  try {
+    getOpenAI();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(503).json({
+      error: "ai_unavailable",
+      message: msg.includes("OPENAI_API_KEY")
+        ? "OPENAI_API_KEY is not configured — Voice-Directed Edits is unavailable."
+        : "Voice-Directed Edits is unavailable right now.",
+    });
+    return;
+  }
+
+  /* CA-KEY: the server derives the key itself on EVERY call — this
+     schema accepts no client idempotencyKey, so the key is the
+     {command, timeline, totalDurationSec, projectTitle} intent hash.
+     An identical ask can never be re-bought: a replay serves the
+     stored plan with replayed: true and REPLAY_NOTE instead of
+     charging again. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "wave9c-direct-edit", req.userId!, undefined,
+    {
+      command: parsed.data.command,
+      timeline: parsed.data.timeline,
+      totalDurationSec: parsed.data.totalDurationSec,
+      projectTitle: parsed.data.projectTitle,
+    },
+  );
+
+  /* Stored-result pre-check (migration 0333) BEFORE any funding:
+     durable first, then the in-process cache, then an in-flight twin. */
+  const durable = await findStoredGenerationResult("wave9c-direct-edit", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json({ ...twinBody, replayed: true, replayNote: REPLAY_NOTE });
+      return;
+    }
+    /* The twin failed (refunded + key voided) — fall through fresh. */
+  }
+
+  const run = runDirectEdit(req.userId!, parsed.data, idempotencyKey);
+  inFlight.set(idempotencyKey, run);
+  let body: Record<string, unknown>;
+  try {
+    body = await run;
+  } finally {
+    if (inFlight.get(idempotencyKey) === run) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  /* Store BEFORE answering, fail-open. */
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult("wave9c-direct-edit", idempotencyKey, req.userId!, { ...body });
+  } catch { /* storing is best-effort */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json({ ...postCharge.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  res.json(body);
 });
 
 export default router;

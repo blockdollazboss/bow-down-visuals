@@ -8,7 +8,18 @@ import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/s
 import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+  OutOfCreditsError,
+  LedgerWriteError,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import { isMissingSchemaError } from "../lib/pg-errors";
 
 /* ── Discord Live integration (v1) ─────────────────────────────────────────
@@ -333,57 +344,58 @@ const AI_ANNOUNCEMENT_DIRECTION: Record<(typeof AI_ANNOUNCEMENT_TYPES)[number], 
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
 
-router.post("/discord/ai-announcement", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
-  const parsed = aiAnnouncementSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request." });
-    return;
-  }
+/* Replay safety (CA-7): the announcement charge keys on a
+   server-derived idempotency key over the request intent, so a
+   re-ask of the same request (double-tap, retry, timeout resend) is
+   answered from the stored result instead of charging again. The
+   refund path VOIDS the key, so a refunded request always runs fresh
+   on retry. Fresh responses are byte-identical to before; stored
+   lookups fail open. */
+const AI_ANNOUNCEMENT_SCOPE = "discord-ai-announcement";
+const AI_ANNOUNCEMENT_REPLAY_NOTE =
+  "This is the announcement you already wrote for this request — tweak the topic for a fresh one.";
+const REPLAY_STORE_MAX = 500;
+const storedAnnouncements = new Map<string, Record<string, unknown>>();
+const inFlightAnnouncements = new Map<string, Promise<Record<string, unknown>>>();
 
-  const balance = req.userCredits ?? 0;
-  if (balance < AI_ANNOUNCEMENT_CREDITS) {
-    res.status(402).json({
-      error: "out_of_credits",
-      message: "You're out of Visual Bucs — top up to use the AI announcement assistant.",
-    });
-    return;
+function storeAnnouncementInProcess(key: string, body: Record<string, unknown>): void {
+  if (storedAnnouncements.size >= REPLAY_STORE_MAX) {
+    const first = storedAnnouncements.keys().next().value;
+    if (first !== undefined) storedAnnouncements.delete(first);
   }
-  let creditsRemaining = balance;
-  try {
-    creditsRemaining = await chargeCredits(req.userId!, AI_ANNOUNCEMENT_CREDITS, {
-      action: "Discord AI Announcement",
-    });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
-        error: "out_of_credits",
-        message: "You're out of Visual Bucs — top up to use the AI announcement assistant.",
-      });
-      return;
-    }
-    if (err instanceof LedgerWriteError) {
-      res.status(500).json({
-        error: "Credit ledger write failed — no Visual Bucs were charged. Please try again.",
-      });
-      return;
-    }
-    throw err;
-  }
+  storedAnnouncements.set(key, body);
+}
 
+export function __resetDiscordAnnouncementReplayCache(): void {
+  storedAnnouncements.clear();
+  inFlightAnnouncements.clear();
+}
+
+/* The announcement work, extracted so the handler can wrap it in the
+   replay-safety flow. Returns the exact fresh success body; failures
+   come back with a `__status` marker (handler strips it). Every
+   failure refunds and — only when the refund landed — voids the key. */
+async function runAiAnnouncement(
+  userId: string,
+  data: { type: (typeof AI_ANNOUNCEMENT_TYPES)[number]; topic: string; game?: string; tone?: string },
+  creditsRemaining: number,
+  idempotencyKey: string,
+): Promise<Record<string, unknown> & { __status?: number }> {
   /* Refund the credit whenever the model call fails — the user paid for
      announcement copy they didn't get. */
   const refund = async () => {
     try {
-      await refundCredits(req.userId!, AI_ANNOUNCEMENT_CREDITS, {
+      await refundCredits(userId, AI_ANNOUNCEMENT_CREDITS, {
         action: "Discord AI Announcement — Refund (generation failed)",
       });
+      await voidChargeIdempotencyKey(idempotencyKey);
     } catch {
       /* Logged inside refundCredits; don't mask the original failure. */
     }
   };
 
   try {
-    const { type, topic, game, tone } = parsed.data;
+    const { type, topic, game, tone } = data;
     const direction = AI_ANNOUNCEMENT_DIRECTION[type];
     const gameLine = game?.trim() ? ` Playing: "${game.trim()}".` : "";
     const toneLine = tone?.trim() ? ` Tone: "${tone.trim()}".` : "";
@@ -426,21 +438,108 @@ router.post("/discord/ai-announcement", requireAuth, publicApiLimiter, async (re
       throw new Error("Model returned no usable announcement");
     }
 
-    res.json({
+    return {
       title: title.slice(0, 200),
       message: message.slice(0, 1000),
       creditsUsed: AI_ANNOUNCEMENT_CREDITS,
       creditsRemaining,
-    });
+    };
   } catch (err) {
     await refund();
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[discord] AI announcement rate limit / quota");
-      res.status(503).json({ error: "The assistant is catching its breath — your Visual Buc was refunded, try again in a moment." });
-      return;
+      return { __status: 503, error: "The assistant is catching its breath — your Visual Buc was refunded, try again in a moment." };
     }
     logger.error({ err }, "[discord] AI announcement failed");
-    res.status(502).json({ error: "The AI assistant hiccupped — your Visual Buc was refunded." });
+    return { __status: 502, error: "The AI assistant hiccupped — your Visual Buc was refunded." };
+  }
+}
+
+router.post("/discord/ai-announcement", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  const parsed = aiAnnouncementSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request." });
+    return;
+  }
+
+  const balance = req.userCredits ?? 0;
+  if (balance < AI_ANNOUNCEMENT_CREDITS) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "You're out of Visual Bucs — top up to use the AI announcement assistant.",
+    });
+    return;
+  }
+
+  const key = buildChargeIdempotencyKey(AI_ANNOUNCEMENT_SCOPE, req.userId!, undefined, {
+    type: parsed.data.type,
+    topic: parsed.data.topic,
+    game: parsed.data.game ?? null,
+    tone: parsed.data.tone ?? null,
+  });
+  const durable = await findStoredGenerationResult(AI_ANNOUNCEMENT_SCOPE, key, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: AI_ANNOUNCEMENT_REPLAY_NOTE });
+    return;
+  }
+  const local = storedAnnouncements.get(key);
+  if (local) {
+    res.json({ ...local, replayed: true, replayNote: AI_ANNOUNCEMENT_REPLAY_NOTE });
+    return;
+  }
+  const pending = inFlightAnnouncements.get(key);
+  if (pending) {
+    try {
+      const twinBody = await pending;
+      const stored = storedAnnouncements.get(key) ?? twinBody;
+      res.json({ ...stored, replayed: true, replayNote: AI_ANNOUNCEMENT_REPLAY_NOTE });
+      return;
+    } catch {
+      /* The twin failed and refunded (voiding the key) — run fresh. */
+    }
+  }
+
+  let creditsRemaining = balance;
+  try {
+    creditsRemaining = await chargeCredits(req.userId!, AI_ANNOUNCEMENT_CREDITS, {
+      action: "Discord AI Announcement",
+    }, { idempotencyKey: key });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "You're out of Visual Bucs — top up to use the AI announcement assistant.",
+      });
+      return;
+    }
+    if (err instanceof LedgerWriteError) {
+      res.status(500).json({
+        error: "Credit ledger write failed — no Visual Bucs were charged. Please try again.",
+      });
+      return;
+    }
+    throw err;
+  }
+
+  const runPromise = runAiAnnouncement(req.userId!, parsed.data, creditsRemaining, key);
+  inFlightAnnouncements.set(key, runPromise);
+  try {
+    const body = await runPromise;
+    if (typeof body.__status === "number" && body.__status !== 200) {
+      const { __status, ...rest } = body;
+      res.status(__status).json(rest);
+      return;
+    }
+    const stored = storedAnnouncements.get(key);
+    if (stored && stored !== body) {
+      res.json({ ...stored, replayed: true, replayNote: AI_ANNOUNCEMENT_REPLAY_NOTE });
+      return;
+    }
+    storeAnnouncementInProcess(key, body);
+    await storeGenerationResult(AI_ANNOUNCEMENT_SCOPE, key, req.userId!, body);
+    res.json(body);
+  } finally {
+    if (inFlightAnnouncements.get(key) === runPromise) inFlightAnnouncements.delete(key);
   }
 });
 

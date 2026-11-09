@@ -9,9 +9,15 @@ import { requireAuth } from "../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
   OutOfCreditsError,
   LedgerWriteError,
 } from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import { requestPollerTick } from "../lib/job-poller";
 import {
   parseProvenanceAssetId,
@@ -108,6 +114,45 @@ const bestTimeSchema = z.object({
 });
 
 const router = Router();
+
+/* ── Replay safety (CA-7, audit B7/B8) ───────────────────────────────
+   Two charged surfaces in this file take a server-derived idempotency
+   key over a hash of the parsed request intent, so a re-ask of the
+   same request (double-tap, retry, timeout resend) is answered from
+   the stored result instead of charging again:
+   - POST /scheduler/posts (Pattern C): the stored result carries the
+     created post's presented body — a replay must never insert a
+     second post.
+   - POST /scheduler/best-time: the stored result is the suggestion.
+   Every refund path VOIDS its charge key, so a request whose charge
+   was refunded always runs fresh on retry. Fresh responses are
+   byte-identical to before; stored lookups fail open. */
+const POST_CREATE_SCOPE = "scheduler-post-create";
+const BEST_TIME_SCOPE = "scheduler-best-time";
+const REPLAY_STORE_MAX = 500;
+const storedPostCreates = new Map<string, Record<string, unknown>>();
+const storedBestTimes = new Map<string, Record<string, unknown>>();
+const inFlightPostCreates = new Map<string, Promise<Record<string, unknown>>>();
+const inFlightBestTimes = new Map<string, Promise<Record<string, unknown>>>();
+
+function storeInProcess(
+  store: Map<string, Record<string, unknown>>,
+  key: string,
+  body: Record<string, unknown>,
+): void {
+  if (store.size >= REPLAY_STORE_MAX) {
+    const first = store.keys().next().value;
+    if (first !== undefined) store.delete(first);
+  }
+  store.set(key, body);
+}
+
+export function __resetSchedulerReplayCache(): void {
+  storedPostCreates.clear();
+  storedBestTimes.clear();
+  inFlightPostCreates.clear();
+  inFlightBestTimes.clear();
+}
 
 /** Public shape for the frontend — never leaks internal fields. */
 function toPublicPost(p: ScheduledPost) {
@@ -257,7 +302,43 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
   /* 100 credits per scheduled post — regardless of platform count. */
   const cost = wantsSchedule ? SCHEDULER_POST_CREDITS : 0;
 
+  /* Replay safety (CA-7): only the paid path is keyed — drafts stay
+     free and untouched. A durable hit serves the exact post that was
+     created for this request; no second row is inserted. */
+  let postKey: string | null = null;
   if (cost > 0) {
+    postKey = buildChargeIdempotencyKey(POST_CREATE_SCOPE, req.userId!, undefined, {
+      mediaUrl,
+      mediaType,
+      caption,
+      hashtags,
+      platforms,
+      accountIds,
+      scheduledAt: scheduledAt ?? null,
+      releaseId: releaseId ?? null,
+      provenanceAssetId: provenanceAssetId ?? null,
+    });
+    const durable = await findStoredGenerationResult(POST_CREATE_SCOPE, postKey, req.userId!);
+    if (durable) {
+      res.status(201).json({ ...durable, replayed: true });
+      return;
+    }
+    const local = storedPostCreates.get(postKey);
+    if (local) {
+      res.status(201).json({ ...local, replayed: true });
+      return;
+    }
+    const pending = inFlightPostCreates.get(postKey);
+    if (pending) {
+      try {
+        const twinBody = await pending;
+        const stored = storedPostCreates.get(postKey) ?? twinBody;
+        res.status(201).json({ ...stored, replayed: true });
+        return;
+      } catch {
+        /* The twin failed and refunded (voiding the key) — run fresh. */
+      }
+    }
     const balance = req.userCredits ?? 0;
     if (balance < cost) {
       res.status(402).json({
@@ -267,7 +348,7 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
       return;
     }
     try {
-      await chargeCredits(req.userId!, cost, { action: "Content Scheduler — Post reservation" });
+      await chargeCredits(req.userId!, cost, { action: "Content Scheduler — Post reservation" }, { idempotencyKey: postKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs to schedule this post." });
@@ -281,11 +362,24 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
     }
   }
 
-  const storedMediaUrl =
-    (await mirrorExternalMediaUrl(mediaUrl, { kind: mediaType === "image" ? "image" : "video", ownerKey: req.userId! })) ??
-    mediaUrl;
+  const createFlight: {
+    resolve: ((body: Record<string, unknown>) => void) | null;
+    reject: ((err: unknown) => void) | null;
+  } = { resolve: null, reject: null };
+  if (postKey) {
+    const flight = new Promise<Record<string, unknown>>((resolve, reject) => {
+      createFlight.resolve = resolve;
+      createFlight.reject = reject;
+    });
+    flight.catch(() => {});
+    inFlightPostCreates.set(postKey, flight);
+  }
 
   try {
+    const storedMediaUrl =
+      (await mirrorExternalMediaUrl(mediaUrl, { kind: mediaType === "image" ? "image" : "video", ownerKey: req.userId! })) ??
+      mediaUrl;
+
     const [row] = await db
       .insert(scheduledPostsTable)
       .values({
@@ -304,18 +398,29 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
       })
       .returning();
     if (wantsSchedule) requestPollerTick(); // wake the worker for near-term posts
-    res.status(201).json({ post: await presentPost(row) });
+    const body: Record<string, unknown> = { post: await presentPost(row) };
+    if (postKey) {
+      storeInProcess(storedPostCreates, postKey, body);
+      await storeGenerationResult(POST_CREATE_SCOPE, postKey, req.userId!, body);
+      if (createFlight.resolve) createFlight.resolve(body);
+    }
+    res.status(201).json(body);
   } catch (err) {
+    if (postKey && createFlight.reject) createFlight.reject(err);
     /* The post wasn't created but the charge landed — refund immediately. */
     if (cost > 0) {
       try {
         await refundCredits(req.userId!, cost, { action: "Content Scheduler — Refund (create failed)" });
+        /* The refund landed — void the charge key so a retry charges fresh. */
+        if (postKey) await voidChargeIdempotencyKey(postKey);
       } catch (refundErr) {
         logger.error({ err: refundErr, userId: req.userId }, "[scheduler] FAILED to refund after create failure");
       }
     }
     logger.error({ err, userId: req.userId }, "[scheduler] create failed");
     res.status(500).json({ error: "create_failed", message: "Couldn't save the post. Your Visual Bucs were refunded." });
+  } finally {
+    if (postKey) inFlightPostCreates.delete(postKey);
   }
 });
 
@@ -561,44 +666,23 @@ export function sanitizeBestTime(raw: unknown, platforms: SchedulerPlatformKey[]
   return out;
 }
 
-router.post("/scheduler/best-time", requireAuth, async (req: Request, res: Response) => {
-  const parsed = bestTimeSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid request.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
-    return;
-  }
-  const { niche, platforms, postsPerWeek, timezone } = parsed.data;
-
-  const balance = req.userCredits ?? 0;
-  if (balance < SCHEDULER_BEST_TIME_CREDITS) {
-    res.status(402).json({
-      error: "out_of_credits",
-      message: "AI best-time suggestions cost 1 Visual Buc — top up to continue.",
-    });
-    return;
-  }
-  try {
-    await chargeCredits(req.userId!, SCHEDULER_BEST_TIME_CREDITS, { action: "Content Scheduler — AI best-time" });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs for a best-time suggestion." });
-      return;
-    }
-    if (err instanceof LedgerWriteError) {
-      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged." });
-      return;
-    }
-    throw err;
-  }
-
-  const refund = async () => {
+/* Best-time work, extracted so the handler can wrap it in the
+   replay-safety flow. Returns the exact fresh success body; failures
+   come back with a `__status` marker (the handler strips it before
+   answering). Every failure path refunds and — only when the refund
+   landed — voids the charge key so a retry charges fresh. */
+async function runSchedulerBestTime(
+  userId: string,
+  data: { niche: string; platforms: SchedulerPlatformKey[]; postsPerWeek: number; timezone: string },
+  idempotencyKey: string,
+): Promise<Record<string, unknown> & { __status?: number }> {
+  const { niche, platforms, postsPerWeek, timezone } = data;
+  const refund = async (): Promise<void> => {
     try {
-      await refundCredits(req.userId!, SCHEDULER_BEST_TIME_CREDITS, { action: "Content Scheduler — AI best-time Refund" });
+      await refundCredits(userId, SCHEDULER_BEST_TIME_CREDITS, { action: "Content Scheduler — AI best-time Refund" });
+      await voidChargeIdempotencyKey(idempotencyKey);
     } catch (refundErr) {
-      logger.error({ err: refundErr, userId: req.userId }, "[scheduler] FAILED to refund best-time credits");
+      logger.error({ err: refundErr, userId }, "[scheduler] FAILED to refund best-time credits");
     }
   };
 
@@ -638,27 +722,112 @@ router.post("/scheduler/best-time", requireAuth, async (req: Request, res: Respo
       parsedJson = JSON.parse(text);
     } catch {
       await refund();
-      res.status(502).json({ error: "ai_failed", message: "The AI returned an unusable suggestion — your Visual Buc was refunded." });
-      return;
+      return { __status: 502, error: "ai_failed", message: "The AI returned an unusable suggestion — your Visual Buc was refunded." };
     }
     const slots = sanitizeBestTime(parsedJson.slots, platforms);
     if (slots.length === 0) {
       await refund();
-      res.status(502).json({ error: "ai_failed", message: "The AI couldn't build useful slots — your Visual Buc was refunded." });
-      return;
+      return { __status: 502, error: "ai_failed", message: "The AI couldn't build useful slots — your Visual Buc was refunded." };
     }
-    res.json({
+    return {
       slots,
       note:
         typeof parsedJson.note === "string"
           ? parsedJson.note.slice(0, 300)
           : "Pattern-based suggestions — post when your own audience is most active for the best results.",
       creditsUsed: SCHEDULER_BEST_TIME_CREDITS,
-    });
+    };
   } catch (err) {
     await refund();
-    logger.error({ err, userId: req.userId }, "[scheduler] best-time failed");
-    res.status(502).json({ error: "ai_failed", message: "Couldn't get a best-time suggestion — your Visual Buc was refunded." });
+    logger.error({ err, userId }, "[scheduler] best-time failed");
+    return { __status: 502, error: "ai_failed", message: "Couldn't get a best-time suggestion — your Visual Buc was refunded." };
+  }
+}
+
+router.post("/scheduler/best-time", requireAuth, async (req: Request, res: Response) => {
+  const parsed = bestTimeSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const { niche, platforms, postsPerWeek, timezone } = parsed.data;
+
+  const balance = req.userCredits ?? 0;
+  if (balance < SCHEDULER_BEST_TIME_CREDITS) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "AI best-time suggestions cost 1 Visual Buc — top up to continue.",
+    });
+    return;
+  }
+
+  /* Replay safety (CA-7): a re-ask of the same request is answered
+     from the stored suggestion — no second charge, no second model
+     call. Same body as a fresh run, plus `replayed: true`. */
+  const key = buildChargeIdempotencyKey(BEST_TIME_SCOPE, req.userId!, undefined, {
+    niche,
+    platforms,
+    postsPerWeek,
+    timezone,
+  });
+  const durable = await findStoredGenerationResult(BEST_TIME_SCOPE, key, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+  const local = storedBestTimes.get(key);
+  if (local) {
+    res.json({ ...local, replayed: true });
+    return;
+  }
+  const pending = inFlightBestTimes.get(key);
+  if (pending) {
+    try {
+      const twinBody = await pending;
+      const stored = storedBestTimes.get(key) ?? twinBody;
+      res.json({ ...stored, replayed: true });
+      return;
+    } catch {
+      /* The twin failed and refunded (voiding the key) — run fresh. */
+    }
+  }
+
+  try {
+    await chargeCredits(req.userId!, SCHEDULER_BEST_TIME_CREDITS, { action: "Content Scheduler — AI best-time" }, { idempotencyKey: key });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs for a best-time suggestion." });
+      return;
+    }
+    if (err instanceof LedgerWriteError) {
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged." });
+      return;
+    }
+    throw err;
+  }
+
+  const runPromise = runSchedulerBestTime(req.userId!, parsed.data, key);
+  inFlightBestTimes.set(key, runPromise);
+  try {
+    const body = await runPromise;
+    if (typeof body.__status === "number" && body.__status !== 200) {
+      const { __status, ...rest } = body;
+      res.status(__status).json(rest);
+      return;
+    }
+    const stored = storedBestTimes.get(key);
+    if (stored && stored !== body) {
+      res.json({ ...stored, replayed: true });
+      return;
+    }
+    storeInProcess(storedBestTimes, key, body);
+    await storeGenerationResult(BEST_TIME_SCOPE, key, req.userId!, body);
+    res.json(body);
+  } finally {
+    if (inFlightBestTimes.get(key) === runPromise) inFlightBestTimes.delete(key);
   }
 });
 
