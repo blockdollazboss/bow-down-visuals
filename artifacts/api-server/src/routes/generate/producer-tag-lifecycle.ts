@@ -271,11 +271,60 @@ router.post("/producer-tag/approve", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-R exactly-once (Stack 400 charge-audit follow-on): the draft →
+   * active flip IS the claim. The guarded UPDATE carries the pre-state
+   * predicate (id + owner + status='draft'); a concurrent twin's flip
+   * matches 0 rows and stops at the 409 BEFORE any charge lands, so two
+   * racing approvals can never both charge. A zero-price (gift)
+   * approval never charges and skips the claim machinery entirely. The
+   * incumbent read moves BEFORE the flip: the claimed row inherits the
+   * incumbent's stamp preference in the same atomic write. If anything
+   * after the claim fails, the flip is rolled back to 'draft' and any
+   * landed charge is refunded — sequential responses are unchanged. */
+  const incumbent = price > 0 ? await getActiveProducerTag(req.userId!) : null;
+  let flippedRow: typeof draft | null = null;
+  if (price > 0) {
+    const [flipped] = await db
+      .update(producerTagsTable)
+      .set({
+        status: "active",
+        approvedAt: new Date(),
+        priceCharged: price,
+        stampEnabled: incumbent ? incumbent.stampEnabled : draft.stampEnabled,
+      })
+      .where(
+        and(
+          eq(producerTagsTable.id, draft.id),
+          eq(producerTagsTable.userId, req.userId!),
+          eq(producerTagsTable.status, "draft"),
+        ),
+      )
+      .returning();
+    if (!flipped) {
+      res.status(409).json({ error: "That tag is no longer a draft." });
+      return;
+    }
+    flippedRow = flipped;
+  }
+
+  /* Rolls the claim back to 'draft' so a later retry can approve (and
+   * charge) the draft again; used when the charge or the demote fails. */
+  const rollbackClaim = async (): Promise<void> => {
+    if (!flippedRow) return;
+    await db
+      .update(producerTagsTable)
+      .set({ status: "draft", approvedAt: null, priceCharged: 0 })
+      .where(and(eq(producerTagsTable.id, draft.id), eq(producerTagsTable.status, "active")))
+      .catch(() => {});
+  };
+
   let creditsRemaining = currentCredits;
   if (price > 0) {
     try {
       creditsRemaining = await chargeCredits(req.userId!, price, { action: "Your Own Tag" });
     } catch (err) {
+      /* The charge never landed — undo the claim and answer as before. */
+      await rollbackClaim();
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
         return;
@@ -288,23 +337,27 @@ router.post("/producer-tag/approve", requireAuth, async (req, res) => {
     /* One active tag per creator: demote the incumbent, inherit its
        stamp toggle so a replacement never silently changes the
        creator's export behavior. */
-    const incumbent = await getActiveProducerTag(req.userId!);
-    if (incumbent && incumbent.id !== draft.id) {
+    const activeIncumbent = flippedRow ? incumbent : await getActiveProducerTag(req.userId!);
+    if (activeIncumbent && activeIncumbent.id !== draft.id) {
       await db
         .update(producerTagsTable)
         .set({ status: "replaced" })
-        .where(eq(producerTagsTable.id, incumbent.id));
+        .where(eq(producerTagsTable.id, activeIncumbent.id));
     }
-    const [row] = await db
-      .update(producerTagsTable)
-      .set({
-        status: "active",
-        approvedAt: new Date(),
-        priceCharged: price,
-        stampEnabled: incumbent ? incumbent.stampEnabled : draft.stampEnabled,
-      })
-      .where(eq(producerTagsTable.id, draft.id))
-      .returning();
+    let row = flippedRow;
+    if (!row) {
+      const [activated] = await db
+        .update(producerTagsTable)
+        .set({
+          status: "active",
+          approvedAt: new Date(),
+          priceCharged: price,
+          stampEnabled: activeIncumbent ? activeIncumbent.stampEnabled : draft.stampEnabled,
+        })
+        .where(eq(producerTagsTable.id, draft.id))
+        .returning();
+      row = activated ?? null;
+    }
     if (!row) throw new Error("Could not activate the tag.");
 
     res.json({
@@ -314,6 +367,7 @@ router.post("/producer-tag/approve", requireAuth, async (req, res) => {
       creditsRemaining,
     });
   } catch (err) {
+    await rollbackClaim();
     if (price > 0) {
       await refundCredits(req.userId!, price, { action: "Your Own Tag — Refund" }).catch(() => {});
     }

@@ -114,6 +114,23 @@ vi.mock("@workspace/db", async (importOriginal) => {
     const profiles = [...state.profilesBySlug.values()];
 
     if (/UPDATE distribution_releases/i.test(text)) {
+      /* CA-R claim (Stack 400 charge-audit follow-on): the submit route
+         first flips draft → submitting under the status='draft'
+         predicate — a 0-row result is the route's 409 signal. Model the
+         guarded semantics faithfully: the claim lands only on a draft,
+         and its id rides params[0] (not the packaging write's params[4]). */
+      if (/SET status = 'submitting'/i.test(text)) {
+        const release = state.releases.get(String(params[0]));
+        if (!release || release["status"] !== "draft") return { rows: [] };
+        release["status"] = "submitting";
+        return { rows: [{ id: params[0] }] };
+      }
+      /* CA-R claim release: submitting → draft after a post-claim failure. */
+      if (/SET status = 'draft'/i.test(text)) {
+        const release = state.releases.get(String(params[0]));
+        if (release && release["status"] === "submitting") release["status"] = "draft";
+        return { rows: [] };
+      }
       const release = state.releases.get(String(params[4]));
       if (!release) return { rows: [] };
       release["status"] = "packaged";

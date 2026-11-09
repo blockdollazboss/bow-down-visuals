@@ -223,30 +223,38 @@ router.post("/press-kit/generate", requireAuth, publicApiLimiter, async (req, re
     return;
   }
 
-  let creditsRemaining = balance;
-  try {
-    creditsRemaining = await chargeCredits(req.userId!, PRESS_KIT_GENERATE_CREDITS, {
-      action: "Press Kit Generation",
-    });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to generate a press kit." });
-      return;
-    }
-    throw err;
+  /* CA-R exactly-once (Stack 400 charge-audit follow-on): the handle
+   * is claimed by INSERT before anything charges. The bio is generated
+   * first (the kit row needs it), then the insert runs under the
+   * handle UNIQUE with ON CONFLICT DO NOTHING — a concurrent twin's
+   * insert claims nothing and gets the same handle_taken answer a
+   * sequential retry gets, never a second charge. Only the claim
+   * winner charges. If anything after the claim fails, the claimed
+   * row is deleted and any landed charge is refunded — sequential
+   * responses are unchanged. */
+  let vault: typeof artistVaultsTable.$inferSelect | null = null;
+  if (parsed.data.artist_vault_id) {
+    const rows = await db
+      .select()
+      .from(artistVaultsTable)
+      .where(and(eq(artistVaultsTable.id, parsed.data.artist_vault_id), eq(artistVaultsTable.user_id, req.userId!)))
+      .limit(1);
+    vault = rows[0] ?? null;
   }
 
-  try {
-    let vault: typeof artistVaultsTable.$inferSelect | null = null;
-    if (parsed.data.artist_vault_id) {
-      const rows = await db
-        .select()
-        .from(artistVaultsTable)
-        .where(and(eq(artistVaultsTable.id, parsed.data.artist_vault_id), eq(artistVaultsTable.user_id, req.userId!)))
-        .limit(1);
-      vault = rows[0] ?? null;
-    }
+  let claimedKit: typeof pressKitsTable.$inferSelect | null = null;
+  /* Set only when the charge below actually lands — the outer catch
+     refunds behind this flag (see there). */
+  let chargeLanded = false;
+  const releaseClaim = async (): Promise<void> => {
+    if (!claimedKit) return;
+    await db
+      .delete(pressKitsTable)
+      .where(eq(pressKitsTable.id, claimedKit.id))
+      .catch(() => {});
+  };
 
+  try {
     const bio = await writeArtistBio({
       artistName: parsed.data.artist_name,
       tagline: parsed.data.tagline,
@@ -257,7 +265,7 @@ router.post("/press-kit/generate", requireAuth, publicApiLimiter, async (req, re
       tone: "professional",
     });
 
-    const [kit] = await db
+    const claimed = await db
       .insert(pressKitsTable)
       .values({
         user_id: req.userId!,
@@ -280,16 +288,51 @@ router.post("/press-kit/generate", requireAuth, publicApiLimiter, async (req, re
         artist_vault_id: parsed.data.artist_vault_id ?? null,
         is_public: true,
       })
+      .onConflictDoNothing()
       .returning();
+    if (claimed.length === 0) {
+      res.status(409).json({ error: "handle_taken", message: "That press-kit URL is already taken — try another handle." });
+      return;
+    }
+    claimedKit = claimed[0]!;
 
-    res.json({ kit: await presentKit(kit!), creditsUsed: PRESS_KIT_GENERATE_CREDITS, creditsRemaining });
+    let creditsRemaining = balance;
+    try {
+      creditsRemaining = await chargeCredits(req.userId!, PRESS_KIT_GENERATE_CREDITS, {
+        action: "Press Kit Generation",
+      });
+      chargeLanded = true;
+    } catch (err) {
+      /* The charge never landed — release the claim and answer as before. */
+      await releaseClaim();
+      claimedKit = null;
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to generate a press kit." });
+        return;
+      }
+      throw err;
+    }
+
+    res.json({ kit: await presentKit(claimedKit), creditsUsed: PRESS_KIT_GENERATE_CREDITS, creditsRemaining });
   } catch (err) {
-    // Provider or DB failed after charging — refund so failures are free.
-    await refundCredits(req.userId!, PRESS_KIT_GENERATE_CREDITS, {
-      action: "Press Kit Generation — Refund (generation failed)",
-    }).catch(() => {});
+    // Provider or DB failed — release the claim. Refund ONLY a charge
+    // that actually landed: the claim now precedes the charge, so a
+    // failure before it (bio, photo mirroring, the claim insert, the
+    // charge itself) must never mint a refund — failures before the
+    // charge are free because nothing was taken.
+    await releaseClaim();
+    if (chargeLanded) {
+      await refundCredits(req.userId!, PRESS_KIT_GENERATE_CREDITS, {
+        action: "Press Kit Generation — Refund (generation failed)",
+      }).catch(() => {});
+    }
     if (err instanceof LedgerWriteError) throw err;
-    res.status(502).json({ error: "generation_failed", message: "The press kit couldn't be generated — your Visual Bucs were refunded." });
+    res.status(502).json({
+      error: "generation_failed",
+      message: chargeLanded
+        ? "The press kit couldn't be generated — your Visual Bucs were refunded."
+        : "The press kit couldn't be generated — you weren't charged.",
+    });
   }
 });
 

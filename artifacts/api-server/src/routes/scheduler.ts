@@ -445,8 +445,34 @@ router.patch("/scheduler/posts/:id", requireAuth, async (req: Request, res: Resp
     const [updated] = await db
       .update(scheduledPostsTable)
       .set({ ...patch, updated_at: new Date() })
-      .where(eq(scheduledPostsTable.id, post.id))
+      .where(
+        /* CA-R exactly-once (Stack 400 charge-audit follow-on): when THIS
+           request charged the draft → scheduled reservation, the flip
+           carries the pre-state predicate (status='draft'). A concurrent
+           twin already flipped the row, so this UPDATE matches 0 rows —
+           this request's charge is refunded in full below and the request
+           answers with the site's not_editable 409: exactly one charge
+           nets. Uncharged edits/reschedules keep the unguarded update,
+           exactly as before. */
+        chargedThisRequest > 0
+          ? and(eq(scheduledPostsTable.id, post.id), eq(scheduledPostsTable.status, "draft"))
+          : eq(scheduledPostsTable.id, post.id),
+      )
       .returning();
+    if (!updated) {
+      if (chargedThisRequest > 0) {
+        /* Lost the flip to a concurrent twin — refund this request's
+           reservation in full; the winner's charge is the one that stands. */
+        try {
+          await refundCredits(req.userId!, chargedThisRequest, { action: "Content Scheduler — Refund (already scheduled)" });
+        } catch (refundErr) {
+          logger.error({ err: refundErr, userId: req.userId }, "[scheduler] FAILED to refund after losing the schedule race");
+        }
+        res.status(409).json({ error: "not_editable", message: "This post is already scheduled and can't be edited." });
+        return;
+      }
+      throw new Error("scheduled post update matched no row");
+    }
     updateLanded = true;
     if (updated.status === "scheduled") requestPollerTick();
     res.json({ post: await presentPost(updated) });

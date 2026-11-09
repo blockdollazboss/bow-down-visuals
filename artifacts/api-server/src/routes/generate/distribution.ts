@@ -1484,12 +1484,48 @@ router.post("/distribution/releases/:id/submit", requireAuth, async (req, res) =
       });
       return;
     }
+
+    /* CA-R exactly-once (Stack 400 charge-audit follow-on): the draft →
+     * submitting claim IS the one-winner guard. One guarded UPDATE
+     * carries the pre-state predicate (id + status='draft'); a
+     * concurrent twin's claim matches 0 rows and stops at the 409
+     * BEFORE any charge lands, so two racing submits can never both
+     * charge and never both hit the aggregator. On any failure after
+     * the claim (charge error, aggregator rejection) the claim is
+     * released back to 'draft' and any landed charge is refunded —
+     * sequential responses are unchanged. A crash between claim and
+     * completion leaves the release in 'submitting': it reads as
+     * packaged to retries (the same 409) and never double-charges. */
+    const claim = await db.execute(sql`
+      UPDATE distribution_releases
+      SET status = 'submitting', updated_at = now()
+      WHERE id = ${releaseId(req)} AND status = 'draft'
+      RETURNING id
+    `);
+    if (claim.rows.length === 0) {
+      res.status(409).json({ error: "This release is already packaged." });
+      return;
+    }
+    const releaseClaim = async (): Promise<void> => {
+      await db
+        .execute(sql`
+          UPDATE distribution_releases
+          SET status = 'draft', updated_at = now()
+          WHERE id = ${releaseId(req)} AND status = 'submitting'
+        `)
+        .catch((rollbackErr: unknown) =>
+          logger.error({ err: rollbackErr, releaseId: releaseId(req) }, "[distribution] submit claim release failed"),
+        );
+    };
+
     let creditsRemaining = balance;
     try {
       creditsRemaining = await chargeCredits(req.userId!, cost, {
         action: `Music Distribution — ${releaseType.toUpperCase()} release`,
       });
     } catch (err) {
+      /* The charge never landed — release the claim and answer as before. */
+      await releaseClaim();
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
@@ -1507,6 +1543,7 @@ router.post("/distribution/releases/:id/submit", requireAuth, async (req, res) =
       const sub = await aggregator.submitRelease(await buildAggregatorPayload(existing));
       aggregatorReleaseId = sub.aggregatorReleaseId;
     } catch (err) {
+      await releaseClaim();
       try {
         await refundCredits(req.userId!, cost, {
           action: `Music Distribution — Refund (aggregator submission failed)`,
@@ -1538,7 +1575,7 @@ router.post("/distribution/releases/:id/submit", requireAuth, async (req, res) =
           aggregator_release_id = ${aggregatorReleaseId},
           platform_statuses = ${JSON.stringify(queuedStatuses)}::jsonb,
           updated_at = now()
-      WHERE id = ${releaseId(req)}
+      WHERE id = ${releaseId(req)} AND status = 'submitting'
       RETURNING ${RELEASE_COLUMNS}
     `);
     const row = result.rows[0] as unknown as ReleaseRow;
