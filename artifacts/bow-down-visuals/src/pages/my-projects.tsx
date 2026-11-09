@@ -29,6 +29,7 @@ import { parseMyProjectsTab, type MyProjectsTab } from "@/lib/my-projects-tabs";
 import HubProjectsSection from "@/components/HubProjectsSection";
 import { deriveProjectTruth } from "@/lib/project-truth";
 import { ThemedSharkImage } from "@/components/ThemedSharkImage";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /** Project types that can be opened in the Video Editor. */
 function isVideoProject(projectType: string): boolean {
@@ -944,6 +945,7 @@ export default function MyProjects() {
       </div>
 
       {openProject && (
+        <SectionBoundary name="my-projects-result-modal">
         <ResultModal
           project={openProject}
           onClose={() => setOpenProject(null)}
@@ -958,6 +960,7 @@ export default function MyProjects() {
             setProjects((prev) => prev.map((p) => (p.id === openProject.id ? up : p)));
           }}
         />
+        </SectionBoundary>
       )}
 
       <div className="relative z-10 max-w-5xl mx-auto px-5 md:px-8 py-10 md:py-14">
@@ -1007,8 +1010,11 @@ export default function MyProjects() {
 
         {/* ── PROJECTS TAB ── */}
         {tab === "projects" && (
+          <SectionBoundary name="my-projects-tab-projects">
           <>
-          <HubProjectsSection />
+          <SectionBoundary name="my-projects-hub-section">
+            <HubProjectsSection />
+          </SectionBoundary>
           {projLoading ? (
             <div className="flex items-center justify-center py-24">
               <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
@@ -1033,16 +1039,20 @@ export default function MyProjects() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {projects.map((project) => (
-                <ProjectCard key={project.id} project={project} onDelete={handleDeleteProject} onOpen={setOpenProject} />
+                <SectionBoundary key={project.id} variant="compact" name="my-projects-project-card">
+                  <ProjectCard project={project} onDelete={handleDeleteProject} onOpen={setOpenProject} />
+                </SectionBoundary>
               ))}
             </div>
           )}
           </>
+          </SectionBoundary>
         )}
 
         {/* ── DRAFTS TAB ── */}
         {tab === "drafts" && (
-          draftsLoading ? (
+          <SectionBoundary name="my-projects-tab-drafts">
+          {draftsLoading ? (
             <div className="flex items-center justify-center py-24">
               <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
             </div>
@@ -1071,15 +1081,19 @@ export default function MyProjects() {
                 {t("myProjects.draftsHint")}
               </p>
               {drafts.map((draft) => (
-                <DraftCard key={draft.id} draft={draft} onDelete={handleDeleteDraft} />
+                <SectionBoundary key={draft.id} variant="compact" name="my-projects-draft-card">
+                  <DraftCard draft={draft} onDelete={handleDeleteDraft} />
+                </SectionBoundary>
               ))}
             </div>
-          )
+          )}
+          </SectionBoundary>
         )}
 
         {/* ── GENERATED CLIPS TAB ── */}
         {tab === "clips" && (
-          clipsLoading ? (
+          <SectionBoundary name="my-projects-tab-clips">
+          {clipsLoading ? (
             <div className="flex items-center justify-center py-24">
               <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
             </div>
@@ -1109,11 +1123,14 @@ export default function MyProjects() {
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {clips.map((clip) => (
-                  <ClipCard key={clip.id} clip={clip} onDelete={handleDeleteClip} />
+                  <SectionBoundary key={clip.id} variant="compact" name="my-projects-clip-card">
+                    <ClipCard clip={clip} onDelete={handleDeleteClip} />
+                  </SectionBoundary>
                 ))}
               </div>
             </div>
-          )
+          )}
+          </SectionBoundary>
         )}
 
         {/* ── WEBSITES TAB ──
@@ -1121,7 +1138,8 @@ export default function MyProjects() {
             metadata only — no preview image is stored anywhere; the
             preview renders live inside the builder on open. */}
         {tab === "websites" && (
-          websitesLoading ? (
+          <SectionBoundary name="my-projects-tab-websites">
+          {websitesLoading ? (
             <div className="flex items-center justify-center py-24">
               <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
             </div>
@@ -1149,7 +1167,8 @@ export default function MyProjects() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {websites.map((site) => (
-                <div key={site.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <SectionBoundary key={site.id} variant="compact" name="my-projects-website-card">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-bold text-white">{site.name}</p>
@@ -1180,14 +1199,17 @@ export default function MyProjects() {
                     </Button>
                   </div>
                 </div>
+                </SectionBoundary>
               ))}
             </div>
-          )
+          )}
+          </SectionBoundary>
         )}
 
         {/* ── GENERATION HISTORY TAB ── */}
         {tab === "history" && (
-          historyLoading ? (
+          <SectionBoundary name="my-projects-tab-history">
+          {historyLoading ? (
             <div className="flex items-center justify-center py-24">
               <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
             </div>
@@ -1244,7 +1266,8 @@ export default function MyProjects() {
                   row.save_status === "save_failed" ? t("myProjects.statusSaveFailed") :
                   row.save_status === "charged"     ? t("myProjects.statusGenerated") : row.save_status;
                 return (
-                  <div key={row.id} className="rounded-xl border border-white/10 bg-[#0a0a0a] p-4 space-y-3 hover:border-white/20 transition-colors">
+                  <SectionBoundary key={row.id} variant="compact" name="my-projects-history-row">
+                  <div className="rounded-xl border border-white/10 bg-[#0a0a0a] p-4 space-y-3 hover:border-white/20 transition-colors">
                     {/* Clip video preview (if video_url exists) */}
                     {isClip && row.video_url && (
                       <div className="rounded-lg overflow-hidden bg-black border border-white/[0.06]">
@@ -1327,17 +1350,27 @@ export default function MyProjects() {
                       </div>
                     </div>
                   </div>
+                  </SectionBoundary>
                 );
               })}
             </div>
-          )
+          )}
+          </SectionBoundary>
         )}
 
         {/* ── MY CLIPS (FULL CLIPS MANAGER) ── */}
-        {tab === "myclips" && <MyClips />}
+        {tab === "myclips" && (
+          <SectionBoundary name="my-projects-tab-myclips">
+            <MyClips />
+          </SectionBoundary>
+        )}
 
         {/* ── SONGS ── */}
-        {tab === "songs" && <SongsPage />}
+        {tab === "songs" && (
+          <SectionBoundary name="my-projects-tab-songs">
+            <SongsPage />
+          </SectionBoundary>
+        )}
 
       </div>
     </div>
