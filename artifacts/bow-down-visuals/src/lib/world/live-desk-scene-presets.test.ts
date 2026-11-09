@@ -187,19 +187,20 @@ async function relayHarness() {
 }
 
 describe("#94 the desk's menu is the preset registry itself", () => {
-  it("is SCENE_PRESETS by reference — all 13, in the registry's order", () => {
+  it("is SCENE_PRESETS by reference — all 15, in the registry's order", () => {
     expect(SCENE_PRESET_OPTIONS).toBe(SCENE_PRESETS);
-    expect(SCENE_PRESET_OPTIONS).toHaveLength(13);
+    expect(SCENE_PRESET_OPTIONS).toHaveLength(15);
     expect(SCENE_PRESET_OPTIONS.map((p) => p.id)).toEqual([
       "just-you", "camera-live-overlay", "screen-and-you", "screen-only",
       "starting-soon", "be-right-back", "avatar-stage", "guest-interview",
-      "chroma-stage", "goal-push", "media-premiere", "panel-talk", "end-screen",
+      "chroma-stage", "goal-push", "media-premiere", "panel-talk",
+      "duet-split", "whiteboard-lesson", "end-screen",
     ]);
     expect(SCENE_PRESET_OPTIONS.map((p) => p.name)).toEqual([
       "Just You", "Camera + Live Overlay", "Screen + You in the Corner",
       "Screen Only", "Starting Soon", "Be Right Back", "Live as Your Avatar",
       "Guest Interview", "Green Screen Stage", "Goal Push", "Media Premiere",
-      "Panel Talk", "End Screen",
+      "Panel Talk", "Duet Split", "Whiteboard Lesson", "End Screen",
     ]);
   });
 
