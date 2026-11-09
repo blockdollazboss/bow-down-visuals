@@ -1,7 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -57,24 +64,34 @@ router.post("/video-titles", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the topic/description/styles ask; the guard's stored-result
+     pre-check runs before the balance gate and any funding. A failed
+     generation refunds as before and voids the key. */
+  const idempotencyKey = buildChargeIdempotencyKey("video-titles", req.userId!, null, {
+    topic: parsed.data.topic,
+    description: parsed.data.description ?? null,
+    styles: parsed.data.styles ?? null,
+  });
+
+  try {
+    const outcome = await withReplayProtection("video-titles", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < TITLES_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
     });
-    return;
   }
 
   let creditsAfter: number;
   try {
     creditsAfter = await chargeCredits(req.userId!, TITLES_COST, {
       action: "Video Title Generator",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "Not enough Visual Bucs." });
     }
     throw err;
   }
@@ -144,16 +161,30 @@ router.post("/video-titles", requireAuth, async (req, res) => {
     // Best first
     titles.sort((a, b) => b.ctrScore - a.ctrScore);
 
-    res.json({
+    return {
       titles,
       creditsRemaining: creditsAfter,
-    });
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Title generation failed.";
     req.log.error({ err: message }, "[video-titles] failed");
-    await refundCredits(req.userId!, TITLES_COST, {
+    const refunded = await refundCredits(req.userId!, TITLES_COST, {
       action: "Video Title Generator — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Title generation failed.";
     res.status(500).json({ error: message });
   }
 });

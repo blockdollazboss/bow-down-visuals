@@ -11,7 +11,10 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 
 /* ─── Tour Planner ────────────────────────────────────────────────────────
    Plan tours and live shows:
@@ -301,6 +304,21 @@ router.post("/tour/optimize", requireAuth, publicApiLimiter, async (req, res) =>
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the optimize ask (the requested date ids + trip parameters); the
+     guard's stored-result pre-check runs before the dates load, the
+     balance gate and any funding. Fresh responses are byte-identical:
+     the pre-charge 404/502 answers ride ReplayShortCircuit. A failed
+     optimization refunds as before and voids the key. */
+  const idempotencyKey = buildChargeIdempotencyKey("tour-optimize", req.userId!, null, {
+    dateIds: parsed.data.date_ids,
+    homeBase: parsed.data.home_base,
+    transport: parsed.data.transport,
+    crewSize: parsed.data.crew_size,
+  });
+
+  try {
+    const outcome = await withReplayProtection("tour-optimize", idempotencyKey, req.userId!, async () => {
   /* Load the user's dates and make sure every requested id is theirs. */
   let dates: Array<{ id: string; city: string; venue: string; show_date: Date }>;
   try {
@@ -316,50 +334,49 @@ router.post("/tour/optimize", requireAuth, publicApiLimiter, async (req, res) =>
     const byId = new Map(rows.map((r) => [r.id, r]));
     const missing = parsed.data.date_ids.filter((id) => !byId.has(id));
     if (missing.length > 0) {
-      res.status(404).json({ error: "One or more tour dates weren't found." });
-      return;
+      throw new ReplayShortCircuit(404, { error: "One or more tour dates weren't found." });
     }
     dates = parsed.data.date_ids.map((id) => byId.get(id)!);
   } catch (err) {
+    if (err instanceof ReplayShortCircuit) throw err;
     logger.error({ err }, "[tour-planner] load dates for optimize failed");
-    res.status(502).json({ error: "Couldn't load your tour dates — try again." });
-    return;
+    throw new ReplayShortCircuit(502, { error: "Couldn't load your tour dates — try again." });
   }
 
   const balance = req.userCredits ?? 0;
   if (balance < TOUR_PLANNER_CREDIT_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "You're out of Visual Bucs — top up to run the AI tour optimizer.",
     });
-    return;
   }
   let creditsRemaining = balance;
   try {
     creditsRemaining = await chargeCredits(req.userId!, TOUR_PLANNER_CREDIT_COST, {
       action: "Tour Planner — AI routing + budget",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to run the AI tour optimizer.",
       });
-      return;
     }
     throw err;
   }
 
-  const refundOnFailure = async () => {
+  const refundOnFailure = async (): Promise<boolean> => {
     try {
       await refundCredits(req.userId!, TOUR_PLANNER_CREDIT_COST, {
         action: "Tour Planner — Refund (optimization failed)",
       });
+      return true;
     } catch (refundErr) {
       logger.error(
         { err: refundErr, userId: req.userId },
         "[tour-planner] refund failed after optimization error",
       );
+      return false;
     }
   };
 
@@ -411,15 +428,28 @@ router.post("/tour/optimize", requireAuth, publicApiLimiter, async (req, res) =>
       };
     });
 
-    res.json({
+    return {
       stops,
       budget: optimized.budget,
       routing_notes: optimized.routing_notes,
       creditsUsed: TOUR_PLANNER_CREDIT_COST,
       creditsRemaining,
-    });
+    };
   } catch (err) {
-    await refundOnFailure();
+    const refunded = await refundOnFailure();
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
     if (
       err instanceof OpenAI.APIError &&
       (err.status === 429 || err.code === "insufficient_quota")

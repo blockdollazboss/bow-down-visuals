@@ -7,7 +7,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -131,29 +138,49 @@ router.post("/clone-voice", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6, Pattern C): server-derived
+     key over the sample + name/base-voice ask; the guard's
+     stored-result pre-check runs before the balance gate and any
+     funding. The stored success body carries the inserted voiceClones
+     row's id — a replay returns the same clone and never inserts (or
+     provider-creates) a second one. Every refund below goes through
+     fail(), which also voids the key when the refund lands. */
+  const idempotencyKey = buildChargeIdempotencyKey("voice-clone", req.userId!, null, {
+    sampleUrl: parsed.data.sampleUrl,
+    name: parsed.data.name,
+    description: parsed.data.description ?? null,
+    baseVoice: parsed.data.baseVoice ?? null,
+  });
+
+  try {
+    const outcome = await withReplayProtection("voice-clone", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < CLONE_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
     });
-    return;
   }
 
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, CLONE_COST, { action: "Voice Clone" });
+    creditsAfter = await chargeCredits(req.userId!, CLONE_COST, { action: "Voice Clone" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "Not enough Visual Bucs." });
     }
     throw err;
   }
 
-  const fail = async (status: number, message: string) => {
-    await refundCredits(req.userId!, CLONE_COST, { action: "Voice Clone — Refund" }).catch(() => {});
-    res.status(status).json({ error: message });
+  const fail = async (status: number, message: string): Promise<never> => {
+    const refunded = await refundCredits(req.userId!, CLONE_COST, { action: "Voice Clone — Refund" })
+      .then(() => true)
+      .catch(() => false);
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw new ReplayShortCircuit(status, { error: message });
   };
 
   const workDir = await mkdtemp(join(tmpdir(), "voice-clone-"));
@@ -166,7 +193,6 @@ router.post("/clone-voice", requireAuth, async (req, res) => {
     const duration = await probeAudioDurationSec(samplePath);
     if (duration < MIN_SAMPLE_SEC) {
       await fail(400, `Sample is too short (${duration.toFixed(1)}s). Please use at least ${MIN_SAMPLE_SEC} seconds of clear speech.`);
-      return;
     }
     const analysis = { ...(await analyzeSample(samplePath)), durationSec: Math.round(duration * 10) / 10 };
 
@@ -196,13 +222,12 @@ router.post("/clone-voice", requireAuth, async (req, res) => {
       const body = await elRes.text().catch(() => "");
       req.log.warn({ status: elRes.status, body: body.slice(0, 300) }, "[voice-clone] elevenlabs add failed, refunding");
       await fail(502, "The voice provider couldn't create that clone — your Visual Bucs were refunded.");
-      return;
     }
     const elData = (await elRes.json().catch(() => ({}))) as { voice_id?: string };
     if (!elData.voice_id) {
       req.log.warn("[voice-clone] elevenlabs add returned no voice_id, refunding");
       await fail(502, "The voice provider couldn't create that clone — your Visual Bucs were refunded.");
-      return;
+      throw new Error("unreachable"); // fail() never returns; narrows voice_id below
     }
     const elevenlabsVoiceId: string = elData.voice_id;
     const source = "elevenlabs" as const;
@@ -221,7 +246,7 @@ router.post("/clone-voice", requireAuth, async (req, res) => {
       })
       .returning();
 
-    res.json({
+    return {
       voice: {
         id: voice!.id,
         name: voice!.name,
@@ -234,15 +259,26 @@ router.post("/clone-voice", requireAuth, async (req, res) => {
         createdAt: voice!.createdAt,
       },
       creditsRemaining: creditsAfter,
-    });
+    };
   } catch (err) {
+    if (err instanceof ReplayShortCircuit) throw err;
     const message = err instanceof Error ? err.message : "Voice cloning failed.";
     req.log.error({ err: message }, "[voice-clone] failed");
     await fail(500, message);
+    throw err; // unreachable — fail() always throws; keeps the compiler honest
   } finally {
     await unlink(samplePath).catch(() => {});
     const { rm } = await import("fs/promises");
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
+    throw err;
   }
 });
 
@@ -267,29 +303,48 @@ router.post("/speak-as", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the clone id + the text to speak (the manifest's named intent —
+     the clone lookup above never marks the clone consumed, so the
+     SAME ask is the same charge); the guard's stored-result pre-check
+     runs before the balance gate and any funding. Every refund below
+     goes through fail(), which also voids the key when the refund
+     lands, so a genuine retry re-charges. Fresh responses are
+     byte-identical. */
+  const idempotencyKey = buildChargeIdempotencyKey("voice-clone-speak", req.userId!, null, {
+    voiceId: parsed.data.voiceId,
+    text: parsed.data.text,
+  });
+
+  try {
+    const outcome = await withReplayProtection("voice-clone-speak", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < SPEAK_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
     });
-    return;
   }
 
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, SPEAK_COST, { action: `Speak As (${voice.name})` });
+    creditsAfter = await chargeCredits(req.userId!, SPEAK_COST, { action: `Speak As (${voice.name})` }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "Not enough Visual Bucs." });
     }
     throw err;
   }
 
-  const fail = async (status: number, message: string) => {
-    await refundCredits(req.userId!, SPEAK_COST, { action: "Speak As — Refund" }).catch(() => {});
-    res.status(status).json({ error: message });
+  const fail = async (status: number, message: string): Promise<never> => {
+    const refunded = await refundCredits(req.userId!, SPEAK_COST, { action: "Speak As — Refund" })
+      .then(() => true)
+      .catch(() => false);
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw new ReplayShortCircuit(status, { error: message });
   };
 
   try {
@@ -334,11 +389,22 @@ router.post("/speak-as", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, audioBuffer, "audio/mpeg");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({ url, storageRef, voiceId: voice.id, source: voice.source, creditsRemaining: creditsAfter });
+    return { url, storageRef, voiceId: voice.id, source: voice.source, creditsRemaining: creditsAfter };
   } catch (err) {
+    if (err instanceof ReplayShortCircuit) throw err;
     const message = err instanceof Error ? err.message : "Speech generation failed.";
     req.log.error({ err: message }, "[voice-clone] speak-as failed");
     await fail(500, message);
+    throw err; // unreachable — fail() always throws; keeps the compiler honest
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
+    throw err;
   }
 });
 

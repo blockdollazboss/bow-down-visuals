@@ -5,7 +5,14 @@ import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clie
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 
 const router = Router();
 
@@ -155,26 +162,37 @@ router.post("/title-studio", requireAuth, publicApiLimiter, async (req, res) => 
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the topic/platform/tone/keywords ask; the guard's stored-result
+     pre-check runs before the balance gate and any funding. A failed
+     packaging refunds as before and voids the key. */
+  const idempotencyKey = buildChargeIdempotencyKey("title-studio", req.userId!, null, {
+    topic: parsed.data.topic,
+    platform: parsed.data.platform,
+    tone: parsed.data.tone,
+    keywords: parsed.data.keywords,
+  });
+
+  try {
+    const outcome = await withReplayProtection("title-studio", idempotencyKey, req.userId!, async () => {
   const balance = req.userCredits ?? 0;
   if (balance < TITLE_STUDIO_CREDITS) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "You're out of Visual Bucs — top up to keep using the Title Studio.",
     });
-    return;
   }
   let creditsRemaining = balance;
   try {
     creditsRemaining = await chargeCredits(req.userId!, TITLE_STUDIO_CREDITS, {
       action: "Title Studio",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to keep using the Title Studio.",
       });
-      return;
     }
     throw err;
   }
@@ -205,20 +223,35 @@ router.post("/title-studio", requireAuth, publicApiLimiter, async (req, res) => 
       throw new Error("Model returned no usable packaging");
     }
 
-    res.json({
+    return {
       ...packaged,
       creditsUsed: TITLE_STUDIO_CREDITS,
       creditsRemaining,
-    });
+    };
   } catch (err) {
     /* Refund: the user paid for packaging they didn't get. */
+    let refunded = true;
     try {
       await refundCredits(req.userId!, TITLE_STUDIO_CREDITS, {
         action: "Title Studio — Refund (generation failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       // Logged inside refundCredits; don't mask the original failure.
       void refundErr;
+    }
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
     }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[title-studio] OpenAI rate limit / quota");

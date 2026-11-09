@@ -9,7 +9,10 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 
 /* ─── Three Second Lab ────────────────────────────────────────────────────
    /api/three-second-lab/openings — 2 credits: the creator describes their
@@ -57,11 +60,16 @@ function parseOpening(e: Record<string, unknown>): OpeningItem | null {
   };
 }
 
-async function refundOnFailure(userId: string, amount: number, label: string) {
+async function refundOnFailure(userId: string, amount: number, label: string, idempotencyKey?: string) {
   try {
     await refundCredits(userId, amount, {
       action: `${label} — Refund (generation failed)`,
     });
+    /* CA-6: a landed refund voids the charge's key, so a genuine
+       retry can re-charge instead of being suppressed as a replay. */
+    if (idempotencyKey) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
   } catch (refundErr) {
     logger.error({ err: refundErr, userId }, "[three-second-lab] refund failed after generation error");
   }
@@ -81,29 +89,38 @@ router.post("/three-second-lab/openings", requireAuth, publicApiLimiter, async (
     return;
   }
 
+  const { videoDescription, niche } = parsed.data;
+
+  /* CA-6 replay protection (charge audit B6): key derived from the
+     request intent; the guard's stored-result pre-check runs before
+     the balance gate and any funding. The failure refund below now
+     also voids the key, so a genuine retry can re-charge. */
+  const idempotencyKey = buildChargeIdempotencyKey("three-second-lab-openings", req.userId!, null, {
+    videoDescription,
+    niche,
+  });
+
+  try {
+    const outcome = await withReplayProtection("three-second-lab-openings", idempotencyKey, req.userId!, async () => {
   const balance = req.userCredits ?? 0;
   if (balance < OPENINGS_CREDITS) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "You're out of Visual Bucs — top up to test your openings.",
     });
-    return;
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, OPENINGS_CREDITS, { action: "Three Second Lab — Openings" });
+    creditsRemaining = await chargeCredits(req.userId!, OPENINGS_CREDITS, { action: "Three Second Lab — Openings" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to test your openings.",
       });
-      return;
     }
     throw err;
   }
-
-  const { videoDescription, niche } = parsed.data;
 
   try {
     const completion = await getOpenAI().chat.completions.create({
@@ -157,13 +174,22 @@ router.post("/three-second-lab/openings", requireAuth, publicApiLimiter, async (
     }
     openings.sort((a, b) => b.score - a.score);
 
-    res.json({
+    return {
       openings,
       creditsUsed: OPENINGS_CREDITS,
       creditsRemaining,
-    });
+    };
   } catch (err) {
-    await refundOnFailure(req.userId!, OPENINGS_CREDITS, "Three Second Lab — Openings");
+    await refundOnFailure(req.userId!, OPENINGS_CREDITS, "Three Second Lab — Openings", idempotencyKey);
+    throw err;
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[three-second-lab] OpenAI rate limit / quota");
       res.status(503).json({ error: "The three-second lab is catching its breath — try again in a moment." });

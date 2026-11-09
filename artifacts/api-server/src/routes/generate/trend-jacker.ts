@@ -9,7 +9,10 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 
 /* ─── Trend Jacker ────────────────────────────────────────────────────────
    /api/trend-jacker/draft — 200 credits: AI writes a complete video draft
@@ -50,13 +53,15 @@ function parseStringArray(raw: unknown, max: number): string[] {
     .slice(0, max);
 }
 
-async function refundOnFailure(userId: string, amount: number, label: string) {
+async function refundOnFailure(userId: string, amount: number, label: string): Promise<boolean> {
   try {
     await refundCredits(userId, amount, {
       action: `${label} — Refund (generation failed)`,
     });
+    return true;
   } catch (refundErr) {
     logger.error({ err: refundErr, userId }, "[trend-jacker] refund failed after generation error");
+    return false;
   }
 }
 
@@ -74,24 +79,35 @@ router.post("/trend-jacker/draft", requireAuth, publicApiLimiter, async (req, re
     return;
   }
 
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the trend/niche/style ask; the guard's stored-result pre-check
+     runs before the balance gate and any funding. A failed draft
+     refunds as before and voids the key. */
+  const idempotencyKey = buildChargeIdempotencyKey("trend-jacker-draft", req.userId!, null, {
+    trend: parsed.data.trend,
+    trendWhy: parsed.data.trendWhy ?? null,
+    niche: parsed.data.niche,
+    styleNotes: parsed.data.styleNotes ?? null,
+  });
+
+  try {
+    const outcome = await withReplayProtection("trend-jacker-draft", idempotencyKey, req.userId!, async () => {
   const balance = req.userCredits ?? 0;
   if (balance < DRAFT_CREDITS) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "You're out of Visual Bucs — top up to draft your trend video.",
     });
-    return;
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, DRAFT_CREDITS, { action: "Trend Jacker — Draft" });
+    creditsRemaining = await chargeCredits(req.userId!, DRAFT_CREDITS, { action: "Trend Jacker — Draft" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to draft your trend video.",
       });
-      return;
     }
     throw err;
   }
@@ -155,7 +171,7 @@ router.post("/trend-jacker/draft", requireAuth, publicApiLimiter, async (req, re
       throw new Error("Model returned no usable draft");
     }
 
-    res.json({
+    return {
       hook,
       script,
       visualPlan,
@@ -163,9 +179,22 @@ router.post("/trend-jacker/draft", requireAuth, publicApiLimiter, async (req, re
       hashtags,
       creditsUsed: DRAFT_CREDITS,
       creditsRemaining,
-    });
+    };
   } catch (err) {
-    await refundOnFailure(req.userId!, DRAFT_CREDITS, "Trend Jacker — Draft");
+    const refunded = await refundOnFailure(req.userId!, DRAFT_CREDITS, "Trend Jacker — Draft");
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[trend-jacker] OpenAI rate limit / quota");
       res.status(503).json({ error: "The trend jacker is catching its breath — try again in a moment." });

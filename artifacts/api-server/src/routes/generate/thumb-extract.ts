@@ -7,7 +7,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -55,24 +62,35 @@ router.post("/extract-thumbnails", requireAuth, async (req, res) => {
 
   const { videoUrl, count } = parsed.data;
 
+  /* CA-6 replay protection (charge audit B6): key derived from the
+     request intent ({videoUrl, count}); the guard's stored-result
+     pre-check runs before the balance gate and any funding. (The
+     jobId below is only a storage prefix — this rail answers
+     synchronously.) A failed extraction refunds as before and
+     voids the key, so a genuine retry can re-charge. */
+  const idempotencyKey = buildChargeIdempotencyKey("thumb-extract", req.userId!, null, {
+    videoUrl,
+    count,
+  });
+
+  try {
+    const outcome = await withReplayProtection("thumb-extract", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < THUMB_EXTRACT_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
     });
-    return;
   }
 
   let creditsAfter: number;
   try {
     creditsAfter = await chargeCredits(req.userId!, THUMB_EXTRACT_COST, {
       action: "Thumbnail Extractor",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "Not enough Visual Bucs." });
     }
     throw err;
   }
@@ -137,20 +155,35 @@ router.post("/extract-thumbnails", requireAuth, async (req, res) => {
       /* best effort */
     }
 
-    res.json({
+    return {
       ok: true,
       duration,
       thumbnails,
       creditsCharged: THUMB_EXTRACT_COST,
       creditsAfter,
-    });
+    };
   } catch (err) {
+    let refunded = true;
     try {
       await refundCredits(req.userId!, THUMB_EXTRACT_COST, {
         action: "Thumbnail Extractor (failure refund)",
       });
     } catch {
+      refunded = false;
       /* best effort */
+    }
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
     }
     const message = err instanceof Error ? err.message : "Thumbnail extraction failed.";
     res.status(500).json({ error: "extraction_failed", message });

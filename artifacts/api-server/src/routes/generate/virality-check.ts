@@ -10,7 +10,10 @@ import {
   refundCredits,
   OutOfCreditsError,
   LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 
 const router = Router();
 
@@ -70,41 +73,55 @@ router.post(
       return;
     }
 
+    /* CA-6 replay protection (charge audit B6): server-derived key over
+       the caption/hashtags/hook/platform ask; the guard's stored-result
+       pre-check runs before the balance gate and any funding. Every
+       failure refund below also voids the key when it lands. */
+    const idempotencyKey = buildChargeIdempotencyKey("virality-check", req.userId!, null, {
+      caption: parsed.data.caption,
+      hashtags: parsed.data.hashtags,
+      hookLine: parsed.data.hookLine,
+      platform: parsed.data.platform,
+    });
+
+    try {
+      const outcome = await withReplayProtection("virality-check", idempotencyKey, req.userId!, async () => {
     const balance = req.userCredits ?? 0;
     if (balance < VIRALITY_CHECK_CREDITS) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message:
           "You're out of Visual Bucs — top up to keep running pre-flight checks.",
       });
-      return;
     }
     let creditsRemaining = balance;
     try {
       creditsRemaining = await chargeCredits(
         req.userId!,
         VIRALITY_CHECK_CREDITS,
-        { action: "Virality Pre-Flight Check" }
+        { action: "Virality Pre-Flight Check" },
+        { idempotencyKey }
       );
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
-        res.status(402).json({
+        throw new ReplayShortCircuit(402, {
           error: "out_of_credits",
           message:
             "You're out of Visual Bucs — top up to keep running pre-flight checks.",
         });
-        return;
       }
       throw err;
     }
 
     /* Refund the 2 credits whenever the model call fails — the user paid for
-       a scorecard they didn't get. */
+       a scorecard they didn't get. A landed refund also voids the CA-6
+       key (bg-generator precedent), so a retry re-charges. */
     const refund = async () => {
       try {
         await refundCredits(req.userId!, VIRALITY_CHECK_CREDITS, {
           action: "Virality Pre-Flight Check — Refund (generation failed)",
         });
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
       } catch {
         /* Logged inside refundCredits; don't mask the original failure. */
       }
@@ -250,13 +267,12 @@ router.post(
       }
       if (!parsedOk) {
         await refund();
-        res.status(500).json({
+        throw new ReplayShortCircuit(500, {
           error: "The check came back empty — Visual Bucs refunded, try again.",
         });
-        return;
       }
 
-      res.json({
+      return {
         overallScore,
         hookStrength,
         captionScore,
@@ -265,14 +281,29 @@ router.post(
         fixes,
         creditsUsed: VIRALITY_CHECK_CREDITS,
         creditsRemaining,
-      });
+      };
     } catch (err) {
+      if (err instanceof ReplayShortCircuit) throw err;
+      /* The failure response (503 quota / 502 other) is sent by the
+         outer handler as before; this catch only owns the refund. A
+         LedgerWriteError propagates unrefunded, as before. */
+      if (!(err instanceof LedgerWriteError)) {
+        await refund();
+      }
+      throw err;
+    }
+      });
+      res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+    } catch (err) {
+      if (err instanceof ReplayShortCircuit) {
+        res.status(err.status).json(err.body);
+        return;
+      }
       if (
         err instanceof OpenAI.APIError &&
         (err.status === 429 || err.code === "insufficient_quota")
       ) {
         logger.warn({ err }, "[virality-check] OpenAI rate limit / quota");
-        await refund();
         res.status(503).json({
           error: "The studio is catching its breath — Visual Bucs refunded, try again in a moment.",
         });
@@ -282,7 +313,6 @@ router.post(
         throw err;
       }
       logger.error({ err }, "[virality-check] generation failed");
-      await refund();
       res.status(502).json({
         error: "The studio hiccupped — Visual Bucs refunded, try again.",
       });

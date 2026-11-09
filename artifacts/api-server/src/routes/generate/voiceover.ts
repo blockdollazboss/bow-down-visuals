@@ -22,7 +22,10 @@ import {
   refundCredits,
   OutOfCreditsError,
   LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { refreshSupabaseStorageUrl, uploadMediaToSupabaseStorage } from "../../lib/objectStorage";
@@ -187,29 +190,43 @@ router.post(
     const estimate = estimateVoiceoverCost(script);
     const actionName = "AI Voiceover";
 
+    /* CA-6 replay protection (charge audit B6): server-derived key
+       over the script/voice/emotion/format/speed ask (the script
+       drives the estimate price); the guard's stored-result
+       pre-check runs before the balance gate and any funding. The
+       provider/upload failure refunds below also void the key when
+       they land. */
+    const idempotencyKey = buildChargeIdempotencyKey("voiceover", req.userId!, null, {
+      script,
+      voiceId,
+      emotion,
+      format,
+      speed,
+    });
+
+    try {
+      const outcome = await withReplayProtection("voiceover", idempotencyKey, req.userId!, async () => {
     const balance = req.userCredits ?? 0;
     if (balance < estimate.credits) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message: `This voiceover needs ${estimate.credits} credits — top up to keep creating.`,
         creditsRequired: estimate.credits,
       });
-      return;
     }
 
     let creditsRemaining = balance;
     try {
       creditsRemaining = await chargeCredits(req.userId!, estimate.credits, {
         action: actionName,
-      });
+      }, { idempotencyKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
-        res.status(402).json({
+        throw new ReplayShortCircuit(402, {
           error: "out_of_credits",
           message: `This voiceover needs ${estimate.credits} credits — top up to keep creating.`,
           creditsRequired: estimate.credits,
         });
-        return;
       }
       throw err;
     }
@@ -244,15 +261,19 @@ router.post(
         throw new Error("ElevenLabs returned empty audio");
       }
     } catch (err) {
-      await refundCredits(req.userId!, estimate.credits, {
+      const refunded = await refundCredits(req.userId!, estimate.credits, {
         action: `${actionName} — Refund (provider failed)`,
-      }).catch((refundErr) =>
-        logger.error({ refundErr }, "voiceover: refund after provider failure failed"),
-      );
-      res.status(502).json({
+      }).then(() => true).catch((refundErr) => {
+        logger.error({ refundErr }, "voiceover: refund after provider failure failed");
+        return false;
+      });
+      /* CA-6: a landed refund voids the key, so the retry re-charges. */
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+      }
+      throw new ReplayShortCircuit(502, {
         error: "Voice generation failed — your Visual Bucs were refunded. Please try again.",
       });
-      return;
     }
 
     /* Upload — storage failure also refunds. */
@@ -261,22 +282,26 @@ router.post(
       upload = await uploadVoiceover(req.userId!, audioBytes, format);
     } catch (err) {
       logger.error({ err }, "voiceover: upload failed");
-      await refundCredits(req.userId!, estimate.credits, {
+      const refunded = await refundCredits(req.userId!, estimate.credits, {
         action: `${actionName} — Refund (upload failed)`,
-      }).catch((refundErr) =>
-        logger.error({ refundErr }, "voiceover: refund after upload failure failed"),
-      );
-      res.status(502).json({
+      }).then(() => true).catch((refundErr) => {
+        logger.error({ refundErr }, "voiceover: refund after upload failure failed");
+        return false;
+      });
+      /* CA-6: a landed refund voids the key, so the retry re-charges. */
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+      }
+      throw new ReplayShortCircuit(502, {
         error: "Voice generated but upload failed — your Visual Bucs were refunded. Please try again.",
       });
-      return;
     }
 
     /* Playable URL for immediate playback/download. The stable storage ref
        in audioUrl can't be played directly by browsers. */
     const audioPlayUrl = await refreshSupabaseStorageUrl(upload.url);
 
-    res.json({
+    return {
       audioUrl: upload.url,
       audioRef: upload.ref,
       audioPlayUrl,
@@ -287,7 +312,16 @@ router.post(
       estimatedSeconds: estimate.estimatedSeconds,
       creditsUsed: estimate.credits,
       creditsRemaining,
-    });
+    };
+      });
+      res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+    } catch (err) {
+      if (err instanceof ReplayShortCircuit) {
+        res.status(err.status).json(err.body);
+        return;
+      }
+      throw err;
+    }
   },
 );
 

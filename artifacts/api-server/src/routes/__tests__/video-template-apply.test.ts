@@ -35,6 +35,13 @@ vi.mock("../../middlewares/require-auth", () => ({
 }));
 
 vi.mock("../../lib/credits", () => ({
+  /* CA-6: the rails now derive charge idempotency keys — deterministic
+     test double mirroring the fake-ledger shape used across the CA suites. */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) =>
+    typeof clientKey === "string" && clientKey.trim().length >= 8
+      ? `${scope}:${userId}:client:${clientKey.trim()}`
+      : `${scope}:${userId}:${JSON.stringify(intent)}`,
+  voidChargeIdempotencyKey: async (_key: string) => true,
   chargeCredits: vi.fn(async () => 9750),
   refundCredits: vi.fn(async () => undefined),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
@@ -195,6 +202,7 @@ describe("POST /api/video-template/apply — charge-on-success, refund-on-failur
       "user-1",
       TEMPLATE_COST,
       expect.objectContaining({ action: expect.stringContaining("Video Template") }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     );
 
     const job = await settleJob(json.jobId);
@@ -205,13 +213,18 @@ describe("POST /api/video-template/apply — charge-on-success, refund-on-failur
 
   it("render failure: the 250 charge is refunded exactly once and the job reports failed", async () => {
     h.ffmpegFail = true;
-    const { status, json } = await apply();
+    /* CA-6: a distinct title = a distinct charge intent. The success
+       test's identical body would (correctly) replay its completed
+       job instead of creating this failing one — job ids are now
+       deterministic from the charge key. */
+    const { status, json } = await apply({ ...APPLY_BODY, title: "Failure case" });
     expect(status).toBe(202);
     expect(vi.mocked(chargeCredits)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(chargeCredits)).toHaveBeenCalledWith(
       "user-1",
       TEMPLATE_COST,
       expect.objectContaining({ action: expect.stringContaining("Video Template") }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     );
 
     const job = await settleJob(json.jobId);

@@ -42,6 +42,13 @@ vi.mock("../../middlewares/require-auth", () => ({
 
 vi.mock("../../lib/credits", () => ({
   OutOfCreditsError: class OutOfCreditsError extends Error {},
+  /* CA-6: the rails now derive charge idempotency keys — deterministic
+     test double mirroring the fake-ledger shape used across the CA suites. */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) =>
+    typeof clientKey === "string" && clientKey.trim().length >= 8
+      ? `${scope}:${userId}:client:${clientKey.trim()}`
+      : `${scope}:${userId}:${JSON.stringify(intent)}`,
+  voidChargeIdempotencyKey: async (_key: string) => true,
   chargeCredits: vi.fn(async (userId: string, amount: number) => {
     testState.chargeCalls.push({ userId, amount });
     return 0;
@@ -85,6 +92,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
 
 import websiteBuilderRouter from "../generate/website-builder";
 import { createTestDb } from "../../lib/__tests__/test-db";
+import { __resetCa6ReplayCache } from "../generate/ca6-replay-guard";
 import { buildSeedContext, emptyCreatorSeed, seedSummary } from "../../lib/website-builder-seed";
 
 const DDL = `
@@ -143,6 +151,7 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
+  __resetCa6ReplayCache(); // CA-6: the guard's in-process store must not leak across tests
   const { db, mem } = createTestDb();
   mem.public.registerFunction({
     name: "gen_random_uuid",

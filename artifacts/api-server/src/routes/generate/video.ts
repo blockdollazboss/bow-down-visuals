@@ -4,7 +4,15 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 
 const router = Router();
 
@@ -129,6 +137,33 @@ router.post("/generate-video-plan", requireAuth, async (req, res) => {
   const artistVault = parsed.data.artistVault as VaultData | null | undefined;
   const songStructure = parsed.data.songStructure as SongStructureData;
 
+  /* CA-6 replay protection (charge audit B6): server-derived key over
+     the video-plan ask; the guard's stored-result pre-check runs
+     before the balance gate and any funding. The reserve/refund
+     structure below is unchanged; the failure path voids the key
+     only when the reserve refund lands. The stored success body
+     carries the history row's id (Pattern C) — a replay returns the
+     same plan and never writes a second history row. */
+  const idempotencyKey = buildChargeIdempotencyKey("video-plan", req.userId!, null, {
+    artistName,
+    songTitle,
+    genre,
+    mood,
+    videoStyle,
+    platform,
+    videoLength,
+    lyrics: lyrics ?? null,
+    artistDescription,
+    instructions: instructions ?? null,
+    artistVaultId:
+      (artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ??
+      (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"] ??
+      null,
+    songStructure: songStructure ?? null,
+  });
+
+  try {
+    const outcome = await withReplayProtection("video-plan", idempotencyKey, req.userId!, async () => {
   const currentCredits = req.userCredits ?? 0;
 
   if (process.env["NODE_ENV"] === "development") {
@@ -137,11 +172,10 @@ router.post("/generate-video-plan", requireAuth, async (req, res) => {
 
   const isDev = process.env["NODE_ENV"] === "development";
   if (!isDev && currentCredits < CREDIT_COST) {
-    res.status(402).json({
+    throw new ReplayShortCircuit(402, {
       error: "out_of_credits",
       message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
     });
-    return;
   }
 
   /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
@@ -153,27 +187,29 @@ router.post("/generate-video-plan", requireAuth, async (req, res) => {
      all but the first charge failed. Same price, same action. */
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Make a Music Video" });
+    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Make a Music Video" }, { idempotencyKey });
   } catch (deductErr) {
     if (deductErr instanceof OutOfCreditsError) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
       });
-      return;
     }
     if (deductErr instanceof LedgerWriteError) {
-      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
-      return;
+      throw new ReplayShortCircuit(500, { error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
     }
-    res.status(500).json({ error: deductErr instanceof Error ? deductErr.message : "Generation failed" });
-    return;
+    throw new ReplayShortCircuit(500, { error: deductErr instanceof Error ? deductErr.message : "Generation failed" });
   }
   let chargeLive = true;
-  const refundCharge = async () => {
-    if (!chargeLive) return;
+  const refundCharge = async (): Promise<boolean> => {
+    if (!chargeLive) return false;
     chargeLive = false;
-    await refundCredits(req.userId!, CREDIT_COST, { action: "Make a Music Video — Refund" }).catch(() => {});
+    try {
+      await refundCredits(req.userId!, CREDIT_COST, { action: "Make a Music Video — Refund" });
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const prompt = `Create a complete, cinematic music video package for the following release. Make every scene vivid, production-ready, and usable in AI video tools.
@@ -269,10 +305,23 @@ Write 5 ready-to-post social media captions for promoting this video. Mix hype, 
     // Step 3: Fire-and-forget — mark charged + log usage
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
-    res.json({ result: content, creditsRemaining: creditsAfter, genHistoryId });
+    return { result: content, creditsRemaining: creditsAfter, genHistoryId };
   } catch (err: unknown) {
+    const refunded = await refundCharge();
+    /* CA-6: a landed refund voids the key, so the retry re-charges. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
+    throw err;
+  }
+    });
+    res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+  } catch (err) {
+    if (err instanceof ReplayShortCircuit) {
+      res.status(err.status).json(err.body);
+      return;
+    }
     const message = err instanceof Error ? err.message : "Generation failed";
-    await refundCharge();
     res.status(500).json({ error: message });
   }
 });

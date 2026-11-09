@@ -1,10 +1,18 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { Request, Response, Router } from "express";
 import multer from "multer";
 import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { withReplayProtection, ReplayShortCircuit } from "./ca6-replay-guard";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -215,34 +223,44 @@ router.post(
     const title = meta.success ? meta.data.title : "";
     const niche = meta.success ? meta.data.niche : "";
 
+    /* CA-6 replay protection (charge audit B6): the intent is the
+       uploaded thumbnails themselves (byte hashes, thumbnail-generator
+       precedent) + title/niche; the guard's stored-result pre-check
+       runs before the balance gate and any funding. A failed analysis
+       refunds as before and voids the key, so a retry can re-charge. */
+    const idempotencyKey = buildChargeIdempotencyKey("thumbnail-test", req.userId!, null, {
+      title,
+      niche,
+      fileHashes: files.map((f) => createHash("sha256").update(f.buffer).digest("hex")),
+    });
+
+    try {
+      const outcome = await withReplayProtection("thumbnail-test", idempotencyKey, req.userId!, async () => {
     const balance = req.userCredits ?? 0;
     if (balance < THUMBNAIL_TEST_CREDIT_COST) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to run thumbnail tests.",
       });
-      return;
     }
 
     let creditsRemaining = balance;
     try {
       creditsRemaining = await chargeCredits(req.userId!, THUMBNAIL_TEST_CREDIT_COST, {
         action: "Thumbnail A/B Test",
-      });
+      }, { idempotencyKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
-        res.status(402).json({
+        throw new ReplayShortCircuit(402, {
           error: "out_of_credits",
           message: "You're out of Visual Bucs — top up to run thumbnail tests.",
         });
-        return;
       }
       if (err instanceof LedgerWriteError) {
-        res.status(500).json({
+        throw new ReplayShortCircuit(500, {
           error: "ledger_write_failed",
           message: "Credit ledger write failed — no Visual Bucs were charged. Please try again.",
         });
-        return;
       }
       throw err;
     }
@@ -278,15 +296,30 @@ router.post(
         { userId: req.userId, winnerIndex: result.winnerIndex, confidence: result.confidence },
         "[thumbnail-test] success",
       );
-      res.json({ result, creditsUsed: THUMBNAIL_TEST_CREDIT_COST, creditsRemaining });
+      return { result, creditsUsed: THUMBNAIL_TEST_CREDIT_COST, creditsRemaining };
     } catch (err) {
       // Refund: the user paid for an analysis they didn't get.
+      let refundLanded = true;
       try {
         await refundCredits(req.userId!, THUMBNAIL_TEST_CREDIT_COST, {
           action: "Thumbnail A/B Test — Refund (analysis failed)",
         });
       } catch (refundErr) {
+        refundLanded = false;
         void refundErr; // logged inside refundCredits; don't mask the original failure
+      }
+      /* CA-6: a landed refund voids the key, so the retry re-charges. */
+      if (refundLanded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+      }
+      throw err;
+    }
+      });
+      res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+    } catch (err) {
+      if (err instanceof ReplayShortCircuit) {
+        res.status(err.status).json(err.body);
+        return;
       }
       const message = err instanceof Error ? err.message : "Thumbnail test failed";
       const refunded = message.includes("refunded");
@@ -317,34 +350,42 @@ router.post(
       return;
     }
 
+    /* CA-6 replay protection (charge audit B6): the intent is the
+       uploaded thumbnail's bytes + the tips text; the guard's
+       stored-result pre-check runs before the balance gate and any
+       funding. A failed render refunds as before and voids the key. */
+    const idempotencyKey = buildChargeIdempotencyKey("thumbnail-test-improve", req.userId!, null, {
+      tips,
+      fileHash: createHash("sha256").update(file.buffer).digest("hex"),
+    });
+
+    try {
+      const outcome = await withReplayProtection("thumbnail-test-improve", idempotencyKey, req.userId!, async () => {
     const balance = req.userCredits ?? 0;
     if (balance < THUMBNAIL_IMPROVE_CREDIT_COST) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to generate improved thumbnails.",
       });
-      return;
     }
 
     let creditsRemaining = balance;
     try {
       creditsRemaining = await chargeCredits(req.userId!, THUMBNAIL_IMPROVE_CREDIT_COST, {
         action: "Thumbnail A/B Test — Apply Suggestions",
-      });
+      }, { idempotencyKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
-        res.status(402).json({
+        throw new ReplayShortCircuit(402, {
           error: "out_of_credits",
           message: "You're out of Visual Bucs — top up to generate improved thumbnails.",
         });
-        return;
       }
       if (err instanceof LedgerWriteError) {
-        res.status(500).json({
+        throw new ReplayShortCircuit(500, {
           error: "ledger_write_failed",
           message: "Credit ledger write failed — no Visual Bucs were charged. Please try again.",
         });
-        return;
       }
       throw err;
     }
@@ -370,14 +411,29 @@ router.post(
       const imageUrl = await refreshSupabaseStorageUrl(storageRef);
 
       req.log.info({ userId: req.userId }, "[thumbnail-test] improve success");
-      res.json({ imageUrl, creditsUsed: THUMBNAIL_IMPROVE_CREDIT_COST, creditsRemaining });
+      return { imageUrl, creditsUsed: THUMBNAIL_IMPROVE_CREDIT_COST, creditsRemaining };
     } catch (err) {
+      let refundLanded = true;
       try {
         await refundCredits(req.userId!, THUMBNAIL_IMPROVE_CREDIT_COST, {
           action: "Thumbnail A/B Test — Refund (improve failed)",
         });
       } catch (refundErr) {
+        refundLanded = false;
         void refundErr;
+      }
+      /* CA-6: a landed refund voids the key, so the retry re-charges. */
+      if (refundLanded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+      }
+      throw err;
+    }
+      });
+      res.json(outcome.replayed ? { ...outcome.body, replayed: true } : outcome.body);
+    } catch (err) {
+      if (err instanceof ReplayShortCircuit) {
+        res.status(err.status).json(err.body);
+        return;
       }
       const message = err instanceof Error ? err.message : "Improved thumbnail generation failed";
       res.status(500).json({ error: "improve_failed", message });

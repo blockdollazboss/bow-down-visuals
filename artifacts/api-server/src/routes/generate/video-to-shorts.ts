@@ -7,7 +7,19 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  ReplayShortCircuit,
+  takeLocalStoredResult,
+  storeLocalResult,
+} from "./ca6-replay-guard";
+import { findStoredGenerationResult } from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -473,6 +485,7 @@ router.post("/smart-clips", requireAuth, async (req, res) => {
   const inputPath = join(workDir, "input.mp4");
   let totalCost = 0;
   let charged = false;
+  let currentKey: string | null = null;
 
   try {
     const vidRes = await fetch(parsed.data.videoUrl, { signal: AbortSignal.timeout(120_000) });
@@ -491,25 +504,49 @@ router.post("/smart-clips", requireAuth, async (req, res) => {
     }
 
     totalCost = SMART_CLIPS_PER_CLIP * approved.length;
+
+    /* CA-6 replay protection (charge audit B6): the intent is the
+       video + the normalized approved clip set (which also fixes the
+       per-clip price). The durable pre-check runs first; only on a
+       miss does the charged render below run — inside the guard, so
+       its body is stored before the answer. The pre-charge download/
+       probe above stays outside: it is free, and its failures answer
+       exactly as before. A failed render refunds as before and voids
+       the key. */
+    const idempotencyKey = buildChargeIdempotencyKey("smart-clips", req.userId!, null, {
+      videoUrl: parsed.data.videoUrl,
+      clips: approved,
+    });
+    currentKey = idempotencyKey;
+    const stored = await findStoredGenerationResult("smart-clips", idempotencyKey, req.userId!);
+    if (stored) {
+      res.json({ ...stored, replayed: true });
+      return;
+    }
+    const localHit = takeLocalStoredResult("smart-clips", idempotencyKey, req.userId!);
+    if (localHit) {
+      res.json({ ...localHit, replayed: true });
+      return;
+    }
+
+    const runRender = async (): Promise<Record<string, unknown>> => {
     const currentCredits = req.userCredits ?? 0;
     if (currentCredits < totalCost) {
-      res.status(402).json({
+      throw new ReplayShortCircuit(402, {
         error: "out_of_credits",
         message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
       });
-      return;
     }
 
     let creditsAfter: number;
     try {
       creditsAfter = await chargeCredits(req.userId!, totalCost, {
         action: `Smart Clips (${approved.length})`,
-      });
+      }, { idempotencyKey });
       charged = true;
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
-        res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-        return;
+        throw new ReplayShortCircuit(402, { error: "out_of_credits", message: "Not enough Visual Bucs." });
       }
       throw err;
     }
@@ -560,19 +597,36 @@ router.post("/smart-clips", requireAuth, async (req, res) => {
       await unlink(outputPath).catch(() => {});
     }
 
-    res.json({
+    return {
       clips,
       count: clips.length,
       analysisMethod: analysisMethodOf(approved),
       creditsRemaining: creditsAfter,
-    });
+    };
+    };
+
+    try {
+      const body = await runRender();
+      await storeLocalResult("smart-clips", idempotencyKey, req.userId!, body);
+      res.json(body);
+    } catch (err) {
+      if (err instanceof ReplayShortCircuit) {
+        res.status(err.status).json(err.body);
+        return;
+      }
+      throw err;
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Smart clips failed.";
     req.log.error({ err: message }, "[smart-clips] failed");
     if (charged) {
-      await refundCredits(req.userId!, totalCost, {
+      const refunded = await refundCredits(req.userId!, totalCost, {
         action: "Smart Clips — Refund",
-      }).catch(() => {});
+      }).then(() => true).catch(() => false);
+      /* CA-6: a landed refund voids the key, so the retry re-charges. */
+      if (refunded && currentKey) {
+        await voidChargeIdempotencyKey(currentKey).catch(() => false);
+      }
     }
     res.status(500).json({ error: message });
   } finally {
