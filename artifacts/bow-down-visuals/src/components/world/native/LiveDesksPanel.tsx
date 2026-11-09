@@ -21,6 +21,7 @@ import {
 import { LiveShoppingDesk } from "./LiveShoppingDesk";
 import { LiveCopilotDesk } from "./LiveCopilotDesk";
 import { GamersDesk } from "./GamersDesk";
+import { GuestQuestionsBench, ShowFinderBench } from "./LiveBenches";
 
 export interface LiveDesksPanelProps {
   isLight: boolean;
@@ -71,6 +72,14 @@ export default function LiveDesksPanel({ isLight, screen, onStreamChange }: Live
           carried as a browse shelf (no page pull-ups). Same
           members-only panel. */}
       <GamersDesk isLight={isLight} />
+      {/* Stack 400 world parity, census B-11 + B-15: the
+          go-live family's prep benches — the Show Finder
+          (200-Buc hunt + 100-Buc pitch drafts) and Podcast
+          Guest Questions (75 Bucs) — on the pages' own rails,
+          registry-priced through confirmedFetch, below the
+          desks. Same members-only panel. */}
+      <ShowFinderBench isLight={isLight} />
+      <GuestQuestionsBench isLight={isLight} />
     </div>
   );
 }
