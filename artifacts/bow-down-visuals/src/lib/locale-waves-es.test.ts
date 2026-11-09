@@ -373,7 +373,7 @@ describe("es W2 (Stack-28 #81) — namespaces closed whole", () => {
 const W3_NAMESPACES = ["cartoonStudio", "bgStudio", "headshotStudio", "colorGrade", "photoEnhance", "speedRamp", "captionTemplates", "videoTemplatesPage", "photoShoot", "upscale", "makeVideo", "songAndVideo", "avatarPresenter", "thumbnailMaker", "thumbnailStudio", "thumbnail", "clipMaker", "logoMaker", "captionStyler", "thumbnailTest", "thumbnails", "watermarkRemoval", "harmony", "mixMaster", "deverb", "fillerRemover", "lrcExport"] as const;
 const W3_LEGIT: ReadonlySet<string> = new Set([
   "avatarPresenter.avatarLabel",
-  "bgStudio.kind.color",
+  "bgStudio.kind.color", "bgStudio.freeColorsNote",
   "captionStyler.autoEmoji",
   "captionStyler.styles.hormozi.label",
   "captionStyler.styles.karaoke.label",
@@ -864,7 +864,7 @@ const W6_LEGIT = new Set([
     "admin.worldDrops.claimsLine",
     "admin.worldDrops.errors.amountRange",
     "admin.worldDrops.rangeLine",
-  "analyticsHub.milestones.loggedFrom",
+  "analyticsHub.milestones.loggedFrom", "analyticsHub.pageDescription", "analyticsHub.heroSubtitle",
   "captionSuite.burnModeHint",
   "captionSuite.credits",
   "captionSuite.endCardText",

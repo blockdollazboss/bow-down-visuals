@@ -561,7 +561,7 @@
       },
       {
         "title": "Distribuer",
-        "body": "Distribution musicale vers Spotify, Apple Music, YouTube et plus — bientôt disponible."
+        "body": "Music distribution to Spotify, Apple Music, YouTube & more — live now, priced per release. Only the Distribute Unlimited plan ($399/yr) is still on the way."
       },
       {
         "title": "Protéger",
@@ -1482,7 +1482,7 @@
   },
   "analyticsHub": {
     "pageTitle": "Analytics Hub — Tableau de bord multiplateforme",
-    "pageDescription": "Suis TikTok, Instagram, YouTube et X dans un seul tableau de bord, puis obtiens un plan de croissance IA basé sur tes chiffres réels.",
+    "pageDescription": "Your TikTok, Instagram, YouTube, and X numbers in one dashboard — entered by you or imported from a CSV — plus an AI growth plan built on your real numbers.",
     "fields": {
       "followers": "Abonnés",
       "views7d": "Vues (7j)",
@@ -1507,7 +1507,7 @@
     "errorGrowthPlanFailed": "Le plan de croissance a échoué : réessaie.",
     "heroEyebrow": "Outils de création",
     "heroTitle": "Centre d'analyse",
-    "heroSubtitle": "Chaque plateforme, un seul tableau de bord — TikTok, Instagram, YouTube et X. Le suivi est gratuit pour toujours ; le plan de croissance IA coûte {{cost}} Visual Bucs.",
+    "heroSubtitle": "Every platform, one dashboard — TikTok, Instagram, YouTube, and X. Add your numbers by hand or import a CSV; platform connections are coming soon. Tracking is free forever; the AI Growth Plan is {{cost}} Visual Bucs.",
     "addNumbers": "Ajoute tes numéros",
     "totalFollowers": "Nombre total d'abonnés",
     "acrossPlatforms": "sur les quatre plateformes",
@@ -14056,7 +14056,7 @@
     "generateCta": "Générer le décor",
     "generating": "Génération du décor…",
     "backdropFailed": "Échec de la génération du décor.",
-    "priceTbdNote": "Prix provisoire — pas définitif. Les couleurs et dégradés gratuits ne coûtent jamais rien.",
+    "freeColorsNote": "Free colors and gradients never cost anything.",
     "composeFailed": "Impossible de composer l'image finale.",
     "compositing": "Composition…",
     "result": "Ta nouvelle photo",

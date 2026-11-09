@@ -561,7 +561,7 @@
       },
       {
         "title": "Distribuye",
-        "body": "Distribución musical a Spotify, Apple Music, YouTube y más — próximamente."
+        "body": "Music distribution to Spotify, Apple Music, YouTube & more — live now, priced per release. Only the Distribute Unlimited plan ($399/yr) is still on the way."
       },
       {
         "title": "Protege",
@@ -1482,7 +1482,7 @@
   },
   "analyticsHub": {
     "pageTitle": "Centro de Analíticas — Panel Multiplataforma",
-    "pageDescription": "Sigue TikTok, Instagram, YouTube y X en un solo panel, y obtén un plan de crecimiento con IA basado en tus números reales.",
+    "pageDescription": "Your TikTok, Instagram, YouTube, and X numbers in one dashboard — entered by you or imported from a CSV — plus an AI growth plan built on your real numbers.",
     "fields": {
       "followers": "Seguidores",
       "views7d": "Vistas (7d)",
@@ -1507,7 +1507,7 @@
     "errorGrowthPlanFailed": "El plan de crecimiento falló — intenta de nuevo.",
     "heroEyebrow": "Herramientas del creador",
     "heroTitle": "Centro de Analíticas",
-    "heroSubtitle": "Cada plataforma, un solo panel — TikTok, Instagram, YouTube y X. El seguimiento es gratis para siempre; el Plan de Crecimiento con IA cuesta {{cost}} Visual Bucs.",
+    "heroSubtitle": "Every platform, one dashboard — TikTok, Instagram, YouTube, and X. Add your numbers by hand or import a CSV; platform connections are coming soon. Tracking is free forever; the AI Growth Plan is {{cost}} Visual Bucs.",
     "addNumbers": "Agrega tus números",
     "totalFollowers": "Seguidores totales",
     "acrossPlatforms": "en las cuatro plataformas",
@@ -15012,7 +15012,7 @@
     "generateCta": "Generar fondo",
     "generating": "Generando fondo…",
     "backdropFailed": "La generación del fondo falló.",
-    "priceTbdNote": "Precio borrador: no final. Los colores y degradados gratis nunca cuestan nada.",
+    "freeColorsNote": "Free colors and gradients never cost anything.",
     "composeFailed": "No se pudo componer la imagen final.",
     "compositing": "Componiendo…",
     "result": "Tu nueva foto",

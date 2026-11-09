@@ -118,7 +118,7 @@
         "title": "Pitch"
       },
       {
-        "body": "Distribuição musical para Spotify, Apple Music, YouTube e mais — em breve.",
+        "body": "Music distribution to Spotify, Apple Music, YouTube & more — live now, priced per release. Only the Distribute Unlimited plan ($399/yr) is still on the way.",
         "title": "Distribuição"
       },
       {
@@ -1482,7 +1482,7 @@
   },
   "analyticsHub": {
     "pageTitle": "Central de Análises — Painel Multiplataforma",
-    "pageDescription": "Acompanhe TikTok, Instagram, YouTube e X em um painel e obtenha um plano de crescimento de IA baseado em seus números reais.",
+    "pageDescription": "Your TikTok, Instagram, YouTube, and X numbers in one dashboard — entered by you or imported from a CSV — plus an AI growth plan built on your real numbers.",
     "fields": {
       "followers": "Seguidores",
       "views7d": "Visualizações (7d)",
@@ -1507,7 +1507,7 @@
     "errorGrowthPlanFailed": "O plano de crescimento falhou. Tente novamente.",
     "heroEyebrow": "Ferramentas de Criador",
     "heroTitle": "Central de Análises",
-    "heroSubtitle": "Cada plataforma, um painel — TikTok, Instagram, YouTube e X. O acompanhamento é grátis para sempre; o Plano de Crescimento IA custa {{cost}} Visual Bucs.",
+    "heroSubtitle": "Every platform, one dashboard — TikTok, Instagram, YouTube, and X. Add your numbers by hand or import a CSV; platform connections are coming soon. Tracking is free forever; the AI Growth Plan is {{cost}} Visual Bucs.",
     "addNumbers": "Adicione Seus Números",
     "totalFollowers": "Total de Seguidores",
     "acrossPlatforms": "em todas as quatro plataformas",
@@ -14487,7 +14487,7 @@
     },
     "noOutput": "Nenhuma imagem de saída retornada.",
     "photoReady": "Foto pronta",
-    "priceTbdNote": "Preço provisório — não final. Cores e gradientes grátis nunca custam nada.",
+    "freeColorsNote": "Free colors and gradients never cost anything.",
     "promptPlaceholder": "Descreva o fundo — ex.: dunas douradas do deserto ao amanhecer, luz suave",
     "provider": "Modelo",
     "removeCta": "Remover fundo",

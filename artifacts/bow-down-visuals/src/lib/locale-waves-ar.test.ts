@@ -340,7 +340,7 @@ const W3_NS = [
   "deverb", "fillerRemover", "lrcExport", "mastering", "samples",
 ];
 const W3_ALLOW = new Set([
-  "captionStyler.styles.hormozi.label",
+  "bgStudio.freeColorsNote", "captionStyler.styles.hormozi.label",
   "harmony.buttonCost",
   "harmony.partsLine",
   "harmony.vb",
@@ -618,7 +618,7 @@ const W6_ALLOW = new Set([
     "admin.worldDrops.errors.amountRange",
     "admin.worldDrops.rangeLine",
   "analyticsHub.hookStudio",
-  "analyticsHub.milestones.loggedFrom",
+  "analyticsHub.milestones.loggedFrom", "analyticsHub.pageDescription", "analyticsHub.heroSubtitle",
   "captionSuite.burnModeHint",
   "captionSuite.credits",
   "captionSuite.endCardText",

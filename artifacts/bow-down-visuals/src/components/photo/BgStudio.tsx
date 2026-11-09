@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CostBadge } from "@/components/CostBadge";
+import { getCreditCost } from "@/lib/credit-costs";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
@@ -37,8 +38,15 @@ import {
      fallback (free) and the server /api/remove-background path
      (200 VB, unchanged price). A color heuristic is never called AI. */
 
-const REMOVE_COST = 200; // existing backend price — do not change here
-const BACKDROP_COST = 100; // RATIFIED — owner ruling 2026-11-07
+/* Stack 400 A-07: both quoted costs read the shared credit-cost registry —
+   the same CREDIT_COSTS entries the confirmation dialog itself prices
+   from (getCreditCost inside useConfirmedApi) — instead of second typed
+   copies that could drift from the rails. The registry entries are
+   pinned against the rails by credit-costs-rail-truth (photo-backdrop
+   100 RATIFIED — owner ruling 2026-11-07; remove-background 200); the
+   ?? fallbacks are the rail-truth figures. */
+const REMOVE_COST = getCreditCost("/api/remove-background")?.cost ?? 200;
+const BACKDROP_COST = getCreditCost("/api/photo-backdrop")?.cost ?? 100;
 
 interface BackdropStatus {
   configured: boolean;
@@ -612,7 +620,7 @@ export function BgStudio() {
                     : t("bgStudio.generateCta", { defaultValue: "Generate AI backdrop" })}
                   <CostBadge cost={BACKDROP_COST} className="ml-2" />
                 </Button>
-                <p className="text-[11px] text-white/35">{t("bgStudio.priceTbdNote", { defaultValue: "Draft price — not final. Free colors and gradients never cost anything." })}</p>
+                <p className="text-[11px] text-white/35">{t("bgStudio.freeColorsNote", { defaultValue: "Free colors and gradients never cost anything." })}</p>
               </div>
             )}
           </div>

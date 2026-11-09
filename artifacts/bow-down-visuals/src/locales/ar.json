@@ -118,7 +118,7 @@
         "title": "خاطب"
       },
       {
-        "body": "توزيع الموسيقى على Spotify وApple Music وYouTube والمزيد — قريباً.",
+        "body": "Music distribution to Spotify, Apple Music, YouTube & more — live now, priced per release. Only the Distribute Unlimited plan ($399/yr) is still on the way.",
         "title": "وزّع"
       },
       {
@@ -1482,7 +1482,7 @@
   },
   "analyticsHub": {
     "pageTitle": "مركز التحليلات — لوحة عبر المنصات",
-    "pageDescription": "تتبع TikTok وInstagram وYouTube وX في لوحة واحدة، ثم احصل على خطة نمو بالذكاء الاصطناعي مبنية على أرقامك الحقيقية.",
+    "pageDescription": "Your TikTok, Instagram, YouTube, and X numbers in one dashboard — entered by you or imported from a CSV — plus an AI growth plan built on your real numbers.",
     "fields": {
       "followers": "المتابعون",
       "views7d": "المشاهدات (7 أيام)",
@@ -1507,7 +1507,7 @@
     "errorGrowthPlanFailed": "فشلت خطة النمو — حاول مجدداً.",
     "heroEyebrow": "أدوات المبدعين",
     "heroTitle": "مركز التحليلات",
-    "heroSubtitle": "كل المنصات، لوحة واحدة — TikTok وInstagram وYouTube وX. التتبع مجاني للأبد؛ خطة النمو بالذكاء الاصطناعي {{cost}} Visual Bucs.",
+    "heroSubtitle": "Every platform, one dashboard — TikTok, Instagram, YouTube, and X. Add your numbers by hand or import a CSV; platform connections are coming soon. Tracking is free forever; the AI Growth Plan is {{cost}} Visual Bucs.",
     "addNumbers": "أضف أرقامك",
     "totalFollowers": "إجمالي المتابعين",
     "acrossPlatforms": "عبر المنصات الأربع",
@@ -15081,7 +15081,7 @@
     "generateCta": "توليد الخلفية",
     "generating": "جارٍ توليد الخلفية…",
     "backdropFailed": "فشل توليد الخلفية.",
-    "priceTbdNote": "سعر مسودة — ليس نهائياً. الألوان والتدرجات المجانية لا تكلّف شيئاً أبداً.",
+    "freeColorsNote": "Free colors and gradients never cost anything.",
     "composeFailed": "تعذّر تركيب الصورة النهائية.",
     "compositing": "جارٍ التركيب…",
     "result": "صورتك الجديدة",
