@@ -19,6 +19,7 @@ import { liveChatHub } from "./live-chat";
 import { RoomHub, verifyAccessToken, type LiveWsGateway, type WsClientSocket } from "../lib/live-ws";
 import { PdfBuilder, GOLD, GREY, BLACK, WHITE } from "../lib/pdf";
 import { membershipNetSql } from "../lib/seller-earnings";
+import { EARNINGS_STATEMENT_LINES } from "../lib/earnings-statement-labels";
 
 /* ─── Stack 10 "Trust, safety & the literal end" ─────────────────────────
    #1 Content ID depth: house-computed spectral-peak fingerprints,
@@ -715,7 +716,14 @@ router.get("/earnings/statements/:year/pdf", requireAuth, async (req, res) => {
     let y = 130;
     page.text(48, y, "What this is", { size: 12, bold: true }); y += 20;
     page.text(48, y, stmt.disclaimer, { size: 9, color: GREY, maxWidth: 500 }); y += 48;
-    const lines: Array<[string, YearSource]> = [["Store sales", stmt.sources.storeSales], ["Digital sales", stmt.sources.digitalSales], ["Shop sales", stmt.sources.shopSales], ["Beat licenses", stmt.sources.beats], ["Memberships", stmt.sources.memberships], ["Shoutouts", stmt.sources.shoutouts], ["Tip jar tips", stmt.sources.tipJar], ["Brand deals", stmt.sources.brandDeals], ["UGC briefs", stmt.sources.ugcBriefs], ["Performance bookings", stmt.sources.bookings], ["Royalties (recorded)", stmt.sources.royalties]];
+    /* Line labels: the statement's own single-sourced list (mirrored
+       server-side in lib/earnings-statement-labels and pinned to the
+       web app's statement module + catalog) — the PDF names every
+       source exactly as the Earnings page and the in-page statement
+       name it, so the downloaded document can never drift from the
+       page it sits beside. WORDS ONLY: same sources, same order,
+       same figures. */
+    const lines: Array<[string, YearSource]> = EARNINGS_STATEMENT_LINES.map(({ key, label }) => [label, stmt.sources[key]] as [string, YearSource]);
     for (const [label, s] of lines) {
       page.text(48, y, label, { size: 11 });
       page.text(564, y, s.status === "error" ? "could not load" : `${money(s.totalCents)}  (${s.count} records)`, { size: 11, align: "right" });
