@@ -1,6 +1,7 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { CreationFinale } from "@/components/player/CreationFinale";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -3518,7 +3519,13 @@ function MixMasterPanel() {
               : t("mixMaster.tabMixDesc", { defaultValue: "Upload up to 12 stems — the engine detects each one, balances levels, EQs, compresses, pans and masters the full mixdown." })}
         </p>
 
-        {tab === "master" ? <MasterPanel /> : tab === "quick" ? <QuickMasterPanel /> : <MixPanel />}
+        {tab === "master" ? (
+          <SectionBoundary name="audio-studio-master-full"><MasterPanel /></SectionBoundary>
+        ) : tab === "quick" ? (
+          <SectionBoundary name="audio-studio-master-quick"><QuickMasterPanel /></SectionBoundary>
+        ) : (
+          <SectionBoundary name="audio-studio-master-mix"><MixPanel /></SectionBoundary>
+        )}
 
         {/* Handoff: a finished master goes straight to distribution. */}
         <div className="mt-6">
@@ -3641,22 +3648,50 @@ export default function AudioStudio() {
 
         <div className={`mt-2 rounded-3xl border p-4 sm:p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <Suspense fallback={<AudioTabFallback />}>
-          {tab === "arrange" ? <ArrangementStudio /> : tab === "cleanup" ? <CleanupPanel /> : tab === "deverb" ? <DeverbPanel /> : tab === "loudness" ? <LufsPanel /> : tab === "stems" ? <StemsPanel /> : tab === "master" ? <MixMasterPanel /> : tab === "tune" ? <VocalTunePanel /> : tab === "aiaudio" ? <AiAudio /> : tab === "voiceover" ? <VoiceoverStudio /> : tab === "podcast" ? (
+          {tab === "arrange" ? (
+            <SectionBoundary name="audio-studio-arrange"><ArrangementStudio /></SectionBoundary>
+          ) : tab === "cleanup" ? (
+            <SectionBoundary name="audio-studio-cleanup"><CleanupPanel /></SectionBoundary>
+          ) : tab === "deverb" ? (
+            <SectionBoundary name="audio-studio-deverb"><DeverbPanel /></SectionBoundary>
+          ) : tab === "loudness" ? (
+            <SectionBoundary name="audio-studio-loudness"><LufsPanel /></SectionBoundary>
+          ) : tab === "stems" ? (
+            <SectionBoundary name="audio-studio-stems"><StemsPanel /></SectionBoundary>
+          ) : tab === "master" ? (
+            <SectionBoundary name="audio-studio-mix-master"><MixMasterPanel /></SectionBoundary>
+          ) : tab === "tune" ? (
+            <SectionBoundary name="audio-studio-tune"><VocalTunePanel /></SectionBoundary>
+          ) : tab === "aiaudio" ? (
+            <SectionBoundary name="audio-studio-ai-audio"><AiAudio /></SectionBoundary>
+          ) : tab === "voiceover" ? (
+            <SectionBoundary name="audio-studio-voiceover"><VoiceoverStudio /></SectionBoundary>
+          ) : tab === "podcast" ? (
             <div className="space-y-8">
-              <PodcastStudio />
+              <SectionBoundary name="audio-studio-podcast"><PodcastStudio /></SectionBoundary>
               <div className="border-t border-white/[0.08] pt-6">
-                <PodcastPublishPanel />
+                <SectionBoundary name="audio-studio-podcast-publish"><PodcastPublishPanel /></SectionBoundary>
               </div>
               <div className="border-t border-white/[0.08] pt-6">
-                <PodcastTranscriptEditor />
+                <SectionBoundary name="audio-studio-podcast-transcript"><PodcastTranscriptEditor /></SectionBoundary>
               </div>
             </div>
-          ) : tab === "hum" ? <HumToSong /> : tab === "finish" ? <FinishMySong /> : tab === "ratemix" ? <RateMyMix /> : <ViralSoundFinder />}
+          ) : tab === "hum" ? (
+            <SectionBoundary name="audio-studio-hum"><HumToSong /></SectionBoundary>
+          ) : tab === "finish" ? (
+            <SectionBoundary name="audio-studio-finish"><FinishMySong /></SectionBoundary>
+          ) : tab === "ratemix" ? (
+            <SectionBoundary name="audio-studio-rate-mix"><RateMyMix /></SectionBoundary>
+          ) : (
+            <SectionBoundary name="audio-studio-sounds"><ViralSoundFinder /></SectionBoundary>
+          )}
           </Suspense>
         </div>
 
         {/* Rank 6a: every creation ends in the Get Paid finale. */}
-        <CreationFinale surfaceId="audio-studio" />
+        <SectionBoundary name="audio-studio-finale">
+          <CreationFinale surfaceId="audio-studio" />
+        </SectionBoundary>
       </main>
     </div>
   );
