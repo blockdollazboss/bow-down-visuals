@@ -628,6 +628,7 @@ export function composeWhenForDay(date: string): string {
   return `${date}T12:00`;
 }
 
+||||||| 44426f660
 /* ─── Publish now (Stack-400 census B item B-12) ────────────────────
    The desk above handled accounts, auth and scheduling — publishing
    NOW had no in-World action: the four publish rails were only
@@ -908,5 +909,140 @@ export function classifySocialPublishResponse(
     const result = parseSocialPublishResult(data);
     return result ? { kind: "ok", result } : { kind: "failed", message: fallback };
   }
-  return { kind: "failed", message: str(d.message) ?? fallback };
+  return { kind: "failed", message: str(d.message) ?? fallback };/* ─── Stack 400 · census B-19 — Content Calendar Auto-Fill ────
+   The Wave8 single rail that belongs to this desk's family
+   (manifest lane s400-world-wave8, joining AFTER the social
+   publish section above): the Calendar Auto-Fill bench
+   stacked with the Scheduler family in the Promote Room.
+
+     POST /api/wave8/calendar/autofill        150  CalendarAutofill
+     GET  /api/wave8/calendar/slots?weekStart=…  0  the week's slots
+
+   The autofill payload is shaped EXACTLY as the page shapes
+   it (the Monday week start, the pillars split on commas,
+   trimmed, capped at six, the voice note trimmed-or-absent)
+   and its answer is read through the same slot reader as the
+   free week read — one slot shape for both rails. Slot
+   management (drag between days, delete) stays with the 2D
+   calendar and this desk's composer; the bench drafts the
+   week and shows it. The registry read goes through a
+   namespace import so this section never collides with the
+   publish section's named import, whichever order the two
+   sections join in. */
+import * as creditCosts from "../credit-costs";
+
+export const CALENDAR_AUTOFILL_PATH = "/api/wave8/calendar/autofill";
+export const CALENDAR_SLOTS_PATH = "/api/wave8/calendar/slots";
+
+/** POST /api/wave8/calendar/autofill — registry 150. */
+export function calendarAutofillCost(): number {
+  const entry = creditCosts.getCreditCost(CALENDAR_AUTOFILL_PATH);
+  if (!entry) throw new Error(`No registered credit cost for ${CALENDAR_AUTOFILL_PATH}`);
+  return entry.cost;
+}
+
+/** The week's free read path for a Monday week-start ISO date. */
+export function calendarSlotsPath(weekStart: string): string {
+  return `${CALENDAR_SLOTS_PATH}?weekStart=${encodeURIComponent(weekStart)}`;
+}
+
+/** The page's Monday math, verbatim: the Monday of the week
+ *  containing `from` (Mon = 0), as an ISO date. */
+export function calendarWeekMonday(from: Date): string {
+  const d = new Date(from);
+  const dow = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - dow);
+  return d.toISOString().slice(0, 10);
+}
+
+/** The page's week shift, verbatim: whole weeks from a
+ *  week-start ISO date. */
+export function calendarShiftWeek(weekStart: string, deltaWeeks: number): string {
+  const d = new Date(`${weekStart}T00:00:00`);
+  d.setDate(d.getDate() + deltaWeeks * 7);
+  return d.toISOString().slice(0, 10);
+}
+
+/** The page's pillar parse, verbatim: split on commas, trim,
+ *  drop empties, cap at six. */
+export function parseCalendarPillars(text: string): string[] {
+  return text
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+/** The page's autofill body, field for field. */
+export function buildCalendarAutofillPayload(input: {
+  weekStart: string;
+  pillarsText: string;
+  voice: string;
+}): { weekStart: string; pillars: string[]; vaultVoice: string | undefined } {
+  return {
+    weekStart: input.weekStart,
+    pillars: parseCalendarPillars(input.pillarsText),
+    vaultVoice: input.voice.trim() || undefined,
+  };
+}
+
+export interface Wave8CalendarSlot {
+  id: string;
+  weekStart: string;
+  dayIndex: number;
+  position: number;
+  title: string;
+  postType: string;
+  notes: string;
+  status: string;
+}
+
+function calendarIsRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
+function calendarNum(v: unknown): number | null {
+  return typeof v === "number" && isFinite(v) ? v : null;
+}
+
+/** The one slot reader both calendar rails share: `{ slots }`
+ *  with every slot carrying the page's CalendarSlot fields, or
+ *  null — a drifted payload is a failed read, never a
+ *  dressed-up week. */
+export function calendarSlotsOf(data: unknown): Wave8CalendarSlot[] | null {
+  if (!calendarIsRecord(data) || !Array.isArray(data.slots)) return null;
+  const out: Wave8CalendarSlot[] = [];
+  for (const raw of data.slots as unknown[]) {
+    if (!calendarIsRecord(raw)) return null;
+    const dayIndex = calendarNum(raw.day_index);
+    const position = calendarNum(raw.position);
+    if (dayIndex === null || position === null) return null;
+    if (typeof raw.id !== "string" && typeof raw.id !== "number") return null;
+    out.push({
+      id: String(raw.id),
+      weekStart: typeof raw.week_start === "string" ? raw.week_start : "",
+      dayIndex,
+      position,
+      title: typeof raw.title === "string" ? raw.title : "",
+      postType: typeof raw.post_type === "string" ? raw.post_type : "",
+      notes: typeof raw.notes === "string" ? raw.notes : "",
+      status: typeof raw.status === "string" ? raw.status : "",
+    });
+  }
+  return out;
+}
+
+/** The page's suggested-time read: the autofill hides its
+ *  best posting time in the notes as a "Suggested time: HH:MM"
+ *  line (the page's own detection, multiline) — the bench
+ *  captures the full HH:MM for display. */
+export function calendarSlotBestTime(notes: string): string | null {
+  const m = /^Suggested time:\s*(([01]\d|2[0-3]):[0-5]\d)/m.exec(notes);
+  return m ? m[1] : null;
+}
+
+/** The page's notes clean-up, verbatim: the visible brief is
+ *  the notes minus their hidden suggested-time line. */
+export function calendarSlotNotes(notes: string): string {
+  return notes.replace(/^Suggested time:\s*\d{2}:\d{2}\s*\n?/m, "").trim();
 }
