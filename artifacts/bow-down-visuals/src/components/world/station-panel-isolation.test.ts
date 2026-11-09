@@ -101,7 +101,7 @@ describe("StationPanel.tsx — census-31 structure (source pins)", () => {
     expect(panelSource).toContain("{boundedBody}");
   });
 
-  it("every DeskDoor in the Community Hall + native-stacks regions rides its own PanelBoundary (57 desks)", () => {
+  it("every DeskDoor in the Community Hall + native-stacks regions rides its own PanelBoundary (56 desks)", () => {
     /* 46 at the D5 lane; JOIN12: the four Stack-200 World-parity
        desks (Trend Radar bench, Remix feed, Repurpose, Video
        Studio) joined the same regions, each riding its own
@@ -117,12 +117,18 @@ describe("StationPanel.tsx — census-31 structure (source pins)", () => {
        create-pattern chain, outside this count's pattern.)
        JOIN15: three more Stack 400 mounts ride the same pattern —
        one from world-social-business and two from world-wave9 —
-       the honest joined count is 57. */
+       the honest joined count is 57. JOIN15 CORRECTION (same
+       join, after the StationPanel union repair): the raw union
+       had carried TWO video-desk branches — presenter-speak's
+       and world-wave9's, each with its own pattern-matching
+       CreateDeskPanel opener — where the composed chain keeps
+       ONE video-desk branch whose single opener serves both
+       lanes' benches. The honest joined count is 56. */
     expect(
       panelSource.match(
         /<PanelBoundary isLight=\{isLight\} resetKey=\{station\.id\}><DeskDoor isLight=\{isLight\}>/g,
       ) ?? [],
-    ).toHaveLength(57);
+    ).toHaveLength(56);
   });
 
   it("NowPlayingCard is wrapped in its own boundary", () => {
