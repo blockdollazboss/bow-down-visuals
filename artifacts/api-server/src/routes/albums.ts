@@ -323,6 +323,39 @@ router.post("/album-publish/:id", requireAuth, async (req, res) => {
       return;
     }
 
+    /* CA-R exactly-once (Stack 400 charge-audit follow-on): the
+     * not-yet-published → published flip IS the claim. The guarded
+     * UPDATE carries the pre-state predicate (id + owner + status !=
+     * 'published'); a concurrent twin's flip matches 0 rows and stops
+     * at the 409 BEFORE any charge lands, so two racing publishes can
+     * never both charge. If the charge then fails, the flip is rolled
+     * back to the album's pre-claim status and slug so a later retry
+     * can publish (and charge) for real — sequential responses are
+     * unchanged. */
+    const slug = makeSlug(album.title);
+    const [claimed] = await db
+      .update(albumsTable)
+      .set({ status: "published", slug, updated_at: new Date() })
+      .where(
+        and(
+          eq(albumsTable.id, id),
+          eq(albumsTable.user_id, req.userId!),
+          sql`${albumsTable.status} != 'published'`,
+        ),
+      )
+      .returning();
+    if (!claimed) {
+      res.status(409).json({ error: "Album is already published." });
+      return;
+    }
+    const rollbackClaim = async (): Promise<void> => {
+      await db
+        .update(albumsTable)
+        .set({ status: album.status, slug: album.slug, updated_at: new Date() })
+        .where(and(eq(albumsTable.id, id), eq(albumsTable.status, "published")))
+        .catch(() => {});
+    };
+
     // 402 pre-check + charge happen atomically inside chargeCredits.
     let creditsRemaining: number;
     try {
@@ -331,6 +364,8 @@ router.post("/album-publish/:id", requireAuth, async (req, res) => {
         projectId: id,
       });
     } catch (chargeErr) {
+      /* The charge never landed — undo the claim and answer as before. */
+      await rollbackClaim();
       if (chargeErr instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
@@ -346,15 +381,12 @@ router.post("/album-publish/:id", requireAuth, async (req, res) => {
     }
 
     try {
-      const slug = makeSlug(album.title);
-      await db
-        .update(albumsTable)
-        .set({ status: "published", slug, updated_at: new Date() })
-        .where(eq(albumsTable.id, id));
       const detail = await albumDetail(id);
       res.json({ album: detail, creditsRemaining });
     } catch (publishErr) {
-      // Publish failed after the charge — refund so the user never pays for nothing.
+      // Publish failed after the charge — undo the claim, then refund so
+      // the user never pays for nothing.
+      await rollbackClaim();
       try {
         await refundCredits(req.userId!, ALBUM_PUBLISH_COST, {
           action: "Album Publish — refund (publish failed)",

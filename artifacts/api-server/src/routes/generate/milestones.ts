@@ -808,12 +808,47 @@ router.post("/catalog-vault/vault", requireAuth, publicApiLimiter, async (req, r
     });
     return;
   }
+
+  /* CA-R exactly-once (Stack 400 charge-audit follow-on): the vault row
+   * IS the claim. The insert runs BEFORE the charge under the
+   * (user_id, release_id) UNIQUE (migration 0084) with
+   * ON CONFLICT DO NOTHING — a concurrent twin's insert claims nothing
+   * and gets the same already-vaulted answer a sequential retry gets,
+   * never a second charge. If the charge then fails, the claimed row
+   * is deleted so a later retry can vault (and charge) for real —
+   * sequential responses are unchanged. */
+  const claimed = await db
+    .insert(catalogVaultsTable)
+    .values({
+      userId: req.userId!,
+      releaseId,
+      creditsCharged: CATALOG_VAULT_CREDIT_COST,
+      status: "vaulted",
+    })
+    .onConflictDoNothing()
+    .returning();
+  if (claimed.length === 0) {
+    const [winner] = await db
+      .select()
+      .from(catalogVaultsTable)
+      .where(and(eq(catalogVaultsTable.userId, req.userId!), eq(catalogVaultsTable.releaseId, releaseId)))
+      .limit(1);
+    res.json({ alreadyVaulted: true, releaseId, vaultedAt: winner?.vaultedAt ?? new Date() });
+    return;
+  }
+  const vaultRow = claimed[0]!;
+
   let creditsRemaining = balance;
   try {
     creditsRemaining = await chargeCredits(req.userId!, CATALOG_VAULT_CREDIT_COST, {
       action: "Catalog Vault — permanent release hosting",
     });
   } catch (err) {
+    /* The charge never landed — release the claim so a retry can vault. */
+    await db
+      .delete(catalogVaultsTable)
+      .where(eq(catalogVaultsTable.id, vaultRow.id))
+      .catch(() => {});
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
@@ -824,39 +859,15 @@ router.post("/catalog-vault/vault", requireAuth, publicApiLimiter, async (req, r
     throw err;
   }
 
-  try {
-    const rows = await db
-      .insert(catalogVaultsTable)
-      .values({
-        userId: req.userId!,
-        releaseId,
-        creditsCharged: CATALOG_VAULT_CREDIT_COST,
-        status: "vaulted",
-      })
-      .returning();
-    /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
-    res.json({
-      vaulted: true,
-      releaseId,
-      releaseTitle: release.title,
-      vaultedAt: rows[0]!.vaultedAt,
-      creditsUsed: CATALOG_VAULT_CREDIT_COST,
-      creditsRemaining,
-    });
-  } catch (err) {
-    try {
-      await refundCredits(req.userId!, CATALOG_VAULT_CREDIT_COST, {
-        action: "Catalog Vault — Refund (vault failed)",
-      });
-    } catch (refundErr) {
-      void refundErr;
-    }
-    logger.error({ err }, "catalog-vault/vault: failed, Visual Bucs refunded");
-    res.status(502).json({
-      error: "vault_failed",
-      message: "Something went wrong vaulting your release — your Visual Bucs were refunded.",
-    });
-  }
+  /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
+  res.json({
+    vaulted: true,
+    releaseId,
+    releaseTitle: release.title,
+    vaultedAt: vaultRow.vaultedAt,
+    creditsUsed: CATALOG_VAULT_CREDIT_COST,
+    creditsRemaining,
+  });
 });
 
 /* GET /api/catalog-vault/status — which releases are vaulted (free). */

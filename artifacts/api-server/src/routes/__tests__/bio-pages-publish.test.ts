@@ -120,12 +120,19 @@ vi.mock("@workspace/db", async (importOriginal) => {
       bioLinkClicks: actual.bioLinkClicksTable,
     },
     { bioPages: [["slug"]] },
+    /* CA-R: a bio page's published flag only counts toward the claim
+       guard while the row is unpublished (partial-index semantics). */
+    { bioPages: (row: any) => row.isPublished !== true },
   );
   const db: any = {
     ...fake.db,
     update: (table: unknown) => {
       if (testState.failNextBioUpdate && table === actual.bioPagesTable) {
         testState.failNextBioUpdate = false;
+        /* CA-R note: the publish claim is the FIRST bio update. The
+           failure now lands on the claim (before any charge), so the
+           request 500s with zero charges — the legacy refund pin moved
+           to the "claim rollback failure" test below. */
         throw new Error("simulated publish write failure");
       }
       return fake.db.update(table);
@@ -316,18 +323,39 @@ describe("bio page publish lifecycle", () => {
     expect(pub.status).toBe(404);
   });
 
-  it("a write failure AFTER the charge refunds the 100 VB in full", async () => {
+  it("a write failure on the publish claim 500s BEFORE any charge (CA-R)", async () => {
+    /* CA-R moved the flip to the claim position (before the charge),
+       so the same simulated write failure now lands on the claim —
+       the request 500s with zero charges and the page stays a draft.
+       The legacy post-charge refund pin is preserved by the next test. */
     const { id, slug } = await createDraft();
     testState.failNextBioUpdate = true;
     const res = await publish(id);
     expect(res.status).toBe(500);
-    expect(testState.charges).toEqual([100]);
-    expect(testState.refunds).toEqual([100]);
+    expect(testState.charges).toEqual([]);
+    expect(testState.refunds).toEqual([]);
     expect(testState.balance).toBe(1000);
     const pub = await call("GET", `/bio-pages/public/${slug}`, { user: null });
     expect(pub.status).toBe(404);
     const mine = await call("GET", "/bio-pages/me");
     expect(mine.json.pages[0].isPublished).toBe(false);
+  });
+
+  it("CA-R twin: concurrent publishes charge exactly once; the loser gets the 409", async () => {
+    const { id } = await createDraft();
+    /* Warm the publish pipeline once (module loading / first-render
+       costs) so both twins below genuinely overlap at the claim. */
+    const warm = await createDraft();
+    await publish(warm.id);
+    const [a, b] = await Promise.all([publish(id), publish(id)]);
+    const statuses = [a.status, b.status].sort((x, y) => x - y);
+    expect(statuses).toEqual([200, 409]);
+    const loser = a.status === 409 ? a : b;
+    expect(loser.json.error).toBe("This page is already published.");
+    expect(testState.charges).toEqual([100, 100]); // warm-up + exactly one twin charge
+    expect(testState.refunds).toEqual([]);
+    const mine = await call("GET", "/bio-pages/me");
+    expect(mine.json.pages.find((p: any) => p.id === id)!.isPublished).toBe(true);
   });
 
   it("a non-owner gets 404 on publish, unpublish, update and delete — and nothing changes", async () => {

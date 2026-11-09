@@ -308,6 +308,31 @@ const publishBioPageHandler = async (req: Request, res: Response) => {
       return;
     }
 
+    /* CA-R exactly-once (Stack 400 charge-audit follow-on): the
+     * unpublished → published flip IS the claim. The guarded UPDATE
+     * carries the pre-state predicate (id + isPublished=false); a
+     * concurrent twin's flip matches 0 rows and stops at the 409
+     * BEFORE any charge lands, so two racing publishes can never both
+     * charge. If the charge then fails, the flip is rolled back so a
+     * later retry can publish (and charge) for real — and re-publish
+     * after an unpublish still charges again, exactly as before. */
+    const [claimed] = await db
+      .update(bioPagesTable)
+      .set({ isPublished: true, updatedAt: new Date() })
+      .where(and(eq(bioPagesTable.id, id), eq(bioPagesTable.isPublished, false)))
+      .returning();
+    if (!claimed) {
+      res.status(409).json({ ok: false, error: "This page is already published.", url: publicUrl(page.slug) });
+      return;
+    }
+    const rollbackClaim = async (): Promise<void> => {
+      await db
+        .update(bioPagesTable)
+        .set({ isPublished: false, updatedAt: new Date() })
+        .where(and(eq(bioPagesTable.id, id), eq(bioPagesTable.isPublished, true)))
+        .catch(() => {});
+    };
+
     let creditsRemaining: number;
     try {
       creditsRemaining = await chargeCredits(req.userId!, PUBLISH_COST, {
@@ -315,6 +340,8 @@ const publishBioPageHandler = async (req: Request, res: Response) => {
         projectId: id,
       });
     } catch (chargeErr) {
+      /* The charge never landed — undo the claim and answer as before. */
+      await rollbackClaim();
       if (chargeErr instanceof OutOfCreditsError) {
         res.status(402).json({
           ok: false,
@@ -331,19 +358,16 @@ const publishBioPageHandler = async (req: Request, res: Response) => {
     }
 
     try {
-      const [row] = await db
-        .update(bioPagesTable)
-        .set({ isPublished: true, updatedAt: new Date() })
-        .where(eq(bioPagesTable.id, id))
-        .returning();
       res.json({
         ok: true,
-        url: publicUrl(row.slug),
-        slug: row.slug,
+        url: publicUrl(claimed.slug),
+        slug: claimed.slug,
         creditsRemaining,
       });
     } catch (publishErr) {
-      // Publish failed after the charge — refund so the creator never pays for nothing.
+      // Publish failed after the charge — undo the claim, then refund so
+      // the creator never pays for nothing.
+      await rollbackClaim();
       try {
         await refundCredits(req.userId!, PUBLISH_COST, {
           action: "Link-in-Bio Publish — refund (publish failed)",

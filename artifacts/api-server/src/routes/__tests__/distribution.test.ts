@@ -565,6 +565,27 @@ describe("POST /api/distribution/releases/:id/submit", () => {
     expect(vi.mocked(refundCredits)).toHaveBeenCalledTimes(1);
     spy.mockRestore();
   });
+
+  it("CA-R twin: two concurrent submits charge once and submit to the aggregator once", async () => {
+    const { id } = await seedRelease(USER_A, { complete: true });
+    testState.userCredits = 10000;
+    const { getAggregator } = await import("../../lib/distribution-aggregator");
+    const agg = getAggregator();
+    const spy = vi.spyOn(agg, "submitRelease");
+    const [a, b] = await Promise.all([
+      req("POST", `/distribution/releases/${id}/submit`),
+      req("POST", `/distribution/releases/${id}/submit`),
+    ]);
+    const statuses = [a.status, b.status].sort((x, y) => x - y);
+    expect(statuses).toEqual([200, 409]);
+    const loser = a.status === 409 ? a : b;
+    expect(loser.json.error).toBe("This release is already packaged.");
+    /* Exactly one charge, exactly one aggregator submission, no refund. */
+    expect(vi.mocked(chargeCredits).mock.calls).toHaveLength(1);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(testState.refundCalls).toHaveLength(0);
+    spy.mockRestore();
+  });
 });
 
 /* ─── AI endpoints ───────────────────────────────────────────────────────── */
