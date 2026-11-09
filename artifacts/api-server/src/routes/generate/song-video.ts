@@ -4,7 +4,22 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the song+video charge. */
+const REPLAY_NOTE =
+  "This is the song + video package you already made with these settings — change the topic or style for a fresh one.";
 
 const router = Router();
 
@@ -133,6 +148,17 @@ router.post("/generate-song-video", requireAuth, async (req, res) => {
     artistVault, songStructure,
   } = parsed.data;
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the package already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("song-video", req.userId!, null, {
+    ...parsed.data,
+  });
+  const durable = await findStoredGenerationResult("song-video", idempotencyKey, req.userId!);
+  if (durable && typeof durable["result"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
 
   if (process.env["NODE_ENV"] === "development") {
@@ -157,7 +183,7 @@ router.post("/generate-song-video", requireAuth, async (req, res) => {
      all but the first charge failed. Same price, same action. */
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Make Song + Video" });
+    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Make Song + Video" }, { idempotencyKey });
   } catch (deductErr) {
     if (deductErr instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -177,7 +203,13 @@ router.post("/generate-song-video", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    await refundCredits(req.userId!, CREDIT_COST, { action: "Make Song + Video — Refund" }).catch(() => {});
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    const refunded = await refundCredits(req.userId!, CREDIT_COST, { action: "Make Song + Video — Refund" })
+      .then(() => true)
+      .catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
   };
 
   const isExplicit = explicit?.toLowerCase() === "explicit";
@@ -320,7 +352,10 @@ Master exclusion list for all AI generations.
     // Step 3: Fire-and-forget — mark charged + log usage
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
-    res.json({ result: content, creditsRemaining: creditsAfter, genHistoryId });
+    const body = { result: content, creditsRemaining: creditsAfter, genHistoryId };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("song-video", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     await refundCharge();
