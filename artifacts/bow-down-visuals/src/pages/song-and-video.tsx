@@ -12,6 +12,7 @@ import {
   Sparkles, BarChart2, Zap, BookOpen, Camera, ArrowRight, SlidersHorizontal,
 } from "lucide-react";
 import { MarketingBadge } from "@/components/MarketingBadge";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1274,7 +1275,9 @@ export function SongAndVideoModule() {
         </div>
 
         {modeTab === "simple" ? (
-          <SimpleModeIntake onSwitchGuided={() => setModeTab("guided")} />
+          <SectionBoundary name="song-and-video-simple-intake">
+            <SimpleModeIntake onSwitchGuided={() => setModeTab("guided")} />
+          </SectionBoundary>
         ) : (
           <>
         {/* Stepper */}
@@ -1282,6 +1285,7 @@ export function SongAndVideoModule() {
 
         {/* ──────────── STEP 1: SONG SETUP ──────────── */}
         {step === 1 && (
+          <SectionBoundary name="song-and-video-step-song-setup">
           <div className="space-y-6">
             <StepShell icon={Music} title={t("songAndVideo.step1Title")} subtitle={t("songAndVideo.step1Subtitle")}>
 
@@ -1374,10 +1378,12 @@ export function SongAndVideoModule() {
 
             <NavRow backHidden onNext={goNext} nextLabel={t("songAndVideo.navArtistBrand")} nextIcon={<ArrowRight className="h-4 w-4" />} />
           </div>
+          </SectionBoundary>
         )}
 
         {/* ──────────── STEP 2: ARTIST / BRAND ──────────── */}
         {step === 2 && (
+          <SectionBoundary name="song-and-video-step-artist">
           <div className="space-y-6">
             <StepShell
               icon={Mic2}
@@ -1441,10 +1447,12 @@ export function SongAndVideoModule() {
               <NavRow onBack={() => setStep(1)} onNext={handleContinueWithActiveArtist} nextLabel={t("songAndVideo.navVideoDirection")} nextIcon={<ArrowRight className="h-4 w-4" />} />
             )}
           </div>
+          </SectionBoundary>
         )}
 
         {/* ──────────── STEP 3: VIDEO DIRECTION ──────────── */}
         {step === 3 && (
+          <SectionBoundary name="song-and-video-step-video">
           <div className="space-y-6">
             <StepShell icon={Video} title={t("songAndVideo.step3Title")} subtitle={t("songAndVideo.step3Subtitle")}>
 
@@ -1490,10 +1498,12 @@ export function SongAndVideoModule() {
 
             <NavRow onBack={() => setStep(2)} onNext={() => setStep(4)} nextLabel={t("songAndVideo.navReviewGenerate")} nextIcon={<Sparkles className="h-4 w-4" />} />
           </div>
+          </SectionBoundary>
         )}
 
         {/* ──────────── STEP 4: GENERATE ──────────── */}
         {step === 4 && (
+          <SectionBoundary name="song-and-video-step-review">
           <div className="space-y-6">
             <StepShell icon={Sparkles} title={t("songAndVideo.step4Title")} subtitle={t("songAndVideo.step4Subtitle")}>
 
@@ -1554,10 +1564,12 @@ export function SongAndVideoModule() {
               loading={loading}
             />
           </div>
+          </SectionBoundary>
         )}
 
         {/* ──────────── STEP 5: RESULTS ──────────── */}
         {step === 5 && rawResult && (
+          <SectionBoundary name="song-and-video-step-results">
           <div className="space-y-8">
 
             {/* Result header */}
@@ -1584,7 +1596,11 @@ export function SongAndVideoModule() {
                   <div className="flex-1 h-px bg-primary/20" />
                 </div>
                 <div className="space-y-2">
-                  {songSections.map((s, i) => <ResultCard key={s.title} section={s} defaultOpen={i === 0} />)}
+                  {songSections.map((s, i) => (
+                    <SectionBoundary key={s.title} name={`song-and-video-song-section-${i}`} variant="compact">
+                      <ResultCard section={s} defaultOpen={i === 0} />
+                    </SectionBoundary>
+                  ))}
                 </div>
               </div>
             )}
@@ -1600,12 +1616,17 @@ export function SongAndVideoModule() {
                   <div className="flex-1 h-px bg-blue-600/20" />
                 </div>
                 <div className="space-y-2">
-                  {videoSections.map((s, i) => <ResultCard key={s.title} section={s} defaultOpen={i === 0} />)}
+                  {videoSections.map((s, i) => (
+                    <SectionBoundary key={s.title} name={`song-and-video-video-section-${i}`} variant="compact">
+                      <ResultCard section={s} defaultOpen={i === 0} />
+                    </SectionBoundary>
+                  ))}
                 </div>
               </div>
             )}
 
             {/* ── TIMELINE ── */}
+            <SectionBoundary name="song-and-video-results-timeline">
             <MusicVideoTimeline
               scenes={scenes}
               onScenesChange={setScenes}
@@ -1615,8 +1636,10 @@ export function SongAndVideoModule() {
               videoStyle={watched.videoStyle}
               platform={watched.platform}
             />
+            </SectionBoundary>
 
             {/* ── NEXT ACTIONS ── */}
+            <SectionBoundary name="song-and-video-results-actions">
             <div className={`rounded-2xl border p-6 space-y-4 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <div className="flex items-center gap-3">
                 <div className="h-7 w-7 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0">
@@ -1717,8 +1740,10 @@ export function SongAndVideoModule() {
                 </button>
               </div>
             </div>
+            </SectionBoundary>
 
           </div>
+          </SectionBoundary>
         )}
           </>
         )}
