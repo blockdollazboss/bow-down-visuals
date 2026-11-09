@@ -19,6 +19,7 @@ import { KaraokePanel } from "@/components/player-upgrades/KaraokePanel";
 import { buildSchedulerHref, songAnnounceCaption, trackPageUrl } from "@/lib/scheduler-handoff";
 import { SongCredits } from "@/components/SongCredits";
 import type { PublicSongCredits } from "@/lib/song-credits";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 interface SongRecord {
   id: string;
@@ -394,20 +395,24 @@ export default function SongsPage() {
 
   return (
     <div className="min-h-screen bg-black text-white px-4 py-8 max-w-3xl mx-auto">
-      <div className="flex items-center gap-3 mb-1">
-        <Music2 className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">{t("songs.title")}</h1>
-      </div>
-      <p className="text-sm text-white/50 mb-6">
-        {t("songs.intro")}
-      </p>
+      <SectionBoundary name="songs-header">
+        <div className="flex items-center gap-3 mb-1">
+          <Music2 className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-bold">{t("songs.title")}</h1>
+        </div>
+        <p className="text-sm text-white/50 mb-6">
+          {t("songs.intro")}
+        </p>
+      </SectionBoundary>
 
       {/* Open Verse (#176) docks on the song's own surface — a song here
           can open a verse slot, and verses for other creators' songs are
           submitted from the same desk. No standalone page. */}
-      <div className="mb-6">
-        <OpenVerseDesk />
-      </div>
+      <SectionBoundary name="songs-open-verse">
+        <div className="mb-6">
+          <OpenVerseDesk />
+        </div>
+      </SectionBoundary>
 
       {/* Library tabs: songs | albums | DJ sets (Album/EP Builder and the
           DJ Set-Prep Pack dock here — no new sidebar items) */}
@@ -430,12 +435,18 @@ export default function SongsPage() {
       </div>
 
       {tab === "albums" ? (
-        <AlbumsSection songs={songs} authHeaders={authHeaders} />
+        <SectionBoundary key="albums" name="songs-tab-albums">
+          <AlbumsSection songs={songs} authHeaders={authHeaders} />
+        </SectionBoundary>
       ) : tab === "dj" ? (
-        <DjSetPrep authHeaders={authHeaders} />
+        <SectionBoundary key="dj" name="songs-tab-dj">
+          <DjSetPrep authHeaders={authHeaders} />
+        </SectionBoundary>
       ) : (
+      <SectionBoundary key="songs" name="songs-tab-songs">
       <>
       {/* Upload */}
+      <SectionBoundary name="songs-upload">
       <div className={`rounded-xl border p-4 mb-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
         <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">
           {t("songs.uploadTitle")}
@@ -468,6 +479,7 @@ export default function SongsPage() {
           </label>
         </div>
       </div>
+      </SectionBoundary>
 
       {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
 
@@ -483,8 +495,8 @@ export default function SongsPage() {
       ) : (
         <div className="space-y-3">
           {songs.map((s) => (
+            <SectionBoundary key={s.id} name="songs-song-card" variant="compact">
             <div
-              key={s.id}
               id={`song-card-${s.id}`}
               className={`rounded-xl border p-4 transition-shadow ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"} ${
                 highlightSong === s.id
@@ -790,10 +802,12 @@ export default function SongsPage() {
                 )}
               </div>
             </div>
+            </SectionBoundary>
           ))}
         </div>
       )}
       </>
+      </SectionBoundary>
       )}
 
       {/* "Add to album" picker modal */}
