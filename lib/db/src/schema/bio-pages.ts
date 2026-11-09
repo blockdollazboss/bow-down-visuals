@@ -75,6 +75,8 @@ export const BIO_THEMES = [
   { key: "amber-dusk", label: "Amber Dusk", blurb: "Burnt amber over espresso — sunset turned after-dark" },
   { key: "violet-reign", label: "Violet Reign", blurb: "Deep violet with gold trim — the royal purple look" },
   { key: "sky-atrium", label: "Sky Atrium", blurb: "Pale sky blue with antique gold — a bright, open light look" },
+  { key: "sandstone-dune", label: "Sandstone Dune", blurb: "Warm sandstone with clay and antique gold — a sunlit desert light look" },
+  { key: "graphite-pro", label: "Graphite Pro", blurb: "Matte graphite with crisp steel rules — the all-business look" },
 ] as const;
 export const BIO_THEME_KEYS = new Set(BIO_THEMES.map((t) => t.key));
 

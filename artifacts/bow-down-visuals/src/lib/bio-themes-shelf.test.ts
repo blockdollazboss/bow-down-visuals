@@ -10,7 +10,9 @@
  * (Cobalt Stage dark — the shelf's first blue, Mint Atelier light —
  * its first light green, Amber Dusk dark) — now 12. Stack-300 added
  * two more (Violet Reign dark — the shelf's first purple, Sky Atrium
- * light — its first light blue) — now 14.
+ * light — its first light blue) — now 14. Stack 400 added two more
+ * (Sandstone Dune light — the shelf's first sandstone, Graphite Pro
+ * dark — its first neutral business graphite) — now 16.
  *
  * The theme key list lives in three places by construction:
  *  - the FE design registry (components/promote/bio-themes.tsx) — the
@@ -49,10 +51,11 @@ const EXPECTED_KEYS = [
   "velvet-noir", "emerald-court", "smoke-platinum",
   "golden-marble", "ivory-pearl", "rose-champagne",
   "cobalt-stage", "mint-atelier", "amber-dusk",
-  "violet-reign", "sky-atrium",
+  "violet-reign", "sky-atrium", "sandstone-dune",
+  "graphite-pro",
 ];
-const DARK_KEYS = ["gold-royal", "midnight-gold", "onyx-minimal", "velvet-noir", "emerald-court", "smoke-platinum", "cobalt-stage", "amber-dusk", "violet-reign"];
-const LIGHT_KEYS = ["golden-marble", "ivory-pearl", "rose-champagne", "mint-atelier", "sky-atrium"];
+const DARK_KEYS = ["gold-royal", "midnight-gold", "onyx-minimal", "velvet-noir", "emerald-court", "smoke-platinum", "cobalt-stage", "amber-dusk", "violet-reign", "graphite-pro"];
+const LIGHT_KEYS = ["golden-marble", "ivory-pearl", "rose-champagne", "mint-atelier", "sky-atrium", "sandstone-dune"];
 
 /* Every token a theme must define. linkTitle / linkIcon may be "" —
    "" means "inherit the button's own text color", a real design value
@@ -104,7 +107,7 @@ const builder = read("../components/promote/LinkInBioBuilder.tsx");
 const apiRoute = read("../../../api-server/src/routes/bio-pages.ts");
 
 describe("bio themes shelf — registry", () => {
-  it("is a real shelf: 14 themes, the expected keys in order, no duplicates", () => {
+  it("is a real shelf: 16 themes, the expected keys in order, no duplicates", () => {
     expect(FE_THEMES.map((t) => t.key)).toEqual(EXPECTED_KEYS);
     expect(new Set(FE_THEMES.map((t) => t.key)).size).toBe(FE_THEMES.length);
   });
@@ -137,7 +140,7 @@ describe("bio themes shelf — registry", () => {
 });
 
 describe("bio themes shelf — light and dark", () => {
-  it("covers both grounds: 9 dark designs and 5 light designs", () => {
+  it("covers both grounds: 10 dark designs and 6 light designs", () => {
     expect(FE_THEMES.filter((t) => t.mode === "dark").map((t) => t.key)).toEqual(DARK_KEYS);
     expect(FE_THEMES.filter((t) => t.mode === "light").map((t) => t.key)).toEqual(LIGHT_KEYS);
   });

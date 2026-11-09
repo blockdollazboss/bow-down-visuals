@@ -5,7 +5,7 @@
    Ring 3 Phase 5 dressed a Creator Room by its owner's EARNED rank
    alone: one trim per rung, resolved server-side off lib/creator-rank,
    nothing for the owner to pick. Ring 4 adds the CHOICE inside the
-   tier: a small catalog of template variants — five per rung — that
+   tier: a small catalog of template variants — six per rung — that
    restyle the room through the dressing system's own parameters
    (palette treatment, trim style, banner style). No freeform
    building, no new art: a variant is a parameter tuple the scene's
@@ -68,7 +68,7 @@ export interface RoomDressingVariant {
   bannerStyle: RoomDressingBannerStyle;
 }
 
-/** The five template styles every band offers, in picker order.
+/** The six template styles every band offers, in picker order.
  *  "classic" is always the default: its parameters ARE the Phase 5
  *  rendering. "shadow" is the bare-walls style: the hues swap like
  *  bold's, the trim stays the single bar, and NO banners hang —
@@ -76,7 +76,10 @@ export interface RoomDressingVariant {
  *  full-wall look in the room's own hues: the house palette and
  *  the single classic trim bar, wearing the trio of banners that
  *  regal otherwise reserves for gilded gold — the third banner
- *  without going regal. */
+ *  without going regal. "velvet" is the plush look (Stack 400):
+ *  regal's gilded palette and trio of banners, worn with the
+ *  single classic trim bar instead of the crown — the gold,
+ *  without the coronation. */
 const DRESSING_STYLES: ReadonlyArray<{
   key: string;
   label: string;
@@ -89,9 +92,10 @@ const DRESSING_STYLES: ReadonlyArray<{
   { key: "regal", label: "Regal", palette: "gilded", trimStyle: "crown", bannerStyle: "trio" },
   { key: "shadow", label: "Shadow", palette: "inverted", trimStyle: "bar", bannerStyle: "none" },
   { key: "gallery", label: "Gallery", palette: "house", trimStyle: "bar", bannerStyle: "trio" },
+  { key: "velvet", label: "Velvet", palette: "gilded", trimStyle: "bar", bannerStyle: "trio" },
 ];
 
-/** The whole catalog: 6 bands × 5 variants. Names carry the
+/** The whole catalog: 6 bands × 6 variants. Names carry the
  *  ladder's own rung names (STAR_TITLES via starTitle — the single
  *  source), never a second set of words. */
 export const ROOM_DRESSING_VARIANTS: readonly RoomDressingVariant[] = [1, 2, 3, 4, 5, 6].flatMap(

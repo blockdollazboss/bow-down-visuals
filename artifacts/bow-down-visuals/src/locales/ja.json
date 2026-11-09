@@ -14234,7 +14234,11 @@
     "tplAgendaName": "Event Agenda",
     "tplAgendaDesc": "One slide per time slot — doors, set times and speakers, right on the clock.",
     "tplWrappedName": "Wrapped Recap",
-    "tplWrappedDesc": "Your month or year in posts — the biggest moments, counted and retold."
+    "tplWrappedDesc": "Your month or year in posts — the biggest moments, counted and retold.",
+    "tplFlagsName": "Red Flags, Green Flags",
+    "tplFlagsDesc": "The warning signs and the all-clear signs — one flag per slide.",
+    "tplThisOrThatName": "This or That",
+    "tplThisOrThatDesc": "Two choices per slide — your audience picks a side."
   },
   "videoTemplates": {
     "applyCta": "テンプレートを適用 · {{price}} Visual Bucs",
@@ -15874,7 +15878,11 @@
       "violetReign": "Violet Reign",
       "violetReignBlurb": "Deep violet with gold trim — the royal purple look",
       "skyAtrium": "Sky Atrium",
-      "skyAtriumBlurb": "Pale sky blue with antique gold — a bright, open light look"
+      "skyAtriumBlurb": "Pale sky blue with antique gold — a bright, open light look",
+      "sandstoneDune": "Sandstone Dune",
+      "sandstoneDuneBlurb": "Warm sandstone with clay and antique gold — a sunlit desert light look",
+      "graphitePro": "Graphite Pro",
+      "graphiteProBlurb": "Matte graphite with crisp steel rules — the all-business look"
     },
     "links": {
       "title": "リンク",

@@ -78,6 +78,19 @@ export const CAROUSEL_TEMPLATES: CarouselTemplate[] = [
      pins: neon-edge/#f6d47c/corner and framed/#f6d47c/corner are new. ── */
   { id: "event-agenda",  nameKey: "carouselMaker.tplAgendaName",  descKey: "carouselMaker.tplAgendaDesc",  bgStyle: "neon-edge", accent: "#f6d47c", numberStyle: "corner" },
   { id: "wrapped-recap", nameKey: "carouselMaker.tplWrappedName", descKey: "carouselMaker.tplWrappedDesc", bgStyle: "framed",    accent: "#f6d47c", numberStyle: "corner" },
+  /* ── Stack 400 upgrade wave (shelf-rooms-bio lane): two more
+     maker-native formats. red-flags-green-flags is the paired flag
+     deck — the warning signs on one half, the all-clear signs on
+     the other (the split painter carries the two halves — not
+     myth-buster's claim/truth reveal, which shares the painter
+     with its own tuple); this-or-that is the audience pick-one —
+     two choices per slide, settled in the comments (not vs-battle's
+     product face-off, not pros-cons' single-subject verdict board).
+     Compositions stay distinct per the parity pins:
+     split/#e8c468/pill and bold-band/#e8c468/corner are new
+     (bgStyle, accent, numberStyle) tuples in this registry. ── */
+  { id: "red-flags-green-flags", nameKey: "carouselMaker.tplFlagsName",      descKey: "carouselMaker.tplFlagsDesc",      bgStyle: "split",     accent: "#e8c468", numberStyle: "pill" },
+  { id: "this-or-that",          nameKey: "carouselMaker.tplThisOrThatName", descKey: "carouselMaker.tplThisOrThatDesc", bgStyle: "bold-band", accent: "#e8c468", numberStyle: "corner" },
 ];
 
 /** Resolve a template reference (a Library deep-link slug like
