@@ -8,7 +8,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the subtitle-styler charge. */
+const REPLAY_NOTE =
+  "This is the styled-caption video you already made for this clip — a different clip, caption file or style makes a fresh one.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -113,6 +127,17 @@ router.post("/style-subtitles", requireAuth, async (req, res) => {
 
   const { videoUrl, srt, style } = parsed.data;
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the captioned video already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("subtitle-styler", req.userId!, null, {
+    ...parsed.data,
+  });
+  const durable = await findStoredGenerationResult("subtitle-styler", idempotencyKey, req.userId!);
+  if (durable && typeof durable["url"] === "string" && durable["url"] !== "") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < SUBTITLE_STYLER_COST) {
     res.status(402).json({
@@ -126,7 +151,7 @@ router.post("/style-subtitles", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, SUBTITLE_STYLER_COST, {
       action: `Style Subtitles (${style})`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -167,18 +192,30 @@ router.post("/style-subtitles", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       style,
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("subtitle-styler", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Subtitle styling failed.";
     req.log.error({ err: message }, "[subtitle-styler] failed");
-    await refundCredits(req.userId!, SUBTITLE_STYLER_COST, {
-      action: "Style Subtitles — Refund",
-    }).catch(() => {});
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let refunded = true;
+    try {
+      await refundCredits(req.userId!, SUBTITLE_STYLER_COST, {
+        action: "Style Subtitles — Refund",
+      });
+    } catch {
+      refunded = false;
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(500).json({ error: message });
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
