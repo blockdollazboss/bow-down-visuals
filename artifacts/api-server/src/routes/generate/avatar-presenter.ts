@@ -20,6 +20,13 @@ import {
   submitAvatarVideo,
 } from "../../lib/avatar-client";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import {
+  loadAvatarJob,
+  persistAvatarJob,
+  sweepExpiredAvatarJobs,
+  syncAvatarJob,
+  type AvatarPresenterSubmitInput,
+} from "../../lib/avatar-presenter-jobs";
 import { refreshSupabaseStorageUrl, uploadMediaToSupabaseStorage } from "../../lib/objectStorage";
 import { logger } from "../../lib/logger";
 
@@ -67,11 +74,91 @@ export interface AvatarJob {
    *  (which were never charged at submit) stay valid. */
   chargeKey?: string;
   creditsRefunded?: boolean;
+  /** The submit inputs the worker runs with, persisted with the job
+   *  (migration 0334) so a worker resumed after a restart re-runs
+   *  the exact ask the member paid for. */
+  submitInput?: AvatarPresenterSubmitInput | null;
 }
 
 const jobs = new Map<string, AvatarJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
+/* ── Durable job storage (migration 0334) ─────────────────────────
+   The Map above is the working cache; avatar_presenter_jobs is
+   the record. Every job is persisted at creation and mirrored on
+   every mutation (lib/avatar-presenter-jobs — all fail-open: a
+   storage failure degrades to the pre-0334 in-process behavior
+   and can never error the rail or double-charge). A lookup that
+   misses the Map rehydrates from the table, so a job survives a
+   server restart; a rehydrated job that never finished has its
+   worker resumed (see findAvatarJob). The durable TTL sweep runs
+   on the sweeper's own cadence over the SAME 2h clock — rows
+   expire by query, not by a process forgetting them. */
+const AVATAR_JOB_TTL_MS = 2 * 60 * 60 * 1000; // == job-map-sweeper default TTL
+const durableSweepTimer = setInterval(() => {
+  void sweepExpiredAvatarJobs(AVATAR_JOB_TTL_MS);
+}, 5 * 60 * 1000); // == job-map-sweeper sweep cadence
+durableSweepTimer.unref?.();
+
+/** Job ids with a worker running in THIS process — the guard that
+ *  keeps a rehydrated job from ever running two workers at once. */
+const runningJobs = new Set<string>();
+
+/** Fire a job's worker unless one is already running for it here. */
+function fireAvatarJobWorker(job: AvatarJob, input: AvatarPresenterSubmitInput): void {
+  if (runningJobs.has(job.id)) return;
+  runningJobs.add(job.id);
+  void processAvatarJob(job, input)
+    .catch(() => {
+      /* processAvatarJob settles the job itself; nothing escapes. */
+    })
+    .finally(() => {
+      runningJobs.delete(job.id);
+    });
+}
+
+/**
+ * A job pulled back from the durable store in a non-terminal state
+ * has no worker in this process (it died with the old one) —
+ * resume it on the persisted submit inputs. The provider submit
+ * is idempotent under the per-job key, and the refund claim is
+ * persisted, so the resumed worker settles the job exactly once.
+ */
+function resumeAvatarJobIfOrphaned(job: AvatarJob): void {
+  if (job.status !== "queued" && job.status !== "processing") return;
+  fireAvatarJobWorker(job, job.submitInput ?? {});
+}
+
+/**
+ * The one job lookup both routes use: Map first, durable store on
+ * a miss. A rehydrated job re-enters the Map (the TTL clock
+ * restarts — it was just touched) and, if it never finished, has
+ * its worker resumed before it is answered from.
+ */
+async function findAvatarJob(id: string): Promise<AvatarJob | undefined> {
+  const cached = jobs.get(id);
+  if (cached) return cached;
+  const stored = await loadAvatarJob(id);
+  if (!stored) return undefined;
+  const job: AvatarJob = {
+    id: stored.id,
+    userId: stored.userId,
+    status: stored.status,
+    avatarId: stored.avatarId,
+    script: stored.script,
+    outputUrl: stored.outputUrl,
+    error: stored.error,
+    creditsCharged: stored.creditsCharged,
+    providerJobId: stored.providerJobId,
+    createdAt: stored.createdAt,
+    chargeKey: stored.chargeKey,
+    creditsRefunded: stored.creditsRefunded,
+    submitInput: stored.submitInput ?? undefined,
+  };
+  jobs.set(job.id, job);
+  resumeAvatarJobIfOrphaned(job);
+  return job;
+}
 
 /** Test hook: clear the in-memory job store. */
 export function __resetAvatarJobs(): void {
@@ -81,6 +168,7 @@ export function __resetAvatarJobs(): void {
 /** Test hook: register a job directly (money-path tests drive processAvatarJob). */
 export function __putAvatarJob(job: AvatarJob): void {
   jobs.set(job.id, job);
+  void persistAvatarJob(job);
 }
 
 /* ── Charge rail ──────────────────────────────────────────────────────
@@ -99,16 +187,19 @@ export function __putAvatarJob(job: AvatarJob): void {
      once (the job's creditsRefunded flag is claimed synchronously
      before the refund awaits, so a replayed completion cannot
      double-refund) and voids the charge's idempotency key.
-   - NOTE (pre-existing exposure): jobs live in an in-memory Map, so a
-     server restart between submit and completion loses the refund
-     path for in-flight jobs — the ledger charge stands with no job
-     record to refund from. Durable job storage is out of this lane. */
+   - DURABLE JOBS (migration 0334): every job is also persisted to
+     avatar_presenter_jobs and mirrored on each mutation, so a
+     server restart between submit and completion no longer loses
+     the job — a later lookup rehydrates it, resumes its worker if
+     it never finished, and the refund path below works from the
+     persisted refund claim exactly as it does in-process. */
 
 /** Refund a job's reserve exactly once. No-op for never-charged jobs. */
 async function refundAvatarJobCharge(job: AvatarJob): Promise<void> {
   const amount = job.creditsCharged ?? 0;
   if (amount <= 0 || job.creditsRefunded) return;
   job.creditsRefunded = true; // claim synchronously — exactly once
+  void syncAvatarJob(job); // the claim is durable before the refund moves
   const key = job.chargeKey ?? `avatar-presenter:${job.id}`;
   try {
     await refundCredits(job.userId, amount, {
@@ -179,16 +270,11 @@ async function storeFinishedVideo(job: AvatarJob, providerVideoUrl: string): Pro
  */
 export async function processAvatarJob(
   job: AvatarJob,
-  input: {
-    voiceId?: string;
-    aspectRatio?: "16:9" | "9:16" | "1:1";
-    imageUrl?: string;
-    audioUrl?: string;
-    prompt?: string;
-  },
+  input: AvatarPresenterSubmitInput,
 ): Promise<void> {
   try {
     job.status = "processing";
+    void syncAvatarJob(job); // durable: the transition survives a restart
     const submitted = await submitAvatarVideo({
       avatarId: job.avatarId,
       script: job.script,
@@ -201,6 +287,7 @@ export async function processAvatarJob(
       idempotencyKey: `avatar-presenter:${job.id}`,
     });
     job.providerJobId = submitted.providerJobId;
+    void syncAvatarJob(job); // durable: the provider job id survives a restart
 
     const deadline = Date.now() + pollTimeoutMs();
     for (;;) {
@@ -238,6 +325,11 @@ export async function processAvatarJob(
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Avatar generation failed";
     await refundAvatarJobCharge(job);
+  } finally {
+    // Durable: the terminal state (status, outputUrl / error, and —
+    // via the refund claim sync — creditsRefunded) is the record a
+    // post-restart lookup answers from.
+    void syncAvatarJob(job);
   }
 }
 
@@ -310,7 +402,10 @@ router.post("/avatar-presenter", requireAuth, generationLimiter, async (req: Req
   const jobId = createHash("sha256").update(chargeIdempotencyKey).digest("hex").slice(0, 32);
   const chargeKey = `avatar-presenter:${jobId}`;
 
-  const existingJob = jobs.get(jobId);
+  /* Durable twin check (0334): the Map first, the table on a miss —
+     after a restart the twin lands on the persisted job exactly as
+     it would have in-process (and a still-running one resumes). */
+  const existingJob = await findAvatarJob(jobId);
   if (existingJob && existingJob.userId === req.userId) {
     res.status(202).json({
       jobId: existingJob.id,
@@ -347,6 +442,13 @@ router.post("/avatar-presenter", requireAuth, generationLimiter, async (req: Req
     throw err;
   }
 
+  const submitInput: AvatarPresenterSubmitInput = {
+    voiceId: parsed.data.voiceId,
+    aspectRatio: parsed.data.aspectRatio,
+    imageUrl: parsed.data.imageUrl,
+    audioUrl: parsed.data.audioUrl,
+    prompt: parsed.data.prompt,
+  };
   const job: AvatarJob = {
     id: jobId,
     userId: req.userId!,
@@ -360,16 +462,16 @@ router.post("/avatar-presenter", requireAuth, generationLimiter, async (req: Req
     createdAt: Date.now(),
     chargeKey,
     creditsRefunded: false,
+    submitInput,
   };
   jobs.set(job.id, job);
+  /* Durable (0334): the row lands before the worker fires, so the
+     job exists on the record from its first moment. Awaited — and
+     fail-open: a storage failure logs and the job still runs
+     in-process exactly as it did before this table existed. */
+  await persistAvatarJob(job);
 
-  void processAvatarJob(job, {
-    voiceId: parsed.data.voiceId,
-    aspectRatio: parsed.data.aspectRatio,
-    imageUrl: parsed.data.imageUrl,
-    audioUrl: parsed.data.audioUrl,
-    prompt: parsed.data.prompt,
-  });
+  fireAvatarJobWorker(job, submitInput);
 
   res.status(202).json({ jobId: job.id, status: job.status, creditsCharged: job.creditsCharged });
 });
@@ -378,7 +480,7 @@ router.post("/avatar-presenter", requireAuth, generationLimiter, async (req: Req
  * GET /api/avatar-presenter/:jobId — poll a presenter job.
  */
 router.get("/avatar-presenter/:jobId", requireAuth, async (req: Request, res: Response) => {
-  const job = jobs.get(String(req.params.jobId));
+  const job = await findAvatarJob(String(req.params.jobId));
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "JOB_NOT_FOUND", message: "Job not found." });
     return;
