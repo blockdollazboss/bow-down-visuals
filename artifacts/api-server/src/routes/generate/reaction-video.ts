@@ -7,7 +7,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5: replay note served with a stored result (C-36 honesty). */
+const REPLAY_NOTE = "This is the reaction video you already made for this request — change a video or setting for a fresh one.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -82,6 +89,19 @@ router.post("/reaction-video", requireAuth, async (req, res) => {
   const { videoUrl, reactionUrl, position, size, margin, borderWidth, borderColor, audioSource } =
     parsed.data;
 
+  /* CA-5 (house stored-result pattern): server-derived key from the
+     full composite intent; stored-result pre-check BEFORE funding —
+     a replay is served from the durable table (migration 0333),
+     never re-charged, never re-composited. Fail-open. */
+  const idempotencyKey = buildChargeIdempotencyKey("reaction-video", req.userId!, null, {
+    videoUrl, reactionUrl, position, size, margin, borderWidth, borderColor, audioSource,
+  });
+  const durable = await findStoredGenerationResult("reaction-video", idempotencyKey, req.userId!);
+  if (durable && typeof durable["url"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < REACTION_VIDEO_COST) {
     res.status(402).json({
@@ -95,7 +115,7 @@ router.post("/reaction-video", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, REACTION_VIDEO_COST, {
       action: "Reaction Video",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -182,7 +202,7 @@ router.post("/reaction-video", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       position,
@@ -191,13 +211,20 @@ router.post("/reaction-video", requireAuth, async (req, res) => {
       mainDimensions: { width, height },
       reactionDimensions: { width: reactW, height: reactH },
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("reaction-video", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Reaction video creation failed.";
     req.log.error({ err: message }, "[reaction-video] failed");
-    await refundCredits(req.userId!, REACTION_VIDEO_COST, {
+    /* CA-5: a landed refund also VOIDS the charge key. */
+    const refunded = await refundCredits(req.userId!, REACTION_VIDEO_COST, {
       action: "Reaction Video — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(500).json({ error: message });
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
