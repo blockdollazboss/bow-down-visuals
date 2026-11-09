@@ -188,8 +188,10 @@ html, body {
 }
 
 :root, .dark {
-  /* Royal black — deep obsidian throne room */
-  --background: 36 24% 5%;
+  /* Royal black — deep obsidian throne room. Ground is TRUE NEUTRAL
+     BLACK (owner ruling, Nov 8, 2026): the old warm-brown 36 24% 5%
+     ground was killed — achromatic 0% saturation, same depth. */
+  --background: 0 0% 5%;
   --foreground: 45 30% 94%;
 
   /* Cards: dark velvet panels with warm undertone */
@@ -334,6 +336,38 @@ html, body {
    Contrast discipline: every text remap is checked against ivory —
    body text ≥ 7:1, muted text ≥ 4.5:1, large display gold ≥ 3:1.
    ═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   MARBLE SPLASH — the shell's stone accents (owner ruling, Nov 8,
+   2026; Gate-1 preview approved Nov 9, 2026). A slim stone strip
+   across the very top of the app shell with a 1px gold hairline
+   directly under it, and a matching slim strip at the foot of the
+   shell (components/layout/marble-strips.tsx, mounted by AppShell).
+   Additive ONLY — no page composition changes, no marble walls or
+   grounds, no per-card frames. Calm stones only: black marble in
+   dark theme, golden cream marble in light, swapped by the .light
+   class like every other themed surface.
+   ═══════════════════════════════════════════════════════════════════ */
+.marble-strip {
+  height: 30px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  flex: none;
+}
+.marble-strip-top {
+  background-image: url("/world/textures/marble-black.jpg");
+  border-bottom: 1px solid hsl(var(--primary));
+}
+.light .marble-strip-top {
+  background-image: url("/world/textures/marble-cream.jpg");
+}
+.marble-strip-foot {
+  background-image: url("/world/textures/marble-black.jpg");
+}
+.light .marble-strip-foot {
+  background-image: url("/world/textures/marble-cream.jpg");
+}
 
 /* ── 0. Dark-locked surfaces whose panels DO follow the site theme ──
    The public creator profile keeps its banner art in both themes but
@@ -1874,7 +1908,11 @@ html, body {
   }
 
   html, body {
-    background-color: hsl(36 24% 5%);
+    /* The page backdrop itself carries the ground token's value —
+       true neutral black in dark (see :root, .dark above). The light
+       theme's .light body rule (#FAF7F0) outranks this base rule, so
+       the ivory ground is untouched. */
+    background-color: hsl(0 0% 5%);
   }
 
   /* Native controls follow the SITE theme, not the OS: without this, select

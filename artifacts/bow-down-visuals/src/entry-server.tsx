@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router as WouterRouter } from "wouter";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SiteFooter } from "@/components/layout/footer";
+import { MarbleTopStrip, MarbleFootStrip } from "@/components/layout/marble-strips";
 import Home from "@/pages/home";
 
 /**
@@ -48,8 +49,12 @@ export function renderMarketingPage(path: string): string {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <WouterRouter ssrPath={path}>
+          {/* Marble Splash strips mirror AppShell's frame so the
+              prerendered page carries the same shell accents. */}
+          <MarbleTopStrip />
           <Page />
           <SiteFooter />
+          <MarbleFootStrip />
         </WouterRouter>
       </AuthProvider>
     </QueryClientProvider>,

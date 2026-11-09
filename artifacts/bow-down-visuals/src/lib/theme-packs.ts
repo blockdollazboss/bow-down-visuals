@@ -242,7 +242,9 @@ export function variantVarMap(variant: ThemePackVariant): Record<string, string>
 /* ─── The house palettes (mirror index.css — see header) ──────────────── */
 
 const HOUSE_DARK_TOKENS: ThemePackTokens = {
-  background: "36 24% 5%",
+  /* Ground = true neutral black (owner ruling, Nov 8, 2026 — the
+     warm-brown ground was killed; mirrors index.css :root, .dark). */
+  background: "0 0% 5%",
   foreground: "45 30% 94%",
   card: "36 22% 8%",
   cardForeground: "45 25% 92%",
