@@ -23,7 +23,13 @@
    standalone stories, a different job from both) and guided-journal
    (the secular prompt journal — devotional is explicitly faith-based
    and workbook is skill exercises, so daily reflection prompts had
-   no starter). */
+   no starter).
+
+   Stack-400 census-D additions: the shelf's first script formats —
+   screenplay (a scene-by-scene script scaffold: sluglines, action,
+   dialogue) and comic-book-script (a panel-by-panel script scaffold).
+   The eleven before them are written to be read as finished pages;
+   these two are written to be produced. */
 
 export type BookTemplateSectionKind = "front" | "chapter" | "back";
 
@@ -745,6 +751,150 @@ export const BOOK_TEMPLATES: BookTemplate[] = [
         kind: "back",
         guidance:
           "Three to five sentences in the third person: who you are, the practice behind this journal, and where readers can find more of your work.",
+      },
+    ],
+  },
+  {
+    id: "screenplay",
+    name: "Write It for the Screen",
+    genre: "Screenplay",
+    blurb: "A script, scene by scene — sluglines, action, and dialogue in standard screen format.",
+    audience: "For writers building a film, short, or episode script in proper screenplay shape.",
+    chapters: [
+      {
+        title: "Title Page",
+        kind: "front",
+        guidance:
+          "The script's cover, and nothing more: the title in caps, \"written by\", your name, and your contact details. No artwork, no tagline, no logline — a title page this plain is the format working as intended.",
+      },
+      {
+        title: "Logline & Story Notes",
+        kind: "front",
+        guidance:
+          "Your working brief while you draft: the one-sentence logline, the genre and tone, the hero's want and need, and the ending you're writing toward. If a scene serves none of it, the scene goes — this page is how you know.",
+      },
+      {
+        title: "Sequence One — The Ordinary World",
+        kind: "chapter",
+        guidance:
+          "Open in screen format: slugline (INT./EXT., place, time of day), lean action lines, dialogue under character names. Show the hero inside their ordinary world, in action — a screenplay shows; it never summarizes. Keep description to what a camera can see.",
+      },
+      {
+        title: "Sequence Two — The Inciting Incident",
+        kind: "chapter",
+        guidance:
+          "The event that breaks the ordinary: an arrival, a loss, an offer, a discovery. End this run of scenes with the hero facing a door they can't un-open — by the last scene, resuming the old life has to be impossible.",
+      },
+      {
+        title: "Act Two, Part One — Tests and Allies",
+        kind: "chapter",
+        guidance:
+          "The hero enters the new world and learns its rules the hard way: first attempts, early wins that cost more than expected, allies met and enemies revealed. Every scene should turn — the hero leaves it with something gained, lost, or understood.",
+      },
+      {
+        title: "The Midpoint Turn",
+        kind: "chapter",
+        guidance:
+          "Halfway through, the story changes underneath: a revelation, a betrayal, a victory that turns out to be the trap. Raise the stakes and give the hero a deadline — from here the clock is part of every scene.",
+      },
+      {
+        title: "Act Two, Part Two — The Squeeze",
+        kind: "chapter",
+        guidance:
+          "Everything tightens: allies wobble, the opposition closes in, and the cost of continuing rises scene by scene. End on the darkest moment — the hero loses the thing they were protecting, or faces the truth they've been avoiding.",
+      },
+      {
+        title: "Act Three — The Climax",
+        kind: "chapter",
+        guidance:
+          "The confrontation the whole script has been promising, played in full scenes — not montage. Let who the hero has become decide the outcome: the final choice should be one only this hero, after everything above, would make.",
+      },
+      {
+        title: "The Final Image",
+        kind: "chapter",
+        guidance:
+          "The last scene, short and deliberate: the new ordinary, in a picture that echoes the opening image so the audience can feel exactly how far the hero has travelled. Then FADE OUT. — the two hardest-working words in the format.",
+      },
+      {
+        title: "About the Writer",
+        kind: "back",
+        guidance:
+          "Three to five sentences in the third person: who you are, what you write, any produced or optioned work, and where readers and producers can reach you. Plain and factual — credits speak louder than adjectives.",
+      },
+    ],
+  },
+  {
+    id: "comic-book-script",
+    name: "Panels, Pages, Cliffhangers",
+    genre: "Comic Book Script",
+    blurb: "A comic script page by page — every page broken into panels with art direction and dialogue.",
+    audience: "For writers scripting a comic or graphic story for an artist (or themselves) to draw.",
+    chapters: [
+      {
+        title: "Series Bible — The World in Brief",
+        kind: "front",
+        guidance:
+          "The standing reference the whole script leans on: the world and its rules, each recurring character in two or three lines (look, voice, what they want), and the places that will repeat. Artists draw consistently from this page — write it once, write it clearly.",
+      },
+      {
+        title: "Page One — The Splash",
+        kind: "chapter",
+        guidance:
+          "One full-page panel: the image the whole issue is remembered by. Describe it like a poster — subject, setting, mood, the one detail that asks a question. Dialogue is usually none; a caption or a single line of SFX is plenty. This page sells the next twenty.",
+      },
+      {
+        title: "Pages 2–3 — Meet the Hero",
+        kind: "chapter",
+        guidance:
+          "Break each page into numbered panels: for every panel write what the artist draws (shot size, angle, action) and hang the dialogue, captions, and SFX under it. Two pages to establish the hero in their world, mid-action — who they are, shown, not told.",
+      },
+      {
+        title: "Pages 4–6 — The Problem Lands",
+        kind: "chapter",
+        guidance:
+          "The trouble arrives and gets a face. Keep panels small and quick as the pressure builds, and end page six on a page-turn beat — a reveal, a threat, a door opening — the image that makes a reader flip instead of putting the issue down.",
+      },
+      {
+        title: "Pages 7–9 — The First Attempt",
+        kind: "chapter",
+        guidance:
+          "The hero acts on the problem with the tools they already have — and it half-works. Vary your panel shapes with the energy: wide panels for space and calm, tight grids for speed. Let the failure land in a quiet panel; silence draws well.",
+      },
+      {
+        title: "Pages 10–12 — The Turn",
+        kind: "chapter",
+        guidance:
+          "The midpoint revelation, drawn big: the ally who isn't, the power that costs, the truth under the story. Give the turn its own splash or near-splash page if it earns one — this is the image readers will describe to friends.",
+      },
+      {
+        title: "Pages 13–15 — The Darkest Pages",
+        kind: "chapter",
+        guidance:
+          "The hero at their lowest: fewer, heavier panels; darker compositions; dialogue thins out. Show the loss in what the art withholds — an empty chair, an unanswered caption box. Despair in comics is a layout choice as much as a line.",
+      },
+      {
+        title: "Pages 16–18 — The Climax",
+        kind: "chapter",
+        guidance:
+          "The confrontation, panel by panel, at the issue's fastest cutting: small panels, sharp angles, SFX doing real work. Sequence the action so a reader can follow every move without a single caption explaining it — then one wide panel for the blow that decides it.",
+      },
+      {
+        title: "Page 19 — The Resolution",
+        kind: "chapter",
+        guidance:
+          "The new ordinary in one page: the world after the climax, the hero changed and visible in it. Echo a panel from page one — same framing, different truth inside it. Readers feel the distance travelled without a word saying so.",
+      },
+      {
+        title: "Page 20 — The Cliffhanger",
+        kind: "chapter",
+        guidance:
+          "The last page points at the next issue: a new arrival, a revealed face, a problem thought buried standing in the doorway. End on one strong final panel and, at most, one line of dialogue. \"Next issue\" energy is a promise — make sure the next script keeps it.",
+      },
+      {
+        title: "About the Writer & Artist",
+        kind: "back",
+        guidance:
+          "Short bios for the writer and the artist (one person, if that's you): names, roles, past work, and where readers can follow the series. Comics are credited as a team — this page is where the team gets named.",
       },
     ],
   },
