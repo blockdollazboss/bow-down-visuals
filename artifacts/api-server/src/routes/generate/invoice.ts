@@ -1,10 +1,20 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { z } from "zod";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { isUniqueViolation } from "../../lib/pg-errors";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { db, invoicesTable, INVOICE_STATUSES, type Invoice } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { renderInvoicePdf } from "../../lib/invoice-render";
@@ -84,62 +94,160 @@ function pdfBufferToBase64(buf: Buffer): string {
   return buf.toString("base64");
 }
 
-/* POST /api/generate-invoice { brandName, creatorName, lineItems[], dueDate, … }
-   → 200 { invoice, pdfBase64, pdfFilename, creditsUsed, creditsRemaining }
-   Paid: 50 Visual Bucs. Auth required; charge first, refund on failure. */
-router.post("/generate-invoice", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = invoiceRequestSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid invoice request.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
+
+/* ── CA-3 replay protection (charge audit C-38) ───────────────────────
+   This rail used to charge with NO idempotency key: a retry of a
+   SUCCESSFUL request re-charged and re-ran the work. Now the server
+   derives the key from the request intent on EVERY call, a
+   stored-result pre-check (durable table, migration 0333, then the
+   in-process cache) answers a replay with no charge and no provider
+   call, and a failed attempt refunds AND voids its key so a genuine
+   retry charges fresh. An identical ask serves the stored result
+   with replayed: true instead of charging again (C-36 ruling). */
+const INVOICE_SCOPE = "generate-invoice";
+const INVOICE_REPLAY_NOTE =
+  "This is the invoice you already generated for this request — it is saved in your invoice list; change the details for a new one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetInvoiceReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
+
+/**
+ * Serve one replayable run: durable + in-process stored-result
+ * pre-checks before any funding, the in-flight twin wait for a
+ * concurrent duplicate, then the run itself. A success is stored
+ * BEFORE answering (contracts / post-assist pattern); an error body
+ * (carrying __status) is answered bare and never stored.
+ */
+async function serveReplayableRun(args: {
+  res: Response;
+  userId: string;
+  idempotencyKey: string;
+  run: () => Promise<Record<string, unknown>>;
+}): Promise<void> {
+  const { res, userId, idempotencyKey } = args;
+  const replayOf = (body: Record<string, unknown>) => ({
+    ...body, replayed: true, replayNote: INVOICE_REPLAY_NOTE,
+  });
+
+  const durable = await findStoredGenerationResult(INVOICE_SCOPE, idempotencyKey, userId);
+  if (durable) {
+    res.json(replayOf(durable));
+    return;
+  }
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json(replayOf(stored.body));
+    return;
+  }
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json(replayOf(twinBody));
+      return;
+    }
+    /* The twin failed (refunded + key voided) — fall through fresh. */
+  }
+
+  const runPromise = args.run();
+  inFlight.set(idempotencyKey, runPromise);
+  let body: Record<string, unknown>;
+  try {
+    body = await runPromise;
+  } finally {
+    if (inFlight.get(idempotencyKey) === runPromise) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
     return;
   }
 
-  const balance = req.userCredits ?? 0;
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult(INVOICE_SCOPE, idempotencyKey, userId, { ...body });
+  } catch { /* storing is best-effort — never fail a paid success over it */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json(replayOf(postCharge.body));
+    return;
+  }
+  res.json(body);
+}
+
+/* Pattern C (CA-3): the charge guards a SIDE EFFECT — a persisted
+   invoice row. The stored result carries the created row (id +
+   number) inside the saved success body, so a replay returns that
+   same invoice WITHOUT inserting a second row or charging again. */
+async function runGenerateInvoice(
+  userId: string,
+  userCredits: number,
+  data: z.infer<typeof invoiceRequestSchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  const balance = userCredits;
   if (balance < INVOICE_CREDIT_COST) {
-    res.status(402).json({
+    return {
+      __status: 402,
       error: "out_of_credits",
       message: "You're out of Visual Bucs — top up to generate your invoice.",
-    });
-    return;
+    };
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, INVOICE_CREDIT_COST, {
+    creditsRemaining = await chargeCredits(userId, INVOICE_CREDIT_COST, {
       action: "Generate Invoice",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      return {
+        __status: 402,
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to generate your invoice.",
-      });
-      return;
+      };
     }
     throw err;
   }
 
   async function refund() {
+    let refunded = true;
     try {
-      await refundCredits(req.userId!, INVOICE_CREDIT_COST, {
+      await refundCredits(userId, INVOICE_CREDIT_COST, {
         action: "Generate Invoice — Refund (generation failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       void refundErr; // logged inside refundCredits; don't mask the original failure
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
     }
   }
 
   try {
-    const d = parsed.data;
+    const d = data;
     const totalCents = d.lineItems.reduce(
       (sum, item) => sum + Math.round(item.quantity * item.rateCents),
       0
     );
     const due = new Date(d.dueDate);
 
-    let invoiceNumber = await nextInvoiceNumber(req.userId!);
+    let invoiceNumber = await nextInvoiceNumber(userId);
     let inserted: Invoice | null = null;
     // Retry on invoice-number collision (per-user sequence race).
     for (let attempt = 0; attempt < 3 && !inserted; attempt++) {
@@ -147,7 +255,7 @@ router.post("/generate-invoice", requireAuth, publicApiLimiter, async (req, res)
         const rows = await db
           .insert(invoicesTable)
           .values({
-            userId: req.userId!,
+            userId,
             invoiceNumber,
             brandName: d.brandName,
             brandEmail: d.brandEmail || null,
@@ -187,21 +295,46 @@ router.post("/generate-invoice", requireAuth, publicApiLimiter, async (req, res)
 
     /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
 
-    res.json({
+    return {
       invoice: sanitizeRow(inserted),
       pdfBase64: pdfBufferToBase64(pdf),
       pdfFilename: `${inserted.invoiceNumber}.pdf`,
       creditsUsed: INVOICE_CREDIT_COST,
       creditsRemaining,
-    });
+    };
   } catch (err) {
     await refund();
     logger.error({ err }, "generate-invoice: failed, Visual Bucs refunded");
-    res.status(502).json({
+    return {
+      __status: 502,
       error: "generation_failed",
       message: "Something went wrong generating your invoice — your Visual Bucs were refunded.",
-    });
+    };
   }
+}
+
+/* POST /api/generate-invoice { brandName, creatorName, lineItems[], dueDate, … }
+   → 200 { invoice, pdfBase64, pdfFilename, creditsUsed, creditsRemaining }
+   Paid: 50 Visual Bucs. Auth required; charge first, refund on failure. */
+router.post("/generate-invoice", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = invoiceRequestSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid invoice request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  const idempotencyKey = buildChargeIdempotencyKey(
+    INVOICE_SCOPE, req.userId!, undefined, parsed.data,
+  );
+  await serveReplayableRun({
+    res,
+    userId: req.userId!,
+    idempotencyKey,
+    run: () => runGenerateInvoice(req.userId!, req.userCredits ?? 0, parsed.data, idempotencyKey),
+  });
 });
 
 /* GET /api/invoices — the creator's invoice list (free, no credits). */

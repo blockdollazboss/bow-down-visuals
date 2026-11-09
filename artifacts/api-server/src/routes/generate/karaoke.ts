@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { downloadToFileCapped } from "../../lib/download-to-file";
 import { z } from "zod";
 import { execFile } from "child_process";
@@ -8,7 +8,15 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError,
+  buildChargeIdempotencyKey, voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+import { createHash } from "crypto";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -206,41 +214,127 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
   return header + events.join("\n") + "\n";
 }
 
-router.post("/karaoke-video", requireAuth, async (req, res) => {
-  const parsed = karaokeSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid request.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
+
+/* ── CA-3 replay protection (charge audit C-38) ───────────────────────
+   This rail used to charge with NO idempotency key: a retry of a
+   SUCCESSFUL request re-charged and re-ran the work. Now the server
+   derives the key from the request intent on EVERY call, a
+   stored-result pre-check (durable table, migration 0333, then the
+   in-process cache) answers a replay with no charge and no provider
+   call, and a failed attempt refunds AND voids its key so a genuine
+   retry charges fresh. An identical ask serves the stored result
+   with replayed: true instead of charging again (C-36 ruling). */
+const KARAOKE_SCOPE = "karaoke";
+const KARAOKE_REPLAY_NOTE =
+  "This is the karaoke video you already made for this request — change the song, lyrics or theme for a fresh one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetKaraokeReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
+
+/**
+ * Serve one replayable run: durable + in-process stored-result
+ * pre-checks before any funding, the in-flight twin wait for a
+ * concurrent duplicate, then the run itself. A success is stored
+ * BEFORE answering (contracts / post-assist pattern); an error body
+ * (carrying __status) is answered bare and never stored.
+ */
+async function serveReplayableRun(args: {
+  res: Response;
+  userId: string;
+  idempotencyKey: string;
+  run: () => Promise<Record<string, unknown>>;
+}): Promise<void> {
+  const { res, userId, idempotencyKey } = args;
+  const replayOf = (body: Record<string, unknown>) => ({
+    ...body, replayed: true, replayNote: KARAOKE_REPLAY_NOTE,
+  });
+
+  const durable = await findStoredGenerationResult(KARAOKE_SCOPE, idempotencyKey, userId);
+  if (durable) {
+    res.json(replayOf(durable));
+    return;
+  }
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json(replayOf(stored.body));
+    return;
+  }
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json(replayOf(twinBody));
+      return;
+    }
+    /* The twin failed (refunded + key voided) — fall through fresh. */
+  }
+
+  const runPromise = args.run();
+  inFlight.set(idempotencyKey, runPromise);
+  let body: Record<string, unknown>;
+  try {
+    body = await runPromise;
+  } finally {
+    if (inFlight.get(idempotencyKey) === runPromise) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
     return;
   }
 
-  const { audioUrl, lrc, title, artist, theme } = parsed.data;
-  const lyricLines = parseLrc(lrc);
-  if (lyricLines.length === 0) {
-    res.status(400).json({ error: "No usable lyric lines found. Use LRC format: [mm:ss.cc]lyrics" });
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult(KARAOKE_SCOPE, idempotencyKey, userId, { ...body });
+  } catch { /* storing is best-effort — never fail a paid success over it */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json(replayOf(postCharge.body));
     return;
   }
+  res.json(body);
+}
 
-  const currentCredits = req.userCredits ?? 0;
-  if (currentCredits < KARAOKE_COST) {
-    res.status(402).json({
+async function runKaraokeVideo(
+  userId: string,
+  userCredits: number,
+  data: z.infer<typeof karaokeSchema>,
+  lyricLines: LrcLine[],
+  idempotencyKey: string,
+  log: { error: (obj: object, msg: string) => void },
+): Promise<Record<string, unknown>> {
+  const { audioUrl, title, artist, theme } = data;
+  if (userCredits < KARAOKE_COST) {
+    return {
+      __status: 402,
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
-    });
-    return;
+    };
   }
 
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, KARAOKE_COST, {
+    creditsAfter = await chargeCredits(userId, KARAOKE_COST, {
       action: "Karaoke Video",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      return { __status: 402, error: "out_of_credits", message: "Not enough Visual Bucs." };
     }
     throw err;
   }
@@ -289,28 +383,79 @@ router.post("/karaoke-video", requireAuth, async (req, res) => {
     );
 
     const buffer = await readFile(outputPath);
-    const objectName = `karaoke/${req.userId}/${randomUUID()}.mp4`;
+    const objectName = `karaoke/${userId}/${randomUUID()}.mp4`;
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    return {
       url,
       storageRef,
       theme,
       lineCount: lyricLines.length,
       durationSeconds: Math.round(duration),
       creditsRemaining: creditsAfter,
-    });
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Karaoke video generation failed.";
-    req.log.error({ err: message }, "[karaoke] failed");
-    await refundCredits(req.userId!, KARAOKE_COST, {
-      action: "Karaoke Video — Refund",
-    }).catch(() => {});
-    res.status(500).json({ error: message });
+    log.error({ err: message }, "[karaoke] failed");
+    /* Refund + VOID so a genuine retry charges fresh instead of
+       being suppressed as a replay and running free. */
+    let refunded = true;
+    try {
+      await refundCredits(userId, KARAOKE_COST, {
+        action: "Karaoke Video — Refund",
+      });
+    } catch {
+      refunded = false;
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
+    }
+    return { __status: 500, error: message };
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+router.post("/karaoke-video", requireAuth, async (req, res) => {
+  const parsed = karaokeSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  const { lrc } = parsed.data;
+  const lyricLines = parseLrc(lrc);
+  if (lyricLines.length === 0) {
+    res.status(400).json({ error: "No usable lyric lines found. Use LRC format: [mm:ss.cc]lyrics" });
+    return;
+  }
+
+  /* Idempotency (CA-3): the server derives the key from the request
+     intent on EVERY call — the LRC text rides as its sha256 (it can
+     be 100 KB). A replay of the same ask is served from the stored
+     video instead of charging again. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    KARAOKE_SCOPE, req.userId!, undefined,
+    {
+      audioUrl: parsed.data.audioUrl,
+      lrcHash: createHash("sha256").update(lrc).digest("hex"),
+      title: parsed.data.title ?? null, artist: parsed.data.artist ?? null,
+      theme: parsed.data.theme,
+    },
+  );
+
+  await serveReplayableRun({
+    res,
+    userId: req.userId!,
+    idempotencyKey,
+    run: () => runKaraokeVideo(
+      req.userId!, req.userCredits ?? 0, parsed.data, lyricLines, idempotencyKey, req.log,
+    ),
+  });
 });
 
 export default router;
