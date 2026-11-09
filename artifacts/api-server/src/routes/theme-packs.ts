@@ -54,6 +54,7 @@ export const THEME_PACK_PREMIUM_IDS: ReadonlySet<string> = new Set([
   "arcade-gold",
   "crimson-marble",
   "sapphire-marble",
+  "emerald-marble",
 ]);
 /** Every pack id the desk sells or gives away — anything else is not a pack. */
 export const THEME_PACK_KNOWN_IDS: ReadonlySet<string> = new Set([
@@ -64,6 +65,7 @@ export const THEME_PACK_KNOWN_IDS: ReadonlySet<string> = new Set([
   "arcade-gold",
   "crimson-marble",
   "sapphire-marble",
+  "emerald-marble",
 ]);
 
 const router = Router();

@@ -24839,7 +24839,10 @@
     "crimsonMarbleDescription": "The palace cut in red stone: crimson-veined black marble and antique gold in the dark — blush ivory marble and deep crimson by day. Pairs with the Diamond cursor.",
     "sapphireMarbleName": "Sapphire Marble",
     "sapphireMarbleTagline": "Deep-sea sapphire marble, platinum silver",
-    "sapphireMarbleDescription": "The palace cut in blue stone: sapphire-veined blue-black marble with platinum silver in the dark — pale ice-blue marble and deep sapphire by day. Pairs with the Gold Star cursor."
+    "sapphireMarbleDescription": "The palace cut in blue stone: sapphire-veined blue-black marble with platinum silver in the dark — pale ice-blue marble and deep sapphire by day. Pairs with the Gold Star cursor.",
+    "emeraldMarbleName": "Emerald Marble",
+    "emeraldMarbleTagline": "Emerald-veined marble, antique gold",
+    "emeraldMarbleDescription": "The palace cut in green stone: emerald-veined black marble and antique gold in the dark — pale mint marble and deep emerald by day. Pairs with the Gold Key cursor."
   },
   "profileHosting": {
     "heading": "Profile Hosting",

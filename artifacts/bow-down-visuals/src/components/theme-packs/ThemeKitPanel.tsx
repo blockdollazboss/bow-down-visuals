@@ -534,6 +534,7 @@ export function CreatorPacksSection() {
               <option value="arcade-gold">Arcade Gold</option>
               <option value="crimson-marble">Crimson Marble</option>
               <option value="sapphire-marble">Sapphire Marble</option>
+              <option value="emerald-marble">Emerald Marble</option>
             </select>
           </label>
           <label className="flex flex-col gap-1 text-[11px] font-semibold">

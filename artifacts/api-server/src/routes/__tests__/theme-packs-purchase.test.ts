@@ -201,6 +201,20 @@ describe("theme pack purchase rail", () => {
     expect(state.json.elite).toBe(false);
   });
 
+  it("buy emerald-marble (Stack-400 D-43): the newest premium pack rides the same rail — 1,000 VB once, owned forever", async () => {
+    h.balance = 2500;
+    const r = await call("POST", "/theme-packs/purchase", { packId: "emerald-marble" });
+    expect(r.status).toBe(200);
+    expect(r.json).toMatchObject({ owned: true, alreadyOwned: false, chargedVb: 1000 });
+    expect(h.balance).toBe(1500);
+    expect(h.charges).toHaveLength(1);
+    expect(h.charges[0]!.cost).toBe(1000);
+    const state = await call("GET", "/theme-packs/state");
+    expect(state.json.owned).toEqual(["emerald-marble"]);
+    expect(state.json.premiumPackIds).toContain("emerald-marble");
+    expect(state.json.priceVb).toBe(1000);
+  });
+
   it("buy twice: the second purchase charges nothing", async () => {
     h.balance = 2500;
     await call("POST", "/theme-packs/purchase", { packId: "arcade-gold" });

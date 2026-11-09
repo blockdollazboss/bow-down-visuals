@@ -377,7 +377,7 @@ describe("creator pack mix → buyer bundle", () => {
 
 describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", () => {
   /* The fixture tree carries designed files for the five raised packs
-     only. crimson-marble + sapphire-marble sets are NOT raised: their
+     only. crimson-marble + sapphire-marble + emerald-marble sets are NOT raised: their
      bundles must say so in their own paperwork (README, kit.json,
      install texts) instead of claiming all 50 icons, and the
      manifests endpoint must carry the missing list. A raised pack
@@ -388,7 +388,7 @@ describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", (
     );
   }
 
-  for (const packId of ["crimson-marble", "sapphire-marble"]) {
+  for (const packId of ["crimson-marble", "sapphire-marble", "emerald-marble"]) {
     it(`${packId}: the full bundle names its missing designed set everywhere`, async () => {
       await buyPack(packId);
       const r = await callBytes("POST", `/theme-packs/kit/${packId}/download`, { kind: "full", mode: "dark" });
@@ -432,7 +432,7 @@ describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", (
     const byId = new Map(r.json.packs.map((p: any) => [p.packId, p]));
     expect(byId.get("golden-marble").icons.missing).toEqual([]);
     expect(byId.get("golden-marble").icons.note).toContain("downloads ship these files");
-    for (const packId of ["crimson-marble", "sapphire-marble"]) {
+    for (const packId of ["crimson-marble", "sapphire-marble", "emerald-marble"]) {
       expect(byId.get(packId).icons.missing).toHaveLength(100);
       expect(byId.get(packId).icons.note).toContain("has not been raised yet");
     }

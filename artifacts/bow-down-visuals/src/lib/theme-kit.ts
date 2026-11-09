@@ -352,7 +352,7 @@ export type DesignedIconName = (typeof DESIGNED_ICON_NAMES)[number];
     asset library — all 50 icons × light+dark on disk, hashes pinned
     in kit-assets-manifest.json. Every other pack's set is
     owner-approved art-program work that has not landed yet
-    (crimson-marble, sapphire-marble): its icon-set + folder-icons
+    (crimson-marble, sapphire-marble, emerald-marble): its icon-set + folder-icons
     components are marked artPending in the kit manifest, the desk
     says so, and its bundles name the missing files
     (ICONS-MISSING.txt) — never a substitute. Pinned against the

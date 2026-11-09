@@ -102,6 +102,14 @@ export const SERVER_PACKS: ServerPack[] = [
       light: { background: "207 48% 97%", foreground: "219 42% 11%", primary: "216 82% 40%" },
     },
   },
+  {
+    id: "emerald-marble", name: "Emerald Marble", tier: "premium", cursor: "gold-key",
+    deviceArt: { dark: "/wallpapers/theme-packs/emerald-marble-dark.webp", light: "/wallpapers/theme-packs/emerald-marble-light.webp" },
+    colors: {
+      dark: { background: "152 38% 4%", foreground: "140 25% 95%", primary: "43 95% 54%" },
+      light: { background: "140 42% 97%", foreground: "152 35% 10%", primary: "152 70% 30%" },
+    },
+  },
 ];
 
 export function serverPackById(id: string): ServerPack | undefined {
@@ -268,6 +276,8 @@ export const KIT_ART_SITE_PATHS: Record<string, string> = {
   "pack-ground-crimson-marble-light": "/wallpapers/theme-packs/crimson-marble-light.webp",
   "pack-ground-sapphire-marble-dark": "/wallpapers/theme-packs/sapphire-marble-dark.webp",
   "pack-ground-sapphire-marble-light": "/wallpapers/theme-packs/sapphire-marble-light.webp",
+  "pack-ground-emerald-marble-dark": "/wallpapers/theme-packs/emerald-marble-dark.webp",
+  "pack-ground-emerald-marble-light": "/wallpapers/theme-packs/emerald-marble-light.webp",
   "kings-set-throne-phone": "/wallpapers/kings-set-throne-phone.webp",
   "kings-set-plaza-phone": "/wallpapers/kings-set-plaza-phone.webp",
   "kings-set-stage-desktop": "/wallpapers/kings-set-stage-desktop.webp",
@@ -616,7 +626,7 @@ function addWallpapers(archive: InstanceType<typeof ZipArchive>, pack: ServerPac
 /** The designed-icon site paths ABSENT from this deploy's asset
     library for a pack, in bundle order (light then dark, manifest
     name order). A pack whose set the art program has not raised yet
-    (crimson-marble, sapphire-marble) is missing all 100; a raised
+    (crimson-marble, sapphire-marble, emerald-marble) is missing all 100; a raised
     pack is missing none. The bundle paperwork (README, kit.json,
     install texts, the manifests endpoint) conditions itself on
     this list — the kit never claims icons it does not ship. */

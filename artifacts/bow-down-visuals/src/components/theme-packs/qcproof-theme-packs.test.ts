@@ -70,8 +70,8 @@ describe("(a) per-device wallpapers — distinct sizes, distinct files, home + l
     expect(new Set(dims).size).toBe(3);
   });
 
-  it("the shipped manifest carries 42 renders whose hashes differ per device, mode and pack", () => {
-    expect(assets.deviceWallpapers).toHaveLength(42);
+  it("the shipped manifest carries 48 renders whose hashes differ per device, mode and pack", () => {
+    expect(assets.deviceWallpapers).toHaveLength(48);
     for (const pack of THEME_PACKS) {
       for (const mode of ["light", "dark"] as const) {
         const rows = assets.deviceWallpapers.filter((w) => w.pack === pack.id && w.mode === mode);
@@ -189,7 +189,7 @@ describe("(d) price parity — server tiers mirror the FE registry", () => {
     }
     /* Exactly the four ruled premium ids; the house pack is included. */
     expect(THEME_PACKS.filter((p) => p.tier === "premium").map((p) => p.id).sort())
-      .toEqual(["arcade-gold", "crimson-marble", "kings-set", "sapphire-marble"]);
+      .toEqual(["arcade-gold", "crimson-marble", "emerald-marble", "kings-set", "sapphire-marble"]);
     expect(themePackById("golden-marble")!.tier).toBe("included");
     expect(themePackById("golden-marble")!.house).toBe(true);
   });
