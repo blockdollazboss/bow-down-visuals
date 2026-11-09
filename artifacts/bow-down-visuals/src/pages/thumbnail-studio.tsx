@@ -1,6 +1,7 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
 import { lazy, Suspense, useState, useRef, useEffect } from "react";
 import { CreationFinale } from "@/components/player/CreationFinale";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -711,7 +712,11 @@ export function ThumbnailMakerModule() {
             ))}
           </div>
 
-          {mode === "artwork" && <SingleShotCoverArt />}
+          {mode === "artwork" && (
+            <SectionBoundary name="thumbnail-studio-cover-art">
+              <SingleShotCoverArt />
+            </SectionBoundary>
+          )}
 
           {mode === "simple" && (
             <div className="space-y-4">
@@ -1135,7 +1140,9 @@ export function ThumbnailMakerModule() {
       {/* #174 Thumbnail Duels — the real-count counterpart to the AI
           test above: covers made here fight on the published video. */}
       <div className="mt-8">
-        <ThumbnailDuelDesk candidateCovers={duelCandidates} />
+        <SectionBoundary name="thumbnail-studio-duel">
+          <ThumbnailDuelDesk candidateCovers={duelCandidates} />
+        </SectionBoundary>
       </div>
       {/* Lightbox */}
       {lightbox && (
@@ -1980,17 +1987,43 @@ export default function ThumbnailStudio({ defaultTab, embedded }: { defaultTab?:
           ))}
         </div>
 
-        {tab === "generate" && <ThumbnailMakerModule />}
-        {tab === "abtest" && <ThumbnailAbTester />}
+        {tab === "generate" && (
+          <SectionBoundary name="thumbnail-studio-generate">
+            <ThumbnailMakerModule />
+          </SectionBoundary>
+        )}
+        {tab === "abtest" && (
+          <SectionBoundary name="thumbnail-studio-abtest">
+            <ThumbnailAbTester />
+          </SectionBoundary>
+        )}
         <Suspense fallback={<ThumbDeskFallback />}>
-          {tab === "enhance" && <PhotoEnhance />}
-          {tab === "background" && <BgStudio />}
-          {tab === "editor" && <PhotoCanvasEditor />}
+          {tab === "enhance" && (
+            <SectionBoundary name="thumbnail-studio-enhance">
+              <PhotoEnhance />
+            </SectionBoundary>
+          )}
+          {tab === "background" && (
+            <SectionBoundary name="thumbnail-studio-background">
+              <BgStudio />
+            </SectionBoundary>
+          )}
+          {tab === "editor" && (
+            <SectionBoundary name="thumbnail-studio-editor">
+              <PhotoCanvasEditor />
+            </SectionBoundary>
+          )}
         </Suspense>
-        {tab === "library" && <ThumbnailLibrary onGoGenerate={() => switchTab("generate")} />}
+        {tab === "library" && (
+          <SectionBoundary name="thumbnail-studio-library">
+            <ThumbnailLibrary onGoGenerate={() => switchTab("generate")} />
+          </SectionBoundary>
+        )}
 
         {/* Rank 6a: every creation ends in the Get Paid finale. */}
-        <CreationFinale surfaceId="thumbnail-studio" />
+        <SectionBoundary name="thumbnail-studio-finale">
+          <CreationFinale surfaceId="thumbnail-studio" />
+        </SectionBoundary>
       </div>
     </div>
   );

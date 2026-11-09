@@ -168,7 +168,11 @@ describe("D — /thumbnail-studio's photo desks ride lazy doors", () => {
     expect(thumbStudio).not.toContain('import { BgStudio } from "@/components/photo/BgStudio";');
     expect(thumbStudio).not.toContain('import { PhotoCanvasEditor } from "@/components/photo/PhotoCanvasEditor";');
     expect(thumbStudio).toContain("export function ThumbnailMakerModule()");
-    expect(thumbStudio).toContain('{tab === "library" && <ThumbnailLibrary');
+    /* Stack 400 C-25: the library tab now renders inside its own
+       SectionBoundary — still the in-file component, never a lazy door. */
+    expect(thumbStudio).toContain('{tab === "library" && (');
+    expect(thumbStudio).toContain('<SectionBoundary name="thumbnail-studio-library">');
+    expect(thumbStudio).toContain('<ThumbnailLibrary onGoGenerate={() => switchTab("generate")} />');
   });
 });
 
