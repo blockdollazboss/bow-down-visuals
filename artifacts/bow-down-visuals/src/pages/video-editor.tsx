@@ -24,6 +24,7 @@ import { VideoBanner } from "@/components/layout/video-banner";
 import { openThyChat } from "@/lib/open-thy-chat";
 import { useCollaboration, CollaboratorCursors } from "@/components/LiveCollaboration";
 import WittyLoader from "@/components/delight/witty-loader";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
@@ -2325,7 +2326,9 @@ export default function VideoEditor() {
                   </div>
                   )}
 
-                  {includeSections && (<>
+                  {includeSections && (
+                  <SectionBoundary key={activeTab} name={`video-editor-left-${activeTab}`}>
+                  <>
                   {activeTab === "timeline" && (
                     <ToolPanelShell
                       tool="timeline"
@@ -2978,6 +2981,7 @@ export default function VideoEditor() {
                     </ToolPanelShell>
                   )}
                   </>
+                  </SectionBoundary>
                   )}
                 </div>
     );
@@ -2986,7 +2990,9 @@ export default function VideoEditor() {
     const { includeSections } = opts;
     return (
                 <div className="p-4">
-                  {includeSections && (<>
+                  {includeSections && (
+                  <SectionBoundary key={activeTab} name={`video-editor-right-${activeTab}`}>
+                  <>
                   {activeTab === "promo-clips" && (
                     <ToolPanelShell
                       tool="promo-clips"
@@ -3143,6 +3149,7 @@ export default function VideoEditor() {
                       })}
                     >
                     <>
+                      <SectionBoundary name="video-editor-pro-tools-main">
                       <ProToolsSection
                         scenes={resolvedScenes}
                         settings={settings}
@@ -3154,14 +3161,18 @@ export default function VideoEditor() {
                           )
                         }
                       />
+                      </SectionBoundary>
+                      <SectionBoundary name="video-editor-pro-tools-keyframes">
                       <KeyframesSection
                         scenes={resolvedScenes}
                         settings={settings}
                         setSettings={setSettings}
                       />
+                      </SectionBoundary>
                       {/* Wave 9 — Background Replace: AI background swap for talking-head clips
                           (honest 503 until a segmentation provider is wired; green-screen clips
                           are pointed at the working Chroma Key tool). */}
+                      <SectionBoundary name="video-editor-pro-tools-background-replace">
                       <div className="mt-6">
                         <BackgroundReplaceSection
                           scene={selectedIdx != null ? resolvedScenes[selectedIdx] ?? null : null}
@@ -3174,7 +3185,9 @@ export default function VideoEditor() {
                           }
                         />
                       </div>
+                      </SectionBoundary>
                       {/* Wave — Stabilize: smooth shaky footage (vidstab two-pass) */}
+                      <SectionBoundary name="video-editor-pro-tools-stabilize">
                       <div className="mt-6">
                         <StabilizeSection
                           scenes={resolvedScenes}
@@ -3189,7 +3202,9 @@ export default function VideoEditor() {
                           }}
                         />
                       </div>
+                      </SectionBoundary>
                       {/* Wave — Speed ramp: buttery slow-mo, speed presets, ramp curves */}
+                      <SectionBoundary name="video-editor-pro-tools-speed-ramp">
                       <div className="mt-6">
                         <SpeedRampSection
                           scenes={resolvedScenes}
@@ -3204,6 +3219,7 @@ export default function VideoEditor() {
                           }}
                         />
                       </div>
+                      </SectionBoundary>
                     </>
                     </ToolPanelShell>
                   )}
@@ -3248,6 +3264,7 @@ export default function VideoEditor() {
                     {/* Spotify Canvas Generator — docked in the export/promo
                         chain (DistroKid Canvas parity). Deep-linked via
                         ?tab=export&canvas=1 from song results / cover art. */}
+                    <SectionBoundary name="video-editor-export-canvas">
                     <div className="mt-6">
                       <CanvasGeneratorSection
                         audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
@@ -3255,10 +3272,12 @@ export default function VideoEditor() {
                         artistName={artistName || undefined}
                       />
                     </div>
+                    </SectionBoundary>
                     </>
                     </ToolPanelShell>
                   )}
                   </>
+                  </SectionBoundary>
                   )}
                 </div>
     );
@@ -3325,6 +3344,7 @@ export default function VideoEditor() {
              /locations door lands on the working surface, not a gate. */
           <div className="flex-1 overflow-y-auto p-4">
             <Suspense fallback={<div className="p-4 text-[11px] vv-ink-40">Loading…</div>}>
+              <SectionBoundary name="video-editor-locations-door">
               <ToolPanelShell
                 tool="locations"
                 kicker={t("videoEditor.railLocations", { defaultValue: "Locations" })}
@@ -3333,6 +3353,7 @@ export default function VideoEditor() {
               >
                 <LocationsPage embedded />
               </ToolPanelShell>
+              </SectionBoundary>
             </Suspense>
           </div>
         ) : (loading || !barcodeDone) ? (
@@ -3708,6 +3729,7 @@ export default function VideoEditor() {
                 <div className="shrink-0 z-20 bg-black flex justify-center">
                   <div className="w-full flex justify-center">
                     {/* ── MASTER PREVIEW PLAYER — one player, above all tabs ── */}
+                    <SectionBoundary name="video-editor-stage">
                     <MasterPreviewPlayer
                       eng={previewEngineState}
                       scenes={resolvedScenes}
@@ -3736,6 +3758,7 @@ export default function VideoEditor() {
                       headerHeight={headerHeight}
                       isLight={isLight}
                     />
+                    </SectionBoundary>
 
                   </div>
                 </div>
