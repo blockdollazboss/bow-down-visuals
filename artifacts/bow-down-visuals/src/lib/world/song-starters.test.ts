@@ -54,8 +54,8 @@ function seededAdv(): SongAdvanced {
 }
 
 describe("the shelf's data is the page registry, whole", () => {
-  it("carries all 33 presets across the three page groups", () => {
-    expect(SONG_PRESETS).toHaveLength(33);
+  it("carries all 37 presets across the three page groups", () => {
+    expect(SONG_PRESETS).toHaveLength(37);
     expect(SONG_PRESET_GROUPS.map((g) => g.id)).toEqual(["genre", "mood", "structure"]);
     for (const group of SONG_PRESET_GROUPS) {
       expect(songPresetsByGroup(group.id).length).toBeGreaterThan(0);

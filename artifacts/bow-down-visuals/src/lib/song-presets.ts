@@ -229,6 +229,34 @@ export const SONG_PRESETS: SongPreset[] = [
       beatStyle: "Bouncy piano, claps, ukulele strum — nothing scary, everything smiling",
     },
   },
+  /* ── Stack 400 upgrade wave (shelf-song-beats lane): two genre
+     families the select does not sell by name. Amapiano and
+     reggaetón have no value in SONG_PRESET_GENRES, so each preset
+     sets the nearest family the form truly sells and lets its
+     beat-style recipe carry the real identity — the same honesty
+     shape as Lo-Fi Chill, one group over. ── */
+  {
+    id: "amapiano-groove",
+    label: "Amapiano Groove",
+    emoji: "🎹",
+    group: "genre",
+    simplePrompt: "amapiano groove — rolling log drums under jazzy piano, deep, smooth and made to dance to",
+    form: {
+      genre: "Afrobeats",
+      beatStyle: "Amapiano — rolling log-drum bassline, jazzy piano chords lead, shaker grid, soft synth pads",
+    },
+  },
+  {
+    id: "reggaeton-nights",
+    label: "Reggaetón Nights",
+    emoji: "🌃",
+    group: "genre",
+    simplePrompt: "reggaetón night record — dembow rhythm, perreo bass, a hook built for after dark",
+    form: {
+      genre: "Dancehall",
+      beatStyle: "Reggaetón — dembow 3+3+2 rhythm, deep perreo bass, dark melodic synths",
+    },
+  },
 
   /* ── By mood & vibe — sets the mood select (Lo-Fi: beat style only,
         because the form has no Lo-Fi genre or mood value) ── */
@@ -342,6 +370,23 @@ export const SONG_PRESETS: SongPreset[] = [
     simplePrompt: "kid-friendly song — clean, kind and silly in the right places, safe for the whole family",
     form: { mood: "Kid-Friendly" },
   },
+  /* ── Stack 400 upgrade wave (shelf-song-beats lane): the warm
+     daylight mood the shelf lacked — every earlier mood is a night,
+     a fight or a feeling, none is sunlight. The select sells no
+     sunlit value, so the preset rides the nearest value it does
+     sell — Inspirational's lift — and lets its beat-style recipe
+     carry the golden-hour identity. ── */
+  {
+    id: "golden-hour-glow",
+    label: "Golden Hour Glow",
+    emoji: "🌞",
+    group: "mood",
+    simplePrompt: "warm golden-hour song — sunlit and feel-good, like the last hour of a perfect day",
+    form: {
+      mood: "Inspirational",
+      beatStyle: "Golden-hour warmth — acoustic guitar strum, soft piano, brushed drums, warm round bass",
+    },
+  },
 
   /* ── By structure — structure rides Special Instructions, the real
         free-text field the form sends as generation instructions ── */
@@ -450,6 +495,23 @@ export const SONG_PRESETS: SongPreset[] = [
     form: {
       specialInstructions:
         "Structure: duet — singer one takes verse one, singer two takes verse two, both voices join on the hook; leave a short call-and-response break before the final hook.",
+    },
+  },
+  /* ── Stack 400 upgrade wave (shelf-song-beats lane): the
+     bridge-centered shape. Full Song Build passes through a bridge
+     on its way somewhere else; this shape makes the bridge the
+     event — the song breaks down to almost nothing, then the
+     final hook rebuilds it bigger. Like every structure preset it
+     rides Special Instructions only. ── */
+  {
+    id: "bridge-breakdown",
+    label: "Bridge Breakdown",
+    emoji: "🌉",
+    group: "structure",
+    simplePrompt: "verse, hook, verse, hook — then a stripped-back bridge breakdown before the final hook lands bigger",
+    form: {
+      specialInstructions:
+        "Structure: verse, hook, verse, hook, then a bridge that breaks the song down — drums strip away, one instrument and a raw vocal carry it — before the final hook returns at full size.",
     },
   },
 ];

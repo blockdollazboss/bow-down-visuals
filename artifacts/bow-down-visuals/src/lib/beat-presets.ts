@@ -58,7 +58,8 @@ export interface BeatPreset {
 export type BeatPresetId =
   | "trap" | "drill" | "boombap" | "afrobeats" | "house"
   | "rnb" | "jersey-club" | "lofi"
-  | "pop" | "edm" | "dancehall";
+  | "pop" | "edm" | "dancehall"
+  | "amapiano" | "phonk";
 
 /** The starting patterns, in picker order. */
 export const BEAT_PRESETS: Record<BeatPresetId, BeatPreset> = {
@@ -344,6 +345,81 @@ export const BEAT_PRESETS: Record<BeatPresetId, BeatPreset> = {
       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     ],
     bass: [36,null,null,36,null,null,43,null,36,null,null,36,null,41,null,null],
+  },
+  /* ── Stack 400 upgrade wave (shelf-song-beats lane): two shelves
+     the census called for that were never AI genres here — like
+     boombap and house, these live as sequencer patterns in their
+     own right. Amapiano is the log drum's home shelf (the afrobeats
+     pattern carries log drums as an ingredient; this one is built
+     around them, piano-led). Phonk is the cowbell's. Each pattern
+     is written in this registry's own format (9 rows × 16 steps,
+     bass in the C1..B2 808 range, melody seeds in the roll's step
+     shape). Picking one is still a free local edit. ── */
+  amapiano: {
+    nameKey: "beatMaker.presetAmapiano", fallback: "Amapiano", bpm: 112,
+    /* The log drum IS the bass line: it bounces off the beat
+       (steps 3, 6, 11, 14) around a soft four-floor kick while the
+       shaker runs the full 16th grid underneath. Piano-led: jazzy
+       chord stabs in the keys lane over a soft pad. */
+    grid: [
+      [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+      [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
+      [0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0],
+      [0,0,1,0,0,1,0,0,0,0,1,0,0,1,0,0],
+      [2,1,1,1,2,1,1,1,2,1,1,1,2,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [36,null,null,36,null,null,39,null,36,null,null,41,null,null,39,null],
+    melody: {
+      keys: [
+        { id: "seed-amapiano-keys-1", pitch: 60, startStep: 0, lengthSteps: 2, velocity: 85 },
+        { id: "seed-amapiano-keys-2", pitch: 65, startStep: 4, lengthSteps: 2, velocity: 80 },
+        { id: "seed-amapiano-keys-3", pitch: 63, startStep: 8, lengthSteps: 2, velocity: 85 },
+        { id: "seed-amapiano-keys-4", pitch: 67, startStep: 12, lengthSteps: 2, velocity: 80 },
+      ],
+      pluck: [],
+      pad: [
+        { id: "seed-amapiano-pad-1", pitch: 48, startStep: 0, lengthSteps: 8, velocity: 55 },
+        { id: "seed-amapiano-pad-2", pitch: 46, startStep: 8, lengthSteps: 8, velocity: 55 },
+      ],
+    },
+  },
+  phonk: {
+    nameKey: "beatMaker.presetPhonk", fallback: "Phonk", bpm: 138,
+    /* Cowbell-led: the Memphis cowbell riff rides the keys lane as
+       a repeating motif with a two-note turnaround, over a hard
+       kick, an accented backbeat and rolling hats. The bass sits
+       low and descends — phonk lives in the basement, not the
+       bounce. No pad and no shaker: drift, kept dry. */
+    grid: [
+      [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0],
+      [0,0,0,0,2,0,0,0,0,0,0,0,2,0,0,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+      [1,0,1,1,0,1,0,1,1,0,1,1,0,1,1,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
+      [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+      [0,0,1,0,0,1,0,0,0,0,1,0,0,1,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ],
+    bass: [29,null,null,29,null,null,null,null,27,null,null,27,null,null,25,null],
+    melody: {
+      keys: [
+        { id: "seed-phonk-keys-1", pitch: 77, startStep: 0, lengthSteps: 0.5, velocity: 100 },
+        { id: "seed-phonk-keys-2", pitch: 77, startStep: 2, lengthSteps: 0.5, velocity: 95 },
+        { id: "seed-phonk-keys-3", pitch: 80, startStep: 4, lengthSteps: 0.5, velocity: 100 },
+        { id: "seed-phonk-keys-4", pitch: 77, startStep: 6, lengthSteps: 0.5, velocity: 95 },
+        { id: "seed-phonk-keys-5", pitch: 75, startStep: 8, lengthSteps: 0.5, velocity: 95 },
+        { id: "seed-phonk-keys-6", pitch: 77, startStep: 10, lengthSteps: 0.5, velocity: 100 },
+        { id: "seed-phonk-keys-7", pitch: 80, startStep: 12, lengthSteps: 0.5, velocity: 95 },
+        { id: "seed-phonk-keys-8", pitch: 82, startStep: 14, lengthSteps: 0.5, velocity: 100 },
+      ],
+      pluck: [],
+      pad: [],
+    },
   },
 };
 

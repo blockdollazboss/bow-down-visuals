@@ -1088,11 +1088,12 @@ describe("beat preset registry — note-for-note the originals", () => {
     expect(new Set(BEAT_GENRES).size).toBe(BEAT_GENRES.length);
   });
 
-  it("carries the 5 originals first, in picker order, then the Stack 200 U2 and Stack 300 additions", () => {
+  it("carries the 5 originals first, in picker order, then the Stack 200 U2, Stack 300 and Stack 400 additions", () => {
     expect(BEAT_PRESET_IDS).toEqual([
       "trap", "drill", "boombap", "afrobeats", "house",
       "rnb", "jersey-club", "lofi",
       "pop", "edm", "dancehall",
+      "amapiano", "phonk",
     ]);
     expect(Object.keys(BEAT_PRESETS).slice(0, 5)).toEqual(Object.keys(FIXTURE_PRESETS));
   });
@@ -1163,11 +1164,12 @@ describe("beat preset registry — playback shape invariants", () => {
     /* 13 original seed notes + rnb's 6 (4 keys + 2 pad) + lofi's 5
        (3 keys + 2 pad); jersey-club carries no seed. Stack 300:
        pop's 8 (4 keys + 4 pluck) + edm's 6 (4 keys + 2 pad);
-       dancehall carries no seed. */
-    expect(ids.size).toBe(38);
+       dancehall carries no seed. Stack 400: amapiano's 6 (4 keys +
+       2 pad) + phonk's 8 (the cowbell keys riff). */
+    expect(ids.size).toBe(52);
   });
 
-  it("labels and tempos: the originals, then the U2 and Stack 300 additions in picker order", () => {
+  it("labels and tempos: the originals, then the U2, Stack 300 and Stack 400 additions in picker order", () => {
     expect(Object.values(BEAT_PRESETS).map((p) => p.nameKey)).toEqual([
       "beatMaker.presetTrap",
       "beatMaker.presetDrill",
@@ -1180,8 +1182,10 @@ describe("beat preset registry — playback shape invariants", () => {
       "beatMaker.presetPop",
       "beatMaker.presetEdm",
       "beatMaker.presetDancehall",
+      "beatMaker.presetAmapiano",
+      "beatMaker.presetPhonk",
     ]);
-    expect(Object.values(BEAT_PRESETS).map((p) => p.bpm)).toEqual([140, 142, 92, 102, 124, 92, 140, 82, 112, 128, 102]);
+    expect(Object.values(BEAT_PRESETS).map((p) => p.bpm)).toEqual([140, 142, 92, 102, 124, 92, 140, 82, 112, 128, 102, 112, 138]);
     for (const p of Object.values(BEAT_PRESETS)) expect(p.fallback.length).toBeGreaterThan(0);
   });
 
@@ -1306,5 +1310,60 @@ describe("beat preset registry — Stack 300: the last three pattern-less genres
     expect(BEAT_PRESETS.pop.fallback).toBe("Pop");
     expect(BEAT_PRESETS.edm.fallback).toBe("EDM");
     expect(BEAT_PRESETS.dancehall.fallback).toBe("Dancehall");
+  });
+});
+
+describe("beat preset registry — Stack 400: amapiano and phonk join the shelf", () => {
+  /* The Stack 400 census asked for amapiano, phonk and jersey-club.
+     Jersey-club was ALREADY on the shelf (Stack 200 U2 built it) —
+     verified in code before building, so this wave adds exactly
+     two patterns and the shelf lands at 13 keys. Amapiano and
+     phonk are not BEAT_GENRES (that list is pinned at 10) — like
+     boombap and house before them, they live as sequencer patterns
+     in their own right. */
+  it("jersey-club was already built — it appears exactly once, unrebuilt", () => {
+    expect(BEAT_PRESET_IDS.filter((id) => id === "jersey-club")).toHaveLength(1);
+    expect(beatPresetById("jersey-club")).toBe(BEAT_PRESETS["jersey-club"]);
+  });
+
+  it("the two new patterns resolve and the shelf carries 13 keys", () => {
+    expect(BEAT_PRESET_IDS).toHaveLength(13);
+    expect(beatPresetById("amapiano")).toBe(BEAT_PRESETS.amapiano);
+    expect(beatPresetById("phonk")).toBe(BEAT_PRESETS.phonk);
+  });
+
+  it("the new tempos sit in each genre's real range", () => {
+    expect(BEAT_PRESETS.amapiano.bpm).toBeGreaterThanOrEqual(105);
+    expect(BEAT_PRESETS.amapiano.bpm).toBeLessThanOrEqual(120);
+    expect(BEAT_PRESETS.phonk.bpm).toBeGreaterThanOrEqual(130);
+    expect(BEAT_PRESETS.phonk.bpm).toBeLessThanOrEqual(150);
+  });
+
+  it("amapiano's signature is the log drum bouncing off the beat over a full shaker grid", () => {
+    /* the log drum lives in the bass line, hitting off-beats */
+    const bass = BEAT_PRESETS.amapiano.bass;
+    for (const step of [3, 6, 11, 14]) expect(bass[step]).not.toBeNull();
+    /* the shaker (row 7) runs every 16th step */
+    for (const v of BEAT_PRESETS.amapiano.grid[7]!) expect(v).toBeGreaterThan(0);
+    /* piano-led: a keys seed rides on top — and the whole pattern
+       is not the afrobeats pattern wearing a new name */
+    expect(BEAT_PRESETS.amapiano.melody).toBeDefined();
+    expect(BEAT_PRESETS.amapiano.melody!.keys.length).toBeGreaterThan(0);
+    expect(BEAT_PRESETS.amapiano.grid).not.toEqual(BEAT_PRESETS.afrobeats.grid);
+    expect(BEAT_PRESETS.amapiano.bass).not.toEqual(BEAT_PRESETS.afrobeats.bass);
+  });
+
+  it("phonk's signature is the cowbell riff in the keys lane over a low descending bass", () => {
+    expect(BEAT_PRESETS.phonk.melody).toBeDefined();
+    expect(BEAT_PRESETS.phonk.melody!.keys).toHaveLength(8);
+    const bass = BEAT_PRESETS.phonk.bass.filter((n): n is number => n !== null);
+    expect(Math.max(...bass)).toBeLessThanOrEqual(31);
+    /* drift, not bounce — phonk is not the trap pattern re-skinned */
+    expect(BEAT_PRESETS.phonk.grid).not.toEqual(BEAT_PRESETS.trap.grid);
+  });
+
+  it("the new fallbacks are the genre names the picker shows", () => {
+    expect(BEAT_PRESETS.amapiano.fallback).toBe("Amapiano");
+    expect(BEAT_PRESETS.phonk.fallback).toBe("Phonk");
   });
 });
