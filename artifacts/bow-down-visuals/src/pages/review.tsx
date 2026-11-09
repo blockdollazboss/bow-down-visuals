@@ -11,6 +11,7 @@ import {
   Sparkles, MessageSquare,
 } from "lucide-react";
 import { formatReviewTime } from "@/components/ShareForReview";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── Public client review page — /review/:token ─────────────────────────────
  * Seen by CLIENTS: jaw-droppingly premium gold/black, mobile-first.
@@ -239,16 +240,18 @@ export default function ReviewPage() {
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pb-16">
         {/* ── Brand bar ── */}
-        <header className="flex items-center justify-between py-5 border-b border-white/[0.07]">
-          <div className="flex items-center gap-2.5">
-            <span className="text-lg font-black tracking-tight bg-gradient-to-b from-[#f4dd9a] via-[#e8c86a] to-[#b08d3e] bg-clip-text text-transparent">
-              BOW DOWN VISUALS
+        <SectionBoundary name="review-brand-bar">
+          <header className="flex items-center justify-between py-5 border-b border-white/[0.07]">
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg font-black tracking-tight bg-gradient-to-b from-[#f4dd9a] via-[#e8c86a] to-[#b08d3e] bg-clip-text text-transparent">
+                BOW DOWN VISUALS
+              </span>
+            </div>
+            <span className="flex items-center gap-1.5 rounded-full border border-[#e8c86a]/40 bg-[#e8c86a]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#e8c86a]">
+              <Sparkles className="h-3.5 w-3.5" /> {t("review.clientReview")}
             </span>
-          </div>
-          <span className="flex items-center gap-1.5 rounded-full border border-[#e8c86a]/40 bg-[#e8c86a]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#e8c86a]">
-            <Sparkles className="h-3.5 w-3.5" /> {t("review.clientReview")}
-          </span>
-        </header>
+          </header>
+        </SectionBoundary>
 
         {state.kind === "loading" && (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
@@ -258,17 +261,20 @@ export default function ReviewPage() {
         )}
 
         {state.kind === "error" && (
-          <div className="mx-auto max-w-md mt-20 rounded-2xl border border-[#e8c86a]/25 bg-[#0d0d0d] p-8 text-center shadow-[0_0_60px_rgba(232,200,106,0.08)]">
-            <XCircle className="h-12 w-12 mx-auto text-[#e8c86a]/70" />
-            <h1 className="mt-4 text-xl font-black">{t("review.unavailable")}</h1>
-            <p className="mt-2 text-sm text-white/50 leading-relaxed">{state.message}</p>
-            <a href="/" className="mt-6 inline-block rounded-xl bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] px-6 py-2.5 text-sm font-bold text-black hover:brightness-110 transition-all">
-              {t("review.backHome")}
-            </a>
-          </div>
+          <SectionBoundary name="review-error">
+            <div className="mx-auto max-w-md mt-20 rounded-2xl border border-[#e8c86a]/25 bg-[#0d0d0d] p-8 text-center shadow-[0_0_60px_rgba(232,200,106,0.08)]">
+              <XCircle className="h-12 w-12 mx-auto text-[#e8c86a]/70" />
+              <h1 className="mt-4 text-xl font-black">{t("review.unavailable")}</h1>
+              <p className="mt-2 text-sm text-white/50 leading-relaxed">{state.message}</p>
+              <a href="/" className="mt-6 inline-block rounded-xl bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] px-6 py-2.5 text-sm font-bold text-black hover:brightness-110 transition-all">
+                {t("review.backHome")}
+              </a>
+            </div>
+          </SectionBoundary>
         )}
 
         {state.kind === "locked" && (
+          <SectionBoundary name="review-locked">
           <div className="mx-auto max-w-md mt-20 rounded-2xl border border-[#e8c86a]/25 bg-[#0d0d0d] p-8 shadow-[0_0_60px_rgba(232,200,106,0.08)]">
             <Lock className="h-12 w-12 mx-auto text-[#e8c86a]" />
             <h1 className="mt-4 text-xl font-black text-center">{t("review.passwordRequired")}</h1>
@@ -305,26 +311,32 @@ export default function ReviewPage() {
               {t("review.unlock")}
             </button>
           </div>
+          </SectionBoundary>
         )}
 
         {state.kind === "ready" && (
           <main className="mt-6">
             {/* Status banner */}
             {state.payload.status === "changes_requested" && (
-              <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
-                <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
-                <p className="text-sm font-bold text-red-300">{t("review.bannerChangesRequested")}</p>
-              </div>
+              <SectionBoundary name="review-banner-changes">
+                <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+                  <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />
+                  <p className="text-sm font-bold text-red-300">{t("review.bannerChangesRequested")}</p>
+                </div>
+              </SectionBoundary>
             )}
             {state.payload.status === "approved" && (
-              <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3">
-                <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
-                <p className="text-sm font-bold text-green-300">{t("review.bannerApproved")}</p>
-              </div>
+              <SectionBoundary name="review-banner-approved">
+                <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3">
+                  <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
+                  <p className="text-sm font-bold text-green-300">{t("review.bannerApproved")}</p>
+                </div>
+              </SectionBoundary>
             )}
 
             {/* Creator controls (owner only, server-verified) */}
             {manage && (
+              <SectionBoundary name="review-creator-controls">
               <div className="mb-5 rounded-xl border border-[#e8c86a]/30 bg-[#e8c86a]/[0.05] px-4 py-3">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#e8c86a] mb-2.5">
                   <ShieldCheck className="h-3.5 w-3.5" /> {t("review.creatorControls")}
@@ -356,10 +368,12 @@ export default function ReviewPage() {
                   </button>
                 </div>
               </div>
+              </SectionBoundary>
             )}
 
             <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
               {/* ── Player column ── */}
+              <SectionBoundary name="review-player">
               <div>
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight">{state.payload.title}</h1>
                 <div className="mt-3 rounded-2xl overflow-hidden border border-[#e8c86a]/20 bg-black shadow-[0_0_80px_rgba(232,200,106,0.10)]">
@@ -375,8 +389,10 @@ export default function ReviewPage() {
                 </div>
                 <p className="mt-3 text-xs text-white/35 leading-relaxed">{t("review.watchHint")}</p>
               </div>
+              </SectionBoundary>
 
               {/* ── Comments column ── */}
+              <SectionBoundary name="review-comments">
               <aside className="flex flex-col rounded-2xl border border-white/[0.08] bg-[#0d0d0d]/80 overflow-hidden lg:max-h-[78vh]">
                 <div className="flex items-center gap-2 px-5 py-4 border-b border-white/[0.07]">
                   <MessageSquare className="h-4 w-4 text-[#e8c86a]" />
@@ -390,7 +406,8 @@ export default function ReviewPage() {
                     <p className="text-center text-sm text-white/30 py-8">{t("review.beFirst")}</p>
                   )}
                   {(state.payload.comments ?? []).map((c) => (
-                    <article key={c.id} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5">
+                    <SectionBoundary key={c.id} name="review-comment" variant="compact">
+                    <article className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="h-7 w-7 rounded-full bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black text-xs font-black flex items-center justify-center shrink-0">
@@ -434,10 +451,12 @@ export default function ReviewPage() {
                       </div>
                       <p className="mt-2 text-sm text-white/75 leading-relaxed whitespace-pre-wrap">{c.text}</p>
                     </article>
+                    </SectionBoundary>
                   ))}
                 </div>
 
                 {/* Comment form */}
+                <SectionBoundary name="review-comment-form">
                 <div className="border-t border-white/[0.07] p-4 space-y-3 bg-black/40">
                   <div className="flex items-center gap-2">
                     <input aria-label={t("review.yourName")}
@@ -468,10 +487,13 @@ export default function ReviewPage() {
                     {t("review.postAt", { time: formatReviewTime(currentTime) })}
                   </button>
                 </div>
+                </SectionBoundary>
               </aside>
+              </SectionBoundary>
             </div>
 
             {/* ── Virality footer: Made with Bow Down Visuals + creator referral ── */}
+            <SectionBoundary name="review-footer">
             <footer className="mt-10 flex flex-col items-center gap-3 border-t border-white/[0.07] pt-6">
               <a
                 href={referralHref}
@@ -489,6 +511,7 @@ export default function ReviewPage() {
                 <Lock className="h-3 w-3" /> {t("review.privateNote")}
               </p>
             </footer>
+            </SectionBoundary>
           </main>
         )}
       </div>
