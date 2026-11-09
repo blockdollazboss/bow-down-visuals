@@ -26,6 +26,7 @@
  * Plus the pipeline CRUD validation edges the parity suite does not pin
  * (create/patch 400 shapes, foreign mark-paid 404 with no money entry).
  */
+import { createHash } from "node:crypto";
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "crypto";
 import express from "express";
@@ -134,6 +135,16 @@ vi.mock("../../lib/credits", () => {
     }
   }
   return {
+    /* join16: routes now derive charge keys via lib/credits —
+       faithful copies of the real helpers (deterministic sha256 over
+       the JSON intent; client-key form for long client keys). */
+    buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+      if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+        return `${scope}:${userId}:client:${clientKey.trim()}`;
+      }
+      return `${scope}:${userId}:${createHash("sha256").update(JSON.stringify(intent ?? null)).digest("hex").slice(0, 32)}`;
+    },
+    voidChargeIdempotencyKey: vi.fn(async () => true),
     chargeCredits: vi.fn(async (u: string, cost: number, opts?: { action?: string }) => {
       if (h.chargeMode === "disabled") throw new CreditsDisabledError();
       h.charges.push({ userId: u, cost, action: opts?.action });
@@ -179,6 +190,19 @@ vi.mock("../../lib/ai-clients", () => ({
   }),
   getTextModel: vi.fn(() => "gpt-6-sol"),
   LOW_REASONING_PARAMS: { reasoning_effort: "low" },
+}));
+
+const __join16StoredRows = new Map<string, any>();
+vi.mock("../../lib/generation-stored-results", () => ({
+  /* join16: in-memory stored-results fake — first write wins,
+     reads scoped by rail + key + user, matching the real helper. */
+  findStoredGenerationResult: async (rail: string, key: string, userId: string) => {
+    const row = __join16StoredRows.get(key);
+    return row && row.rail === rail && row.userId === userId ? row.result : null;
+  },
+  storeGenerationResult: async (rail: string, key: string, userId: string, result: Record<string, unknown>) => {
+    if (!__join16StoredRows.has(key)) __join16StoredRows.set(key, { rail, userId, result });
+  },
 }));
 
 import sponsorsRouter from "../generate/sponsors";

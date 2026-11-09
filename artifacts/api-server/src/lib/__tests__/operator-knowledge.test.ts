@@ -982,7 +982,13 @@ describe("operator knowledge — Stack-25 accuracy corrections", () => {
       expect(start, `${spec.handler} in ${spec.file}`).toBeGreaterThanOrEqual(0);
       const rest = src.slice(start);
       const next = rest.slice(1).search(/\n\s*router\.(get|post|put|patch|delete)\(/);
-      const slice = next < 0 ? rest : rest.slice(0, next + 1);
+      /* join16: the slice also ends at a top-level helper declaration —
+         CA-3 extracted jewelry's consult charge into runJewelryConsult,
+         declared between /jewelry/estimate and /jewelry/consult; the
+         estimate handler itself still charges nothing. */
+      const helper = rest.slice(1).search(/\n(?:async\s+)?function\s+\w+\s*\(/);
+      const end = [next, helper].filter((i) => i >= 0);
+      const slice = end.length === 0 ? rest : rest.slice(0, Math.min(...end) + 1);
       expect(slice).not.toMatch(/chargeCredits\s*\(|deductCredits\s*\(/);
       expect(deriveRegistryCost(spec.endpoint)).toBe(0);
       const entries = kbPrices(spec.endpoint);

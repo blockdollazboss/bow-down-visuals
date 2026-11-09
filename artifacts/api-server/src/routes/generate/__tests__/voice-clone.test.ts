@@ -44,6 +44,16 @@ vi.mock("../../../middlewares/require-auth", () => ({
 }));
 
 vi.mock("../../../lib/credits", () => ({
+  /* join16: routes now derive charge keys via lib/credits —
+     faithful copy of the real helper (deterministic sha256 over the
+     JSON intent; client-key form when a long client key is given). */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+      return `${scope}:${userId}:client:${clientKey.trim()}`;
+    }
+    return `${scope}:${userId}:${createHash("sha256").update(JSON.stringify(intent ?? null)).digest("hex").slice(0, 32)}`;
+  },
+  voidChargeIdempotencyKey: vi.fn(async () => true),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   chargeCredits: vi.fn(async (userId: string, amount: number, opts: unknown) => {
     h.chargeCalls.push({ userId, amount, opts });
@@ -53,6 +63,12 @@ vi.mock("../../../lib/credits", () => ({
     h.refundCalls.push({ userId, amount, opts });
   }),
 }));
+  /* join16: NOTE — no durable stored-results fake for this suite:
+     the guard's fail-open real helper answers null against the
+     pg-mem schema (no generation_stored_results table), exactly as
+     it did before the keying; the guard's in-process store is reset
+     in beforeEach via __resetCa6ReplayCache. */
+
 
 vi.mock("../../../lib/elevenlabs", () => ({
   canUseInstantVoiceCloning: vi.fn(async () => h.ivcAllowed),
@@ -113,6 +129,8 @@ vi.mock("child_process", () => {
 });
 
 import voiceCloneRouter from "../voice-clone";
+import { createHash } from "node:crypto";
+import { __resetCa6ReplayCache } from "../ca6-replay-guard";
 
 /* ── Test HTTP plumbing (real express server, http-module client so the
    global fetch stub below only has to cover the route's own calls) ── */
@@ -147,6 +165,10 @@ function postClone(body: unknown): Promise<{ status: number; json: Record<string
 const SAMPLE = { name: "Stage Voice", sampleUrl: "https://cdn.example.com/sample.mp3" };
 
 beforeEach(async () => {
+  /* join16: the CA-6 guard keeps an in-process replay store keyed by
+     the charge key — the same ask recurs across tests with different
+     provider setups, so each test starts from an empty store. */
+  __resetCa6ReplayCache();
   h.chargeCalls.length = 0;
   h.refundCalls.length = 0;
   h.inserted.length = 0;

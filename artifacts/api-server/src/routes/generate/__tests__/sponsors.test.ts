@@ -38,6 +38,16 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 vi.mock("../../../lib/credits", () => ({
+  /* join16: routes now derive charge keys via lib/credits —
+     faithful copy of the real helper (deterministic sha256 over the
+     JSON intent; client-key form when a long client key is given). */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+      return `${scope}:${userId}:client:${clientKey.trim()}`;
+    }
+    return `${scope}:${userId}:${createHash("sha256").update(JSON.stringify(intent ?? null)).digest("hex").slice(0, 32)}`;
+  },
+  voidChargeIdempotencyKey: vi.fn(async () => true),
   chargeCredits: vi.fn(),
   refundCredits: vi.fn(),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
@@ -49,6 +59,19 @@ vi.mock("../../../lib/credits", () => ({
     }
   },
   LedgerWriteError: class LedgerWriteError extends Error {},
+}));
+
+const __join16StoredRows = new Map<string, any>();
+vi.mock("../../../lib/generation-stored-results", () => ({
+  /* join16: in-memory stored-results fake — first write wins,
+     reads scoped by rail + key + user, matching the real helper. */
+  findStoredGenerationResult: async (rail: string, key: string, userId: string) => {
+    const row = __join16StoredRows.get(key);
+    return row && row.rail === rail && row.userId === userId ? row.result : null;
+  },
+  storeGenerationResult: async (rail: string, key: string, userId: string, result: Record<string, unknown>) => {
+    if (!__join16StoredRows.has(key)) __join16StoredRows.set(key, { rail, userId, result });
+  },
 }));
 
 vi.mock("../../../lib/ai-clients", () => ({
@@ -71,6 +94,7 @@ import router, {
 import { chargeCredits, refundCredits, OutOfCreditsError, CreditsDisabledError } from "../../../lib/credits";
 import { createTestDb } from "../../../lib/__tests__/test-db";
 import { sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
 
 const mockCharge = vi.mocked(chargeCredits);
 const mockRefund = vi.mocked(refundCredits);
@@ -291,7 +315,7 @@ describe("POST /api/sponsors/deals", () => {
     expect(status).toBe(200);
     expect(json.deal.brandName).toBe("Golden Audio");
     expect(json.creditsUsed).toBe(500);
-    expect(mockCharge).toHaveBeenCalledWith(USER_A, 500, { action: "Sponsor Deal Posting" });
+    expect(mockCharge).toHaveBeenCalledWith(USER_A, 500, { action: "Sponsor Deal Posting" }, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^sponsors-deal-post:/) }));
   });
 
   it("returns 402 out_of_credits without touching the DB", async () => {
@@ -335,7 +359,7 @@ describe("POST /api/sponsors/deals", () => {
     const { status, json } = await req("POST", "/sponsors/deals", validDeal());
     expect(status).toBe(500);
     expect(json.error).toMatch(/refunded/i);
-    expect(mockCharge).toHaveBeenCalledWith(USER_A, 500, { action: "Sponsor Deal Posting" });
+    expect(mockCharge).toHaveBeenCalledWith(USER_A, 500, { action: "Sponsor Deal Posting" }, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^sponsors-deal-post:/) }));
     expect(mockRefund).toHaveBeenCalledWith(USER_A, 500, {
       action: "Sponsor Deal Posting — Refund (save failed)",
     });
@@ -392,7 +416,7 @@ describe("POST /api/sponsors/pitch", () => {
     expect(status).toBe(200);
     expect(json.pitch).toBe("Dear brand, hire me.");
     expect(json.creditsUsed).toBe(100);
-    expect(mockCharge).toHaveBeenCalledWith(USER_A, 100, { action: "Sponsor AI Pitch Writer" });
+    expect(mockCharge).toHaveBeenCalledWith(USER_A, 100, { action: "Sponsor AI Pitch Writer" }, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^sponsors-pitch:/) }));
   });
 
   it("refunds the 100 credits when the provider fails", async () => {
@@ -470,7 +494,7 @@ describe("POST /api/sponsors/match", () => {
     expect(json.matches[0].dealId).toBe(id);
     expect(json.matches[0].score).toBe(92);
     expect(json.note).toBe("Apply fast.");
-    expect(mockCharge).toHaveBeenCalledWith(USER_A, 100, { action: "Sponsor AI Deal Matcher" });
+    expect(mockCharge).toHaveBeenCalledWith(USER_A, 100, { action: "Sponsor AI Deal Matcher" }, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^sponsors-match:/) }));
   });
 
   it("refunds when there are no active deals", async () => {

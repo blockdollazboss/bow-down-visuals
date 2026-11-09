@@ -63,10 +63,30 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 vi.mock("../../../lib/credits", () => ({
+  /* join16: routes now derive charge keys via lib/credits —
+     faithful copy of the real helper (deterministic sha256 over the
+     JSON intent; client-key form when a long client key is given). */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+      return `${scope}:${userId}:client:${clientKey.trim()}`;
+    }
+    return `${scope}:${userId}:${createHash("sha256").update(JSON.stringify(intent ?? null)).digest("hex").slice(0, 32)}`;
+  },
+  voidChargeIdempotencyKey: vi.fn(async () => true),
   chargeCredits: vi.fn(),
   refundCredits: vi.fn(),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
+}));
+
+vi.mock("../../../lib/generation-stored-results", () => ({
+  /* join16: always-miss stored-results fake. The product-image tests
+     reuse the same ask across different balance/provider setups, so a
+     durable hit would answer a later test with an earlier test's
+     image; the miss keeps every test on its own fresh path (the real
+     helper's replay behavior is pinned by the CA-5 suites). */
+  findStoredGenerationResult: async () => null,
+  storeGenerationResult: async () => {},
 }));
 
 vi.mock("../../../lib/ai-clients", () => ({
@@ -116,6 +136,7 @@ import { getOpenAI } from "../../../lib/ai-clients";
 import { getSupabaseAdmin } from "../../../lib/supabase-admin";
 import { createTestDb } from "../../../lib/__tests__/test-db";
 import { sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
 
 const SHOPS_DDL = `
 CREATE TABLE shops (

@@ -34,6 +34,16 @@ vi.mock("../../middlewares/require-auth", () => ({
 }));
 
 vi.mock("../../lib/credits", () => ({
+  /* join16: routes now derive charge keys via lib/credits —
+     faithful copy of the real helper (deterministic sha256 over the
+     JSON intent; client-key form when a long client key is given). */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+      return `${scope}:${userId}:client:${clientKey.trim()}`;
+    }
+    return `${scope}:${userId}:${createHash("sha256").update(JSON.stringify(intent ?? null)).digest("hex").slice(0, 32)}`;
+  },
+  voidChargeIdempotencyKey: vi.fn(async () => true),
   chargeCredits: vi.fn(async (_u: string, amount: number, meta: any) => {
     h.charges.push({ amount, action: meta?.action });
     return 100_000 - amount;
@@ -43,6 +53,19 @@ vi.mock("../../lib/credits", () => ({
   }),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
+}));
+
+const __join16StoredRows = new Map<string, any>();
+vi.mock("../../lib/generation-stored-results", () => ({
+  /* join16: in-memory stored-results fake — first write wins,
+     reads scoped by rail + key + user, matching the real helper. */
+  findStoredGenerationResult: async (rail: string, key: string, userId: string) => {
+    const row = __join16StoredRows.get(key);
+    return row && row.rail === rail && row.userId === userId ? row.result : null;
+  },
+  storeGenerationResult: async (rail: string, key: string, userId: string, result: Record<string, unknown>) => {
+    if (!__join16StoredRows.has(key)) __join16StoredRows.set(key, { rail, userId, result });
+  },
 }));
 
 vi.mock("../../lib/ai-clients", () => ({
@@ -95,6 +118,7 @@ vi.mock("../../lib/r2-client", () => ({
 
 import songRouter from "../generate/song";
 import coverArtRouter from "../generate/cover-art";
+import { createHash } from "node:crypto";
 
 let server: any;
 let baseUrl: string;

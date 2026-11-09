@@ -80,6 +80,16 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 vi.mock("../../../lib/credits", () => ({
+  /* join16: routes now derive charge keys via lib/credits —
+     faithful copy of the real helper (deterministic sha256 over the
+     JSON intent; client-key form when a long client key is given). */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+      return `${scope}:${userId}:client:${clientKey.trim()}`;
+    }
+    return `${scope}:${userId}:${createHash("sha256").update(JSON.stringify(intent ?? null)).digest("hex").slice(0, 32)}`;
+  },
+  voidChargeIdempotencyKey: vi.fn(async () => true),
   chargeCredits: vi.fn(async () => 9999),
   refundCredits: vi.fn(async () => undefined),
   canUseCredits: vi.fn(async () => true),
@@ -97,6 +107,7 @@ vi.mock("../../../lib/rate-limit", () => ({
 import router from "../sponsors";
 import { createTestDb } from "../../../lib/__tests__/test-db";
 import { sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
 
 /* Schema shape: sponsor_deals with the 0033 escrow columns + the 0274
    target column; sponsor_applications with EVERY column the drizzle

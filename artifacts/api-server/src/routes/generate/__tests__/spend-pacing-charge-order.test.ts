@@ -52,6 +52,16 @@ vi.mock("../../../lib/credits", () => {
   return {
     OutOfCreditsError,
     LedgerWriteError,
+    /* join16: routes now derive charge keys via lib/credits —
+       faithful copies of the real helpers (deterministic sha256 over
+       the JSON intent; client-key form for long client keys). */
+    buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+      if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+        return `${scope}:${userId}:client:${clientKey.trim()}`;
+      }
+      return `${scope}:${userId}:${createHash("sha256").update(JSON.stringify(intent ?? null)).digest("hex").slice(0, 32)}`;
+    },
+    voidChargeIdempotencyKey: vi.fn(async () => true),
     chargeCredits: vi.fn(async () => {
       state.events.push("charge");
       if (state.chargeFails === "out_of_credits") throw new OutOfCreditsError();
@@ -70,6 +80,12 @@ vi.mock("../../../lib/payment-record", () => ({
   }),
   markGenerationHistoryCharged: vi.fn(async () => {}),
 }));
+  /* join16: NOTE — no durable stored-results fake for this suite:
+     the guard's fail-open real helper answers null against the
+     pg-mem schema (no generation_stored_results table), exactly as
+     it did before the keying; the guard's in-process store is reset
+     in beforeEach via __resetCa6ReplayCache. */
+
 
 vi.mock("../../../lib/r2-client", () => ({
   r2Upload: vi.fn(async () => {
@@ -79,6 +95,7 @@ vi.mock("../../../lib/r2-client", () => ({
 }));
 
 import beatRouter from "../beat";
+import { createHash } from "node:crypto";
 
 /* The provider fetch is stubbed per-test below; the test's own HTTP
    calls to the mounted router must use the real fetch. */
@@ -170,7 +187,7 @@ describe("music rails — charge precedes provider (source shape)", () => {
 
   it("generate-music-audio: reserve charge before the first /v1/music fetch", () => {
     const src = read("../music-audio.ts");
-    const chargeIdx = src.indexOf('chargeCredits(req.userId!, creditCost, { action: "Generate Audio" })');
+    const chargeIdx = src.indexOf('chargeCredits(req.userId!, creditCost, { action: "Generate Audio" }, { idempotencyKey: genKey })');
     const providerIdx = src.indexOf("https://api.elevenlabs.io/v1/music");
     expect(chargeIdx).toBeGreaterThan(-1);
     expect(providerIdx).toBeGreaterThan(-1);
@@ -180,7 +197,7 @@ describe("music rails — charge precedes provider (source shape)", () => {
 
   it("generate-music-audio/extend: reserve charge before the first /v1/music fetch", () => {
     const src = read("../music-audio.ts");
-    const chargeIdx = src.indexOf('chargeCredits(req.userId!, creditCost, { action: "Extend Audio" })');
+    const chargeIdx = src.indexOf('chargeCredits(req.userId!, creditCost, { action: "Extend Audio" }, { idempotencyKey: extKey })');
     const providerIdx = src.indexOf("https://api.elevenlabs.io/v1/music", chargeIdx);
     expect(chargeIdx).toBeGreaterThan(-1);
     expect(providerIdx).toBeGreaterThan(chargeIdx);
@@ -188,7 +205,7 @@ describe("music rails — charge precedes provider (source shape)", () => {
 
   it("song-cover: reserve charge before the /v1/music fetch", () => {
     const src = read("../song-cover.ts");
-    const chargeIdx = src.indexOf('chargeCredits(req.userId!, COVER_CREDIT_COST, { action: "Song Cover" })');
+    const chargeIdx = src.indexOf('chargeCredits(req.userId!, COVER_CREDIT_COST, { action: "Song Cover" }, { idempotencyKey })');
     const providerIdx = src.indexOf("https://api.elevenlabs.io/v1/music");
     expect(chargeIdx).toBeGreaterThan(-1);
     expect(providerIdx).toBeGreaterThan(-1);
