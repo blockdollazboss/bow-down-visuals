@@ -114,6 +114,14 @@ import {
   type SongVideoAdvanced,
 } from "@/lib/world/create-desks";
 import { fetchAssetLibrary, libraryAssetsOfKind, type LibraryAsset } from "@/lib/asset-library";
+import { r2UploadFile } from "@/lib/r2-storage";
+import {
+  ARTIST_IMAGE_PATH,
+  buildCartoonizePayload,
+  cartoonizeCost,
+  cartoonizeFileVerdict,
+  cartoonizeUploadKey,
+} from "@/lib/world/photo-desk";
 import {
   SONG_PRESET_GROUPS,
   songPresetsByGroup,
@@ -1665,6 +1673,17 @@ export function CoverArtDesk(props: CreateDeskProps) {
   const [artistImageUrl, setArtistImageUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const imagePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /* Stack 400 census B-23: the bench's cartoonize mode — the
+     Cartoon Studio page's Cartoonize tab on this bench's own
+     generate-artist-image rail: the member's photo rides R2 up
+     (the page's own cartoon-studio-refs key), then the bench's
+     confirmed post carries the page's verbatim redraw prompt +
+     the picked STYLE_PRESETS direction at the registry's 200. */
+  const [imageMode, setImageMode] = useState<"words" | "cartoonize">("words");
+  const [cartoonFile, setCartoonFile] = useState<File | null>(null);
+  const [cartoonPreview, setCartoonPreview] = useState<string | null>(null);
+  const [cartoonStyleId, setCartoonStyleId] = useState<CartoonStyleId>("anime");
+  const cartoonInputRef = useRef<HTMLInputElement | null>(null);
   const editor = useEditorSeed(props);
 
   useEffect(() => () => {
@@ -1813,30 +1832,103 @@ export function CoverArtDesk(props: CreateDeskProps) {
         setImageState("done");
         return;
       }
-      imagePollRef.current = setInterval(async () => {
-        try {
-          const poll = await fetch(`/api/generate-artist-image/${data.taskId}`, { headers: await authHeaders() });
-          const pdata = (await poll.json()) as Parameters<typeof interpretTaskPoll>[0];
-          const read = interpretTaskPoll(pdata);
-          if (read.done) {
-            if (imagePollRef.current) clearInterval(imagePollRef.current);
-            if (read.failed || !read.url) {
-              setImageError(apiErrorMessage(read, t("worldCreateDesk.imageFailed")));
-              setImageState("failed");
-            } else {
-              setArtistImageUrl(read.url);
-              refreshProfile();
-              setImageState("done");
-            }
-          }
-        } catch {
-          if (imagePollRef.current) clearInterval(imagePollRef.current);
-          setImageError(t("worldCreateDesk.imageNetworkError"));
-          setImageState("failed");
-        }
-      }, 5000);
+      startImagePoll(data.taskId);
     } catch (err) {
       setImageError(plainErrorText(err, t("worldCreateDesk.imageFailed")));
+      setImageState("failed");
+    }
+  };
+
+  /* The artist-image task poll, shared by the words run and the
+     cartoonize run (B-23): same 5-second cadence, same reads. */
+  const startImagePoll = (taskId: string) => {
+    imagePollRef.current = setInterval(async () => {
+      try {
+        const poll = await fetch(`/api/generate-artist-image/${taskId}`, { headers: await authHeaders() });
+        const pdata = (await poll.json()) as Parameters<typeof interpretTaskPoll>[0];
+        const read = interpretTaskPoll(pdata);
+        if (read.done) {
+          if (imagePollRef.current) clearInterval(imagePollRef.current);
+          if (read.failed || !read.url) {
+            setImageError(apiErrorMessage(read, t("worldCreateDesk.imageFailed")));
+            setImageState("failed");
+          } else {
+            setArtistImageUrl(read.url);
+            refreshProfile();
+            setImageState("done");
+          }
+        }
+      } catch {
+        if (imagePollRef.current) clearInterval(imagePollRef.current);
+        setImageError(t("worldCreateDesk.imageNetworkError"));
+        setImageState("failed");
+      }
+    }, 5000);
+  };
+
+  const pickCartoonFile = (file: File | undefined) => {
+    if (!file) return;
+    const verdict = cartoonizeFileVerdict(file);
+    if (verdict === "not-image") {
+      setImageError(t("cartoonStudio.errorNotImage", { defaultValue: "That file isn't an image — choose a photo." }));
+      return;
+    }
+    if (verdict === "too-large") {
+      setImageError(t("cartoonStudio.errorImageTooLarge", { defaultValue: "That photo is over 10 MB — pick a smaller one." }));
+      return;
+    }
+    setImageError(null);
+    setCartoonFile(file);
+    setCartoonPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  };
+
+  /* B-23: the Cartoonize tab's own flow — upload the photo on
+     the page's R2 key, then THIS bench's confirmed
+     generate-artist-image post with the verbatim redraw prompt
+     (lib/world/photo-desk) at overrideCost 200, polled by the
+     bench's own task poll. A declined confirmation runs no
+     charge; the uploaded photo simply stays unused, exactly
+     as on the page. */
+  const runCartoonize = async () => {
+    if (imageState === "running" || !cartoonFile) return;
+    const style = cartoonStyleOf(cartoonStyleId);
+    if (!style) return;
+    setImageState("running");
+    setImageError(null);
+    setArtistImageUrl(null);
+    try {
+      const token = await getAccessToken();
+      const referenceImageUrl = await r2UploadFile(
+        cartoonizeUploadKey(cartoonFile.name, Date.now()),
+        cartoonFile,
+        cartoonFile.type,
+        token,
+      );
+      const res = await confirmedFetch(ARTIST_IMAGE_PATH, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(buildCartoonizePayload(referenceImageUrl, style.direction)),
+        overrideCost: cartoonizeCost(),
+        overrideFeature: t("cartoonStudio.cartoonizeFeatureName"),
+      });
+      if (!res) {
+        setImageState("idle");
+        return;
+      }
+      const data = (await res.json().catch(() => ({}))) as { taskId?: string; status?: string; url?: string | null; error?: string; message?: string };
+      if (!res.ok || !data.taskId) throw new Error(apiErrorMessage(data, t("worldCreateDesk.imageStartFailed")));
+      if (data.status === "succeeded" && data.url) {
+        setArtistImageUrl(data.url);
+        refreshProfile();
+        setImageState("done");
+        return;
+      }
+      startImagePoll(data.taskId);
+    } catch (err) {
+      setImageError(plainErrorText(err, t("cartoonStudio.networkError")));
       setImageState("failed");
     }
   };
@@ -1947,28 +2039,121 @@ export function CoverArtDesk(props: CreateDeskProps) {
           <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
             {t("worldCreateDesk.artistImageBench")}
           </p>
-          <CartoonStyleStrip isLight={isLight} value={imageCartoonStyleId} onChange={setImageCartoonStyleId} />
-          <DeskTextField isLight={isLight} label={t("worldCreateDesk.describeArtistImage")} value={imagePrompt} onChange={setImagePrompt} />
-          <DeskSelectField
-            isLight={isLight}
-            label={t("worldCreateDesk.renderLabel")}
-            value={imageModel}
-            onChange={(v) => setImageModel(v as ArtistImageModel)}
-            options={ARTIST_IMAGE_MODELS.map((m) => ({ value: m.id, label: t("worldCreateDesk.renderOption", { label: m.label, credits: m.credits }) }))}
-          />
-          <button
-            type="button"
-            data-testid="world-create-artist-image-run"
-            onClick={runArtistImage}
-            disabled={imageState === "running" || !imagePrompt.trim()}
-            className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
-          >
-            {imageState === "running" ? t("worldCreateDesk.runnerMaking") : t("worldCreateDesk.makeImageCost", { cost: artistImageCost(imageModel).toLocaleString(i18n.language) })}
-          </button>
+          {/* B-23: the bench's two modes — draw from words (the
+              bench's original run) or cartoonize a photo (the
+              Cartoon Studio page's Cartoonize tab, on this same
+              rail). */}
+          <div className="flex flex-wrap gap-1.5" data-testid="world-artist-image-modes">
+            <button
+              type="button"
+              data-testid="world-artist-image-mode-words"
+              aria-pressed={imageMode === "words"}
+              onClick={() => setImageMode("words")}
+              className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
+                imageMode === "words"
+                  ? "border-[#d4af37] bg-[#d4af37] text-black"
+                  : isLight
+                    ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                    : "border-white/15 text-white/75 hover:text-white"
+              }`}
+            >
+              {t("worldPhotoDesk.modeWords", { defaultValue: "Draw from words" })}
+            </button>
+            <button
+              type="button"
+              data-testid="world-artist-image-mode-cartoonize"
+              aria-pressed={imageMode === "cartoonize"}
+              onClick={() => setImageMode("cartoonize")}
+              className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
+                imageMode === "cartoonize"
+                  ? "border-[#d4af37] bg-[#d4af37] text-black"
+                  : isLight
+                    ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                    : "border-white/15 text-white/75 hover:text-white"
+              }`}
+            >
+              {t("cartoonStudio.tabCartoonize")}
+            </button>
+          </div>
+          {imageMode === "words" ? (
+            <>
+              <CartoonStyleStrip isLight={isLight} value={imageCartoonStyleId} onChange={setImageCartoonStyleId} />
+              <DeskTextField isLight={isLight} label={t("worldCreateDesk.describeArtistImage")} value={imagePrompt} onChange={setImagePrompt} />
+              <DeskSelectField
+                isLight={isLight}
+                label={t("worldCreateDesk.renderLabel")}
+                value={imageModel}
+                onChange={(v) => setImageModel(v as ArtistImageModel)}
+                options={ARTIST_IMAGE_MODELS.map((m) => ({ value: m.id, label: t("worldCreateDesk.renderOption", { label: m.label, credits: m.credits }) }))}
+              />
+              <button
+                type="button"
+                data-testid="world-create-artist-image-run"
+                onClick={runArtistImage}
+                disabled={imageState === "running" || !imagePrompt.trim()}
+                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
+              >
+                {imageState === "running" ? t("worldCreateDesk.runnerMaking") : t("worldCreateDesk.makeImageCost", { cost: artistImageCost(imageModel).toLocaleString(i18n.language) })}
+              </button>
+            </>
+          ) : (
+            <>
+              <CartoonStyleStrip
+                isLight={isLight}
+                value={cartoonStyleId}
+                onChange={(id) => {
+                  if (id) setCartoonStyleId(id);
+                }}
+              />
+              <button
+                type="button"
+                data-testid="world-create-artist-image-cartoonize-pick"
+                onClick={() => cartoonInputRef.current?.click()}
+                className={`w-full rounded-xl border-2 border-dashed p-4 text-center transition bdv-touch-target ${
+                  isLight ? "border-[#C9A84C]/40 hover:border-[#C9A84C]/70" : "border-white/15 hover:border-amber-500/50"
+                }`}
+              >
+                <input
+                  ref={cartoonInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    pickCartoonFile(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+                {cartoonPreview ? (
+                  <img src={cartoonPreview} alt={t("cartoonStudio.uploadPreviewAlt")} className="mx-auto max-h-[180px] rounded-lg object-contain" />
+                ) : (
+                  <span className={`block text-sm font-medium ${isLight ? "text-[#2a1e07]" : "text-white"}`}>
+                    {t("cartoonStudio.uploadPrompt")}
+                  </span>
+                )}
+                {cartoonFile ? (
+                  <span className={`mt-1 block text-[11px] ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{cartoonFile.name}</span>
+                ) : null}
+              </button>
+              <button
+                type="button"
+                data-testid="world-create-artist-image-cartoonize-run"
+                onClick={runCartoonize}
+                disabled={imageState === "running" || !cartoonFile}
+                className="inline-flex items-center gap-2 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-50 bdv-touch-target"
+              >
+                {imageState === "running" ? t("cartoonStudio.generating") : t("cartoonStudio.cartoonizeButton", { cost: cartoonizeCost() })}
+              </button>
+            </>
+          )}
           {imageState === "failed" && imageError ? (
             <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{imageError}</p>
           ) : null}
-          {artistImageUrl ? <ImageResult url={artistImageUrl} title={t("worldCreateDesk.yourArtistImage")} /> : null}
+          {artistImageUrl ? (
+            <ImageResult
+              url={artistImageUrl}
+              title={imageMode === "cartoonize" ? t("cartoonStudio.cartoonizeResultAlt") : t("worldCreateDesk.yourArtistImage")}
+            />
+          ) : null}
         </div>
       </AdvancedExpander>
       <CreateDeskRunner

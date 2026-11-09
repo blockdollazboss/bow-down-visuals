@@ -45,6 +45,7 @@ import { parseWeeklyContest, type WeeklyContest } from "@/lib/world/games-lobby"
 import { normalizeContests } from "@/lib/world/contests";
 import { normalizeLeaderboard, type Leaderboard } from "@/lib/world/treasury-quests";
 import { CreatorProfileCreateCard } from "@/components/world/native/CreatorProfileCreate";
+import { PageDesignerBench } from "@/components/world/native/PageDesignerBench";
 import { AlbumsDesk } from "@/components/world/native/AlbumsDesk";
 import { SponsorDepthDesk } from "@/components/world/native/SponsorDepthDesk";
 import { BooksDesk } from "@/components/world/native/BooksDesk";
@@ -356,6 +357,14 @@ export function StudioBoard({ isLight, onContinueProject }: StudioBoardProps) {
           have one; a member without one claims it right here, so a
           first publish never has to leave the World. */}
       <CreatorProfileCreateCard isLight={isLight} />
+
+      {/* AI Page Designer (Stack 400, census B-05): the profile
+          designer's own rails — full page design (400), bio
+          writer (100), banner art (200), free photo uploads —
+          native at the profile desk, applied on the profile's
+          own PUT rail. A member with no profile yet gets its
+          honest empty state under the claim card above. */}
+      <PageDesignerBench isLight={isLight} />
 
       {/* The balance + streak strip */}
       <NativeCard isLight={isLight}>

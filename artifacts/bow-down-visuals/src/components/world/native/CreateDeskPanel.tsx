@@ -6,6 +6,7 @@ import { DetectorDesk } from "./DetectorDesk";
 import { WallpapersDesk } from "./WallpapersDesk";
 import { HookDesk } from "./HookDesk";
 import { MoviesDesk } from "./MoviesDesk";
+import { PhotoDesk } from "./PhotoDesk";
 import {
   CoverArtDesk,
   SongDesk,
@@ -50,6 +51,8 @@ export function CreateDeskPanel({ station, ...props }: CreateDeskPanelProps) {
       return <DetectorDesk {...props} />;
     case "wallpapers-desk":
       return <WallpapersDesk {...props} />;
+    case "photo-desk":
+      return <PhotoDesk {...props} />;
     default:
       return <NativePlaceholder station={station} isLight={props.isLight} />;
   }
