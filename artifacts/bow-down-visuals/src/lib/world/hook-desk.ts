@@ -594,3 +594,62 @@ export function pushHookHistory(
   const key = (e: HookHistoryEntry) => `${e.mode}|${e.label}|${e.lines.join("\n")}`;
   return [entry, ...history.filter((e) => key(e) !== key(entry))].slice(0, HOOK_HISTORY_LIMIT);
 }
+
+/* ─── Stack 400 · census B-19 — Hook Rewriter (wave8) ─────────
+   The Wave8 single rail that belongs to this desk (manifest
+   lane s400-world-wave8, joining AFTER the B-16/B-17/B-20
+   section above): the Hook Rewriter bench stacked under the
+   Hook Desk beside the desk's other benches.
+
+     POST /api/wave8/hook-rewriter/rewrite   50  HookRewriter
+
+   The payload is shaped EXACTLY as the page shapes it (the
+   post trimmed, the niche trimmed-or-absent) and the answer
+   is read at the page's own acceptance bar — exactly five
+   variants or it didn't rewrite. */
+
+export const HOOK_REWRITER_PATH = "/api/wave8/hook-rewriter/rewrite";
+
+/** POST /api/wave8/hook-rewriter/rewrite — registry 50, read
+ *  through this file's own registry helper. */
+export function hookRewriterCost(): number {
+  return registryCost(HOOK_REWRITER_PATH);
+}
+
+/** The page's rewrite body, field for field. */
+export function buildHookRewriterPayload(input: {
+  post: string;
+  niche: string;
+}): { post: string; niche: string | undefined } {
+  return {
+    post: input.post.trim(),
+    niche: input.niche.trim() || undefined,
+  };
+}
+
+export interface HookRewriterVariant {
+  hook: string;
+  angle: string;
+  whyItWorks: string;
+}
+
+export interface HookRewriterResult {
+  variants: HookRewriterVariant[];
+}
+
+/** The page's acceptance rule: an array of EXACTLY five
+ *  variants, each carrying its hook / angle / why-it-works. */
+export function hookRewriterResultOf(data: unknown): HookRewriterResult | null {
+  if (!isRecord(data)) return null;
+  if (!Array.isArray(data.variants) || data.variants.length !== 5) return null;
+  const variants: HookRewriterVariant[] = [];
+  for (const raw of data.variants as unknown[]) {
+    if (!isRecord(raw)) return null;
+    variants.push({
+      hook: typeof raw.hook === "string" ? raw.hook : "",
+      angle: typeof raw.angle === "string" ? raw.angle : "",
+      whyItWorks: typeof raw.whyItWorks === "string" ? raw.whyItWorks : "",
+    });
+  }
+  return { variants };
+}

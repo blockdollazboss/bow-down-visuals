@@ -11132,6 +11132,21 @@
       "paidOut": "क्रिएटर्स को भुगतान किए गए Visual Bucs"
     }
   },
+  "worldWave8Bench": {
+    "rewriteRun": "Rewrite my hook",
+    "hookEmpty": "Paste the post that flopped \u2014 five fresh hooks land here.",
+    "presetStyleLabel": "Caption style",
+    "captionBurnRun": "Burn styled captions",
+    "captionEmpty": "Paste a transcript \u2014 the timed, styled caption files land here.",
+    "creditsRemaining": "{{n}} Visual Bucs left",
+    "highlightsRun": "Cut highlight reel",
+    "highlightsEmpty": "Feed the editor a VOD link, chat log, or transcript \u2014 the scored moments and the reel plan land here.",
+    "adlibRun": "Generate ad-libs",
+    "adlibEmpty": "Your ad-lib pack \u2014 lines, stacks, and two full takes \u2014 lands here.",
+    "mediaKitEmpty": "Your one-page kit \u2014 bio, audience, rate card, and booking contact \u2014 lands here.",
+    "calendarRun": "Auto-fill my week",
+    "bestTime": "Best time {{time}}"
+  },
   "wave8": {
     "adlib": {
       "adlibsHeading": "ऐड-लिब्स",

@@ -249,6 +249,18 @@ const CommentToVideoBench = lazy(() => import("@/components/world/native/Comment
 const LyricStoriesBench = lazy(() => import("@/components/world/native/LyricStoriesBench").then((m) => ({ default: m.LyricStoriesBench })));
 const DreamCollabBench = lazy(() => import("@/components/world/native/DreamCollabBench").then((m) => ({ default: m.DreamCollabBench })));
 const LinkToHitBench = lazy(() => import("@/components/world/native/LinkToHitBench").then((m) => ({ default: m.LinkToHitBench })));
+/* Stack 400 world parity (census B-19): the Wave8 singles —
+   the Hook Rewriter + Styled Caption Burn-in at the Hook
+   Desk, the Highlight Auto-Editor + Ad-Lib Generator at the
+   My Studio board, the Media Kit Builder at the Press Kit
+   desk, and the Calendar Auto-Fill with the Scheduler family
+   in the Promote Room. Lazy like every stacked bench. */
+const HookRewriterBench = lazy(() => import("@/components/world/native/Wave8HookBenches").then((m) => ({ default: m.HookRewriterBench })));
+const CaptionBurnBench = lazy(() => import("@/components/world/native/Wave8HookBenches").then((m) => ({ default: m.CaptionBurnBench })));
+const HighlightsBench = lazy(() => import("@/components/world/native/Wave8RepurposeBenches").then((m) => ({ default: m.HighlightsBench })));
+const AdLibBench = lazy(() => import("@/components/world/native/Wave8MusicBenches").then((m) => ({ default: m.AdLibBench })));
+const MediaKitBench = lazy(() => import("@/components/world/native/Wave8BusinessBenches").then((m) => ({ default: m.MediaKitBench })));
+const CalendarAutofillBench = lazy(() => import("@/components/world/native/Wave8BusinessBenches").then((m) => ({ default: m.CalendarAutofillBench })));
 
 /* ─── Round-4 doors (world-perf round 4, stack1200) ─────────────
    After round 3 the frame still statically carried every block
@@ -1192,6 +1204,25 @@ export default function StationPanel(props: StationPanelProps) {
                   <PanelBoundary isLight={isLight} resetKey={`${station.id}:lyric-stories`}><DeskDoor isLight={isLight}>
                     <LyricStoriesBench isLight={isLight} />
                   </DeskDoor></PanelBoundary>
+                  {/* Hook Rewriter (Stack 400 world parity,
+                      census B-19): the Wave8 single on
+                      /api/wave8/hook-rewriter/rewrite at the
+                      registry's 50 Bucs, native under the Hook
+                      Desk it belongs to. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave8-hook-rewriter`}><DeskDoor isLight={isLight}>
+                    <HookRewriterBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Styled Caption Burn-in (Stack 400 world
+                      parity, census B-19): the Wave8 transcript
+                      timing rail /api/wave8/caption-styler/burn
+                      at the registry's 100 Bucs — NOT the
+                      Caption Styler bench's /api/caption-styler
+                      video job (300) stacked above; the two
+                      caption rails sit side by side here, each
+                      on its own price. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave8-caption-burn`}><DeskDoor isLight={isLight}>
+                    <CaptionBurnBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
                 </div>
               ) : (
                 <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
@@ -1387,6 +1418,24 @@ export default function StationPanel(props: StationPanelProps) {
                 <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <RepurposeDesk isLight={isLight} />
                 </DeskDoor></PanelBoundary>
+                {/* Stream Highlight Auto-Editor (Stack 400
+                    world parity, census B-19): the Repurpose
+                    family's Wave8 single — scored moments + a
+                    reel edit plan on /api/wave8/highlights/cut
+                    at the registry's 300 Bucs, stacked at the
+                    board right after Repurpose, where a
+                    finished stream's next step lives. */}
+                <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave8-highlights`}><DeskDoor isLight={isLight}>
+                  <HighlightsBench isLight={isLight} />
+                </DeskDoor></PanelBoundary>
+                {/* Ad-Lib Generator (Stack 400 world parity,
+                    census B-19): the music family's Wave8
+                    single on /api/wave8/adlib/generate at the
+                    registry's 150 Bucs, stacked at the board
+                    with its other music desks. */}
+                <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave8-adlib`}><DeskDoor isLight={isLight}>
+                  <AdLibBench isLight={isLight} />
+                </DeskDoor></PanelBoundary>
                 {/* Video Studio (stack200 world parity lane B1,
                     census item 5): the video-studio hub surface —
                     camera-movement picker, one-click presets,
@@ -1532,9 +1581,20 @@ export default function StationPanel(props: StationPanelProps) {
                 <BrandingKitDesk isLight={isLight} isGuest={isGuest} />
               </DeskDoor></PanelBoundary>
             ) : resolution.pattern === "business" && station.id === "press-kit-desk" ? (
-              <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
-                <PressKitDesk isLight={isLight} isGuest={isGuest} />
-              </DeskDoor></PanelBoundary>
+              <div className="flex flex-col gap-6">
+                <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                  <PressKitDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor></PanelBoundary>
+                {/* Media Kit Builder (Stack 400 world parity,
+                    census B-19): the one-page kit — bio, rate
+                    card, booking contact — on
+                    /api/wave8/media-kit/generate at the
+                    registry's 100 Bucs, stacked at the Press
+                    Kit desk it belongs to. */}
+                <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave8-media-kit`}><DeskDoor isLight={isLight}>
+                  <MediaKitBench isLight={isLight} />
+                </DeskDoor></PanelBoundary>
+              </div>
             ) : resolution.pattern === "business" && station.id === "jewelry-bench" ? (
               <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                 <JewelryBench isLight={isLight} isGuest={isGuest} />
@@ -1551,6 +1611,16 @@ export default function StationPanel(props: StationPanelProps) {
               <div className="flex flex-col gap-6">
                 <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <PromoteDesk isLight={isLight} isGuest={isGuest} />
+                </DeskDoor></PanelBoundary>
+                {/* Content Calendar Auto-Fill (Stack 400 world
+                    parity, census B-19): the Scheduler family's
+                    Wave8 single — a drafted Mon–Sun week on
+                    /api/wave8/calendar/autofill at the
+                    registry's 150 Bucs, stacked in the Promote
+                    Room with the Scheduler Desk section inside
+                    the Promote Desk above it. */}
+                <PanelBoundary isLight={isLight} resetKey={`${station.id}:wave8-calendar`}><DeskDoor isLight={isLight}>
+                  <CalendarAutofillBench isLight={isLight} />
                 </DeskDoor></PanelBoundary>
                 {/* Label Pitch (stack1400 parity wave #1): the
                     label-pitch family — demo kit + directory +
