@@ -6,6 +6,7 @@ import {
   Sparkles, Store, TrendingDown, TrendingUp, Users,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { fetchWithRetry } from "@/lib/fetch-with-retry";
 import {
   initialSectionStates,
   markSectionLoading,
@@ -159,7 +160,10 @@ export default function CommandCenter({ getToken, isLight }: {
       } catch {
         return { ok: false };
       }
-      const res = await fetch(`/api/command/${key}`, { headers });
+      /* C-16: one shared retrying fetch — a cold origin's slow or
+         5xx first answer retries with backoff instead of parking
+         the panel on its failure state until a manual Retry. */
+      const res = await fetchWithRetry(`/api/command/${key}`, { headers });
       if (res.ok) {
         const raw = await res.json().catch(() => null);
         if (!mountedRef.current) return res;
@@ -298,14 +302,19 @@ export default function CommandCenter({ getToken, isLight }: {
         /* ── BRIEF FALLBACK: the written narrative couldn't be made,
            so the panel shows the real digest it was built from —
            numbers and doors, honestly labeled. Never the failure
-           note: the data exists, only the writing is missing. ── */
+           note: the data exists, only the writing is missing.
+           C-17: the label names the reason class — the brief is in
+           digest form because the writing service isn't connected on
+           this site yet — instead of reading like an apology for a
+           failure. Same flagged payload selects both the state and
+           this line. ── */
         <div data-testid="command-brief-digest" className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/[0.13] via-primary/[0.05] to-transparent p-5 md:p-6">
           <p className="flex items-center gap-2 text-[10px] font-black tracking-[0.22em] text-primary/70 uppercase">
             <Sparkles className="h-3.5 w-3.5" />
             {t("command.brief_label", { defaultValue: "Thy Cheat Code’s morning brief" })}
           </p>
           <p className={`mt-2 text-sm leading-relaxed ${isLight ? "text-[#2A1E07]/75" : "text-white/60"}`}>
-            {t("command.brief_narrative_unavailable", { defaultValue: "The written brief couldn’t be written just now — here are your numbers, straight from your business." })}
+            {t("command.brief_digest_note", { defaultValue: "Your brief is in digest form — the writing service isn’t connected on this site yet, so here are your numbers, straight from your business." })}
           </p>
           {briefDigest.digest.audience && (
             <div className="mt-3">
