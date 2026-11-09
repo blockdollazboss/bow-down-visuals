@@ -7,6 +7,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { prettyDateTime, countdownLabel } from "@/lib/scheduler";
 import { NativeCard } from "./NativeCard";
 import { NativeEmptyState, NativeErrorState, NativeLoadingState } from "./NativeStates";
+import { SchedulerPublishBench } from "./SchedulerPublishBench";
 import {
   SCHEDULER_BEST_TIME_COST_VISUAL_BUCS,
   SCHEDULER_PLATFORMS,
@@ -389,6 +390,12 @@ function SchedulerComposeForm(props: ComposeFormProps) {
       {props.accountsFailed ? (
         <p className={noteCls}>{t("worldScheduleRelease.schedAccountsFailedNote")}</p>
       ) : null}
+
+      {/* Publish-now bench (Stack-400 B-12) — its own component file;
+          this mount line is the only SchedulerDesk edit the lane makes
+          inside the form (the region world-honesty re-verifies at its
+          join, after this lane). */}
+      <SchedulerPublishBench isLight={isLight} draft={draft} accounts={accounts} />
 
       <div className={`rounded-xl border p-3 ${isLight ? "border-[#C9A84C]/40" : "border-white/10"}`} data-testid="world-scheduler-best-time">
         <p className={`text-xs font-bold ${muted}`}>

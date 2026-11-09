@@ -627,3 +627,286 @@ export function buildReschedulePayload(scheduledAt: string): Record<string, unkn
 export function composeWhenForDay(date: string): string {
   return `${date}T12:00`;
 }
+
+/* ─── Publish now (Stack-400 census B item B-12) ────────────────────
+   The desk above handled accounts, auth and scheduling — publishing
+   NOW had no in-World action: the four publish rails were only
+   reachable from the 2D post modals (components/InstagramPostModal,
+   TikTokPostModal, FacebookPostModal, XPostModal). These helpers
+   give the Scheduler Desk the same publish actions on the same
+   rails — POST /api/social/{platform}/publish, 100 Visual Bucs per
+   rail in the registry — and the publish bench rides confirmedFetch
+   exactly like the modals, so cancel means no charge and no error.
+
+   Payloads mirror the modals byte-for-byte on every case the modals
+   cover: { accountId, videoUrl, caption, idempotencyKey } for
+   Instagram / TikTok / Facebook, and text-first
+   { accountId, text, videoUrl?, idempotencyKey } for X. The caption
+   text is the scheduler worker's own composition (scheduler-jobs'
+   fullCaption: caption + "\n" + hashtags) so a post published from
+   the desk reads exactly like the same post published by the
+   calendar. One extension beyond the modals: an image draft on X
+   rides the rail's imageUrl field — the modals are video-only
+   composers and never face that case; dropping the member's image
+   silently would be the worse lie.
+
+   The idempotencyKey discipline is the modals': one key per publish
+   intent (per platform + media), persisted in sessionStorage,
+   reused across retries so a retry replays the SAME server attempt,
+   and retired only on confirmed success — a deliberate repost mints
+   a fresh key. */
+
+import { getCreditCost } from "../credit-costs";
+
+/** Registry cost for an endpoint; throws if unregistered so the desk
+ *  can never display (or confirm against) an invented price. */
+function socialPublishRegistryCost(endpoint: string): number {
+  const entry = getCreditCost(endpoint);
+  if (!entry) throw new Error(`No registered credit cost for ${endpoint}`);
+  return entry.cost;
+}
+
+export const SOCIAL_PUBLISH_PATHS: Record<SchedulerPlatformKey, string> = {
+  instagram: "/api/social/instagram/publish",
+  facebook: "/api/social/facebook/publish",
+  tiktok: "/api/social/tiktok/publish",
+  x: "/api/social/x/publish",
+};
+
+/** The live registry price of one platform's publish rail — the same
+ *  row the 2D modal reads (getCreditCost(path)?.cost with the same
+ *  registry behind it). */
+export function socialPublishCost(platform: SchedulerPlatformKey): number {
+  return socialPublishRegistryCost(SOCIAL_PUBLISH_PATHS[platform]);
+}
+
+/** The single publish price the bench shows in its intro — all four
+ *  rails carry the same registry row today; the tests pin that. */
+export const SOCIAL_PUBLISH_COST_VISUAL_BUCS = socialPublishRegistryCost(
+  SOCIAL_PUBLISH_PATHS.instagram,
+);
+
+/** X's post cap — the rail schema's max and the X modal's TEXT_LIMIT. */
+export const SOCIAL_PUBLISH_X_TEXT_LIMIT = 280;
+
+/** The text a publish sends — the scheduler worker's fullCaption
+ *  composition, verbatim: trimmed caption, then trimmed hashtags,
+ *  joined with a newline. */
+export function schedulerPublishText(draft: SchedulerComposeDraft): string {
+  const tags = draft.hashtags.trim();
+  const cap = draft.caption.trim();
+  return [cap, tags].filter(Boolean).join("\n");
+}
+
+export interface SocialPublishStrings {
+  needMedia: string;
+  needVideo: string;
+  needAccount: string;
+  needText: string;
+  textTooLong: string;
+}
+
+const fillPublish = (template: string, vars: Record<string, string | number>): string =>
+  Object.entries(vars).reduce((acc, [k, v]) => acc.split(`{{${k}}}`).join(String(v)), template);
+
+const SOCIAL_PUBLISH_EN: SocialPublishStrings = {
+  needMedia: "Add the video this post carries first.",
+  needVideo: "{{label}} publishes video — this post carries an image.",
+  needAccount: "Connect your {{label}} account first — publishing needs an account to post through.",
+  needText: "Write the post text first.",
+  textTooLong: "X posts cap at 280 characters — this one is {{count}}.",
+};
+
+/** Words for a publish refusal, or null when the draft can publish.
+ *  Account first (nothing to post through), then the per-rail media
+ *  rules: Instagram / TikTok / Facebook publish video; X is
+ *  text-first (media optional) with the 280-character cap the rail
+ *  enforces — refused here in words, never truncated. */
+export function validateSocialPublish(
+  platform: SchedulerPlatformKey,
+  draft: SchedulerComposeDraft,
+  accounts: SchedulerAccount[],
+  strings?: Partial<SocialPublishStrings>,
+): string | null {
+  const s: SocialPublishStrings = { ...SOCIAL_PUBLISH_EN, ...(strings ?? {}) };
+  const label = SCHEDULER_PLATFORMS.find((p) => p.key === platform)?.label ?? platform;
+  if (!resolveAccountId(accounts, platform, draft.accountIds[platform])) {
+    return fillPublish(s.needAccount, { label });
+  }
+  if (platform === "x") {
+    const text = schedulerPublishText(draft);
+    if (!text) return s.needText;
+    if (text.length > SOCIAL_PUBLISH_X_TEXT_LIMIT) {
+      return fillPublish(s.textTooLong, { count: text.length });
+    }
+    return null;
+  }
+  if (!draft.mediaUrl.trim()) return s.needMedia;
+  if (draft.mediaType !== "video") return fillPublish(s.needVideo, { label });
+  return null;
+}
+
+/** The wire body for one platform's publish rail — the modal's body,
+ *  field for field. Null when no live account resolves (the bench
+ *  validates first; this is the belt-and-braces twin of that check). */
+export function buildSocialPublishPayload(
+  platform: SchedulerPlatformKey,
+  draft: SchedulerComposeDraft,
+  accounts: SchedulerAccount[],
+  idempotencyKey: string,
+): Record<string, unknown> | null {
+  const accountId = resolveAccountId(accounts, platform, draft.accountIds[platform]);
+  if (!accountId) return null;
+  const text = schedulerPublishText(draft);
+  if (platform === "x") {
+    const mediaUrl = draft.mediaUrl.trim();
+    return {
+      accountId,
+      text,
+      ...(mediaUrl && draft.mediaType === "video" ? { videoUrl: mediaUrl } : {}),
+      ...(mediaUrl && draft.mediaType === "image" ? { imageUrl: mediaUrl } : {}),
+      idempotencyKey,
+    };
+  }
+  return {
+    accountId,
+    videoUrl: draft.mediaUrl.trim(),
+    caption: text,
+    idempotencyKey,
+  };
+}
+
+/** sessionStorage slot for one publish intent — the modals' shape
+ *  (`<prefix>-publish-key:${videoUrl}`), keyed per platform so the
+ *  four rails never share an attempt. X text-only intents key on
+ *  "text-only", like the modal. */
+export function socialPublishStorageKey(
+  platform: SchedulerPlatformKey,
+  mediaUrl: string,
+): string {
+  return `world-publish-key:${platform}:${mediaUrl.trim() || "text-only"}`;
+}
+
+/** Load the persisted key for this intent, or mint + persist one.
+ *  Falls back to the caller's in-memory cache when storage is
+ *  unavailable (private mode, webview without sessionStorage) — the
+ *  discipline survives either way: same intent, same key. */
+export function loadSocialPublishKey(
+  platform: SchedulerPlatformKey,
+  mediaUrl: string,
+  storage: Pick<Storage, "getItem" | "setItem"> | null,
+  cache: Map<string, string>,
+  mint: () => string = () => crypto.randomUUID(),
+): string {
+  const slot = socialPublishStorageKey(platform, mediaUrl);
+  const cached = cache.get(slot);
+  if (cached) return cached;
+  if (storage) {
+    try {
+      const existing = storage.getItem(slot);
+      if (existing && existing.length >= 8) {
+        cache.set(slot, existing);
+        return existing;
+      }
+      const fresh = mint();
+      storage.setItem(slot, fresh);
+      cache.set(slot, fresh);
+      return fresh;
+    } catch {
+      /* storage refused — the in-memory cache below still holds it */
+    }
+  }
+  const fresh = mint();
+  cache.set(slot, fresh);
+  return fresh;
+}
+
+/** Retire an intent's key after a CONFIRMED success — the next
+ *  publish of the same media is a deliberate new post. */
+export function retireSocialPublishKey(
+  platform: SchedulerPlatformKey,
+  mediaUrl: string,
+  storage: Pick<Storage, "removeItem"> | null,
+  cache: Map<string, string>,
+): void {
+  const slot = socialPublishStorageKey(platform, mediaUrl);
+  cache.delete(slot);
+  if (storage) {
+    try {
+      storage.removeItem(slot);
+    } catch {
+      /* nothing persisted to retire */
+    }
+  }
+}
+
+export interface SocialPublishResult {
+  /** The platform-side id: mediaId (Instagram), publishId (TikTok),
+   *  videoId (Facebook) or tweetId (X) — whichever the rail named. */
+  mediaId: string | null;
+  permalink: string | null;
+  creditsUsed: number | null;
+  creditsRemaining: number | null;
+  /** TikTok's honest shape: the video landed in the member's drafts,
+   *  never auto-posted — fresh successes say so in the status field,
+   *  stored replays carry the uniform result shape instead. */
+  deliveredToDrafts: boolean;
+  /** True when the rail answered with a stored replay of an earlier
+   *  attempt (same idempotency key) rather than a fresh publish. */
+  deduped: boolean;
+}
+
+/** A publish answer read generously, null on real drift — every rail
+ *  names its id differently, TikTok's fresh success carries no
+ *  permalink at all, and replays return the stored uniform shape.
+ *  An answer with no id, no permalink and no credits line is not a
+ *  publish result and reads as null (the bench shows its failure
+ *  words, never a painted-over success). */
+export function parseSocialPublishResult(data: unknown): SocialPublishResult | null {
+  const d = asRecord(data);
+  const mediaId =
+    str(d.mediaId) ?? str(d.publishId) ?? str(d.videoId) ?? str(d.tweetId);
+  const permalink = str(d.permalink);
+  const creditsUsed = numOrNull(d.creditsUsed);
+  if (!mediaId && !permalink && creditsUsed === null) return null;
+  return {
+    mediaId,
+    permalink,
+    creditsUsed,
+    creditsRemaining: numOrNull(d.creditsRemaining),
+    deliveredToDrafts: d.status === "sent_to_tiktok_inbox",
+    deduped: d.deduped === true,
+  };
+}
+
+function numOrNull(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+export type SocialPublishOutcome =
+  | { kind: "ok"; result: SocialPublishResult }
+  | { kind: "out-of-credits" }
+  | { kind: "in-progress" }
+  | { kind: "failed"; message: string };
+
+/** The modals' answer handling, classified once for all four rails:
+ *  402 / out_of_credits → the top-up state; 409 publish_in_progress
+ *  → the "already publishing" notice (NOT an error — the first
+ *  attempt is still landing); a 2xx that doesn't parse is a failure,
+ *  never a painted success; anything else carries the rail's own
+ *  message or the platform fallback. */
+export function classifySocialPublishResponse(
+  status: number,
+  data: unknown,
+  fallback: string,
+): SocialPublishOutcome {
+  const d = asRecord(data);
+  const error = str(d.error);
+  if (status === 402 || error === "out_of_credits") return { kind: "out-of-credits" };
+  if (status === 409 && error === "publish_in_progress") return { kind: "in-progress" };
+  if (status >= 200 && status < 300) {
+    const result = parseSocialPublishResult(data);
+    return result ? { kind: "ok", result } : { kind: "failed", message: fallback };
+  }
+  return { kind: "failed", message: str(d.message) ?? fallback };
+}
