@@ -201,20 +201,24 @@ describe("#5 earnings statements", () => {
     const lines: Array<[string, string]> = [
       ["Store sales", "storeSales"],
       ["Digital sales", "digitalSales"],
-      ["Shop sales", "shopSales"],
-      ["Beat licenses", "beats"],
+      ["Shop sales (profile store, shops, digital)", "shopSales"],
+      ["Beats (licenses sold)", "beats"],
       ["Memberships", "memberships"],
       ["Shoutouts", "shoutouts"],
       ["Tip jar tips", "tipJar"],
-      ["Brand deals", "brandDeals"],
-      ["Royalties", "royalties"],
+      ["Brand deals (escrow released)", "brandDeals"],
+      ["Royalties (recorded)", "royalties"],
     ];
     for (const [label, key] of lines) {
       const s = json.statement.sources[key];
       expect(s.status).toBe("ok");
-      expect(pdfText).toContain(label);
+      /* Parentheses are escaped in the PDF text ops (the money check
+         below already escapes them the same way). */
+      expect(pdfText).toContain(label.replace(/[()]/g, (m) => `\\${m}`));
       expect(pdfText).toContain(`${money(s.totalCents)}  (${s.count} records)`.replace(/[()]/g, (m) => `\\${m}`));
     }
+    /* The PDF route's pre-single-source short label is gone for good. */
+    expect(pdfText).not.toContain("Beat licenses");
     expect(json.statement.totalCents).toBe(5000 + 1900 + 1350 + 4000 + 1234);
     expect(pdfText).toContain(money(json.statement.totalCents));
   });
