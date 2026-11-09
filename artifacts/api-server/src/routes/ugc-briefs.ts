@@ -195,17 +195,13 @@ async function loadBrief(id: string) {
   return row ?? null;
 }
 
-async function saveBrief(
-  id: string,
-  patch: Partial<typeof ugcBriefsTable.$inferInsert>,
-) {
-  const [row] = await db
-    .update(ugcBriefsTable)
-    .set({ ...patch, updatedAt: new Date() })
-    .where(eq(ugcBriefsTable.id, id))
-    .returning();
-  return row ?? null;
-}
+/* NOTE (f-ugc-savebrief): there is deliberately no unguarded
+   saveBrief helper anymore. Every lifecycle write is a status-
+   guarded flip whose predicates ride the UPDATE itself (the C-11
+   discipline) — claim, release and deliver were converted by the
+   escrow lane, and the last two holdouts (the free-brief approve
+   and the close fallback) by the follow-on lane. A write that must
+   land unconditionally does not belong in this rail. */
 
 /* ── POST /api/ugc-briefs — a brand posts a brief ──────────────────── */
 const createBriefSchema = z.object({
@@ -613,8 +609,30 @@ router.post("/ugc-briefs/:id/approve", requireAuth, publicApiLimiter, async (req
       });
       return;
     }
-    const saved = await saveBrief(id, { status: "approved" });
-    res.json({ brief: await toDTO(saved!) });
+    /* ── A FREE brief: approve is a plain lifecycle flip with no
+       money behind it — but it takes the same guarded shape as the
+       escrow release above (f-ugc-savebrief: this and the close
+       fallback were the rail's last unguarded writes). Two brand
+       tabs approving the same delivery in the same instant both
+       passed the load-time check, and the second save re-approved a
+       row whose state it never saw; the flip carries the validated
+       state (still delivered), so exactly one approval lands and
+       the loser gets the same honest 409 the funded path returns. */
+    const [flipped] = await db
+      .update(ugcBriefsTable)
+      .set({ status: "approved", updatedAt: new Date() })
+      .where(
+        and(
+          eq(ugcBriefsTable.id, id),
+          eq(ugcBriefsTable.status, "delivered"),
+        ),
+      )
+      .returning();
+    if (!flipped) {
+      res.status(409).json({ error: "This brief changed while you were approving — refresh and check its state." });
+      return;
+    }
+    res.json({ brief: await toDTO(flipped) });
   } catch (err) {
     logger.error({ err }, "[ugc-briefs] approve failed");
     res.status(500).json({ error: "Could not approve that delivery — try again." });
@@ -720,8 +738,37 @@ router.post("/ugc-briefs/:id/close", requireAuth, publicApiLimiter, async (req, 
       res.json({ brief: await toDTO(flipped) });
       return;
     }
-    const saved = await saveBrief(id, { status: "closed" });
-    res.json({ brief: await toDTO(saved!) });
+    /* ── The fallback close: no money is held against this brief
+       (a free brief, or a priced brief nobody has funded yet), so
+       there is nothing to refund — but the close still takes the
+       guarded shape (f-ugc-savebrief: with the free approve above,
+       this was the rail's last unguarded write). The flip carries
+       exactly the state validated above — still open or claimed,
+       still claimed by whoever the row named when it was read,
+       escrow exactly as read — so a close whose checks ran against
+       a brief that has since been claimed, released, or had its
+       funding claimed can no longer stamp "closed" over a state it
+       never saw; the brand gets the same honest 409 the funded
+       close returns and closes the brief's real state on refresh. */
+    const [flipped] = await db
+      .update(ugcBriefsTable)
+      .set({ status: "closed", updatedAt: new Date() })
+      .where(
+        and(
+          eq(ugcBriefsTable.id, id),
+          inArray(ugcBriefsTable.status, ["open", "claimed"]),
+          row.claimedByUserId
+            ? eq(ugcBriefsTable.claimedByUserId, row.claimedByUserId)
+            : isNull(ugcBriefsTable.claimedByUserId),
+          eq(ugcBriefsTable.escrowStatus, row.escrowStatus),
+        ),
+      )
+      .returning();
+    if (!flipped) {
+      res.status(409).json({ error: "This brief changed while you were closing it — refresh and check its state." });
+      return;
+    }
+    res.json({ brief: await toDTO(flipped) });
   } catch (err) {
     logger.error({ err }, "[ugc-briefs] close failed");
     res.status(500).json({ error: "Could not close that brief — try again." });
