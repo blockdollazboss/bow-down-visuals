@@ -266,7 +266,7 @@ describe("operator knowledge — description coverage (no silent thinning)", () 
     expect(byPath("/beats").description).toBe("Buy and sell beats: producers list instrumentals, and artists preview and license them by tier.");
     expect(byPath("/beats").descriptionSource).toContain("usePageTitle meta description");
     // A page-file DESCRIPTION constant (SEO index page).
-    expect(byPath("/tools").description).toBe("Every AI tool on Bow Down Visuals: thumbnail maker, hook generator, caption writer, music video maker, clip cutter, and song maker. Free to browse.");
+    expect(byPath("/tools").description).toBe("Every AI tool on Bow Down Visuals: thumbnail maker, hook generator, caption writer, music video maker, clip cutter, and song maker. Members browse free.");
     expect(byPath("/tools").descriptionSource).toContain("DESCRIPTION constant");
     // The Academy guides tab reads its host's prose — the en.guides legal
     // namespace is blocklisted (it describes the standalone legal pages).
