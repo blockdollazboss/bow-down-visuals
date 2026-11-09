@@ -127,6 +127,26 @@ export const STREAM_PACK_THEMES: StreamPackTheme[] = [
       "luxurious beauty-brand broadcast design",
   },
   {
+    id: "brass-industrial",
+    name: "Brass Industrial",
+    blurb: "Brass & riveted steel. Workshop grit, polished.",
+    swatches: ["#0c0a07", "#b08d57", "#e8d9b0"],
+    stylePrompt:
+      "industrial workshop aesthetic, near-black iron and charcoal backgrounds, brushed brass " +
+      "and riveted steel accents, bold stencil-style typography, warm worklamp lighting, " +
+      "rugged premium broadcast design",
+  },
+  {
+    id: "sakura-soft",
+    name: "Sakura Soft",
+    blurb: "Cherry blossom & cream. Soft and gentle.",
+    swatches: ["#171014", "#f7a8b8", "#fdf3e7"],
+    stylePrompt:
+      "soft cherry-blossom aesthetic, deep plum-charcoal backgrounds, delicate pink sakura " +
+      "petal and cream accents, graceful rounded typography, gentle diffused lighting, " +
+      "calm elegant broadcast design",
+  },
+  {
     id: "obsidian-chrome",
     name: "Obsidian Chrome",
     blurb: "Black, silver & white. Pure monochrome.",
