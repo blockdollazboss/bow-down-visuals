@@ -1,6 +1,7 @@
 /**
  * Hub project starters — the registry pins (stack200 upgrade
- * group 6, extended by the stack300 hub-starters lane).
+ * group 6, extended by the stack300 hub-starters lane, then by
+ * the stack400 shelf-hub lane).
  *
  * Pinned:
  * - the learn and business shelves carry the stack200 additions
@@ -164,8 +165,132 @@ describe("the business shelf", () => {
   });
 });
 
+describe("the game shelf (stack400 D-23)", () => {
+  it("carries five starters with speedrun-channel-launch appended last", () => {
+    expect(getTemplates("game").map((t) => t.key)).toEqual([
+      "retro-platformer",
+      "horror-game",
+      "rpg-adventure",
+      "speedrun-channel-launch",
+      "mobile-puzzle",
+    ]);
+  });
+
+  it("speedrun-channel-launch is the timer-first gaming channel preloaded into story, characters, art, and promote", () => {
+    const launch = getTemplate("game", "speedrun-channel-launch")!;
+    expectWellFormed(launch);
+    expect(launch.name).toBe("Speedrun Channel Launch");
+    expect(launch.concept).toContain("timer on screen");
+    expect(launch.preload.map((p) => p.step)).toEqual([
+      "story",
+      "characters",
+      "art",
+      "promote",
+    ]);
+  });
+});
+
+describe("the movie shelf (stack400 D-24)", () => {
+  it("carries five starters with short-film-premiere on the shelf", () => {
+    expect(getTemplates("movie").map((t) => t.key)).toEqual([
+      "scifi-short",
+      "horror-short",
+      "comedy-short",
+      "short-film-premiere",
+      "drama-short",
+    ]);
+  });
+
+  it("short-film-premiere is the finished-film launch preloaded into premiere, score, and promo", () => {
+    const premiere = getTemplate("movie", "short-film-premiere")!;
+    expectWellFormed(premiere);
+    expect(premiere.name).toBe("Short Film Premiere");
+    expect(premiere.concept).toContain("opening night");
+    expect(premiere.preload.map((p) => p.step)).toEqual([
+      "premiere",
+      "score",
+      "promo",
+    ]);
+  });
+});
+
+describe("the series shelf (stack400 D-25)", () => {
+  it("carries five starters with weekly-web-series on the shelf", () => {
+    expect(getTemplates("series").map((t) => t.key)).toEqual([
+      "comedy-series",
+      "drama-miniseries",
+      "ai-adventure",
+      "weekly-web-series",
+      "reality-style",
+    ]);
+  });
+
+  it("weekly-web-series is the same-day-every-week habit preloaded into arc, cast, episodes, and premiere", () => {
+    const series = getTemplate("series", "weekly-web-series")!;
+    expectWellFormed(series);
+    expect(series.name).toBe("Weekly Web Series");
+    expect(series.concept).toContain("same release day");
+    expect(series.preload.map((p) => p.step)).toEqual([
+      "arc",
+      "cast",
+      "episodes",
+      "premiere",
+    ]);
+  });
+});
+
+describe("the clipper shelf (stack400 D-26)", () => {
+  it("carries five starters with clip-farm-system on the shelf", () => {
+    expect(getTemplates("clipper").map((t) => t.key)).toEqual([
+      "stream-clipper",
+      "podcast-clipper",
+      "sports-clipper",
+      "clip-farm-system",
+      "drama-clipper",
+    ]);
+  });
+
+  it("clip-farm-system is the multi-account clipping operation preloaded into niche, brand, clip, post, and deals", () => {
+    const farm = getTemplate("clipper", "clip-farm-system")!;
+    expectWellFormed(farm);
+    expect(farm.name).toBe("Clip Farm System");
+    expect(farm.concept).toContain("run as a system");
+    expect(farm.preload.map((p) => p.step)).toEqual([
+      "niche",
+      "brand",
+      "clip",
+      "post",
+      "deals",
+    ]);
+  });
+});
+
+describe("the visual shelf (stack400 D-27)", () => {
+  it("carries five starters with brand-identity-sprint appended last", () => {
+    expect(getTemplates("visual").map((t) => t.key)).toEqual([
+      "artist-identity",
+      "channel-rebrand",
+      "single-pack",
+      "streamer-overhaul",
+      "brand-identity-sprint",
+    ]);
+  });
+
+  it("brand-identity-sprint is the one-pass identity kit preloaded into logo, brand, and test", () => {
+    const sprint = getTemplate("visual", "brand-identity-sprint")!;
+    expectWellFormed(sprint);
+    expect(sprint.name).toBe("Brand Identity Sprint");
+    expect(sprint.concept).toContain("identity sprint");
+    expect(sprint.preload.map((p) => p.step)).toEqual([
+      "logo",
+      "brand",
+      "test",
+    ]);
+  });
+});
+
 describe("the registry as a whole", () => {
-  it("stands at 72 starters across the 16 shelves", () => {
+  it("stands at 77 starters across the 16 shelves", () => {
     const shelves: HubProjectType[] = [
       "song",
       "video",
@@ -188,7 +313,21 @@ describe("the registry as a whole", () => {
       (sum, shelf) => sum + getTemplates(shelf).length,
       0,
     );
-    expect(total).toBe(72);
+    expect(total).toBe(77);
+  });
+
+  it("holds the untouched shelves at their pre-stack400 sizes", () => {
+    expect(getTemplates("song").length).toBe(6);
+    expect(getTemplates("video").length).toBe(5);
+    expect(getTemplates("influencer").length).toBe(5);
+    expect(getTemplates("release").length).toBe(4);
+    expect(getTemplates("grow").length).toBe(4);
+    expect(getTemplates("monetize").length).toBe(4);
+    expect(getTemplates("learn").length).toBe(4);
+    expect(getTemplates("business").length).toBe(4);
+    expect(getTemplates("podcast").length).toBe(5);
+    expect(getTemplates("ai-producer").length).toBe(5);
+    expect(getTemplates("ai-influencer").length).toBe(6);
   });
 });
 
