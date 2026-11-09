@@ -284,6 +284,30 @@ export const VIDEO_TEMPLATE_METAS: VideoTemplateMeta[] = [
     category: "Creator",
     outcome: "Making-of cuts that sell the finished piece",
   },
+  {
+    key: "day-in-the-life-recap",
+    name: "Day in the Life Recap",
+    tagline: "Your whole day, recapped in seconds",
+    description:
+      "Morning to lights-out: your day's clips roll in order with the time of day stamped as it passes, one honest beat per hour, and a tonight close. The vlog staple, without the vlog workload.",
+    aspect: "9:16",
+    durationLabel: "~12s",
+    slotCount: 7,
+    category: "Creator",
+    outcome: "Full days recapped like a vlog",
+  },
+  {
+    key: "grwm-routine-cut",
+    name: "GRWM Routine Cut",
+    tagline: "Get ready with me, step by step",
+    description:
+      "Your getting-ready routine in its real order: the before, each step stamped as you do it, the final look held for the reveal, and your products listed at the close. GRWM, structured in one tap.",
+    aspect: "9:16",
+    durationLabel: "~12s",
+    slotCount: 6,
+    category: "Creator",
+    outcome: "Routines viewers follow to the final look",
+  },
 ];
 
 export const VIDEO_TEMPLATE_CATEGORIES = [

@@ -39,10 +39,12 @@ const EXPECTED_KEYS = [
   "countdown-teaser",
   "interview-qa-cut",
   "behind-the-scenes-cut",
+  "day-in-the-life-recap",
+  "grwm-routine-cut",
 ];
 
 describe("video template display metas", () => {
-  it("mirrors the full server library (22 templates)", () => {
+  it("mirrors the full server library (24 templates)", () => {
     expect(VIDEO_TEMPLATE_METAS.length).toBeGreaterThanOrEqual(16);
     expect(VIDEO_TEMPLATE_METAS.map((t) => t.key)).toEqual(EXPECTED_KEYS);
   });

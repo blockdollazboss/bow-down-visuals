@@ -167,6 +167,15 @@ export const TRENDING_PRESETS: TrendingPreset[] = [
     trendScore: 80,
     platform: ["tiktok", "reels", "shorts"],
   },
+  {
+    slug: "thermal-vision-grade",
+    name: "Thermal Vision Grade",
+    description: "The thermal-camera look: bodies glow hot against a cold dark world, heat blooming off every moving thing. Surveillance-cam menace for night shoots, workouts, and anything that runs hot.",
+    category: "Style",
+    remixParams: { remix: "thermal-vision-grade" },
+    trendScore: 84,
+    platform: ["tiktok", "reels", "shorts"],
+  },
   /* ─── Transition ─── */
   {
     slug: "match-cut-snap",
@@ -220,6 +229,15 @@ export const TRENDING_PRESETS: TrendingPreset[] = [
     category: "Transition",
     remixParams: { transition: "tr-fade-through" },
     trendScore: 75,
+    platform: ["tiktok", "reels", "shorts"],
+  },
+  {
+    slug: "paper-tear-reveal",
+    name: "Paper Tear Reveal",
+    description: "The frame rips apart like torn paper — jagged edges, ripped fibers — and the next scene shows through the tear. The scrapbook reveal every GRWM and unboxing is cutting to right now.",
+    category: "Transition",
+    remixParams: { remix: "paper-tear-reveal" },
+    trendScore: 88,
     platform: ["tiktok", "reels", "shorts"],
   },
   /* ─── Effect ─── */
