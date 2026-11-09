@@ -33,7 +33,21 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): one replay note per shops AI rail. */
+const REPLAY_NOTE_SHOP_DESC =
+  "This is the shop description you already wrote for this shop — change the name or details for a fresh one.";
+const REPLAY_NOTE_PRODUCT_DESC =
+  "This is the product description you already wrote for this product — change the name, details or tone for a fresh one.";
+const REPLAY_NOTE_PRODUCT_IMAGE =
+  "This is the product image you already made for this request — change the product or style for a fresh one.";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import {
   getCheckoutStripe,
@@ -1761,6 +1775,17 @@ router.post("/shops/ai/shop-description", requireAuth, publicApiLimiter, async (
     });
     return;
   }
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the description already written, free. */
+  const shopDescKey = buildChargeIdempotencyKey("shops-shop-description", req.userId!, null, {
+    ...parsed.data,
+  });
+  const shopDescStored = await findStoredGenerationResult("shops-shop-description", shopDescKey, req.userId!);
+  if (shopDescStored && typeof shopDescStored["description"] === "string" && shopDescStored["description"] !== "") {
+    res.json({ ...shopDescStored, replayed: true, replayNote: REPLAY_NOTE_SHOP_DESC });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < SHOP_AI_CREDIT_COST) {
     res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to use the AI shop writer." });
@@ -1768,7 +1793,7 @@ router.post("/shops/ai/shop-description", requireAuth, publicApiLimiter, async (
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, SHOP_AI_CREDIT_COST, { action: "AI Shop Description" });
+    creditsRemaining = await chargeCredits(req.userId!, SHOP_AI_CREDIT_COST, { action: "AI Shop Description" }, { idempotencyKey: shopDescKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to use the AI shop writer." });
@@ -1811,9 +1836,21 @@ router.post("/shops/ai/shop-description", requireAuth, publicApiLimiter, async (
       if (typeof j.description === "string" && j.description.trim()) description = j.description.trim();
     } catch { /* fall through */ }
     if (!description) throw new Error("Model returned no usable description");
-    res.json({ description, creditsUsed: SHOP_AI_CREDIT_COST, creditsRemaining });
+    const shopDescBody = { description, creditsUsed: SHOP_AI_CREDIT_COST, creditsRemaining };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("shops-shop-description", shopDescKey, req.userId!, { ...shopDescBody });
+    res.json(shopDescBody);
   } catch (err) {
-    await refundCredits(req.userId!, SHOP_AI_CREDIT_COST, { action: "AI Shop Description — Refund (provider failed)" });
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let shopDescRefunded = true;
+    try {
+      await refundCredits(req.userId!, SHOP_AI_CREDIT_COST, { action: "AI Shop Description — Refund (provider failed)" });
+    } catch {
+      shopDescRefunded = false;
+    }
+    if (shopDescRefunded) {
+      await voidChargeIdempotencyKey(shopDescKey).catch(() => false);
+    }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[shops] OpenAI rate limit / quota");
       res.status(503).json({ error: "The studio is catching its breath — try again in a moment." });
@@ -1834,6 +1871,17 @@ router.post("/shops/ai/product-description", requireAuth, publicApiLimiter, asyn
     });
     return;
   }
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the description already written, free. */
+  const productDescKey = buildChargeIdempotencyKey("shops-product-description", req.userId!, null, {
+    ...parsed.data,
+  });
+  const productDescStored = await findStoredGenerationResult("shops-product-description", productDescKey, req.userId!);
+  if (productDescStored && typeof productDescStored["description"] === "string" && productDescStored["description"] !== "") {
+    res.json({ ...productDescStored, replayed: true, replayNote: REPLAY_NOTE_PRODUCT_DESC });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < SHOP_AI_CREDIT_COST) {
     res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to use the AI product writer." });
@@ -1841,7 +1889,7 @@ router.post("/shops/ai/product-description", requireAuth, publicApiLimiter, asyn
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, SHOP_AI_CREDIT_COST, { action: "AI Product Description" });
+    creditsRemaining = await chargeCredits(req.userId!, SHOP_AI_CREDIT_COST, { action: "AI Product Description" }, { idempotencyKey: productDescKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to use the AI product writer." });
@@ -1889,9 +1937,21 @@ router.post("/shops/ai/product-description", requireAuth, publicApiLimiter, asyn
       if (typeof j.description === "string" && j.description.trim()) description = j.description.trim();
     } catch { /* fall through */ }
     if (!description) throw new Error("Model returned no usable description");
-    res.json({ description, creditsUsed: SHOP_AI_CREDIT_COST, creditsRemaining });
+    const productDescBody = { description, creditsUsed: SHOP_AI_CREDIT_COST, creditsRemaining };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("shops-product-description", productDescKey, req.userId!, { ...productDescBody });
+    res.json(productDescBody);
   } catch (err) {
-    await refundCredits(req.userId!, SHOP_AI_CREDIT_COST, { action: "AI Product Description — Refund (provider failed)" });
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let productDescRefunded = true;
+    try {
+      await refundCredits(req.userId!, SHOP_AI_CREDIT_COST, { action: "AI Product Description — Refund (provider failed)" });
+    } catch {
+      productDescRefunded = false;
+    }
+    if (productDescRefunded) {
+      await voidChargeIdempotencyKey(productDescKey).catch(() => false);
+    }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[shops] OpenAI rate limit / quota");
       res.status(503).json({ error: "The studio is catching its breath — try again in a moment." });
@@ -1914,6 +1974,20 @@ router.post("/shops/ai/product-image", requireAuth, publicApiLimiter, async (req
   }
   const creditCost =
     parsed.data.tier === "premium" ? SHOP_IMAGE_PREMIUM_CREDITS : SHOP_IMAGE_STANDARD_CREDITS;
+  /* CA-5: durable replay pre-check BEFORE funding — the tier is part of
+     the intent, so a standard ask and a premium ask never share a key.
+     The stored body carries the uploaded image's url + path, so a
+     replay returns THE image already made instead of generating (and
+     uploading) a second one. */
+  const productImageKey = buildChargeIdempotencyKey("shops-product-image", req.userId!, null, {
+    ...parsed.data,
+  });
+  const productImageStored = await findStoredGenerationResult("shops-product-image", productImageKey, req.userId!);
+  if (productImageStored && typeof productImageStored["url"] === "string" && productImageStored["url"] !== "") {
+    res.json({ ...productImageStored, replayed: true, replayNote: REPLAY_NOTE_PRODUCT_IMAGE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < creditCost) {
     res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs for this product image." });
@@ -1923,7 +1997,7 @@ router.post("/shops/ai/product-image", requireAuth, publicApiLimiter, async (req
   try {
     creditsRemaining = await chargeCredits(req.userId!, creditCost, {
       action: `AI Product Image (${parsed.data.tier})`,
-    });
+    }, { idempotencyKey: productImageKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs for this product image." });
@@ -1970,17 +2044,29 @@ router.post("/shops/ai/product-image", requireAuth, publicApiLimiter, async (req
         .getPublicUrl(filePath).data.publicUrl;
     }
 
-    res.json({
+    const productImageBody = {
       url: publicUrl,
       path: filePath,
       tier,
       creditsUsed: creditCost,
       creditsRemaining,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("shops-product-image", productImageKey, req.userId!, { ...productImageBody });
+    res.json(productImageBody);
   } catch (err) {
-    await refundCredits(req.userId!, creditCost, {
-      action: `AI Product Image (${parsed.data.tier}) — Refund (provider failed)`,
-    });
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let productImageRefunded = true;
+    try {
+      await refundCredits(req.userId!, creditCost, {
+        action: `AI Product Image (${parsed.data.tier}) — Refund (provider failed)`,
+      });
+    } catch {
+      productImageRefunded = false;
+    }
+    if (productImageRefunded) {
+      await voidChargeIdempotencyKey(productImageKey).catch(() => false);
+    }
     const msg = err instanceof Error ? err.message : "Product image generation failed";
     logger.error({ err: msg }, "[shops] product-image generation failed — Visual Buc refunded");
     res.status(502).json({ error: `${msg} Your Visual Buc was refunded.` });
