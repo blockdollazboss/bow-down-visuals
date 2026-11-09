@@ -1,17 +1,17 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "19eb57b7491494d1a611207033248c830718bc4d",
+  "baseCommit": "44426f660b04b722df9d86b99c7b660de78497ba",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-08",
+  "generatedAt": "2026-11-09",
   "counts": {
     "routesInApp": 245,
     "pageFiles": 175,
-    "features": 252,
+    "features": 254,
     "excludedRoutes": 76,
     "excludedPageFiles": 24,
     "pricedActions": 259,
@@ -19,7 +19,7 @@
     "guides": 11,
     "desks": 5,
     "takeoverOffers": 2,
-    "withDescriptions": 252,
+    "withDescriptions": 254,
     "withoutDescriptions": 0,
     "serverRouteFiles": 432,
     "serverEndpoints": 1750,
@@ -17658,6 +17658,127 @@
       ],
       "prices": [],
       "description": "Palace admins can lock a room's door — the people inside stay, and nobody new joins — or lock one person out of a room for a time: 1 hour by default, up to 7 days. A lock is not a glitch: the World shows an honest card saying which lock it is and, for a person lock, how long is left.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": []
+    },
+    {
+      "id": "photo-desk",
+      "name": "Photo Desk",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/world",
+      "stage": "world",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/world.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/ai-page-designer/upload",
+        "/api/bg-generate",
+        "/api/bg-generate/status",
+        "/api/generate-headshot",
+        "/api/generate-product-photo",
+        "/api/photo-backdrop",
+        "/api/photo-backdrop/status",
+        "/api/photo-enhance",
+        "/api/remove-background"
+      ],
+      "prices": [
+        {
+          "feature": "Profile Image Upload (free)",
+          "vb": 0,
+          "endpoint": "/api/ai-page-designer/upload",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Background Plate",
+          "vb": 200,
+          "endpoint": "/api/bg-generate",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Headshot",
+          "vb": 100,
+          "endpoint": "/api/generate-headshot",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Product Photo (Packshot)",
+          "vb": 100,
+          "endpoint": "/api/generate-product-photo",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS",
+          "variants": [
+            {
+              "feature": "Product Photo (Lifestyle)",
+              "vb": 150,
+              "source": "artifacts/api-server/src/routes/generate/product-photo.ts LIFESTYLE_CREDITS — server charge for this variant of the endpoint (CREDIT_COSTS records the endpoint's base price)"
+            }
+          ]
+        },
+        {
+          "feature": "Photo Backdrop",
+          "vb": 100,
+          "endpoint": "/api/photo-backdrop",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Photo Enhance",
+          "vb": 100,
+          "endpoint": "/api/photo-enhance",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Background Removal",
+          "vb": 200,
+          "endpoint": "/api/remove-background",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "The Photo Studio inside the World, at the Photo Desk in the Create Wing: remove a background, swap in an AI backdrop, generate a background plate, enhance a photo, or make a headshot or product shot — packshot or lifestyle. Photos arrive through the free upload door.",
+      "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
+      "nextSteps": []
+    },
+    {
+      "id": "page-designer-bench",
+      "name": "AI Page Designer",
+      "nameSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES (the surface's own panel heading)",
+      "path": "/world",
+      "stage": "world",
+      "access": "members",
+      "pageFile": "artifacts/bow-down-visuals/src/pages/world.tsx",
+      "component": null,
+      "endpoints": [
+        "/api/ai-page-designer/banner",
+        "/api/ai-page-designer/bio",
+        "/api/ai-page-designer/theme",
+        "/api/ai-page-designer/upload",
+        "/api/creator-profiles/me"
+      ],
+      "prices": [
+        {
+          "feature": "AI Page Designer — Banner Art",
+          "vb": 200,
+          "endpoint": "/api/ai-page-designer/banner",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "AI Page Designer — Bio Writer",
+          "vb": 100,
+          "endpoint": "/api/ai-page-designer/bio",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "AI Page Designer — Full Page Design",
+          "vb": 400,
+          "endpoint": "/api/ai-page-designer/theme",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Profile Image Upload (free)",
+          "vb": 0,
+          "endpoint": "/api/ai-page-designer/upload",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        }
+      ],
+      "description": "The AI Page Designer inside the World, at the profile desk on the My Studio board: design your creator profile's theme, write its bio, and make its banner art, then apply each result straight to your profile — the profile setup designer, without leaving the World.",
       "descriptionSource": "scripts/generate-operator-knowledge.mjs DOCKED_FEATURES reviewed description (the surface's panel copy is inline JSX — no designated prose source exists to extract)",
       "nextSteps": []
     }

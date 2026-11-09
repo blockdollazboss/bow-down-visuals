@@ -2312,6 +2312,67 @@ const DOCKED_FEATURES = [
     pricedEndpoints: [],
   },
   {
+    /* Photo Desk (Stack 400 follow-on, world-photo-design lane):
+       the Photo Studio family's in-World station — a palace
+       station in the Create Wing (lib/world/stations.ts
+       "photo-desk", members-only), not a route, so the route
+       table cannot discover it and the page scan never reaches
+       its benches: without this entry the operator knew the 2D
+       Photo Studio but had never heard of the desk a member
+       standing in the World is actually using. Name is the
+       station's own name (its panel heading agrees); description
+       is a reviewed literal (the desk's copy is inline JSX /
+       locale defaultValues the generator never quotes). Every
+       fact is the desk's own: six benches on the family's rails
+       (lib/world/photo-desk.ts), one shared intake on the free
+       upload door, prices from CREDIT_COSTS. The product-photo
+       rail's lifestyle form rides priceVariants: the rail
+       charges it from its own LIFESTYLE_CREDITS constant (150,
+       owner-ratified Nov 7, 2026) while the registry records
+       the endpoint's packshot base (100) — the wallpapers-desk
+       variant precedent. */
+    id: "photo-desk",
+    name: { text: "Photo Desk" },
+    path: "/world",
+    hostPath: "/world",
+    access: "members",
+    description: {
+      text: "The Photo Studio inside the World, at the Photo Desk in the Create Wing: remove a background, swap in an AI backdrop, generate a background plate, enhance a photo, or make a headshot or product shot — packshot or lifestyle. Photos arrive through the free upload door.",
+    },
+    endpoints: ["/api/remove-background", "/api/photo-backdrop", "/api/photo-backdrop/status", "/api/bg-generate", "/api/bg-generate/status", "/api/photo-enhance", "/api/generate-headshot", "/api/generate-product-photo", "/api/ai-page-designer/upload"],
+    pricedEndpoints: ["/api/remove-background", "/api/photo-backdrop", "/api/bg-generate", "/api/photo-enhance", "/api/generate-headshot", "/api/generate-product-photo"],
+    priceVariants: [
+      { endpoint: "/api/generate-product-photo", feature: "Product Photo (Lifestyle)", constant: "LIFESTYLE_CREDITS" },
+    ],
+  },
+  {
+    /* AI Page Designer bench (Stack 400 follow-on,
+       world-photo-design lane): the /artist-setup designer's
+       in-World bench, stacked under the creator-profile card
+       on the My Studio board (the World's profile desk) — no
+       route of its own, and the route table's /artist-setup
+       entry describes the 2D page, not this bench. Name is the
+       designer's own; description is a reviewed literal (the
+       bench's copy is inline JSX / locale defaultValues).
+       Facts are the bench's own (lib/world/
+       page-designer-bench.ts): the theme, bio and banner rails
+       at their registry prices, the free upload door, and
+       every result applied on the profile's own PUT rail —
+       the bench reads and writes /api/creator-profiles/me,
+       so that endpoint rides the entry too (it carries no
+       registry price and charges nothing). */
+    id: "page-designer-bench",
+    name: { text: "AI Page Designer" },
+    path: "/world",
+    hostPath: "/world",
+    access: "members",
+    description: {
+      text: "The AI Page Designer inside the World, at the profile desk on the My Studio board: design your creator profile's theme, write its bio, and make its banner art, then apply each result straight to your profile — the profile setup designer, without leaving the World.",
+    },
+    endpoints: ["/api/ai-page-designer/theme", "/api/ai-page-designer/bio", "/api/ai-page-designer/banner", "/api/ai-page-designer/upload", "/api/creator-profiles/me"],
+    pricedEndpoints: ["/api/ai-page-designer/theme", "/api/ai-page-designer/bio", "/api/ai-page-designer/banner"],
+  },
+  {
     /* Spoken replies (QC-200 fix #14): the operator's own voice-out
        surface — a toggle at the top of the Thy Cheat Code chat drawer
        plus a speak button on each of his replies (components/
