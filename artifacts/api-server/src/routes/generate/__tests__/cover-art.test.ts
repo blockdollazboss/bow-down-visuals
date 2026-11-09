@@ -42,13 +42,14 @@ describe("cover art pricing", () => {
 });
 
 describe("style presets", () => {
-  it("exposes exactly the five documented presets", () => {
+  it("exposes exactly the six documented presets", () => {
     expect(COVER_ART_STYLES.map((s) => s.key)).toEqual([
       "luxury-gold",
       "dark-moody",
       "vibrant-pop",
       "retro",
       "minimal",
+      "chrome-y2k",
     ]);
   });
 
@@ -147,7 +148,7 @@ describe("coverArtSchema", () => {
 });
 
 describe("layout templates", () => {
-  it("exposes exactly the twelve documented layouts", () => {
+  it("exposes exactly the fourteen documented layouts", () => {
     expect(COVER_ART_LAYOUTS.map((l) => l.key)).toEqual([
       "center-stage",
       "headline-top",
@@ -161,6 +162,8 @@ describe("layout templates", () => {
       "magazine-cover",
       "headline-right",
       "billboard-foot",
+      "diagonal-slash",
+      "vinyl-sleeve",
     ]);
   });
 
@@ -175,6 +178,32 @@ describe("layout templates", () => {
     expect(l.direction).toContain("marquee billing");
     expect(l.direction).toContain("anchored along the bottom");
     expect(l.imageZone.toLowerCase()).toContain("bottom");
+  });
+
+  it("diagonal-slash directs a hard diagonal split with the title along the slash", () => {
+    const l = resolveCoverArtLayout("diagonal-slash")!;
+    expect(l.direction).toContain("diagonal slash");
+    expect(l.direction).toContain("runs along the slash");
+    expect(l.imageZone.toLowerCase()).toContain("diagonal");
+  });
+
+  it("vinyl-sleeve directs a retro LP front sleeve with a spine band", () => {
+    const l = resolveCoverArtLayout("vinyl-sleeve")!;
+    expect(l.direction).toContain("spine band");
+    expect(l.direction).toContain("front of");
+    expect(l.imageZone.toLowerCase()).toContain("left edge");
+  });
+
+  it("chrome-y2k resolves as a style with a liquid-chrome direction", () => {
+    const s = resolveCoverArtStyle("chrome-y2k");
+    expect(s.key).toBe("chrome-y2k");
+    expect(s.direction).toContain("liquid chrome");
+    const parsed = coverArtSchema.safeParse({
+      songTitle: "Chrome Heart",
+      artistName: "Thy Cheat Code",
+      style: "chrome-y2k",
+    });
+    expect(parsed.success).toBe(true);
   });
 
   it("every layout has a label, blurb, direction, and image zone", () => {

@@ -6,8 +6,10 @@
  * ?template=<slug>, where the maker applies the entry's stylePreset —
  * so every stylePreset must be one of the maker's real preset ids
  * (pages/thumbnail-studio.tsx STYLE_PRESETS). The count is pinned at
- * 34 after the Stack 300 additions (horror-story, car-review and
- * asmr-video thumbnails — the Horror, Cars and ASMR categories).
+ * 37 after the Stack 400 additions (challenge-30-day, tier-list and
+ * documentary-deep-dive thumbnails — the Challenge, Tier List and
+ * Documentary categories), on top of the Stack 300 additions
+ * (horror-story, car-review and asmr-video thumbnails).
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -28,8 +30,8 @@ const MAKER_STYLE_PRESETS = [
 ];
 
 describe("thumbnail template library", () => {
-  it("holds the full library (34 templates)", () => {
-    expect(THUMBNAIL_TEMPLATES.length).toBe(34);
+  it("holds the full library (37 templates)", () => {
+    expect(THUMBNAIL_TEMPLATES.length).toBe(37);
   });
 
   it("uses unique, kebab-case slugs", () => {
@@ -116,5 +118,40 @@ describe("thumbnail template library", () => {
     });
     expect(asmr?.prompt).toContain("microphone");
     expect(THUMBNAIL_CATEGORIES).toContain("ASMR");
+  });
+
+  it("the Stack 400 challenge, tier list and documentary covers resolve with their shapes", () => {
+    const challenge = getThumbnailTemplate("challenge-30-day-thumbnail");
+    expect(challenge).toMatchObject({
+      title: "30-Day Challenge Thumbnail",
+      category: "Challenge",
+      stylePreset: "before-after",
+      aspectRatio: "16:9",
+      overlayText: "I TRIED IT FOR 30 DAYS",
+    });
+    expect(challenge?.prompt).toContain("day one vs day thirty");
+    expect(THUMBNAIL_CATEGORIES).toContain("Challenge");
+
+    const tier = getThumbnailTemplate("tier-list-thumbnail");
+    expect(tier).toMatchObject({
+      title: "Tier List Thumbnail",
+      category: "Tier List",
+      stylePreset: "bold-text-pop",
+      aspectRatio: "16:9",
+      overlayText: "MY TIER LIST",
+    });
+    expect(tier?.prompt).toContain("ranked rows");
+    expect(THUMBNAIL_CATEGORIES).toContain("Tier List");
+
+    const doc = getThumbnailTemplate("documentary-deep-dive-thumbnail");
+    expect(doc).toMatchObject({
+      title: "Documentary Deep Dive Thumbnail",
+      category: "Documentary",
+      stylePreset: "luxury",
+      aspectRatio: "16:9",
+      overlayText: "THE FULL STORY",
+    });
+    expect(doc?.prompt).toContain("investigation board");
+    expect(THUMBNAIL_CATEGORIES).toContain("Documentary");
   });
 });

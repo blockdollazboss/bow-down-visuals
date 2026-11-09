@@ -19,7 +19,7 @@ import {
 const read = (rel: string) => readFileSync(path.resolve(import.meta.dirname, rel), "utf8");
 
 describe("cover art layout registry", () => {
-  it("exposes exactly the twelve documented layouts, in picker order", () => {
+  it("exposes exactly the fourteen documented layouts, in picker order", () => {
     expect(COVER_ART_LAYOUTS.map((l) => l.key)).toEqual([
       "center-stage",
       "headline-top",
@@ -33,6 +33,8 @@ describe("cover art layout registry", () => {
       "magazine-cover",
       "headline-right",
       "billboard-foot",
+      "diagonal-slash",
+      "vinyl-sleeve",
     ]);
   });
 
@@ -156,6 +158,26 @@ describe("coverArtLayoutDiagram", () => {
     expect(pct(d.title!.top)).toBe(74);
     expect(pct(d.title!.width)).toBe(84); // hero scale
     expect(pct(d.subject.height)).toBe(60); // subject upper
+  });
+
+  it("diagonal-slash rides the title mid-frame over an upper subject; vinyl-sleeve tops a full-bleed sleeve", () => {
+    const slash = findCoverArtLayout("diagonal-slash")!;
+    expect(slash.titleZone).toBe("center");
+    expect(slash.subjectZone).toBe("upper");
+    const ds = coverArtLayoutDiagram(slash);
+    expect(pct(ds.title!.top)).toBe(42); // centered — the slash line
+    expect(pct(ds.title!.width)).toBe(70); // large scale
+    expect(pct(ds.artist!.top)).toBeGreaterThan(pct(ds.title!.top));
+    expect(pct(ds.subject.height)).toBe(60); // subject upper
+
+    const sleeve = findCoverArtLayout("vinyl-sleeve")!;
+    expect(sleeve.titleZone).toBe("top");
+    expect(sleeve.subjectZone).toBe("full-bleed");
+    const dv = coverArtLayoutDiagram(sleeve);
+    expect(pct(dv.title!.top)).toBe(8);
+    expect(pct(dv.artist!.top)).toBeGreaterThan(pct(dv.title!.top));
+    expect(dv.subject).toEqual({ top: "0%", left: "0%", width: "100%", height: "100%" });
+    expect(dv.badge).toBeNull();
   });
 
   it("corner-seal reserves the bottom-right badge corner, clear of the artist bar", () => {
