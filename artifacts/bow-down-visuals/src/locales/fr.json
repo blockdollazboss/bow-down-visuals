@@ -14096,6 +14096,14 @@
         "palaceThrone": {
           "name": "Trône du palais",
           "blurb": "La royauté Bow Down complète — trône, hall doré, rayons divins. La prise de branding héro."
+        },
+        "desertMirage": {
+          "name": "Desert Mirage",
+          "blurb": "Golden-dunes editorial — full-body heat-haze shot, made for the album campaign."
+        },
+        "galleryOpening": {
+          "name": "Gallery Opening",
+          "blurb": "White-wall gallery portrait — clean, cultured, press-ready."
         }
       },
       "tags": {

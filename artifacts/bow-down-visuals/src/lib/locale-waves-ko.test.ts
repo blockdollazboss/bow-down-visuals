@@ -362,6 +362,10 @@ export const KO_WAVE_ALLOW: Record<string, string[]> = {
   ],
   W3: [
     "bgStudio.freeColorsNote", // brand currency / placeholder-only / punctuation
+    // Stack 400 scene packs — English-verbatim UNREVIEWED until real translations land
+    "photoShoot.scenePacks.packs.desertMirage.name", "photoShoot.scenePacks.packs.desertMirage.blurb",
+    "photoShoot.scenePacks.packs.galleryOpening.name", "photoShoot.scenePacks.packs.galleryOpening.blurb",
+    // brand currency / placeholder-only / punctuation
     "headshotStudio.visualBucs", "makeVideo.priceBadge", "makeVideo.unknownStep",
     "makeVideo.refundedNoticeSuffix", "songAndVideo.costBadge", "harmony.buttonCost",
     "makeVideo.soundAttachFailed",

@@ -15340,6 +15340,14 @@
         "palaceThrone": {
           "name": "عرش القصر",
           "blurb": "ملكية Bow Down كاملة — عرش، قاعة ذهبية، أشعة إلهية. لقطة العلامة البطلة."
+        },
+        "desertMirage": {
+          "name": "Desert Mirage",
+          "blurb": "Golden-dunes editorial — full-body heat-haze shot, made for the album campaign."
+        },
+        "galleryOpening": {
+          "name": "Gallery Opening",
+          "blurb": "White-wall gallery portrait — clean, cultured, press-ready."
         }
       },
       "tags": {

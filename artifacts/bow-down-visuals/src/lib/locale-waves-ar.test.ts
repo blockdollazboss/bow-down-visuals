@@ -341,6 +341,11 @@ const W3_NS = [
 ];
 const W3_ALLOW = new Set([
   "bgStudio.freeColorsNote", "captionStyler.styles.hormozi.label",
+  "photoShoot.scenePacks.packs.desertMirage.name",
+  "photoShoot.scenePacks.packs.desertMirage.blurb",
+  "photoShoot.scenePacks.packs.galleryOpening.name",
+  "photoShoot.scenePacks.packs.galleryOpening.blurb",
+  "captionStyler.styles.hormozi.label",
   "harmony.buttonCost",
   "harmony.partsLine",
   "harmony.vb",

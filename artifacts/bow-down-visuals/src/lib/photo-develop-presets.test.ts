@@ -224,8 +224,8 @@ describe("photo develop presets — Stack 300: the loud grade, the portrait grad
      saturation above +22 (every entry neutral, muted or mono), the
      low-contrast + lifted-lightness portrait region, and the
      far-cool/dark end of the temperature×exposure plane. */
-  it("the shelf carries 11 looks, the three new ones included", () => {
-    expect(PHOTO_DEVELOP_PRESETS).toHaveLength(11);
+  it("the shelf carried 11 looks at Stack 300, the three new ones included (Stack 400's rose-film takes it to 12)", () => {
+    expect(PHOTO_DEVELOP_PRESETS).toHaveLength(12);
     expect(photoDevelopPresetById("vivid-pop")).not.toBeNull();
     expect(photoDevelopPresetById("soft-portrait")).not.toBeNull();
     expect(photoDevelopPresetById("blue-hour")).not.toBeNull();
@@ -271,5 +271,27 @@ describe("photo develop presets — Stack 300: the loud grade, the portrait grad
     expect(blue.develop.saturation).toBeGreaterThan(-100);
     expect(blue.develop).not.toEqual(photoDevelopPresetById("silver-noir")!.develop);
     expect(blue.develop).not.toEqual(photoDevelopPresetById("teal-shadow")!.develop);
+  });
+});
+
+describe("photo develop presets — Stack 400: the rose grade", () => {
+  /* The eleven looks through Stack 300 were gold, amber, dusk or
+     neutral on the warm side — no grade pushed pink. rose-film is
+     the rose region: warm with a rose lean, color kept alive. */
+  it("the shelf carries rose-film as the twelfth look", () => {
+    expect(photoDevelopPresetById("rose-film")).not.toBeNull();
+    expect(PHOTO_DEVELOP_PRESETS).toHaveLength(12);
+  });
+
+  it("rose-film is a WARM color grade — rose lean, color alive, not warm-film's fade", () => {
+    const rose = photoDevelopPresetById("rose-film")!;
+    const warm = photoDevelopPresetById("warm-film")!;
+    expect(rose.develop.temperature).toBeGreaterThan(0);
+    /* color alive: saturation positive where warm-film fades below zero */
+    expect(rose.develop.saturation).toBeGreaterThan(0);
+    expect(warm.develop.saturation).toBeLessThan(0);
+    expect(rose.develop).not.toEqual(warm.develop);
+    /* the film softness: contrast eased, never punched */
+    expect(rose.develop.contrast).toBeLessThan(0);
   });
 });

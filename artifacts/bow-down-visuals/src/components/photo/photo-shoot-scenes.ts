@@ -110,6 +110,34 @@ export const SCENE_PACKS: ScenePack[] = [
       "streaming through tall windows, rich warm royal lighting, regal and powerful atmosphere",
     bestFor: ["Album art", "Hero branding", "Announcement graphics"],
   },
+  {
+    id: "desert-mirage",
+    nameKey: "photoShoot.scenePacks.packs.desertMirage.name",
+    blurbKey: "photoShoot.scenePacks.packs.desertMirage.blurb",
+    name: "Desert Mirage",
+    blurb: "Golden-dunes editorial — full-body heat-haze shot, made for the album campaign.",
+    poseId: "fullbody",
+    outfit:
+      "desert editorial — sand-toned linen shirt worn open over a white tee, cream wide-leg trousers, gold pendant necklace, woven bracelets",
+    background:
+      "standing on golden desert dunes in late-afternoon light, wind lifting fine sand through warm backlight, " +
+      "heat haze shimmering on the horizon, long shadows across rippled sand, cinematic golden editorial mood",
+    bestFor: ["Album art", "Magazine style", "Tour promo"],
+  },
+  {
+    id: "gallery-opening",
+    nameKey: "photoShoot.scenePacks.packs.galleryOpening.name",
+    blurbKey: "photoShoot.scenePacks.packs.galleryOpening.blurb",
+    name: "Gallery Opening",
+    blurb: "White-wall gallery portrait — clean, cultured, press-ready.",
+    poseId: "portrait",
+    outfit:
+      "gallery-opening smart — charcoal tailored blazer over a black crew neck, slim black trousers, single gold brooch, polished black shoes",
+    background:
+      "at a white-wall gallery opening, large framed artworks softly lit on clean white walls behind, " +
+      "soft museum spotlighting from above, other guests blurred deep in the background, refined quiet-luxury mood",
+    bestFor: ["Press kit", "Magazine style", "Bio photo"],
+  },
 ];
 
 /** Composes a scene pack into the same brief format as composePhotoShootBrief. */

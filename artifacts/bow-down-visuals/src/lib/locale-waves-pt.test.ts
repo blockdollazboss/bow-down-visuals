@@ -388,6 +388,11 @@ describe("pt W2 (Stack-28 #87) — namespaces closed whole", () => {
 const W3_NAMESPACES = ["cartoonStudio", "bgStudio", "headshotStudio", "colorGrade", "photoEnhance", "speedRamp", "captionTemplates", "videoTemplatesPage", "photoShoot", "upscale", "makeVideo", "songAndVideo", "avatarPresenter", "thumbnailMaker", "thumbnail", "thumbnailStudio", "clipMaker", "thumbnailTest", "thumbnails", "logoMaker", "captionStyler", "watermarkRemoval", "mixMaster", "harmony", "deverb", "fillerRemover", "mastering"] as const;
 const W3_LEGIT: ReadonlySet<string> = new Set([
   "bgStudio.freeColorsNote", "avatarPresenter.avatarLabel",
+  "photoShoot.scenePacks.packs.desertMirage.name",
+  "photoShoot.scenePacks.packs.desertMirage.blurb",
+  "photoShoot.scenePacks.packs.galleryOpening.name",
+  "photoShoot.scenePacks.packs.galleryOpening.blurb",
+  "avatarPresenter.avatarLabel",
   "captionStyler.styles.hormozi.label",
   "captionStyler.styles.neon.label",
   "cartoonStudio.styleAnimeName",
