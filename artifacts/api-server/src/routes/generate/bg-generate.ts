@@ -10,6 +10,10 @@ import {
   BgImageNotConfiguredError,
   generateBackgroundImage,
 } from "../../lib/bg-image-client";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 const REPLAY_NOTE =
   "This is the background plate you already made for this request — tweak the prompt or style for a fresh one.";
@@ -153,6 +157,18 @@ router.post("/bg-generate", requireAuth, async (req: Request, res: Response) => 
     { prompt: parsed.data.prompt, style: parsed.data.style ?? "studio" },
   );
 
+  /* Stored-result pre-check (migration 0333; join15 composition:
+     durable-first, then the in-process cache below) BEFORE any
+     funding: a replay under a landed key is answered from the durable
+     row — the stored body verbatim + replayed/replayNote — with no
+     charge and no provider call, even after a server restart.
+     Fail-open: a storage miss or failure falls through. */
+  const durable = await findStoredGenerationResult("bg-generate", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const stored = storedResults.get(idempotencyKey);
   if (stored) {
     res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
@@ -200,6 +216,10 @@ router.post("/bg-generate", requireAuth, async (req: Request, res: Response) => 
       if (oldest !== undefined) storedResults.delete(oldest);
     }
     storedResults.set(idempotencyKey, { body, at: Date.now() });
+    /* Durable twin of the in-process store (migration 0333): the row
+       is what a post-restart replay is served from. Fail-open inside
+       the helper — a storage failure never fails this paid success. */
+    await storeGenerationResult("bg-generate", idempotencyKey, req.userId!, { ...body });
   } catch { /* storing is best-effort */ }
 
   const postCharge = storedResults.get(idempotencyKey);

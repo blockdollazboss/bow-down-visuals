@@ -1,13 +1,21 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
-import { getTextModel } from "../../lib/ai-clients";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";import { getTextModel } from "../../lib/ai-clients";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { BIO_COST } from "./bio-pricing";
 
 /* Re-exported so existing importers (public API) keep one source:
    the constant itself lives in ./bio-pricing (pure, route-free). */
 export { BIO_COST };
+
+/* Served with a replayed result on the website surface (C-36
+   honesty): the stored bios come back verbatim and say an identical
+   ask cannot be re-bought. */
+export const BIO_REPLAY_NOTE = "These are the bios you already made for this request — tweak the words for a fresh set.";
 
 const router = Router();
 
@@ -61,18 +69,17 @@ router.get("/bio-platforms", requireAuth, (_req, res) => {
 interface BioGenerationResult {
   bios: PlatformBio[];
   creditsRemaining: number;
-  /** True only when served from the replay store (CA-KEY): the caller
-   *  already paid for this exact ask; no second charge, no provider
-   *  call. Set by generateBiosForUser, absent on fresh generations. */
+  /** True only when served from a replay store (the durable
+   *  0333 table or the CA-KEY in-process cache): the caller already
+   *  paid for this exact ask; no second charge, no provider call.
+   *  Set by generateBiosForUser, absent on fresh generations. */
   replayed?: boolean;
 }
 
-export const BIO_REPLAY_NOTE =
-  "These are the bios you already made for this request — tweak the words for a fresh set.";
-
-/* CA-KEY replay store: keyed by the charge's idempotency key. In-process
-   by design — durable cross-restart stored results need a join-assigned
-   table (migrations are join-assigned only). */
+/* CA-KEY replay store: keyed by the charge's idempotency key.
+   (BIO_REPLAY_NOTE is declared once, above.) Join15 composition: the
+   durable stored-result table (migration 0333) sits in front of this
+   in-process layer inside generateBiosForUser. */
 const bioStoredResults = new Map<string, { result: BioGenerationResult; at: number }>();
 const bioInFlight = new Map<string, Promise<BioGenerationResult>>();
 const BIO_MAX_STORED_RESULTS = 500;
@@ -80,8 +87,7 @@ const BIO_MAX_STORED_RESULTS = 500;
 /** Test hook: forget every stored result and in-flight wait. */
 export function __resetBioReplayCache(): void {
   bioStoredResults.clear();
-  bioInFlight.clear();
-}
+  bioInFlight.clear();}
 
 /**
  * The Bio Generator rail's charging core — shared VERBATIM by the website
@@ -96,8 +102,7 @@ export function __resetBioReplayCache(): void {
  *   (or click) can never spend past the owner's balance.
  * - Any generation failure refunds in full under "<action> — Refund"
  *   and VOIDS the charge's idempotency key, so the retry charges fresh
- *   instead of being suppressed as a replay.
- * - `action` is the ledger label: the website passes "Bio Generator";
+ *   instead of being suppressed as a replay. * - `action` is the ledger label: the website passes "Bio Generator";
  *   the API passes "API: Bio Generator" so every API charge is
  *   identifiable as API-originated in the ledger/activity.
  * - `idempotencyKey` (CA-KEY): a caller-supplied key is threaded through
@@ -107,7 +112,11 @@ export function __resetBioReplayCache(): void {
  *   the request intent (member + payload hash) — protection never
  *   depends on the client's behavior. A replay of an already-served ask
  *   returns the stored bios flagged `replayed` (C-36: an identical ask
- *   cannot be re-bought; the surfaces say so via BIO_REPLAY_NOTE).
+ *   cannot be re-bought; the surfaces say so via BIO_REPLAY_NOTE). * - Durable stored results (migration 0333): before any funding, a
+ *   landed key's stored result is served back with `replayed: true`
+ *   — no charge, no provider call, even after a server restart. A
+ *   success persists its result under the key before returning.
+ *   Storage reads/writes are fail-open.
  */
 export async function generateBiosForUser(
   userId: string,
@@ -124,6 +133,20 @@ export async function generateBiosForUser(
     cta: data.cta ?? null,
     handle: data.handle ?? null,
   });
+
+  /* Stored-result pre-check (migration 0333; join15 composition:
+     durable-first, here in the CA-KEY wrapper) BEFORE any funding:
+     a landed key's durable row is served back — no charge, no
+     provider call, even after a server restart. A malformed stored
+     payload is treated as a miss, never served. Fail-open. */
+  const durable = await findStoredGenerationResult("bio-generator", idempotencyKey, userId);
+  if (durable && Array.isArray(durable["bios"])) {
+    return {
+      bios: durable["bios"] as PlatformBio[],
+      creditsRemaining: typeof durable["creditsRemaining"] === "number" ? durable["creditsRemaining"] : 0,
+      replayed: true,
+    };
+  }
 
   const stored = bioStoredResults.get(idempotencyKey);
   if (stored) {
@@ -166,8 +189,7 @@ async function runBioGeneration(
   data: z.infer<typeof bioSchema>,
   opts: { action: string; idempotencyKey?: string | null },
   idempotencyKey: string,
-): Promise<BioGenerationResult> {
-  const creditsAfter = await chargeCredits(userId, BIO_COST, { action: opts.action }, {
+): Promise<BioGenerationResult> {  const creditsAfter = await chargeCredits(userId, BIO_COST, { action: opts.action }, {
     idempotencyKey,
   });
 
@@ -240,7 +262,15 @@ async function runBioGeneration(
       };
     });
 
-    return { bios, creditsRemaining: creditsAfter };
+    const result: BioGenerationResult = { bios, creditsRemaining: creditsAfter };
+    /* Persist BEFORE returning: the row is what a post-restart replay
+       is served from. Fail-open inside the helper — a storage failure
+       never fails this paid success. */
+    await storeGenerationResult("bio-generator", idempotencyKey, userId, {
+      bios: result.bios,
+      creditsRemaining: result.creditsRemaining,
+    });
+    return result;
   } catch (err) {
     // Failed generations do NOT keep the charge — full refund, exactly as
     // the website rail has always behaved. CA-KEY: when the refund lands,
@@ -252,8 +282,7 @@ async function runBioGeneration(
       action: `${opts.action} \u2014 Refund`,
     }).catch(() => { refunded = false; });
     if (refunded) {
-      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
-    }
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);    }
     throw err;
   }
 }

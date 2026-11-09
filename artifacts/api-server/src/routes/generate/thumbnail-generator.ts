@@ -1,13 +1,16 @@
-import { createHash } from "crypto";
 import { Router } from "express";
 import { z } from "zod";
 import multer from "multer";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { toFile } from "openai";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { getSupabaseAdmin, addCreditsToProfile } from "../../lib/supabase-admin";
 import { chargeCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -27,6 +30,10 @@ const BATCH_CREDIT_COST =
 
 /** Newest OpenAI image model — env-overridable so upgrades are one-line changes. */
 const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";
+
+/* Served with a replayed result (C-36 honesty): the stored batch comes
+   back verbatim and says an identical ask cannot be re-bought. */
+const REPLAY_NOTE = "These are the thumbnails you already made for this request — tweak the prompt or style for a fresh batch.";
 
 /** Maps the site's aspect-ratio picker to OpenAI image sizes. */
 const ASPECT_SIZES: Record<string, "1536x1024" | "1024x1536"> = {
@@ -128,11 +135,10 @@ async function refundCredits(userId: string, amount: number): Promise<boolean> {
    key is honored, otherwise the request-intent hash IS the key. A
    replay therefore serves the stored batch — with replayed: true and
    the C-36 honesty note — instead of re-charging and re-generating.
-   In-process by design: durable cross-restart stored results need a
-   join-assigned table (migrations are join-assigned only). */
-const REPLAY_NOTE =
-  "These are the thumbnails you already made for this request — tweak the prompt or style for a fresh batch.";
-
+   (REPLAY_NOTE is declared once, above.) Join15 composition: the
+   durable stored-result table (migration 0333) sits in front of this
+   in-process layer — the handler checks it before the balance gate
+   and writes to it beside the in-process store-before-answer. */
 interface ThumbnailStoredResult { body: Record<string, unknown>; at: number }
 const thumbnailStoredResults = new Map<string, ThumbnailStoredResult>();
 const thumbnailInFlight = new Map<string, Promise<Record<string, unknown>>>();
@@ -185,6 +191,47 @@ router.post(
       aspectRatio === "9:16" ? "9:16" : "16:9";
     const size = ASPECT_SIZES[ratio];
 
+    /* The face photo is part of the request's INTENT (its hash keys
+       the charge), so it is read before any funding decision. The
+       upload itself was already buffered by multer above. */
+    const facePhotoBuffer = req.file?.buffer ?? null;
+
+    /* Idempotency: every call carries a real server-derived key. A
+       sane client per-attempt key is honored; otherwise the key is
+       the INTENT hash (prompt + style + ratio + overlays +
+       attribution + the face photo's hash) — the ledger dedups on
+       this key, so an identical re-ask can never double-charge. */
+    const clientKey = typeof (req.body as { idempotencyKey?: unknown } | null)?.idempotencyKey === "string"
+      ? (req.body as { idempotencyKey: string }).idempotencyKey
+      : null;
+    const idempotencyKey = buildChargeIdempotencyKey(
+      "thumbnail-generator", req.userId!, clientKey,
+      {
+        prompt: prompt.trim(),
+        stylePreset: stylePreset ?? null,
+        aspectRatio: ratio,
+        overlayText: overlayText ?? null,
+        overlayFont: overlayFont ?? null,
+        attribution: attribution ?? null,
+        facePhotoHash: facePhotoBuffer
+          ? createHash("sha256").update(facePhotoBuffer).digest("hex")
+          : null,
+      },
+    );
+
+    /* Stored-result pre-check (migration 0333) BEFORE any funding —
+       including the balance gate below: a replay under a landed key
+       was already paid for, so it is answered from the durable row
+       (stored body verbatim + replayed/replayNote) with no charge
+       and no provider call, even after a server restart, and even
+       if the balance has since been spent down. Fail-open: a
+       storage miss or failure falls through to the charge below. */
+    const stored = await findStoredGenerationResult("thumbnail-generator", idempotencyKey, req.userId!);
+    if (stored) {
+      res.json({ ...stored, replayed: true, replayNote: REPLAY_NOTE });
+      return;
+    }
+
     const currentCredits = req.userCredits ?? 0;
     const isDev = process.env["NODE_ENV"] === "development";
     req.log.info(
@@ -199,35 +246,9 @@ router.post(
       return;
     }
 
-    /* CA-KEY: derive the idempotency key on the server, ALWAYS. The
-       raw client key used to pass through UNWRAPPED — and null when the
-       client sent none, so a keyless replay re-charged in full. A sane
-       client key (≥8 chars) is honored via the builder; otherwise the
-       intent hash (fields + face-photo bytes when present) IS the key. */
-    const clientKey = typeof (req.body as { idempotencyKey?: unknown } | null)?.idempotencyKey === "string"
-      ? (req.body as { idempotencyKey: string }).idempotencyKey
-      : null;
-    const facePhotoBuffer = req.file?.buffer ?? null;
-    const idempotencyKey = buildChargeIdempotencyKey(
-      "thumbnail-generator",
-      req.userId!,
-      clientKey,
-      {
-        prompt: prompt.trim(),
-        stylePreset: stylePreset ?? null,
-        aspectRatio: ratio,
-        overlayText: overlayText ?? null,
-        overlayFont: overlayFont ?? null,
-        attribution: attribution ?? null,
-        facePhotoHash: facePhotoBuffer
-          ? createHash("sha256").update(facePhotoBuffer).digest("hex")
-          : null,
-      },
-    );
-
-    const stored = thumbnailStoredResults.get(idempotencyKey);
-    if (stored) {
-      res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
+    const cached = thumbnailStoredResults.get(idempotencyKey);
+    if (cached) {
+      res.json({ ...cached.body, replayed: true, replayNote: REPLAY_NOTE });
       return;
     }
 
@@ -274,6 +295,10 @@ router.post(
         if (oldest !== undefined) thumbnailStoredResults.delete(oldest);
       }
       thumbnailStoredResults.set(idempotencyKey, { body, at: Date.now() });
+      /* Durable twin of the in-process store (migration 0333): the
+         row is what a post-restart replay is served from. Fail-open
+         inside the helper — never fails this paid success. */
+      await storeGenerationResult("thumbnail-generator", idempotencyKey, req.userId!, { ...body });
     } catch { /* storing is best-effort */ }
 
     const postCharge = thumbnailStoredResults.get(idempotencyKey);
@@ -306,7 +331,6 @@ async function runThumbnailBatch(
   },
 ): Promise<Record<string, unknown>> {
   const { prompt, stylePreset, ratio, size, overlayText, overlayFont, attribution, facePhotoBuffer, idempotencyKey } = input;
-
     /* Charge up front — refunded below if nothing generates.
        P0-23: strict ledger + idempotency via chargeCredits. */
     const creditsAfter = await chargeCredits(
@@ -384,8 +408,7 @@ async function runThumbnailBatch(
          as a replay and generated FREE. */
       const refunded = await refundCredits(req.userId!, BATCH_CREDIT_COST);
       if (refunded) {
-        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
-      }
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);      }
       const message = err instanceof Error ? err.message : "Thumbnail generation failed";
       req.log.error(
         { userId: req.userId, err: message, completedVariations: images.length },
@@ -406,13 +429,11 @@ async function runThumbnailBatch(
       "[thumbnail-generator] batch success",
     );
 
-    return {
-      images,
+    return {      images,
       attribution,
       creditsUsed: BATCH_CREDIT_COST,
       creditsRemaining: creditsAfter,
       aspectRatio: ratio,
     };
 }
-
 export default router;
