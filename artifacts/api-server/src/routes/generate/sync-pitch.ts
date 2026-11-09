@@ -10,7 +10,19 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the sync one-sheet charge.
+   Pattern C: the stored result carries the inserted one-sheet row's
+   identity, so a replay returns it instead of inserting a duplicate. */
+const REPLAY_NOTE =
+  "This is the one-sheet you already made for this song — change the song or its details for a fresh one.";
 import {
   db,
   syncOneSheetsTable,
@@ -171,6 +183,22 @@ router.post(
       return;
     }
 
+    /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+       returns the one-sheet already made, free, instead of inserting a
+       second sync_one_sheets row. */
+    const idempotencyKey = buildChargeIdempotencyKey("sync-pitch", req.userId!, null, {
+      ...parsed.data,
+    });
+    const durable = await findStoredGenerationResult("sync-pitch", idempotencyKey, req.userId!);
+    if (
+      durable &&
+      typeof durable["oneSheet"] === "object" &&
+      durable["oneSheet"] !== null
+    ) {
+      res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+      return;
+    }
+
     const balance = req.userCredits ?? 0;
     if (balance < SYNC_ONE_SHEET_CREDIT_COST) {
       res.status(402).json({
@@ -184,7 +212,7 @@ router.post(
     try {
       creditsRemaining = await chargeCredits(req.userId!, SYNC_ONE_SHEET_CREDIT_COST, {
         action: "Sync One-Sheet",
-      });
+      }, { idempotencyKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -197,15 +225,21 @@ router.post(
     }
 
     const refundOnFailure = async () => {
+      /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+      let refunded = true;
       try {
         await refundCredits(req.userId!, SYNC_ONE_SHEET_CREDIT_COST, {
           action: "Sync One-Sheet — Refund (generation failed)",
         });
       } catch (refundErr) {
+        refunded = false;
         logger.error(
           { err: refundErr, userId: req.userId },
           "[sync-pitch] refund failed after generation error",
         );
+      }
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
       }
     };
 
@@ -255,11 +289,15 @@ router.post(
         })
         .returning();
 
-      res.json({
+      const body = {
         oneSheet: toOneSheetApiRow(row!),
         creditsUsed: SYNC_ONE_SHEET_CREDIT_COST,
         creditsRemaining,
-      });
+      };
+      /* Persist BEFORE answering (fail-open inside the helper) — the
+         stored body carries the inserted row's identity. */
+      await storeGenerationResult("sync-pitch", idempotencyKey, req.userId!, { ...body });
+      res.json(body);
     } catch (err) {
       await refundOnFailure();
       if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
