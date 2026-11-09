@@ -8,8 +8,13 @@ import { usePaidCall } from "./use-paid-call";
 import {
   inputClass, labelClass, ghostButton, StepCard, StepFooter,
 } from "./ui";
+import { getCreditCost } from "@/lib/credit-costs";
 
-const COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const COST = getCreditCost("/api/competitor-analysis")?.cost ?? 200;
 
 interface StepProps {
   ctx: IntelContext;

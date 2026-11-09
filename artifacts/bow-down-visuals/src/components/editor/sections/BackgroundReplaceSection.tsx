@@ -9,6 +9,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { mediaUrl } from "@/lib/media-cdn";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── AI Background Replace ───────────────────────────────────────────────
  * For talking-head clips shot WITHOUT a green screen: pick a background
@@ -115,7 +116,11 @@ const PRESET_GRADIENTS: Record<string, [string, string, string]> = {
 };
 
 /** 200 VB — charged on delivery, after the on-device replacement succeeds. */
-const CREDIT_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/bg-generate")?.cost ?? 200;
 
 interface BgPreset {
   id: "studio" | "stage" | "city-night" | "abstract-gold" | "custom";
@@ -167,7 +172,7 @@ const AI_STYLE_PRESETS = [
 ] as const;
 
 /** Display-only fallback for the AI generate cost until /bg-generate/status loads. */
-const AI_GENERATE_COST_FALLBACK = 200;
+const AI_GENERATE_COST_FALLBACK = getCreditCost("/api/bg-generate/status")?.cost ?? 200;
 
 interface BgGenerateStatus {
   configured: boolean;

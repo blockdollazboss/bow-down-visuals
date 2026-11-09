@@ -6,6 +6,7 @@ import { Mic2, Loader2, Sparkles, Copy, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── AI Interview ─────────────────────────────────────────────────────────
    Content hub (/hooks) tab. Two steps:
@@ -13,8 +14,12 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    (2) User answers (text); AI packages the answers into clip-worthy
        moments, quote cards, and a 60s promo cut outline (200 VB). */
 
-const Q_COST = 100;
-const PKG_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const Q_COST = getCreditCost("/api/ai-interview/questions")?.cost ?? 100;
+const PKG_COST = getCreditCost("/api/ai-interview/package")?.cost ?? 200;
 
 interface ClipMoment { quote: string; why: string; }
 

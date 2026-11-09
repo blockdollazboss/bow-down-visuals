@@ -8,12 +8,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── Cover in Motion ──────────────────────────────────────────────────────
    Create hub panel. Animates cover art into a looping Spotify-canvas-style
    visualizer via the existing image-to-video pipeline. 400 VB for a 5s loop. */
 
-const COST = 400;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const COST = getCreditCost("/api/cover-in-motion/animate")?.cost ?? 400;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-primary/60 focus:outline-none";

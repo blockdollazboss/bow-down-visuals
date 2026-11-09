@@ -81,8 +81,8 @@ describe("prices — the page's and the route's constants, pinned", () => {
   });
 
   it("the 2D page's own constants still say 400 / 300 (source pin)", () => {
-    expect(pageSrc).toContain("const CONCEPT_CREDITS = 400;");
-    expect(pageSrc).toContain("const CLIP_DETECT_CREDITS = 300;");
+    expect(pageSrc).toContain('const CONCEPT_CREDITS = getCreditCost("/api/movies/concept")?.cost ?? 400;');
+    expect(pageSrc).toContain('const CLIP_DETECT_CREDITS = getCreditCost("/api/movies/clip-detect")?.cost ?? 300;');
   });
 });
 

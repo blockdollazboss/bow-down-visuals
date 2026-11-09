@@ -14,6 +14,7 @@ import { formatBudgetRange, daysLeftLabel } from "@/lib/sponsors";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── /sponsors/:id — deal detail ──────────────────────────────────────────
    Creators: apply with a pitch (+ AI pitch writer, 100 credits), track status,
@@ -59,7 +60,11 @@ interface Application {
 /* Display mirror of the rail charge (SPONSOR_AI_CREDIT_COST, 100 Visual Bucs —
    the pitch writer shares the matcher rail constant). Pinned by
    lib/sponsor-ai-price-truth.test.ts. */
-const AI_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const AI_COST = getCreditCost("/api/sponsors/pitch")?.cost ?? 100;
 /* Tone display strings live in the component (via t()); keys stay stable
    because tone values are sent to the backend. */
 const TONES = [

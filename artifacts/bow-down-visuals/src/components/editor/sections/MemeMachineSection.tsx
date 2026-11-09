@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── Meme Machine ─────────────────────────────────────────────────────────
    Visual Vibes editor rail tab. Describe the clip moment, pick a meme
@@ -15,7 +16,11 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    timed to the opening seconds). Format presets tune caption style +
    suggested clip length; cutting stays manual on the timeline. */
 
-const COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const COST = getCreditCost("/api/meme-machine/captions")?.cost ?? 100;
 
 interface MemeFormat {
   id: string;

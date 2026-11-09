@@ -14,8 +14,13 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { downloadMidi } from "@/lib/midi-export";
+import { getCreditCost } from "@/lib/credit-costs";
 
-const HUM_PRICE = 500;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const HUM_PRICE = getCreditCost("/api/hum-to-song")?.cost ?? 500;
 const MAX_HUM_SECONDS = 65;
 
 interface MelodyNote {

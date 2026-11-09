@@ -17,6 +17,7 @@ import { InstagramPostModal } from "@/components/InstagramPostModal";
 import { TikTokPostModal } from "@/components/TikTokPostModal";
 import { FacebookPostModal } from "@/components/FacebookPostModal";
 import { XPostModal } from "@/components/XPostModal";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Multi-ratio export + audio extract ───────────────────────────────
    "Export for all platforms" — one click renders 16:9, 9:16, 1:1 and 4:5
@@ -71,8 +72,12 @@ const RATIO_CONFIGS: RatioConfig[] = [
   },
 ];
 
-const COST_PER_RATIO = 100;
-const EXTRACT_COST = 50;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const COST_PER_RATIO = getCreditCost("/api/export-multi-ratio/job")?.cost ?? 100;
+const EXTRACT_COST = getCreditCost("/api/extract-audio")?.cost ?? 50;
 
 interface RatioStatus {
   ratio: string;

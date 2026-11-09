@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── AI Interview Prep ───────────────────────────────────────────────────
    Media training with AI. Pick an interview type, describe the artist, and
@@ -18,8 +19,12 @@ import { usePageTitle } from "@/hooks/use-page-title";
    POST /api/interview-prep/session → 200 credits.
    POST /api/interview-prep/feedback → 100 credits per answer. */
 
-const SESSION_COST = 200;
-const FEEDBACK_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const SESSION_COST = getCreditCost("/api/interview-prep/session")?.cost ?? 200;
+const FEEDBACK_COST = getCreditCost("/api/interview-prep/feedback")?.cost ?? 100;
 
 type InterviewType = "podcast" | "press" | "red-carpet" | "live-stream";
 type QuestionCategory = "warmup" | "craft" | "story" | "tough" | "rapid-fire";

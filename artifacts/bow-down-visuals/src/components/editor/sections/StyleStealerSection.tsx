@@ -6,6 +6,7 @@ import type { CaptionStylePreset, EditorSettings } from "@/lib/editor-settings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── Style Stealer ────────────────────────────────────────────────────────
    Visual Vibes editor rail tab. Paste a viral video URL + describe what you
@@ -14,7 +15,11 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    recipe. One-click Apply maps the machine-actionable hints (caption style,
    effects, overlays) onto the timeline via setSettings. 200 credits. */
 
-const COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const COST = getCreditCost("/api/style-stealer/analyze")?.cost ?? 200;
 
 const KNOWN_CAPTION_STYLES: CaptionStylePreset[] = [
   "clean-white", "gold-hiphop", "karaoke", "boxed", "viral-shorts",

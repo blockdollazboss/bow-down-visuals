@@ -7,6 +7,7 @@ import {
   FolderOpen, History, RotateCcw, Trash2, Save, Plus,
   LayoutTemplate, Shuffle,
 } from "lucide-react";
+import { getCreditCost } from "@/lib/credit-costs";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -37,8 +38,12 @@ import {
    No preview image is stored: cards say the preview renders live on
    open, because it does (the same iframe the builder already uses). */
 
-const BUILD_COST = 3000;
-const EDIT_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const BUILD_COST = getCreditCost("/api/website-builder/generate")?.cost ?? 3000;
+const EDIT_COST = getCreditCost("/api/website-builder/edit")?.cost ?? 200;
 
 const TEMPLATES = [
   {

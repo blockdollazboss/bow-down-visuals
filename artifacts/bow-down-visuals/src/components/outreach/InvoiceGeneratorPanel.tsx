@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Sponsor Invoice Generator panel ─────────────────────────────────────
    Mounted INSIDE the Sponsorship Outreach page (/sponsorship-outreach),
@@ -19,7 +20,11 @@ import { useTranslation } from "react-i18next";
    (/coach?tab=money&income=<dollars>&note=<text>) the sibling MoneyTrackerPanel
    consumes on mount, prefilled as an invoice_payout income entry. */
 
-const INVOICE_COST = 50;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const INVOICE_COST = getCreditCost("/api/generate-invoice")?.cost ?? 50;
 
 const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD"] as const;
 

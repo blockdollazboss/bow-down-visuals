@@ -26,6 +26,7 @@ import {
   type FlowOrderItem,
 } from "@/lib/setlist";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Thy Cheat Code's Setlist Builder ───────────────────────────────────────
    Plan a live show: pull songs from the user's library or add them manually,
@@ -33,7 +34,11 @@ import { usePageTitle } from "@/hooks/use-page-title";
    (opener → peaks → closer → encore). Building the setlist is pure UI and
    free — only the AI flow suggestion costs 1 credit (POST /api/setlist/flow). */
 
-const CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/setlist/flow")?.cost ?? 100;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";

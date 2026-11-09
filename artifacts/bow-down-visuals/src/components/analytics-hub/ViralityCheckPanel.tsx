@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Virality Pre-Flight Check (tab panel inside /analytics-hub) ───────────
  Dedicated, deeper standalone scorecard for a post's viral READINESS —
@@ -28,7 +29,11 @@ const PLATFORMS: { key: PlatformKey; labelKey: string }[] = [
  { key: "x", labelKey: "viralityCheck.platformX" },
 ];
 
-const CREDIT_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/trend-predictor/forecast")?.cost ?? 200;
 
 interface ScoreBlock {
  score: number;

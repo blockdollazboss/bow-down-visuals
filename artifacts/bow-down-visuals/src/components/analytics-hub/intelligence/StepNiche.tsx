@@ -9,8 +9,13 @@ import {
   inputClass, labelClass, ghostButton,
   scoreColor, scoreBar, StepCard, StepFooter,
 } from "./ui";
+import { getCreditCost } from "@/lib/credit-costs";
 
-const COST = 150;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const COST = getCreditCost("/api/analyze-niche")?.cost ?? 150;
 
 type ExperienceLevel = "beginner" | "intermediate" | "advanced";
 type NichePlatform = IntelPlatform | "all";

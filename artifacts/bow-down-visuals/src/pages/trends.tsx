@@ -10,6 +10,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { TrendRadar } from "@/components/TrendRadar";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Trend Predictor ────────────────────────────────────────────────────
    Get ahead of trends instead of chasing them. AI analyzes the creator's
@@ -46,8 +47,12 @@ const AUDIENCE_OPTS = [
 ] as const;
 type AudienceKey = (typeof AUDIENCE_OPTS)[number]["key"];
 
-const FORECAST_CREDITS = 200;
-const IDEAS_CREDITS = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const FORECAST_CREDITS = getCreditCost("/api/trend-predictor/forecast")?.cost ?? 200;
+const IDEAS_CREDITS = getCreditCost("/api/trend-predictor/ideas")?.cost ?? 100;
 const WATCHLIST_KEY = "bdv-trend-watchlist";
 
 interface TrendItem {

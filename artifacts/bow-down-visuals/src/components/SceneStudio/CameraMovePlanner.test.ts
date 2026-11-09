@@ -74,7 +74,7 @@ describe("camera deck — stacking", () => {
     expect(build).toContain('confirmedFetch("/api/wave9d/camera/prompt"');
     expect(build).toContain("moves: stack.map");
     expect(build).toContain("overrideCost: BUILD_CREDITS");
-    expect(component).toContain("const BUILD_CREDITS = 100");
+    expect(component).toContain('const BUILD_CREDITS = getCreditCost("/api/wave9d/camera/prompt")?.cost ?? 100;');
   });
 
   it("per-slot intensity overrides ride the stack picks", () => {

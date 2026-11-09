@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Album/EP Builder — docked inside the Songs library ────────────────
    No new sidebar item, no new page: creators group their generated songs
@@ -44,7 +45,11 @@ interface Album {
   tracks?: AlbumTrack[];
 }
 
-const PUBLISH_COST = 300;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const PUBLISH_COST = getCreditCost("/api/album-publish")?.cost ?? 300;
 
 const inputClass =
   "w-full rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/25";

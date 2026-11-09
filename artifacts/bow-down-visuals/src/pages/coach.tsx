@@ -20,6 +20,7 @@ import NicheAnalyzerPanel from "@/components/coach/NicheAnalyzerPanel";
 import MoneyTrackerPanel, { readMoneySnapshot } from "@/components/coach/MoneyTrackerPanel";
 import ActionTrackerPanel from "@/components/coach/ActionTrackerPanel";
 import { primaryActionFor, creatorStateSummary, type CoachNextAction, type CoachCreatorState } from "@/lib/coach-next-action";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── Money-hub pages de-hosted in Phase 2: they are real routes now
    (see MORE_COACH_TOOLS directory below). ─────────────────────────── */
@@ -40,7 +41,11 @@ interface PlatformOpt {
  blurb: string;
 }
 
-const CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/monetization-coach")?.cost ?? 100;
 
 interface EligibilityItem {
  platform: string;

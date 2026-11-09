@@ -6,6 +6,7 @@ import {
   Loader2, Plus, Trash2, ArrowUp, ArrowDown, Check, Copy, Share2,
   ExternalLink, Eye, BarChart3, Link2, ChevronDown, Sparkles, CircleAlert,
 } from "lucide-react";
+import { getCreditCost } from "@/lib/credit-costs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHubProject } from "@/lib/hub-project";
 import { fetchBrandKit, bioPageFieldsFromBrandKit } from "@/lib/brand-kit";
@@ -23,7 +24,11 @@ import {
    luxury themes, link rows, social icons, featured hub assets, tip-jar link.
    Drafting is free; publishing costs 100 Visual Bucs (server-enforced). */
 
-const PUBLISH_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const PUBLISH_COST = getCreditCost("/api/bio-publish")?.cost ?? 100;
 
 interface Vault {
   id: string;

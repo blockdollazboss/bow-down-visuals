@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { r2UploadFile } from "@/lib/r2-storage";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /**
  * PHOTO ENHANCE & RESTORE — docked as the "Enhance" tab on Thumbnail Studio.
@@ -31,7 +32,11 @@ import { r2UploadFile } from "@/lib/r2-storage";
 
 /* Credit price RATIFIED as-is — owner ruling 2026-11-07. Shown in the
    confirm popup. */
-const PHOTO_ENHANCE_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const PHOTO_ENHANCE_COST = getCreditCost("/api/photo-enhance")?.cost ?? 100;
 
 type EnhanceOp = "upscale" | "denoise" | "restore" | "colorize";
 

@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Thy Cheat Code's Show Finder ──────────────────────────────────────────
    The get-noticed engine: AI-curated performance opportunities — open mics,
@@ -46,8 +47,12 @@ const DATE_WINDOWS = [
 
 const GENRE_PRESETS = ["Hip-Hop", "R&B", "Pop", "Afrobeats", "Latin", "EDM", "Rock", "Country", "Jazz", "Gospel"];
 
-const SEARCH_COST = 200;
-const PITCH_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const SEARCH_COST = getCreditCost("/api/show-finder")?.cost ?? 200;
+const PITCH_COST = getCreditCost("/api/show-finder/pitch")?.cost ?? 100;
 
 interface ShowOpportunity {
   title: string;

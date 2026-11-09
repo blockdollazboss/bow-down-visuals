@@ -8,6 +8,7 @@ import type { SceneData } from "@/lib/scene-parser";
 import { EditorCard } from "@/components/editor/controls";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Speed Ramp / Slow Motion — CapCut speed parity ─────────────────────
    Docks inside the Video Editor Effects panel (rendered from EffectsSection).
@@ -23,8 +24,12 @@ import { useToast } from "@/hooks/use-toast";
    where drawn points export through the segment machinery.
    After processing: replace the scene clip + "Use in export" handoff. */
 
-const SLOW_MO_COST = 300;
-const SPEED_PRESET_COST = 150;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const SLOW_MO_COST = getCreditCost("/api/slow-motion")?.cost ?? 300;
+const SPEED_PRESET_COST = getCreditCost("/api/apply-speed")?.cost ?? 150;
 
 interface SpeedPreset {
   key: string;

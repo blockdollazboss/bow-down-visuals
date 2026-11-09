@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import type { SceneData } from "@/lib/scene-parser";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Director's Camera Deck (Wave 9D, grown) ─────────────────────
    PURE PROMPT ENRICHMENT over the existing Scene Studio generation
@@ -38,7 +39,11 @@ import type { SceneData } from "@/lib/scene-parser";
    DOCKING: mounted in pages/make-video.tsx beside CharacterDirector,
    inside Scene Studio's flow — no standalone page. */
 
-const BUILD_CREDITS = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const BUILD_CREDITS = getCreditCost("/api/wave9d/camera/prompt")?.cost ?? 100;
 const MAX_STACK = 3;
 
 type Intensity = "subtle" | "natural" | "dramatic";

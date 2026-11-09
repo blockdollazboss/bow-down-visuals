@@ -5,6 +5,7 @@ import {
   FileText, FileSearch, Loader2, Sparkles, PenLine, AlertTriangle, ShieldCheck, ShieldAlert,
   Scale, Lightbulb, CheckCircle2, XCircle, MinusCircle, Gavel, Copy, Download,
 } from "lucide-react";
+import { getCreditCost } from "@/lib/credit-costs";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -41,7 +42,11 @@ import {
    failure. Always framed as an AI reading/draft, not legal
    advice — the rails' disclaimer copy is reused verbatim. */
 
-const CREDIT_COST = 300;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/contracts/analyze")?.cost ?? 300;
 
 const CONTRACT_TYPES = [
   { key: "record-deal", label: "Record Deal" },

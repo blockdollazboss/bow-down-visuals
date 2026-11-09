@@ -36,6 +36,7 @@ import {
 } from "@/lib/title-studio";
 import type { RankedTitle, TitleStudioHistoryEntry } from "@/lib/title-studio";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Thy Cheat Code's Hook Studio ────────────────────────────────────────
  Two money tools on one page: the Hook Generator (first-3-second openers)
@@ -77,7 +78,11 @@ const VIDEO_TYPES: VideoType[] = [
 ];
 
 /* x100 Visual Bucs — matches the /api/hook-studio charge + registry. */
-const CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/randomizer")?.cost ?? 100;
 
 interface HooksResponse {
  hooks?: string[];
@@ -164,7 +169,7 @@ const TITLE_TONES: TitleToneOpt[] = [
  { key: "funny", labelKey: "titles.toneFunny", icon: Laugh, blurbKey: "titles.toneFunnyBlurb" },
 ];
 
-const TITLE_CREDIT_COST = 100;
+const TITLE_CREDIT_COST = getCreditCost("/api/randomizer")?.cost ?? 100;
 
 interface TitleStudioResponse {
  titles?: RankedTitle[];
@@ -734,7 +739,7 @@ const CATEGORIES: Category[] = [
  },
 ];
 
-const AI_CREDIT_COST = 100;
+const AI_CREDIT_COST = getCreditCost("/api/randomizer")?.cost ?? 100;
 
 interface RandomizerResponse {
  ideas?: string[];

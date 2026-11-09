@@ -19,6 +19,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /**
  * AI Headshots — creator profile-pic generator.
@@ -31,7 +32,11 @@ type FlowMode = "autopilot" | "preset" | "manual";
 type PresetId = "studio" | "stage" | "street" | "luxury";
 
 /* Price RATIFIED as-is — owner ruling 2026-11-07. */
-const HEADSHOT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const HEADSHOT_COST = getCreditCost("/api/generate-headshot")?.cost ?? 100;
 
 const PRESETS: { id: PresetId; icon: typeof Building2; blurbKey: string; defaultBlurb: string }[] = [
   { id: "studio", icon: Building2, blurbKey: "headshotStudio.presets.studio", defaultBlurb: "Classic studio portrait — clean backdrop, soft pro lighting." },

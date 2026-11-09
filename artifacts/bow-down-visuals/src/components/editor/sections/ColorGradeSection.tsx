@@ -8,6 +8,7 @@ import type { SceneData } from "@/lib/scene-parser";
 import { EditorCard } from "@/components/editor/controls";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Color Grading — CapCut color parity ─────────────────────────────────
    Docks inside the Video Editor Color panel (rendered from EffectsSection).
@@ -18,7 +19,11 @@ import { useToast } from "@/hooks/use-toast";
    preset keys — manual burn-in maps to the closest preset (see
    closestPresetFor); exact manual values cannot be burned server-side. */
 
-const GRADE_COST = 150;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const GRADE_COST = getCreditCost("/api/color-grade")?.cost ?? 150;
 
 interface ColorPreset {
   key: string;

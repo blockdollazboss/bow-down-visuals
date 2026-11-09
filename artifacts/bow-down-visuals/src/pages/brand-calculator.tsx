@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Brand Deal Calculator ─────────────────────────────────────────────
    Know what to charge brands: AI-calculated fair rate ranges, per-post
@@ -59,7 +60,11 @@ const NICHE_DEFS: { value: string; labelKey: string }[] = [
   { value: "Lifestyle", labelKey: "lifestyle" },
 ];
 
-const CREDIT_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/brand-calculator/calculate")?.cost ?? 200;
 
 interface RateBreakdownItem {
   deliverable: string;

@@ -6,6 +6,7 @@ import {
   Wand2, AlertTriangle, Scissors, Volume2, Trash2, Flag,
   ArrowLeftRight, MousePointer2,
 } from "lucide-react";
+import { getCreditCost } from "@/lib/credit-costs";
 import { EditorCard } from "@/components/editor/controls";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
@@ -50,7 +51,11 @@ interface VoiceDirectedEditsSectionProps {
   projectTitle?: string;
 }
 
-const DIRECT_EDIT_COST = 150;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const DIRECT_EDIT_COST = getCreditCost("/api/wave9c/direct/edit")?.cost ?? 150;
 
 const OP_ICONS: Record<DirectOp["op"], React.ReactNode> = {
   split: <Scissors className="h-3.5 w-3.5" />,

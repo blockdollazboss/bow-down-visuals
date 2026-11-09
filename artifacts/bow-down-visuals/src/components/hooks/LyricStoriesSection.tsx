@@ -6,13 +6,18 @@ import { BookOpen, Loader2, Sparkles, Download } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── Lyric Stories ────────────────────────────────────────────────────────
    Content hub (/hooks) tab. Paste song lyrics — AI splits them into
    story-card moments and generates 9:16 images for each via the existing
    image pipeline. 200 VB per card (3–5 cards). */
 
-const COST_PER_CARD = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const COST_PER_CARD = getCreditCost("/api/lyric-stories/generate")?.cost ?? 200;
 
 interface StoryCard {
   lyricExcerpt: string;

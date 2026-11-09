@@ -21,6 +21,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import Guides from "@/components/courses/Guides";
 import TutorialsPanel from "@/components/TutorialsPanel";
 import MyCoursesPanel from "@/components/courses/MyCoursesPanel";
+import { getCreditCost } from "@/lib/credit-costs";
 
 type AcademyTab = "academy" | "tutorials" | "guides" | "courses";
 
@@ -32,7 +33,11 @@ type AcademyTab = "academy" | "tutorials" | "guides" | "courses";
  - "Ask the coach" Q&A per course (1 credit/answer)
  Progress is tracked in localStorage for v1. */
 
-const CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/academy/learning-path")?.cost ?? 100;
 const PROGRESS_KEY = "academy-progress-v1";
 const LESSON_CACHE_KEY = "academy-lessons-v1";
 

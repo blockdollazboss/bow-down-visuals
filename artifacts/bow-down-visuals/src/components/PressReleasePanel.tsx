@@ -10,13 +10,18 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { AttributionToggle } from "@/components/AttributionToggle";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── AI Press Release Generator panel ──────────────────────────────────
    Lives inside the Press Kit page (/press-kit) as a tab — no new page.
    Chain: generate (100 Visual Bucs) → copy / download .txt / save into the
    selected press kit (press_releases, free to edit). */
 
-const RELEASE_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const RELEASE_COST = getCreditCost("/api/press-release")?.cost ?? 100;
 
 export interface PressReleaseKit {
   id: string;

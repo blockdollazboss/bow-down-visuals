@@ -9,6 +9,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useToast } from "@/hooks/use-toast";
 import { EditorCard, Chip } from "@/components/editor/controls";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── True Cinematic FX (CapCut parity) ──────────────────────────────────────
  * Renders REAL burned-in effects server-side via POST /api/cinematic-fx
@@ -19,7 +20,11 @@ import { EditorCard, Chip } from "@/components/editor/controls";
  * and animated film grain.
  * Lives INSIDE the Effects tab — no new sidebar item, no new page. */
 
-const CINEMATIC_FX_PRICE = 150;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CINEMATIC_FX_PRICE = getCreditCost("/api/cinematic-fx")?.cost ?? 150;
 
 const FX_OPTIONS: {
   name: string;

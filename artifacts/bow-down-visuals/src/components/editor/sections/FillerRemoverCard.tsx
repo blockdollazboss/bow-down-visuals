@@ -11,6 +11,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── AI Filler-Word Remover ───────────────────────────────────────────────
  * The Descript-killer for talking-head creators, docked in the Video
@@ -30,7 +31,11 @@ import { OutOfCredits } from "@/components/OutOfCredits";
  * Both phases are server-owned background jobs (safe to close the tab).
  */
 
-const CREDIT_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/remove-fillers/analyze")?.cost ?? 200;
 
 interface FillerCut {
   id: string;

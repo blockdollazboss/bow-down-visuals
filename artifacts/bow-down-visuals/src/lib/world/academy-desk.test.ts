@@ -58,7 +58,7 @@ describe("rails + prices", () => {
     expect(route).toContain('Number(process.env["ACADEMY_CREDIT_COST"]) || 100');
     expect(ACADEMY_CREDIT_COST_VISUAL_BUCS).toBe(100);
     const page = read("../../pages/academy.tsx");
-    expect(page).toContain("const CREDIT_COST = 100");
+    expect(page).toContain('const CREDIT_COST = getCreditCost("/api/academy/learning-path")?.cost ?? 100;');
   });
 
   it("registry rows landed (stack1400 join #2 flip): lib/credit-costs.ts carries all three /api/academy/* rows at 100, and the desk's constant reads them", () => {

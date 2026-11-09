@@ -84,8 +84,8 @@ describe("rails + prices", () => {
     expect(labelRoute).toContain('Number(process.env["LABEL_PITCH_CREDIT_COST"]) || 300');
     expect(LABEL_PITCH_KIT_COST_VISUAL_BUCS).toBe(300);
     const page = read("../../pages/label-pitch.tsx");
-    expect(page).toContain("const CREDIT_COST = 300");
-    expect(page).toContain("const PLAYLIST_KIT_COST = 200");
+    expect(page).toContain('const CREDIT_COST = getCreditCost("/api/label-pitch/kit")?.cost ?? 300;');
+    expect(page).toContain('const PLAYLIST_KIT_COST = getCreditCost("/api/playlist-pitch/kit")?.cost ?? 200;');
     const playlistRoute = read("../../../../api-server/src/routes/generate/playlist-pitch.ts");
     expect(playlistRoute).toContain('Number(process.env["PLAYLIST_PITCH_CREDIT_COST"]) || 200');
     expect(PLAYLIST_PITCH_KIT_COST_VISUAL_BUCS).toBe(200);

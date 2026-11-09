@@ -26,6 +26,7 @@ import {
 } from "@/lib/repurpose";
 import { useTranslation } from "react-i18next";
 import { useHubProject } from "@/lib/hub-project";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Thy Cheat Code's Content Repurposer ─────────────────────────────────
    One video in, content calendar out: upload a video → AI transcribes it
@@ -145,8 +146,12 @@ interface StreamVibe {
 }
 
 const CLIP_LENGTHS = [15, 30, 60];
-const ANALYZE_COST = 300;
-const CUT_COST_PER_CLIP = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const ANALYZE_COST = getCreditCost("/api/streamer-clips/analyze")?.cost ?? 300;
+const CUT_COST_PER_CLIP = getCreditCost("/api/streamer-clips/cut")?.cost ?? 200;
 
 interface StreamHighlight {
   id: string;
@@ -712,7 +717,7 @@ function StreamVodClips() {
    Registry keys: /api/smart-clips/propose (free) → /api/smart-clips
    (200 VB per rendered clip, overrideCost). */
 
-const SMART_CLIP_COST_PER_CLIP = 200;
+const SMART_CLIP_COST_PER_CLIP = getCreditCost("/api/streamer-clips/cut")?.cost ?? 200;
 const SMART_CLIP_LENGTHS = [15, 30, 45, 60];
 const SMART_CLIP_COUNTS = [1, 2, 3, 4, 5];
 const SMART_CLIP_MIN_SEC = 5;
@@ -895,7 +900,7 @@ function SmartClipFinder() {
     setError(null);
     setOutOfCredits(false);
     try {
-      const res = await authedFetch("/api/smart-clips", {
+      const res = await authedFetch("/api/streamer-clips/cut", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

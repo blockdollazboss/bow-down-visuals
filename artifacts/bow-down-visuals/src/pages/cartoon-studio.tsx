@@ -24,6 +24,7 @@ import ShareMenu from "@/components/ShareMenu";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useHubProject } from "@/lib/hub-project";
+import { getCreditCost } from "@/lib/credit-costs";
 
 type StudioTab = "video" | "characters" | "cartoonize";
 
@@ -64,7 +65,11 @@ const STYLE_PRESETS = [
 ] as const;
 
 const SEEDANCE_VB_PER_SEC = 300; // must match backend clip-pricing.ts SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT
-const IMAGE_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const IMAGE_COST = getCreditCost("/api/generate-artist-image")?.cost ?? 200;
 
 interface PollResult {
   status: string;

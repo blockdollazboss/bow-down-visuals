@@ -7,13 +7,18 @@ import type { SceneData } from "@/lib/scene-parser";
 import { EditorCard } from "@/components/editor/controls";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Stabilize — CapCut-style video stabilization ────────────────────
    One-tap "Stabilize" with sensible defaults (shakiness 10, smoothing 30)
    plus manual sliders up top. POST /api/stabilize → ffmpeg vidstab two-pass
    (detect + transform). 300 Visual Bucs per stabilize. */
 
-const STABILIZE_COST = 300;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const STABILIZE_COST = getCreditCost("/api/stabilize")?.cost ?? 300;
 const DEFAULT_SHAKINESS = 10;
 const DEFAULT_SMOOTHING = 30;
 

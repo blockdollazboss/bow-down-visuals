@@ -16,6 +16,7 @@ import { CollabMatchPanel } from "@/components/collabs/CollabMatchPanel";
 import { CoReleasesPanel } from "@/components/collabs/CoReleasesPanel";
 import { FeatureVersePanel } from "@/components/collabs/FeatureVersePanel";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Collab Finder ─────────────────────────────────────────────────────────
    /collabs — find collaboration partners. AI-powered per the standing rule.
@@ -30,7 +31,11 @@ import { useTranslation } from "react-i18next";
    routes/generate/collabs.ts — env COLLAB_MATCH_CREDIT_COST, default
    100 Visual Bucs). Pinned against the rail + registry by
    lib/collab-match-price-truth.test.ts so display and charge cannot drift. */
-const MATCH_CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const MATCH_CREDIT_COST = getCreditCost("/api/collabs/match")?.cost ?? 100;
 
 const NICHES = [
   "music", "gaming", "vlogging", "comedy", "education", "fitness",

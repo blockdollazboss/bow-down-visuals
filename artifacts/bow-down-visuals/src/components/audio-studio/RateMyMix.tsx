@@ -6,6 +6,7 @@ import { Gauge, Loader2, Sparkles, Upload, Check, Wrench } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── Rate My Mix ──────────────────────────────────────────────────────────
    Audio Studio tab. Upload a mix — the server measures REAL audio stats
@@ -13,7 +14,11 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    turns those measurements into specific fix-it coaching notes.
    Coaching only — your audio is never modified. 100 VB. */
 
-const COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const COST = getCreditCost("/api/rate-my-mix/analyze")?.cost ?? 100;
 
 interface Measurements {
   integratedLufs?: number;

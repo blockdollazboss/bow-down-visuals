@@ -15,6 +15,7 @@ import { useHubProject } from "@/lib/hub-project";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import type { HubAsset } from "@/lib/hub-project";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── AI Script Writer ────────────────────────────────────────────────────
    High-retention video scripts: platform-optimized hooks, timestamped beats
@@ -71,7 +72,11 @@ const TONES: Array<{ id: Tone; labelKey: string; blurbKey: string }> = [
 ];
 
 /* x100 Visual Bucs — matches the /api/script-writer charge + registry. */
-const CREDIT_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/script-writer")?.cost ?? 200;
 const PICK =
   "rounded-xl border px-4 py-3 text-left transition-all cursor-pointer";
 const PICK_IDLE = "border-white/10 bg-white/[0.03] hover:border-white/25";

@@ -22,6 +22,7 @@ import {
 } from "@/lib/comment-replies";
 import type { ToneKey, ReplyBatch } from "@/lib/comment-replies";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Thy Cheat Code's AI Community Manager ───────────────────────────────
    /community — audience management: AI moderation queue, smart reply drafts,
@@ -102,7 +103,11 @@ interface RepliesTone {
   blurb: string;
 }
 
-const REPLY_CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const REPLY_CREDIT_COST = getCreditCost("/api/comment-replies")?.cost ?? 100;
 
 interface RepliesResponse {
   replies?: string[];

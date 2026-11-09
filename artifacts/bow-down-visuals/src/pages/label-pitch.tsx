@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import SyncTab from "@/components/sync-pitch/SyncTab";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Label Pitch ─────────────────────────────────────────────────────────
    AI helps artists pitch demos to record labels:
@@ -27,7 +28,11 @@ import { usePageTitle } from "@/hooks/use-page-title";
    Honesty: labels rarely sign from cold demos. The disclaimer is shown
    with every kit — relationships, buzz, and timing matter most. */
 
-const CREDIT_COST = 300;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/label-pitch/kit")?.cost ?? 300;
 
 type Tab = "kit" | "labels" | "tracker";
 
@@ -1083,7 +1088,7 @@ export default function LabelPitch() {
    title; ?tab=sync opens the Sync Pitch Kit. Song-result pages still link
    to /playlist-pitch — the alias lands here and the parent flips mode. */
 
-const PLAYLIST_KIT_COST = 200;
+const PLAYLIST_KIT_COST = getCreditCost("/api/playlist-pitch/kit")?.cost ?? 200;
 
 type PlaylistInnerTab = "kit" | "curators" | "tracker" | "sync";
 

@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── De-Reverb / Dialogue Isolate ───────────────────────────────────────
    TRUE de-reverb needs an AI provider — the server has no DSP-only path
@@ -26,7 +27,11 @@ import { useHubProject } from "@/lib/hub-project";
 
 // RATIFIED — owner ruling 2026-11-07. Mirrors the server's
 // DEVERB_CREDIT_COST (1000 Visual Bucs).
-const DEVERB_CREDIT_COST_VB = 1000;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const DEVERB_CREDIT_COST_VB = getCreditCost("/api/deverb")?.cost ?? 1000;
 const DEVERB_MAX_BYTES = 50 * 1024 * 1024;
 
 type DeverbModeKey = "dialogue" | "vocal";

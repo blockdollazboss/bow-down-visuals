@@ -11,6 +11,7 @@ import {
   Eye, MousePointerClick,
   Circle, Layers, Album, ListChecks, Gift,
 } from "lucide-react";
+import { getCreditCost } from "@/lib/credit-costs";
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
@@ -2874,7 +2875,11 @@ const RELEASE_PLAN_TYPE_OPTS: ReleasePlanTypeOpt[] = [
   { key: "album", icon: Album },
 ];
 
-const RELEASE_PLAN_CREDIT_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const RELEASE_PLAN_CREDIT_COST = getCreditCost("/api/release-checklist")?.cost ?? 200;
 
 interface PlanTask {
   title: string;
