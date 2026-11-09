@@ -98,9 +98,12 @@ import { saleSplitAdjustments } from "./sale-splits";
  * the Member Dashboard shows creators the net via that module's
  * netAfterFee: net = round(price × 90%), fee = price − net, so fee +
  * net always reconciles to the price to the cent. fan_members records
- * NO split columns, so every earnings / payout read derives the split
- * from price_cents with exactly that rounding — what a creator is
- * shown is what they are credited. membershipNetSql / membershipFeeSql
+ * NO split columns, so the accrual and every earnings read derive the
+ * split from price_cents with exactly that rounding — what a creator
+ * is shown is what they are credited. (C-12, stack400: the ledger
+ * REVERSAL is the one exception — it copies the accrual row's recorded
+ * split by source_id, because price_cents can change after accrual
+ * and a re-derived reversal would no longer cancel it.) membershipNetSql / membershipFeeSql
  * are the SQL twins of the TS helpers: integer half-up rounding —
  * (price × 90 + 50) / 100 under truncating integer division —
  * identical to Math.round for price_cents >= 0. */
@@ -263,8 +266,9 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
 
   /* fan_members — paid memberships (stripe_session_id present = a real
      charge happened, the same paid marker routes/earnings.ts uses).
-     No fee split is recorded on the row: gross / fee / net are derived
-     from price_cents at the rail's 10% (membershipNetSql above). */
+     No fee split is recorded on the row: the ACCRUAL's gross / fee /
+     net are derived from price_cents at the rail's 10%
+     (membershipNetSql above); the reversal below copies the accrual. */
   await run("membership:accrual", sql`
     INSERT INTO pending_payout_ledger
       (seller_user_id, seller_profile_id, source_kind, source_id, entry_type,
@@ -275,13 +279,27 @@ export async function syncPendingPayoutLedgerForSeller(userId: string): Promise<
     WHERE fm.user_id = ${userId} AND fm.stripe_session_id IS NOT NULL
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
   `);
+  /* C-12 (stack400): the reversal COPIES the accrual row's amounts by
+     source_id — it never re-derives them from the fan_members row.
+     price_cents is mutable (a tier price change or admin correction can
+     land on the row after accrual); a reversal re-derived from the new
+     price would no longer cancel the accrual, and pending payout would
+     be silently wrong by the difference forever. Copying the accrual
+     makes the pair net to exactly zero by construction. The accrual
+     statement above runs first in this same sync, so a membership
+     refunded before its first sync still has its accrual in place for
+     this join. */
   await run("membership:reversal", sql`
     INSERT INTO pending_payout_ledger
       (seller_user_id, seller_profile_id, source_kind, source_id, entry_type,
        gross_cents, platform_fee_cents, net_cents, stripe_session_id)
     SELECT fm.user_id, NULL, 'membership', fm.id, 'reversal',
-           fm.price_cents, ${membershipFeeSql("fm.price_cents")}, ${membershipNetSql("fm.price_cents")}, fm.stripe_session_id
+           acc.gross_cents, acc.platform_fee_cents, acc.net_cents, acc.stripe_session_id
     FROM fan_members fm
+    JOIN pending_payout_ledger acc
+      ON acc.source_kind = 'membership'
+      AND acc.source_id = fm.id
+      AND acc.entry_type = 'accrual'
     WHERE fm.user_id = ${userId} AND fm.stripe_session_id IS NOT NULL
       AND fm.status = 'refunded'
     ON CONFLICT (source_kind, source_id, entry_type) DO NOTHING
