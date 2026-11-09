@@ -1688,6 +1688,20 @@ export function thumbnailPartialImagesOfResponse(
   return thumbnailImageRows((json as { partialImages?: unknown }).partialImages);
 }
 
+/** A REPLAYED maker answer carries { replayed: true, replayNote }:
+ *  the rail served the stored batch for an identical re-ask instead
+ *  of charging again, and the note is the server's own explanation,
+ *  read verbatim (server copy is the single source — the FE never
+ *  writes its own version). A fresh answer carries neither field;
+ *  any drift (flag without a note, note without the flag) yields
+ *  null — no note shown. */
+export function thumbnailReplayNoteOfResponse(json: unknown): string | null {
+  if (!json || typeof json !== "object") return null;
+  const d = json as { replayed?: unknown; replayNote?: unknown };
+  if (d.replayed !== true) return null;
+  return typeof d.replayNote === "string" && d.replayNote.length > 0 ? d.replayNote : null;
+}
+
 /** The maker always runs a batch of 4 (the server's loop bound and
  *  the registry's batch price both say so). */
 export const THUMBNAIL_BATCH_SIZE = 4;

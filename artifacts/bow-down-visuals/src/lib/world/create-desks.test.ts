@@ -828,6 +828,22 @@ describe("Ring 2 Create Wing depth — storyboard / wizard / song tabs / thumbna
     expect(bare.get("thumbnail")).toBe("w");
   });
 
+  it("the replay note is the server's, verbatim — a fresh answer carries none", async () => {
+    const m = await import("./create-desks");
+    /* The rail's exact words (thumbnail-generator.ts REPLAY_NOTE): a
+       replayed answer serves the stored batch and explains itself;
+       the FE reader passes the note through untouched and invents
+       nothing for fresh or drifted answers. */
+    const note =
+      "These are the thumbnails you already made for this request — tweak the prompt or style for a fresh batch.";
+    expect(m.thumbnailReplayNoteOfResponse({ images: [], replayed: true, replayNote: note })).toBe(note);
+    expect(m.thumbnailReplayNoteOfResponse({ images: [] })).toBeNull();
+    expect(m.thumbnailReplayNoteOfResponse({ replayed: true })).toBeNull();
+    expect(m.thumbnailReplayNoteOfResponse({ replayNote: note })).toBeNull();
+    expect(m.thumbnailReplayNoteOfResponse({ replayed: true, replayNote: "" })).toBeNull();
+    expect(m.thumbnailReplayNoteOfResponse(null)).toBeNull();
+  });
+
   it("R2 #10 thumbnail desk: guests get the station pitch, never the bench", async () => {
     const { resolveStationPanel } = await import("./station-panel");
     const desk = PALACE_STATIONS.find((s) => s.id === "thumbnail-desk");

@@ -442,6 +442,9 @@ export function ThumbnailMakerModule() {
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [progress, setProgress] = useState("");
+  /* The server's replay note when an identical re-ask is served the
+     stored batch instead of a fresh charge — shown verbatim. */
+  const [replayNote, setReplayNote] = useState<string | null>(null);
   /* Virality: opt-in "Made with Bow Down Visuals" corner credit (paid export → opt-in). */
   const [attribution, setAttribution] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -588,6 +591,7 @@ export function ThumbnailMakerModule() {
     setImages([]);
     setSelected(null);
     setError(null);
+    setReplayNote(null);
     setOutOfCredits(false);
     setProgress(t("thumbnailMaker.progressDreaming"));
 
@@ -629,9 +633,14 @@ export function ThumbnailMakerModule() {
       const data = (await res.json()) as {
         images: GeneratedImage[];
         creditsRemaining?: number;
+        replayed?: boolean;
+        replayNote?: string;
       };
       setImages(data.images ?? []);
       setSelected(data.images?.[0]?.variation ?? null);
+      /* A replayed answer (the stored batch for an identical re-ask)
+         carries the server's own note — surface it verbatim. */
+      setReplayNote(data.replayed && data.replayNote ? data.replayNote : null);
       const first = data.images?.[0];
       if (first?.url) {
         addAsset({
@@ -919,6 +928,11 @@ export function ThumbnailMakerModule() {
         {/* Results */}
         {images.length > 0 && (
           <div id="tg-results" className="mt-10">
+            {replayNote && (
+              <p data-testid="tg-replay-note" className={isLight ? "mb-4 text-sm text-black/60" : "mb-4 text-sm text-white/60"}>
+                {replayNote}
+              </p>
+            )}
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <h2 className={isLight ? "text-lg font-bold text-black/80" : "text-lg font-bold text-white"}>{t("thumbnailMaker.resultsTitle")}</h2>
               <Link href={selectedImage ? `/thumbnail-studio?tab=abtest&test=${encodeURIComponent(selectedImage.url)}` : "/thumbnail-studio?tab=abtest"}>
