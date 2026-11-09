@@ -1,7 +1,21 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the post-analysis charge. */
+const REPLAY_NOTE =
+  "This is the analysis you already got for this post — change the caption or metrics for a fresh one.";
 import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -86,6 +100,24 @@ router.post("/analyze-post", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE the balance gate and any
+     funding — an identical re-ask returns the analysis already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("social-analytics", req.userId!, null, {
+    postUrl: parsed.data.postUrl,
+    platform: parsed.data.platform,
+    caption: parsed.data.caption,
+    metrics: parsed.data.metrics,
+  });
+  const durable = await findStoredGenerationResult("social-analytics", idempotencyKey, req.userId!);
+  if (
+    durable &&
+    typeof durable["analysis"] === "object" &&
+    durable["analysis"] !== null
+  ) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < ANALYZE_COST) {
     res.status(402).json({
@@ -99,7 +131,7 @@ router.post("/analyze-post", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, ANALYZE_COST, {
       action: "Social Post Analysis",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -135,7 +167,7 @@ router.post("/analyze-post", requireAuth, async (req, res) => {
     const content = await callJsonModel(prompt);
     const analysis = JSON.parse(content) as PostAnalysis;
 
-    res.json({
+    const body = {
       analysis: {
         engagementScore: Math.min(100, Math.max(1, Math.round(Number(analysis.engagementScore) || 50))),
         predictedViews: String(analysis.predictedViews ?? "").slice(0, 50),
@@ -152,13 +184,20 @@ router.post("/analyze-post", requireAuth, async (req, res) => {
         ctaRating: Math.min(10, Math.max(1, Math.round(Number(analysis.ctaRating) || 5))),
       },
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("social-analytics", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Post analysis failed.";
     req.log.error({ err: message }, "[analyze-post] failed");
-    await refundCredits(req.userId!, ANALYZE_COST, {
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    const refunded = await refundCredits(req.userId!, ANALYZE_COST, {
       action: "Social Post Analysis — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(500).json({ error: message });
   }
 });

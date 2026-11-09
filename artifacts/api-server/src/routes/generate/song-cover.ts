@@ -25,7 +25,24 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the cover charge. The
+   stored result carries the created library song's id, so a replay
+   returns that same cover instead of inserting a second library row. */
+const REPLAY_NOTE =
+  "This is the cover you already made with these settings — change the style or source for a fresh one.";
 import { db, songsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import {
@@ -197,6 +214,25 @@ router.post("/song-cover", requireAuth, async (req, res) => {
     styleText = preset.stylePrompt;
   }
 
+  /* CA-5: durable replay pre-check BEFORE the source download and any
+     funding — an identical re-ask returns the cover already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("song-cover", req.userId!, null, {
+    songId: songId ?? null,
+    audioUrl: audioUrl ?? null,
+    stylePreset: stylePreset ?? null,
+    stylePrompt: stylePrompt ?? null,
+    vocalGender,
+    tempoShift,
+    lyrics: lyrics ?? null,
+    title: title ?? null,
+    artistName: artistName ?? null,
+  });
+  const durable = await findStoredGenerationResult("song-cover", idempotencyKey, req.userId!);
+  if (durable && typeof durable["audioUrl"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   const isDev = process.env["NODE_ENV"] === "development";
   if (!isDev && currentCredits < COVER_CREDIT_COST) {
@@ -244,7 +280,7 @@ router.post("/song-cover", requireAuth, async (req, res) => {
      the first charge failed. Same price, same action name. */
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, COVER_CREDIT_COST, { action: "Song Cover" });
+    creditsAfter = await chargeCredits(req.userId!, COVER_CREDIT_COST, { action: "Song Cover" }, { idempotencyKey });
   } catch (deductErr) {
     if (deductErr instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -261,10 +297,16 @@ router.post("/song-cover", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let refunded = true;
     try {
       await refundCredits(req.userId!, COVER_CREDIT_COST, { action: "Song Cover — Refund" });
     } catch (refundErr) {
+      refunded = false;
       req.log.error({ err: refundErr }, "song-cover: refund failed");
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }
   };
 
@@ -346,7 +388,7 @@ router.post("/song-cover", requireAuth, async (req, res) => {
 
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
-    res.json({
+    const body = {
       song: {
         id: song!.id,
         title: song!.title,
@@ -363,7 +405,12 @@ router.post("/song-cover", requireAuth, async (req, res) => {
       /* Plain-language statement of what a "cover" means through this API. */
       coverApproach:
         "This cover is a new arrangement generated from your song's lyrics and the style you picked — the music API is text-only, so it reimagines rather than style-transfers the original recording.",
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper) — the stored
+       body carries the library song's id, so a replay returns this same
+       cover instead of inserting a second library row. */
+    await storeGenerationResult("song-cover", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     // Post-charge failure: auto-refund, then fail loudly.
     req.log.error({ err }, "song-cover: library save failed, refunding");

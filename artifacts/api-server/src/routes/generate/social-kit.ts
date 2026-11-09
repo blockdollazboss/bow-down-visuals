@@ -7,7 +7,21 @@ import { randomUUID } from "crypto";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the social-kit charge. */
+const REPLAY_NOTE =
+  "This is the social kit you already made for this brand — change the name, tagline or style for a fresh one.";
 import { getOpenAI } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
@@ -134,6 +148,20 @@ router.post("/social-kit", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE the balance gate and any
+     funding — an identical re-ask returns the kit already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("social-kit", req.userId!, null, {
+    brandName: parsed.data.brandName,
+    tagline: parsed.data.tagline,
+    style: parsed.data.style,
+    highlightNames: parsed.data.highlightNames,
+  });
+  const durable = await findStoredGenerationResult("social-kit", idempotencyKey, req.userId!);
+  if (durable && Array.isArray(durable["assets"])) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < SOCIAL_KIT_COST) {
     res.status(402).json({
@@ -147,7 +175,7 @@ router.post("/social-kit", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, SOCIAL_KIT_COST, {
       action: "Social Media Kit",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -239,18 +267,25 @@ router.post("/social-kit", requireAuth, async (req, res) => {
       );
     }
 
-    res.json({
+    const body = {
       brandName,
       style: chosen.id,
       assets,
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("social-kit", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Social kit generation failed.";
     req.log.error({ err: message }, "[social-kit] failed");
-    await refundCredits(req.userId!, SOCIAL_KIT_COST, {
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    const refunded = await refundCredits(req.userId!, SOCIAL_KIT_COST, {
       action: "Social Media Kit — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(500).json({ error: message });
   } finally {
     const { rm } = await import("fs/promises");
