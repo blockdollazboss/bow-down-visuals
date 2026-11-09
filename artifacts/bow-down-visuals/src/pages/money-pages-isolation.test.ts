@@ -284,13 +284,17 @@ describe("my-projects.tsx — C-26 structure (source pins)", () => {
     expect(myProjectsSource).toContain(`variant="compact" name="${slug}"`);
   });
 
-  /* Serialization pin: my-projects.tsx is a three-holder file. This
-     lane is FIRST (structure only); the four delete-failure alert()
-     call sites belong to the D-44 failure-copy lane that builds on
-     this wrapped file — they must still be here, untouched. */
-  it("leaves the four D-44 alert() call sites in place for the next lane", () => {
+  /* Serialization pin — JOIN15 RECONCILIATION (s400-resilience-money
+     × s400-myprojects-failure-copy): my-projects.tsx is a three-holder
+     file. The resilience-money lane landed FIRST (structure only) and
+     pinned the four delete-failure alert() call sites as still
+     present for the D-44 lane; the failure-copy lane then removed
+     all four (failures now render through the page's deleteError
+     banner). On the joined tree the pin asserts the post-join truth:
+     zero alert() call sites remain. */
+  it("carries zero alert() call sites after the D-44 failure-copy lane", () => {
     const alerts = myProjectsSource.match(/alert\(/g) ?? [];
-    expect(alerts).toHaveLength(4);
+    expect(alerts).toHaveLength(0);
   });
 });
 
