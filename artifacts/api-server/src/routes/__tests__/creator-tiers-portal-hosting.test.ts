@@ -86,6 +86,11 @@ vi.mock("../../lib/stripe-client", () => ({
         items: { data: [{ current_period_end: 1795737600 }] },
       }),
     },
+    /* The portal verifies the stored customer before creating a
+       session (Stack 400 C-10); every customer seeded here is alive. */
+    customers: {
+      retrieve: async (id: string) => ({ id }),
+    },
     billingPortal: {
       sessions: {
         create: async (params: Record<string, unknown>) => {

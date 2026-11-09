@@ -74,6 +74,39 @@ export async function resolveStoredStripeCustomerId(args: {
   return legacyCustomerId(args.profileId);
 }
 
+type StripeCustomerVerifier = Pick<Stripe, "customers">;
+
+/**
+ * Verify a stored customer id still names a live Stripe customer —
+ * the check the read-only resolver above deliberately does NOT do
+ * (it has no Stripe client). Doors that act on the customer — the
+ * billing portal above all — must verify before acting: a stored id
+ * whose customer was deleted in Stripe (test-mode cleanup, dashboard
+ * deletion) otherwise reaches `billingPortal.sessions.create`, which
+ * throws a raw provider error the caller may not be built to catch.
+ *
+ * Mirrors the verification inside getOrCreateStripeCustomerForUser:
+ * a customer object carrying `deleted: true`, or a retrieve that
+ * fails with `resource_missing`, means the customer is GONE. Unlike
+ * getOrCreate, this NEVER replaces or mints — the portal's contract
+ * is that a member with no live customer has nothing to manage, so
+ * the caller answers its honest "no billing record" state. Any other
+ * Stripe error propagates so the caller fails closed with its own
+ * honest error copy instead of guessing.
+ */
+export async function verifyStoredStripeCustomer(
+  stripe: StripeCustomerVerifier,
+  customerId: string,
+): Promise<boolean> {
+  try {
+    const existing = await stripe.customers.retrieve(customerId);
+    return !(existing as { deleted?: boolean }).deleted;
+  } catch (err) {
+    if ((err as { code?: string })?.code === "resource_missing") return false;
+    throw err;
+  }
+}
+
 /** Insert the mapping; on a race, the winner's id is the one true id. */
 async function persistCustomerId(userId: string, customerId: string): Promise<string> {
   await db

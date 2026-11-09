@@ -11,7 +11,7 @@ import { logger } from "../lib/logger";
 import { ensureKingsWelcome } from "../lib/kings-welcome";
 import { maybeGrantPendingReferralWelcome } from "../lib/referral-welcome";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../lib/stripe-client";
-import { getOrCreateStripeCustomerForUser, resolveStoredStripeCustomerId } from "../lib/creator-stripe-customer";
+import { getOrCreateStripeCustomerForUser, resolveStoredStripeCustomerId, verifyStoredStripeCustomer } from "../lib/creator-stripe-customer";
 import { changeCreatorTierSubscription, previewCreatorTierChange } from "../lib/creator-tier-upgrade";
 import {
   buildTierChangeIdempotencyKey,
@@ -124,6 +124,24 @@ const returnToSchema = z
     message: "returnTo must be a same-site path",
   })
   .optional();
+
+/**
+ * Same-site path check for hand-rolled returnTo reads (the portal):
+ * exactly one leading slash, and no backslash anywhere. `//…` is a
+ * protocol-relative absolute URL to a browser, and `/\…` is treated
+ * the same way by some URL parsers. Mirrors the returnToSchema
+ * refinement above, plus the backslash case the census flagged
+ * (Stack 400 C-35) — the schema's callers compose the value into
+ * site URLs the same way, so both checks stay in step.
+ */
+export function isSameSitePath(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.startsWith("/") &&
+    !value.startsWith("//") &&
+    !value.includes("\\")
+  );
+}
 
 /* ── GET /creator-tiers/plans ── public ── */
 router.get("/creator-tiers/plans", publicApiLimiter, (_req, res) => {
@@ -818,15 +836,46 @@ router.post("/creator-tiers/portal", requireAuth, publicApiLimiter, async (req: 
   try {
     stripe = getTestStripe();
   } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
+    logger.error({ err }, "creator-tiers portal: Stripe client unavailable");
+    res.status(502).json({ error: "Billing is unavailable right now — try again in a moment." });
     return;
   }
-  const back = (typeof req.body?.returnTo === "string" && req.body.returnTo.startsWith("/")) ? req.body.returnTo : "/creator-pricing";
-  const session = await stripe.billingPortal.sessions.create({
-    customer: customerId,
-    return_url: `${getBaseUrl(req)}${back}`,
-  });
-  res.json({ url: session.url });
+  /* Stack 400 C-10: a stored customer id is only a CLAIM — the
+     customer may have been deleted in Stripe (test-mode cleanup,
+     dashboard deletion) while the mapping still names it. Verify
+     before creating the session: a dead customer gets the same
+     honest "nothing to manage" answer as no record at all, instead
+     of the raw provider 500 sessions.create used to throw. The
+     portal never replaces or mints a customer (that is checkout's
+     job, via getOrCreateStripeCustomerForUser). */
+  let customerAlive: boolean;
+  try {
+    customerAlive = await verifyStoredStripeCustomer(stripe, customerId);
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "creator-tiers portal: Stripe customer verification failed");
+    res.status(502).json({ error: "Billing is unavailable right now — try again in a moment." });
+    return;
+  }
+  if (!customerAlive) {
+    logger.warn({ userId: req.userId, customerId }, "creator-tiers portal: stored Stripe customer is gone — honest 404");
+    res.status(404).json({ error: "No billing record yet. Subscribe first, then manage it here." });
+    return;
+  }
+  /* Stack 400 C-35: same-site paths only — a bare startsWith("/")
+     also accepts "//evil.example/…", a protocol-relative absolute
+     URL. Anything that isn't a single-slash, backslash-free path
+     falls back to the portal's own page. */
+  const back = isSameSitePath(req.body?.returnTo) ? req.body.returnTo : "/creator-pricing";
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${getBaseUrl(req)}${back}`,
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "creator-tiers portal: Stripe session failed");
+    res.status(502).json({ error: "Billing is unavailable right now — try again in a moment." });
+  }
 });
 
 /* ── GET /creator-tiers/earnings ── auth ──
