@@ -7,7 +7,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the split-screen charge. */
+const REPLAY_NOTE =
+  "This render is already on its way for this request — this is the same job, not a new charge.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -97,6 +111,9 @@ type SplitScreenJobState = "queued" | "active" | "done" | "failed";
 interface SplitScreenJob {
   id: string;
   userId: string;
+  /* CA-5: the charge's idempotency key, so the detached render's refund
+     can void it (a refunded job must not replay as a stored result). */
+  chargeKey?: string;
   state: SplitScreenJobState;
   stage: string;
   progress: number;
@@ -403,15 +420,20 @@ async function renderSplitScreen(job: SplitScreenJob, input: ApplyInput): Promis
     job.state = "failed";
     job.error = message;
     setProgress(job, "failed", 100);
-    /* Auto-refund: the user paid for a video they didn't get. */
-    await refundCredits(job.userId, SPLIT_SCREEN_COST, {
+    /* Auto-refund: the user paid for a video they didn't get.
+       CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    const refunded = await refundCredits(job.userId, SPLIT_SCREEN_COST, {
       action: "Split-Screen Grid — Refund",
-    }).catch((refundErr) => {
+    }).then(() => true).catch((refundErr) => {
       logger.error(
         { err: refundErr instanceof Error ? refundErr.message : refundErr },
         "[split-screen] refund failed",
       );
+      return false;
     });
+    if (refunded && job.chargeKey) {
+      await voidChargeIdempotencyKey(job.chargeKey).catch(() => false);
+    }
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
@@ -490,6 +512,18 @@ router.post("/split-screen/apply", requireAuth, async (req, res) => {
     }
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the job already started instead of minting (and charging for)
+     a second render. Intent = the render inputs (the ledger `title` label
+     does not change the render, so it is not part of the key). */
+  const { title: _title, ...renderIntent } = parsed.data;
+  const idempotencyKey = buildChargeIdempotencyKey("split-screen", req.userId!, null, renderIntent);
+  const durable = await findStoredGenerationResult("split-screen", idempotencyKey, req.userId!);
+  if (durable && typeof durable["jobId"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   /* 402 pre-check before charging */
   if ((req.userCredits ?? 0) < SPLIT_SCREEN_COST) {
     res.status(402).json({
@@ -503,7 +537,7 @@ router.post("/split-screen/apply", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, SPLIT_SCREEN_COST, {
       action: `Split-Screen Grid (${parsed.data.layout})`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -515,6 +549,7 @@ router.post("/split-screen/apply", requireAuth, async (req, res) => {
   const job: SplitScreenJob = {
     id: randomUUID(),
     userId: req.userId!,
+    chargeKey: idempotencyKey,
     state: "queued",
     stage: "queued",
     progress: 0,
@@ -533,12 +568,17 @@ router.post("/split-screen/apply", requireAuth, async (req, res) => {
   renderQueue.push(() => renderSplitScreen(job, input));
   pumpQueue();
 
-  res.status(202).json({
+  const body = {
     jobId: job.id,
     state: job.state,
     price: SPLIT_SCREEN_COST,
     creditsRemaining: creditsAfter,
-  });
+  };
+  /* Persist BEFORE answering (fail-open inside the helper) — the stored
+     body carries the SAME job id, so a replay rejoins this render instead
+     of minting a second one. */
+  await storeGenerationResult("split-screen", idempotencyKey, req.userId!, { ...body });
+  res.status(202).json(body);
 });
 
 router.get("/split-screen/job/:jobId", requireAuth, (req, res) => {
