@@ -7,7 +7,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const AUTO_REFRAME_REPLAY_NOTE =
+  "This is the reframed video you already made for this request — change the video or aspect for a fresh one.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -68,6 +82,16 @@ router.post("/auto-reframe", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "auto-reframe", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("auto-reframe", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: AUTO_REFRAME_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < REFRAME_COST) {
     res.status(402).json({
@@ -81,7 +105,7 @@ router.post("/auto-reframe", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, REFRAME_COST, {
       action: "Auto Reframe",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -166,19 +190,22 @@ router.post("/auto-reframe", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const resultBody = {
       url,
       storageRef,
       aspect: parsed.data.aspect,
       creditsRemaining: creditsAfter,
       reframe,
-    });
+    };
+    await storeGenerationResult("auto-reframe", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Auto-reframe failed.";
     req.log.error({ err: message }, "[auto-reframe] failed");
+    /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
     await refundCredits(req.userId!, REFRAME_COST, {
       action: "Auto Reframe — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     await unlink(inputPath).catch(() => {});

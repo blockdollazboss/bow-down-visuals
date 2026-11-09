@@ -4,7 +4,22 @@ import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const AUTO_VIDEO_PLAN_REPLAY_NOTE =
+  "This is the video plan you already got for this song — change the song details for a fresh plan.";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 
 const router = Router();
@@ -183,6 +198,16 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
   const body = parsed.data;
   const durationSec = body.durationSec;
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "auto-video-plan", req.userId!, undefined, body,
+  );
+  const stored = await findStoredGenerationResult("auto-video-plan", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: AUTO_VIDEO_PLAN_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < CREDIT_COST) {
     res.status(402).json({
@@ -201,7 +226,7 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
      the first charge failed. Same price, same action name. */
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Auto Director Plan" });
+    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Auto Director Plan" }, { idempotencyKey });
   } catch (deductErr) {
     if (deductErr instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -221,7 +246,10 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    await refundCredits(req.userId!, CREDIT_COST, { action: "Auto Director Plan — Refund" }).catch(() => {});
+    /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
+    await refundCredits(req.userId!, CREDIT_COST, { action: "Auto Director Plan — Refund" })
+      .then(() => voidChargeIdempotencyKey(idempotencyKey))
+      .catch(() => {});
   };
 
   /* ── Build the song brief ── */
@@ -354,7 +382,9 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
 
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
-    res.json({ plan, creditsRemaining: creditsAfter, genHistoryId });
+    const resultBody = { plan, creditsRemaining: creditsAfter, genHistoryId };
+    await storeGenerationResult("auto-video-plan", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err: unknown) {
     await refundCharge();
     if (err instanceof OpenAI.APIError && err.status === 429) {

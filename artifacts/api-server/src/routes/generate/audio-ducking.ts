@@ -7,7 +7,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const AUDIO_DUCKING_REPLAY_NOTE =
+  "This is the mix you already made for this request — change the tracks or settings for a fresh one.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -51,6 +65,16 @@ router.post("/duck-audio", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "audio-ducking", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("audio-ducking", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: AUDIO_DUCKING_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < DUCK_COST) {
     res.status(402).json({
@@ -64,7 +88,7 @@ router.post("/duck-audio", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, DUCK_COST, {
       action: "Audio Ducking",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -115,17 +139,20 @@ router.post("/duck-audio", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "audio/mpeg");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const resultBody = {
       url,
       storageRef,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("audio-ducking", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Audio ducking failed.";
     req.log.error({ err: message }, "[duck-audio] failed");
+    /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
     await refundCredits(req.userId!, DUCK_COST, {
       action: "Audio Ducking — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     await unlink(voicePath).catch(() => {});

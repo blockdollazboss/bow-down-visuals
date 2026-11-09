@@ -4,7 +4,21 @@ import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../..
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const BRAND_KIT_REPLAY_NOTE =
+  "This is the brand kit you already made for this request — change the name, vibe, or industry for a fresh one.";
 import { normalizeToStorageRef, uploadPublicMediaToR2 } from "../../lib/objectStorage";
 import {
   applyBrandKitToTheme,
@@ -304,6 +318,18 @@ const generateBrandKitHandler = async (req: Request, res: Response) => {
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding.
+     The fix lives in this handler, so the operator rail-core path
+     (runGenerateBrandKit, same handler) gets the same protection. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "brand-kit", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("brand-kit", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: BRAND_KIT_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < BRAND_KIT_COST) {
     res.status(402).json({
@@ -317,7 +343,7 @@ const generateBrandKitHandler = async (req: Request, res: Response) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, BRAND_KIT_COST, {
       action: "Brand Kit Generator",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -386,19 +412,22 @@ const generateBrandKitHandler = async (req: Request, res: Response) => {
       saved = false;
     }
 
-    res.json({
+    const resultBody = {
       brandName,
       kit,
       brandKit,
       saved,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("brand-kit", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Brand kit generation failed.";
     req.log.error({ err: message }, "[brand-kit] failed");
+    /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
     await refundCredits(req.userId!, BRAND_KIT_COST, {
       action: "Brand Kit Generator — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   }
 };

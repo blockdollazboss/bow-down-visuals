@@ -5,7 +5,21 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const ANALYTICS_HUB_REPLAY_NOTE =
+  "This is the growth plan you already got for these numbers — update the numbers for a fresh plan.";
 
 const router = Router();
 
@@ -68,6 +82,17 @@ router.post("/analytics-hub/insights", requireAuth, publicApiLimiter, async (req
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "analytics-hub", req.userId!, undefined,
+    { platforms: parsed.data.platforms },
+  );
+  const stored = await findStoredGenerationResult("analytics-hub", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: ANALYTICS_HUB_REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < ANALYTICS_HUB_CREDITS) {
     res.status(402).json({
@@ -80,7 +105,7 @@ router.post("/analytics-hub/insights", requireAuth, publicApiLimiter, async (req
   try {
     creditsRemaining = await chargeCredits(req.userId!, ANALYTICS_HUB_CREDITS, {
       action: "Analytics Hub — AI Growth Plan",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -168,26 +193,34 @@ router.post("/analytics-hub/insights", requireAuth, publicApiLimiter, async (req
     }
     recommendations = recommendations.slice(0, 3);
 
-    res.json({
+    const resultBody = {
       summary,
       recommendations,
       bestPlatform,
       focusArea,
       creditsUsed: ANALYTICS_HUB_CREDITS,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("analytics-hub", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     /* The charge was taken before the model call — give it back so a
-       provider failure never costs the creator. */
+       provider failure never costs the creator. CA-1: a landed refund
+       VOIDS the key so the retry charges fresh. */
+    let refunded = true;
     try {
       await refundCredits(req.userId!, ANALYTICS_HUB_CREDITS, {
         action: "Analytics Hub — AI Growth Plan — Refund (generation failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       logger.error(
         { err: refundErr, userId: req.userId },
         "[analytics-hub] refund failed after generation failure"
       );
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
     }
 
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {

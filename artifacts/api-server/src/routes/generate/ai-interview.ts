@@ -4,7 +4,21 @@ import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clie
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const AI_INTERVIEW_REPLAY_NOTE =
+  "This is the interview result you already got for this request — change the topic or answers for a fresh one.";
 
 const router = Router();
 
@@ -70,12 +84,15 @@ function parseStringList(raw: unknown, max: number, len: number): string[] {
     .slice(0, max);
 }
 
-/** Shared charge-upfront helper; returns remaining balance or sends the 402. */
+/** Shared charge-upfront helper; returns remaining balance or sends the 402.
+   CA-1: callers pass the server-derived idempotency key so a duplicate
+   charge is ledger-suppressed even if it races past the pre-check. */
 async function chargeOr402(
   req: Request,
   res: Response,
   amount: number,
   action: string,
+  idempotencyKey: string,
 ): Promise<number | null> {
   const balance = req.userCredits ?? 0;
   if (balance < amount) {
@@ -83,7 +100,7 @@ async function chargeOr402(
     return null;
   }
   try {
-    return await chargeCredits(req.userId!, amount, { action });
+    return await chargeCredits(req.userId!, amount, { action }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: `Not enough Visual Bucs — ${action} costs ${amount} Visual Bucs.` });
@@ -93,11 +110,17 @@ async function chargeOr402(
   }
 }
 
-async function refundOnFailure(reqUserId: string, amount: number, action: string) {
+async function refundOnFailure(reqUserId: string, amount: number, action: string, idempotencyKey?: string) {
+  let refunded = true;
   try {
     await refundCredits(reqUserId, amount, { action: `${action} — Refund` });
   } catch (refundErr) {
+    refunded = false;
     logger.error({ err: refundErr, userId: reqUserId }, "[ai-interview] refund failed");
+  }
+  /* CA-1: a landed refund VOIDS the charge's key so the retry charges fresh. */
+  if (refunded && idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey);
   }
 }
 
@@ -113,10 +136,22 @@ router.post("/ai-interview/questions", requireAuth, publicApiLimiter, async (req
     return;
   }
 
-  const creditsRemaining = await chargeOr402(req, res, QUESTIONS_CREDITS, "AI Interview Questions");
-  if (creditsRemaining === null) return;
-
   const { topic, niche } = parsed.data;
+
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding.
+     The scope/intent includes WHICH product (questions vs package). */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "ai-interview-questions", req.userId!, undefined,
+    { topic, niche },
+  );
+  const stored = await findStoredGenerationResult("ai-interview-questions", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: AI_INTERVIEW_REPLAY_NOTE });
+    return;
+  }
+
+  const creditsRemaining = await chargeOr402(req, res, QUESTIONS_CREDITS, "AI Interview Questions", idempotencyKey);
+  if (creditsRemaining === null) return;
   try {
     const completion = await getOpenAI().chat.completions.create({
       ...LOW_REASONING_PARAMS,
@@ -153,11 +188,13 @@ router.post("/ai-interview/questions", requireAuth, publicApiLimiter, async (req
       throw new Error("The interviewer returned no usable questions.");
     }
 
-    res.json({ questions, creditsUsed: QUESTIONS_CREDITS, creditsRemaining });
+    const resultBody = { questions, creditsUsed: QUESTIONS_CREDITS, creditsRemaining };
+    await storeGenerationResult("ai-interview-questions", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Interview question generation failed";
     logger.error({ err, userId: req.userId }, "[ai-interview] questions failed");
-    await refundOnFailure(req.userId!, QUESTIONS_CREDITS, "AI Interview Questions");
+    await refundOnFailure(req.userId!, QUESTIONS_CREDITS, "AI Interview Questions", idempotencyKey);
     res.status(502).json({ error: msg, refunded: true });
   }
 });
@@ -174,10 +211,21 @@ router.post("/ai-interview/package", requireAuth, publicApiLimiter, async (req, 
     return;
   }
 
-  const creditsRemaining = await chargeOr402(req, res, PACKAGE_CREDITS, "AI Interview Package");
-  if (creditsRemaining === null) return;
-
   const { topic, qa } = parsed.data;
+
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "ai-interview-package", req.userId!, undefined,
+    { topic, qa },
+  );
+  const stored = await findStoredGenerationResult("ai-interview-package", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: AI_INTERVIEW_REPLAY_NOTE });
+    return;
+  }
+
+  const creditsRemaining = await chargeOr402(req, res, PACKAGE_CREDITS, "AI Interview Package", idempotencyKey);
+  if (creditsRemaining === null) return;
   const transcript = qa
     .map((item, i) => `Q${i + 1}: ${item.question.trim()}\nA${i + 1}: ${item.answer.trim()}`)
     .join("\n\n");
@@ -228,17 +276,19 @@ router.post("/ai-interview/package", requireAuth, publicApiLimiter, async (req, 
       throw new Error("The interviewer returned no usable clip moments.");
     }
 
-    res.json({
+    const resultBody = {
       clips,
       quoteCards,
       promoOutline,
       creditsUsed: PACKAGE_CREDITS,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("ai-interview-package", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Interview packaging failed";
     logger.error({ err, userId: req.userId }, "[ai-interview] package failed");
-    await refundOnFailure(req.userId!, PACKAGE_CREDITS, "AI Interview Package");
+    await refundOnFailure(req.userId!, PACKAGE_CREDITS, "AI Interview Package", idempotencyKey);
     res.status(502).json({ error: msg, refunded: true });
   }
 });

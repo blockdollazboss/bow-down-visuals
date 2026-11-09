@@ -38,6 +38,10 @@ vi.mock("../../lib/credits", () => ({
   chargeCredits: vi.fn(async () => 9800),
   refundCredits: vi.fn(async () => undefined),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
+  /* CA-1: auto-reframe derives a key per charge and voids it on the
+     refund path — inert stubs keep this suite on its own harness. */
+  buildChargeIdempotencyKey: (scope: string, userId: string) => `${scope}:${userId}:test-key`,
+  voidChargeIdempotencyKey: vi.fn(async () => true),
 }));
 
 vi.mock("../../lib/objectStorage", () => ({
@@ -203,6 +207,8 @@ describe("auto-reframe v2", () => {
       "user-1",
       200,
       expect.objectContaining({ action: "Auto Reframe" }),
+      /* CA-1: the charge now carries the rail's idempotency key. */
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     );
   });
 

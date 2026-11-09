@@ -7,7 +7,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const BG_REMOVAL_REPLAY_NOTE =
+  "This is the cutout you already made for this request — change the image or strength for a fresh one.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -94,6 +108,16 @@ router.post("/remove-background", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "background-removal", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("background-removal", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: BG_REMOVAL_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < BG_REMOVAL_COST) {
     res.status(402).json({
@@ -107,7 +131,7 @@ router.post("/remove-background", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, BG_REMOVAL_COST, {
       action: "Background Removal",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -146,19 +170,22 @@ router.post("/remove-background", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "image/png");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const resultBody = {
       url,
       storageRef,
       backgroundColor: bgColor,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("background-removal", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Background removal failed.";
     req.log.error({ err: message }, "[remove-background] failed");
-    // Refund on failure
+    // Refund on failure. CA-1: a landed refund VOIDS the key so the
+    // retry charges fresh.
     await refundCredits(req.userId!, BG_REMOVAL_COST, {
       action: "Background Removal — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     await unlink(inputPath).catch(() => {});

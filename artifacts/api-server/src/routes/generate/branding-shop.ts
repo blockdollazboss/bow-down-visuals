@@ -21,7 +21,17 @@ import {
   refundCredits,
   OutOfCreditsError,
   LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const BRANDING_SHOP_REPLAY_NOTE =
+  "This is the design set you already made for this request — change the brand name, style, or products for a fresh one.";
 import { db } from "@workspace/db";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../../lib/stripe-client";
@@ -315,6 +325,16 @@ router.post("/branding-shop/design", requireAuth, publicApiLimiter, async (req, 
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "branding-shop-design", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("branding-shop-design", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: BRANDING_SHOP_REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < DESIGN_CREDIT_COST) {
     res.status(402).json({
@@ -327,7 +347,7 @@ router.post("/branding-shop/design", requireAuth, publicApiLimiter, async (req, 
   try {
     creditsRemaining = await chargeCredits(req.userId!, DESIGN_CREDIT_COST, {
       action: "Branding Shop — AI Brand Kit",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -390,24 +410,32 @@ router.post("/branding-shop/design", requireAuth, publicApiLimiter, async (req, 
     }));
     const [logoUrl, mockups] = await Promise.all([logoPromise, Promise.all(mockupPromises)]);
 
-    res.json({
+    const resultBody = {
       logo: { url: logoUrl },
       mockups,
       brief: { tagline: brief.tagline, palette: brief.palette },
       creditsUsed: DESIGN_CREDIT_COST,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("branding-shop-design", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
-    /* Provider failure AFTER charge → refund, always. */
+    /* Provider failure AFTER charge → refund, always. CA-1: a landed
+       refund VOIDS the key so the retry charges fresh. */
+    let refunded = true;
     try {
       await refundCredits(req.userId!, DESIGN_CREDIT_COST, {
         action: "Branding Shop — AI Brand Kit (refund: generation failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       logger.error(
         { err: refundErr, userId: req.userId },
         "[branding-shop] design failed AND refund failed — manual reconciliation required"
       );
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
     }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[branding-shop] OpenAI rate limit / quota");

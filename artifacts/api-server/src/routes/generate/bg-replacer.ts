@@ -7,7 +7,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const BG_REPLACER_REPLAY_NOTE =
+  "This is the background swap you already made for this request — change the video or background for a fresh one.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -126,6 +140,16 @@ router.post("/replace-video-bg", requireAuth, async (req, res) => {
   const { videoUrl, backgroundImageUrl, backgroundColor, backgroundBlur, aggressiveness } = parsed.data;
   const backgroundType = backgroundImageUrl ? "image" : backgroundColor ? "color" : "blur";
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "bg-replacer", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("bg-replacer", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: BG_REPLACER_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < BG_REPLACER_COST) {
     res.status(402).json({
@@ -139,7 +163,7 @@ router.post("/replace-video-bg", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, BG_REPLACER_COST, {
       action: "Video Background Replace",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -228,20 +252,23 @@ router.post("/replace-video-bg", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const resultBody = {
       url,
       storageRef,
       backgroundType,
       backgroundSource: bgSourceLabel,
       keyedColor: keyColor,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("bg-replacer", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Video background replacement failed.";
     req.log.error({ err: message }, "[replace-video-bg] failed");
+    /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
     await refundCredits(req.userId!, BG_REPLACER_COST, {
       action: "Video Background Replace — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   } finally {
     const { rm } = await import("fs/promises");

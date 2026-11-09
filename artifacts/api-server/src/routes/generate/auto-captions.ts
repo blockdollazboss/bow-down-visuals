@@ -8,7 +8,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const AUTO_CAPTIONS_REPLAY_NOTE =
+  "This is the captioned video you already made for this request — change the video or style for a fresh one.";
 import { transcribeAudioTimed } from "../../lib/transcription";
 import {
   uploadMediaToSupabaseStorage,
@@ -178,6 +192,16 @@ router.post("/auto-captions", requireAuth, async (req, res) => {
 
   const { videoUrl, fontSize, highlightColor, includeWords } = parsed.data;
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "auto-captions", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("auto-captions", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: AUTO_CAPTIONS_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < AUTO_CAPTIONS_COST) {
     res.status(402).json({
@@ -191,7 +215,7 @@ router.post("/auto-captions", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, AUTO_CAPTIONS_COST, {
       action: "AI Auto-Captions",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -206,10 +230,11 @@ router.post("/auto-captions", requireAuth, async (req, res) => {
   const assPath = join(workDir, "captions.ass");
   const outputPath = join(workDir, "captioned.mp4");
 
+  /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
   const refund = () =>
-    refundCredits(req.userId!, AUTO_CAPTIONS_COST, { action: "AI Auto-Captions — Refund" }).catch(
-      () => {},
-    );
+    refundCredits(req.userId!, AUTO_CAPTIONS_COST, { action: "AI Auto-Captions — Refund" })
+      .then(() => voidChargeIdempotencyKey(idempotencyKey))
+      .catch(() => {});
 
   try {
     // 1. Download the video.
@@ -278,7 +303,7 @@ router.post("/auto-captions", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const resultBody = {
       url,
       storageRef,
       wordCount: words.length,
@@ -294,7 +319,9 @@ router.post("/auto-captions", requireAuth, async (req, res) => {
             })),
           }
         : {}),
-    });
+    };
+    await storeGenerationResult("auto-captions", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Auto-captioning failed.";
     req.log.error({ err: message }, "[auto-captions] failed");

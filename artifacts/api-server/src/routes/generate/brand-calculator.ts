@@ -9,7 +9,17 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const BRAND_CALC_REPLAY_NOTE =
+  "This is the rate calculation you already got for these numbers — change the numbers for a fresh one.";
 
 const router = Router();
 
@@ -229,6 +239,16 @@ router.post(
       return;
     }
 
+    /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+    const idempotencyKey = buildChargeIdempotencyKey(
+      "brand-calculator", req.userId!, undefined, parsed.data,
+    );
+    const stored = await findStoredGenerationResult("brand-calculator", idempotencyKey, req.userId!);
+    if (stored) {
+      res.json({ ...stored, replayed: true, replayNote: BRAND_CALC_REPLAY_NOTE });
+      return;
+    }
+
     const balance = req.userCredits ?? 0;
     if (balance < BRAND_CALC_CREDIT_COST) {
       res.status(402).json({
@@ -241,7 +261,7 @@ router.post(
     try {
       creditsRemaining = await chargeCredits(req.userId!, BRAND_CALC_CREDIT_COST, {
         action: "Brand Deal Calculator",
-      });
+      }, { idempotencyKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -271,15 +291,18 @@ router.post(
       const raw = completion.choices[0]?.message?.content ?? "{}";
       const result = parseCalcJson(raw);
 
-      res.json({
+      const resultBody = {
         result,
         creditsUsed: BRAND_CALC_CREDIT_COST,
         creditsRemaining,
-      });
+      };
+      await storeGenerationResult("brand-calculator", idempotencyKey, req.userId!, resultBody);
+      res.json(resultBody);
     } catch (err) {
+      /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
       await refundCredits(req.userId!, BRAND_CALC_CREDIT_COST, {
         action: "Brand Deal Calculator (provider failure refund)",
-      }).catch(() => {});
+      }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
       if (
         err instanceof OpenAI.APIError &&
         (err.status === 429 || err.code === "insufficient_quota")

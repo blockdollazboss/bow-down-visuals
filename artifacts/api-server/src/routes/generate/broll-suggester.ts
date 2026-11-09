@@ -1,7 +1,21 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-1 replay note (CA-KEY wording pattern). */
+const BROLL_REPLAY_NOTE =
+  "These are the B-roll ideas you already got for this script — change the script for fresh ones.";
 import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -36,6 +50,16 @@ router.post("/broll-suggest", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-1: server-derived key + stored-result pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "broll-suggester", req.userId!, undefined, parsed.data,
+  );
+  const stored = await findStoredGenerationResult("broll-suggester", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: BROLL_REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < BROLL_COST) {
     res.status(402).json({
@@ -49,7 +73,7 @@ router.post("/broll-suggest", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, BROLL_COST, {
       action: "B-roll Suggestions",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -105,17 +129,20 @@ router.post("/broll-suggest", requireAuth, async (req, res) => {
       return { timestamp, ...s };
     });
 
-    res.json({
+    const resultBody = {
       suggestions: withTimestamps,
       count: withTimestamps.length,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("broll-suggester", idempotencyKey, req.userId!, resultBody);
+    res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "B-roll suggestion failed.";
     req.log.error({ err: message }, "[broll-suggest] failed");
+    /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
     await refundCredits(req.userId!, BROLL_COST, {
       action: "B-roll Suggestions — Refund",
-    }).catch(() => {});
+    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
     res.status(500).json({ error: message });
   }
 });
