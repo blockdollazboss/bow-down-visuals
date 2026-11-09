@@ -4,7 +4,17 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 /* ─── Movies & Web Series ────────────────────────────────────────────────
    Two AI tools for video creators expanding into long-form:
@@ -81,11 +91,24 @@ router.post("/concept", requireAuth, publicApiLimiter, async (req, res) => {
   }
   const { idea, format, genre, episodeCount } = parsed.data;
 
+  /* Idempotency (CA-4): server-derived key from the ask's defining
+     inputs; a landed replay is served the stored body verbatim +
+     replayed: true BEFORE any funding — no charge, no provider call. */
+  const conceptKey = buildChargeIdempotencyKey(
+    "movies-concept", req.userId!, req.body?.idempotencyKey,
+    { idea, format, genre, episodeCount },
+  );
+  const conceptReplay = await findStoredGenerationResult("movies-concept", conceptKey, req.userId!);
+  if (conceptReplay) {
+    res.json({ ...conceptReplay, replayed: true });
+    return;
+  }
+
   let charged = false;
   try {
     await chargeCredits(req.userId!, CONCEPT_CREDITS, {
       action: "Movie/Series Concept",
-    });
+    }, { idempotencyKey: conceptKey });
     charged = true;
 
     const openai = getOpenAI();
@@ -114,19 +137,28 @@ router.post("/concept", requireAuth, publicApiLimiter, async (req, res) => {
       throw new Error("AI returned unparseable concept");
     }
 
-    res.json({
+    const body = {
       concept,
       format,
       creditsCharged: CONCEPT_CREDITS,
-    });
+    };
+    await storeGenerationResult("movies-concept", conceptKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     if (charged) {
+      let refunded = true;
       try {
         await refundCredits(req.userId!, CONCEPT_CREDITS, {
           action: "Movie/Series Concept (refund: generation failed)",
         });
       } catch (refundErr) {
+        refunded = false;
         logger.error({ err: refundErr }, "[movies] concept refund failed");
+      }
+      /* Void only when the refund landed — a refunded retry charges
+         fresh; an unrefunded key stays landed. */
+      if (refunded) {
+        await voidChargeIdempotencyKey(conceptKey).catch(() => {});
       }
     }
     if (err instanceof OutOfCreditsError) {
@@ -190,11 +222,22 @@ router.post("/clip-detect", requireAuth, publicApiLimiter, async (req, res) => {
   }
   const { streamUrl, description, streamLengthMin, clipCount } = parsed.data;
 
+  /* Idempotency (CA-4): same shape as the concept rail, own rail name. */
+  const clipKey = buildChargeIdempotencyKey(
+    "movies-clip-detect", req.userId!, req.body?.idempotencyKey,
+    { streamUrl, description, streamLengthMin, clipCount },
+  );
+  const clipReplay = await findStoredGenerationResult("movies-clip-detect", clipKey, req.userId!);
+  if (clipReplay) {
+    res.json({ ...clipReplay, replayed: true });
+    return;
+  }
+
   let charged = false;
   try {
     await chargeCredits(req.userId!, CLIP_DETECT_CREDITS, {
       action: "Stream Clip Detection",
-    });
+    }, { idempotencyKey: clipKey });
     charged = true;
 
     const openai = getOpenAI();
@@ -223,21 +266,28 @@ router.post("/clip-detect", requireAuth, publicApiLimiter, async (req, res) => {
       throw new Error("AI returned unparseable clip detection");
     }
 
-    res.json({
+    const body = {
       detection,
       creditsCharged: CLIP_DETECT_CREDITS,
       note: streamUrl
         ? "Timestamps are AI estimates based on your description — scrub the VOD to confirm exact moments before cutting."
         : "Timestamps are AI estimates — scrub the VOD to confirm exact moments before cutting.",
-    });
+    };
+    await storeGenerationResult("movies-clip-detect", clipKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     if (charged) {
+      let refunded = true;
       try {
         await refundCredits(req.userId!, CLIP_DETECT_CREDITS, {
           action: "Stream Clip Detection (refund: detection failed)",
         });
       } catch (refundErr) {
+        refunded = false;
         logger.error({ err: refundErr }, "[movies] clip-detect refund failed");
+      }
+      if (refunded) {
+        await voidChargeIdempotencyKey(clipKey).catch(() => {});
       }
     }
     if (err instanceof OutOfCreditsError) {

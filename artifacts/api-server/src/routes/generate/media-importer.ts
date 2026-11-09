@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { createHash } from "crypto";
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
@@ -7,7 +7,14 @@ import { promisify } from "util";
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -202,6 +209,9 @@ export interface MediaImportJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /** CA-4: the charge's idempotency key — the runner voids it when it
+   *  refunds a failed job, so a refunded retry charges fresh. */
+  chargeKey: string;
 }
 
 const jobs = new Map<string, MediaImportJob>();
@@ -353,13 +363,20 @@ export async function runMediaImportJob(job: MediaImportJob): Promise<void> {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Import failed";
     logger.warn({ err, jobId: job.id }, "[media-importer] job failed");
+    let refunded = true;
     try {
       await refundCredits(job.userId, job.creditsCharged, {
         action: "Media Import — Refund (job failed)",
       });
     } catch (refundErr) {
       // Logged inside refundCredits; don't mask the original failure.
+      refunded = false;
       void refundErr;
+    }
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(job.chargeKey).catch(() => {});
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
@@ -407,6 +424,31 @@ router.post("/media-import", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Idempotency (CA-4, Pattern B): the job's identity DERIVES from
+     the server-derived charge key (avatar-presenter precedent) — the
+     ask is the validated import URL + format. A duplicate (concurrent
+     or sequential) computes the same jobId, finds the existing job,
+     and answers from it with replayed: true and NO new charge; a
+     FAILED job whose charge was refunded+voided falls through. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "media-importer", req.userId!,
+    (req.body as Record<string, unknown> | undefined)?.["idempotencyKey"],
+    { url: validated.value.url, format, source: validated.value.source, host: validated.value.host },
+  );
+  const jobId = createHash("sha256").update(idempotencyKey).digest("hex").slice(0, 32);
+  const existingJob = jobs.get(jobId);
+  if (existingJob && existingJob.userId === req.userId! && existingJob.status !== "failed") {
+    res.status(202).json({
+      jobId: existingJob.id,
+      status: existingJob.status,
+      creditsUsed: MEDIA_IMPORT_CREDIT_COST,
+      creditsRemaining: req.userCredits ?? 0,
+      message: "Import already running for this exact request.",
+      replayed: true,
+    });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < MEDIA_IMPORT_CREDIT_COST) {
     res.status(402).json({
@@ -420,7 +462,7 @@ router.post("/media-import", requireAuth, async (req, res) => {
   try {
     creditsRemaining = await chargeCredits(req.userId!, MEDIA_IMPORT_CREDIT_COST, {
       action: `Media Import (${validated.value.host}, ${format})`,
-    });
+    }, { idempotencyKey: `media-importer:${jobId}` });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -437,7 +479,7 @@ router.post("/media-import", requireAuth, async (req, res) => {
   }
 
   const job: MediaImportJob = {
-    id: randomUUID(),
+    id: jobId,
     userId: req.userId!,
     status: "queued",
     source: validated.value.source,
@@ -452,6 +494,7 @@ router.post("/media-import", requireAuth, async (req, res) => {
     error: null,
     creditsCharged: MEDIA_IMPORT_CREDIT_COST,
     createdAt: Date.now(),
+    chargeKey: `media-importer:${jobId}`,
   };
   jobs.set(job.id, job);
 

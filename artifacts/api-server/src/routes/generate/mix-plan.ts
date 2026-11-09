@@ -2,7 +2,18 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { z } from "zod";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -162,6 +173,22 @@ router.post("/mix-plan", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Idempotency (CA-4): key + stored-result pre-check live on the
+     CHARGED path only — the free no-key fallback and the dev bypass
+     stay byte-unchanged. A landed replay is served the stored body
+     verbatim + replayed: true with no charge and no provider call. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "mix-plan", req.userId!, req.body?.idempotencyKey,
+    input,
+  );
+  if (!isDev && openai) {
+    const durable = await findStoredGenerationResult("mix-plan", idempotencyKey, req.userId!);
+    if (durable) {
+      res.json({ ...durable, replayed: true });
+      return;
+    }
+  }
+
   if (!isDev && currentCredits < CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
@@ -179,7 +206,7 @@ router.post("/mix-plan", requireAuth, async (req, res) => {
   let chargeLive = false;
   if (!isDev) {
     try {
-      await chargeCredits(req.userId!, CREDIT_COST, { action: "Music Mixer AI Mix Plan" });
+      await chargeCredits(req.userId!, CREDIT_COST, { action: "Music Mixer AI Mix Plan" }, { idempotencyKey });
       chargeLive = true;
     } catch (deductErr) {
       if (deductErr instanceof OutOfCreditsError) {
@@ -200,7 +227,13 @@ router.post("/mix-plan", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    await refundCredits(req.userId!, CREDIT_COST, { action: "Music Mixer AI Mix Plan — Refund" }).catch(() => {});
+    const refunded = await refundCredits(req.userId!, CREDIT_COST, { action: "Music Mixer AI Mix Plan — Refund" })
+      .then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
   };
 
   const stemLines =
@@ -274,11 +307,13 @@ Rules:
 
     /* (The charge already landed at reserve-at-start, above.) */
 
-    res.json({
+    const body = {
       ...validated.data,
       fallback: false,
       generatedAt: new Date().toISOString(),
-    });
+    };
+    await storeGenerationResult("mix-plan", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     req.log.error({ err }, "Mix plan generation failed; using fallback (charge refunded)");
     await refundCharge();

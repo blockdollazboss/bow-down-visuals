@@ -1,7 +1,17 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -78,6 +88,19 @@ router.post("/press-release", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Idempotency (CA-4): server-derived key from the ask's defining
+     inputs; a landed replay is served the stored body verbatim +
+     replayed: true BEFORE any funding — no charge, no provider call. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "press-release", req.userId!, req.body?.idempotencyKey,
+    parsed.data,
+  );
+  const durable = await findStoredGenerationResult("press-release", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < PRESS_RELEASE_CREDITS) {
     res.status(402).json({
@@ -91,7 +114,7 @@ router.post("/press-release", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, PRESS_RELEASE_CREDITS, {
       action: "Press Release Generator",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -173,18 +196,25 @@ router.post("/press-release", requireAuth, async (req, res) => {
       social,
     };
 
-    res.json({
+    const resultBody = {
       release,
       announcementType: parsed.data.announcementType,
       artistName: parsed.data.artistName,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("press-release", idempotencyKey, req.userId!, { ...resultBody });
+    res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Press release generation failed.";
     req.log.error({ err: message }, "[press-release] failed");
-    await refundCredits(req.userId!, PRESS_RELEASE_CREDITS, {
+    const refunded = await refundCredits(req.userId!, PRESS_RELEASE_CREDITS, {
       action: "Press Release Generator — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
     res.status(500).json({ error: message });
   }
 });

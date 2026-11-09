@@ -5,7 +5,18 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { createHash } from "crypto";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 /* ─── AI Media Detector ──────────────────────────────────────────────────
    Upload an image, video, or audio file (or paste a URL) and GPT-6 Sol
@@ -174,6 +185,7 @@ function bufferToDataUrl(buffer: Buffer, mime: string): string {
 
 router.post("/media", requireAuth, publicApiLimiter, upload.single("file"), async (req, res) => {
   let charged = false;
+  let replayKey: string | null = null;
   try {
     const file = (req as Express.Request & { file?: Express.Multer.File }).file;
     let body: z.infer<typeof jsonBodySchema> = {};
@@ -282,8 +294,28 @@ router.post("/media", requireAuth, publicApiLimiter, upload.single("file"), asyn
       return;
     }
 
+    /* Idempotency (CA-4): the ask is the assembled analysis payload —
+       hash it (data URLs can carry megabytes; the manifest's
+       uploaded-bytes rule) and key on it. A landed replay is served
+       the stored body verbatim + replayed: true BEFORE funding. */
+    const payloadHash = createHash("sha256")
+      .update(JSON.stringify({ kind, label, userText, imageDataUrls }))
+      .digest("hex")
+      .slice(0, 32);
+    const idempotencyKey = buildChargeIdempotencyKey(
+      "media-detector", req.userId!,
+      (req.body as Record<string, unknown> | undefined)?.["idempotencyKey"],
+      { payloadHash },
+    );
+    replayKey = idempotencyKey;
+    const durable = await findStoredGenerationResult("media-detector", idempotencyKey, req.userId!);
+    if (durable) {
+      res.json({ ...durable, replayed: true });
+      return;
+    }
+
     // ── Charge before analysis ──
-    await chargeCredits(req.userId!, DETECTION_CREDITS, { action: "AI Media Detection" });
+    await chargeCredits(req.userId!, DETECTION_CREDITS, { action: "AI Media Detection" }, { idempotencyKey });
     charged = true;
 
     // ── Build the AI request ──
@@ -323,22 +355,33 @@ router.post("/media", requireAuth, publicApiLimiter, upload.single("file"), asyn
       throw new Error("AI returned an invalid verdict");
     }
 
-    res.json({
+    const resultBody = {
       detection,
       mediaKind: kind,
       label,
       creditsCharged: DETECTION_CREDITS,
       disclaimer:
         "This is an AI-assisted assessment, not a definitive forensic verdict. Sophisticated AI generations can fool any detector — treat high-stakes decisions accordingly.",
-    });
+    };
+    if (replayKey) {
+      await storeGenerationResult("media-detector", replayKey, req.userId!, { ...resultBody });
+    }
+    res.json(resultBody);
   } catch (err) {
     if (charged) {
+      let refunded = true;
       try {
         await refundCredits(req.userId!, DETECTION_CREDITS, {
           action: "AI Media Detection (refund: analysis failed)",
         });
       } catch (refundErr) {
+        refunded = false;
         logger.error({ err: refundErr }, "[media-detector] refund failed");
+      }
+      /* Void only when the refund landed — a refunded retry charges
+         fresh; an unrefunded key stays landed. */
+      if (refunded && replayKey) {
+        await voidChargeIdempotencyKey(replayKey).catch(() => {});
       }
     }
     if (err instanceof OutOfCreditsError) {

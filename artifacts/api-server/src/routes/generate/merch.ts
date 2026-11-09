@@ -3,7 +3,18 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { uploadPublicMediaToR2, refreshSupabaseStorageUrl, isStorageRef } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 
@@ -73,10 +84,26 @@ router.post("/merch/design", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Idempotency (CA-4): server-derived key from the ask; a landed
+     replay is served the stored body verbatim + replayed: true
+     BEFORE any funding — no charge, no provider call. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "merch", req.userId!, req.body?.idempotencyKey,
+    { product, style, description, title },
+  );
+  const durable = await findStoredGenerationResult("merch", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   /* ── Charge before generate — always enforced ── */
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, DESIGN_CREDITS, { action: "Merch Design Batch" });
+    creditsAfter = await chargeCredits(
+      req.userId!, DESIGN_CREDITS, { action: "Merch Design Batch" },
+      { idempotencyKey },
+    );
   } catch (chargeErr) {
     if (chargeErr instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue." });
@@ -91,10 +118,17 @@ router.post("/merch/design", requireAuth, async (req, res) => {
 
   const fail = async (msg: string, logMsg: string) => {
     req.log.error({ userId: req.userId }, logMsg);
+    let refunded = true;
     try {
       await refundCredits(req.userId!, DESIGN_CREDITS, { action: "Merch Design Batch — Refund (generation failed)" });
     } catch (refundErr) {
+      refunded = false;
       req.log.error({ err: refundErr, userId: req.userId }, "[merch] REFUND FAILED after generation failure");
+    }
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
     }
     res.status(500).json({ error: msg });
   };
@@ -122,7 +156,7 @@ router.post("/merch/design", requireAuth, async (req, res) => {
 
     const baseCostCents = MERCH_PRODUCTS[product as MerchProductKey].baseCostCents;
     req.log.info({ userId: req.userId, creditsAfter }, "[merch] design batch complete");
-    res.json({
+    const body = {
       status: "succeeded",
       mockups,
       product,
@@ -133,7 +167,9 @@ router.post("/merch/design", requireAuth, async (req, res) => {
       commissionPct: COMMISSION_PCT,
       creditCost: DESIGN_CREDITS,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("merch", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Merch design generation failed";
     await fail(msg, "[merch] generation failed — refunding");

@@ -12,6 +12,11 @@ import { join } from "node:path";
 
 vi.mock("../../../lib/credits", () => ({
   chargeCredits: vi.fn(),
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    const ck = typeof clientKey === "string" && clientKey.trim().length >= 8 ? clientKey.trim() : null;
+    return ck ? `${scope}:${userId}:client:${ck}` : `${scope}:${userId}:${JSON.stringify(intent ?? {})}`;
+  },
+  voidChargeIdempotencyKey: async () => {},
   refundCredits: vi.fn(),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
@@ -71,6 +76,7 @@ function makeJob(overrides: Partial<MasteringJob> = {}): MasteringJob {
     mp3Ref: null,
     error: null,
     creditsCharged: MASTERING_CREDIT_COST,
+    chargeKey: "mastering:test-job",
     createdAt: Date.now(),
     ...overrides,
   };

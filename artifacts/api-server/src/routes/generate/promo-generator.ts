@@ -5,7 +5,17 @@ import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clie
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 const router = Router();
 
@@ -94,6 +104,19 @@ router.post("/promo-generator", requireAuth, publicApiLimiter, async (req, res) 
     return;
   }
 
+  /* Idempotency (CA-4): server-derived key from the ask's defining
+     inputs; a landed replay is served the stored body verbatim +
+     replayed: true BEFORE any funding — no charge, no provider call. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "promo-generator", req.userId!, req.body?.idempotencyKey,
+    parsed.data,
+  );
+  const durable = await findStoredGenerationResult("promo-generator", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < PROMO_GENERATOR_CREDITS) {
     res.status(402).json({
@@ -106,7 +129,7 @@ router.post("/promo-generator", requireAuth, publicApiLimiter, async (req, res) 
   try {
     creditsRemaining = await chargeCredits(req.userId!, PROMO_GENERATOR_CREDITS, {
       action: "Promo Content Generator",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -119,15 +142,22 @@ router.post("/promo-generator", requireAuth, publicApiLimiter, async (req, res) 
   }
 
   const refundOnFailure = async () => {
+    let refunded = true;
     try {
       await refundCredits(req.userId!, PROMO_GENERATOR_CREDITS, {
         action: "Promo Content Generator — Refund (generation failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       logger.error(
         { err: refundErr, userId: req.userId },
         "[promo-generator] refund failed after generation error"
       );
+    }
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
     }
   };
 
@@ -203,7 +233,7 @@ router.post("/promo-generator", requireAuth, publicApiLimiter, async (req, res) 
       throw new Error("Model returned no usable promo copy");
     }
 
-    res.json({
+    const responseBody = {
       title,
       body,
       extras,
@@ -211,7 +241,9 @@ router.post("/promo-generator", requireAuth, publicApiLimiter, async (req, res) 
       cta,
       creditsUsed: PROMO_GENERATOR_CREDITS,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("promo-generator", idempotencyKey, req.userId!, { ...responseBody });
+    res.json(responseBody);
   } catch (err) {
     await refundOnFailure();
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {

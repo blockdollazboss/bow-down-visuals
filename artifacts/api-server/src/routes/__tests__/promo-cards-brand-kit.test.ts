@@ -94,6 +94,11 @@ vi.mock("../../lib/credits", () => ({
     h.charges.push(amount);
     return 900;
   }),
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    const ck = typeof clientKey === "string" && clientKey.trim().length >= 8 ? clientKey.trim() : null;
+    return ck ? `${scope}:${userId}:client:${ck}` : `${scope}:${userId}:${JSON.stringify(intent ?? {})}`;
+  },
+  voidChargeIdempotencyKey: async () => {},
   refundCredits: vi.fn(async () => {}),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
 }));

@@ -40,6 +40,11 @@ vi.mock("../../../lib/payment-record", () => ({
 }));
 vi.mock("../../../lib/credits", () => ({
   chargeCredits: vi.fn(),
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    const ck = typeof clientKey === "string" && clientKey.trim().length >= 8 ? clientKey.trim() : null;
+    return ck ? `${scope}:${userId}:client:${ck}` : `${scope}:${userId}:${JSON.stringify(intent ?? {})}`;
+  },
+  voidChargeIdempotencyKey: async () => {},
   refundCredits: vi.fn(),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},

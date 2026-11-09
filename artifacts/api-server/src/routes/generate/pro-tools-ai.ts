@@ -4,7 +4,18 @@ import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { createHash } from "crypto";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { logger } from "../../lib/logger";
 
 /* ── Pro Tools: AI Auto-Grade ─────────────────────────────────────────────
@@ -81,13 +92,21 @@ const SYSTEM_PROMPT =
   `Return ONLY JSON: {"brightness":0,"contrast":0,"saturation":0,"temperature":0,` +
   `"tint":0,"highlights":0,"shadows":0,"vibrance":0,"exposure":0}.`;
 
-async function refundOnFailure(userId: string): Promise<void> {
+async function refundOnFailure(userId: string, idempotencyKey?: string): Promise<void> {
+  let refunded = true;
   try {
     await refundCredits(userId, PRO_TOOLS_AI_CREDITS, {
       action: "AI Auto-Grade — Refund (generation failed)",
     });
   } catch (refundErr) {
+    refunded = false;
     void refundErr; // Logged inside refundCredits; don't mask the original failure.
+  }
+  /* Void the charge's key only when the refund landed: a refunded retry
+     charges fresh, never replays free; an unrefunded key stays landed
+     so the charge is never silently duplicated. */
+  if (refunded && idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
   }
 }
 
@@ -103,6 +122,21 @@ router.post("/pro-tools/auto-grade", requireAuth, publicApiLimiter, async (req, 
     return;
   }
 
+  /* Idempotency (CA-4): the ask is the frame + look — the frame is
+     hashed (a data URL can be large, and the hash identifies the exact
+     frame). A landed replay is served the stored body verbatim +
+     replayed: true BEFORE any funding — no charge, no provider call. */
+  const frameHash = createHash("sha256").update(frameDataUrl ?? "").digest("hex").slice(0, 32);
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "pro-tools-ai", req.userId!, req.body?.idempotencyKey,
+    { frameHash, look },
+  );
+  const durable = await findStoredGenerationResult("pro-tools-ai", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < PRO_TOOLS_AI_CREDITS) {
     res.status(402).json({
@@ -115,7 +149,7 @@ router.post("/pro-tools/auto-grade", requireAuth, publicApiLimiter, async (req, 
   try {
     creditsRemaining = await chargeCredits(req.userId!, PRO_TOOLS_AI_CREDITS, {
       action: "AI Auto-Grade",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -183,16 +217,18 @@ router.post("/pro-tools/auto-grade", requireAuth, publicApiLimiter, async (req, 
     const correction = raw ? parseCorrection(raw) : null;
     if (!correction) throw new Error("Model returned unparseable correction JSON");
 
-    res.json({ correction, usedVision, creditsUsed: PRO_TOOLS_AI_CREDITS, creditsRemaining });
+    const body = { correction, usedVision, creditsUsed: PRO_TOOLS_AI_CREDITS, creditsRemaining };
+    await storeGenerationResult("pro-tools-ai", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[pro-tools] OpenAI rate limit / quota");
-      await refundOnFailure(req.userId!);
+      await refundOnFailure(req.userId!, idempotencyKey);
       res.status(503).json({ error: "The studio is catching its breath — try again in a moment." });
       return;
     }
     logger.error({ err }, "[pro-tools] auto-grade failed");
-    await refundOnFailure(req.userId!);
+    await refundOnFailure(req.userId!, idempotencyKey);
     res.status(502).json({ error: "The studio hiccupped — try again." });
   }
 });

@@ -4,7 +4,18 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordCreditUsage } from "../../lib/payment-record";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 const router = Router();
 
@@ -95,6 +106,21 @@ router.post("/generate-promo-clips", requireAuth, async (req, res) => {
     promoType, lyrics, hasRunwayClips, clipCount, artistVault,
   } = parsed.data;
 
+  /* Idempotency (CA-4): server-derived key from the raw ask — the
+     intent deliberately excludes the server-built co-star/vault
+     context (grounding, not the ask). A landed replay is served the
+     stored body verbatim + replayed: true BEFORE any funding — no
+     charge, no provider call. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "promo", req.userId!, req.body?.idempotencyKey,
+    parsed.data,
+  );
+  const durable = await findStoredGenerationResult("promo", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
 
   if (process.env["NODE_ENV"] === "development") {
@@ -119,7 +145,7 @@ router.post("/generate-promo-clips", requireAuth, async (req, res) => {
      Same price, same action name. */
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Promo Clips" });
+    creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Promo Clips" }, { idempotencyKey });
   } catch (deductErr) {
     if (deductErr instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -139,7 +165,13 @@ router.post("/generate-promo-clips", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    await refundCredits(req.userId!, CREDIT_COST, { action: "Promo Clips — Refund" }).catch(() => {});
+    const refunded = await refundCredits(req.userId!, CREDIT_COST, { action: "Promo Clips — Refund" })
+      .then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
   };
 
   const promoTypeLine = promoType ? `\nPromo Type Focus: ${promoType} — tailor ALL output specifically for this promo format.` : "";
@@ -216,7 +248,9 @@ Write a specific description of the perfect thumbnail or cover frame for this pr
       console.log(`[generate-promo-clips] success userId=${req.userId} creditsAfter=${creditsAfter}`);
     }
 
-    res.json({ result: content, creditsRemaining: creditsAfter });
+    const body = { result: content, creditsRemaining: creditsAfter };
+    await storeGenerationResult("promo", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     await refundCharge();

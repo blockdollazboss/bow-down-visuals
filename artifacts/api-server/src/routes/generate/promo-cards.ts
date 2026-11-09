@@ -11,7 +11,17 @@ import { promisify } from "util";
 import { requireAuth } from "../../middlewares/require-auth";
 import { db, promoCardsTable, type PromoCardBrandSnapshot } from "@workspace/db";
 import { and, desc, eq } from "drizzle-orm";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { readBrandKit, type StoredBrandKit } from "../../lib/brand-record";
 import { getOpenAI } from "../../lib/ai-clients";
 import {
@@ -628,6 +638,20 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Idempotency (CA-4, Pattern C): server-derived key from the full
+     ask; a landed replay is served the stored body verbatim —
+     including the recorded pack row ids — + replayed: true BEFORE
+     any funding: no charge, no regeneration, no second pack row. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "promo-cards", req.userId!, req.body?.idempotencyKey,
+    parsed.data,
+  );
+  const durable = await findStoredGenerationResult("promo-cards", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < PROMO_CARDS_COST) {
     res.status(402).json({
@@ -647,7 +671,7 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, PROMO_CARDS_COST, {
       action: "Release Promo Cards",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -757,7 +781,7 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
       req.log.error({ err: recErr }, "[promo-cards] failed to record pack in history");
     }
 
-    res.json({
+    const body = {
       releaseTitle,
       artistName,
       style: chosen.id,
@@ -768,13 +792,20 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
       cards,
       suggestedCaption,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("promo-cards", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Promo card generation failed.";
     req.log.error({ err: message }, "[promo-cards] failed");
-    await refundCredits(req.userId!, PROMO_CARDS_COST, {
+    const refunded = await refundCredits(req.userId!, PROMO_CARDS_COST, {
       action: "Release Promo Cards — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
     res.status(500).json({ error: message });
   } finally {
     const { rm } = await import("fs/promises");

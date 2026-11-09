@@ -45,7 +45,13 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -583,17 +589,31 @@ router.post(
       } catch { /* best effort */ }
     };
 
+    /* CA-4: the active branch's idempotency key + rail. Set at the
+       charge point of whichever branch fires (video = Pattern D —
+       the priced estimate is known only there). failWithRefund
+       voids it when the refund lands; the success tail stores the
+       final body under it. */
+    let replayKey: string | null = null;
+    let replayRail: string | null = null;
+
     async function failWithRefund(
       charge: number,
       status: number,
       message: string,
     ): Promise<void> {
       if (charge > 0) {
-        await refundCredits(req.userId!, charge, {
+        const refunded = await refundCredits(req.userId!, charge, {
           action: `${actionName} — Refund (generation failed)`,
-        }).catch((refundErr) =>
-          logger.error({ refundErr }, "podcast: refund after failure failed"),
-        );
+        }).then(() => true).catch((refundErr) => {
+          logger.error({ refundErr }, "podcast: refund after failure failed");
+          return false;
+        });
+        /* Void the charge's key only when the refund landed (CA-4):
+           a refunded retry charges fresh, never replays free. */
+        if (refunded && replayKey) {
+          await voidChargeIdempotencyKey(replayKey).catch(() => {});
+        }
       }
       res.status(status).json({ error: message });
     }
@@ -624,8 +644,24 @@ router.post(
           });
           return;
         }
+        /* Idempotency (CA-4, Pattern D): key + pre-check AT the
+           charge point — the priced estimate exists only here. A
+           replay answers the stored episode body + replayed: true
+           and skips the charge AND the episode assembly below. */
+        replayKey = buildChargeIdempotencyKey(
+          "podcast-video", req.userId!,
+          (req.body as Record<string, unknown> | undefined)?.["idempotencyKey"],
+          { mode: "video", videoUrl, title, description, musicBed, attribution, estCredits: est.credits },
+        );
+        replayRail = "podcast-video";
+        const durableVideo = await findStoredGenerationResult("podcast-video", replayKey, req.userId!);
+        if (durableVideo) {
+          await cleanup();
+          res.json({ ...durableVideo, replayed: true });
+          return;
+        }
         try {
-          creditsRemaining = await chargeCredits(req.userId!, est.credits, { action: actionName });
+          creditsRemaining = await chargeCredits(req.userId!, est.credits, { action: actionName }, { idempotencyKey: replayKey });
         } catch (err) {
           await cleanup();
           if (err instanceof OutOfCreditsError) {
@@ -646,8 +682,26 @@ router.post(
         }
       } else {
         /* ── Script/topic mode: charge, then TTS ── */
+        /* Idempotency (CA-4): key from the RESOLVED ask (the final
+           script after any topic expansion) + pre-check first. */
+        replayKey = buildChargeIdempotencyKey(
+          "podcast-script", req.userId!,
+          (req.body as Record<string, unknown> | undefined)?.["idempotencyKey"],
+          {
+            mode, finalScript, title, description, format,
+            hostVoiceId, coHostVoiceId, musicBed, attribution,
+            creditsToCharge,
+          },
+        );
+        replayRail = "podcast-script";
+        const durableScript = await findStoredGenerationResult("podcast-script", replayKey, req.userId!);
+        if (durableScript) {
+          await cleanup();
+          res.json({ ...durableScript, replayed: true });
+          return;
+        }
         try {
-          creditsRemaining = await chargeCredits(req.userId!, creditsToCharge, { action: actionName });
+          creditsRemaining = await chargeCredits(req.userId!, creditsToCharge, { action: actionName }, { idempotencyKey: replayKey });
         } catch (err) {
           await cleanup();
           if (err instanceof OutOfCreditsError) {
@@ -731,7 +785,7 @@ router.post(
       });
 
       await cleanup();
-      res.json({
+      const podcastBody = {
         audioUrl: upload.url,
         audioRef: upload.ref,
         audioPlayUrl,
@@ -746,7 +800,12 @@ router.post(
         scriptUsed: mode === "topic" ? finalScript : undefined,
         creditsUsed: creditsToCharge,
         creditsRemaining,
-      });
+      };
+      /* Store BEFORE answering (CA-4) under the branch's key. */
+      if (replayKey && replayRail) {
+        await storeGenerationResult(replayRail, replayKey, req.userId!, { ...podcastBody });
+      }
+      res.json(podcastBody);
     } catch (err) {
       logger.error({ err }, "podcast: generation failed");
       await cleanup();
