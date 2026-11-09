@@ -11,6 +11,77 @@ import {
   generateBackgroundImage,
 } from "../../lib/bg-image-client";
 
+const REPLAY_NOTE =
+  "This is the background plate you already made for this request — tweak the prompt or style for a fresh one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetBgGenerateReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
+
+async function runBgGeneration(
+  userId: string,
+  prompt: string,
+  style: (typeof BG_GENERATE_STYLES)[number],
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  let creditsAfter: number;
+  try {
+    creditsAfter = await chargeCredits(userId, BG_GENERATE_CREDIT_COST, {
+      action: "AI Background Plate",
+    }, { idempotencyKey });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      return {
+        __status: 402,
+        error: "out_of_credits",
+        message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
+      };
+    }
+    throw err;
+  }
+
+  try {
+    const result = await generateBackgroundImage({ prompt, style, userId });
+    return { imageUrl: result.imageUrl, creditCost: BG_GENERATE_CREDIT_COST, creditsRemaining: creditsAfter };
+  } catch (err) {
+    /* Provider failed after the charge — refund in full, then VOID the
+       charge's idempotency key: without the void, the refunded attempt's
+       key still reads as "already charged", so the retry is suppressed
+       as a replay and generates FREE (Lane V3 F1 leak). The refund claim
+       in the response is only made when the refund actually landed. */
+    let refunded = true;
+    try {
+      await refundCredits(userId, BG_GENERATE_CREDIT_COST, {
+        action: "AI Background Plate — Refund",
+      });
+    } catch {
+      refunded = false;
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
+    }
+    if (err instanceof BgImageNotConfiguredError) {
+      return { __status: 503, error: err.code, message: err.message };
+    }
+    return {
+      __status: 500,
+      error: "BG_GENERATE_FAILED",
+      message: err instanceof Error
+        ? err.message
+        : refunded
+          ? "Background generation failed. Your Visual Bucs were refunded."
+          : "Background generation failed, and the refund didn't go through — it's been flagged for reconciliation.",
+    };
+  }
+}
+
 const router = Router();
 
 /**
@@ -68,70 +139,76 @@ router.post("/bg-generate", requireAuth, async (req: Request, res: Response) => 
     return;
   }
 
-  /* Idempotency (Lane V3 F1): the real client always sends a
-     per-attempt key, and that key dedupes retries of the SAME attempt.
-     A keyless caller used to get a prompt+style hash key — every
-     deliberate identical re-run then ran free forever while costing
-     provider money. Keyless calls now charge per run (no dedupe). */
+  /* Idempotency (CA-KEY): the server derives the key itself on EVERY
+     call — a sane client key (≥8 chars) is honored, otherwise the
+     {prompt, style} intent hash IS the key. A keyless caller used to
+     pass null here: every replay re-charged and re-generated (the
+     charge-audit's weak-key defect). The intent-hash trade-off is the
+     C-36 ruling's: an identical ask can never be re-bought — so a
+     replay serves the stored plate with replayed: true and says so
+     (REPLAY_NOTE) instead of charging again. */
   const clientKey = parsed.data.idempotencyKey;
-  const hasClientKey = typeof clientKey === "string" && clientKey.trim().length >= 8;
-  const idempotencyKey = hasClientKey
-    ? buildChargeIdempotencyKey(
-        "bg-generate", req.userId!, clientKey,
-        { prompt: parsed.data.prompt, style: parsed.data.style ?? "studio" },
-      )
-    : null;
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "bg-generate", req.userId!, clientKey,
+    { prompt: parsed.data.prompt, style: parsed.data.style ?? "studio" },
+  );
 
-  let creditsAfter: number;
-  try {
-    creditsAfter = await chargeCredits(req.userId!, BG_GENERATE_CREDIT_COST, {
-      action: "AI Background Plate",
-    }, { idempotencyKey });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating." });
-      return;
-    }
-    throw err;
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
   }
 
-  try {
-    const result = await generateBackgroundImage({
-      prompt: parsed.data.prompt,
-      style: parsed.data.style ?? "studio",
-      userId: req.userId!,
-    });
-    res.json({ imageUrl: result.imageUrl, creditCost: BG_GENERATE_CREDIT_COST, creditsRemaining: creditsAfter });
-  } catch (err) {
-    /* Provider failed after the charge — refund in full, then VOID the
-       charge's idempotency key: without the void, the refunded attempt's
-       key still reads as "already charged", so the retry is suppressed
-       as a replay and generates FREE (Lane V3 F1 leak). The refund claim
-       in the response is only made when the refund actually landed. */
-    let refunded = true;
-    try {
-      await refundCredits(req.userId!, BG_GENERATE_CREDIT_COST, {
-        action: "AI Background Plate — Refund",
-      });
-    } catch {
-      refunded = false;
-    }
-    if (refunded && idempotencyKey) {
-      await voidChargeIdempotencyKey(idempotencyKey);
-    }
-    if (err instanceof BgImageNotConfiguredError) {
-      res.status(503).json({ error: err.code, message: err.message });
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody) {
+      res.json({ ...twinBody, replayed: true, replayNote: REPLAY_NOTE });
       return;
     }
-    res.status(500).json({
-      error: "BG_GENERATE_FAILED",
-      message: err instanceof Error
-        ? err.message
-        : refunded
-          ? "Background generation failed. Your Visual Bucs were refunded."
-          : "Background generation failed, and the refund didn't go through — it's been flagged for reconciliation.",
-    });
+    /* The twin failed (refunded + key voided) — fall through and run
+       this request fresh. */
   }
+
+  const run = runBgGeneration(
+    req.userId!,
+    parsed.data.prompt,
+    parsed.data.style ?? "studio",
+    idempotencyKey,
+  );
+  inFlight.set(idempotencyKey, run);
+  let body: Record<string, unknown>;
+  try {
+    body = await run;
+  } finally {
+    if (inFlight.get(idempotencyKey) === run) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  /* Store BEFORE answering (contracts/post-assist pattern): a retry
+     that arrives after this response is served from the stored plate.
+     Fail-open — store errors never fail the paid ask. */
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+  } catch { /* storing is best-effort */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json({ ...postCharge.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  res.json(body);
 });
 
 export default router;

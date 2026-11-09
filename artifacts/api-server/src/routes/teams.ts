@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { db, teamsTable, teamMembersTable, creditUsageTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, OutOfCreditsError } from "../lib/credits";
+import { chargeCredits, OutOfCreditsError, buildChargeIdempotencyKey } from "../lib/credits";
 import { addCreditsToProfile } from "../lib/supabase-admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { getUserActiveTeam } from "../lib/teams";
@@ -433,10 +433,25 @@ router.post("/teams/:id/fund", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Enter a credit amount greater than 0." });
       return;
     }
-    // Idempotency: client sends a key per fund operation. If we've seen it,
-    // return the original result instead of double-funding.
-    const idempotencyKey = String(req.body?.idempotencyKey ?? "").trim() || null;
-    if (idempotencyKey) {
+    // Idempotency (CA-KEY): a fund operation REQUIRES a sane client key
+    // (≥8 chars) — both real clients (the World Team Desk and the 2D
+    // team page) mint one per fund operation. A keyless fund used to
+    // charge with a null key: a replay double-debited the personal
+    // balance AND double-credited the pool. A transfer is repeatable
+    // on purpose, so there is NO intent-hash fallback here — a missing
+    // or too-short key is an honest 400 before any money moves. When a
+    // key is present, ONE wrapped form of it serves the replay
+    // pre-check, the charge, and the pool ledger row (they used to be
+    // three different strings: raw / prefixed / raw).
+    const clientKey = String(req.body?.idempotencyKey ?? "").trim();
+    if (clientKey.length < 8) {
+      res.status(400).json({
+        error: "A fund key is required — reload the team page and try again. Nothing was charged.",
+      });
+      return;
+    }
+    const idempotencyKey = buildChargeIdempotencyKey("team-fund", userId, clientKey, { teamId, amount });
+    {
       const [existing] = await db
         .select()
         .from(creditUsageTable)
@@ -457,7 +472,7 @@ router.post("/teams/:id/fund", requireAuth, async (req, res) => {
         userId,
         amount,
         { action: "team_fund_debit" },
-        { idempotencyKey: idempotencyKey ? `team-fund-debit:${idempotencyKey}` : null, personalOnly: true },
+        { idempotencyKey, personalOnly: true },
       );
     } catch (e) {
       if (e instanceof OutOfCreditsError) {

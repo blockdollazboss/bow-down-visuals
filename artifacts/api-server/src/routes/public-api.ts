@@ -359,11 +359,17 @@ router.post(
     }
     try {
       const idem = req.headers["idempotency-key"];
-      const { bios, creditsRemaining } = await generateBiosForUser(req.userId!, parsed.data, {
+      const result = await generateBiosForUser(req.userId!, parsed.data, {
         action: "API: Bio Generator",
         idempotencyKey: typeof idem === "string" && idem.trim() ? `api:${req.apiKeyId}:${idem.trim()}` : null,
       });
-      res.json({ bios, niche: parsed.data.niche, costVb: BIO_COST, creditsRemaining });
+      res.json({
+        bios: result.bios,
+        niche: parsed.data.niche,
+        costVb: BIO_COST,
+        creditsRemaining: result.creditsRemaining,
+        ...(result.replayed ? { replayed: true } : {}),
+      });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs.", costVb: BIO_COST });

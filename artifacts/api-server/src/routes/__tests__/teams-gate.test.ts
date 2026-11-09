@@ -35,6 +35,7 @@ const h = vi.hoisted(() => ({
   userId: "",
   userEmail: "creator@example.com",
   emailByUser: {} as Record<string, string>,
+  fundCharges: [] as { userId: string; amount: number; key: string | null }[],
 }));
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -51,7 +52,14 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 vi.mock("../../lib/credits", () => ({
-  chargeCredits: vi.fn(async () => ({})),
+  chargeCredits: vi.fn(async (userId: string, amount: number, _rec?: unknown, opts?: { idempotencyKey?: string | null }) => {
+    h.fundCharges.push({ userId, amount, key: opts?.idempotencyKey ?? null });
+    return {};
+  }),
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) =>
+    typeof clientKey === "string" && clientKey.trim().length >= 8
+      ? `${scope}:${userId}:client:${clientKey.trim()}`
+      : `${scope}:${userId}:${JSON.stringify(intent)}`,
   OutOfCreditsError: class OutOfCreditsError extends Error {
     status = 402;
   },
@@ -108,10 +116,13 @@ CREATE TABLE team_members (
 );
 CREATE TABLE credit_usage (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid,
-  action text,
-  credits_used integer,
+  user_id uuid NOT NULL,
+  action text NOT NULL,
+  credits_used integer NOT NULL,
+  project_id uuid,
   team_id uuid,
+  bonus_credits_used integer,
+  bonus_expires_at timestamptz,
   idempotency_key text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -179,6 +190,7 @@ beforeEach(async () => {
   });
   mem.public.none(DDL);
   h.emailByUser = {};
+  h.fundCharges = [];
 
   const app = express();
   app.use(express.json());
@@ -389,5 +401,63 @@ describe("Team Workspace gate — earned rank, end to end", () => {
     const list = await api("GET", "/api/teams");
     expect(list.status).toBe(200);
     expect(list.body.teams.map((t: any) => t.name)).toContain("Founder Crew");
+  });
+});
+
+describe("Team pool funding — CA-KEY idempotency", () => {
+  /** Seed a team whose owner (an active admin member) does the funding. */
+  function seedFundableTeam(owner: string, email: string, poolCredits: number) {
+    const teamId = randomUUID();
+    mem.public.none(`
+      INSERT INTO teams (id, name, owner_id, credits) VALUES ('${teamId}', 'Fund Crew', '${owner}', ${poolCredits});
+      INSERT INTO team_members (id, team_id, user_id, email, role, status, joined_at)
+        VALUES ('${randomUUID()}', '${teamId}', '${owner}', '${email}', 'owner', 'active', now());
+    `);
+    return teamId;
+  }
+
+  it("a keyless fund is refused 400 BEFORE any charge or pool credit (was: null key, replay double-funded)", async () => {
+    const owner = randomUUID();
+    seedCreator(owner, "funder@example.com", { tracks: 30 });
+    as(owner, "funder@example.com");
+    const teamId = seedFundableTeam(owner, "funder@example.com", 100);
+
+    const noKey = await api("POST", `/api/teams/${teamId}/fund`, { credits: 50 });
+    expect(noKey.status).toBe(400);
+    const shortKey = await api("POST", `/api/teams/${teamId}/fund`, { credits: 50, idempotencyKey: "short" });
+    expect(shortKey.status).toBe(400);
+
+    expect(h.fundCharges).toEqual([]);
+    const detail = await api("GET", `/api/teams/${teamId}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body.team.credits).toBe(100); // pool untouched
+  });
+
+  it("a keyed fund charges once under the ONE wrapped key; its replay answers duplicate:true and funds nothing twice", async () => {
+    const owner = randomUUID();
+    seedCreator(owner, "funder2@example.com", { tracks: 30 });
+    as(owner, "funder2@example.com");
+    const teamId = seedFundableTeam(owner, "funder2@example.com", 100);
+
+    const fund = await api("POST", `/api/teams/${teamId}/fund`, { credits: 50, idempotencyKey: "fund-op-0001" });
+    expect(fund.status).toBe(200);
+    expect(fund.body.duplicate).toBeUndefined();
+    expect(fund.body.team.credits).toBe(150);
+    /* The charge, the replay pre-check and the pool row all key off
+       this one wrapped form — never the raw client string. */
+    const wrapped = `team-fund:${owner}:client:fund-op-0001`;
+    expect(h.fundCharges).toEqual([{ userId: owner, amount: 50, key: wrapped }]);
+
+    const replay = await api("POST", `/api/teams/${teamId}/fund`, { credits: 50, idempotencyKey: "fund-op-0001" });
+    expect(replay.status).toBe(200);
+    expect(replay.body.duplicate).toBe(true);
+    expect(replay.body.team.credits).toBe(150); // NOT 200 — no double credit
+    expect(h.fundCharges).toHaveLength(1); // no second debit
+
+    /* A different operation key is a different fund — it goes through. */
+    const second = await api("POST", `/api/teams/${teamId}/fund`, { credits: 25, idempotencyKey: "fund-op-0002" });
+    expect(second.status).toBe(200);
+    expect(second.body.team.credits).toBe(175);
+    expect(h.fundCharges).toHaveLength(2);
   });
 });

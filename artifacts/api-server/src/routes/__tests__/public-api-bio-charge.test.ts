@@ -14,7 +14,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const { chargeCredits, refundCredits, OutOfCreditsError, CreditsDisabledError } = vi.hoisted(() => {
+const { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey, OutOfCreditsError, CreditsDisabledError } = vi.hoisted(() => {
   class OutOfCreditsError extends Error {
     readonly status = 402;
     constructor() { super("out_of_credits"); this.name = "OutOfCreditsError"; }
@@ -26,6 +26,11 @@ const { chargeCredits, refundCredits, OutOfCreditsError, CreditsDisabledError } 
   return {
     chargeCredits: vi.fn(),
     refundCredits: vi.fn(async () => {}),
+    buildChargeIdempotencyKey: vi.fn(
+      (scope: string, userId: string, _clientKey: unknown, intent: unknown) =>
+        `${scope}:${userId}:${JSON.stringify(intent)}`,
+    ),
+    voidChargeIdempotencyKey: vi.fn(async () => true),
     OutOfCreditsError,
     CreditsDisabledError,
   };
@@ -34,6 +39,8 @@ const { chargeCredits, refundCredits, OutOfCreditsError, CreditsDisabledError } 
 vi.mock("../../lib/credits", () => ({
   chargeCredits: (...args: unknown[]) => chargeCredits(...args),
   refundCredits: (...args: unknown[]) => refundCredits(...args),
+  buildChargeIdempotencyKey: (...args: unknown[]) => buildChargeIdempotencyKey(...args),
+  voidChargeIdempotencyKey: (...args: unknown[]) => voidChargeIdempotencyKey(...args),
   OutOfCreditsError,
   CreditsDisabledError,
 }));
@@ -42,7 +49,7 @@ vi.mock("../../lib/ai-clients", () => ({
   LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 }));
 
-import { BIO_COST, generateBiosForUser } from "../generate/bio-generator";
+import { BIO_COST, generateBiosForUser, __resetBioReplayCache } from "../generate/bio-generator";
 
 const input = {
   niche: "fitness coaching",
@@ -89,6 +96,7 @@ describe("generateBiosForUser charging discipline", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     refundCredits.mockResolvedValue(undefined);
+    __resetBioReplayCache();
   });
 
   it("charges exactly once at BIO_COST with the API ledger label on success", async () => {
@@ -144,5 +152,41 @@ describe("generateBiosForUser charging discipline", () => {
       { action: "API: Bio Generator" },
       { idempotencyKey: "api:key-1:abc" },
     );
+  });
+
+  it("CA-KEY: a caller with NO key still gets a real server-derived key — never null", async () => {
+    chargeCredits.mockResolvedValue(450);
+    mockFetchOk();
+    await generateBiosForUser("user-1", input, { action: "API: Bio Generator" });
+    expect(buildChargeIdempotencyKey).toHaveBeenCalledWith(
+      "bio-generator",
+      "user-1",
+      null,
+      expect.objectContaining({ niche: "fitness coaching" }),
+    );
+    const chargeOpts = chargeCredits.mock.calls[0]![3] as { idempotencyKey?: unknown };
+    expect(typeof chargeOpts.idempotencyKey).toBe("string");
+    expect((chargeOpts.idempotencyKey as string).length).toBeGreaterThan(0);
+  });
+
+  it("CA-KEY: a no-key replay charges exactly once and serves the stored bios, flagged replayed", async () => {
+    chargeCredits.mockResolvedValue(450);
+    mockFetchOk();
+    const first = await generateBiosForUser("user-1", input, { action: "Bio Generator" });
+    const second = await generateBiosForUser("user-1", input, { action: "Bio Generator" });
+    expect(chargeCredits).toHaveBeenCalledTimes(1);
+    expect(first.replayed).toBeUndefined();
+    expect(second.replayed).toBe(true);
+    expect(second.bios).toEqual(first.bios);
+  });
+
+  it("CA-KEY: a refunded failure VOIDS the key, so the retry charges fresh", async () => {
+    chargeCredits.mockResolvedValue(450);
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, json: async () => ({}) })));
+    await expect(
+      generateBiosForUser("user-1", input, { action: "API: Bio Generator", idempotencyKey: "api:key-1:xyz" }),
+    ).rejects.toThrow("Bio generation failed.");
+    expect(refundCredits).toHaveBeenCalledTimes(1);
+    expect(voidChargeIdempotencyKey).toHaveBeenCalledWith("api:key-1:xyz");
   });
 });
