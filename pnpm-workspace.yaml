@@ -97,8 +97,9 @@ overrides:
   esbuild>@esbuild/win32-arm64: '-'
   esbuild>@esbuild/win32-ia32: '-'
   esbuild>@esbuild/win32-x64: '-'
-  fast-uri: 3.1.7
+  fast-uri: 3.1.9
   fast-xml-parser: 5.10.1
+  ip-address: 10.7.4
   js-yaml: ^4.3.2
   lightningcss>lightningcss-android-arm64: '-'
   lightningcss>lightningcss-darwin-arm64: '-'
@@ -114,7 +115,8 @@ overrides:
   markdown-it: 14.3.1
   nanoid: 3.3.18
   postcss: 8.5.23
-  qs: 6.16.0
+  postcss-selector-parser: 6.1.5
+  qs: 6.16.1
   source-map-js: 1.2.2
   rollup>@rollup/rollup-android-arm-eabi: '-'
   rollup>@rollup/rollup-android-arm64: '-'
