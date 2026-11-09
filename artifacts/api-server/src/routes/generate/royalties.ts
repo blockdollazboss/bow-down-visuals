@@ -27,7 +27,21 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { sendEmail, emailShell, emailButton, emailDetailBox, escapeHtml, isEmailConfigured, baseUrlForEmail, EMAIL_COLORS } from "../../lib/email";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the insights charge. */
+const REPLAY_NOTE =
+  "These are the royalty insights you already got for this data — import new numbers for a fresh read.";
 
 /* ─── Royalty Tracker ─────────────────────────────────────────────────────
    /royalties — creators track streaming earnings across platforms in one
@@ -264,6 +278,7 @@ async function chargeOr402(
   balance: number,
   cost: number,
   res: Response,
+  idempotencyKey?: string,
 ): Promise<number | null> {
   if (balance < cost) {
     res.status(402).json({
@@ -273,7 +288,12 @@ async function chargeOr402(
     return null;
   }
   try {
-    return await chargeCredits(userId, cost, { action: "Royalty AI Insights" });
+    return await chargeCredits(
+      userId,
+      cost,
+      { action: "Royalty AI Insights" },
+      idempotencyKey ? { idempotencyKey } : undefined,
+    );
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -573,11 +593,21 @@ router.post("/royalties/payouts", requireAuth, publicApiLimiter, async (req, res
 
 /* POST /api/royalties/insights → AI earnings insights. 1 credit, refund on failure. */
 router.post("/royalties/insights", requireAuth, publicApiLimiter, async (req, res) => {
-  const creditsRemaining = await chargeOr402(req.userId!, req.userCredits ?? 0, ROYALTY_INSIGHTS_CREDITS, res);
-  if (creditsRemaining === null) return;
-
+  /* CA-5: the insights are a pure function of the creator's current royalty
+     data, so load the data FIRST — its fingerprint is the request's defining
+     input and keys the charge. Same data re-asked = the same insights, served
+     from the stored result; changed data = a fresh ask. The no-data answer
+     now lands before any charge (same response as the old charge-then-
+     refund path, minus the ledger churn). */
+  let entries: {
+    song_title: string;
+    platform: string;
+    period_start: string;
+    gross_amount: string;
+    streams: string | null;
+  }[];
   try {
-    const entries = await db
+    entries = await db
       .select({
         song_title: royaltyEntriesTable.song_title,
         platform: royaltyEntriesTable.platform,
@@ -589,14 +619,37 @@ router.post("/royalties/insights", requireAuth, publicApiLimiter, async (req, re
       .where(eq(royaltyEntriesTable.user_id, req.userId!))
       .orderBy(desc(royaltyEntriesTable.period_start))
       .limit(2000);
-    if (!entries.length) {
-      await refundCredits(req.userId!, ROYALTY_INSIGHTS_CREDITS, {
-        action: "Royalty AI Insights (no data refund)",
-      }).catch(() => {});
-      res.status(400).json({ error: "Import some royalty data first — I need numbers to analyze." });
-      return;
-    }
-    const summary = summarizeEntries(entries);
+  } catch (err) {
+    logger.error({ err }, "[royalties] insights data load failed");
+    res.status(502).json({ error: "The analyst hiccupped — try again." });
+    return;
+  }
+  if (!entries.length) {
+    res.status(400).json({ error: "Import some royalty data first — I need numbers to analyze." });
+    return;
+  }
+
+  const summary = summarizeEntries(entries);
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "royalties-insights",
+    req.userId!,
+    null,
+    { summary },
+  );
+  const durable = await findStoredGenerationResult(
+    "royalties-insights",
+    idempotencyKey,
+    req.userId!,
+  );
+  if (durable && Array.isArray(durable["insights"])) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const creditsRemaining = await chargeOr402(req.userId!, req.userCredits ?? 0, ROYALTY_INSIGHTS_CREDITS, res, idempotencyKey);
+  if (creditsRemaining === null) return;
+
+  try {
     const dataBrief =
       `Total earnings: $${fromCents(summary.totalCents)} across ${summary.totalStreams.toLocaleString()} streams ` +
       `(${summary.entryCount} entries).\n` +
@@ -636,11 +689,18 @@ router.post("/royalties/insights", requireAuth, publicApiLimiter, async (req, re
     if (!insights.length) {
       throw new Error("Model returned no usable insights");
     }
-    res.json({ insights, creditsUsed: ROYALTY_INSIGHTS_CREDITS, creditsRemaining });
+    const body = { insights, creditsUsed: ROYALTY_INSIGHTS_CREDITS, creditsRemaining };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("royalties-insights", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
-    await refundCredits(req.userId!, ROYALTY_INSIGHTS_CREDITS, {
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    const refunded = await refundCredits(req.userId!, ROYALTY_INSIGHTS_CREDITS, {
       action: "Royalty AI Insights (provider failure refund)",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[royalties] OpenAI rate limit / quota");
       res.status(503).json({ error: "The analyst is catching its breath — try again in a moment. (Visual Buc refunded.)" });

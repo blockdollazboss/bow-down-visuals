@@ -5,7 +5,22 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { db, inspoVibePresetsTable } from "@workspace/db";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the inspo generate charge. */
+const REPLAY_NOTE =
+  "This is the song package you already made from this vibe — change the style DNA or notes for a fresh one.";
 
 const router = Router();
 
@@ -184,6 +199,22 @@ router.post("/song-inspo/generate", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — the sanitized DNA is
+     the request's defining input; an identical re-ask returns the song
+     package already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("song-inspo", req.userId!, null, {
+    styleDna: dna,
+    notes,
+    artistName,
+    songTitle,
+    artistVault: parsed.data.artistVault ?? null,
+  });
+  const durable = await findStoredGenerationResult("song-inspo", idempotencyKey, req.userId!);
+  if (durable && typeof durable["result"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < INSPO_GENERATE_COST) {
     res.status(402).json({
@@ -197,7 +228,7 @@ router.post("/song-inspo/generate", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, INSPO_GENERATE_COST, {
       action: "Inspo Mode Song",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -296,20 +327,23 @@ router.post("/song-inspo/generate", requireAuth, async (req, res) => {
     // Step 2: mark charged (chargeCredits already logged the spend)
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
-    res.json({
+    const body = {
       result: content,
       creditsRemaining: creditsAfter,
       genHistoryId,
       styleDna: dna,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("song-inspo", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     // Auto-refund: generation failed after charging — give the Visual Bucs back.
-    try {
-      await refundCredits(req.userId!, INSPO_GENERATE_COST, {
-        action: "Inspo Mode Song — auto-refund (generation failed)",
-      });
-    } catch {
-      /* best-effort; the original failure still reports below */
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    const refunded = await refundCredits(req.userId!, INSPO_GENERATE_COST, {
+      action: "Inspo Mode Song — auto-refund (generation failed)",
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }
     const message = err instanceof Error ? err.message : "Inspo song generation failed.";
     res.status(500).json({ error: message });

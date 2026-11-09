@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { randomUUID } from "crypto";
-import { promises as fs, createWriteStream } from "fs";
+import { randomUUID, createHash } from "crypto";
+import { promises as fs, createWriteStream, createReadStream } from "fs";
 import { pipeline } from "stream/promises";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -19,7 +19,27 @@ import {
   refundCredits,
   OutOfCreditsError,
   LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): replay notes for the two streamer-clips rails. */
+const REPLAY_NOTE_ANALYZE =
+  "This is the highlight analysis you already got for this video — a different video or vibe makes a fresh one.";
+const REPLAY_NOTE_CUT =
+  "This cut is already on its way for this request — this is the same job, not a new charge.";
+
+/* CA-5: sha256 of a temp file's bytes, streamed (VODs run to 80 MB —
+   never buffered whole for a hash). */
+async function hashTempFileBytes(path: string): Promise<string> {
+  const hash = createHash("sha256");
+  await pipeline(createReadStream(path), hash);
+  return hash.digest("hex");
+}
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -430,6 +450,30 @@ router.post(
       res.once("close", () => { void fs.unlink(p).catch(() => {}); });
     }
 
+    /* CA-5: durable replay pre-check BEFORE funding — the intent is the
+       video's bytes (streamed hash of the temp file on disk, whichever
+       path brought it here) plus the analysis knobs. A hash failure
+       answers 500 BEFORE any charge — never fall back to a null hash
+       (two different videos must never collide). */
+    let analyzeKey: string;
+    try {
+      const videoBytesHash = await hashTempFileBytes(videoPath);
+      analyzeKey = buildChargeIdempotencyKey("streamer-clips-analyze", req.userId!, null, {
+        videoBytesHash,
+        clipLength,
+        maxClips,
+        vibe,
+      });
+    } catch {
+      res.status(500).json({ error: "Could not read the video file." });
+      return;
+    }
+    const analyzeStored = await findStoredGenerationResult("streamer-clips-analyze", analyzeKey, req.userId!);
+    if (analyzeStored && Array.isArray(analyzeStored["highlights"])) {
+      res.json({ ...analyzeStored, replayed: true, replayNote: REPLAY_NOTE_ANALYZE });
+      return;
+    }
+
     const balance = req.userCredits ?? 0;
     if (balance < ANALYZE_CREDIT_COST) {
       res.status(402).json({
@@ -442,7 +486,7 @@ router.post(
     try {
       creditsRemaining = await chargeCredits(req.userId!, ANALYZE_CREDIT_COST, {
         action: "Streamer Clips — AI highlight analysis",
-      });
+      }, { idempotencyKey: analyzeKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -459,12 +503,18 @@ router.post(
     }
 
     const refundAndFail = async (status: number, error: string, message?: string) => {
+      /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+      let refunded = true;
       try {
         await refundCredits(req.userId!, ANALYZE_CREDIT_COST, {
           action: "Streamer Clips — Refund (analysis failed)",
         });
       } catch {
+        refunded = false;
         /* refund logged inside refundCredits */
+      }
+      if (refunded) {
+        await voidChargeIdempotencyKey(analyzeKey).catch(() => false);
       }
       res.status(status).json({ error, ...(message ? { message } : {}) });
     };
@@ -488,14 +538,19 @@ router.post(
         return;
       }
 
-      res.json({
+      const analyzeBody = {
         videoRef,
         videoUrl: signedUrl,
         durationSec: Math.round(durationSec),
         highlights,
         creditsUsed: ANALYZE_CREDIT_COST,
         creditsRemaining,
-      });
+      };
+      /* Persist BEFORE answering (fail-open inside the helper) — the
+         stored body carries the SAME videoRef, so a replay rejoins the
+         stored source instead of uploading it again. */
+      await storeGenerationResult("streamer-clips-analyze", analyzeKey, req.userId!, { ...analyzeBody });
+      res.json(analyzeBody);
     } catch (err) {
       if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
         logger.warn({ err }, "[streamer-clips] provider rate limit");
@@ -528,6 +583,13 @@ interface CutJob {
   createdAt: number;
   /** Virality: opt-in "Made with Bow Down Visuals" tag burned into the cut clips (paid export → opt-in). */
   attribution?: boolean;
+  /* CA-5: the charge's idempotency key — the detached cut-failure refund
+     VOIDS it so a failed cut's re-ask charges fresh. */
+  chargeKey?: string;
+  /* CA-5: the exact 202 body answered at creation (HTTP starts only).
+     Stored durably ONLY when the cut completes (runCutJob) — a failed
+     cut refunds + voids and must never leave a stored body behind. */
+  chargeBody?: Record<string, unknown>;
 }
 
 const cutJobs = new Map<string, CutJob>();
@@ -565,15 +627,27 @@ async function runCutJob(job: CutJob, videoRef: string): Promise<void> {
       clip.outputUrl = await refreshSupabaseStorageUrl(ref);
     }
     job.status = "done";
+    /* CA-5: persist the creation body ONLY now that the cut actually
+       landed — a replay from here on rejoins this job free. A failed cut
+       stores nothing, so its refunded + voided key re-asks fresh. */
+    if (job.chargeKey && job.chargeBody) {
+      await storeGenerationResult("streamer-clips-cut", job.chargeKey, job.userId, { ...job.chargeBody });
+    }
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Clip cutting failed";
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let refunded = true;
     try {
       await refundCredits(job.userId, job.creditsCharged, {
         action: "Streamer Clips — Refund (cut failed)",
       });
     } catch {
+      refunded = false;
       /* logged inside refundCredits */
+    }
+    if (refunded && job.chargeKey) {
+      await voidChargeIdempotencyKey(job.chargeKey).catch(() => false);
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
@@ -601,9 +675,26 @@ export async function startStreamerCutJob(
   attribution?: boolean,
 ): Promise<StreamerCutJobStart> {
   const cost = CUT_CREDIT_COST * clips.length;
+  /* CA-5: the cut's idempotency key derives from the exact job request
+     (source ref + clip list + attribution), so a replayed cut start is
+     suppressed by the durable ledger key inside chargeCredits itself —
+     one charge, and the EXISTING job is returned instead of minting a
+     second. Auto-Highlights (#172) starts cuts with distinct clips per
+     proposal, so legitimate distinct starts never collide. */
+  const cutKey = buildChargeIdempotencyKey("streamer-clips-cut", userId, null, {
+    videoRef,
+    clips,
+    attribution: attribution ?? null,
+  });
   const creditsRemaining = await chargeCredits(userId, cost, {
     action: `Streamer Clips — cut ${clips.length} clip${clips.length > 1 ? "s" : ""}`,
-  });
+  }, { idempotencyKey: cutKey });
+  const existing = [...cutJobs.values()].find(
+    (j) => j.chargeKey === cutKey && j.status !== "failed",
+  );
+  if (existing) {
+    return { job: existing, creditsRemaining, creditsCharged: cost };
+  }
   const job: CutJob = {
     id: randomUUID(),
     userId,
@@ -619,6 +710,7 @@ export async function startStreamerCutJob(
     creditsCharged: cost,
     createdAt: Date.now(),
     attribution,
+    chargeKey: cutKey,
   };
   cutJobs.set(job.id, job);
   // Server-owned: runs detached from the request/tab lifecycle.
@@ -653,6 +745,20 @@ router.post("/streamer-clips/cut", requireAuth, publicApiLimiter, async (req: Re
     }
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — the stored 202 body
+     carries the SAME cut job id (startStreamerCutJob also dedupes by the
+     same key for non-HTTP callers). */
+  const cutKey = buildChargeIdempotencyKey("streamer-clips-cut", req.userId!, null, {
+    videoRef,
+    clips,
+    attribution: attribution ?? null,
+  });
+  const cutStored = await findStoredGenerationResult("streamer-clips-cut", cutKey, req.userId!);
+  if (cutStored && typeof cutStored["jobId"] === "string" && cutStored["jobId"] !== "") {
+    res.status(202).json({ ...cutStored, replayed: true, replayNote: REPLAY_NOTE_CUT });
+    return;
+  }
+
   const cost = CUT_CREDIT_COST * clips.length;
   const balance = req.userCredits ?? 0;
   if (balance < cost) {
@@ -680,13 +786,22 @@ router.post("/streamer-clips/cut", requireAuth, publicApiLimiter, async (req: Re
     throw err;
   }
 
-  res.status(202).json({
+  const cutBody = {
     jobId: started.job.id,
     status: started.job.status,
     clipCount: started.job.clips.length,
     creditsCharged: started.creditsCharged,
     creditsRemaining: started.creditsRemaining,
-  });
+  };
+  /* Attach the creation body to a NEWLY minted job — runCutJob stores it
+     durably when the cut lands, so a failed cut (refunded + voided)
+     never leaves a stored body behind for its key. A dedupe-hit job
+     already carries its own body from its original start. */
+  const mintedHere = started.job.chargeBody === undefined;
+  if (mintedHere) {
+    started.job.chargeBody = cutBody;
+  }
+  res.status(202).json(cutBody);
 });
 
 /** GET /api/streamer-clips/cut/:jobId — poll cut job status. */

@@ -4,7 +4,21 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the outreach-kit charge. */
+const REPLAY_NOTE =
+  "This is the outreach kit you already made for this brand — change the brand or your details for a fresh one.";
 
 const router = Router();
 
@@ -118,6 +132,21 @@ router.post("/outreach", requireAuth, publicApiLimiter, async (req, res) => {
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the kit already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("sponsorship-outreach", req.userId!, null, {
+    ...parsed.data,
+  });
+  const durable = await findStoredGenerationResult("sponsorship-outreach", idempotencyKey, req.userId!);
+  if (
+    durable &&
+    typeof durable["kit"] === "object" &&
+    durable["kit"] !== null
+  ) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < OUTREACH_CREDIT_COST) {
     res.status(402).json({
@@ -130,7 +159,7 @@ router.post("/outreach", requireAuth, publicApiLimiter, async (req, res) => {
   try {
     creditsRemaining = await chargeCredits(req.userId!, OUTREACH_CREDIT_COST, {
       action: "Sponsorship Outreach Kit",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -143,12 +172,18 @@ router.post("/outreach", requireAuth, publicApiLimiter, async (req, res) => {
   }
 
   async function refund() {
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let refunded = true;
     try {
       await refundCredits(req.userId!, OUTREACH_CREDIT_COST, {
         action: "Sponsorship Outreach Kit — Refund (generation failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       void refundErr; // logged inside refundCredits; don't mask the original failure
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }
   }
 
@@ -200,7 +235,10 @@ router.post("/outreach", requireAuth, publicApiLimiter, async (req, res) => {
     }
 
     /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
-    res.json({ kit, creditsUsed: OUTREACH_CREDIT_COST, creditsRemaining });
+    const body = { kit, creditsUsed: OUTREACH_CREDIT_COST, creditsRemaining };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("sponsorship-outreach", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     await refund();
     logger.error({ err }, "sponsorship-outreach: generation failed, Visual Bucs refunded");

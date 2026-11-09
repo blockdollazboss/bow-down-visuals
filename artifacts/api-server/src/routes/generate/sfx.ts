@@ -13,7 +13,13 @@ import {
   refundCredits,
   OutOfCreditsError,
   LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   invokeRailHandler,
   type RailCoreDeps,
@@ -30,6 +36,10 @@ import {
 
 const router = Router();
 const BUCKET = "audio-stems";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the text-to-SFX charge. */
+const REPLAY_NOTE =
+  "This is the sound effect you already made for this request — tweak the description for a fresh one.";
 
 /* ElevenLabs Text to Sound Effects.
    POST https://api.elevenlabs.io/v1/sound-generation
@@ -76,6 +86,24 @@ export const generateSfxHandler = async (req: Request, res: Response) => {
       return;
     }
 
+    /* CA-5: durable replay pre-check BEFORE any funding — an identical
+       re-ask returns the sound already made, free. */
+    const idempotencyKey = buildChargeIdempotencyKey(
+      "sfx",
+      req.userId!,
+      null,
+      {
+        prompt: parsed.data.prompt,
+        durationSeconds: parsed.data.durationSeconds,
+        category: parsed.data.category,
+      },
+    );
+    const durable = await findStoredGenerationResult("sfx", idempotencyKey, req.userId!);
+    if (durable && typeof durable["url"] === "string") {
+      res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+      return;
+    }
+
     const apiKey = process.env["ELEVENLABS_API_KEY"];
     if (!apiKey) {
       logger.error("[sfx] missing ELEVENLABS_API_KEY");
@@ -100,7 +128,7 @@ export const generateSfxHandler = async (req: Request, res: Response) => {
     try {
       creditsRemaining = await chargeCredits(req.userId!, SFX_CREDIT_COST, {
         action: "Text-to-SFX",
-      });
+      }, { idempotencyKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -113,15 +141,21 @@ export const generateSfxHandler = async (req: Request, res: Response) => {
     }
 
     const refundOnFailure = async () => {
+      /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+      let refunded = true;
       try {
         await refundCredits(req.userId!, SFX_CREDIT_COST, {
           action: "Text-to-SFX — Refund (generation failed)",
         });
       } catch (refundErr) {
+        refunded = false;
         logger.error(
           { err: refundErr, userId: req.userId },
           "[sfx] refund failed after generation error",
         );
+      }
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
       }
     };
 
@@ -195,7 +229,7 @@ export const generateSfxHandler = async (req: Request, res: Response) => {
       /* Fire-and-forget — mark charged + log usage. */
       markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
-      res.json({
+      const body = {
         url: publicUrl,
         storagePath: path,
         durationSeconds: safeDuration,
@@ -203,7 +237,10 @@ export const generateSfxHandler = async (req: Request, res: Response) => {
         creditsUsed: SFX_CREDIT_COST,
         creditsRemaining,
         genHistoryId,
-      });
+      };
+      /* Persist BEFORE answering (fail-open inside the helper). */
+      await storeGenerationResult("sfx", idempotencyKey, req.userId!, { ...body });
+      res.json(body);
     } catch (err: unknown) {
       await refundOnFailure();
       if (err instanceof LedgerWriteError) {

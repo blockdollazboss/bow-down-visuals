@@ -5,7 +5,14 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5: replay note served with a stored result (C-36 honesty). */
+const REPLAY_NOTE = "This is the script you already wrote for this request — change the topic or tone for a fresh one.";
 
 const router = Router();
 
@@ -120,6 +127,24 @@ router.post("/script-writer", requireAuth, publicApiLimiter, async (req, res) =>
     return;
   }
 
+  /* CA-5 (house stored-result pattern): server-derived key from the
+     full script intent; stored-result pre-check BEFORE funding — a
+     replay is served from the durable table (migration 0333), never
+     re-charged, never re-written. Fail-open. */
+  const idempotencyKey = buildChargeIdempotencyKey("script-writer", req.userId!, null, {
+    platform: parsed.data.platform,
+    length: parsed.data.length,
+    topic: parsed.data.topic,
+    tone: parsed.data.tone,
+    audience: parsed.data.audience,
+    ctaGoal: parsed.data.ctaGoal,
+  });
+  const durable = await findStoredGenerationResult("script-writer", idempotencyKey, req.userId!);
+  if (durable && typeof durable["hook"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < SCRIPT_WRITER_CREDIT_COST) {
     res.status(402).json({
@@ -132,7 +157,7 @@ router.post("/script-writer", requireAuth, publicApiLimiter, async (req, res) =>
   try {
     creditsRemaining = await chargeCredits(req.userId!, SCRIPT_WRITER_CREDIT_COST, {
       action: "AI Script Writer",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -229,7 +254,7 @@ router.post("/script-writer", requireAuth, publicApiLimiter, async (req, res) =>
     }
 
     charged = false; // success — no refund
-    res.json({
+    const body = {
       title,
       hook,
       beats,
@@ -238,17 +263,26 @@ router.post("/script-writer", requireAuth, publicApiLimiter, async (req, res) =>
       teleprompter,
       creditsUsed: SCRIPT_WRITER_CREDIT_COST,
       creditsRemaining,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("script-writer", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     if (charged) {
+      let refunded = true;
       try {
         await refundCredits(req.userId!, SCRIPT_WRITER_CREDIT_COST, {
           action: "AI Script Writer — Refund (generation failed)",
         });
         creditsRemaining = balance;
       } catch (refundErr) {
+        refunded = false;
         // Logged inside refundCredits; don't mask the original failure.
         void refundErr;
+      }
+      /* CA-5: a landed refund also VOIDS the charge key. */
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
       }
     }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {

@@ -11,7 +11,15 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { createHash } from "crypto";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5: replay note served with a stored result (C-36 honesty). */
+const REPLAY_NOTE = "This is the mix rating you already got for this exact bounce — bounce a new mix for a fresh rating.";
 
 const execFileAsync = promisify(execFile);
 
@@ -263,6 +271,23 @@ router.post("/rate-my-mix/analyze", requireAuth, publicApiLimiter, upload.single
     return;
   }
 
+  /* CA-5 (house stored-result pattern): the intent is the uploaded
+     bytes themselves (sha256 — the thumbnail-generator precedent for
+     file-defined asks) + genre. Stored-result pre-check BEFORE
+     funding — a replay of the same bounce is served from the durable
+     table (migration 0333), never re-charged, never re-measured.
+     Fail-open. */
+  const mixBytesHash = createHash("sha256").update(req.file.buffer).digest("hex");
+  const idempotencyKey = buildChargeIdempotencyKey("rate-my-mix", req.userId!, null, {
+    mixBytesHash,
+    genre: parsed.data.genre,
+  });
+  const durable = await findStoredGenerationResult("rate-my-mix", idempotencyKey, req.userId!);
+  if (durable && typeof durable["measurements"] === "object" && durable["measurements"] !== null) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < MIX_CREDIT_COST) {
     res.status(402).json({
@@ -275,7 +300,7 @@ router.post("/rate-my-mix/analyze", requireAuth, publicApiLimiter, upload.single
   try {
     creditsRemaining = await chargeCredits(req.userId!, MIX_CREDIT_COST, {
       action: "Rate My Mix",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -288,10 +313,16 @@ router.post("/rate-my-mix/analyze", requireAuth, publicApiLimiter, upload.single
   }
 
   const refundAndFail = async (status: number, message: string) => {
+    let refunded = true;
     try {
       await refundCredits(req.userId!, MIX_CREDIT_COST, { action: "Rate My Mix — Refund" });
     } catch (refundErr) {
+      refunded = false;
       logger.error({ err: refundErr, userId: req.userId }, "[rate-my-mix] refund failed after analysis error");
+    }
+    /* CA-5: a landed refund also VOIDS the charge key. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }
     res.status(status).json({ error: message, refunded: true });
   };
@@ -300,7 +331,10 @@ router.post("/rate-my-mix/analyze", requireAuth, publicApiLimiter, upload.single
     /* Real measurement first — if this fails we refund and never fake numbers. */
     const measurements = await measureMix(req.file.buffer);
     const notes = await coachMix(parsed.data.genre, measurements);
-    res.json({ measurements, notes, creditsUsed: MIX_CREDIT_COST, creditsRemaining });
+    const body = { measurements, notes, creditsUsed: MIX_CREDIT_COST, creditsRemaining };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("rate-my-mix", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Mix analysis failed";
     logger.error({ err, userId: req.userId }, "[rate-my-mix] analysis failed");

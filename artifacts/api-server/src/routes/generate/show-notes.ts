@@ -5,7 +5,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { transcribeAudioTimed } from "../../lib/transcription";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5: replay note served with a stored result (C-36 honesty). */
+const REPLAY_NOTE = "These are the show notes you already made for this episode — change the title or transcript for a fresh set.";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -129,6 +136,23 @@ router.post("/show-notes", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-5 (house stored-result pattern): server-derived key from the
+     episode intent (transcript rides verbatim; the audio path keys on
+     the URL); stored-result pre-check BEFORE funding — a replay is
+     served from the durable table (migration 0333), never re-charged,
+     never re-transcribed or re-written. Fail-open. */
+  const idempotencyKey = buildChargeIdempotencyKey("show-notes", req.userId!, null, {
+    episodeTitle: parsed.data.episodeTitle,
+    transcript: parsed.data.transcript ?? null,
+    audioUrl: parsed.data.audioUrl ?? null,
+    context: parsed.data.context,
+  });
+  const durable = await findStoredGenerationResult("show-notes", idempotencyKey, req.userId!);
+  if (durable && typeof durable["notes"] === "object" && durable["notes"] !== null) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < SHOW_NOTES_COST) {
     res.status(402).json({
@@ -142,7 +166,7 @@ router.post("/show-notes", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, SHOW_NOTES_COST, {
       action: "Show Notes",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -167,17 +191,24 @@ router.post("/show-notes", requireAuth, async (req, res) => {
     req.log.info("[show-notes] generating notes");
     const notes = await generateNotes(episodeTitle, transcriptText, timedSegments, context);
 
-    res.json({
+    const body = {
       episodeTitle,
       notes,
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("show-notes", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Show notes generation failed.";
     req.log.error({ err: message }, "[show-notes] failed");
-    await refundCredits(req.userId!, SHOW_NOTES_COST, {
+    /* CA-5: a landed refund also VOIDS the charge key. */
+    const refunded = await refundCredits(req.userId!, SHOW_NOTES_COST, {
       action: "Show Notes — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(500).json({ error: message });
   }
 });

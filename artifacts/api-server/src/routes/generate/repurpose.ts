@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { randomUUID } from "crypto";
-import { promises as fs, createWriteStream } from "fs";
+import { randomUUID, createHash } from "crypto";
+import { promises as fs, createWriteStream, createReadStream } from "fs";
 import { pipeline } from "stream/promises";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -19,7 +19,31 @@ import {
   refundCredits,
   OutOfCreditsError,
   LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived keys for the four repurposer charges. */
+const REPLAY_NOTE_ANALYZE =
+  "This is the repurpose pack you already made for this video — a different video makes a fresh pack.";
+const REPLAY_NOTE_TEXT =
+  "This is the text pack you already made for this content — change the source or tone for a fresh one.";
+const REPLAY_NOTE_REROLL =
+  "This is the same re-roll you already got for this request — shown again free, not a new roll.";
+const REPLAY_NOTE_THUMB =
+  "This is the thumbnail you already made for this prompt — tweak the prompt for a fresh one.";
+
+/* Streaming sha256 of an uploaded file's bytes — the file-defined ask's
+   fingerprint (thumbnail-generator precedent), without buffering the file. */
+async function hashFileBytes(path: string): Promise<string> {
+  const hash = createHash("sha256");
+  await pipeline(createReadStream(path), hash);
+  return hash.digest("hex");
+}
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -580,6 +604,32 @@ router.post(
     }
     const { videoUrl, attribution } = parsed.data;
 
+    /* CA-5: durable replay pre-check BEFORE any download, transcription or
+       funding — an identical re-ask returns the pack already made, free.
+       The ask is defined by the video itself: the uploaded bytes (hashed)
+       or the source URL, plus the attribution choice baked into the clips. */
+    let fileBytesHash: string | null = null;
+    if (req.file) {
+      try {
+        fileBytesHash = await hashFileBytes(req.file.path);
+      } catch {
+        res.status(500).json({ error: "Could not read the uploaded video." });
+        return;
+      }
+      const uploadedPath = req.file.path;
+      res.once("close", () => { void fs.unlink(uploadedPath).catch(() => {}); });
+    }
+    const idempotencyKey = buildChargeIdempotencyKey("repurpose-analyze", req.userId!, null, {
+      videoUrl: videoUrl ?? null,
+      fileBytesHash,
+      attribution: attribution ?? null,
+    });
+    const durablePack = await findStoredGenerationResult("repurpose-analyze", idempotencyKey, req.userId!);
+    if (durablePack && typeof durablePack["clipJobId"] === "string") {
+      res.json({ ...durablePack, replayed: true, replayNote: REPLAY_NOTE_ANALYZE });
+      return;
+    }
+
     let videoPath: string | null = null;
     let originalName = "video.mp4";
     if (req.file) {
@@ -641,7 +691,7 @@ router.post(
     try {
       creditsRemaining = await chargeCredits(req.userId!, REPURPOSE_PACK_CREDITS, {
         action: "Content Repurposer — full repurpose pack",
-      });
+      }, { idempotencyKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -658,12 +708,18 @@ router.post(
     }
 
     const refundAndFail = async (status: number, error: string, message?: string) => {
+      /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+      let refunded = true;
       try {
         await refundCredits(req.userId!, REPURPOSE_PACK_CREDITS, {
           action: "Content Repurposer — Refund (pack failed)",
         });
       } catch {
+        refunded = false;
         /* refund logged inside refundCredits */
+      }
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
       }
       res.status(status).json({ error, ...(message ? { message } : {}) });
     };
@@ -728,7 +784,7 @@ router.post(
       void runClipJob(clipJob, videoRef);
       void runThumbnailJob(thumbJob);
 
-      res.json({
+      const body = {
         videoRef,
         durationSec: Math.round(durationSec),
         transcript,
@@ -744,7 +800,12 @@ router.post(
         thumbnailJobId: thumbJob.id,
         creditsUsed: REPURPOSE_PACK_CREDITS,
         creditsRemaining,
-      });
+      };
+      /* Persist BEFORE answering (fail-open inside the helper) — the stored
+         body carries the SAME job ids, so a replay rejoins the same jobs
+         instead of minting a second pair. */
+      await storeGenerationResult("repurpose-analyze", idempotencyKey, req.userId!, { ...body });
+      res.json(body);
     } catch (err) {
       if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
         logger.warn({ err }, "[repurpose] provider rate limit");
@@ -811,6 +872,19 @@ router.post("/repurpose", requireAuth, publicApiLimiter, async (req: Request, re
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the text pack already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("repurpose-text", req.userId!, null, {
+    videoUrl: parsed.data.videoUrl ?? null,
+    transcript: parsed.data.transcript ?? null,
+    tone: parsed.data.tone,
+  });
+  const durableText = await findStoredGenerationResult("repurpose-text", idempotencyKey, req.userId!);
+  if (durableText && Array.isArray(durableText["twitterThread"])) {
+    res.json({ ...durableText, replayed: true, replayNote: REPLAY_NOTE_TEXT });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < REPURPOSE_TEXT_CREDITS) {
     res.status(402).json({
@@ -823,7 +897,7 @@ router.post("/repurpose", requireAuth, publicApiLimiter, async (req: Request, re
   try {
     creditsRemaining = await chargeCredits(req.userId!, REPURPOSE_TEXT_CREDITS, {
       action: "Content Repurposer — 5-platform text pack",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -840,11 +914,16 @@ router.post("/repurpose", requireAuth, publicApiLimiter, async (req: Request, re
   }
 
   const refundAndFail = async (status: number, error: string, message?: string) => {
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let refunded = true;
     try {
       await refundCredits(req.userId!, REPURPOSE_TEXT_CREDITS, {
         action: "Content Repurposer — Refund (text pack failed)",
       });
-    } catch { /* refund logged inside refundCredits */ }
+    } catch { refunded = false; /* refund logged inside refundCredits */ }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(status).json({ error, ...(message ? { message } : {}) });
   };
 
@@ -899,7 +978,7 @@ router.post("/repurpose", requireAuth, publicApiLimiter, async (req: Request, re
       return;
     }
 
-    res.json({
+    const body = {
       twitterThread: validated.data.twitterThread,
       linkedinPost: validated.data.linkedinPost,
       instagramCaption: validated.data.instagramCaption,
@@ -907,7 +986,10 @@ router.post("/repurpose", requireAuth, publicApiLimiter, async (req: Request, re
       blogOutline: validated.data.blogOutline,
       creditsUsed: REPURPOSE_TEXT_CREDITS,
       creditsRemaining,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("repurpose-text", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[repurpose] text pack — provider rate limit");
@@ -954,6 +1036,19 @@ router.post("/repurpose/reroll", requireAuth, publicApiLimiter, async (req: Requ
   const { transcript, kind } = parsed.data;
   const durationSec = Number(req.body?.durationSec) > 0 ? Number(req.body.durationSec) : 0;
 
+  /* CA-5: durable replay pre-check BEFORE funding — a replayed request
+     returns the roll already made instead of charging for a second one. */
+  const idempotencyKey = buildChargeIdempotencyKey("repurpose-reroll", req.userId!, null, {
+    transcript,
+    kind,
+    durationSec,
+  });
+  const durableRoll = await findStoredGenerationResult("repurpose-reroll", idempotencyKey, req.userId!);
+  if (durableRoll && typeof durableRoll["kind"] === "string" && "result" in durableRoll) {
+    res.json({ ...durableRoll, replayed: true, replayNote: REPLAY_NOTE_REROLL });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < REPURPOSE_REROLL_CREDITS) {
     res.status(402).json({
@@ -966,7 +1061,7 @@ router.post("/repurpose/reroll", requireAuth, publicApiLimiter, async (req: Requ
   try {
     creditsRemaining = await chargeCredits(req.userId!, REPURPOSE_REROLL_CREDITS, {
       action: `Content Repurposer — re-roll ${kind}`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -992,22 +1087,29 @@ router.post("/repurpose/reroll", requireAuth, publicApiLimiter, async (req: Requ
     );
     const out = parseReroll(raw, kind, durationSec);
     if (out === null) {
-      try {
-        await refundCredits(req.userId!, REPURPOSE_REROLL_CREDITS, {
-          action: "Content Repurposer — Refund (re-roll failed)",
-        });
-      } catch { /* logged inside */ }
+      /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+      const refunded = await refundCredits(req.userId!, REPURPOSE_REROLL_CREDITS, {
+        action: "Content Repurposer — Refund (re-roll failed)",
+      }).then(() => true).catch(() => false);
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+      }
       res.status(502).json({ error: "REROLL_FAILED", message: "The re-roll came back empty — you were not charged." });
       return;
     }
-    res.json({ kind, result: out, creditsUsed: REPURPOSE_REROLL_CREDITS, creditsRemaining });
+    const body = { kind, result: out, creditsUsed: REPURPOSE_REROLL_CREDITS, creditsRemaining };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("repurpose-reroll", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     logger.error({ err }, "[repurpose] re-roll failed");
-    try {
-      await refundCredits(req.userId!, REPURPOSE_REROLL_CREDITS, {
-        action: "Content Repurposer — Refund (re-roll failed)",
-      });
-    } catch { /* logged inside */ }
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    const refunded = await refundCredits(req.userId!, REPURPOSE_REROLL_CREDITS, {
+      action: "Content Repurposer — Refund (re-roll failed)",
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(502).json({ error: "REROLL_FAILED", message: "Re-roll failed — you were not charged." });
   }
 });
@@ -1024,6 +1126,17 @@ router.post("/repurpose/reroll-thumbnail", requireAuth, publicApiLimiter, async 
   }
   const { prompt } = parsed.data;
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the thumbnail already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("repurpose-reroll-thumbnail", req.userId!, null, {
+    prompt,
+  });
+  const durableThumb = await findStoredGenerationResult("repurpose-reroll-thumbnail", idempotencyKey, req.userId!);
+  if (durableThumb && typeof durableThumb["imageUrl"] === "string") {
+    res.json({ ...durableThumb, replayed: true, replayNote: REPLAY_NOTE_THUMB });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < REPURPOSE_REROLL_CREDITS) {
     res.status(402).json({
@@ -1036,7 +1149,7 @@ router.post("/repurpose/reroll-thumbnail", requireAuth, publicApiLimiter, async 
   try {
     creditsRemaining = await chargeCredits(req.userId!, REPURPOSE_REROLL_CREDITS, {
       action: "Content Repurposer — re-roll thumbnail",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -1064,19 +1177,24 @@ router.post("/repurpose/reroll-thumbnail", requireAuth, publicApiLimiter, async 
     if (!b64) throw new Error("Image generation returned no image data");
     const filePath = `${req.userId}/repurpose/reroll-${randomUUID()}.png`;
     const publicUrl = await r2Upload(filePath, Buffer.from(b64, "base64"), "image/png");
-    res.json({
+    const body = {
       imageUrl: publicUrl,
       imageRef: filePath,
       creditsUsed: REPURPOSE_REROLL_CREDITS,
       creditsRemaining,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("repurpose-reroll-thumbnail", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     logger.error({ err }, "[repurpose] thumbnail re-roll failed");
-    try {
-      await refundCredits(req.userId!, REPURPOSE_REROLL_CREDITS, {
-        action: "Content Repurposer — Refund (thumbnail re-roll failed)",
-      });
-    } catch { /* logged inside */ }
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    const refunded = await refundCredits(req.userId!, REPURPOSE_REROLL_CREDITS, {
+      action: "Content Repurposer — Refund (thumbnail re-roll failed)",
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(502).json({ error: "THUMBNAIL_FAILED", message: "Thumbnail re-roll failed — you were not charged." });
   }
 });

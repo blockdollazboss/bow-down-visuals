@@ -4,7 +4,21 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the sponsor-read charge. */
+const REPLAY_NOTE =
+  "This is the sponsor read you already wrote for this brand — change the brand, length or talking points for a fresh one.";
 
 const router = Router();
 
@@ -94,6 +108,21 @@ router.post("/sponsor-read", requireAuth, publicApiLimiter, async (req, res) => 
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the read already written, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("sponsor-read", req.userId!, null, {
+    ...parsed.data,
+  });
+  const durable = await findStoredGenerationResult("sponsor-read", idempotencyKey, req.userId!);
+  if (
+    durable &&
+    typeof durable["read"] === "object" &&
+    durable["read"] !== null
+  ) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < SPONSOR_READ_CREDIT_COST) {
     res.status(402).json({
@@ -106,7 +135,7 @@ router.post("/sponsor-read", requireAuth, publicApiLimiter, async (req, res) => 
   try {
     creditsRemaining = await chargeCredits(req.userId!, SPONSOR_READ_CREDIT_COST, {
       action: "Sponsor Read",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -119,12 +148,18 @@ router.post("/sponsor-read", requireAuth, publicApiLimiter, async (req, res) => 
   }
 
   async function refund() {
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let refunded = true;
     try {
       await refundCredits(req.userId!, SPONSOR_READ_CREDIT_COST, {
         action: "Sponsor Read — Refund (generation failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       void refundErr; // logged inside refundCredits; don't mask the original failure
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }
   }
 
@@ -177,7 +212,10 @@ router.post("/sponsor-read", requireAuth, publicApiLimiter, async (req, res) => 
     }
 
     /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
-    res.json({ read, creditsUsed: SPONSOR_READ_CREDIT_COST, creditsRemaining });
+    const body = { read, creditsUsed: SPONSOR_READ_CREDIT_COST, creditsRemaining };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("sponsor-read", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     await refund();
     logger.error({ err }, "sponsor-read: generation failed, Visual Bucs refunded");

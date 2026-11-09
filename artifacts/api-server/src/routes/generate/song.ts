@@ -5,7 +5,22 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreation } from "../../lib/retention";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the Make-a-Song charge. */
+const REPLAY_NOTE =
+  "This is the song package you already made for this request — change the title, topic or length for a fresh one.";
 import { isAdminRequest } from "../../lib/admin";
 import {
   creditCostForLength,
@@ -217,6 +232,19 @@ router.post("/generate-song", requireAuth, async (req, res) => {
     throw pricingErr;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the song package already made, free. The intent carries the
+     whole validated request (including the length fields that pick the
+     price tier), so different tiers never share a key. */
+  const idempotencyKey = buildChargeIdempotencyKey("song", req.userId!, null, {
+    ...parsed.data,
+  });
+  const durable = await findStoredGenerationResult("song", idempotencyKey, req.userId!);
+  if (durable && typeof durable["result"] === "string" && durable["result"] !== "") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
 
   if (process.env["NODE_ENV"] === "development") {
@@ -241,7 +269,7 @@ router.post("/generate-song", requireAuth, async (req, res) => {
      all but the first charge failed. Same price, same action. */
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Make a Song" });
+    creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Make a Song" }, { idempotencyKey });
   } catch (deductErr) {
     if (deductErr instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -261,7 +289,16 @@ router.post("/generate-song", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    await refundCredits(req.userId!, creditCost, { action: "Make a Song — Refund" }).catch(() => {});
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let refunded = true;
+    try {
+      await refundCredits(req.userId!, creditCost, { action: "Make a Song — Refund" });
+    } catch {
+      refunded = false;
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
   };
 
   const isExplicit = explicit?.toLowerCase() === "explicit";
@@ -360,7 +397,12 @@ Write 5 ready-to-post captions for social media — mix of hype, storytelling, a
     // Step 3: Fire-and-forget — mark charged (usage already logged by chargeCredits)
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
-    res.json({ result: content, creditsRemaining: creditsAfter, creditsUsed: creditCost, genHistoryId });
+    const body = { result: content, creditsRemaining: creditsAfter, creditsUsed: creditCost, genHistoryId };
+    /* Persist BEFORE answering (fail-open inside the helper) — the stored
+       body carries the SAME genHistoryId, so a replay returns the same
+       history row's package instead of writing a second one. */
+    await storeGenerationResult("song", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
     // Retention hook: counts as a creation day + feeds the song quest.
     void recordCreation(req.userId!, "song");
   } catch (err: unknown) {

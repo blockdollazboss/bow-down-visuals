@@ -9,7 +9,21 @@ import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clie
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the AI message charge. */
+const REPLAY_NOTE =
+  "This is the message you already drafted for this request — tweak the notes for a fresh one.";
 /* Delivery videos reuse the self-healing generated-clips bucket. Write-time:
    normalizeToStorageRef persists the stable ref; read-time:
    refreshSupabaseStorageUrl mints a fresh 1-day signed URL. */
@@ -895,6 +909,19 @@ router.post("/shoutouts/ai-message", requireAuth, publicApiLimiter, async (req, 
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the draft already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("shoutouts-ai-message", req.userId!, null, {
+    occasion: parsed.data.occasion,
+    notes: parsed.data.notes,
+    creatorName: parsed.data.creatorName,
+  });
+  const durable = await findStoredGenerationResult("shoutouts-ai-message", idempotencyKey, req.userId!);
+  if (durable && typeof durable["message"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < SHOUTOUT_AI_CREDITS) {
     res.status(402).json({
@@ -907,7 +934,7 @@ router.post("/shoutouts/ai-message", requireAuth, publicApiLimiter, async (req, 
   try {
     creditsRemaining = await chargeCredits(req.userId!, SHOUTOUT_AI_CREDITS, {
       action: "Fan Shoutouts AI Message",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -960,12 +987,19 @@ router.post("/shoutouts/ai-message", requireAuth, publicApiLimiter, async (req, 
       throw new Error("Model returned no usable message");
     }
 
-    res.json({ message, creditsUsed: SHOUTOUT_AI_CREDITS, creditsRemaining });
+    const body = { message, creditsUsed: SHOUTOUT_AI_CREDITS, creditsRemaining };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("shoutouts-ai-message", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
-    /* Provider failure after charging → refund, then report. */
-    await refundCredits(req.userId!, SHOUTOUT_AI_CREDITS, {
+    /* Provider failure after charging → refund, then report.
+       CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    const refunded = await refundCredits(req.userId!, SHOUTOUT_AI_CREDITS, {
       action: "Fan Shoutouts AI Message — Refund (provider failed)",
-    });
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[shoutouts] OpenAI rate limit / quota");
       res.status(503).json({ error: "The writer is catching its breath — try again in a moment." });

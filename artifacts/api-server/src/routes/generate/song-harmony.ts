@@ -32,7 +32,27 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY, Pattern D): this rail renders + uploads + writes
+   history BEFORE charging, so the replay pre-check sits AT THE CHARGE
+   POINT (right after the history write), keyed on the delivered
+   artifact's defining inputs — a hit serves the stored body (with the
+   history row's identity) without charging OR inserting a second
+   library row. */
+const REPLAY_NOTE =
+  "This is the harmony mix you already made for this song and style — change the song, style or mix level for a fresh one.";
 import { db, songsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import {
@@ -45,7 +65,7 @@ import { promisify } from "util";
 import { writeFile, readFile, mkdtemp, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 
 const execFileAsync = promisify(execFile);
 const router = Router();
@@ -508,10 +528,34 @@ router.post("/generate-harmony", requireAuth, async (req, res) => {
         return;
       }
 
+      // ── CA-5 Pattern D: the replay pre-check sits HERE, at the charge
+      //    point — this rail did all its paid work above (render, upload,
+      //    history), and a stored hit answers without charging and
+      //    without inserting a second library row. The key derives from
+      //    the delivered artifact's defining inputs (source bytes +
+      //    resolved mode + style + mix level + key hint). ──
+      const idempotencyKey = buildChargeIdempotencyKey("song-harmony", req.userId!, null, {
+        sourceBytesHash: createHash("sha256").update(sourceBuffer).digest("hex"),
+        songId: songId ?? null,
+        harmonyMode,
+        style,
+        mixLevel,
+        keyHint: keyHint ?? null,
+      });
+      const durable = await findStoredGenerationResult("song-harmony", idempotencyKey, req.userId!);
+      if (
+        durable &&
+        typeof durable["song"] === "object" &&
+        durable["song"] !== null
+      ) {
+        res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+        return;
+      }
+
       // ── Step 2: charge. Every failure from here on refunds. ──
       let creditsAfter: number;
       try {
-        creditsAfter = await chargeCredits(req.userId!, charge, { action: "Harmony Generator" });
+        creditsAfter = await chargeCredits(req.userId!, charge, { action: "Harmony Generator" }, { idempotencyKey });
       } catch (deductErr) {
         if (deductErr instanceof OutOfCreditsError) {
           res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -540,7 +584,7 @@ router.post("/generate-harmony", requireAuth, async (req, res) => {
 
         markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
-        res.json({
+        const body = {
           song: {
             id: song!.id,
             title: song!.title,
@@ -559,14 +603,24 @@ router.post("/generate-harmony", requireAuth, async (req, res) => {
           durationMs,
           creditsRemaining: creditsAfter,
           genHistoryId,
-        });
+        };
+        /* Persist BEFORE answering (fail-open inside the helper) — the
+           stored body carries the library row + history identities. */
+        await storeGenerationResult("song-harmony", idempotencyKey, req.userId!, { ...body });
+        res.json(body);
       } catch (err) {
         // Post-charge failure: auto-refund, then fail loudly.
+        // CA-5: a landed refund also VOIDS the charge's idempotency key.
         req.log.error({ err }, "song-harmony: library save failed, refunding");
+        let refunded = true;
         try {
           await refundCredits(req.userId!, charge, { action: "Harmony Generator — Refund" });
         } catch (refundErr) {
+          refunded = false;
           req.log.error({ err: refundErr }, "song-harmony: refund failed");
+        }
+        if (refunded) {
+          await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
         }
         res.status(500).json({ error: "Could not save the harmony mix to your library. Your Visual Bucs were refunded." });
       }

@@ -9,7 +9,17 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the sound-match charge. */
+const REPLAY_NOTE =
+  "These are the sound matches you already got for this idea — change the idea, niche or platform for a fresh set.";
 
 const router = Router();
 
@@ -247,6 +257,19 @@ router.post("/sound-finder/match", requireAuth, publicApiLimiter, async (req, re
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the matches already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("sound-finder", req.userId!, null, {
+    videoIdea: parsed.data.videoIdea,
+    niche: parsed.data.niche,
+    platform: parsed.data.platform,
+  });
+  const durable = await findStoredGenerationResult("sound-finder", idempotencyKey, req.userId!);
+  if (durable && Array.isArray(durable["matches"])) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < SOUND_MATCH_CREDITS) {
     res.status(402).json({
@@ -259,7 +282,7 @@ router.post("/sound-finder/match", requireAuth, publicApiLimiter, async (req, re
   try {
     creditsRemaining = await chargeCredits(req.userId!, SOUND_MATCH_CREDITS, {
       action: "Viral Sound Match",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -272,13 +295,19 @@ router.post("/sound-finder/match", requireAuth, publicApiLimiter, async (req, re
   }
 
   async function refundAndFail(status: number, message: string) {
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let refunded = true;
     try {
       await refundCredits(req.userId!, SOUND_MATCH_CREDITS, {
         action: "Viral Sound Match — Refund (match failed)",
       });
       creditsRemaining = balance;
     } catch (refundErr) {
+      refunded = false;
       logger.error({ refundErr, userId: req.userId }, "[sound-finder] refund failed after match failure");
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }
     res.status(status).json({ error: message, creditsRemaining });
   }
@@ -353,13 +382,16 @@ router.post("/sound-finder/match", requireAuth, publicApiLimiter, async (req, re
       return;
     }
 
-    res.json({
+    const body = {
       matches,
       creditsUsed: SOUND_MATCH_CREDITS,
       creditsRemaining,
       disclaimer:
         "AI suggestions based on sound-type trends — not a virality guarantee. Check each sound's current usage on-platform before posting.",
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("sound-finder", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[sound-finder] OpenAI rate limit / quota");

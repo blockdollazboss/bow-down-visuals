@@ -2,7 +2,22 @@ import { randomUUID } from "crypto";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the conversion charge. */
+const REPLAY_NOTE =
+  "This conversion is already on its way for this request — this is the same job, not a new charge.";
 import {
   singingVoiceConfigured,
   SINGING_VOICE_PLACEHOLDER_CATALOG,
@@ -38,6 +53,12 @@ interface SingingJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /* CA-5: the charge's idempotency key + the exact 202 body answered at
+     creation. The body is stored durably ONLY when the conversion
+     completes — a failed conversion refunds + voids and must never
+     leave a stored body behind for its key. */
+  chargeKey?: string;
+  chargeBody?: Record<string, unknown>;
 }
 
 const jobs = new Map<string, SingingJob>();
@@ -96,6 +117,32 @@ router.post("/singing-voice", requireAuth, async (req: Request, res: Response) =
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the job already started instead of minting (and charging for)
+     a second conversion. */
+  const idempotencyKey = buildChargeIdempotencyKey("singing-voice", req.userId!, null, {
+    voiceId: parsed.data.voiceId,
+    sourceAudioUrl: parsed.data.sourceAudioUrl,
+    strength: parsed.data.strength ?? null,
+    keepInstrumental: parsed.data.keepInstrumental ?? null,
+  });
+  const durable = await findStoredGenerationResult("singing-voice", idempotencyKey, req.userId!);
+  if (durable && typeof durable["jobId"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+  /* CA-5: a conversion for this exact request is already running (or
+     finished in this process) — rejoin it instead of charging for a
+     second one. Failed jobs are skipped: they refunded + voided, so a
+     re-ask falls through and charges fresh. */
+  const existingJob = [...jobs.values()].find(
+    (j) => j.chargeKey === idempotencyKey && j.userId === req.userId! && j.status !== "failed",
+  );
+  if (existingJob?.chargeBody) {
+    res.json({ ...existingJob.chargeBody, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < SINGING_VOICE_CREDIT_COST) {
     res.status(402).json({
@@ -111,7 +158,7 @@ router.post("/singing-voice", requireAuth, async (req: Request, res: Response) =
   try {
     creditsRemaining = await chargeCredits(req.userId!, SINGING_VOICE_CREDIT_COST, {
       action: "Singing-Voice Conversion",
-    });
+    }, { idempotencyKey });
   } catch (e) {
     if (e instanceof OutOfCreditsError) {
       res.status(402).json({ error: "OUT_OF_CREDITS", message: e.message });
@@ -124,6 +171,7 @@ router.post("/singing-voice", requireAuth, async (req: Request, res: Response) =
     throw e;
   }
 
+  const body = { jobId: "", status: "queued", creditsRemaining };
   const job: SingingJob = {
     id: randomUUID(),
     userId: req.userId!,
@@ -134,7 +182,10 @@ router.post("/singing-voice", requireAuth, async (req: Request, res: Response) =
     error: null,
     creditsCharged: SINGING_VOICE_CREDIT_COST,
     createdAt: Date.now(),
+    chargeKey: idempotencyKey,
+    chargeBody: body,
   };
+  body.jobId = job.id;
   jobs.set(job.id, job);
 
   // Fire-and-forget: the provider conversion is stubbed until approved.
@@ -150,20 +201,39 @@ router.post("/singing-voice", requireAuth, async (req: Request, res: Response) =
       });
       job.status = result.status === "done" ? "done" : "processing";
       job.outputUrl = result.audioUrl ?? null;
+      /* CA-5: persist the creation body ONLY now that the conversion
+         actually landed — a replay from here on rejoins this job free.
+         A failed conversion stores nothing, so its refunded + voided
+         key re-asks fresh. */
+      if (job.status === "done" && job.chargeKey && job.chargeBody) {
+        await storeGenerationResult("singing-voice", job.chargeKey, job.userId, { ...job.chargeBody });
+      }
     } catch (err) {
       job.status = "failed";
       job.error = err instanceof Error ? err.message : "Singing-voice conversion failed";
+      /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+      let refunded = true;
       try {
         await refundCredits(job.userId, job.creditsCharged, {
           action: "Singing-Voice Conversion — Refund (job failed)",
         });
       } catch {
+        refunded = false;
         /* logged inside refundCredits */
+      }
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
       }
     }
   })();
 
-  res.status(202).json({ jobId: job.id, status: job.status, creditsRemaining });
+  /* The body is stored durably by the conversion closure when the job
+     lands — not here — so a failed conversion never leaves a stored
+     body behind for its refunded + voided key. The body's status field
+     keeps the creation value "queued" (byte-identical to the pre-CA-5
+     answer); the closure has usually already flipped job.status to
+     "processing" by the time this line runs. */
+  res.status(202).json(body);
 });
 
 /**

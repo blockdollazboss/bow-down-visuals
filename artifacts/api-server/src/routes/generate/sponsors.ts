@@ -9,7 +9,19 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, canUseCredits, OutOfCreditsError, CreditsDisabledError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  canUseCredits,
+  OutOfCreditsError,
+  CreditsDisabledError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../../lib/stripe-client";
 import { checkoutBaseUrl } from "../../lib/stripe-checkout";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
@@ -115,6 +127,18 @@ export const SPONSOR_AI_CREDIT_COST =
   Number(process.env["SPONSOR_AI_CREDIT_COST"]) || 100;
 
 const MAX_ACTIVE_DEALS_FOR_MATCH = 20;
+
+/* CA-5 (EXPOSED-REPLAY): one replay note per sponsors rail. A replayed
+   request returns the stored body verbatim beside these lines — the client
+   sees it was NOT charged again and did NOT create a second deal/pitch. */
+const REPLAY_NOTE_DEAL_POST =
+  "This is the deal you already posted with these details — edit a detail to post a different one.";
+const REPLAY_NOTE_PITCH =
+  "This is the pitch you already had written for this deal — change your details for a fresh one.";
+const REPLAY_NOTE_MATCH =
+  "These are the matches you already got for this profile — the list of live deals may have changed since.";
+const REPLAY_NOTE_FOLLOWUP =
+  "This is the follow-up draft you already got for this deal — the draft you send is unchanged.";
 
 export const dealSchema = z.object({
   brandName:    z.string().min(1, "Brand name is required.").max(120),
@@ -265,11 +289,27 @@ router.post("/sponsors/deals", requireAuth, publicApiLimiter, async (req, res) =
     return;
   }
 
+  /* CA-5 Pattern C: the stored result carries the created deal's id, so a
+     replay returns THE deal already posted — no second charge AND no
+     second sponsor_deals row. Pre-check BEFORE funding. */
+  const idempotencyKey = buildChargeIdempotencyKey("sponsors-deal-post", req.userId!, null, {
+    ...parsed.data,
+  });
+  const durable = await findStoredGenerationResult("sponsors-deal-post", idempotencyKey, req.userId!);
+  if (
+    durable &&
+    typeof durable["deal"] === "object" &&
+    durable["deal"] !== null
+  ) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE_DEAL_POST });
+    return;
+  }
+
   let creditsRemaining: number;
   try {
     creditsRemaining = await chargeCredits(req.userId!, SPONSOR_POST_CREDIT_COST, {
       action: "Sponsor Deal Posting",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -298,12 +338,26 @@ router.post("/sponsors/deals", requireAuth, publicApiLimiter, async (req, res) =
                 description, deadline, posted_by, status, created_at
     `);
     const deal = toDealDto(result.rows[0] as unknown as DealRow);
-    res.json({ deal, creditsUsed: SPONSOR_POST_CREDIT_COST, creditsRemaining });
+    const body = { deal, creditsUsed: SPONSOR_POST_CREDIT_COST, creditsRemaining };
+    /* Persist BEFORE answering (fail-open inside the helper) — the stored
+       body carries the deal row's identity, so a replay returns it
+       verbatim instead of inserting a duplicate deal. */
+    await storeGenerationResult("sponsors-deal-post", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     logger.error({ err }, "[sponsors] failed to store deal — refunding");
-    await refundCredits(req.userId!, SPONSOR_POST_CREDIT_COST, {
-      action: "Sponsor Deal Posting — Refund (save failed)",
-    });
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let refunded = true;
+    try {
+      await refundCredits(req.userId!, SPONSOR_POST_CREDIT_COST, {
+        action: "Sponsor Deal Posting — Refund (save failed)",
+      });
+    } catch {
+      refunded = false;
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(500).json({ error: "Could not post your deal — Visual Bucs refunded, try again." });
   }
 });
@@ -386,11 +440,34 @@ router.post("/sponsors/pitch", requireAuth, publicApiLimiter, async (req, res) =
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the pitch already written, free. */
+  const pitchKey = buildChargeIdempotencyKey("sponsors-pitch", req.userId!, null, {
+    ...parsed.data,
+  });
+  const pitchStored = await findStoredGenerationResult("sponsors-pitch", pitchKey, req.userId!);
+  if (pitchStored && typeof pitchStored["pitch"] === "string" && pitchStored["pitch"] !== "") {
+    res.json({ ...pitchStored, replayed: true, replayNote: REPLAY_NOTE_PITCH });
+    return;
+  }
+  /* CA-5: every refund on this rail also VOIDS the charge's key. */
+  const pitchRefund = async (action: string) => {
+    let refunded = true;
+    try {
+      await refundCredits(req.userId!, SPONSOR_AI_CREDIT_COST, { action });
+    } catch {
+      refunded = false;
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(pitchKey).catch(() => false);
+    }
+  };
+
   let creditsRemaining: number;
   try {
     creditsRemaining = await chargeCredits(req.userId!, SPONSOR_AI_CREDIT_COST, {
       action: "Sponsor AI Pitch Writer",
-    });
+    }, { idempotencyKey: pitchKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -410,9 +487,7 @@ router.post("/sponsors/pitch", requireAuth, publicApiLimiter, async (req, res) =
   try {
     const deal = await findActiveDeal(p.dealId);
     if (!deal) {
-      await refundCredits(req.userId!, SPONSOR_AI_CREDIT_COST, {
-        action: "Sponsor AI Pitch Writer — Refund (deal inactive)",
-      });
+      await pitchRefund("Sponsor AI Pitch Writer — Refund (deal inactive)");
       res.status(404).json({ error: "That deal is no longer active — Visual Buc refunded." });
       return;
     }
@@ -474,12 +549,13 @@ router.post("/sponsors/pitch", requireAuth, publicApiLimiter, async (req, res) =
       throw new Error("Model returned no usable pitch");
     }
 
-    res.json({ pitch, subject, creditsUsed: SPONSOR_AI_CREDIT_COST, creditsRemaining });
+    const pitchBody = { pitch, subject, creditsUsed: SPONSOR_AI_CREDIT_COST, creditsRemaining };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("sponsors-pitch", pitchKey, req.userId!, { ...pitchBody });
+    res.json(pitchBody);
   } catch (err) {
     logger.error({ err }, "[sponsors] pitch writer failed — refunding");
-    await refundCredits(req.userId!, SPONSOR_AI_CREDIT_COST, {
-      action: "Sponsor AI Pitch Writer — Refund (provider failed)",
-    });
+    await pitchRefund("Sponsor AI Pitch Writer — Refund (provider failed)");
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       res.status(503).json({ error: "The pitch writer is catching its breath — try again in a moment." });
       return;
@@ -497,11 +573,34 @@ router.post("/sponsors/match", requireAuth, publicApiLimiter, async (req, res) =
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the matches already computed, free. */
+  const matchKey = buildChargeIdempotencyKey("sponsors-match", req.userId!, null, {
+    ...parsed.data,
+  });
+  const matchStored = await findStoredGenerationResult("sponsors-match", matchKey, req.userId!);
+  if (matchStored && Array.isArray(matchStored["matches"])) {
+    res.json({ ...matchStored, replayed: true, replayNote: REPLAY_NOTE_MATCH });
+    return;
+  }
+  /* CA-5: every refund on this rail also VOIDS the charge's key. */
+  const matchRefund = async (action: string) => {
+    let refunded = true;
+    try {
+      await refundCredits(req.userId!, SPONSOR_AI_CREDIT_COST, { action });
+    } catch {
+      refunded = false;
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(matchKey).catch(() => false);
+    }
+  };
+
   let creditsRemaining: number;
   try {
     creditsRemaining = await chargeCredits(req.userId!, SPONSOR_AI_CREDIT_COST, {
       action: "Sponsor AI Deal Matcher",
-    });
+    }, { idempotencyKey: matchKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -530,9 +629,7 @@ router.post("/sponsors/match", requireAuth, publicApiLimiter, async (req, res) =
     const deals = result.rows as unknown as DealRow[];
 
     if (deals.length === 0) {
-      await refundCredits(req.userId!, SPONSOR_AI_CREDIT_COST, {
-        action: "Sponsor AI Deal Matcher — Refund (no deals)",
-      });
+      await matchRefund("Sponsor AI Deal Matcher — Refund (no deals)");
       res.json({
         matches: [],
         note: "No active deals right now — check back soon.",
@@ -611,12 +708,13 @@ router.post("/sponsors/match", requireAuth, publicApiLimiter, async (req, res) =
       throw new Error("Model returned no usable matches");
     }
 
-    res.json({ matches, note, creditsUsed: SPONSOR_AI_CREDIT_COST, creditsRemaining });
+    const matchBody = { matches, note, creditsUsed: SPONSOR_AI_CREDIT_COST, creditsRemaining };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("sponsors-match", matchKey, req.userId!, { ...matchBody });
+    res.json(matchBody);
   } catch (err) {
     logger.error({ err }, "[sponsors] deal matcher failed — refunding");
-    await refundCredits(req.userId!, SPONSOR_AI_CREDIT_COST, {
-      action: "Sponsor AI Deal Matcher — Refund (provider failed)",
-    });
+    await matchRefund("Sponsor AI Deal Matcher — Refund (provider failed)");
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       res.status(503).json({ error: "The matcher is catching its breath — try again in a moment." });
       return;
@@ -2240,6 +2338,20 @@ router.post("/sponsors/pipeline/followup", requireAuth, publicApiLimiter, async 
   }
   if (pipelineOpenAiUnavailable(res)) return;
 
+  /* CA-5: durable replay pre-check BEFORE funding — the stored body also
+     carries the follow-up timestamp, so a replay leaves
+     last_followup_at exactly as the first draft set it (no re-draft AND
+     no re-stamp). The intent is the request alone; the draft itself is a
+     function of the deal row it names. */
+  const followupKey = buildChargeIdempotencyKey("sponsors-followup", req.userId!, null, {
+    ...parsed.data,
+  });
+  const followupStored = await findStoredGenerationResult("sponsors-followup", followupKey, req.userId!);
+  if (followupStored && typeof followupStored["subject"] === "string") {
+    res.json({ ...followupStored, replayed: true, replayNote: REPLAY_NOTE_FOLLOWUP });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < SPONSOR_FOLLOWUP_CREDIT_COST) {
     res.status(402).json({
@@ -2252,7 +2364,7 @@ router.post("/sponsors/pipeline/followup", requireAuth, publicApiLimiter, async 
   try {
     creditsRemaining = await chargeCredits(req.userId!, SPONSOR_FOLLOWUP_CREDIT_COST, {
       action: "Sponsor Follow-up Draft",
-    });
+    }, { idempotencyKey: followupKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -2338,25 +2450,34 @@ router.post("/sponsors/pipeline/followup", requireAuth, publicApiLimiter, async 
       .where(and(eq(wave8SponsorDealsTable.id, deal.id), eq(wave8SponsorDealsTable.user_id, req.userId!)))
       .returning();
 
-    res.json({
+    const followupBody = {
       subject,
       body,
       lastFollowupAt: updated?.last_followup_at ?? new Date().toISOString(),
       creditsUsed: SPONSOR_FOLLOWUP_CREDIT_COST,
       creditsRemaining,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("sponsors-followup", followupKey, req.userId!, { ...followupBody });
+    res.json(followupBody);
   } catch (err) {
     /* The charge was taken before the model call — give it back so a
-       provider failure never costs the creator. */
+       provider failure never costs the creator. CA-5: a LANDED refund
+       also VOIDS the charge's idempotency key. */
+    let followupRefunded = true;
     try {
       await refundCredits(req.userId!, SPONSOR_FOLLOWUP_CREDIT_COST, {
         action: "Sponsor Follow-up Draft — Refund (draft failed)",
       });
     } catch (refundErr) {
+      followupRefunded = false;
       logger.error(
         { err: refundErr, userId: req.userId },
         "[sponsors-pipeline] refund failed after follow-up draft failure",
       );
+    }
+    if (followupRefunded) {
+      await voidChargeIdempotencyKey(followupKey).catch(() => false);
     }
     const status = (err as { status?: number }).status;
     if (status === 404) {

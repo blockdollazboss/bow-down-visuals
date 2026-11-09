@@ -9,7 +9,17 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the style-stealer charge. */
+const REPLAY_NOTE =
+  "This is the style analysis you already got for this video — change the video or description for a fresh one.";
 
 /* ─── Style Stealer ───────────────────────────────────────────────────────
    /api/style-stealer/analyze — 200 credits: the creator pastes a URL and
@@ -142,13 +152,19 @@ function parseApplyHints(raw: unknown): ApplyHints {
   return hints;
 }
 
-async function refundOnFailure(userId: string, amount: number, label: string) {
+async function refundOnFailure(userId: string, amount: number, label: string, idempotencyKey?: string) {
+  /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+  let refunded = true;
   try {
     await refundCredits(userId, amount, {
       action: `${label} — Refund (generation failed)`,
     });
   } catch (refundErr) {
+    refunded = false;
     logger.error({ err: refundErr, userId }, "[style-stealer] refund failed after generation error");
+  }
+  if (refunded && idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
   }
 }
 
@@ -166,6 +182,21 @@ router.post("/style-stealer/analyze", requireAuth, publicApiLimiter, async (req,
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the analysis already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("style-stealer", req.userId!, null, {
+    ...parsed.data,
+  });
+  const durable = await findStoredGenerationResult("style-stealer", idempotencyKey, req.userId!);
+  if (
+    durable &&
+    typeof durable["formula"] === "object" &&
+    durable["formula"] !== null
+  ) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < ANALYZE_CREDITS) {
     res.status(402).json({
@@ -176,7 +207,7 @@ router.post("/style-stealer/analyze", requireAuth, publicApiLimiter, async (req,
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, ANALYZE_CREDITS, { action: "Style Stealer — Analyze" });
+    creditsRemaining = await chargeCredits(req.userId!, ANALYZE_CREDITS, { action: "Style Stealer — Analyze" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -271,15 +302,18 @@ router.post("/style-stealer/analyze", requireAuth, publicApiLimiter, async (req,
       throw new Error("Model returned no usable style analysis");
     }
 
-    res.json({
+    const body = {
       formula,
       editRecipe: { name: recipeName, steps: recipeSteps },
       applyHints,
       creditsUsed: ANALYZE_CREDITS,
       creditsRemaining,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("style-stealer", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
-    await refundOnFailure(req.userId!, ANALYZE_CREDITS, "Style Stealer — Analyze");
+    await refundOnFailure(req.userId!, ANALYZE_CREDITS, "Style Stealer — Analyze", idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[style-stealer] OpenAI rate limit / quota");
       res.status(503).json({ error: "The style stealer is catching its breath — try again in a moment." });

@@ -7,7 +7,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the split-screen charge. */
+const REPLAY_NOTE =
+  "This render is already on its way for this request — this is the same job, not a new charge.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -97,6 +111,13 @@ type SplitScreenJobState = "queued" | "active" | "done" | "failed";
 interface SplitScreenJob {
   id: string;
   userId: string;
+  /* CA-5: the charge's idempotency key, so the detached render's refund
+     can void it (a refunded job must not replay as a stored result). */
+  chargeKey?: string;
+  /* CA-5: the exact 202 body answered at creation. Stored durably ONLY
+     when the render completes (renderSplitScreen) — a failed render
+     refunds + voids and must never leave a stored body behind. */
+  chargeBody?: Record<string, unknown>;
   state: SplitScreenJobState;
   stage: string;
   progress: number;
@@ -397,21 +418,32 @@ async function renderSplitScreen(job: SplitScreenJob, input: ApplyInput): Promis
       layout: input.layout,
     };
     setProgress(job, "done", 100);
+    /* CA-5: persist the creation body ONLY now that the render actually
+       landed — a replay from here on rejoins this job free. A failed
+       render stores nothing, so its refunded + voided key re-asks fresh. */
+    if (job.chargeKey && job.chargeBody) {
+      await storeGenerationResult("split-screen", job.chargeKey, job.userId, { ...job.chargeBody });
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Split-screen render failed.";
     logger.error({ err: message, layout: input.layout }, "[split-screen] render failed");
     job.state = "failed";
     job.error = message;
     setProgress(job, "failed", 100);
-    /* Auto-refund: the user paid for a video they didn't get. */
-    await refundCredits(job.userId, SPLIT_SCREEN_COST, {
+    /* Auto-refund: the user paid for a video they didn't get.
+       CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    const refunded = await refundCredits(job.userId, SPLIT_SCREEN_COST, {
       action: "Split-Screen Grid — Refund",
-    }).catch((refundErr) => {
+    }).then(() => true).catch((refundErr) => {
       logger.error(
         { err: refundErr instanceof Error ? refundErr.message : refundErr },
         "[split-screen] refund failed",
       );
+      return false;
     });
+    if (refunded && job.chargeKey) {
+      await voidChargeIdempotencyKey(job.chargeKey).catch(() => false);
+    }
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
@@ -490,6 +522,29 @@ router.post("/split-screen/apply", requireAuth, async (req, res) => {
     }
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the job already started instead of minting (and charging for)
+     a second render. Intent = the render inputs (the ledger `title` label
+     does not change the render, so it is not part of the key). */
+  const { title: _title, ...renderIntent } = parsed.data;
+  const idempotencyKey = buildChargeIdempotencyKey("split-screen", req.userId!, null, renderIntent);
+  const durable = await findStoredGenerationResult("split-screen", idempotencyKey, req.userId!);
+  if (durable && typeof durable["jobId"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+  /* CA-5: a render for these exact inputs is already queued/running (or
+     finished in this process) — rejoin it instead of charging for a
+     second one. Failed jobs are skipped: they refunded + voided, so a
+     re-ask falls through and charges fresh. */
+  const existingJob = [...jobs.values()].find(
+    (j) => j.chargeKey === idempotencyKey && j.userId === req.userId! && j.state !== "failed",
+  );
+  if (existingJob?.chargeBody) {
+    res.json({ ...existingJob.chargeBody, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   /* 402 pre-check before charging */
   if ((req.userCredits ?? 0) < SPLIT_SCREEN_COST) {
     res.status(402).json({
@@ -503,7 +558,7 @@ router.post("/split-screen/apply", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, SPLIT_SCREEN_COST, {
       action: `Split-Screen Grid (${parsed.data.layout})`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -512,14 +567,23 @@ router.post("/split-screen/apply", requireAuth, async (req, res) => {
     throw err;
   }
 
+  const body = {
+    jobId: "",
+    state: "queued",
+    price: SPLIT_SCREEN_COST,
+    creditsRemaining: creditsAfter,
+  };
   const job: SplitScreenJob = {
     id: randomUUID(),
     userId: req.userId!,
+    chargeKey: idempotencyKey,
+    chargeBody: body,
     state: "queued",
     stage: "queued",
     progress: 0,
     createdAt: Date.now(),
   };
+  body.jobId = job.id;
   jobs.set(job.id, job);
 
   const input: ApplyInput = {
@@ -533,12 +597,10 @@ router.post("/split-screen/apply", requireAuth, async (req, res) => {
   renderQueue.push(() => renderSplitScreen(job, input));
   pumpQueue();
 
-  res.status(202).json({
-    jobId: job.id,
-    state: job.state,
-    price: SPLIT_SCREEN_COST,
-    creditsRemaining: creditsAfter,
-  });
+  /* The body is stored durably by renderSplitScreen when the render
+     lands — not here — so a failed render never leaves a stored body
+     behind for its refunded + voided key. */
+  res.status(202).json(body);
 });
 
 router.get("/split-screen/job/:jobId", requireAuth, (req, res) => {

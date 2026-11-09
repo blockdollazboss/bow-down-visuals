@@ -5,7 +5,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the storyboard charge. */
+const REPLAY_NOTE =
+  "This is the storyboard you already made for this script — change the script, style or title for a fresh one.";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import {
   uploadMediaToSupabaseStorage,
@@ -136,6 +150,17 @@ router.post("/storyboard", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the storyboard already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("storyboard", req.userId!, null, {
+    ...parsed.data,
+  });
+  const durable = await findStoredGenerationResult("storyboard", idempotencyKey, req.userId!);
+  if (durable && Array.isArray(durable["shots"])) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < STORYBOARD_COST) {
     res.status(402).json({
@@ -149,7 +174,7 @@ router.post("/storyboard", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, STORYBOARD_COST, {
       action: "Storyboard",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -247,19 +272,31 @@ router.post("/storyboard", requireAuth, async (req, res) => {
       });
     }
 
-    res.json({
+    const body = {
       title: title ?? null,
       style: chosen.id,
       shots: results,
       totalDurationSec: elapsedSec,
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("storyboard", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Storyboard generation failed.";
     req.log.error({ err: message }, "[storyboard] failed");
-    await refundCredits(req.userId!, STORYBOARD_COST, {
-      action: "Storyboard — Refund",
-    }).catch(() => {});
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let refunded = true;
+    try {
+      await refundCredits(req.userId!, STORYBOARD_COST, {
+        action: "Storyboard — Refund",
+      });
+    } catch {
+      refunded = false;
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(500).json({ error: message });
   } finally {
     const { rm } = await import("fs/promises");

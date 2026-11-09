@@ -5,7 +5,23 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived keys for the finder + pitch charges. */
+const REPLAY_NOTE =
+  "These are the opportunities you already found for this search — change the location, genre or filters for a fresh hunt.";
+const REPLAY_NOTE_PITCH =
+  "This is the pitch you already drafted for this opportunity — tweak the details for a fresh one.";
 
 const router = Router();
 
@@ -116,6 +132,7 @@ async function preCharge(
   cost: number,
   action: string,
   res: Response,
+  idempotencyKey?: string,
 ): Promise<number | null> {
   const balance = req.userCredits ?? 0;
   if (balance < cost) {
@@ -123,7 +140,7 @@ async function preCharge(
     return null;
   }
   try {
-    return await chargeCredits(req.userId!, cost, { action });
+    return await chargeCredits(req.userId!, cost, { action }, idempotencyKey ? { idempotencyKey } : undefined);
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to keep hunting." });
@@ -133,11 +150,17 @@ async function preCharge(
   }
 }
 
-async function refund(userId: string, cost: number, action: string) {
+async function refund(userId: string, cost: number, action: string, idempotencyKey?: string) {
+  /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+  let refunded = true;
   try {
     await refundCredits(userId, cost, { action: `${action} — Refund (generation failed)` });
   } catch (refundErr) {
+    refunded = false;
     void refundErr; // logged inside refundCredits; don't mask the original failure
+  }
+  if (refunded && idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
   }
 }
 
@@ -159,7 +182,22 @@ router.post("/show-finder", requireAuth, publicApiLimiter, async (req, res) => {
     return;
   }
 
-  const creditsRemaining = await preCharge(req, SHOW_FINDER_CREDIT_COST, "Show Finder", res);
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the results already found, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("show-finder", req.userId!, null, {
+    location: parsed.data.location,
+    genre: parsed.data.genre,
+    opportunityTypes: parsed.data.opportunityTypes,
+    dateWindow: parsed.data.dateWindow,
+    artistBio: parsed.data.artistBio,
+  });
+  const durable = await findStoredGenerationResult("show-finder", idempotencyKey, req.userId!);
+  if (durable && Array.isArray(durable["opportunities"])) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const creditsRemaining = await preCharge(req, SHOW_FINDER_CREDIT_COST, "Show Finder", res, idempotencyKey);
   if (creditsRemaining === null) return;
 
   const d = parsed.data;
@@ -209,7 +247,7 @@ router.post("/show-finder", requireAuth, publicApiLimiter, async (req, res) => {
     const raw = completion.choices[0]?.message?.content ?? "";
     const opportunities = parseOpportunities(raw);
     if (opportunities.length === 0) {
-      await refund(req.userId!, SHOW_FINDER_CREDIT_COST, "Show Finder");
+      await refund(req.userId!, SHOW_FINDER_CREDIT_COST, "Show Finder", idempotencyKey);
       res.status(502).json({
         error: "generation_failed",
         message: "The scout came back empty — your Visual Bucs were refunded. Try broadening the filters.",
@@ -218,19 +256,22 @@ router.post("/show-finder", requireAuth, publicApiLimiter, async (req, res) => {
     }
 
     /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
-    res.json({
+    const body = {
       opportunities,
       disclaimer: VERIFY_DISCLAIMER,
       creditsUsed: SHOW_FINDER_CREDIT_COST,
       creditsRemaining,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("show-finder", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[show-finder] OpenAI rate limit / quota");
       res.status(503).json({ error: "The scout is catching its breath — try again in a moment." });
       return;
     }
-    await refund(req.userId!, SHOW_FINDER_CREDIT_COST, "Show Finder");
+    await refund(req.userId!, SHOW_FINDER_CREDIT_COST, "Show Finder", idempotencyKey);
     logger.error({ err }, "[show-finder] generation failed, Visual Bucs refunded");
     res.status(502).json({ error: "The scout hiccupped — Visual Bucs refunded, try again." });
   }
@@ -249,7 +290,28 @@ router.post("/show-finder/pitch", requireAuth, publicApiLimiter, async (req, res
     return;
   }
 
-  const creditsRemaining = await preCharge(req, SHOW_FINDER_PITCH_CREDIT_COST, "Show Finder Pitch", res);
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the pitch already drafted, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("show-finder-pitch", req.userId!, null, {
+    opportunityTitle: parsed.data.opportunityTitle,
+    opportunityType: parsed.data.opportunityType,
+    organizer: parsed.data.organizer,
+    creatorName: parsed.data.creatorName,
+    genre: parsed.data.genre,
+    artistBio: parsed.data.artistBio,
+    location: parsed.data.location,
+  });
+  const durablePitch = await findStoredGenerationResult("show-finder-pitch", idempotencyKey, req.userId!);
+  if (
+    durablePitch &&
+    typeof durablePitch["pitch"] === "object" &&
+    durablePitch["pitch"] !== null
+  ) {
+    res.json({ ...durablePitch, replayed: true, replayNote: REPLAY_NOTE_PITCH });
+    return;
+  }
+
+  const creditsRemaining = await preCharge(req, SHOW_FINDER_PITCH_CREDIT_COST, "Show Finder Pitch", res, idempotencyKey);
   if (creditsRemaining === null) return;
 
   try {
@@ -305,7 +367,7 @@ router.post("/show-finder/pitch", requireAuth, publicApiLimiter, async (req, res
       /* fall through to the empty check below */
     }
     if (!pitch.subject || !pitch.body) {
-      await refund(req.userId!, SHOW_FINDER_PITCH_CREDIT_COST, "Show Finder Pitch");
+      await refund(req.userId!, SHOW_FINDER_PITCH_CREDIT_COST, "Show Finder Pitch", idempotencyKey);
       res.status(502).json({
         error: "generation_failed",
         message: "The pitch came back unusable — your Visual Buc was refunded. Try again.",
@@ -314,14 +376,17 @@ router.post("/show-finder/pitch", requireAuth, publicApiLimiter, async (req, res
     }
 
     /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
-    res.json({ pitch, tips, creditsUsed: SHOW_FINDER_PITCH_CREDIT_COST, creditsRemaining });
+    const body = { pitch, tips, creditsUsed: SHOW_FINDER_PITCH_CREDIT_COST, creditsRemaining };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("show-finder-pitch", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[show-finder/pitch] OpenAI rate limit / quota");
       res.status(503).json({ error: "The writer is catching its breath — try again in a moment." });
       return;
     }
-    await refund(req.userId!, SHOW_FINDER_PITCH_CREDIT_COST, "Show Finder Pitch");
+    await refund(req.userId!, SHOW_FINDER_PITCH_CREDIT_COST, "Show Finder Pitch", idempotencyKey);
     logger.error({ err }, "[show-finder/pitch] generation failed, Visual Bucs refunded");
     res.status(502).json({ error: "The writer hiccupped — Visual Buc refunded, try again." });
   }

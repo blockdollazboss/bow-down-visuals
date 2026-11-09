@@ -5,7 +5,14 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5: replay note served with a stored result (C-36 honesty). */
+const REPLAY_NOTE = "This is the setlist flow you already got for these songs — change the songs or notes for a fresh one.";
 
 /* ─── Setlist Builder — AI flow suggestions ──────────────────────────────────
    The builder itself (add songs, reorder, timing) is pure UI and free —
@@ -133,6 +140,20 @@ router.post("/setlist/flow", requireAuth, publicApiLimiter, async (req, res) => 
   }
   const { songs, showNotes } = parsed.data;
 
+  /* CA-5 (house stored-result pattern): server-derived key from the
+     song list + notes; stored-result pre-check BEFORE funding — a
+     replay is served from the durable table (migration 0333), never
+     re-charged, never re-flowed. Fail-open. */
+  const idempotencyKey = buildChargeIdempotencyKey("setlist", req.userId!, null, {
+    songs,
+    showNotes,
+  });
+  const durable = await findStoredGenerationResult("setlist", idempotencyKey, req.userId!);
+  if (durable && Array.isArray(durable["order"])) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < SETLIST_FLOW_CREDIT_COST) {
     res.status(402).json({
@@ -145,7 +166,7 @@ router.post("/setlist/flow", requireAuth, publicApiLimiter, async (req, res) => 
   try {
     creditsRemaining = await chargeCredits(req.userId!, SETLIST_FLOW_CREDIT_COST, {
       action: "AI Setlist Flow",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -158,12 +179,18 @@ router.post("/setlist/flow", requireAuth, publicApiLimiter, async (req, res) => 
   }
 
   async function refund() {
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    let refunded = true;
     try {
       await refundCredits(req.userId!, SETLIST_FLOW_CREDIT_COST, {
         action: "AI Setlist Flow — Refund (generation failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       void refundErr; // logged inside refundCredits; don't mask the original failure
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }
   }
 
@@ -196,12 +223,15 @@ router.post("/setlist/flow", requireAuth, publicApiLimiter, async (req, res) => 
       return;
     }
 
-    res.json({
+    const body = {
       order: flow.order,
       flowNotes: flow.flowNotes,
       creditsUsed: SETLIST_FLOW_CREDIT_COST,
       creditsRemaining,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("setlist", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     await refund();
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
