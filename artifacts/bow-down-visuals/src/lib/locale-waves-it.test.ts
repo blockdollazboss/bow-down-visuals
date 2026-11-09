@@ -821,6 +821,10 @@ const W5_LEGIT: string[] = [
   "streamPack.theme.desert-dune.blurb",
   "streamPack.theme.midnight-jazz.name",
   "streamPack.theme.midnight-jazz.blurb", "streamPack.theme.rose-velvet.name", "streamPack.theme.rose-velvet.blurb", "streamPack.theme.obsidian-chrome.name", "streamPack.theme.obsidian-chrome.blurb", "streamPack.catalogError",
+  "streamPack.theme.brass-industrial.name",
+  "streamPack.theme.brass-industrial.blurb",
+  "streamPack.theme.sakura-soft.name",
+  "streamPack.theme.sakura-soft.blurb",
 ];
 describe("it W5 namespaces (Stack-28 appendix)", () => {
   const r = checkWave(W5_NAMESPACES, [...W5_LEGIT]);

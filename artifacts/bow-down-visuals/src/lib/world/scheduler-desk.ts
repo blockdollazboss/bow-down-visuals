@@ -628,7 +628,6 @@ export function composeWhenForDay(date: string): string {
   return `${date}T12:00`;
 }
 
-||||||| 44426f660
 /* ─── Publish now (Stack-400 census B item B-12) ────────────────────
    The desk above handled accounts, auth and scheduling — publishing
    NOW had no in-World action: the four publish rails were only
@@ -909,7 +908,10 @@ export function classifySocialPublishResponse(
     const result = parseSocialPublishResult(data);
     return result ? { kind: "ok", result } : { kind: "failed", message: fallback };
   }
-  return { kind: "failed", message: str(d.message) ?? fallback };/* ─── Stack 400 · census B-19 — Content Calendar Auto-Fill ────
+  return { kind: "failed", message: str(d.message) ?? fallback };
+}
+
+/* ─── Stack 400 · census B-19 — Content Calendar Auto-Fill ────
    The Wave8 single rail that belongs to this desk's family
    (manifest lane s400-world-wave8, joining AFTER the social
    publish section above): the Calendar Auto-Fill bench

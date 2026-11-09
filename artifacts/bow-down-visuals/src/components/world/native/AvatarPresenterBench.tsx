@@ -132,7 +132,7 @@ export function AvatarPresenterBench({ isLight }: { isLight: boolean }) {
             return;
           }
           if (outcome === "failed") {
-            setError(view.error ?? t("worldAvatarPresenterBench.jobFailed"));
+            setError(t("worldAvatarPresenterBench.jobFailed"));
             setRun("failed");
             refreshProfile();
             return;

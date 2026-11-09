@@ -101,7 +101,7 @@ describe("StationPanel.tsx — census-31 structure (source pins)", () => {
     expect(panelSource).toContain("{boundedBody}");
   });
 
-  it("every DeskDoor in the Community Hall + native-stacks regions rides its own PanelBoundary (54 desks)", () => {
+  it("every DeskDoor in the Community Hall + native-stacks regions rides its own PanelBoundary (57 desks)", () => {
     /* 46 at the D5 lane; JOIN12: the four Stack-200 World-parity
        desks (Trend Radar bench, Remix feed, Repurpose, Video
        Studio) joined the same regions, each riding its own
@@ -112,14 +112,17 @@ describe("StationPanel.tsx — census-31 structure (source pins)", () => {
        duplicated the Create desk's render site into two
        branches — the honest count was 53. Stack 400 (B-08):
        the Chat Speak bench joined the board on its own
-       resetKey — the honest count is 54. (The B-06 Avatar
+       resetKey — the honest count was 54. (The B-06 Avatar
        Presenter bench rides a suffixed resetKey in the
-       create-pattern chain, outside this count's pattern.) */
+       create-pattern chain, outside this count's pattern.)
+       JOIN15: three more Stack 400 mounts ride the same pattern —
+       one from world-social-business and two from world-wave9 —
+       the honest joined count is 57. */
     expect(
       panelSource.match(
         /<PanelBoundary isLight=\{isLight\} resetKey=\{station\.id\}><DeskDoor isLight=\{isLight\}>/g,
       ) ?? [],
-    ).toHaveLength(54);
+    ).toHaveLength(57);
   });
 
   it("NowPlayingCard is wrapped in its own boundary", () => {

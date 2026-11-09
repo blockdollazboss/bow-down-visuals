@@ -445,11 +445,13 @@ export function SponsorReadBench({ isLight }: { isLight: boolean }) {
               onChange={(e) => setPointDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPoint(); } }}
               placeholder={t("outreach.sponsorReadPointsPlaceholder")}
+              aria-label={t("outreach.sponsorReadPointsLabel")}
               className={`min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm outline-none transition ${isLight ? "border-[#C9A84C]/50 bg-white/70 text-[#2a1e07] placeholder:text-[#6B5B36]/60 focus:border-[#C9A84C]" : "border-white/15 bg-white/5 text-white placeholder:text-white/35 focus:border-[#d4af37]/60"}`}
             />
             <button
               type="button"
               onClick={addPoint}
+              aria-label={t("outreach.sponsorReadPointsLabel")}
               disabled={keyPoints.length >= SPONSOR_READ_MAX_POINTS}
               className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#d4af37]/50 px-3 py-2 text-xs font-bold text-[#d4af37] transition hover:bg-[#d4af37]/10 disabled:opacity-50 bdv-touch-target"
             >
@@ -721,6 +723,7 @@ export function InvoiceBench({ isLight }: { isLight: boolean }) {
                   value={it.description}
                   onChange={(e) => updateItem(i, { description: e.target.value })}
                   placeholder={t("outreach.invoice.descPlaceholder")}
+                  aria-label={t("outreach.invoice.descPlaceholder")}
                   className={`${fieldCls} min-w-0 flex-1`}
                 />
                 <input

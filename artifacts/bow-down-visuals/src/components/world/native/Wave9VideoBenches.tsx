@@ -177,6 +177,7 @@ export function Wave9BeatsBench({ isLight }: { isLight: boolean }) {
                 key={i}
                 type="button"
                 onClick={() => setKept((prev) => prev.map((k, j) => (j === i ? !k : k)))}
+                aria-pressed={!!kept[i]}
                 className={`rounded-full border px-2 py-0.5 text-[11px] font-bold bdv-touch-target ${
                   kept[i]
                     ? isLight

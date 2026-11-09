@@ -252,7 +252,6 @@ const CommentToVideoBench = lazy(() => import("@/components/world/native/Comment
 const LyricStoriesBench = lazy(() => import("@/components/world/native/LyricStoriesBench").then((m) => ({ default: m.LyricStoriesBench })));
 const DreamCollabBench = lazy(() => import("@/components/world/native/DreamCollabBench").then((m) => ({ default: m.DreamCollabBench })));
 const LinkToHitBench = lazy(() => import("@/components/world/native/LinkToHitBench").then((m) => ({ default: m.LinkToHitBench })));
-||||||| 44426f660
 /* Stack 400 world parity (census B-06 + B-08): the Avatar
    Presenter bench inside the Video Desk stack, and the Chat
    Speak bench at the My Studio board (the in-World
@@ -282,7 +281,6 @@ const HighlightsBench = lazy(() => import("@/components/world/native/Wave8Repurp
 const AdLibBench = lazy(() => import("@/components/world/native/Wave8MusicBenches").then((m) => ({ default: m.AdLibBench })));
 const MediaKitBench = lazy(() => import("@/components/world/native/Wave8BusinessBenches").then((m) => ({ default: m.MediaKitBench })));
 const CalendarAutofillBench = lazy(() => import("@/components/world/native/Wave8BusinessBenches").then((m) => ({ default: m.CalendarAutofillBench })));
-||||||| 44426f660
 /* Stack 400 world parity (Lane B items 9, 10, 13, 14, 22):
    the Social Kit bench in the Post Office family, the Deal
    Matcher + Sponsor Read + Invoice + One-Sheet benches at the
@@ -1276,7 +1274,6 @@ export default function StationPanel(props: StationPanelProps) {
                   <PanelBoundary isLight={isLight} resetKey={`${station.id}:lyric-stories`}><DeskDoor isLight={isLight}>
                     <LyricStoriesBench isLight={isLight} />
                   </DeskDoor></PanelBoundary>
-||||||| 44426f660
                   {/* AI Interview (Stack 400 world parity,
                       census B-16): the /hooks page's interview
                       section — 5 sharp questions, then the

@@ -174,12 +174,16 @@ describe("loadBoardStatement — the statement view, ridden patiently", () => {
     });
     const stmt = await loadBoardStatement(boardDeps({ fetchFn }), 2026);
     expect(stmt.totalCents).toBe(7734);
-    /* The rows the board renders are the shared PDF lines. */
+    /* The rows the board renders are the shared PDF lines.
+       JOIN15: labels follow the Stack 400 earnings-labels lane
+       (A-05 single-sourcing) — the shop bucket carries its fuller
+       card title and brand deals names the escrow-released basis,
+       matching the row titles asserted above. */
     expect(statementLineRows(stmt).map((r) => r.label)).toEqual([
       "Store sales",
-      "Shop sales",
+      "Shop sales (profile store, shops, digital)",
       "Memberships",
-      "Brand deals",
+      "Brand deals (escrow released)",
       "Royalties (recorded)",
     ]);
     expect(fetchFn).toHaveBeenCalledTimes(1);

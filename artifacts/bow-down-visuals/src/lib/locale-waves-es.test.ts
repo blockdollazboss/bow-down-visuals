@@ -823,6 +823,10 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "extension.metaTitle",
   "extension.one_email_when_it_launches_no_sp",
   "extension.we_ll_email_you_the_install_link", "streamPack.theme.rose-velvet.name", "streamPack.theme.rose-velvet.blurb", "streamPack.theme.obsidian-chrome.name", "streamPack.theme.obsidian-chrome.blurb", "streamPack.catalogError",
+  "streamPack.theme.brass-industrial.name",
+  "streamPack.theme.brass-industrial.blurb",
+  "streamPack.theme.sakura-soft.name",
+  "streamPack.theme.sakura-soft.blurb",
 ]);
 describe("es W5 (Stack-28 appendix) — namespaces closed whole", () => {
   const keys = Object.keys(EN).filter((k) => W5_NAMESPACES.some((ns) => k === ns || k.startsWith(`${ns}.`)));
@@ -885,6 +889,7 @@ const W6_LEGIT = new Set([
   "coach.platformTikTok",
   "coach.platformYouTube",
   "coach.titleStart",
+  "command.brief_digest_note",
   "command.content_videos",
   "contentIntelligence.calendarFrom",
   "contentIntelligence.compUrlPlaceholder",

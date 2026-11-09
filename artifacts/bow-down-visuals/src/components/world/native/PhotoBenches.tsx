@@ -312,6 +312,7 @@ export function PhotoIntake({
           value={urlDraft}
           onChange={(e) => setUrlDraft(e.target.value)}
           placeholder={t("productPhotoStudio.pastePlaceholder")}
+          aria-label={t("productPhotoStudio.pastePlaceholder")}
           className={deskInputCls(isLight)}
         />
         <button
@@ -415,6 +416,7 @@ export function RemoveBackgroundBench({ isLight, photo }: { isLight: boolean; ph
               min={0}
               max={100}
               value={Math.round(aggressiveness * 100)}
+              aria-label={t("bgStudio.aggressiveness")}
               onChange={(e) => setAggressiveness(Number(e.target.value) / 100)}
               className="w-full accent-amber-400"
             />
@@ -913,6 +915,7 @@ export function PhotoEnhanceBench({ isLight, photo }: { isLight: boolean; photo:
                     min={0}
                     max={100}
                     value={strengths[op]}
+                    aria-label={t(`photoEnhance.ops.${op}`)}
                     onChange={(e) => setStrengths((prev) => ({ ...prev, [op]: Number(e.target.value) }))}
                     className="w-full accent-amber-400"
                   />
@@ -1250,6 +1253,7 @@ export function ProductPhotoBench({
         value={productName}
         onChange={(e) => setProductName(e.target.value)}
         placeholder={t("productPhotoStudio.namePlaceholder")}
+        aria-label={t("productPhotoStudio.namePlaceholder")}
         className={deskInputCls(isLight)}
       />
       <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>

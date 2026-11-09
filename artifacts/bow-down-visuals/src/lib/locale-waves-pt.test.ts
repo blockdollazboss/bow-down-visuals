@@ -841,6 +841,10 @@ const W5_LEGIT: ReadonlySet<string> = new Set([
   "extension.metaTitle",
   "extension.one_email_when_it_launches_no_sp",
   "extension.we_ll_email_you_the_install_link", "streamPack.theme.rose-velvet.name", "streamPack.theme.rose-velvet.blurb", "streamPack.theme.obsidian-chrome.name", "streamPack.theme.obsidian-chrome.blurb", "streamPack.catalogError",
+  "streamPack.theme.brass-industrial.name",
+  "streamPack.theme.brass-industrial.blurb",
+  "streamPack.theme.sakura-soft.name",
+  "streamPack.theme.sakura-soft.blurb",
 ]);
   waveSuite("W4", W4_NAMESPACES, W4_LEGIT);
   waveSuite("W6", W6_NAMESPACES, W6_LEGIT);

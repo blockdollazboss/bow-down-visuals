@@ -216,7 +216,7 @@ describe("E-2 stream-pack theme seam", () => {
       "utf8",
     );
     const entries = [...serverSrc.matchAll(/id: "([\w-]+)",\s*\n\s*name: "([^"]+)",\s*\n\s*blurb: "([^"]+)"/g)];
-    expect(entries.length).toBe(10);
+    expect(entries.length).toBe(12);
     for (const [, id, name, blurb] of entries) {
       expect(resolveKey(CATALOGS.en, `streamPack.theme.${id}.name`)).toBe(name);
       expect(resolveKey(CATALOGS.en, `streamPack.theme.${id}.blurb`)).toBe(blurb);

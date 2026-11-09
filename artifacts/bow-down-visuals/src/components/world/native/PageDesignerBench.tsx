@@ -503,6 +503,7 @@ export function PageDesignerBench({ isLight }: { isLight: boolean }) {
               onChange={(e) => setFacts(e.target.value)}
               rows={3}
               placeholder={t("worldPageDesigner.bioPlaceholder", { defaultValue: "A few facts — wins, style, what you're known for." })}
+              aria-label={t("worldPageDesigner.bioPlaceholder", { defaultValue: "A few facts — wins, style, what you're known for." })}
               className={deskInputCls(isLight)}
             />
             <button type="button" data-testid="world-page-designer-bio-run" onClick={() => void runBio()} disabled={bioBusy || !factsReady} className={goldBtn}>

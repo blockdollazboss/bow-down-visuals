@@ -23,7 +23,10 @@ import { describe, expect, it } from "vitest";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const feed = read("./FomoFeed.tsx");
-const loadAt = feed.indexOf("const loadFeed = useCallback(async () => {");
+/* JOIN15: the Stack 400 dashboard-retry lane (C-16) gave loadFeed a
+   firstLoad flag — the first load rides fetchWithRetry, polls stay
+   plain. The slice anchor follows the composed signature. */
+const loadAt = feed.indexOf("const loadFeed = useCallback(async (firstLoad = false) => {");
 const loader = feed.slice(loadAt, feed.indexOf("}, [authHeaders]);", loadAt));
 
 const LOCALES = ["en", "es", "fr", "de", "it", "pt", "ar", "hi", "ja", "ko"] as const;
