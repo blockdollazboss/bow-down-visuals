@@ -9,12 +9,18 @@ const artifactDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const publicDir = path.join(artifactDir, "dist", "public");
 
 /* Access lock-down (Lane 4, audit ~/workspace/access-lockdown/AUDIT.md
-   §1.4 / §4.6 / §5.1): prerender ONLY the static public set. The SEO /
-   marketing family (/pricing, /beta-access, /tools + /tools/*, /for +
-   /for/*, genre hubs) is LOCKED behind sign-in by the owner's ruling —
-   a prerendered page that bounces to /login is a soft-404 risk, so it
-   must not be generated at all. The matching sitemap trim lives in
-   public/sitemap.xml; both lists are pinned by
+   §1.4 / §4.6 / §5.1): this script prerenders ONLY the static public
+   set listed in ROUTES below — nothing else. In particular it must
+   NEVER generate the SEO / marketing family: /pricing, /beta-access,
+   /tools + /tools/*, /for + /for/* and the genre hubs are NOT
+   prerendered routes. That family is LOCKED behind sign-in by the
+   owner's ruling, and a prerendered page that bounces to /login is a
+   soft-404 risk, so no file for it may exist in the output at all.
+   (C-15, Stack 400: this header previously named the family in a way
+   that read as part of the prerender set — the lockdown census
+   flagged it as the lie the next SEO lane would rebuild from. The
+   family is named here only to be excluded.) The matching sitemap
+   trim lives in public/sitemap.xml; both lists are pinned by
    src/lib/prerender-sitemap-lockdown.test.ts. Parameterized routes get
    no invented entries, ever.
 

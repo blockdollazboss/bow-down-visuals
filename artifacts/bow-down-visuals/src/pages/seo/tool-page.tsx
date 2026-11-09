@@ -14,7 +14,10 @@ import { TOOL_PAGES, TOOL_PAGE_MAP, VERTICAL_HUBS, type ToolSeo } from "@/data/s
 
 /* ─── /tools/:tool — tool-category SEO page ("AI thumbnail maker", …) ─────
    Money pages: tool description, real template previews with deep-link CTAs,
-   FAQ schema, sibling links to every other tool page. No login required. */
+   FAQ schema, sibling links to every other tool page. Sign-in required:
+   every tool page is LOCKED in the route matrix (lib/public-routes.ts) —
+   members only; there is no guest view of this page. (C-15, Stack 400:
+   this header previously claimed the opposite.) */
 
 export function ToolSeoPage({ tool }: { tool: ToolSeo }) {
   const siblings = TOOL_PAGES.filter((t) => t.slug !== tool.slug).map((t) => ({

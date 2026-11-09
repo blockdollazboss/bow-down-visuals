@@ -13,7 +13,7 @@ import { TOOL_PAGES, VERTICAL_HUBS, GENRE_HUBS } from "@/data/seo-pages";
 const SITE = "https://bowdownvisuals.com";
 const TITLE = "AI Tools for Creators — Thumbnails, Hooks, Videos, Songs & More";
 const DESCRIPTION =
-  "Every AI tool on Bow Down Visuals: thumbnail maker, hook generator, caption writer, music video maker, clip cutter, and song maker. Free to browse.";
+  "Every AI tool on Bow Down Visuals: thumbnail maker, hook generator, caption writer, music video maker, clip cutter, and song maker. Members browse free.";
 
 /* ─── /tools — directory of every AI tool (SEO index page) ─────────────── */
 
@@ -43,7 +43,7 @@ export default function ToolsIndex() {
         h1Gold="Creators"
         intro={[
           "One connected toolkit for the entire creator workflow — from the first idea to the posted release. Every tool hands off to the next, so a song becomes a video, a video becomes clips, and clips become posts.",
-          "Browse everything free. Credits only apply when you generate.",
+          "Members browse everything free. Credits only apply when you generate.",
         ]}
         primaryCta={{ label: "Open the Thumbnail Maker", href: "/thumbnail-maker" }}
         secondaryCta={{ label: "See pricing", href: "/pricing" }}
@@ -91,7 +91,7 @@ export default function ToolsIndex() {
       />
 
       <SeoCtaBanner
-        heading="Start creating free"
+        heading="Start creating"
         blurb="Pick a tool, browse its templates, and generate your first asset. New accounts start with free trial credits."
         cta={{ label: "Get started", href: "/signup" }}
       />

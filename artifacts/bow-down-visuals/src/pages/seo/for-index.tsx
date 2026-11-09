@@ -92,7 +92,7 @@ export default function ForIndex() {
 
       <SeoCtaBanner
         heading="Find your unfair advantage"
-        blurb="Pick your lane, grab the workflow, and ship your next post today. Free to browse — credits only when you generate."
+        blurb="Pick your lane, grab the workflow, and ship your next post today. Members browse free — credits only when you generate."
         cta={{ label: "Get started", href: "/signup" }}
       />
     </SeoPageShell>

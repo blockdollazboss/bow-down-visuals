@@ -1,7 +1,12 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Redirect, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { resolveGateVerdict } from "@/lib/guest-gate-verdict";
+import {
+  holdGateVerdict,
+  resolveGateVerdict,
+  INITIAL_HELD_GATE_STATE,
+  type HeldGateState,
+} from "@/lib/guest-gate-verdict";
 import WittyLoader from "@/components/delight/witty-loader";
 
 /**
@@ -51,13 +56,38 @@ import WittyLoader from "@/components/delight/witty-loader";
  * SiteMode (creator custom domains) is structurally exempt: SiteModeGate
  * renders INSTEAD of AppShell on those hosts, and this gate lives only
  * inside AppShell — no gate logic belongs in SiteMode.
+ *
+ * C-14 (Stack 400): the verdict the component renders is the fresh
+ * verdict FOLDED through the gate's held memory (holdGateVerdict) —
+ * once a location's verdict has settled, an auth re-resolution holds
+ * it instead of dropping the tree back to the loader, which is what
+ * let mid-flip render passes fall through to the catch-all 404 on
+ * cold loads. The catch-all itself re-checks registered routes too
+ * (App.tsx's NotFound wrapper, same item).
  */
 export function GuestGate({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const [location] = useLocation();
   const search = useSearch();
 
-  const verdict = resolveGateVerdict(location, search, { user, loading });
+  /* C-14 (Stack 400): the gate remembers the last SETTLED verdict per
+     location and holds it through auth re-resolution (see
+     holdGateVerdict in lib/guest-gate-verdict.ts). Without the hold,
+     every auth-state flip during a slow cold load dropped the tree
+     back to the loader and re-judged from scratch, and a render pass
+     evaluated mid-flip could land on the router's catch-all 404 for a
+     page that exists. The state lives here; the folding rule is the
+     pure function, so the verdict-sequence test drives it directly.
+     (React's render-phase state adjustment: holdGateVerdict returns
+     the identical state object when nothing changed, so this setState
+     fires only on a genuine verdict change.) */
+  const [held, setHeld] = useState<HeldGateState>(INITIAL_HELD_GATE_STATE);
+  const fresh = resolveGateVerdict(location, search, { user, loading });
+  const folded = holdGateVerdict(held, location, fresh);
+  if (folded.state !== held) {
+    setHeld(folded.state);
+  }
+  const verdict = folded.verdict;
 
   if (verdict.kind === "loading") {
     return <WittyLoader />;
