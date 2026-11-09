@@ -7,7 +7,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5: replay note served with a stored result (C-36 honesty). */
+const REPLAY_NOTE = "This is the cleaned media you already made for this request — change the media or settings for a fresh one.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -40,6 +47,21 @@ router.post("/remove-silence", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-5 (house stored-result pattern): server-derived key from the
+     intent; stored-result pre-check BEFORE funding — a replay is
+     served from the durable table (migration 0333), never re-charged,
+     never re-processed. Fail-open. */
+  const idempotencyKey = buildChargeIdempotencyKey("silence-removal", req.userId!, null, {
+    mediaUrl: parsed.data.mediaUrl,
+    thresholdDb: parsed.data.thresholdDb,
+    minDuration: parsed.data.minDuration,
+  });
+  const durable = await findStoredGenerationResult("silence-removal", idempotencyKey, req.userId!);
+  if (durable && typeof durable["url"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < SILENCE_COST) {
     res.status(402).json({
@@ -53,7 +75,7 @@ router.post("/remove-silence", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, SILENCE_COST, {
       action: "Silence Removal",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -91,17 +113,24 @@ router.post("/remove-silence", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("silence-removal", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Silence removal failed.";
     req.log.error({ err: message }, "[remove-silence] failed");
-    await refundCredits(req.userId!, SILENCE_COST, {
+    /* CA-5: a landed refund also VOIDS the charge key. */
+    const refunded = await refundCredits(req.userId!, SILENCE_COST, {
       action: "Silence Removal — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(500).json({ error: message });
   } finally {
     await unlink(inputPath).catch(() => {});

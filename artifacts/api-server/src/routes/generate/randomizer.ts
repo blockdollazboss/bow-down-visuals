@@ -5,8 +5,15 @@ import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clie
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import { recordCreditUsage } from "../../lib/payment-record";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5: replay note served with a stored result (C-36 honesty). */
+const REPLAY_NOTE = "These are the ideas you already rolled for this request — pick a different category for a fresh roll.";
 
 const router = Router();
 
@@ -46,15 +53,22 @@ const CATEGORY_DIRECTION: Record<Category, string> = {
 
 /* The charge lands BEFORE the model call; any failure after it refunds
    the exact charged amount (D5 sweep G12 — the refundOnFailure pattern
-   from academy.ts). */
-async function refundOnFailure(userId: string): Promise<void> {
+   from academy.ts). CA-5: a landed refund also VOIDS the charge's
+   idempotency key, so the retry charges fresh instead of being
+   suppressed as a replay and running free. */
+async function refundOnFailure(userId: string, idempotencyKey?: string): Promise<void> {
+  let refunded = true;
   try {
     await refundCredits(userId, RANDOMIZER_CREDITS, {
       action: "Content Randomizer (AI) — Refund (generation failed)",
     });
   } catch (refundErr) {
+    refunded = false;
     /* Logged inside refundCredits; don't mask the original failure. */
     void refundErr;
+  }
+  if (refunded && idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
   }
 }
 
@@ -70,6 +84,19 @@ router.post("/randomizer", requireAuth, publicApiLimiter, async (req, res) => {
   }
   const { category } = parsed.data;
 
+  /* CA-5 (house stored-result pattern): one key per (member, intent).
+     The stored-result pre-check runs BEFORE any funding — a replay of
+     a landed roll is served from the durable table (migration 0333),
+     never re-charged and never re-rolled. Fail-open. */
+  const idempotencyKey = buildChargeIdempotencyKey("randomizer", req.userId!, null, {
+    category,
+  });
+  const durable = await findStoredGenerationResult("randomizer", idempotencyKey, req.userId!);
+  if (durable && Array.isArray(durable["ideas"])) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < RANDOMIZER_CREDITS) {
     res.status(402).json({
@@ -80,7 +107,7 @@ router.post("/randomizer", requireAuth, publicApiLimiter, async (req, res) => {
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, RANDOMIZER_CREDITS, { action: "Content Randomizer (AI)" });
+    creditsRemaining = await chargeCredits(req.userId!, RANDOMIZER_CREDITS, { action: "Content Randomizer (AI)" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -129,9 +156,13 @@ router.post("/randomizer", requireAuth, publicApiLimiter, async (req, res) => {
       throw new Error("Model returned no usable ideas");
     }
 
-    res.json({ ideas, creditsUsed: RANDOMIZER_CREDITS, creditsRemaining });
+    const body = { ideas, creditsUsed: RANDOMIZER_CREDITS, creditsRemaining };
+    /* Persist BEFORE answering: the row is what a replay is served
+       from. Fail-open inside the helper. */
+    await storeGenerationResult("randomizer", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
-    await refundOnFailure(req.userId!);
+    await refundOnFailure(req.userId!, idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err, category }, "[randomizer] OpenAI rate limit / quota");
       res.status(503).json({ error: "The idea machine is catching its breath — try rolling again in a moment." });

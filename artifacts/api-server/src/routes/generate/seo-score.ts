@@ -1,8 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import { getTextModel } from "../../lib/ai-clients";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5: replay note served with a stored result (C-36 honesty). */
+const REPLAY_NOTE = "This is the SEO score you already got for this exact video package — change the title or description for a fresh score.";
 
 const router = Router();
 
@@ -82,6 +89,24 @@ router.post("/seo-score", requireAuth, async (req, res) => {
     return;
   }
 
+  /* CA-5 (house stored-result pattern): server-derived key from the
+     full package intent; stored-result pre-check BEFORE funding — a
+     replay is served from the durable table (migration 0333), never
+     re-charged, never re-scored. Fail-open. */
+  const idempotencyKey = buildChargeIdempotencyKey("seo-score", req.userId!, null, {
+    title: parsed.data.title,
+    description: parsed.data.description,
+    tags: parsed.data.tags,
+    niche: parsed.data.niche,
+    hasChapters: parsed.data.hasChapters,
+    hasCaptions: parsed.data.hasCaptions,
+  });
+  const durable = await findStoredGenerationResult("seo-score", idempotencyKey, req.userId!);
+  if (durable && typeof durable["result"] === "object" && durable["result"] !== null) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < SEO_SCORE_COST) {
     res.status(402).json({
@@ -95,7 +120,7 @@ router.post("/seo-score", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, SEO_SCORE_COST, {
       action: "Video SEO Score",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -188,17 +213,24 @@ router.post("/seo-score", requireAuth, async (req, res) => {
         d.description.slice(0, 150),
     };
 
-    res.json({
+    const body = {
       result,
       creditsUsed: SEO_SCORE_COST,
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("seo-score", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "SEO score failed.";
     req.log.error({ err: message }, "[seo-score] failed");
-    await refundCredits(req.userId!, SEO_SCORE_COST, {
+    /* CA-5: a landed refund also VOIDS the charge key. */
+    const refunded = await refundCredits(req.userId!, SEO_SCORE_COST, {
       action: "Video SEO Score — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(500).json({ error: message });
   }
 });

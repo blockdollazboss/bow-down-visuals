@@ -9,7 +9,16 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5: replay note served with a stored result (C-36 honesty). */
+const REPLAY_NOTE = "This is the release plan you already made for this request — change the title or date for a fresh one.";
 
 const router = Router();
 
@@ -57,6 +66,22 @@ router.post("/release-checklist", requireAuth, publicApiLimiter, async (req, res
     return;
   }
 
+  /* CA-5 (house stored-result pattern): one key per (member, intent).
+     The stored-result pre-check runs BEFORE any funding — a replay of
+     a landed plan is served from the durable table (migration 0333),
+     never re-charged and never re-planned. Fail-open. */
+  const idempotencyKey = buildChargeIdempotencyKey("release-checklist", req.userId!, null, {
+    releaseType: parsed.data.releaseType,
+    title: parsed.data.title,
+    genre: parsed.data.genre,
+    releaseDate: parsed.data.releaseDate,
+  });
+  const durable = await findStoredGenerationResult("release-checklist", idempotencyKey, req.userId!);
+  if (durable && typeof durable["plan"] === "object" && durable["plan"] !== null) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < RELEASE_PLAN_CREDITS) {
     res.status(402).json({
@@ -69,7 +94,7 @@ router.post("/release-checklist", requireAuth, publicApiLimiter, async (req, res
   try {
     creditsRemaining = await chargeCredits(req.userId!, RELEASE_PLAN_CREDITS, {
       action: "Release Checklist",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -82,12 +107,19 @@ router.post("/release-checklist", requireAuth, publicApiLimiter, async (req, res
   }
 
   async function refund(reason: string) {
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key,
+       so the retry charges fresh instead of running free. */
+    let refunded = true;
     try {
       await refundCredits(req.userId!, RELEASE_PLAN_CREDITS, {
         action: "Release Checklist — Refund (generation failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       logger.error({ refundErr, reason }, "[release-checklist] refund failed");
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }
   }
 
@@ -182,11 +214,14 @@ router.post("/release-checklist", requireAuth, publicApiLimiter, async (req, res
       return;
     }
 
-    res.json({
+    const responseBody = {
       plan: { weeks, summary, preSaveTip },
       creditsUsed: RELEASE_PLAN_CREDITS,
       creditsRemaining,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("release-checklist", idempotencyKey, req.userId!, { ...responseBody });
+    res.json(responseBody);
   } catch (err) {
     await refund("provider failure");
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
