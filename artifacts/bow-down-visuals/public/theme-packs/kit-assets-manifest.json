@@ -4629,6 +4629,24 @@
    "sourceAsset": "appicon-logo-sapphire-marble-light.webp",
    "sourceSha256": "c1e95d4b36d14480bcfd36e6e6af7c8d301343e59cabd0174fe0bea2c27302c8",
    "sha256": "c1e95d4b36d14480bcfd36e6e6af7c8d301343e59cabd0174fe0bea2c27302c8"
+  },
+  {
+   "pack": "emerald-marble",
+   "icon": "app-icon",
+   "mode": "dark",
+   "path": "/theme-packs/app-icons/emerald-marble-dark.webp",
+   "sourceAsset": "appicon-logo-emerald-marble-dark.webp",
+   "sourceSha256": "f90f7602e4acad3c74cc4abf7e543831efdd9c66c0ae6fb40a6e8f2561972a0a",
+   "sha256": "f90f7602e4acad3c74cc4abf7e543831efdd9c66c0ae6fb40a6e8f2561972a0a"
+  },
+  {
+   "pack": "emerald-marble",
+   "icon": "app-icon",
+   "mode": "light",
+   "path": "/theme-packs/app-icons/emerald-marble-light.webp",
+   "sourceAsset": "appicon-logo-emerald-marble-light.webp",
+   "sourceSha256": "9f45474a4c3f0031b0a923fd0d564ae97caa790592a31e09888c23303e30d296",
+   "sha256": "9f45474a4c3f0031b0a923fd0d564ae97caa790592a31e09888c23303e30d296"
   }
  ],
  "deviceWallpapers": [
@@ -5051,6 +5069,66 @@
    "path": "/wallpapers/theme-packs/devices/sapphire-marble-light-desktop.webp",
    "sourceAsset": "sapphire-marble-light.webp",
    "sha256": "284747a46bc412a5d6310c55b1efd46e9e7895792a8f71acaf9b449e75b41daf"
+  },
+  {
+   "pack": "emerald-marble",
+   "mode": "dark",
+   "device": "phone",
+   "width": 1179,
+   "height": 2556,
+   "path": "/wallpapers/theme-packs/devices/emerald-marble-dark-phone.webp",
+   "sourceAsset": "emerald-marble-dark.webp",
+   "sha256": "176b04b42f3ce0f74d7f4cd012935293ff99a2a7507ff41839183533fc28bd72"
+  },
+  {
+   "pack": "emerald-marble",
+   "mode": "dark",
+   "device": "tablet",
+   "width": 1640,
+   "height": 2360,
+   "path": "/wallpapers/theme-packs/devices/emerald-marble-dark-tablet.webp",
+   "sourceAsset": "emerald-marble-dark.webp",
+   "sha256": "d815aff69bcd4de96ef9ea45297c02177bc2ec7397fe06a7425c3ea36f5724b8"
+  },
+  {
+   "pack": "emerald-marble",
+   "mode": "dark",
+   "device": "desktop",
+   "width": 1920,
+   "height": 1080,
+   "path": "/wallpapers/theme-packs/devices/emerald-marble-dark-desktop.webp",
+   "sourceAsset": "emerald-marble-dark.webp",
+   "sha256": "b88089b1e7768d48230ba03e54b6767fdbb8bb415b42f54ba9178ed957887ff0"
+  },
+  {
+   "pack": "emerald-marble",
+   "mode": "light",
+   "device": "phone",
+   "width": 1179,
+   "height": 2556,
+   "path": "/wallpapers/theme-packs/devices/emerald-marble-light-phone.webp",
+   "sourceAsset": "emerald-marble-light.webp",
+   "sha256": "881d38ca4b74d6355d26bab55a5fa66eaa6dd89b0984e659753d6fb5a7d6f16e"
+  },
+  {
+   "pack": "emerald-marble",
+   "mode": "light",
+   "device": "tablet",
+   "width": 1640,
+   "height": 2360,
+   "path": "/wallpapers/theme-packs/devices/emerald-marble-light-tablet.webp",
+   "sourceAsset": "emerald-marble-light.webp",
+   "sha256": "61f01c6a1d43566955720c4a69cdab409845599e031be094c15b15f425f513ad"
+  },
+  {
+   "pack": "emerald-marble",
+   "mode": "light",
+   "device": "desktop",
+   "width": 1920,
+   "height": 1080,
+   "path": "/wallpapers/theme-packs/devices/emerald-marble-light-desktop.webp",
+   "sourceAsset": "emerald-marble-light.webp",
+   "sha256": "6a62dc682def4d0f7701b7e7d530ae910fce6e9c370ed933e75d43634388fa23"
   }
  ]
 }

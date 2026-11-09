@@ -243,7 +243,7 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
     };
     // 500 designed icons (5 raised sets) + 14 app icons (all 7 packs)
     // ride the same entries list.
-    expect(assets.icons).toHaveLength(514);
+    expect(assets.icons).toHaveLength(516);
     const seen = new Set<string>();
     for (const e of assets.icons) {
       seen.add(`${e.pack}|${e.icon}|${e.mode}`);
@@ -263,7 +263,7 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
       }
     }
     // Per-device wallpapers: every pack × mode × device, pinned sizes.
-    expect(assets.deviceWallpapers).toHaveLength(42);
+    expect(assets.deviceWallpapers).toHaveLength(48);
     for (const w of assets.deviceWallpapers) {
       const url = publicFile(w.path);
       expect(existsSync(url), w.path).toBe(true);

@@ -15,11 +15,13 @@ import { THEME_PACKS, THEME_PACK_COPY_KEYS, themePackCopy } from "./theme-packs"
 /* ─── Stack 100 locale unit 53 — the theme-pack registry copy
    speaks through the catalogs (worldThemePacks).
 
-   SCOPE (manifest [D20]): src/lib/theme-packs.ts — all 7 packs
+   SCOPE (manifest [D20]): src/lib/theme-packs.ts — all 8 packs
    (golden-marble, shark-tank, golden-hour, kings-set, arcade-gold,
    crimson-marble — the sixth added by Stack-200 U4; sapphire-marble
-   — the seventh added by Stack-300 theme-packs, its non-English
-   values carried English-verbatim UNREVIEWED like crimson's)
+   — the seventh added by Stack-300 theme-packs; emerald-marble —
+   the eighth added by Stack-400 D-43; both marble additions'
+   non-English values carried English-verbatim UNREVIEWED like
+   crimson's)
    carried name/tagline/description as English literals with zero
    i18n references. The registry now carries the copy's catalog KEY
    REFERENCES (THEME_PACK_COPY_KEYS) and one resolver
@@ -47,7 +49,7 @@ import { THEME_PACKS, THEME_PACK_COPY_KEYS, themePackCopy } from "./theme-packs"
      mirrors only the two premium ids + the price); creator packs
      in CreatorPacksSection are user data, never catalogued.
 
-   MONEY LAW: none of the 21 fields states a price, fee or amount —
+   MONEY LAW: none of the 24 fields states a price, fee or amount —
    verified by scan (the only digit in the whole family is the "8"
    of the "8-Bit Shark" cursor name in sharkTankDescription, a
    proper name kept verbatim in every catalog). The price lives
@@ -116,8 +118,8 @@ describe("unit 53 — theme-pack registry copy resolves through the catalog", ()
     expect(Object.keys(THEME_PACK_COPY_KEYS).sort()).toEqual(THEME_PACKS.map((p) => p.id).sort());
   });
 
-  it("the en namespace carries the full copy set (21 keys = 7 packs × 3 fields)", () => {
-    expect(Object.keys(EN)).toHaveLength(21);
+  it("the en namespace carries the full copy set (24 keys = 8 packs × 3 fields)", () => {
+    expect(Object.keys(EN)).toHaveLength(24);
   });
 
   it("en catalog values ARE the registry literals, verbatim, pack for pack", () => {
