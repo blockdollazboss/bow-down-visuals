@@ -17,6 +17,24 @@ vi.mock("../payment-record", () => ({
   recordCreditUsageStrict: vi.fn(),
 }));
 
+/* chargeCredits' idempotency pre-check (findExistingCharge) reads the
+   credit_usage table through @workspace/db. The fake answers "no rows"
+   (no landed charge — every scenario here starts uncharged) through a
+   chainable select; nothing else on the personal path touches db. */
+vi.mock("@workspace/db", () => ({
+  db: {
+    select: () => ({
+      from: () => ({
+        where: () => ({ limit: async () => [] as unknown[] }),
+      }),
+    }),
+    update: () => ({ set: () => ({ where: async () => [] as unknown[] }) }),
+    execute: async () => ({ rows: [] as unknown[] }),
+  },
+  creditUsageTable: { id: "id", teamId: "team_id", idempotencyKey: "idempotency_key" },
+  teamsTable: { id: "id", credits: "credits" },
+}));
+
 vi.mock("../teams", () => ({
   // chargeCredits() gained a team-pool lookup (getUserActiveTeam) after this
   // suite was written. Every scenario below exercises the PERSONAL-balance
@@ -71,7 +89,7 @@ describe("chargeCredits — ledger atomicity", () => {
   it("deducts and writes the ledger on the happy path", async () => {
     const fake = makeSupabase(100);
     vi.mocked(getSupabaseAdmin).mockReturnValue(fake.client as any);
-    vi.mocked(recordCreditUsageStrict).mockResolvedValue(undefined);
+    vi.mocked(recordCreditUsageStrict).mockResolvedValue("recorded");
 
     const after = await chargeCredits("user-1", 5, { action: "Test Charge" });
 
@@ -153,6 +171,46 @@ describe("chargeCredits — ledger atomicity", () => {
   });
 });
 
+describe("chargeCredits — concurrent replay (Stack400 C-01)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("a ledger write that reports already-recorded undoes the duplicate deduction and returns the replay balance — never a LedgerWriteError", async () => {
+    const fake = makeSupabase(100);
+    vi.mocked(getSupabaseAdmin).mockReturnValue(fake.client as any);
+    /* The race outcome: a concurrent twin's row landed under this key
+       first, so the strict write answers success-as-replay. */
+    vi.mocked(recordCreditUsageStrict).mockResolvedValue("already-recorded");
+    /* The undo restores through addCreditsToProfile — route it back
+       into the fake profiles table so balances stay observable. */
+    vi.mocked(addCreditsToProfile).mockImplementation(async (_uid: string, amt: number) => {
+      const before = fake.getCredits();
+      await fake.client.from("profiles").update({ credits: before + amt }).eq("id", _uid);
+      return { oldCredits: before, newCredits: before + amt, created: false };
+    });
+
+    const after = await chargeCredits(
+      "user-1",
+      5,
+      { action: "Test Charge" },
+      { idempotencyKey: "test:concurrent-key" },
+    );
+
+    /* The twin's charge is the one that stands: this call deducted
+       (100 → 95) and then put its duplicate deduction back (→ 100),
+       answering the current balance as an idempotent success. */
+    expect(after).toBe(100);
+    expect(fake.getCredits()).toBe(100);
+    expect(recordCreditUsageStrict).toHaveBeenCalledTimes(1);
+    expect(recordCreditUsageStrict).toHaveBeenCalledWith(
+      expect.objectContaining({ idempotencyKey: "test:concurrent-key", creditsUsed: 5 }),
+    );
+    expect(addCreditsToProfile).toHaveBeenCalledTimes(1);
+    expect(addCreditsToProfile).toHaveBeenCalledWith("user-1", 5);
+  });
+});
+
 describe("refundCredits — refund ledger trace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -160,7 +218,7 @@ describe("refundCredits — refund ledger trace", () => {
 
   it("restores the balance and writes a negative ledger entry", async () => {
     vi.mocked(addCreditsToProfile).mockResolvedValue({ oldCredits: 95, newCredits: 100, created: false });
-    vi.mocked(recordCreditUsageStrict).mockResolvedValue(undefined);
+    vi.mocked(recordCreditUsageStrict).mockResolvedValue("recorded");
 
     await refundCredits("user-1", 5, { action: "Test — Refund" });
 
