@@ -34,9 +34,12 @@ import {
 import { QUEST_DEFS } from "./retention";
 import { nyWeekStartKey, nyWeekWindow } from "./period-anchors";
 
-/** The weekly free-credit envelope, in Visual Bucs. Also the sum
- *  of the QUEST_DEFS rewards (40 + 80 + 120 + 60) — the pool was
- *  sized by the quest slate; the game's other rewards share it. */
+/** The weekly free-credit envelope, in Visual Bucs. The pool was
+ *  sized by the quest slate (whose rewards originally summed to
+ *  300); after the 2026-11-08 Viral Sharer ruling (25 VB) the slate
+ *  sums to 265 (40 + 80 + 120 + 25), and the remaining headroom is
+ *  what the game's other rewards — King gifts, tutorial, Daily
+ *  Trio — share. The envelope itself is unchanged: 300. */
 export const WEEKLY_QUEST_POOL_VB = 300;
 
 /** Monday of the week containing `now`, as YYYY-MM-DD, on the New

@@ -73,7 +73,7 @@ const QUESTS = {
     { key: "make-thumbnail", target: 1, reward: 40, progress: 0, completed: false, claimed: false },
     { key: "generate-song", target: 1, reward: 80, progress: 0, completed: false, claimed: false },
     { key: "export-video", target: 1, reward: 120, progress: 0, completed: false, claimed: false },
-    { key: "viral-sharer", target: 3, reward: 60, progress: 2, completed: false, claimed: false },
+    { key: "viral-sharer", target: 3, reward: 25, progress: 2, completed: false, claimed: false },
   ],
 };
 

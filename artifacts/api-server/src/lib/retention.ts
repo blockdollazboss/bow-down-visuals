@@ -46,12 +46,17 @@ export interface QuestDef {
 }
 /* Weekly quest pool is capped at 300 VB/week (owner-approved 2026-10-09).
    Rebalanced 2026-10-11 per owner approval (option A: fit viral-sharer
-   inside the existing pool, zero new spend): 40 + 80 + 120 + 60 = 300. */
+   inside the existing pool, zero new spend): 40 + 80 + 120 + 60 = 300.
+   Viral Sharer reward re-ruled 2026-11-08 (owner: "set the price on
+   whatever you recommend" — 25 VB): the slate now sums to
+   40 + 80 + 120 + 25 = 265, still inside the same 300 envelope, which
+   is shared with the King's gifts, the tutorial reward and the Daily
+   Quest Trio (lib/quest-pool) — the envelope itself is unchanged. */
 export const QUEST_DEFS: QuestDef[] = [
   { key: "make-thumbnail", name: "Make a thumbnail", target: 1, reward: 40,  kinds: ["thumbnail"] },
   { key: "generate-song",  name: "Generate a song",  target: 1, reward: 80,  kinds: ["song"] },
   { key: "export-video",   name: "Export a video",   target: 1, reward: 120, kinds: ["export"] },
-  { key: "viral-sharer",   name: "Viral Sharer",     target: 3, reward: 60,  kinds: ["share"] },
+  { key: "viral-sharer",   name: "Viral Sharer",     target: 3, reward: 25,  kinds: ["share"] },
 ];
 
 function todayKey(): string {
@@ -496,8 +501,10 @@ export async function claimQuestReward(
 ): Promise<{ reward: number }> {
   const def = QUEST_DEFS.find((q) => q.key === questKey);
   if (!def) throw new Error("Unknown quest");
-  /* The Viral Sharer quest tracks with reward 0 until the owner approves
-     how it fits the 300 VB/week pool — refuse to pay anything invented. */
+  /* A quest whose def reward is unruled (<= 0) never pays invented
+     money — every current def carries an owner-ruled reward (Viral
+     Sharer: 25 VB, ruled 2026-11-08, drawn from the shared
+     300 VB/week pool in lib/quest-pool). */
   if (def.reward <= 0) throw new Error("This quest's reward is pending owner approval");
   const status = await getQuestsStatus(userId);
   if (!status.enabled) throw new Error("Quests are disabled");

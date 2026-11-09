@@ -258,7 +258,7 @@ describe("2.21 + 2.22 — the trophy ledger and catalog shape server truth only"
   const payload = {
     catalog: [
       { key: "generate-song", target: 1, reward: 80, kinds: ["song"] },
-      { key: "viral-sharer", target: 3, reward: 60, kinds: ["share"] },
+      { key: "viral-sharer", target: 3, reward: 25, kinds: ["share"] },
     ],
     weeks: [
       {
