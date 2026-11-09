@@ -7,7 +7,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the slideshow charge. */
+const REPLAY_NOTE =
+  "This is the slideshow you already made from these images — change the images or settings for a fresh one.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -100,6 +114,20 @@ router.post("/slideshow", requireAuth, async (req, res) => {
   const { images, musicUrl, transition, slideDuration } = parsed.data;
   const transitionKey = transition as TransitionKey;
 
+  /* CA-5: durable replay pre-check BEFORE the balance gate and any
+     funding — an identical re-ask returns the slideshow already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("slideshow", req.userId!, null, {
+    images,
+    musicUrl: musicUrl ?? null,
+    transition,
+    slideDuration,
+  });
+  const durable = await findStoredGenerationResult("slideshow", idempotencyKey, req.userId!);
+  if (durable && typeof durable["url"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < SLIDESHOW_COST) {
     res.status(402).json({
@@ -113,7 +141,7 @@ router.post("/slideshow", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, SLIDESHOW_COST, {
       action: "Slideshow video",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -124,9 +152,13 @@ router.post("/slideshow", requireAuth, async (req, res) => {
 
   const workDir = await mkdtemp(join(tmpdir(), "slideshow-"));
   const fail = async (message: string, status = 500) => {
-    await refundCredits(req.userId!, SLIDESHOW_COST, {
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    const refunded = await refundCredits(req.userId!, SLIDESHOW_COST, {
       action: "Slideshow video — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(status).json({ error: message });
   };
 
@@ -246,7 +278,7 @@ router.post("/slideshow", requireAuth, async (req, res) => {
         ? slideDuration * n
         : slideDuration * n - TRANSITION_DURATION * (n - 1);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       slides: n,
@@ -255,7 +287,10 @@ router.post("/slideshow", requireAuth, async (req, res) => {
       duration: Math.round(totalDuration * 100) / 100,
       hasMusic: Boolean(musicUrl),
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("slideshow", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Slideshow creation failed.";
     req.log.error({ err: message }, "[slideshow] failed");

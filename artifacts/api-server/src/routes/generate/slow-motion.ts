@@ -7,7 +7,21 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the slow-motion charge. */
+const REPLAY_NOTE =
+  "This is the slow-motion video you already made from this clip — a different clip or speed makes a fresh one.";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -87,6 +101,18 @@ router.post("/slow-motion", requireAuth, async (req, res) => {
 
   const factor = parsed.data.slowFactor;
 
+  /* CA-5: durable replay pre-check BEFORE the balance gate and any
+     funding — an identical re-ask returns the render already made, free. */
+  const idempotencyKey = buildChargeIdempotencyKey("slow-motion", req.userId!, null, {
+    videoUrl: parsed.data.videoUrl,
+    slowFactor: factor,
+  });
+  const durable = await findStoredGenerationResult("slow-motion", idempotencyKey, req.userId!);
+  if (durable && typeof durable["url"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < SLOW_MOTION_COST) {
     res.status(402).json({
@@ -100,7 +126,7 @@ router.post("/slow-motion", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, SLOW_MOTION_COST, {
       action: `AI Slow Motion (${factor}x)`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -150,20 +176,27 @@ router.post("/slow-motion", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       slowFactor: factor,
       sourceFps: Number(fps.toFixed(3)),
       sourceDuration: duration,
       creditsRemaining: creditsAfter,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("slow-motion", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Slow motion render failed.";
     req.log.error({ err: message }, "[slow-motion] failed");
-    await refundCredits(req.userId!, SLOW_MOTION_COST, {
+    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+    const refunded = await refundCredits(req.userId!, SLOW_MOTION_COST, {
       action: "AI Slow Motion — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     res.status(500).json({ error: message });
   } finally {
     const { rm } = await import("fs/promises");

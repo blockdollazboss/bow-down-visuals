@@ -2,7 +2,22 @@ import { randomUUID } from "crypto";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): server-derived key for the conversion charge. */
+const REPLAY_NOTE =
+  "This conversion is already on its way for this request — this is the same job, not a new charge.";
 import {
   singingVoiceConfigured,
   SINGING_VOICE_PLACEHOLDER_CATALOG,
@@ -96,6 +111,21 @@ router.post("/singing-voice", requireAuth, async (req: Request, res: Response) =
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the job already started instead of minting (and charging for)
+     a second conversion. */
+  const idempotencyKey = buildChargeIdempotencyKey("singing-voice", req.userId!, null, {
+    voiceId: parsed.data.voiceId,
+    sourceAudioUrl: parsed.data.sourceAudioUrl,
+    strength: parsed.data.strength ?? null,
+    keepInstrumental: parsed.data.keepInstrumental ?? null,
+  });
+  const durable = await findStoredGenerationResult("singing-voice", idempotencyKey, req.userId!);
+  if (durable && typeof durable["jobId"] === "string") {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < SINGING_VOICE_CREDIT_COST) {
     res.status(402).json({
@@ -111,7 +141,7 @@ router.post("/singing-voice", requireAuth, async (req: Request, res: Response) =
   try {
     creditsRemaining = await chargeCredits(req.userId!, SINGING_VOICE_CREDIT_COST, {
       action: "Singing-Voice Conversion",
-    });
+    }, { idempotencyKey });
   } catch (e) {
     if (e instanceof OutOfCreditsError) {
       res.status(402).json({ error: "OUT_OF_CREDITS", message: e.message });
@@ -153,17 +183,28 @@ router.post("/singing-voice", requireAuth, async (req: Request, res: Response) =
     } catch (err) {
       job.status = "failed";
       job.error = err instanceof Error ? err.message : "Singing-voice conversion failed";
+      /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+      let refunded = true;
       try {
         await refundCredits(job.userId, job.creditsCharged, {
           action: "Singing-Voice Conversion — Refund (job failed)",
         });
       } catch {
+        refunded = false;
         /* logged inside refundCredits */
+      }
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
       }
     }
   })();
 
-  res.status(202).json({ jobId: job.id, status: job.status, creditsRemaining });
+  const body = { jobId: job.id, status: job.status, creditsRemaining };
+  /* Persist BEFORE answering (fail-open inside the helper) — the stored
+     body carries the SAME job id, so a replay rejoins this job instead
+     of minting a second conversion. */
+  await storeGenerationResult("singing-voice", idempotencyKey, req.userId!, { ...body });
+  res.status(202).json(body);
 });
 
 /**
