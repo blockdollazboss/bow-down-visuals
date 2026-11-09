@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
@@ -663,6 +664,7 @@ export default function WebsiteBuilder() {
             preview thumbnails are stored, so each card says plainly
             that the preview renders live when the site is opened. */}
         {user && (
+          <SectionBoundary name="website-builder-saved-sites">
           <div className="mb-10">
             <h2 className="mb-4 flex items-center gap-2 text-xl font-bold">
               <FolderOpen className="h-5 w-5 text-primary" /> {t("websiteBuilder.savedSitesTitle")}
@@ -682,8 +684,8 @@ export default function WebsiteBuilder() {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {savedBuilds.map((p) => (
+                  <SectionBoundary key={p.id} variant="compact" name="website-builder-saved-card">
                   <div
-                    key={p.id}
                     className={`rounded-2xl border p-5 ${
                       p.id === projectId
                         ? "border-primary bg-primary/10 shadow-[0_0_24px_rgba(212,175,55,0.25)]"
@@ -727,14 +729,17 @@ export default function WebsiteBuilder() {
                       )}
                     </div>
                   </div>
+                  </SectionBoundary>
                 ))}
               </div>
             )}
           </div>
+          </SectionBoundary>
         )}
         {/* Template gallery — real starter builds, one per creator niche.
             Remix seeds a build with the template's actual files. */}
         {gallery.length > 0 && (
+          <SectionBoundary name="website-builder-gallery">
           <div className="mb-12">
             <h2 className="mb-2 flex items-center gap-2 text-xl font-bold">
               <LayoutTemplate className="h-5 w-5 text-primary" />
@@ -745,8 +750,8 @@ export default function WebsiteBuilder() {
             </p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {gallery.map((tpl) => (
+                <SectionBoundary key={tpl.id} variant="compact" name="website-builder-gallery-card">
                 <div
-                  key={tpl.id}
                   className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-primary/40"
                 >
                   <span className="mb-3 inline-flex w-fit rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
@@ -782,13 +787,16 @@ export default function WebsiteBuilder() {
                     {t("websiteBuilder.remixButton")}
                   </button>
                 </div>
+                </SectionBoundary>
               ))}
             </div>
           </div>
+          </SectionBoundary>
         )}
 
         {/* Template picker */}
         <h2 className="mb-4 text-xl font-bold">{t("websiteBuilder.stepPickTemplate")}</h2>
+        <SectionBoundary name="website-builder-templates">
         <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {TEMPLATES.map((tpl) => {
             const Icon = tpl.icon;
@@ -815,9 +823,11 @@ export default function WebsiteBuilder() {
             );
           })}
         </div>
+        </SectionBoundary>
 
         {/* Brief */}
         <h2 className="mb-4 text-xl font-bold">{t("websiteBuilder.stepDescribe")}</h2>
+        <SectionBoundary name="website-builder-brief">
         <div className={`mb-10 grid gap-4 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-white/70">
@@ -886,9 +896,11 @@ export default function WebsiteBuilder() {
             {t("websiteBuilder.feeNote")}
           </p>
         </div>
+        </SectionBoundary>
 
         {/* Result */}
         {files && (
+          <SectionBoundary name="website-builder-result">
           <div ref={resultRef}>
             {seededFrom && (
               <p className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-white/60">
@@ -1054,6 +1066,7 @@ export default function WebsiteBuilder() {
             )}
 
             {/* Conversational edits */}
+            <SectionBoundary name="website-builder-edits">
             <div className={`mt-8 rounded-2xl border p-6 ${isLight ? "border-[#C9A84C]/40 bg-gradient-to-b from-[#FCF7EA] to-[#F4E7C3]" : "border-primary/25 bg-gradient-to-b from-[#14100a] to-[#0d0a04]"}`}>
               <h3 className="mb-2 flex items-center gap-2 font-bold">
                 <Wand2 className="h-5 w-5 text-primary" /> {t("websiteBuilder.editsTitle")}
@@ -1083,12 +1096,14 @@ export default function WebsiteBuilder() {
                 </button>
               </div>
             </div>
+            </SectionBoundary>
 
             <p className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-white/60">
               <span className="font-semibold text-primary">{t("websiteBuilder.ownershipStrong")}</span>{" "}
               {t("websiteBuilder.ownershipDesc")}
             </p>
           </div>
+          </SectionBoundary>
         )}
       </main>
 
