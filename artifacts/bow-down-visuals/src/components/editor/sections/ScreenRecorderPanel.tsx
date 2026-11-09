@@ -1,4 +1,5 @@
 import { apiErrorMessage } from "../../../lib/api-error";
+import { uploadClipDirect } from "../../../lib/clip-upload";
 import { plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -478,18 +479,10 @@ export function ScreenRecorderPanel({
       try { token = await getAccessToken(); } catch { token = null; }
       if (!token) throw new Error(tr("errSignIn"));
 
-      const form = new FormData();
-      form.append("clip", blob, reviewName || recordingFileName("webm"));
-      const upRes = await fetch("/api/upload-clip", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
+      const clipFile = new File([blob], reviewName || recordingFileName("webm"), {
+        type: blob.type || "video/webm",
       });
-      const upData = (await upRes.json().catch(() => ({}))) as {
-        url?: string; error?: string; message?: string;
-      };
-      if (!upRes.ok) throw new Error(apiErrorMessage(upData, tr("errUpload", { status: upRes.status })));
-      if (!upData.url) throw new Error(tr("errUploadNoUrl"));
+      const upData = await uploadClipDirect(clipFile, token);
 
       const nowIso = new Date().toISOString();
       const newScene: SceneData = {

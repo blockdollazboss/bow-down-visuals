@@ -1,4 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
+import { uploadClipDirect } from "../../lib/clip-upload";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -106,22 +107,12 @@ export default function LinkToHitPanel() {
     try {
       const token = await getAccessToken();
       // The picked file REALLY uploads (it used to go nowhere — the
-      // analysis ran on the filename alone). Hosted via /api/upload-clip,
-      // its URL rides along with the analyze request.
+      // analysis ran on the filename alone). It rides the direct
+      // storage door (lib/clip-upload); its URL rides along with the
+      // analyze request.
       let effectiveUrl = url.trim();
       if (uploadFile) {
-        const form = new FormData();
-        form.append("clip", uploadFile, uploadFile.name);
-        const upRes = await fetch("/api/upload-clip", {
-          method: "POST",
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: form,
-        });
-        const upData = (await upRes.json().catch(() => ({}))) as { url?: string; message?: string; error?: string };
-        if (!upRes.ok || !upData.url) {
-          throw new Error(apiErrorMessage(upData, "Video upload failed — try again."));
-        }
-        effectiveUrl = upData.url;
+        effectiveUrl = (await uploadClipDirect(uploadFile, token)).url;
       }
       const res = await confirmedFetch("/api/link-to-hit/analyze", {
         method: "POST",

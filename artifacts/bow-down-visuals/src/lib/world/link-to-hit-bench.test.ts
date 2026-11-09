@@ -15,12 +15,15 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  CLIP_UPLOAD_COMPLETE_PATH,
+  CLIP_UPLOAD_SESSION_PATH,
+} from "../clip-upload";
+import {
   LINK_TO_HIT_ANALYZE_PATH,
   LINK_TO_HIT_COST,
   LINK_TO_HIT_GENRE_PRESETS,
   LINK_TO_HIT_MAX_COMMENTS,
   LINK_TO_HIT_SONG_STATION_ID,
-  LINK_TO_HIT_UPLOAD_PATH,
   addLinkToHitComment,
   buildLinkToHitPayload,
   linkToHitFileVerdict,
@@ -58,7 +61,10 @@ const BASE_INPUT = {
 describe("the rails + the price", () => {
   it("analyzes where the panel analyzes, at the route's 300; uploads free on their own rail", () => {
     expect(LINK_TO_HIT_ANALYZE_PATH).toBe("/api/link-to-hit/analyze");
-    expect(LINK_TO_HIT_UPLOAD_PATH).toBe("/api/upload-clip");
+    /* The upload rides the shared direct clip door (D-45): session
+       mints the key, the R2 doors carry the bytes, complete records. */
+    expect(CLIP_UPLOAD_SESSION_PATH).toBe("/api/upload-clip/session");
+    expect(CLIP_UPLOAD_COMPLETE_PATH).toBe("/api/upload-clip/complete");
     expect(LINK_TO_HIT_COST).toBe(300);
     expect(LINK_TO_HIT_SONG_STATION_ID).toBe("song-desk");
     expect(linkToHitUploadUrlOf({ url: "https://cdn/clip.mp4" })).toBe("https://cdn/clip.mp4");

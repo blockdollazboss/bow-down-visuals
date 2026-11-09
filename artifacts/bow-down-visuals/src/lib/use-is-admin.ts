@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
    The server is the real wall: it exempts the owner's account
    (ADMIN_EMAILS) from policy caps. A few client-side pre-checks mirror
    server caps (e.g. the 80 MB clip pre-check in front of the
-   disk-backed /api/upload-clip rail) — without an admin leg they
+   direct clip door's /api/upload-clip/session mint) — without an admin leg they
    would refuse the owner before the server ever sees the file. This
    hook asks the same /api/admin/status the Admin page and the sidebar
    use, in the same way. Until the answer lands (and on any failure)

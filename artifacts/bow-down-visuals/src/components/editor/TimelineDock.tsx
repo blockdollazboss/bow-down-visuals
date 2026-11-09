@@ -1,4 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../../lib/api-error";
+import { uploadClipDirect } from "../../lib/clip-upload";
 /**
  * TimelineDock — persistent full-width bottom timeline for the Studio editor.
  *
@@ -977,7 +978,7 @@ export function TimelineDock({
     toast({ title: "Clip renamed", description: label });
   }, [scenes, setScenes, toast, timelineLocked]);
 
-  /** Replace-clip file picker flow — uploads via /api/upload-clip, then swaps the clip URL. */
+  /** Replace-clip file picker flow — uploads via the direct storage door (lib/clip-upload), then swaps the clip URL. */
   const handleReplaceFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -996,16 +997,7 @@ export function TimelineDock({
         token = (await supabase?.auth.getSession())?.data?.session?.access_token ?? null;
       } catch { token = null; }
       if (!token) throw new Error("Not signed in. Please sign in and try again.");
-      const form = new FormData();
-      form.append("clip", file, file.name);
-      const res = await fetch("/api/upload-clip", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
-      if (!res.ok) throw new Error(apiErrorMessage(data, "Upload failed — please try again."));
-      if (!data.url) throw new Error("Upload succeeded but returned no clip URL.");
+      const data = await uploadClipDirect(file, token);
       onReplaceClipVideo(sceneId, data.url);
       toast({ title: "Clip replaced", description: file.name });
     } catch (err) {

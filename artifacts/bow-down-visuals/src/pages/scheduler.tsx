@@ -1,4 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
+import { uploadClipDirect } from "../lib/clip-upload";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -2085,18 +2086,10 @@ function ComposerModal(props: {
     setUploading(true);
     try {
       const token = await getAccessToken();
-      const form = new FormData();
-      form.append("clip", file);
-      const res = await fetch("/api/upload-clip", {
-        method: "POST",
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: form,
-      });
-      const data = (await res.json().catch(() => ({}))) as { url?: string; ref?: string; error?: string; message?: string };
-      if (!res.ok || !data.ref) throw new Error(apiErrorMessage(data, t("scheduler.error.uploadFailed")));
-      /* Persist the stable storage ref (never expires); preview with the signed URL. */
+      const data = await uploadClipDirect(file, token);
+      /* Persist the stable storage ref (never expires); preview with the same permanent URL. */
       setMediaRef(data.ref);
-      setPreviewUrl(data.url ?? "");
+      setPreviewUrl(data.url);
       setMediaType("video");
       /* A fresh upload is not the linked library asset — clear any linkage. */
       setProvenanceAssetId(null);

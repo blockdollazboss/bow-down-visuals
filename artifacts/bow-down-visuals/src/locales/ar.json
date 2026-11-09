@@ -23984,7 +23984,6 @@
     "shoDeclinedRefunded": "Declined — {{fan}}'s {{amount}} was refunded in full, and they've been emailed that it's on its way back.",
     "shoDidntGoThrough": "لم يتم ذلك — حاول مرة أخرى.",
     "shoVideoTooBig": "ذلك الفيديو أكبر من 80 MB — قصّه أو اختر ملفاً أصغر.",
-    "shoUploadFailed": "فشل الرفع ({{status}})",
     "shoOutOfCredits": "You're out of Visual Bucs — top up to polish the words.",
     "shoRevenueLoadTitle": "لم يتم فتح قراءة الإيرادات",
     "shoRevenueLoadMessage": "طلباتك وأرباحك آمنة — هذه القراءة فقط لم تتمكن من الوصول إليها.",

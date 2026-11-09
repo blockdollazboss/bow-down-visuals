@@ -23868,7 +23868,6 @@
     "shoDeclinedRefunded": "Declined — {{fan}}'s {{amount}} was refunded in full, and they've been emailed that it's on its way back.",
     "shoDidntGoThrough": "Das ist nicht durchgegangen — versuch es noch einmal.",
     "shoVideoTooBig": "Dieses Video ist über 80 MB — kürze es oder wähle eine kleinere Datei.",
-    "shoUploadFailed": "Upload fehlgeschlagen ({{status}})",
     "shoOutOfCredits": "You're out of Visual Bucs — top up to polish the words.",
     "shoRevenueLoadTitle": "Die Umsatzansicht ließ sich nicht öffnen",
     "shoRevenueLoadMessage": "Deine Anfragen und Einnahmen sind sicher — diese Ansicht konnte sie nur nicht erreichen.",

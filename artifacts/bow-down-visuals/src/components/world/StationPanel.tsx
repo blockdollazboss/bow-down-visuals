@@ -1436,7 +1436,7 @@ export default function StationPanel(props: StationPanelProps) {
                     item 12): the /create hub's comedy panel
                     native at the board — link and/or a real
                     upload in, the comedy package out, on the
-                    /api/upload-clip + /api/link-to-hit rails. */}
+                    shared clip door + /api/link-to-hit rails. */}
                 <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <LinkToHitBench isLight={isLight} onOpenStation={props.onOpenStation} />
                 </DeskDoor></PanelBoundary>

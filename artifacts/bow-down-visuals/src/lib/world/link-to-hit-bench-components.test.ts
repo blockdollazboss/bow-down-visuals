@@ -31,8 +31,10 @@ describe("the bench shape + the My Studio board mount", () => {
 
 describe("the two rails — a real upload, then the confirmed analyze", () => {
   it("uploads the picked file on the free rail before analyzing", () => {
-    expect(bench).toContain("fetch(LINK_TO_HIT_UPLOAD_PATH, { method: \"POST\", body: form })");
-    expect(bench).toContain('form.append("clip", uploadFile, uploadFile.name)');
+    /* D-45: the upload rides the shared direct clip door (session →
+       R2 doors → complete via lib/clip-upload), never the retired
+       server-transit POST. */
+    expect(bench).toContain("uploadClipDirect(");
     expect(bench).toContain("linkToHitUploadUrlOf(upData)");
     expect(bench).toContain("uploadLimitBytes(isAdmin, LINK_TO_HIT_MEMBER_UPLOAD_BYTES)");
   });

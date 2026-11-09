@@ -1,5 +1,6 @@
 import { plainErrorText } from "../../../lib/api-error";
 import { apiErrorMessage } from "../../../lib/api-error";
+import { uploadClipDirect } from "../../../lib/clip-upload";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Eye, EyeOff, CheckCircle2, Volume2, VolumeX, Video, ArrowUp, ArrowDown,
@@ -419,19 +420,9 @@ export function ClipGeneratorSection({
       }
       if (!token) throw new Error("Not signed in. Please sign in and try again.");
 
-      /* 1. Upload through the backend into the private generated-clips bucket. */
-      const form = new FormData();
-      form.append("clip", file, file.name);
-      const upRes = await fetch("/api/upload-clip", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-      const upData = (await upRes.json().catch(() => ({}))) as {
-        url?: string; ref?: string; error?: string; message?: string;
-      };
-      if (!upRes.ok) throw new Error(apiErrorMessage(upData, `Upload failed (${upRes.status})`));
-      if (!upData.url) throw new Error("Upload succeeded but returned no clip URL.");
+      /* 1. Upload through the direct storage door (lib/clip-upload) —
+         bytes go browser → storage, never through the site's server. */
+      const upData = await uploadClipDirect(file, token);
 
       /* 2. Attach the clip to the existing scene (persists; the backend
          normalizes the URL to a stable storage ref). Free — no credits. */

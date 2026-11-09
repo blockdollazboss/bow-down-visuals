@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { getCreditCost } from "../credit-costs";
 import {
+  CLIP_UPLOAD_COMPLETE_PATH,
+  CLIP_UPLOAD_SESSION_PATH,
+} from "../clip-upload";
+import {
   SHOUTOUT_AI_MESSAGE_COST_VB,
   SHOUTOUT_AI_MESSAGE_FEATURE,
   SHOUTOUT_AI_MESSAGE_PATH,
@@ -8,7 +12,6 @@ import {
   SHOUTOUT_PLATFORM_FEE_PCT,
   SHOUTOUT_REQUESTS_PATH,
   SHOUTOUT_REVENUE_PATH,
-  SHOUTOUT_UPLOAD_CLIP_PATH,
   buildShoutoutAiMessageBody,
   buildShoutoutStatusBody,
   canShoutoutTransition,
@@ -51,7 +54,9 @@ describe("rails + prices", () => {
     expect(SHOUTOUT_REQUESTS_PATH).toBe("/api/shoutouts/requests");
     expect(SHOUTOUT_REVENUE_PATH).toBe("/api/shoutouts/revenue");
     expect(SHOUTOUT_AI_MESSAGE_PATH).toBe("/api/shoutouts/ai-message");
-    expect(SHOUTOUT_UPLOAD_CLIP_PATH).toBe("/api/upload-clip");
+    /* The delivery upload rides the shared direct clip door (D-45). */
+    expect(CLIP_UPLOAD_SESSION_PATH).toBe("/api/upload-clip/session");
+    expect(CLIP_UPLOAD_COMPLETE_PATH).toBe("/api/upload-clip/complete");
     expect(shoutoutRequestPath("a b/c")).toBe("/api/shoutouts/requests/a%20b%2Fc");
     expect(shoutoutRequestsPath("")).toBe("/api/shoutouts/requests");
     expect(shoutoutRequestsPath("accepted")).toBe("/api/shoutouts/requests?status=accepted");

@@ -23897,7 +23897,6 @@
     "shoDeclinedRefunded": "Declined — {{fan}}'s {{amount}} was refunded in full, and they've been emailed that it's on its way back.",
     "shoDidntGoThrough": "Non è andato a buon fine — riprova.",
     "shoVideoTooBig": "Quel video supera gli 80 MB — taglialo o scegli un file più piccolo.",
-    "shoUploadFailed": "Caricamento fallito ({{status}})",
     "shoOutOfCredits": "You're out of Visual Bucs — top up to polish the words.",
     "shoRevenueLoadTitle": "La lettura dei ricavi non si è aperta",
     "shoRevenueLoadMessage": "Le tue richieste e i tuoi guadagni sono al sicuro — questa lettura non è riuscita a raggiungerli.",

@@ -212,8 +212,8 @@ describe("unit 52 — the remainder family resolves through the catalog", () => 
     }
   });
 
-  it("the en namespace carries the full family key set (527 keys)", () => {
-    expect(Object.keys(EN)).toHaveLength(527);
+  it("the en namespace carries the full family key set (526 keys)", () => {
+    expect(Object.keys(EN)).toHaveLength(526);
   });
 
   it("referenced keys == catalog keys (zero orphans, zero missing) across components + seams", () => {
