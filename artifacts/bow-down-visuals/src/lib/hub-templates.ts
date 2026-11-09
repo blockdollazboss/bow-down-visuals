@@ -4,7 +4,7 @@ import {
   Skull, Mic, Newspaper, Briefcase, ShoppingBag, GraduationCap, Scale,
   Megaphone, Music2, Star, Clapperboard, Users, Wand2, Lightbulb, ImageIcon,
   AudioWaveform, CalendarDays, Handshake, Coins, Play, MessageCircle,
-  TrendingUp, Sparkles, Moon, Crown, Zap, ShieldCheck,
+  TrendingUp, Sparkles, Moon, Crown, Zap, ShieldCheck, Timer, Palette,
   type LucideIcon,
 } from "lucide-react";
 import type { HubProjectType } from "./hub-project";
@@ -190,6 +190,16 @@ const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
         { step: "brand", hint: "Match your thumbnails so VODs look intentional" },
       ],
     },
+    {
+      key: "brand-identity-sprint", name: "Brand Identity Sprint", blurb: "Logo, colors, and voice — your whole identity in one sprint.", icon: Palette,
+      projectName: "Brand Identity Sprint",
+      concept: "A focused identity sprint that ends with a complete, usable brand: a logo that survives avatar size, a three-color system, one display font, and a one-line voice rule. Not a mood board — the actual kit every future post, cover, and thumbnail gets built from, locked in one pass so nothing drifts later.",
+      preload: [
+        { step: "logo", hint: "One mark, readable at avatar size — no wordmark crutches" },
+        { step: "brand", hint: "3 colors + 1 display font · the voice in one sentence" },
+        { step: "test", hint: "Mock the logo on a cover, a thumbnail, and a profile — if it survives all three, it's the one" },
+      ],
+    },
   ],
   movie: [
     {
@@ -221,6 +231,16 @@ const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
         { step: "script", hint: "Escalate the absurdity · deadpan lead vs chaotic world" },
         { step: "cast", hint: "The straight face sells every joke — lock it" },
         { step: "premiere", hint: "Cut the trailer on the three biggest laughs" },
+      ],
+    },
+    {
+      key: "short-film-premiere", name: "Short Film Premiere", blurb: "Your finished short, launched like an event.", icon: Clapperboard,
+      projectName: "Short Film Premiere",
+      concept: "A premiere rollout for a finished short film: teaser first, trailer on the three strongest moments, a premiere event with a live countdown, and the full film landing with a watch-party push. The film is done — this starter is the launch: build the week around it so the premiere night feels like opening night, not an upload.",
+      preload: [
+        { step: "premiere", hint: "Teaser a week out · trailer on the three strongest moments · countdown to premiere night" },
+        { step: "score", hint: "One motif from the film, reused across teaser and trailer so they sound like one work" },
+        { step: "promo", hint: "Cast-and-crew posts, a poster drop, and a next-day clips cut for everyone who missed it" },
       ],
     },
     {
@@ -265,6 +285,17 @@ const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
       ],
     },
     {
+      key: "weekly-web-series", name: "Weekly Web Series", blurb: "One episode, same day, every week — a habit, not a hope.", icon: CalendarDays,
+      projectName: "Weekly Web Series",
+      concept: "A weekly web series built to become a habit: the same release day and time every week, a fixed format viewers learn in episode one, and a cliff or question that pulls them into the next. Episodes are banked two ahead so the streak never breaks — consistency is the format, and the format is the growth engine.",
+      preload: [
+        { step: "arc", hint: "Fixed format, new subject weekly · end each episode on the next one's question" },
+        { step: "cast", hint: "Lock the host look and the standing set before episode 1" },
+        { step: "episodes", hint: "Bank two episodes ahead · same day, same time, every week — the streak is sacred" },
+        { step: "premiere", hint: "Each episode premieres as an event, with last week's recap pinned on top" },
+      ],
+    },
+    {
       key: "reality-style", name: "Reality-Style Show", blurb: "Strangers, one house, zero privacy.", icon: Users,
       projectName: "Reality Show",
       concept: "A reality-style competition show: eight strangers, one house, weekly challenges, one winner. Confessionals carry the story — cast for personality collisions.",
@@ -306,6 +337,17 @@ const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
         { step: "story", hint: "The map is wrong — that's the whole game" },
         { step: "characters", hint: "Party of four · one healer players will protect with their life" },
         { step: "soundtrack", hint: "Overworld theme players hum for years" },
+      ],
+    },
+    {
+      key: "speedrun-channel-launch", name: "Speedrun Channel Launch", blurb: "A gaming channel built on the clock, from day one.", icon: Timer,
+      projectName: "Speedrun Channel Launch",
+      concept: "A speedrun channel launch: pick one game and one category, learn the route from the community's best runs, and post your first attempts with the timer on screen from run one. The channel is the climb — personal bests, world-record chases, and races with other runners. Viewers don't just watch runs; they watch the number fall.",
+      preload: [
+        { step: "story", hint: "One game, one category · the climb from first run to personal best is the story" },
+        { step: "characters", hint: "Channel face + timer overlay locked before the first upload" },
+        { step: "art", hint: "PB-split graphics · gold split = the screenshot moment" },
+        { step: "promote", hint: "Clip every PB and every choke at the final split — both travel" },
       ],
     },
     {
@@ -786,6 +828,18 @@ const HUB_TEMPLATES: Record<HubProjectType, HubTemplate[]> = {
         { step: "clip", hint: "Speed wins — post before the official accounts" },
         { step: "hooks", hint: "Score + clock on screen · let the play breathe" },
         { step: "deals", hint: "Betting + merch brands pay for sports audiences" },
+      ],
+    },
+    {
+      key: "clip-farm-system", name: "Clip Farm System", blurb: "A clipping operation: many accounts, one system.", icon: TrendingUp,
+      projectName: "Clip Farm System",
+      concept: "A clip farm run as a system, not a hobby: a roster of source channels feeding a bank of themed accounts, each with its own niche, watermark, and posting rhythm. Every long video becomes a week of clips on a schedule — sourced, cut, captioned, and queued in batches, so the accounts post daily even on days nobody records anything new.",
+      preload: [
+        { step: "niche", hint: "One account per niche · never mix audiences on one page" },
+        { step: "brand", hint: "Each account gets its own watermark + caption style — systems look intentional" },
+        { step: "clip", hint: "Batch-cut a week of clips from one long video in a single session" },
+        { step: "post", hint: "Stagger the accounts — same moment, different hours, every platform" },
+        { step: "deals", hint: "Sell the farm as reach: brands buy the whole network, not one account" },
       ],
     },
     {
