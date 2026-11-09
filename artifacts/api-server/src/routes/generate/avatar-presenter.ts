@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { createHash } from "crypto";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -7,6 +7,7 @@ import {
   chargeCredits,
   refundCredits,
   voidChargeIdempotencyKey,
+  buildChargeIdempotencyKey,
   OutOfCreditsError,
   LedgerWriteError,
 } from "../../lib/credits";
@@ -45,6 +46,7 @@ const presenterSchema = z.object({
   imageUrl: httpUrl.optional(),
   audioUrl: httpUrl.optional(),
   prompt: z.string().max(1000).optional(),
+  idempotencyKey: z.string().max(128).optional(),
 });
 
 type AvatarJobStatus = "queued" | "processing" | "done" | "failed";
@@ -72,6 +74,9 @@ attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 
 
 /** Test hook: clear the in-memory job store. */
+export function __resetAvatarJobs(): void {
+  jobs.clear();
+}
 
 /** Test hook: register a job directly (money-path tests drive processAvatarJob). */
 export function __putAvatarJob(job: AvatarJob): void {
@@ -281,14 +286,43 @@ router.post("/avatar-presenter", requireAuth, generationLimiter, async (req: Req
     return;
   }
 
-  /* RESERVE-AT-SUBMIT: charge the full price BEFORE any provider call.
-     chargeCredits re-reads the balance fresh — the snapshot gate below
-     only shapes the 402 payload; the charge itself is authoritative.
-     An insufficient balance refuses here and the provider is never
-     called. The charge is keyed on the job id, exactly as the old
-     success-charge was. */
-  const jobId = randomUUID();
+  /* CA-KEY: the job id derives from the request's INTENT, never from
+     a per-request random value. The old code minted a fresh randomUUID
+     per POST, so every retry was a brand-new charge by construction.
+     Now the server builds the charge key from the member + payload
+     (a sane client key, when sent, is honored instead) and the job id
+     is that key's hash — twin POSTs of the same ask land on the SAME
+     job: one reserve, one provider submit. C-36 consequence, said out
+     loud in the replay response: an identical ask returns the existing
+     job instead of buying a second video while the job is retained. */
+  const chargeIdempotencyKey = buildChargeIdempotencyKey(
+    "avatar-presenter", req.userId!, parsed.data.idempotencyKey,
+    {
+      avatarId: parsed.data.avatarId,
+      script: parsed.data.script,
+      voiceId: parsed.data.voiceId ?? null,
+      aspectRatio: parsed.data.aspectRatio ?? null,
+      imageUrl: parsed.data.imageUrl ?? null,
+      audioUrl: parsed.data.audioUrl ?? null,
+      prompt: parsed.data.prompt ?? null,
+    },
+  );
+  const jobId = createHash("sha256").update(chargeIdempotencyKey).digest("hex").slice(0, 32);
   const chargeKey = `avatar-presenter:${jobId}`;
+
+  const existingJob = jobs.get(jobId);
+  if (existingJob && existingJob.userId === req.userId) {
+    res.status(202).json({
+      jobId: existingJob.id,
+      status: existingJob.status,
+      creditsCharged: existingJob.creditsCharged,
+      replayed: true,
+      replayNote:
+        "This presenter is already being made for this exact request — tweak the script or avatar for a fresh one.",
+    });
+    return;
+  }
+
   try {
     await chargeCredits(req.userId!, AVATAR_PRESENTER_CREDIT_COST, {
       action: "AI Avatar Presenter",

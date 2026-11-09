@@ -154,6 +154,7 @@ vi.mock("../../routes/ugc-ads", () => ({
 }));
 
 import { executeAction, proposeAction } from "../operator-executor";
+import { __resetBioReplayCache } from "../../routes/generate/bio-generator";
 import { getTool } from "../operator-tools";
 import { OPERATOR_TOOL_DEFS } from "../operator-tool-catalog";
 import { BIO_COST } from "../../routes/generate/bio-pricing";
@@ -203,6 +204,10 @@ async function proposeBio() {
 
 beforeEach(() => {
   h.fake.clear();
+  /* CA-KEY: the bio core keeps an in-process replay store keyed by the
+     confirmation's idempotency key; the fake db re-issues the same
+     pending ids after a clear, so the store resets alongside it. */
+  __resetBioReplayCache();
   state.balance = 100_000;
   state.chargeCredits.mockClear();
   state.refundCredits.mockClear();

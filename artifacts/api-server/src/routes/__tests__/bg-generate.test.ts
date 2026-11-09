@@ -55,7 +55,7 @@ vi.mock("../../lib/credits", () => {
   };
 });
 
-import bgGenerateRouter, { BG_GENERATE_CREDIT_COST } from "../generate/bg-generate";
+import bgGenerateRouter, { BG_GENERATE_CREDIT_COST, __resetBgGenerateReplayCache } from "../generate/bg-generate";
 import { __setBgImageDepsForTests } from "../../lib/bg-image-client";
 
 let base = "";
@@ -76,6 +76,7 @@ afterAll(async () => {
 });
 beforeEach(() => {
   state.balance = 1000; state.charges = []; state.refunds = []; state.chargedKeys = new Set(); state.voids = [];
+  __resetBgGenerateReplayCache();
   __setBgImageDepsForTests({
     generate: async () => Buffer.from("fake-png-bytes"),
     upload: async (userId) => `https://cdn.example/bg-plates/${userId}/plate.png`,
@@ -161,14 +162,21 @@ describe("POST /bg-generate — refund/retry leak (Lane V3 F1)", () => {
     expect(state.balance).toBe(800); // second charge landed
   });
 
-  it("keyless callers are charged per run — identical re-runs are not permanently free", async () => {
+  it("keyless calls are keyed by intent (CA-KEY): an identical re-run is a replay — one charge, stored plate, honest note", async () => {
     const a = await post("/bg-generate", { prompt: "neon rooftop at dusk", style: "neon-city" });
     const b = await post("/bg-generate", { prompt: "neon rooftop at dusk", style: "neon-city" });
     expect(a.status).toBe(200);
+    expect(a.json?.["replayed"]).toBeUndefined(); // fresh answers stay bare
     expect(b.status).toBe(200);
-    expect(state.charges).toHaveLength(2);
-    expect(state.charges.every((c) => c.key === "")).toBe(true); // no dedupe key used
-    expect(state.balance).toBe(600);
+    expect(state.charges).toHaveLength(1);
+    expect(state.charges[0]!.key).toMatch(/^bg-generate:user-1:/);
+    expect(state.charges[0]!.key).not.toContain(":client:");
+    expect(state.balance).toBe(800);
+    /* C-36 honesty: the replay serves the stored plate and SAYS an
+       identical ask cannot be re-bought. */
+    expect(b.json?.["replayed"]).toBe(true);
+    expect(b.json?.["imageUrl"]).toBe(a.json?.["imageUrl"]);
+    expect(String(b.json?.["replayNote"])).toMatch(/already made/);
   });
 
   it("a keyed success still dedupes (double-tap protection unchanged)", async () => {

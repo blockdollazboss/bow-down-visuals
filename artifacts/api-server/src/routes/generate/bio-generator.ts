@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import { getTextModel } from "../../lib/ai-clients";
 import { BIO_COST } from "./bio-pricing";
 
@@ -61,6 +61,26 @@ router.get("/bio-platforms", requireAuth, (_req, res) => {
 interface BioGenerationResult {
   bios: PlatformBio[];
   creditsRemaining: number;
+  /** True only when served from the replay store (CA-KEY): the caller
+   *  already paid for this exact ask; no second charge, no provider
+   *  call. Set by generateBiosForUser, absent on fresh generations. */
+  replayed?: boolean;
+}
+
+export const BIO_REPLAY_NOTE =
+  "These are the bios you already made for this request — tweak the words for a fresh set.";
+
+/* CA-KEY replay store: keyed by the charge's idempotency key. In-process
+   by design — durable cross-restart stored results need a join-assigned
+   table (migrations are join-assigned only). */
+const bioStoredResults = new Map<string, { result: BioGenerationResult; at: number }>();
+const bioInFlight = new Map<string, Promise<BioGenerationResult>>();
+const BIO_MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetBioReplayCache(): void {
+  bioStoredResults.clear();
+  bioInFlight.clear();
 }
 
 /**
@@ -74,19 +94,81 @@ interface BioGenerationResult {
  * - chargeCredits() lands exactly one ledger row per completed call;
  *   OutOfCreditsError propagates BEFORE any generation runs, so a key
  *   (or click) can never spend past the owner's balance.
- * - Any generation failure refunds in full under "<action> — Refund".
+ * - Any generation failure refunds in full under "<action> — Refund"
+ *   and VOIDS the charge's idempotency key, so the retry charges fresh
+ *   instead of being suppressed as a replay.
  * - `action` is the ledger label: the website passes "Bio Generator";
  *   the API passes "API: Bio Generator" so every API charge is
  *   identifiable as API-originated in the ledger/activity.
- * - `idempotencyKey`, when given, makes a retried call charge once.
+ * - `idempotencyKey` (CA-KEY): a caller-supplied key is threaded through
+ *   verbatim (the public API's `api:<keyId>:<header>` form and the
+ *   operator's `operator:<pendingId>` form keep their exact shape).
+ *   When NO caller supplies one, the server derives the key itself from
+ *   the request intent (member + payload hash) — protection never
+ *   depends on the client's behavior. A replay of an already-served ask
+ *   returns the stored bios flagged `replayed` (C-36: an identical ask
+ *   cannot be re-bought; the surfaces say so via BIO_REPLAY_NOTE).
  */
 export async function generateBiosForUser(
   userId: string,
   data: z.infer<typeof bioSchema>,
   opts: { action: string; idempotencyKey?: string | null },
 ): Promise<BioGenerationResult> {
+  const suppliedKey = typeof opts.idempotencyKey === "string" && opts.idempotencyKey.trim().length > 0
+    ? opts.idempotencyKey
+    : null;
+  const idempotencyKey = suppliedKey ?? buildChargeIdempotencyKey("bio-generator", userId, null, {
+    niche: data.niche,
+    personality: data.personality,
+    achievements: data.achievements ?? [],
+    cta: data.cta ?? null,
+    handle: data.handle ?? null,
+  });
+
+  const stored = bioStoredResults.get(idempotencyKey);
+  if (stored) {
+    return { ...stored.result, replayed: true };
+  }
+  const pending = bioInFlight.get(idempotencyKey);
+  if (pending) {
+    const twin = await pending.catch(() => null);
+    if (twin) return { ...twin, replayed: true };
+    /* The twin failed (refunded + key voided) — fall through fresh. */
+  }
+
+  const run = runBioGeneration(userId, data, opts, idempotencyKey);
+  bioInFlight.set(idempotencyKey, run);
+  let result: BioGenerationResult;
+  try {
+    result = await run;
+  } finally {
+    if (bioInFlight.get(idempotencyKey) === run) bioInFlight.delete(idempotencyKey);
+  }
+
+  /* Store BEFORE returning (contracts/post-assist pattern), fail-open. */
+  try {
+    if (bioStoredResults.size >= BIO_MAX_STORED_RESULTS) {
+      const oldest = bioStoredResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) bioStoredResults.delete(oldest);
+    }
+    bioStoredResults.set(idempotencyKey, { result, at: Date.now() });
+  } catch { /* storing is best-effort */ }
+
+  const postCharge = bioStoredResults.get(idempotencyKey);
+  if (postCharge && postCharge.result !== result) {
+    return { ...postCharge.result, replayed: true };
+  }
+  return result;
+}
+
+async function runBioGeneration(
+  userId: string,
+  data: z.infer<typeof bioSchema>,
+  opts: { action: string; idempotencyKey?: string | null },
+  idempotencyKey: string,
+): Promise<BioGenerationResult> {
   const creditsAfter = await chargeCredits(userId, BIO_COST, { action: opts.action }, {
-    idempotencyKey: opts.idempotencyKey ?? null,
+    idempotencyKey,
   });
 
   try {
@@ -161,10 +243,17 @@ export async function generateBiosForUser(
     return { bios, creditsRemaining: creditsAfter };
   } catch (err) {
     // Failed generations do NOT keep the charge — full refund, exactly as
-    // the website rail has always behaved.
+    // the website rail has always behaved. CA-KEY: when the refund lands,
+    // VOID the charge's idempotency key too — the void was missing here,
+    // so a refunded attempt's retry was suppressed as a replay and the
+    // regeneration ran FREE.
+    let refunded = true;
     await refundCredits(userId, BIO_COST, {
       action: `${opts.action} \u2014 Refund`,
-    }).catch(() => {});
+    }).catch(() => { refunded = false; });
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+    }
     throw err;
   }
 }
@@ -189,13 +278,14 @@ router.post("/generate-bio", requireAuth, async (req, res) => {
   }
 
   try {
-    const { bios, creditsRemaining } = await generateBiosForUser(req.userId!, parsed.data, {
+    const result = await generateBiosForUser(req.userId!, parsed.data, {
       action: "Bio Generator",
     });
     res.json({
-      bios,
+      bios: result.bios,
       niche: parsed.data.niche,
-      creditsRemaining,
+      creditsRemaining: result.creditsRemaining,
+      ...(result.replayed ? { replayed: true, replayNote: BIO_REPLAY_NOTE } : {}),
     });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {

@@ -24,6 +24,9 @@ const mockState = vi.hoisted(() => ({
   imageEditCalls: 0,
   failOnVariation: -1, // -1 = never fail; N = throw on the Nth image call
   uploadedObjects: [] as string[],
+  chargedKeys: new Set<string>(),
+  chargeKeys: [] as (string | null)[],
+  voids: [] as string[],
 }));
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -98,18 +101,33 @@ vi.mock("../../lib/payment-record", () => ({
 vi.mock("../../lib/credits", () => ({
   /* P0-23: the route charges up front via chargeCredits (strict ledger),
      not the old Supabase profile update. Simulate the deduction against
-     mockState so the balance assertions below keep their meaning. */
-  chargeCredits: vi.fn(async (_userId: string, amount: number) => {
+     mockState so the balance assertions below keep their meaning.
+     CA-KEY: the mock now mirrors the real ledger's idempotency —
+     a charge carrying an already-seen key is a replay (no second
+     deduction), and voiding a key makes its retry charge fresh. */
+  chargeCredits: vi.fn(async (_userId: string, amount: number, _rec?: unknown, opts?: { idempotencyKey?: string | null }) => {
+    const key = opts?.idempotencyKey ?? null;
+    mockState.chargeKeys.push(key);
+    if (key && mockState.chargedKeys.has(key)) return mockState.userCredits;
     mockState.deductedCredits = amount;
     mockState.userCredits -= amount;
+    if (key) mockState.chargedKeys.add(key);
     return mockState.userCredits;
+  }),
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) =>
+    typeof clientKey === "string" && clientKey.trim().length >= 8
+      ? `${scope}:${userId}:client:${clientKey.trim()}`
+      : `${scope}:${userId}:${JSON.stringify(intent)}`,
+  voidChargeIdempotencyKey: vi.fn(async (key: string) => {
+    mockState.voids.push(key);
+    return mockState.chargedKeys.delete(key);
   }),
   refundCredits: vi.fn(async () => undefined),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
 }));
 
-import router from "../generate/thumbnail-generator";
+import router, { __resetThumbnailReplayCache } from "../generate/thumbnail-generator";
 
 let server: any;
 let baseUrl: string;
@@ -136,6 +154,10 @@ beforeEach(() => {
   mockState.imageEditCalls = 0;
   mockState.failOnVariation = -1;
   mockState.uploadedObjects = [];
+  mockState.chargedKeys = new Set();
+  mockState.chargeKeys = [];
+  mockState.voids = [];
+  __resetThumbnailReplayCache();
 });
 
 async function postBatch(body: Record<string, unknown>) {
@@ -252,5 +274,60 @@ describe("POST /api/thumbnail-generator", () => {
     expect(Object.keys(STYLE_PRESETS).sort()).toEqual(
       ["before-after", "bold-text-pop", "gaming", "luxury", "shocked-face", "vlog"].sort(),
     );
+  });
+});
+
+describe("POST /api/thumbnail-generator — CA-KEY idempotency", () => {
+  it("a no-key request charges exactly once across a replay; the replay serves the stored batch with the honest note", async () => {
+    const body = {
+      prompt: "Shark king on a golden throne, dramatic lighting",
+      stylePreset: "luxury",
+      aspectRatio: "16:9",
+      overlayText: "BOW DOWN",
+    };
+    const first = await postBatch(body);
+    expect(first.status).toBe(200);
+    expect(first.json.replayed).toBeUndefined();
+    expect(mockState.userCredits).toBe(800);
+
+    const second = await postBatch(body);
+    expect(second.status).toBe(200);
+    /* One charge, one generation run — the replay is served stored. */
+    expect(mockState.userCredits).toBe(800);
+    expect(mockState.imageGenerateCalls).toBe(4);
+    expect(second.json.replayed).toBe(true);
+    expect(String(second.json.replayNote)).toMatch(/already made/);
+    expect(second.json.images).toEqual(first.json.images);
+    /* The charge carried a REAL server-derived key, never null. */
+    expect(mockState.chargeKeys).toHaveLength(1);
+    expect(mockState.chargeKeys[0]).toMatch(/^thumbnail-generator:user-1:/);
+  });
+
+  it("a client key is honored (wrapped), and its replay charges once", async () => {
+    const body = { prompt: "Epic gaming setup", idempotencyKey: "thumb-attempt-1" };
+    const first = await postBatch(body);
+    expect(first.status).toBe(200);
+    const second = await postBatch(body);
+    expect(second.status).toBe(200);
+    expect(second.json.replayed).toBe(true);
+    expect(mockState.userCredits).toBe(800);
+    expect(mockState.imageGenerateCalls).toBe(4);
+    expect(mockState.chargeKeys).toEqual(["thumbnail-generator:user-1:client:thumb-attempt-1"]);
+  });
+
+  it("a refunded batch VOIDS its key, so the retry charges fresh instead of generating free", async () => {
+    mockState.failOnVariation = 2;
+    const failed = await postBatch({ prompt: "Something cool" });
+    expect(failed.status).toBe(500);
+    expect(mockState.refundedCredits).toBe(200);
+    expect(mockState.voids).toHaveLength(1);
+    expect(mockState.voids[0]).toMatch(/^thumbnail-generator:user-1:/);
+    expect(mockState.userCredits).toBe(1000);
+
+    mockState.failOnVariation = -1;
+    const retry = await postBatch({ prompt: "Something cool" });
+    expect(retry.status).toBe(200);
+    expect(retry.json.replayed).toBeUndefined();
+    expect(mockState.userCredits).toBe(800); // the retry paid again
   });
 });

@@ -48,6 +48,10 @@ vi.mock("../../lib/credits", () => {
   return {
     OutOfCreditsError,
     LedgerWriteError,
+    buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) =>
+      typeof clientKey === "string" && clientKey.trim().length >= 8
+        ? `${scope}:${userId}:client:${clientKey.trim()}`
+        : `${scope}:${userId}:${JSON.stringify(intent)}`,
     chargeCredits: async (
       _userId: string,
       cost: number,
@@ -112,6 +116,7 @@ import avatarPresenterRouter, {
   AVATAR_PRESENTER_CREDIT_COST,
   processAvatarJob,
   __putAvatarJob,
+  __resetAvatarJobs,
   type AvatarJob,
 } from "../generate/avatar-presenter";
 
@@ -157,6 +162,10 @@ beforeEach(() => {
   state.submitCalls = 0;
   state.submitImpl = null;
   state.statusImpl = null;
+  /* CA-KEY: job ids are now intent-derived (deterministic), so the job
+     store must be reset per test exactly like the charge state —
+     a prior test's retained job would otherwise answer as a replay. */
+  __resetAvatarJobs();
 });
 
 async function post(path: string, body?: unknown) {
@@ -234,6 +243,46 @@ describe("POST /avatar-presenter — gates", () => {
     expect(state.charges).toHaveLength(1);
     expect(state.refunds).toEqual([{ amount: 1200, action: "AI Avatar Presenter — Refund" }]);
     expect(state.balance).toBe(1200);
+  });
+});
+
+describe("POST /avatar-presenter — CA-KEY intent keying", () => {
+  it("twin POSTs of the same ask collapse to ONE job, ONE charge, ONE provider submit", async () => {
+    state.statusImpl = async () => ({
+      providerJobId: "hedra-job-1",
+      status: "done",
+      videoUrl: "https://provider.example/finished.mp4",
+    });
+    const first = await post("/avatar-presenter", validBody);
+    expect(first.status).toBe(202);
+    expect(first.json?.["replayed"]).toBeUndefined();
+    const jobId = String(first.json?.["jobId"]);
+
+    const twin = await post("/avatar-presenter", validBody);
+    expect(twin.status).toBe(202);
+    expect(String(twin.json?.["jobId"])).toBe(jobId); // same job, not a new one
+    expect(twin.json?.["replayed"]).toBe(true);
+    expect(String(twin.json?.["replayNote"])).toMatch(/already being made/);
+
+    const job = await waitForTerminal(jobId);
+    expect(job["status"]).toBe("done");
+    expect(state.charges).toHaveLength(1);
+    expect(state.submitCalls).toBe(1);
+    expect(state.balance).toBe(3800);
+  });
+
+  it("a DIFFERENT script is a different intent — it charges and submits as its own job", async () => {
+    state.statusImpl = async () => ({
+      providerJobId: "hedra-job-1",
+      status: "done",
+      videoUrl: "https://provider.example/finished.mp4",
+    });
+    const a = await post("/avatar-presenter", validBody);
+    const b = await post("/avatar-presenter", { ...validBody, script: "A completely different script." });
+    expect(String(b.json?.["jobId"])).not.toBe(String(a.json?.["jobId"]));
+    expect(b.json?.["replayed"]).toBeUndefined();
+    expect(state.charges).toHaveLength(2);
+    expect(state.submitCalls).toBe(2);
   });
 });
 

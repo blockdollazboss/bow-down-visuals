@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { Router } from "express";
 import { z } from "zod";
 import multer from "multer";
@@ -6,7 +7,7 @@ import { toFile } from "openai";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { getSupabaseAdmin, addCreditsToProfile } from "../../lib/supabase-admin";
-import { chargeCredits } from "../../lib/credits";
+import { chargeCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -111,12 +112,36 @@ function buildVariationPrompt(
   return parts.join("\n").slice(0, 4000);
 }
 
-async function refundCredits(userId: string, amount: number): Promise<void> {
+async function refundCredits(userId: string, amount: number): Promise<boolean> {
   try {
     await addCreditsToProfile(userId, amount);
+    return true;
   } catch {
     /* Refund failure is logged by the caller — never throw from here. */
+    return false;
   }
+}
+
+/* ── CA-KEY replay layer ──────────────────────────────────────────────
+   Every charge on this rail now carries a REAL idempotency key the
+   server derives itself (buildChargeIdempotencyKey): a sane client
+   key is honored, otherwise the request-intent hash IS the key. A
+   replay therefore serves the stored batch — with replayed: true and
+   the C-36 honesty note — instead of re-charging and re-generating.
+   In-process by design: durable cross-restart stored results need a
+   join-assigned table (migrations are join-assigned only). */
+const REPLAY_NOTE =
+  "These are the thumbnails you already made for this request — tweak the prompt or style for a fresh batch.";
+
+interface ThumbnailStoredResult { body: Record<string, unknown>; at: number }
+const thumbnailStoredResults = new Map<string, ThumbnailStoredResult>();
+const thumbnailInFlight = new Map<string, Promise<Record<string, unknown>>>();
+const THUMBNAIL_MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetThumbnailReplayCache(): void {
+  thumbnailStoredResults.clear();
+  thumbnailInFlight.clear();
 }
 
 /**
@@ -174,11 +199,116 @@ router.post(
       return;
     }
 
-    /* Charge up front — refunded below if nothing generates.
-       P0-23: strict ledger + idempotency via chargeCredits. */
-    const idempotencyKey = typeof (req.body as { idempotencyKey?: unknown } | null)?.idempotencyKey === "string"
+    /* CA-KEY: derive the idempotency key on the server, ALWAYS. The
+       raw client key used to pass through UNWRAPPED — and null when the
+       client sent none, so a keyless replay re-charged in full. A sane
+       client key (≥8 chars) is honored via the builder; otherwise the
+       intent hash (fields + face-photo bytes when present) IS the key. */
+    const clientKey = typeof (req.body as { idempotencyKey?: unknown } | null)?.idempotencyKey === "string"
       ? (req.body as { idempotencyKey: string }).idempotencyKey
       : null;
+    const facePhotoBuffer = req.file?.buffer ?? null;
+    const idempotencyKey = buildChargeIdempotencyKey(
+      "thumbnail-generator",
+      req.userId!,
+      clientKey,
+      {
+        prompt: prompt.trim(),
+        stylePreset: stylePreset ?? null,
+        aspectRatio: ratio,
+        overlayText: overlayText ?? null,
+        overlayFont: overlayFont ?? null,
+        attribution: attribution ?? null,
+        facePhotoHash: facePhotoBuffer
+          ? createHash("sha256").update(facePhotoBuffer).digest("hex")
+          : null,
+      },
+    );
+
+    const stored = thumbnailStoredResults.get(idempotencyKey);
+    if (stored) {
+      res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
+      return;
+    }
+
+    const pending = thumbnailInFlight.get(idempotencyKey);
+    if (pending) {
+      const twinBody = await pending.catch(() => null);
+      if (twinBody && typeof twinBody["__status"] !== "number") {
+        res.json({ ...twinBody, replayed: true, replayNote: REPLAY_NOTE });
+        return;
+      }
+      /* The twin failed (refunded + key voided) — fall through fresh. */
+    }
+
+    const run = runThumbnailBatch(req, {
+      prompt: prompt.trim(),
+      stylePreset,
+      ratio,
+      size,
+      overlayText,
+      overlayFont,
+      attribution,
+      facePhotoBuffer,
+      idempotencyKey,
+    });
+    thumbnailInFlight.set(idempotencyKey, run);
+    let body: Record<string, unknown>;
+    try {
+      body = await run;
+    } finally {
+      if (thumbnailInFlight.get(idempotencyKey) === run) thumbnailInFlight.delete(idempotencyKey);
+    }
+
+    if (typeof body["__status"] === "number") {
+      const status = body["__status"] as number;
+      const { __status: _ignored, ...errorBody } = body;
+      res.status(status).json(errorBody);
+      return;
+    }
+
+    /* Store BEFORE answering (contracts/post-assist pattern), fail-open. */
+    try {
+      if (thumbnailStoredResults.size >= THUMBNAIL_MAX_STORED_RESULTS) {
+        const oldest = thumbnailStoredResults.keys().next().value as string | undefined;
+        if (oldest !== undefined) thumbnailStoredResults.delete(oldest);
+      }
+      thumbnailStoredResults.set(idempotencyKey, { body, at: Date.now() });
+    } catch { /* storing is best-effort */ }
+
+    const postCharge = thumbnailStoredResults.get(idempotencyKey);
+    if (postCharge && postCharge.body !== body) {
+      res.json({ ...postCharge.body, replayed: true, replayNote: REPLAY_NOTE });
+      return;
+    }
+
+    res.json(body);
+  },
+);
+
+/**
+ * Charge → generate → (refund + void on failure) for one batch. Runs
+ * under the handler's in-flight registration so a concurrent twin waits
+ * for this run instead of double-charging.
+ */
+async function runThumbnailBatch(
+  req: { userId?: string; file?: { mimetype: string }; log: { info: (...a: unknown[]) => void; error: (...a: unknown[]) => void } },
+  input: {
+    prompt: string;
+    stylePreset?: string;
+    ratio: "16:9" | "9:16";
+    size: "1536x1024" | "1024x1536";
+    overlayText?: string;
+    overlayFont?: string;
+    attribution?: unknown;
+    facePhotoBuffer: Buffer | null;
+    idempotencyKey: string;
+  },
+): Promise<Record<string, unknown>> {
+  const { prompt, stylePreset, ratio, size, overlayText, overlayFont, attribution, facePhotoBuffer, idempotencyKey } = input;
+
+    /* Charge up front — refunded below if nothing generates.
+       P0-23: strict ledger + idempotency via chargeCredits. */
     const creditsAfter = await chargeCredits(
       req.userId!,
       BATCH_CREDIT_COST,
@@ -186,13 +316,12 @@ router.post(
       { idempotencyKey, personalOnly: true },
     );
 
-    const facePhotoBuffer = req.file?.buffer ?? null;
     const images: Array<{ url: string; variation: number }> = [];
 
     try {
       for (let i = 0; i < 4; i++) {
         const imagePrompt = buildVariationPrompt(
-          { prompt: prompt.trim(), stylePreset, aspectRatio: ratio, overlayText, overlayFont },
+          { prompt, stylePreset, aspectRatio: ratio, overlayText, overlayFont },
           i,
         );
 
@@ -248,19 +377,26 @@ router.post(
         );
       }
     } catch (err: unknown) {
-      /* Auto-refund: the batch failed before completing — give credits back. */
-      await refundCredits(req.userId!, BATCH_CREDIT_COST);
+      /* Auto-refund: the batch failed before completing — give credits
+         back, then VOID the charge's idempotency key. The void was
+         MISSING on this rail (CA-KEY): without it the refunded key
+         still read as "already charged", so the retry was suppressed
+         as a replay and generated FREE. */
+      const refunded = await refundCredits(req.userId!, BATCH_CREDIT_COST);
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
+      }
       const message = err instanceof Error ? err.message : "Thumbnail generation failed";
       req.log.error(
         { userId: req.userId, err: message, completedVariations: images.length },
         "[thumbnail-generator] batch failed — Visual Bucs refunded",
       );
-      res.status(500).json({
+      return {
+        __status: 500,
         error: message,
         creditsRefunded: true,
         partialImages: images,
-      });
-      return;
+      };
     }
 
     /* Ledger row already written by chargeCredits above (Stack400 Lane 4 duplicate removed). */
@@ -270,14 +406,13 @@ router.post(
       "[thumbnail-generator] batch success",
     );
 
-    res.json({
+    return {
       images,
       attribution,
       creditsUsed: BATCH_CREDIT_COST,
       creditsRemaining: creditsAfter,
       aspectRatio: ratio,
-    });
-  },
-);
+    };
+}
 
 export default router;
