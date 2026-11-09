@@ -161,14 +161,22 @@ describe("POST /bg-generate — refund/retry leak (Lane V3 F1)", () => {
     expect(state.balance).toBe(800); // second charge landed
   });
 
-  it("keyless callers are charged per run — identical re-runs are not permanently free", async () => {
+  it("keyless calls are keyed by intent (CA-KEY keying): an identical re-run cannot double-charge", async () => {
+    /* Supersedes the Lane V3 F1 keyless rule: keyless calls now carry
+       a server-derived INTENT key, so the ledger dedupes an identical
+       re-ask. (This suite does not fake @workspace/db, so the durable
+       stored-result layer fails open here and the replay falls to the
+       ledger; the table-served replay itself — stored body verbatim +
+       replayed/replayNote, zero charges, zero provider calls — is
+       pinned in generation-stored-results.test.ts.) */
     const a = await post("/bg-generate", { prompt: "neon rooftop at dusk", style: "neon-city" });
     const b = await post("/bg-generate", { prompt: "neon rooftop at dusk", style: "neon-city" });
     expect(a.status).toBe(200);
     expect(b.status).toBe(200);
-    expect(state.charges).toHaveLength(2);
-    expect(state.charges.every((c) => c.key === "")).toBe(true); // no dedupe key used
-    expect(state.balance).toBe(600);
+    expect(state.charges).toHaveLength(1);
+    expect(state.charges[0]!.key).toMatch(/^bg-generate:user-1:/);
+    expect(state.charges[0]!.key).not.toContain(":client:");
+    expect(state.balance).toBe(800);
   });
 
   it("a keyed success still dedupes (double-tap protection unchanged)", async () => {

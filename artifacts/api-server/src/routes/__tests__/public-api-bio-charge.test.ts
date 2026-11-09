@@ -34,6 +34,13 @@ const { chargeCredits, refundCredits, OutOfCreditsError, CreditsDisabledError } 
 vi.mock("../../lib/credits", () => ({
   chargeCredits: (...args: unknown[]) => chargeCredits(...args),
   refundCredits: (...args: unknown[]) => refundCredits(...args),
+  /* The core derives a real key for keyless calls and voids it after
+     a refunded failure (s400-stored-results / CA-KEY keying). */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) =>
+    typeof clientKey === "string" && clientKey.trim().length >= 8
+      ? `${scope}:${userId}:client:${clientKey.trim()}`
+      : `${scope}:${userId}:${JSON.stringify(intent)}`,
+  voidChargeIdempotencyKey: async () => true,
   OutOfCreditsError,
   CreditsDisabledError,
 }));

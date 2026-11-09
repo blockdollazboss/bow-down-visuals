@@ -10,6 +10,10 @@ import {
   BgImageNotConfiguredError,
   generateBackgroundImage,
 } from "../../lib/bg-image-client";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 const router = Router();
 
@@ -22,6 +26,10 @@ const router = Router();
 export const BG_GENERATE_CREDIT_COST = 200;
 
 export const BG_GENERATE_STYLES = ["studio", "neon-city", "golden-palace", "beach-sunset"] as const;
+
+/* Served with a replayed result (C-36 honesty): the stored plate comes
+   back verbatim and says an identical ask cannot be re-bought. */
+const REPLAY_NOTE = "This is the background plate you already made for this request — tweak the prompt or style for a fresh one.";
 
 const bgGenerateSchema = z.object({
   prompt: z.string().min(3).max(500),
@@ -68,19 +76,28 @@ router.post("/bg-generate", requireAuth, async (req: Request, res: Response) => 
     return;
   }
 
-  /* Idempotency (Lane V3 F1): the real client always sends a
-     per-attempt key, and that key dedupes retries of the SAME attempt.
-     A keyless caller used to get a prompt+style hash key — every
-     deliberate identical re-run then ran free forever while costing
-     provider money. Keyless calls now charge per run (no dedupe). */
-  const clientKey = parsed.data.idempotencyKey;
-  const hasClientKey = typeof clientKey === "string" && clientKey.trim().length >= 8;
-  const idempotencyKey = hasClientKey
-    ? buildChargeIdempotencyKey(
-        "bg-generate", req.userId!, clientKey,
-        { prompt: parsed.data.prompt, style: parsed.data.style ?? "studio" },
-      )
-    : null;
+  /* Idempotency: every call carries a real server-derived key. A sane
+     client per-attempt key is honored; a keyless call is keyed by its
+     INTENT (prompt + style) instead of running unkeyed — the ledger
+     dedups on this key, so an identical re-ask can never
+     double-charge. (Supersedes the Lane V3 F1 keyless rule: with a
+     stored result behind the key, an identical re-run is a replay,
+     not a free generation and not a fresh charge.) */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "bg-generate", req.userId!, parsed.data.idempotencyKey,
+    { prompt: parsed.data.prompt, style: parsed.data.style ?? "studio" },
+  );
+
+  /* Stored-result pre-check (migration 0333) BEFORE any funding: a
+     replay under a landed key is answered from the durable row —
+     the stored body verbatim + replayed/replayNote — with no charge
+     and no provider call, even after a server restart. Fail-open: a
+     storage miss or failure falls through to the charge below. */
+  const stored = await findStoredGenerationResult("bg-generate", idempotencyKey, req.userId!);
+  if (stored) {
+    res.json({ ...stored, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
 
   let creditsAfter: number;
   try {
@@ -101,7 +118,12 @@ router.post("/bg-generate", requireAuth, async (req: Request, res: Response) => 
       style: parsed.data.style ?? "studio",
       userId: req.userId!,
     });
-    res.json({ imageUrl: result.imageUrl, creditCost: BG_GENERATE_CREDIT_COST, creditsRemaining: creditsAfter });
+    const body = { imageUrl: result.imageUrl, creditCost: BG_GENERATE_CREDIT_COST, creditsRemaining: creditsAfter };
+    /* Persist BEFORE answering: the row is what a post-restart replay
+       is served from. Fail-open inside the helper — a storage failure
+       never fails this paid success. */
+    await storeGenerationResult("bg-generate", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     /* Provider failed after the charge — refund in full, then VOID the
        charge's idempotency key: without the void, the refunded attempt's

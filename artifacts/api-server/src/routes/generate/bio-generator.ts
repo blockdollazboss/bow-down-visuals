@@ -1,13 +1,25 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError,
+  buildChargeIdempotencyKey, voidChargeIdempotencyKey,
+} from "../../lib/credits";
 import { getTextModel } from "../../lib/ai-clients";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { BIO_COST } from "./bio-pricing";
 
 /* Re-exported so existing importers (public API) keep one source:
    the constant itself lives in ./bio-pricing (pure, route-free). */
 export { BIO_COST };
+
+/* Served with a replayed result on the website surface (C-36
+   honesty): the stored bios come back verbatim and say an identical
+   ask cannot be re-bought. */
+export const BIO_REPLAY_NOTE = "These are the bios you already made for this request — tweak the words for a fresh set.";
 
 const router = Router();
 
@@ -61,6 +73,10 @@ router.get("/bio-platforms", requireAuth, (_req, res) => {
 interface BioGenerationResult {
   bios: PlatformBio[];
   creditsRemaining: number;
+  /** True when this result was served from the stored-result row
+      (migration 0333) instead of a fresh generation — no charge and
+      no provider call happened for it. */
+  replayed?: boolean;
 }
 
 /**
@@ -74,19 +90,55 @@ interface BioGenerationResult {
  * - chargeCredits() lands exactly one ledger row per completed call;
  *   OutOfCreditsError propagates BEFORE any generation runs, so a key
  *   (or click) can never spend past the owner's balance.
- * - Any generation failure refunds in full under "<action> — Refund".
+ * - Any generation failure refunds in full under "<action> — Refund"
+ *   and VOIDS the charge's idempotency key when the refund lands, so
+ *   the retry charges fresh instead of being suppressed as a replay.
  * - `action` is the ledger label: the website passes "Bio Generator";
  *   the API passes "API: Bio Generator" so every API charge is
  *   identifiable as API-originated in the ledger/activity.
- * - `idempotencyKey`, when given, makes a retried call charge once.
+ * - `idempotencyKey`, when given, is threaded VERBATIM (public-API
+ *   `api:<keyId>:<header>` and operator `operator:<pendingId>` keys
+ *   keep their shapes). When absent, the key is derived from the
+ *   request INTENT — every call carries a real key, so the ledger
+ *   dedups identical re-asks.
+ * - Durable stored results (migration 0333): before any funding, a
+ *   landed key's stored result is served back with `replayed: true`
+ *   — no charge, no provider call, even after a server restart. A
+ *   success persists its result under the key before returning.
+ *   Storage reads/writes are fail-open.
  */
 export async function generateBiosForUser(
   userId: string,
   data: z.infer<typeof bioSchema>,
   opts: { action: string; idempotencyKey?: string | null },
 ): Promise<BioGenerationResult> {
+  const suppliedKey = typeof opts.idempotencyKey === "string" && opts.idempotencyKey.length > 0
+    ? opts.idempotencyKey
+    : null;
+  const idempotencyKey = suppliedKey ?? buildChargeIdempotencyKey(
+    "bio-generator", userId, null,
+    {
+      niche: data.niche,
+      personality: data.personality,
+      achievements: data.achievements ?? [],
+      cta: data.cta ?? null,
+      handle: data.handle ?? null,
+    },
+  );
+
+  /* Stored-result pre-check BEFORE any funding (see header). A
+     malformed stored payload is treated as a miss, never served. */
+  const stored = await findStoredGenerationResult("bio-generator", idempotencyKey, userId);
+  if (stored && Array.isArray(stored["bios"])) {
+    return {
+      bios: stored["bios"] as PlatformBio[],
+      creditsRemaining: typeof stored["creditsRemaining"] === "number" ? stored["creditsRemaining"] : 0,
+      replayed: true,
+    };
+  }
+
   const creditsAfter = await chargeCredits(userId, BIO_COST, { action: opts.action }, {
-    idempotencyKey: opts.idempotencyKey ?? null,
+    idempotencyKey,
   });
 
   try {
@@ -158,13 +210,32 @@ export async function generateBiosForUser(
       };
     });
 
-    return { bios, creditsRemaining: creditsAfter };
+    const result: BioGenerationResult = { bios, creditsRemaining: creditsAfter };
+    /* Persist BEFORE returning: the row is what a post-restart replay
+       is served from. Fail-open inside the helper — a storage failure
+       never fails this paid success. */
+    await storeGenerationResult("bio-generator", idempotencyKey, userId, {
+      bios: result.bios,
+      creditsRemaining: result.creditsRemaining,
+    });
+    return result;
   } catch (err) {
     // Failed generations do NOT keep the charge — full refund, exactly as
-    // the website rail has always behaved.
-    await refundCredits(userId, BIO_COST, {
-      action: `${opts.action} \u2014 Refund`,
-    }).catch(() => {});
+    // the website rail has always behaved. When the refund lands, the
+    // charge's key is voided too: without the void the refunded
+    // attempt's key still reads as "already charged", so the retry is
+    // suppressed as a replay and generates FREE.
+    let refunded = true;
+    try {
+      await refundCredits(userId, BIO_COST, {
+        action: `${opts.action} \u2014 Refund`,
+      });
+    } catch {
+      refunded = false;
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
+    }
     throw err;
   }
 }
@@ -189,13 +260,14 @@ router.post("/generate-bio", requireAuth, async (req, res) => {
   }
 
   try {
-    const { bios, creditsRemaining } = await generateBiosForUser(req.userId!, parsed.data, {
+    const result = await generateBiosForUser(req.userId!, parsed.data, {
       action: "Bio Generator",
     });
     res.json({
-      bios,
+      bios: result.bios,
       niche: parsed.data.niche,
-      creditsRemaining,
+      creditsRemaining: result.creditsRemaining,
+      ...(result.replayed ? { replayed: true, replayNote: BIO_REPLAY_NOTE } : {}),
     });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {

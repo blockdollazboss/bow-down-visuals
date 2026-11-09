@@ -105,6 +105,13 @@ vi.mock("../../lib/credits", () => ({
     return mockState.userCredits;
   }),
   refundCredits: vi.fn(async () => undefined),
+  /* The route derives a real key for every call and voids it after a
+     refunded failure (s400-stored-results / CA-KEY keying). */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) =>
+    typeof clientKey === "string" && clientKey.trim().length >= 8
+      ? `${scope}:${userId}:client:${clientKey.trim()}`
+      : `${scope}:${userId}:${JSON.stringify(intent)}`,
+  voidChargeIdempotencyKey: vi.fn(async () => true),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
 }));

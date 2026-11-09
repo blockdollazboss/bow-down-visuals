@@ -1,12 +1,16 @@
 import { Router } from "express";
 import { z } from "zod";
 import multer from "multer";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { toFile } from "openai";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { getSupabaseAdmin, addCreditsToProfile } from "../../lib/supabase-admin";
-import { chargeCredits } from "../../lib/credits";
+import { chargeCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -26,6 +30,10 @@ const BATCH_CREDIT_COST =
 
 /** Newest OpenAI image model — env-overridable so upgrades are one-line changes. */
 const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";
+
+/* Served with a replayed result (C-36 honesty): the stored batch comes
+   back verbatim and says an identical ask cannot be re-bought. */
+const REPLAY_NOTE = "These are the thumbnails you already made for this request — tweak the prompt or style for a fresh batch.";
 
 /** Maps the site's aspect-ratio picker to OpenAI image sizes. */
 const ASPECT_SIZES: Record<string, "1536x1024" | "1024x1536"> = {
@@ -111,11 +119,13 @@ function buildVariationPrompt(
   return parts.join("\n").slice(0, 4000);
 }
 
-async function refundCredits(userId: string, amount: number): Promise<void> {
+async function refundCredits(userId: string, amount: number): Promise<boolean> {
   try {
     await addCreditsToProfile(userId, amount);
+    return true;
   } catch {
     /* Refund failure is logged by the caller — never throw from here. */
+    return false;
   }
 }
 
@@ -160,6 +170,47 @@ router.post(
       aspectRatio === "9:16" ? "9:16" : "16:9";
     const size = ASPECT_SIZES[ratio];
 
+    /* The face photo is part of the request's INTENT (its hash keys
+       the charge), so it is read before any funding decision. The
+       upload itself was already buffered by multer above. */
+    const facePhotoBuffer = req.file?.buffer ?? null;
+
+    /* Idempotency: every call carries a real server-derived key. A
+       sane client per-attempt key is honored; otherwise the key is
+       the INTENT hash (prompt + style + ratio + overlays +
+       attribution + the face photo's hash) — the ledger dedups on
+       this key, so an identical re-ask can never double-charge. */
+    const clientKey = typeof (req.body as { idempotencyKey?: unknown } | null)?.idempotencyKey === "string"
+      ? (req.body as { idempotencyKey: string }).idempotencyKey
+      : null;
+    const idempotencyKey = buildChargeIdempotencyKey(
+      "thumbnail-generator", req.userId!, clientKey,
+      {
+        prompt: prompt.trim(),
+        stylePreset: stylePreset ?? null,
+        aspectRatio: ratio,
+        overlayText: overlayText ?? null,
+        overlayFont: overlayFont ?? null,
+        attribution: attribution ?? null,
+        facePhotoHash: facePhotoBuffer
+          ? createHash("sha256").update(facePhotoBuffer).digest("hex")
+          : null,
+      },
+    );
+
+    /* Stored-result pre-check (migration 0333) BEFORE any funding —
+       including the balance gate below: a replay under a landed key
+       was already paid for, so it is answered from the durable row
+       (stored body verbatim + replayed/replayNote) with no charge
+       and no provider call, even after a server restart, and even
+       if the balance has since been spent down. Fail-open: a
+       storage miss or failure falls through to the charge below. */
+    const stored = await findStoredGenerationResult("thumbnail-generator", idempotencyKey, req.userId!);
+    if (stored) {
+      res.json({ ...stored, replayed: true, replayNote: REPLAY_NOTE });
+      return;
+    }
+
     const currentCredits = req.userCredits ?? 0;
     const isDev = process.env["NODE_ENV"] === "development";
     req.log.info(
@@ -176,9 +227,6 @@ router.post(
 
     /* Charge up front — refunded below if nothing generates.
        P0-23: strict ledger + idempotency via chargeCredits. */
-    const idempotencyKey = typeof (req.body as { idempotencyKey?: unknown } | null)?.idempotencyKey === "string"
-      ? (req.body as { idempotencyKey: string }).idempotencyKey
-      : null;
     const creditsAfter = await chargeCredits(
       req.userId!,
       BATCH_CREDIT_COST,
@@ -186,7 +234,6 @@ router.post(
       { idempotencyKey, personalOnly: true },
     );
 
-    const facePhotoBuffer = req.file?.buffer ?? null;
     const images: Array<{ url: string; variation: number }> = [];
 
     try {
@@ -248,8 +295,15 @@ router.post(
         );
       }
     } catch (err: unknown) {
-      /* Auto-refund: the batch failed before completing — give credits back. */
-      await refundCredits(req.userId!, BATCH_CREDIT_COST);
+      /* Auto-refund: the batch failed before completing — give credits
+         back, then VOID the charge's idempotency key when the refund
+         landed: without the void, the refunded attempt's key still
+         reads as "already charged", so the retry is suppressed as a
+         replay at the ledger and generates FREE. */
+      const refunded = await refundCredits(req.userId!, BATCH_CREDIT_COST);
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey);
+      }
       const message = err instanceof Error ? err.message : "Thumbnail generation failed";
       req.log.error(
         { userId: req.userId, err: message, completedVariations: images.length },
@@ -270,13 +324,18 @@ router.post(
       "[thumbnail-generator] batch success",
     );
 
-    res.json({
+    const body = {
       images,
       attribution,
       creditsUsed: BATCH_CREDIT_COST,
       creditsRemaining: creditsAfter,
       aspectRatio: ratio,
-    });
+    };
+    /* Persist BEFORE answering: the row is what a post-restart replay
+       is served from. Fail-open inside the helper — a storage failure
+       never fails this paid success. */
+    await storeGenerationResult("thumbnail-generator", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   },
 );
 
