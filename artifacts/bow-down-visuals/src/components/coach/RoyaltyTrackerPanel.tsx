@@ -5,6 +5,7 @@ import {
   DollarSign, TrendingUp, Music2, Upload, Sparkles, Loader2,
   Wallet, Link2, CheckCircle2, Clock3, AlertTriangle, Copy,
 } from "lucide-react";
+import { getCreditCost } from "@/lib/credit-costs";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useTranslation } from "react-i18next";
@@ -24,7 +25,11 @@ import {
    v1 honesty: CSV import is the universal path (every distributor exports
    CSVs). Platform auto-sync is "coming soon" except manual — never faked. */
 
-const INSIGHTS_CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const INSIGHTS_CREDIT_COST = getCreditCost("/api/royalties/insights")?.cost ?? 100;
 
 
 

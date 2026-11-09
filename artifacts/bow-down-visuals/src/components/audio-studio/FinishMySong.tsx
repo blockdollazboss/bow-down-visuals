@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { LibrarySongPicker } from "@/components/audio-studio/LibrarySongPicker";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── Finish My Song ───────────────────────────────────────────────────────
    Audio Studio tab. Upload an unfinished demo / voice memo — AI analyzes
@@ -14,7 +15,11 @@ import { LibrarySongPicker } from "@/components/audio-studio/LibrarySongPicker";
    the completed song via the existing music pipeline. 400 VB on success
    (priced like song generation); analysis + upload are part of the flow. */
 
-const COST = 400;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const COST = getCreditCost("/api/finish-my-song/complete")?.cost ?? 400;
 
 interface FinishResult {
   songUrl: string;

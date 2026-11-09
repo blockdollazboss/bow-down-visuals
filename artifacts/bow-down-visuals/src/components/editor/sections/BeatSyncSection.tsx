@@ -9,6 +9,7 @@ import { PlanNote } from "@/components/editor/sections/shared";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── Beat-Sync Cuts ──────────────────────────────────────────────────────
  * Detects beats in the project's audio (server-side, offline onset
@@ -30,7 +31,11 @@ import { OutOfCredits } from "@/components/OutOfCredits";
  * Timeline Edit Recipes section can snap jump-cuts to the beat grid.
  */
 
-const CREDIT_COST = 150;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/wave9b/beats/detect")?.cost ?? 150;
 const BEATCUT_PLAN_KEY = (projectKey: string) => `wave9b-beatcuts-${projectKey}`;
 
 interface BeatMarker {

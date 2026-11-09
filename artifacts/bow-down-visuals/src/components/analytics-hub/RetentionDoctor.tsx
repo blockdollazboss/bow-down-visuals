@@ -5,6 +5,7 @@ import {
   Stethoscope, Plus, X, CalendarDays, Share2, Check,
   ArrowRight, PenLine, Clapperboard, Sparkles,
 } from "lucide-react";
+import { getCreditCost } from "@/lib/credit-costs";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHubProject } from "@/lib/hub-project";
@@ -18,7 +19,11 @@ import {
    Intelligence chain: the next step once the plan exists — diagnose where
    viewers drop off and hand each fix to the tool that solves it. */
 
-const COST = 150;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const COST = getCreditCost("/api/retention-doctor")?.cost ?? 150;
 const MM_SS = /^\d{1,3}:[0-5]\d$/;
 
 const VIDEO_TYPES = ["music-video", "tutorial", "vlog", "short", "promo", "livestream-clip", "other"] as const;

@@ -18,6 +18,7 @@ import {
   type RegisteredAgentTier,
 } from "@/data/llc-state-fees";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── AI-powered LLC Formation Guide ──────────────────────────────────────
    Free: step-by-step checklist (localStorage progress), 50-state fee table,
@@ -25,7 +26,11 @@ import { usePageTitle } from "@/hooks/use-page-title";
    "Ask about LLCs" Q&A chat + personalized AI filing plan generator.
    POSTs to /api/llc-guide/ask and /api/llc-guide/plan. */
 
-const CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/llc-guide/ask")?.cost ?? 100;
 const PROGRESS_KEY = "llc-guide-progress-v1";
 
 type CreatorType = "musician" | "streamer" | "youtuber" | "podcaster" | "designer" | "other";

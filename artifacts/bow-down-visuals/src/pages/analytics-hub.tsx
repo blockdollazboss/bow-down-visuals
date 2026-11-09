@@ -68,6 +68,7 @@ import {
   ClipboardCheck, Gauge, Ear, X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Cross-Platform Analytics Hub ──────────────────────────────────────
    The social dashboard: TikTok, Instagram, YouTube, X in one place.
@@ -112,9 +113,13 @@ interface PlatformData {
 type HubState = Record<PlatformKey, PlatformData>;
 
 const STORAGE_KEY = "analytics-hub-v1";
-const INSIGHT_COST = 200;
-const COMPETITOR_COST = 200;
-const COACH_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const INSIGHT_COST = getCreditCost("/api/analytics-hub/insights")?.cost ?? 200;
+const COMPETITOR_COST = getCreditCost("/api/competitor-analysis")?.cost ?? 200;
+const COACH_COST = getCreditCost("/api/ai-coach")?.cost ?? 100;
 const MAX_COACH_POSTS = 8;
 const MAX_HISTORY = 24;
 

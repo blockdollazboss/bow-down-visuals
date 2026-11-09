@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Sponsor Read Generator panel ────────────────────────────────────────
    Mounted INSIDE the Sponsorship Outreach page (/sponsorship-outreach) as a
@@ -17,7 +18,11 @@ import { useTranslation } from "react-i18next";
    (/voiceover, script prefilled via localStorage handoff) or Add to script
    drafts (POST /api/drafts, workflowType "sponsorship-outreach"). */
 
-const READ_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const READ_COST = getCreditCost("/api/sponsor-read")?.cost ?? 100;
 
 const READ_LENGTHS = ["30", "60", "90"] as const;
 const TONES = ["energetic", "casual", "luxury", "humorous"] as const;

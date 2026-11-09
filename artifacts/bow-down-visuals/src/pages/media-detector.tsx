@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── AI Media Detector ──────────────────────────────────────────────────
    Upload an image, video, or audio file (or paste a URL) → GPT-6 Sol
@@ -21,7 +22,11 @@ import { usePageTitle } from "@/hooks/use-page-title";
    audio is assessed from technical metadata. Framed honestly: AI-assisted
    assessment, not a definitive forensic verdict. */
 
-const CREDIT_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/detect/media")?.cost ?? 200;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const FRAME_COUNT = 3;
 

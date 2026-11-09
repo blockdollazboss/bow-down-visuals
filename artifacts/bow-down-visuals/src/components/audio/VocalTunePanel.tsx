@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Vocal Tuning / Pitch Correction ───────────────────────────────────
    Two styles, one engine, zero paid calls — real ffmpeg DSP only.
@@ -24,7 +25,11 @@ import { useHubProject } from "@/lib/hub-project";
    close the tab while it runs. Works best on isolated vocals; on a full
    mix the tracker follows the strongest pitched material. */
 
-const VOCAL_TUNE_CREDIT_COST = 200; // RATIFIED — owner ruling 2026-11-07 (matches vocal-polish)
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const VOCAL_TUNE_CREDIT_COST = getCreditCost("/api/vocal-tune")?.cost ?? 200;
 const VOCAL_TUNE_MAX_BYTES = 50 * 1024 * 1024;
 
 type TuneStyle = "transparent" | "hardtune";

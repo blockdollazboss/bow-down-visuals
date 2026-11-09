@@ -177,7 +177,7 @@ import {
 } from "@/lib/beat-doors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
-import { CREDIT_COSTS } from "@/lib/credit-costs";
+import { CREDIT_COSTS, getCreditCost } from "@/lib/credit-costs";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import ShareMenu from "@/components/ShareMenu";
@@ -4284,7 +4284,11 @@ const CATEGORIES: SfxCategory[] = [
   { key: "foley", labelKey: "sfx.categoryFoley", icon: Footprints, blurbKey: "sfx.categoryFoleyBlurb" },
 ];
 
-const SFX_CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const SFX_CREDIT_COST = getCreditCost("/api/generate-sfx")?.cost ?? 100;
 const MIN_DURATION = 1;
 const MAX_DURATION = 10;
 

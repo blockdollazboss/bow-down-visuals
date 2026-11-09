@@ -47,7 +47,7 @@ describe("the call — the page's own terms", () => {
     expect(CONTRACT_ANALYSIS_COST_VB).toBe(300);
     expect(CONTRACT_ANALYSIS_FEATURE).toBe("Contract Analysis");
     const page = read("../../pages/contracts.tsx");
-    expect(page).toContain("const CREDIT_COST = 300;");
+    expect(page).toContain('const CREDIT_COST = getCreditCost("/api/contracts/analyze")?.cost ?? 300;');
     expect(page).toContain('overrideFeature: "Contract Analysis"');
   });
 

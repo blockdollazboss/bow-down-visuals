@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Sponsor Deal Pipeline (Wave 8) ──────────────────────────────────────
    Docked on the Sponsorship Outreach page (/outreach), after the invoice
@@ -36,7 +37,11 @@ interface Draft {
 }
 
 const STAGES: Stage[] = ["pitched", "negotiating", "closed", "paid"];
-const FOLLOWUP_CREDITS = 50;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const FOLLOWUP_CREDITS = getCreditCost("/api/sponsors/pipeline/followup")?.cost ?? 50;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";

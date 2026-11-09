@@ -24,6 +24,7 @@ import { AudienceAutoSegment } from "@/components/promote/AudienceAutoSegment";
 import { WidgetsDeskPanel } from "@/components/promote/WidgetsDeskPanel";
 import { SectionBoundary } from "@/components/SectionBoundary";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Promo Content Generator ─────────────────────────────────────────────
    Pick a feature, pick a format and tone, and get ready-to-post marketing
@@ -61,7 +62,11 @@ const TONES: Tone[] = [
   { key: "luxury", i18nKey: "luxury" },
 ];
 
-const CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/promo-generator")?.cost ?? 100;
 
 interface PromoResponse {
   title?: string;

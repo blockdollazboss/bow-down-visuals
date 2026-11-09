@@ -11,6 +11,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { useHubProject } from "@/lib/hub-project";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── SingingVoiceModal ─────────────────────────────────────────────
    Singing-voice conversion, docked inside the Song Maker results next to
@@ -61,7 +62,11 @@ interface ConvertResponse {
   creditsRemaining?: number;
 }
 
-const CREDIT_COST = 800; // PLACEHOLDER — needs user price approval
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/singing-voice")?.cost ?? 800;
 
 export function SingingVoiceModal({ open, onClose, source, onConverted }: SingingVoiceModalProps) {
   const dialogRef = useModalA11y<HTMLDivElement>(open, onClose);

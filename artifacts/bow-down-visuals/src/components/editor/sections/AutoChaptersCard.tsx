@@ -4,8 +4,13 @@ import { ListVideo, Sparkles, Copy, Check, Plus, Trash2, Loader2, AlertCircle } 
 import { EditorCard } from "@/components/editor/controls";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import type { VideoChapter } from "@/lib/editor-settings";
+import { getCreditCost } from "@/lib/credit-costs";
 
-const AUTO_CHAPTERS_COST = 150;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const AUTO_CHAPTERS_COST = getCreditCost("/api/auto-chapters")?.cost ?? 150;
 
 interface AutoChaptersCardProps {
   chapters: VideoChapter[];

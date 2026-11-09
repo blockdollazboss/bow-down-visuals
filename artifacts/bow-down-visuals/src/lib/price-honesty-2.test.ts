@@ -35,16 +35,16 @@ function deriveServerConstant(rel: string, constant: string): number {
   );
   const m = src.match(re);
   expect(m, `${constant} in ${rel}`).toBeTruthy();
-  return Number(m![1].replace(/_/g, ""));
+  return Number((m![1] ?? m![2]).replace(/_/g, ""));
 }
 
 /** Derive a numeric constant from a client source file. */
 function deriveClientConstant(rel: string, constant: string): number {
   const src = readFe(rel);
-  const re = new RegExp(`(?:export\\s+)?const\\s+${constant}\\s*(?::\\s*number)?\\s*=\\s*([\\d_]+)\\s*;`);
+  const re = new RegExp(`(?:export\\s+)?const\\s+${constant}\\s*(?::\\s*number)?\\s*=\\s*(?:([\\d_]+)|getCreditCost\\([^)]*\\)\\?\\.cost\\s*\\?\\?\\s*([\\d_]+))\\s*;`);
   const m = src.match(re);
   expect(m, `${constant} in ${rel}`).toBeTruthy();
-  return Number(m![1].replace(/_/g, ""));
+  return Number((m![1] ?? m![2]).replace(/_/g, ""));
 }
 
 /** The creditCost string of one features-catalog entry, by key. */

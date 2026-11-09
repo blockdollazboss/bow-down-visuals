@@ -47,7 +47,7 @@ const pageSrc = readFileSync(
 );
 
 function deriveConst(src: string, name: string): number {
-  const m = src.match(new RegExp(`const ${name}[^=]*=\\s*(?:Number\\([^)]*\\)\\s*\\|\\|\\s*)?(\\d+)`));
+  const m = src.match(new RegExp(`const ${name}[^=]*=\\s*(?:Number\\([^)]*\\)\\s*\\|\\|\\s*)?(?:getCreditCost\\([^)]*\\)\\s*\\?\\.\\s*cost\\s*\\?\\?\\s*)?(\\d+)`));
   if (!m) throw new Error(`could not derive ${name}`);
   return Number(m[1]);
 }

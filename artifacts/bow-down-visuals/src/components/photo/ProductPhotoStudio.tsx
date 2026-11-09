@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { r2List } from "@/lib/r2-storage";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Product Photo Studio ────────────────────────────────────────────────
    AI product photography for the SELL flow (branding shop / storefront):
@@ -25,7 +26,11 @@ import { r2List } from "@/lib/r2-storage";
 
 /* Packshot and lifestyle prices RATIFIED as-is — owner rulings
    2026-11-07. Report changes here. */
-const PACKSHOT_CREDITS = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const PACKSHOT_CREDITS = getCreditCost("/api/generate-product-photo")?.cost ?? 100;
 const LIFESTYLE_CREDITS = 150;
 
 type ShotType = "packshot" | "lifestyle";

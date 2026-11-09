@@ -10,6 +10,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
+import { getCreditCost } from "@/lib/credit-costs";
 
 interface CanvasGeneratorSectionProps {
   audioUrl?: string | null;
@@ -31,7 +32,11 @@ const FALLBACK_STYLES: CanvasStyle[] = [
   { key: "lyricFlicker", label: "Lyric Flicker", blurb: "Your lyric line flickers like a neon sign over the art" },
 ];
 
-const CANVAS_COST = 150;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CANVAS_COST = getCreditCost("/api/canvas/generate")?.cost ?? 150;
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 

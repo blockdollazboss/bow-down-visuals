@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Sync Pitch Kit tab (docked inside Playlist Pitcher) ─────────────────
    DistroKid-style sync licensing pitching:
@@ -24,7 +25,11 @@ import { useTranslation } from "react-i18next";
    one-sheet → sponsor outreach (/sponsors/pitch) and stems/mix tools
    (/stems, /mix-master); placed syncs → Money Tracker (POST /api/money). */
 
-const ONE_SHEET_COST = 150;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const ONE_SHEET_COST = getCreditCost("/api/sync-pitch/one-sheet")?.cost ?? 150;
 
 type SubTab = "onesheet" | "briefs" | "tracker";
 

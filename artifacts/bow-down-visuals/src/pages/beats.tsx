@@ -9,6 +9,7 @@ import {
   Tag, BadgeDollarSign, Store, BarChart3, Music2, AlertTriangle, CheckCircle2,
   X, Wand2, RotateCcw,
 } from "lucide-react";
+import { getCreditCost } from "@/lib/credit-costs";
 import { useAuth } from "@/contexts/AuthContext";
 import { loginPathWithNext } from "@/lib/auth-next";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -132,7 +133,11 @@ const GENRES = ["hip-hop", "trap", "drill", "r&b", "afrobeats", "pop", "edm", "l
  *  on every POST /api/beats/:id/ai-tags. The button labels interpolate this
  *  constant so the displayed price cannot drift from the charge again
  *  (pinned by beats-ai-tags-price-truth.test.ts). */
-const AI_TAGS_CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const AI_TAGS_CREDIT_COST = getCreditCost("/api/beats/:id/ai-tags")?.cost ?? 100;
 
 function centsToDollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;

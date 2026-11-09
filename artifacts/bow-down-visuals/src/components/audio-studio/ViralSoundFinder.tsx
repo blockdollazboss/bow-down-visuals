@@ -12,6 +12,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import SoundFitPanel from "@/components/sound-fit/SoundFitPanel";
 import LoopExchangePanel from "@/components/loop-exchange/LoopExchangePanel";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Viral Sound Finder ────────────────────────────────────────────────
    /sounds — find trending sounds for TikTok/Reels/Shorts.
@@ -48,7 +49,11 @@ const PLATFORM_DEFS = [
   { key: "youtube", labelKey: "platformShorts" },
 ] as const;
 
-const MATCH_CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const MATCH_CREDIT_COST = getCreditCost("/api/sound-finder/match")?.cost ?? 100;
 const FAVORITES_KEY = "bdv-sound-favorites";
 
 interface TrendingSound {

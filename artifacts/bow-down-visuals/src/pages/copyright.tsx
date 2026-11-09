@@ -12,6 +12,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Copyright Filing Assistant ────────────────────────────────────────────
    AI-powered guided page for U.S. copyright registration prep (content creators).
@@ -24,8 +25,12 @@ import { useTranslation } from "react-i18next";
    Registrations are tracked in localStorage (v1 persistence).
    NOT legal advice — disclaimer is shown in multiple places. */
 
-const DRAFT_CREDIT_COST = 100;
-const ASK_CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const DRAFT_CREDIT_COST = getCreditCost("/api/copyright/draft")?.cost ?? 100;
+const ASK_CREDIT_COST = getCreditCost("/api/copyright/ask")?.cost ?? 100;
 
 type WorkType = "song" | "sound-recording" | "lyrics" | "music-video" | "album";
 

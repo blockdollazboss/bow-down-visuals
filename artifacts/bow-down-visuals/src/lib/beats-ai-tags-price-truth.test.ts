@@ -39,7 +39,7 @@ function deriveServerConstant(rel: string, constant: string): number {
   );
   if (envDefault) return Number(envDefault[1]);
   const plain = src.match(
-    new RegExp(`const\\s+${constant}\\s*(?::\\s*number)?\\s*=\\s*(\\d+)\\b`),
+    new RegExp(`const\\s+${constant}\\s*(?::\\s*number)?\\s*=\\s*(?:(\\d+)|getCreditCost\\([^)]*\\)\\?\\.cost\\s*\\?\\?\\s*(\\d+))\\b`),
   );
   expect(plain, `${constant} in ${rel}`).toBeTruthy();
   return Number(plain![1]);
@@ -47,9 +47,9 @@ function deriveServerConstant(rel: string, constant: string): number {
 
 function derivePageConstant(rel: string, constant: string): number {
   const src = readPage(rel);
-  const m = src.match(new RegExp(`const\\s+${constant}\\s*=\\s*(\\d+)\\b`));
+  const m = src.match(new RegExp(`const\\s+${constant}\\s*=\\s*(?:(\\d+)|getCreditCost\\([^)]*\\)\\?\\.cost\\s*\\?\\?\\s*(\\d+))\\b`));
   expect(m, `${constant} in ${rel}`).toBeTruthy();
-  return Number(m![1]);
+  return Number(m![1] ?? m![2]);
 }
 
 describe("beats AI tags — charged == displayed == 100", () => {

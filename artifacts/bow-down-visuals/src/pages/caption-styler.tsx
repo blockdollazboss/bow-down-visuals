@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── AI Caption Styler ───────────────────────────────────────────────────
    Upload a video → AI transcribes with word-level timestamps → animated
@@ -20,7 +21,11 @@ import { useHubProject } from "@/lib/hub-project";
    close the tab while it runs. */
 
 /* x100 Visual Bucs — matches the /api/caption-styler charge + registry. */
-const CREDIT_COST = 300;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/caption-styler")?.cost ?? 300;
 
 type StyleKey = "hormozi" | "minimal" | "karaoke" | "neon" | "luxury-gold";
 type PositionKey = "top" | "middle" | "bottom";

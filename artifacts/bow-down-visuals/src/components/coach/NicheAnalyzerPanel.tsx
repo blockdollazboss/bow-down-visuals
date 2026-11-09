@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Niche Analyzer panel (mounted INSIDE the /coach page as a tab) ─────
    Deep niche intelligence: audience profile, underserved content gaps,
@@ -36,7 +37,11 @@ const EXPERIENCE_OPTS: { id: ExperienceLevel; label: string }[] = [
   { id: "advanced", label: "Advanced (100k+)" },
 ];
 
-const IDEA_VALIDATOR_COST = 75;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const IDEA_VALIDATOR_COST = getCreditCost("/api/validate-idea")?.cost ?? 75;
 
 interface AudienceProfile { demographics: string; interests: string[] }
 interface ContentGap { angle: string; whyUnderserved: string; opportunity: string }

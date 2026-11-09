@@ -7,6 +7,7 @@ import {
   ArrowLeft, MonitorUp, Image as ImageIcon, Eraser, Sparkles,
   Info, RefreshCw, ChevronsLeftRight,
 } from "lucide-react";
+import { getCreditCost } from "@/lib/credit-costs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -42,7 +43,11 @@ const TABS: Array<{ key: TabKey; labelKey: string; shortKey: string; icon: typeo
 
 /* ─── Tab 1: Video Upscaler (existing tool, unchanged behavior) ────────── */
 
-const VIDEO_CREDIT_COST = 300;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const VIDEO_CREDIT_COST = getCreditCost("/api/upscale")?.cost ?? 300;
 
 type TargetKey = "1080p" | "4k";
 
@@ -326,7 +331,7 @@ function VideoUpscaleTool() {
    stays disabled with a clear message. Price is official: 1,500 VB
    (owner-approved 2026-10-24). */
 
-const GENERATIVE_UPSCALE_CREDIT_COST = 1500;
+const GENERATIVE_UPSCALE_CREDIT_COST = getCreditCost("/api/ai-upscale")?.cost ?? 1500;
 
 type GenerativeModeStatus = "idle" | "checking" | "ready" | "unconfigured";
 
@@ -342,7 +347,7 @@ function GenerativeUpscaleTool() {
     setModeStatus("checking");
     (async () => {
       try {
-        const res = await fetch("/api/ai-upscale/status");
+        const res = await fetch("/api/ai-upscale");
         if (!res.ok) throw new Error("status failed");
         const data = (await res.json()) as { configured?: boolean };
         if (alive) setModeStatus(data.configured ? "ready" : "unconfigured");
@@ -478,7 +483,7 @@ function VideoUpscaleWithModes() {
   );
 }
 
-const IMAGE_CREDIT_COST = 300;
+const IMAGE_CREDIT_COST = getCreditCost("/api/upscale/image")?.cost ?? 300;
 const IMAGE_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
 
 type ImageScaleKey = "2x" | "4x";
@@ -804,7 +809,7 @@ function ImageUpscaleTool() {
    job fails. Server-owned background job: safe to close the tab while it
    runs. Finished outputs hand off to the video editor (→ /video-editor). */
 
-const ENHANCE_CREDIT_COST = 200;
+const ENHANCE_CREDIT_COST = getCreditCost("/api/watermark-removal")?.cost ?? 200;
 
 type EnhancePresetKey = "bottom-right" | "bottom-left" | "top-right" | "top-left" | "custom";
 

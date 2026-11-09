@@ -27,6 +27,7 @@ import type { TourDate, TourPlan, OptimizedStop } from "@/lib/tour";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Tour Planner ────────────────────────────────────────────────────────
    Plan tours and live shows:
@@ -37,7 +38,11 @@ import { useTranslation } from "react-i18next";
    Honest framing throughout: routing and budget are AI estimates, not
    guarantees. */
 
-const CREDIT_COST = 300;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/tour/optimize")?.cost ?? 300;
 
 const STATUS_LABELS: Record<TourDate["status"], string> = {
   upcoming: "tour.statusUpcoming",

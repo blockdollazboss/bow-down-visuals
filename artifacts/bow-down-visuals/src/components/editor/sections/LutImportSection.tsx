@@ -8,6 +8,7 @@ import type { SceneData } from "@/lib/scene-parser";
 import { EditorCard } from "@/components/editor/controls";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── LUT Import (.cube / .3dl) — CapCut color parity ─────────────────────
    Docks inside the Video Editor Color panel (rendered from EffectsSection).
@@ -15,7 +16,11 @@ import { useToast } from "@/hooks/use-toast";
    users can upload .cube/.3dl files, save them to "My LUTs", preview free,
    and burn the LUT into a scene clip for 150 Visual Bucs via /api/apply-lut. */
 
-const APPLY_COST = 150;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const APPLY_COST = getCreditCost("/api/apply-lut")?.cost ?? 150;
 
 interface HousePreset {
   id: string;

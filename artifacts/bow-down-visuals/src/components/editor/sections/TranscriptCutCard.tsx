@@ -4,6 +4,7 @@ import {
   FileText, Loader2, Sparkles, CheckCircle2, AlertTriangle,
   Download, Scissors, Clock3, Check, X,
 } from "lucide-react";
+import { getCreditCost } from "@/lib/credit-costs";
 import type { SceneData } from "@/lib/scene-parser";
 import { EditorCard } from "@/components/editor/controls";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -44,7 +45,11 @@ import {
  * pane says so and steps aside — no fake alignment, ever.
  */
 
-const CREDIT_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/remove-fillers/analyze")?.cost ?? 200;
 
 /** Same default filler set as the podcast transcript editor / the
  *  Filler-Word Remover's default-on groups. */

@@ -10,6 +10,7 @@ import { PlanNote } from "@/components/editor/sections/shared";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── Timeline Edit Recipes ───────────────────────────────────────────────
  * One-tap edit recipes that return a PREVIEWABLE list of edit operations —
@@ -33,7 +34,11 @@ import { OutOfCredits } from "@/components/OutOfCredits";
  * BeatSyncSection) — export wiring pending, never faked into the render.
  */
 
-const CREDIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/wave9b/templates/apply")?.cost ?? 100;
 const BEATCUT_PLAN_KEY = (projectKey: string) => `wave9b-beatcuts-${projectKey}`;
 
 type RecipeId = "jumpcut-vlog" | "lyric-video" | "talking-head";

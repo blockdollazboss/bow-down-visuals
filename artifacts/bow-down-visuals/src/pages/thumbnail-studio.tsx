@@ -1171,6 +1171,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { BrowseLibraryButton } from "@/pages/library";
 import { scoreBand, scoreBandClass, filterImageFiles } from "@/lib/thumbnail-test";
+import { getCreditCost } from "@/lib/credit-costs";
 /* The three photo desks ride lazy doors (site-perf, stack1300):
    each renders only on its own tab (enhance / background /
    editor), so none of them rides the studio's first load — the
@@ -1198,8 +1199,12 @@ function ThumbDeskFallback() {
    so it charges). Honest framing throughout: this is a PREDICTION based on
    thumbnail best practices, not a guarantee of real click-through. */
 
-const CREDIT_COST = 200;
-const IMPROVE_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/thumbnail-generator")?.cost ?? 200;
+const IMPROVE_COST = getCreditCost("/api/thumbnail-test/improve")?.cost ?? 200;
 const MAX_FILES = 4;
 const MIN_FILES = 2;
 

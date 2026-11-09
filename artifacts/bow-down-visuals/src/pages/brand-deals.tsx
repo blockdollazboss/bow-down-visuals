@@ -23,6 +23,7 @@ import SponsorPipeline from "@/components/wave8/SponsorPipeline";
 import { SponsorDashboardPanel } from "@/components/sponsors/SponsorDashboardPanel";
 import { PostDealPanel } from "@/components/sponsors/PostDealPanel";
 import { SectionBoundary } from "@/components/SectionBoundary";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Thy Cheat Code's Sponsors Hub (ONE canonical file) ───────────────────
    Find Deals: AI matches creators with brand partnership opportunities —
@@ -84,8 +85,12 @@ const NICHE_DEFS: { value: string; labelKey: string }[] = [
   { value: "Lifestyle", labelKey: "lifestyle" },
 ];
 
-const SEARCH_COST = 200;
-const OUTREACH_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const SEARCH_COST = getCreditCost("/api/brand-deals")?.cost ?? 200;
+const OUTREACH_COST = getCreditCost("/api/brand-deals/outreach")?.cost ?? 100;
 
 interface BrandDeal {
   brand: string;
@@ -810,7 +815,7 @@ export default function BrandDealFinder({ initialTab }: { initialTab?: "finder" 
    from the brand calculator, creator identity from the vault, and the
    → /sponsors marketplace tip. */
 
-const PITCH_KIT_COST = 200;
+const PITCH_KIT_COST = getCreditCost("/api/outreach")?.cost ?? 200;
 
 const OUTREACH_PLATFORMS = ["tiktok", "instagram", "youtube", "twitch", "twitter", "facebook"];
 
@@ -1354,7 +1359,7 @@ interface DealMatch {
 /* Display mirror of the rail charge (SPONSOR_AI_CREDIT_COST, 100 Visual Bucs —
    owner ruling Oct 29, 2026). Pinned against the rail + registry by
    lib/sponsor-ai-price-truth.test.ts so display and charge cannot drift. */
-const MATCHER_COST = 100;
+const MATCHER_COST = getCreditCost("/api/sponsors/match")?.cost ?? 100;
 
 const marketplaceSectionLabel =
   "mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40";

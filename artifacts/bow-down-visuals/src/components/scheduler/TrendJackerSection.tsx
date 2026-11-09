@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useToast } from "@/hooks/use-toast";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── Trend Jacker ─────────────────────────────────────────────────────────
    Lives in the Plan hub (/scheduler) as a tab. Picks up a trend — from the
@@ -14,7 +15,11 @@ import { useToast } from "@/hooks/use-toast";
    complete draft video package in the user's style: hook, script, shot-by-
    shot visual plan, caption, hashtags. 200 credits per draft. */
 
-const DRAFT_CREDITS = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const DRAFT_CREDITS = getCreditCost("/api/trend-jacker/draft")?.cost ?? 200;
 const WATCHLIST_KEY = "bdv-trend-watchlist";
 
 interface TrendDraft {

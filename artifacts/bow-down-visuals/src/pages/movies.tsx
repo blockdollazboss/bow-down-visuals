@@ -15,6 +15,7 @@ import { CreationFinale } from "@/components/player/CreationFinale";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Movies & Web Series ────────────────────────────────────────────────
    Two AI tools for creators going long-form:
@@ -24,8 +25,12 @@ import { usePageTitle } from "@/hooks/use-page-title";
       with clip-ready titles (POST /api/movies/clip-detect, 300 credits).
    Charge-before-generate with auto-refund on failure, gold/black theme. */
 
-const CONCEPT_CREDITS = 400;
-const CLIP_DETECT_CREDITS = 300;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CONCEPT_CREDITS = getCreditCost("/api/movies/concept")?.cost ?? 400;
+const CLIP_DETECT_CREDITS = getCreditCost("/api/movies/clip-detect")?.cost ?? 300;
 
 type Tab = "concept" | "clips";
 

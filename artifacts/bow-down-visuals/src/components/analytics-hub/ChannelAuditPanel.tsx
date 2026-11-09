@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Channel Audit (tab panel inside /analytics-hub) ───────────────────────
    AI channel audit: creator shares niche, handle, bio, cadence + recent
@@ -19,7 +20,11 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
    auto-refund on failure. Honest framing: best-practices scoring, never a
    growth guarantee. */
 
-const CREDIT_COST = 300;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/channel-audit")?.cost ?? 300;
 
 const PLATFORMS = [
   { key: "tiktok", labelKey: "audit.platformTikTok" },

@@ -170,7 +170,7 @@ describe("CREDIT_COSTS displayed prices equal the rails' charges (Stack-25 six)"
     expect(CREDIT_COSTS["/api/upscale"]?.cost).toBe(300);
 
     const page = readFileSync(new URL("../pages/upscale.tsx", import.meta.url), "utf8");
-    expect(page).toMatch(/const GENERATIVE_UPSCALE_CREDIT_COST = 1500;/);
+    expect(page).toMatch(/const GENERATIVE_UPSCALE_CREDIT_COST = (?:1500|getCreditCost\("\/api\/ai-upscale"\)\?\.cost \?\? 1500);/);
 
     const registrySrc = readFileSync(new URL("./credit-costs.ts", import.meta.url), "utf8");
     const idx = registrySrc.indexOf('"/api/ai-upscale"');

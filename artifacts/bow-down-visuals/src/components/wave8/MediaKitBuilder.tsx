@@ -7,6 +7,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { slugifyHandle } from "@/lib/press-kit";
 import type { jsPDF as JsPDFDoc } from "jspdf";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* jsPDF itself loads on demand inside buildMediaKitPdf — a static
    import dragged the ~400 KB library into the first load of every
@@ -42,7 +43,11 @@ interface VaultOption {
   genre?: string | null;
 }
 
-const KIT_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const KIT_COST = getCreditCost("/api/wave8/media-kit/generate")?.cost ?? 100;
 const GOLD: [number, number, number] = [212, 175, 55];
 
 /** Build a clean one-page media kit PDF: black background, gold headings. */

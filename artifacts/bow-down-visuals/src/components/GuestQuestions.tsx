@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── Podcast Guest Question Generator ────────────────────────────────
    Docked inside the podcast flow (/podcast, "Guest Questions" tab).
@@ -60,10 +61,14 @@ interface AudiogramResult {
   creditsRemaining?: number;
 }
 
-const QUESTION_COST = 75;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const QUESTION_COST = getCreditCost("/api/guest-questions")?.cost ?? 75;
 const INTRO_COST = 300;
 const SHOW_NOTES_COST = 100;
-const AUDIOGRAM_COST = 250;
+const AUDIOGRAM_COST = getCreditCost("/api/audiogram")?.cost ?? 250;
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";

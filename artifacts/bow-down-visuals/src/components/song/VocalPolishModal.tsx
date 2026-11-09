@@ -10,6 +10,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { useHubProject } from "@/lib/hub-project";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ─── VocalPolishModal ──────────────────────────────────────────────────
    Suno-parity vocal finishing, docked inside Song Maker results and the
@@ -56,7 +57,11 @@ interface PolishJobResponse {
   creditsRemaining?: number;
 }
 
-const CREDIT_COST = 200;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const CREDIT_COST = getCreditCost("/api/vocal-polish")?.cost ?? 200;
 
 export function VocalPolishModal({ open, onClose, source, onPolished }: VocalPolishModalProps) {
   const dialogRef = useModalA11y<HTMLDivElement>(open, onClose);

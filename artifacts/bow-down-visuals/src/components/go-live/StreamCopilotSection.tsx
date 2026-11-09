@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import LiveStageDesk from "@/components/go-live/LiveStageDesk";
+import { getCreditCost } from "@/lib/credit-costs";
 
 /* ── Stream Copilot ───────────────────────────────────────────────────────
    Live hub (/go-live) tab. (1) Pre-stream: AI generates a setup
@@ -17,8 +18,12 @@ import LiveStageDesk from "@/components/go-live/LiveStageDesk";
    Real-time co-hosting lives in the Live Stage Desk docked below
    (#166 Stage Manager + #172 Auto-Highlights + #153 Classes). */
 
-const PREP_COST = 100;
-const CLIP_COST = 100;
+/* Price single-sourced from the FE credit registry (src/lib/credit-costs.ts):
+   the literal is only the fallback for a missing registry row, and the
+   x100-off-registry bug family dies here — pinned by
+   price-registry-single-source.test.ts (Stack 400 A-07). */
+const PREP_COST = getCreditCost("/api/stream-copilot/prep")?.cost ?? 100;
+const CLIP_COST = getCreditCost("/api/stream-copilot/clip-plan")?.cost ?? 100;
 
 interface PrepResult {
   checklist: string[];
