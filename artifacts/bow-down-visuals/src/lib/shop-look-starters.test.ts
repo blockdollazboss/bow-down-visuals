@@ -27,6 +27,10 @@ import { SHOP_LAYOUT_IDS, SHOP_FONT_IDS } from "./shop-design";
 const storefrontPage = readFileSync(new URL("../pages/shop.tsx", import.meta.url), "utf8");
 
 describe("the look registry", () => {
+  it("ships exactly ten looks — the nine proven plus market-stall (stack400 D-35)", () => {
+    expect(SHOP_LOOK_STARTERS).toHaveLength(10);
+  });
+
   it("ships a designed set with unique ids and unique pairings", () => {
     expect(SHOP_LOOK_STARTERS.length).toBeGreaterThanOrEqual(6);
     expect(new Set(SHOP_LOOK_STARTERS.map((s) => s.id)).size).toBe(SHOP_LOOK_STARTERS.length);
@@ -143,6 +147,22 @@ describe("hero-house — the hero layout in the house voice (stack300)", () => {
     expect(shopLookPatch(hero!)).toEqual({ layout_style: "hero", font_style: "house" });
     expect(isLookStarterApplied({ layout_style: "hero", font_style: "house" }, hero!)).toBe(true);
     expect(isLookStarterApplied({ layout_style: "hero", font_style: "royal" }, hero!)).toBe(false);
+  });
+});
+
+describe("market-stall — the open market-stall arrangement (stack400 D-35)", () => {
+  it("pairs the hero layout with the classic font — the stall arrangement the shelf lacked", () => {
+    const stall = shopLookStarterById("market-stall");
+    expect(stall).toBeDefined();
+    /* The stall arrangement: the hero layout puts the prize piece
+       full-bleed up top with the rest of the goods railed beneath —
+       the open-stall display. The pairing is new (hero+classic was
+       unclaimed) and only these two fields move. */
+    expect(stall!.settings).toEqual({ layout_style: "hero", font_style: "classic" });
+    expect(shopLookPatch(stall!)).toEqual({ layout_style: "hero", font_style: "classic" });
+    expect(isLookStarterApplied({ layout_style: "hero", font_style: "classic" }, stall!)).toBe(true);
+    expect(isLookStarterApplied({ layout_style: "hero", font_style: "royal" }, stall!)).toBe(false);
+    expect(isLookStarterApplied({ layout_style: "hero", font_style: "house" }, stall!)).toBe(false);
   });
 });
 

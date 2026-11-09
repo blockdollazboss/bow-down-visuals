@@ -52,6 +52,10 @@ function luminance(hex: string): number {
 }
 
 describe("registry shape", () => {
+  it("ships exactly eleven starters — the ten proven plus sandstone-boutique (stack400 D-34)", () => {
+    expect(SHOP_DESIGN_STARTERS).toHaveLength(11);
+  });
+
   it("ships at least six starters with unique ids and unique color pairings", () => {
     expect(SHOP_DESIGN_STARTERS.length).toBeGreaterThanOrEqual(6);
     const ids = SHOP_DESIGN_STARTERS.map((s) => s.id);
@@ -173,6 +177,28 @@ describe("acid-lime — the design shelf's yellow-green entry (stack300)", () =>
     for (const s of SHOP_DESIGN_STARTERS) {
       if (s.id === "acid-lime") continue;
       expect(rgbDistance(acid.settings.accent_color, s.settings.accent_color), s.id).toBeGreaterThan(100);
+    }
+  });
+});
+
+describe("sandstone-boutique — the design shelf's warm sandstone entry (stack400 D-34)", () => {
+  it("exists with the warm sandstone banner + sun-warm clay accent pairing", () => {
+    const sandstone = shopStarterById("sandstone-boutique");
+    expect(sandstone).toBeDefined();
+    expect(sandstone!.settings).toEqual({ banner_color: "#241a10", accent_color: "#c97e35" });
+    expect(shopStarterPatch(sandstone!)).toEqual({ banner_color: "#241a10", accent_color: "#c97e35" });
+  });
+
+  it("its accent is a genuinely new hue on the shelf — far from every existing accent", () => {
+    function dist(a: string, b: string): number {
+      const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+      const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+      return Math.hypot(pa[0]! - pb[0]!, pa[1]! - pb[1]!, pa[2]! - pb[2]!);
+    }
+    const sandstone = shopStarterById("sandstone-boutique")!;
+    for (const s of SHOP_DESIGN_STARTERS) {
+      if (s.id === "sandstone-boutique") continue;
+      expect(dist(sandstone.settings.accent_color, s.settings.accent_color), s.id).toBeGreaterThan(50);
     }
   });
 });

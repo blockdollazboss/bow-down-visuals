@@ -128,6 +128,24 @@ export const CHARACTER_THEMES: CharacterTheme[] = [
     deep: "#134E4A",
     cardTint: "rgba(15,118,110,0.08)",
   },
+  {
+    id: "bronze-gladiator",
+    name: "Bronze Gladiator",
+    vibe: "Arena · sand · hard-won glory",
+    primary: "#9C6642",
+    highlight: "#DCB287",
+    deep: "#5C3A21",
+    cardTint: "rgba(156,102,66,0.08)",
+  },
+  {
+    id: "pearl-regency",
+    name: "Pearl Regency",
+    vibe: "Pearl · ivory · quiet ceremony",
+    primary: "#DCCEB8",
+    highlight: "#FBF7EE",
+    deep: "#9A8B72",
+    cardTint: "rgba(220,206,184,0.08)",
+  },
 ];
 
 const FALLBACK = CHARACTER_THEMES[0]!;

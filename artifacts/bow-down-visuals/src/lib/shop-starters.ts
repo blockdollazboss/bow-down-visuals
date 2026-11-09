@@ -137,6 +137,13 @@ export const SHOP_DESIGN_STARTERS: ShopDesignStarter[] = [
     bestFor: "Gaming, street, and esports shops.",
     settings: { banner_color: "#0d1405", accent_color: "#65a30d" },
   },
+  {
+    id: "sandstone-boutique",
+    name: "Sandstone Boutique",
+    blurb: "Warm sandstone banner with a sun-warm clay accent — desert light over carved stone, the shelf's warm-neutral look.",
+    bestFor: "Handmade goods, ceramics, jewelry, and warm boutique brands.",
+    settings: { banner_color: "#241a10", accent_color: "#c97e35" },
+  },
 ];
 
 export function shopStarterById(id: string): ShopDesignStarter | undefined {
@@ -255,6 +262,13 @@ export const SHOP_LOOK_STARTERS: ShopLookStarter[] = [
     blurb: "The dense four-across wall set in the classic warm serif — a packed catalog that reads like a bookshelf.",
     bestFor: "Books, art, and sample-pack catalogs with a bookish read.",
     settings: { layout_style: "gallery", font_style: "classic" },
+  },
+  {
+    id: "market-stall",
+    name: "Market Stall",
+    blurb: "The open stall: one hero piece up top like the stall's prize ware, the rest of the goods in a rail beneath — headlines in the classic warm serif, up close and priced to move.",
+    bestFor: "Market-day drops, craft fairs, vintage finds, and one-of-one goods.",
+    settings: { layout_style: "hero", font_style: "classic" },
   },
 ];
 
