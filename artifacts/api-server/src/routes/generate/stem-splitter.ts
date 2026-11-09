@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { spawn } from "node:child_process";
 import { promises as fs, createWriteStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
@@ -8,7 +8,24 @@ import { NextFunction, Request, Response, Router } from "express";
 import { z } from "zod";
 import multer from "multer";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): Pattern B — the stored 202 body carries the SAME
+   job id, so a replay rejoins the split already running instead of
+   charging again and minting a second job. */
+const REPLAY_NOTE =
+  "This split is already on its way for this file — this is the same job, not a new charge.";
 import {
   uploadMediaToSupabaseStorage,
   uploadFileStreamToSupabaseStorage,
@@ -272,6 +289,9 @@ export interface StemJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /* CA-5: the charge's idempotency key — the detached job-failure refund
+     VOIDS it so a failed split's re-ask charges fresh. */
+  chargeKey?: string;
 }
 
 const jobs = new Map<string, StemJob>();
@@ -467,13 +487,19 @@ export async function runStemJob(job: StemJob, inputBuffer: Buffer, originalName
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Stem splitting failed";
     // Refund: the user paid for stems they didn't get.
+    // CA-5: a landed refund also VOIDS the charge's idempotency key.
+    let refunded = true;
     try {
       await refundCredits(job.userId, job.creditsCharged, {
         action: "AI Stem Splitter — Refund (job failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       // Logged inside refundCredits; don't mask the original failure.
       void refundErr;
+    }
+    if (refunded && job.chargeKey) {
+      await voidChargeIdempotencyKey(job.chargeKey).catch(() => false);
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
@@ -565,6 +591,21 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
         ? "AI Stem Splitter (Pro 6-stem)"
         : "AI Stem Splitter (4-stem)";
 
+  /* CA-5: durable replay pre-check BEFORE funding — the intent is the
+     uploaded bytes' hash plus mode/tier, so re-uploading the same file
+     for the same split rejoins the SAME job; a different file, mode or
+     tier is a fresh split. */
+  const idempotencyKey = buildChargeIdempotencyKey("stem-splitter", req.userId!, null, {
+    audioBytesHash: createHash("sha256").update(req.file.buffer).digest("hex"),
+    mode,
+    tier,
+  });
+  const durable = await findStoredGenerationResult("stem-splitter", idempotencyKey, req.userId!);
+  if (durable && typeof durable["jobId"] === "string" && durable["jobId"] !== "") {
+    res.status(202).json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < cost) {
     res.status(402).json({
@@ -578,7 +619,7 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
   try {
     creditsRemaining = await chargeCredits(req.userId!, cost, {
       action,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -609,20 +650,25 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
     error: null,
     creditsCharged: cost,
     createdAt: Date.now(),
+    chargeKey: idempotencyKey,
   };
   jobs.set(job.id, job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
   void runStemJob(job, req.file.buffer, req.file.originalname);
 
-  res.status(202).json({
+  const body = {
     jobId: job.id,
     status: job.status,
     mode: job.mode,
-    stemsTier: job.pro ? "pro" : "standard",
+    stemsTier: job.pro ? ("pro" as const) : ("standard" as const),
     creditsCharged: cost,
     creditsRemaining,
-  });
+  };
+  /* Persist BEFORE answering (fail-open inside the helper) — the stored
+     body carries the SAME job id, so a replay rejoins this split. */
+  await storeGenerationResult("stem-splitter", idempotencyKey, req.userId!, { ...body });
+  res.status(202).json(body);
 });
 
 /**
