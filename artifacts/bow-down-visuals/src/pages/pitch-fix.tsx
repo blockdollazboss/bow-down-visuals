@@ -12,6 +12,7 @@ import {
   type PitchFixSubmission,
   type PitchSort,
 } from "@/lib/pitch-fix";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── Pitch & Fix (Stack-200 UPGRADES 196) ─────────────────────────────
    The approved Gate-1 preview (slug pitch-fix-preview) is the spec:
@@ -208,6 +209,7 @@ export default function PitchFixPage() {
 
       {/* ── Two doors ─────────────────────────────────────────── */}
       <section className="mt-8 grid gap-5 lg:grid-cols-2">
+        <SectionBoundary name="pitch-fix-pitch-door">
         <form onSubmit={submitPitch} className={`form-card ${cardCls} p-6`} data-testid="pitch-door">
           <h2 className={`flex items-center gap-2 font-serif text-2xl font-bold ${headCls}`}><Lightbulb className="h-5 w-5 text-[#d4a017]" />{t("pitchFix.pitchDoor.title")}</h2>
           <p className={`mt-1 ${subCls}`}>{t("pitchFix.pitchDoor.sub")}</p>
@@ -240,7 +242,9 @@ export default function PitchFixPage() {
           </button>
           {pNote && <p role="status" className={`mt-2 text-sm font-bold ${pNote.ok ? "text-emerald-500" : "text-red-400"}`}>{pNote.text}</p>}
         </form>
+        </SectionBoundary>
 
+        <SectionBoundary name="pitch-fix-fix-door">
         <form onSubmit={submitFix} className={`form-card ${cardCls} p-6`} data-testid="fix-door">
           <h2 className={`flex items-center gap-2 font-serif text-2xl font-bold ${headCls}`}><Wrench className="h-5 w-5 text-[#d4a017]" />{t("pitchFix.fixDoor.title")}</h2>
           <p className={`mt-1 ${subCls}`}>{t("pitchFix.fixDoor.sub")}</p>
@@ -275,9 +279,11 @@ export default function PitchFixPage() {
           </button>
           {fNote && <p role="status" className={`mt-2 text-sm font-bold ${fNote.ok ? "text-emerald-500" : "text-red-400"}`}>{fNote.text}</p>}
         </form>
+        </SectionBoundary>
       </section>
 
       {myPending.length > 0 && (
+        <SectionBoundary name="pitch-fix-mine">
         <section className={`mt-5 ${cardCls} p-4`} data-testid="pitch-fix-mine">
           <p className={`text-sm font-bold ${headCls}`}>{t("pitchFix.mineTitle")}</p>
           <ul className={`mt-1 text-sm ${subCls}`}>
@@ -289,6 +295,7 @@ export default function PitchFixPage() {
             ))}
           </ul>
         </section>
+        </SectionBoundary>
       )}
 
       {/* ── Boards ────────────────────────────────────────────── */}
@@ -301,6 +308,7 @@ export default function PitchFixPage() {
         <p className="mt-10 flex items-center gap-2 text-sm text-white/40"><Loader2 className="h-4 w-4 animate-spin" />{t("pitchFix.loading")}</p>
       ) : (
         <section className="mt-10 grid items-start gap-6 lg:grid-cols-2">
+          <SectionBoundary name="pitch-fix-pitch-board">
           <div data-testid="pitch-board">
             <div className="flex items-baseline gap-3">
               <h2 className={`font-serif text-2xl font-bold ${headCls}`}>{t("pitchFix.pitchBoard")}</h2>
@@ -316,7 +324,8 @@ export default function PitchFixPage() {
             <div className="mt-4">
               {pitches.length === 0 && <p className={subCls}>{t("pitchFix.emptyPitches")}</p>}
               {pitches.map((p) => (
-                <article key={p.id} className={`${cardCls} mb-3 p-4`}>
+                <SectionBoundary key={p.id} variant="compact" name="pitch-fix-pitch-card">
+                <article className={`${cardCls} mb-3 p-4`}>
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <h3 className={`font-bold ${headCls}`}>{p.title}</h3>
@@ -341,10 +350,13 @@ export default function PitchFixPage() {
                     </button>
                   </div>
                 </article>
+                </SectionBoundary>
               ))}
             </div>
           </div>
+          </SectionBoundary>
 
+          <SectionBoundary name="pitch-fix-fix-board">
           <div data-testid="fix-board">
             <div className="flex items-baseline gap-3">
               <h2 className={`font-serif text-2xl font-bold ${headCls}`}>{t("pitchFix.fixBoard")}</h2>
@@ -353,7 +365,8 @@ export default function PitchFixPage() {
             <div className="mt-4">
               {board.fixes.length === 0 && <p className={subCls}>{t("pitchFix.emptyFixes")}</p>}
               {board.fixes.map((f) => (
-                <article key={f.id} className={`${cardCls} mb-3 p-4`}>
+                <SectionBoundary key={f.id} variant="compact" name="pitch-fix-fix-card">
+                <article className={`${cardCls} mb-3 p-4`}>
                   <h3 className={`font-bold ${headCls}`}>
                     {f.kind === "feedback" ? (f.title || t("pitchFix.feedbackRow", { rating: f.rating ?? 0 })) : f.title}
                   </h3>
@@ -370,14 +383,17 @@ export default function PitchFixPage() {
                     <span className={subCls}>{t("pitchFix.by", { name: f.submitterName })}</span>
                   </div>
                 </article>
+                </SectionBoundary>
               ))}
             </div>
           </div>
+          </SectionBoundary>
         </section>
       )}
 
       {/* ── Recently shipped ──────────────────────────────────── */}
       {board && board.shipped.length > 0 && (
+        <SectionBoundary name="pitch-fix-shipped">
         <section className="mt-10" data-testid="pitch-fix-shipped">
           <h2 className={`font-serif text-2xl font-bold ${headCls}`}>{t("pitchFix.shipped.title")}</h2>
           <p className={`mt-1 ${subCls}`}>{t("pitchFix.shipped.sub")}</p>
@@ -403,9 +419,11 @@ export default function PitchFixPage() {
             ))}
           </div>
         </section>
+        </SectionBoundary>
       )}
 
       {/* ── Team note ─────────────────────────────────────────── */}
+      <SectionBoundary name="pitch-fix-team-note">
       <section className={`mt-10 flex items-start gap-4 ${cardCls} p-5`}>
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-[#d4a017] font-serif text-lg font-bold text-[#d4a017]">B</span>
         <div>
@@ -413,6 +431,7 @@ export default function PitchFixPage() {
           <p className={`mt-1 max-w-3xl ${subCls}`}>{t("pitchFix.note.body")}</p>
         </div>
       </section>
+      </SectionBoundary>
     </div>
   );
 }

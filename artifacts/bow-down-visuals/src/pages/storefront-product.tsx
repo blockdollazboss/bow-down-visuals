@@ -22,6 +22,7 @@ import CourseOutline from "@/components/courses/CourseOutline";
 import GiftThisProductPanel from "@/components/storefront/GiftThisProductPanel";
 import { LocalCurrencyPrice } from "@/components/LocalCurrencyPrice";
 import { EmbeddedSessionCheckout, hasStripePublishableKey } from "@/components/checkout/EmbeddedCheckout";
+import { SectionBoundary } from "@/components/SectionBoundary";
 
 /* ─── /storefront/product/:id — the public product page ────────────────────
    The landing page for one store product (downloads, merch, digital
@@ -969,14 +970,17 @@ export default function StorefrontProduct() {
                 </p>
               ) : null}
               {dropInfo && (
-                <DropSection
-                  productId={data.product.id}
-                  title={data.product.title}
-                  creatorName={data.product.links.creatorName}
-                  drop={dropInfo}
-                />
+                <SectionBoundary name="storefront-product-drop">
+                  <DropSection
+                    productId={data.product.id}
+                    title={data.product.title}
+                    creatorName={data.product.links.creatorName}
+                    drop={dropInfo}
+                  />
+                </SectionBoundary>
               )}
 
+              <SectionBoundary name="storefront-product-price">
               <div className="mt-6 rounded-xl border border-amber-500/20 bg-black/40 p-5">
                 <div className="flex items-baseline justify-between">
                   <span className="text-sm text-amber-100/60">Your price</span>
@@ -1036,25 +1040,29 @@ export default function StorefrontProduct() {
                   </>
                 )}
               </div>
+              </SectionBoundary>
 
               {/* Wave 4 #43: make-an-offer, docked under the price —
                   free products are claimed and gift cards buy for
                   someone else, so neither negotiates. */}
               {!isFree && !isGiftCard && (
-                <ProductOfferPanel
-                  itemKind="store_product"
-                  itemId={data.product.id}
-                  listPriceCents={data.product.priceCents}
-                  soldOut={!!data.product.soldOut}
-                  onCheckoutOffer={buyWithOffer}
-                  className="mt-6"
-                />
+                <SectionBoundary name="storefront-product-offer">
+                  <ProductOfferPanel
+                    itemKind="store_product"
+                    itemId={data.product.id}
+                    listPriceCents={data.product.priceCents}
+                    soldOut={!!data.product.soldOut}
+                    onCheckoutOffer={buyWithOffer}
+                    className="mt-6"
+                  />
+                </SectionBoundary>
               )}
 
               {/* Office Hours takes the action slot ahead of soldOut and
                   the free claim: its availability IS the slots grid
                   (the rail ignores inventory for this shape), and the
                   claim would give a paid session away. */}
+              <SectionBoundary name="storefront-product-buy-box">
               {isDropUpcoming ? null : isOfficeHours ? (
                 <OfficeHoursPanel
                   productId={data.product.id}
@@ -1333,18 +1341,21 @@ export default function StorefrontProduct() {
                   )}
                 </>
               )}
+              </SectionBoundary>
 
               {/* Wave-4 #45: gift this product — docks right under the
                   buy box, same panel, no standalone page. Hidden by
                   the component itself for gift cards / services / free
                   products, which the server refuses to gift. */}
               {!isGiftCard && !isFree && (
-                <GiftThisProductPanel
-                  productId={data.product.id}
-                  productKind={data.product.kind}
-                  priceCents={data.product.priceCents}
-                  quantity={quantity}
-                />
+                <SectionBoundary name="storefront-product-gift">
+                  <GiftThisProductPanel
+                    productId={data.product.id}
+                    productKind={data.product.kind}
+                    priceCents={data.product.priceCents}
+                    quantity={quantity}
+                  />
+                </SectionBoundary>
               )}
 
               <div className="mt-5 flex items-center justify-center gap-2 text-xs text-amber-100/50">
@@ -1379,12 +1390,18 @@ export default function StorefrontProduct() {
 
         {/* Verified-purchase reviews docked on the product page itself
             (Stack-100 #3, #14) — summary + list + the buyer's form. */}
-        {data && <ProductReviews productType="store_product" productId={data.product.id} />}
+        {data && (
+          <SectionBoundary name="storefront-product-reviews">
+            <ProductReviews productType="store_product" productId={data.product.id} />
+          </SectionBoundary>
+        )}
         {/* A course's sales page carries its curriculum outline: the
             full structure + drip schedule + free preview, with lesson
             content enforced server-side (never in this page's payload). */}
         {data && data.product.kind === "course" && (
-          <CourseOutline productId={data.product.id} />
+          <SectionBoundary name="storefront-product-course">
+            <CourseOutline productId={data.product.id} />
+          </SectionBoundary>
         )}
       </div>
     </div>
