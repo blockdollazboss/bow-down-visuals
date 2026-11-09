@@ -41,10 +41,10 @@ function functionBody(src: string, name: string): string {
 }
 
 describe("song preset registry — exists and is organised", () => {
-  it("carries 33 presets: 11 by genre, 13 by mood & vibe, 9 by structure", () => {
-    expect(SONG_PRESETS).toHaveLength(33);
+  it("carries 37 presets: 13 by genre, 14 by mood & vibe, 10 by structure", () => {
+    expect(SONG_PRESETS).toHaveLength(37);
     expect(SONG_PRESET_GROUPS.map((g) => g.id)).toEqual(["genre", "mood", "structure"]);
-    const counts: Record<SongPresetGroup, number> = { genre: 11, mood: 13, structure: 9 };
+    const counts: Record<SongPresetGroup, number> = { genre: 13, mood: 14, structure: 10 };
     for (const group of SONG_PRESET_GROUPS) {
       expect(songPresetsByGroup(group.id as SongPresetGroup)).toHaveLength(counts[group.id as SongPresetGroup]);
     }
@@ -120,6 +120,39 @@ describe("song preset registry — exists and is organised", () => {
     expect(duet.group).toBe("structure");
     expect(duet.form.specialInstructions).toContain("both voices join on the hook");
     expect(Object.keys(songPresetPatch(duet))).toEqual(["specialInstructions"]);
+  });
+
+  it("the Stack 400 presets add the two unsold genre families, the warm mood and the bridge shape", () => {
+    /* Genre axis: amapiano and reggaetón are real families the genre
+       select does not sell by name. Each preset sets the nearest
+       family the form truly sells and lets its beat-style recipe
+       carry the real identity — the Lo-Fi honesty shape, one group
+       over — instead of inventing a select value the form lacks. */
+    const amapiano = getSongPreset("amapiano-groove")!;
+    expect(amapiano.group).toBe("genre");
+    expect(amapiano.form.genre).toBe("Afrobeats");
+    expect(amapiano.form.beatStyle).toContain("Amapiano");
+    expect(amapiano.form.beatStyle).toContain("log-drum");
+    const reggaeton = getSongPreset("reggaeton-nights")!;
+    expect(reggaeton.group).toBe("genre");
+    expect(reggaeton.form.genre).toBe("Dancehall");
+    expect(reggaeton.form.beatStyle).toContain("Reggaetón");
+    expect(reggaeton.form.beatStyle).toContain("dembow");
+    /* Mood axis: the warm daylight mood the shelf lacked rides the
+       nearest value the select sells, its recipe carrying the
+       golden-hour identity. */
+    const golden = getSongPreset("golden-hour-glow")!;
+    expect(golden.group).toBe("mood");
+    expect(golden.form.mood).toBe("Inspirational");
+    expect(golden.form.beatStyle).toContain("Golden-hour");
+    /* Structure axis: the bridge is the event — a breakdown to one
+       instrument and a raw vocal before the final hook returns. */
+    const bridge = getSongPreset("bridge-breakdown")!;
+    expect(bridge.group).toBe("structure");
+    expect(bridge.form.specialInstructions).toContain("Structure:");
+    expect(bridge.form.specialInstructions).toContain("bridge that breaks the song down");
+    expect(bridge.form.specialInstructions).toContain("final hook returns at full size");
+    expect(Object.keys(songPresetPatch(bridge))).toEqual(["specialInstructions"]);
   });
 
   it("ids and labels are unique; every preset has an emoji and a Simple prompt", () => {
