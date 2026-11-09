@@ -46,6 +46,12 @@ export const COVER_ART_STYLES: CoverArtStyle[] = [
     blurb: "Clean, confident — negative space does the talking",
     swatch: "from-[#f5f5f5] via-[#d9d9d9] to-[#8a8a8a]",
   },
+  {
+    key: "chrome-y2k",
+    label: "Chrome Y2K",
+    blurb: "Liquid chrome & bubble gloss — pure Y2K shine",
+    swatch: "from-[#101623] via-[#9fb4cc] to-[#eef6ff]",
+  },
 ];
 
 interface CoverArtRatio {
@@ -283,6 +289,32 @@ export const COVER_ART_LAYOUTS: CoverArtLayout[] = [
     artistScale: "medium",
     align: "center",
     subjectZone: "upper",
+    badgeZone: null,
+  },
+  {
+    key: "diagonal-slash",
+    label: "Diagonal Slash",
+    blurb: "Frame cut on a hard diagonal — title rides the slash",
+    formats: ["single", "ep", "album"],
+    titleZone: "center",
+    titleScale: "large",
+    artistZone: "below-title",
+    artistScale: "small",
+    align: "left",
+    subjectZone: "upper",
+    badgeZone: null,
+  },
+  {
+    key: "vinyl-sleeve",
+    label: "Vinyl Sleeve",
+    blurb: "Retro LP front sleeve — spine band down the left edge",
+    formats: ["single", "album"],
+    titleZone: "top",
+    titleScale: "large",
+    artistZone: "below-title",
+    artistScale: "small",
+    align: "left",
+    subjectZone: "full-bleed",
     badgeZone: null,
   },
 ];

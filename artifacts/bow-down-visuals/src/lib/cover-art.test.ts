@@ -9,13 +9,14 @@ import {
 } from "./cover-art";
 
 describe("cover art style presets", () => {
-  it("exposes the five documented presets", () => {
+  it("exposes the six documented presets", () => {
     expect(COVER_ART_STYLES.map((s) => s.key)).toEqual([
       "luxury-gold",
       "dark-moody",
       "vibrant-pop",
       "retro",
       "minimal",
+      "chrome-y2k",
     ]);
   });
 

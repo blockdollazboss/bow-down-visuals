@@ -79,6 +79,16 @@ export const COVER_ART_STYLES = [
       "minimalist aesthetic, generous negative space, one striking focal " +
       "element, restrained color palette, clean confident composition",
   },
+  {
+    key: "chrome-y2k",
+    label: "Chrome Y2K",
+    blurb: "Liquid chrome & bubble gloss — pure Y2K shine",
+    direction:
+      "liquid chrome Y2K aesthetic, molten silver metal with iridescent " +
+      "bubble-gloss highlights, airbrushed year-2000 futurism, glossy " +
+      "reflective surfaces with soft blue and pink sheens, playful and " +
+      "futuristic",
+  },
 ] as const;
 
 /* ─── Aspect ratios ─────────────────────────────────────────────────────────
@@ -253,6 +263,34 @@ export const COVER_ART_LAYOUTS = [
       "stays clean for the title",
     imageZone:
       "Leave a clean uncluttered band across the bottom of the composition where the title will sit, and concentrate the subject in the upper-middle.",
+  },
+  {
+    key: "diagonal-slash",
+    label: "Diagonal Slash",
+    blurb: "Frame cut on a hard diagonal — title rides the slash",
+    direction:
+      "diagonal split composition — a hard diagonal slash cuts the frame " +
+      "from one corner to the opposite, dividing it into two bold fields; " +
+      "the artwork's subject fills the upper field and the song title " +
+      "runs along the slash itself in large type with the artist name " +
+      "beneath it in smaller type, while the lower field stays a clean " +
+      "bold color field so the slash reads as one strong graphic gesture",
+    imageZone:
+      "Concentrate the subject in the upper field above the diagonal, and keep the lower field below the slash clean and uncluttered.",
+  },
+  {
+    key: "vinyl-sleeve",
+    label: "Vinyl Sleeve",
+    blurb: "Retro LP front sleeve — spine band down the left edge",
+    direction:
+      "retro vinyl sleeve composition — the cover reads as the front of " +
+      "a classic LP sleeve: a narrow spine band runs down the left edge " +
+      "carrying the artist name in small capitals, the song title sits " +
+      "large across the upper portion with the artist name beneath it " +
+      "in smaller type, and the artwork fills the sleeve face with a " +
+      "warm printed-on-card feel",
+    imageZone:
+      "Fill the sleeve face fully with the artwork, keeping a narrow band down the left edge clean for the spine and the upper portion calm where the title will sit.",
   },
 ] as const;
 export type CoverArtLayoutKey = (typeof COVER_ART_LAYOUTS)[number]["key"];
