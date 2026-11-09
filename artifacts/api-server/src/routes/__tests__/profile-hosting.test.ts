@@ -17,11 +17,42 @@
  * "creator_hosting" metadata the webhook sync keys on.
  *
  * EMBEDDED (Stack-200 wave, money census item 5): the session is an
- * embedded Checkout Session (ui_mode "embedded") — the route answers
- * a clientSecret and NEVER a hosted URL (owner law: the buyer never
- * leaves bowdownvisuals.com), and completion returns to
+ * embedded Checkout Session (ui_mode "embedded_page") — the route
+ * answers a clientSecret and NEVER a hosted URL (owner law: the
+ * buyer never leaves bowdownvisuals.com), and completion returns to
  * /creator-pricing?hosting=return&session_id=… The webhook sync is
  * untouched: the embedded session completes with the same metadata.
+ *
+ * ACCEPTANCE-FAITHFUL DOUBLE (Stack 400, item C-39): until this
+ * wave the Stripe double below accepted ANY session params and
+ * always succeeded — so the suite stayed green while every live
+ * checkout died in the session create: the route sent ui_mode
+ * "embedded", a value Stripe has retired (staging deploy log,
+ * Nov 8: StripeInvalidRequestError, param ui_mode — "The ui_mode
+ * value 'embedded' is no longer supported. Use 'embedded_page'
+ * instead."). The double now VALIDATES the params the real API
+ * validates, with every rule written from Stripe's CURRENT API
+ * documentation (docs.stripe.com/api/checkout/sessions/create),
+ * never from the route's behavior:
+ *   - ui_mode must be a currently documented value ("hosted" or
+ *     "embedded_page"); the retired "embedded" is rejected exactly
+ *     as the live API rejects it;
+ *   - an embedded_page session requires the fake account to have
+ *     embedded Checkout enabled (the account-level gate Stripe
+ *     applies before any session exists);
+ *   - every line_items price id must exist in the fake account's
+ *     configured price set (an unknown price is a live 400);
+ *   - with automatic_tax on, a price whose product carries no tax
+ *     code is rejected (Stripe Tax cannot calculate without one —
+ *     the Dashboard setup a brand-new product has not had yet).
+ * A client_secret is returned ONLY for accepted params, mirroring
+ * the expansion-faithful double in
+ * embedded-subscription-intent.test.ts. The fake account models the
+ * live-shaped condition that failed: a price created the same day,
+ * its product's Dashboard setup incomplete until the test completes
+ * it. The db fake stays in-memory Maps (the seam this suite guards
+ * is the Stripe boundary), extended with the user_stripe_customers
+ * mapping so the customer helper's real write/read cycle runs.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } from "vitest";
 import express from "express";
@@ -31,16 +62,31 @@ import { PgDialect } from "drizzle-orm/pg-core";
 const OWNER_USER = "00000000-0000-4000-8000-0000000000aa";
 const HOSTED_USER = "00000000-0000-4000-8000-0000000000bb";
 const ELITE_USER = "00000000-0000-4000-8000-0000000000cc";
+const FRESH_USER = "00000000-0000-4000-8000-0000000000dd";
 const OWNER_PROFILE = "11111111-1111-4111-8111-111111111111";
 const HOSTED_PROFILE = "22222222-2222-4222-8222-222222222222";
 const ELITE_PROFILE = "33333333-3333-4333-8333-333333333333";
+const FRESH_PROFILE = "44444444-4444-4444-8444-444444444444";
 
 const h = vi.hoisted(() => ({
   state: {
     profilesById: new Map<string, Record<string, unknown>>(),
     hostingByProfile: new Map<string, Record<string, unknown>>(),
     subscriptionsByProfile: new Map<string, Record<string, unknown>>(),
+    /* user_stripe_customers mapping (userId → stripeCustomerId):
+       the customer helper's real write/read cycle runs against it. */
+    stripeCustomersByUser: new Map<string, string>(),
     stripeCreateParams: null as any,
+    /* The fake Stripe ACCOUNT (C-39 acceptance-faithful double):
+       which prices exist, which product each price belongs to, the
+       Dashboard-side tax setup per product, and whether embedded
+       Checkout is enabled on the account. Tests configure the
+       account; the double enforces Stripe's documented rules. */
+    stripeAccount: {
+      prices: new Map<string, { productId: string; active: boolean }>(),
+      productTaxCode: new Map<string, string | null>(),
+      embeddedEnabled: true,
+    },
   },
 }));
 
@@ -58,6 +104,10 @@ vi.mock("../../middlewares/require-auth", () => ({
       return;
     }
     req.userId = String(user);
+    /* The real middleware also sets req.userEmail (require-auth.ts)
+       and the checkout route passes it to the customer helper;
+       model it so that seam runs as it does live. */
+    req.userEmail = "buyer@example.com";
     next();
   },
 }));
@@ -67,8 +117,70 @@ vi.mock("../../lib/rate-limit", () => ({
 }));
 
 vi.mock("stripe", () => {
+  /* ACCEPTANCE-FAITHFUL Stripe double (C-39). sessions.create
+     VALIDATES the params Stripe's API validates and rejects with
+     Stripe-shaped errors (type/code/param, like the real
+     StripeInvalidRequestError the staging log recorded); a
+     client_secret comes back ONLY for accepted params. Every rule
+     is from Stripe's current API documentation — NOT from what the
+     route happens to send: a double that accepts whatever the
+     route sends is the defect this suite used to carry. */
+  function stripeError(message: string, param: string, code = "parameter_invalid"): Error {
+    const err: any = new Error(message);
+    err.type = "StripeInvalidRequestError";
+    err.code = code;
+    err.param = param;
+    err.statusCode = 400;
+    return err;
+  }
+
+  function validateSessionParams(params: any): void {
+    const account = h.state.stripeAccount;
+    /* ui_mode — docs.stripe.com/api/checkout/sessions/create:
+       the current values are "hosted" (the default) and
+       "embedded_page". "embedded" was retired by Stripe and the
+       live API rejects it — the exact rejection in the Nov 8
+       staging log. */
+    if (params.ui_mode !== undefined && params.ui_mode !== "hosted" && params.ui_mode !== "embedded_page") {
+      throw stripeError(
+        `The ui_mode value '${params.ui_mode}' is no longer supported. Use 'embedded_page' instead.`,
+        "ui_mode",
+      );
+    }
+    /* Embedded Checkout is an account-level capability: when it
+       isn't enabled on the account, an embedded_page session
+       cannot be created at all. */
+    if (params.ui_mode === "embedded_page" && !account.embeddedEnabled) {
+      throw stripeError(
+        "Embedded checkout is not enabled for this account.",
+        "ui_mode",
+        "checkout_not_enabled",
+      );
+    }
+    for (const item of params.line_items ?? []) {
+      /* A price id must resolve to a price ON THIS ACCOUNT; an
+         unknown (or archived/inactive) price is a live 400. */
+      const price = item.price ? account.prices.get(item.price) : undefined;
+      if (item.price && (!price || !price.active)) {
+        throw stripeError(`No such price: '${item.price}'`, "line_items[0][price]", "resource_missing");
+      }
+      /* Stripe Tax: with automatic_tax on, tax is calculated from
+         the PRODUCT's Dashboard tax code; a product without one
+         cannot be taxed, and the session create is refused. */
+      if (params.automatic_tax?.enabled && price) {
+        if (!account.productTaxCode.get(price.productId)) {
+          throw stripeError(
+            "Automatic tax requires a tax code on the product for every price in the session.",
+            "automatic_tax[enabled]",
+            "tax_code_missing",
+          );
+        }
+      }
+    }
+  }
+
   class FakeStripe {
-    /* Join #2: the composed checkout resolves a Stripe customer first
+    /* The composed checkout resolves a Stripe customer first
        (lib/creator-stripe-customer) — the fake carries that surface. */
     customers = {
       create: async () => ({ id: "cus_test_hosting" }),
@@ -78,6 +190,7 @@ vi.mock("stripe", () => {
       sessions: {
         create: async (params: any) => {
           h.state.stripeCreateParams = params;
+          validateSessionParams(params);
           /* The fake still carries a hosted `url` field on purpose:
              the pin below proves the route never forwards it — an
              embedded session's answer is its client_secret only. */
@@ -96,7 +209,7 @@ vi.mock("stripe", () => {
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   const state = h.state;
-  const { creatorProfilesTable, creatorSubscriptionsTable, creatorHostingTable } = actual;
+  const { creatorProfilesTable, creatorSubscriptionsTable, creatorHostingTable, userStripeCustomersTable } = actual;
 
   function rowsFor(table: unknown, cond: unknown): unknown[] {
     const { sql, params } = render(cond);
@@ -119,6 +232,10 @@ vi.mock("@workspace/db", async (importOriginal) => {
       const row = state.subscriptionsByProfile.get(String(params[0]));
       return row ? [row] : [];
     }
+    if (table === userStripeCustomersTable) {
+      const customerId = state.stripeCustomersByUser.get(String(params[0]));
+      return customerId ? [{ userId: String(params[0]), stripeCustomerId: customerId }] : [];
+    }
     return [];
   }
 
@@ -136,16 +253,34 @@ vi.mock("@workspace/db", async (importOriginal) => {
       from: (table: unknown) => ({ where: (cond: unknown) => chain(table, cond) }),
     }),
     /* Customer-id persistence (creator-stripe-customer): the mapping
-       write is a no-op here; the follow-up select still reads empty,
-       so the helper returns the just-created id, as designed. */
+       write now LANDS in stripeCustomersByUser, so the helper's real
+       persist → re-select cycle runs and later calls resolve the
+       stored customer (the C-39 fresh-buyer flow), instead of the
+       old no-op that always read empty. */
     insert: (_table: unknown) => ({
-      values: (_v: unknown) => ({
-        onConflictDoNothing: async () => [],
+      values: (v: any) => ({
+        onConflictDoNothing: async () => {
+          if (v?.userId && v?.stripeCustomerId) {
+            state.stripeCustomersByUser.set(String(v.userId), String(v.stripeCustomerId));
+          }
+          return [];
+        },
         returning: async () => [],
       }),
     }),
     update: (_table: unknown) => ({
-      set: (_v: unknown) => ({ where: async () => [] }),
+      set: (v: any) => ({
+        where: async (cond: unknown) => {
+          /* The helper's deleted-customer replacement updates the
+             mapping row by userId — apply it to the Map too. */
+          const { params } = render(cond);
+          const userId = String(params[params.length - 1]);
+          if (v?.stripeCustomerId && state.stripeCustomersByUser.has(userId)) {
+            state.stripeCustomersByUser.set(userId, String(v.stripeCustomerId));
+          }
+          return [];
+        },
+      }),
     }),
     execute: async () => ({ rows: [] }),
   };
@@ -175,7 +310,7 @@ afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
-const ENV_KEYS = ["HOSTING_PRICE_USD_PER_MONTH", "STRIPE_PRICE_HOSTING", "STRIPE_SECRET_KEY"];
+const ENV_KEYS = ["HOSTING_PRICE_USD_PER_MONTH", "STRIPE_PRICE_HOSTING", "STRIPE_SECRET_KEY", "STRIPE_TAX_ENABLED"];
 let savedEnv: Record<string, string | undefined> = {};
 
 beforeEach(() => {
@@ -195,7 +330,18 @@ beforeEach(() => {
   h.state.subscriptionsByProfile = new Map([
     [ELITE_PROFILE, { profileId: ELITE_PROFILE, tier: "elite", status: "active", currentPeriodEnd: null }],
   ]);
+  h.state.stripeCustomersByUser = new Map();
   h.state.stripeCreateParams = null;
+  /* The fake account starts FULLY set up — the established state
+     the older prices live in: the hosting price exists and is
+     active on its product (whose Dashboard tax setup is complete),
+     and embedded Checkout is enabled. Tests that model the
+     live-shaped Nov 8 condition remove pieces of this setup. */
+  h.state.stripeAccount = {
+    prices: new Map([["price_test_hosting", { productId: "prod_test_hosting", active: true }]]),
+    productTaxCode: new Map<string, string | null>([["prod_test_hosting", "txcd_10000000"]]),
+    embeddedEnabled: true,
+  };
 });
 
 afterEach(() => {
@@ -284,17 +430,33 @@ describe("POST /creator-hosting/checkout", () => {
        even though the (fake) provider session object carried one. */
     expect(json.clientSecret).toBe("cs_test_hosting_secret_123");
     expect(json.sessionId).toBe("cs_test_hosting");
-    expect(json.uiMode).toBe("embedded");
+    expect(json.uiMode).toBe("embedded_page");
     expect(json.url).toBeUndefined();
     expect(json.checkoutUrl).toBeUndefined();
     /* The session itself is created embedded: ui_mode set, a
        return_url back to the pricing page carrying the session id,
        and NO success_url/cancel_url redirect pair. */
     const params = h.state.stripeCreateParams;
-    expect(params.ui_mode).toBe("embedded");
+    expect(params.ui_mode).toBe("embedded_page");
     expect(params.return_url).toContain("/creator-pricing?hosting=return&session_id={CHECKOUT_SESSION_ID}");
     expect(params.success_url).toBeUndefined();
     expect(params.cancel_url).toBeUndefined();
+  });
+
+  it("a second checkout for the same buyer reuses the stored customer — no second customer is minted", async () => {
+    process.env["STRIPE_PRICE_HOSTING"] = "price_test_hosting";
+    process.env["STRIPE_SECRET_KEY"] = "sk_test_example";
+    const first = await call("POST", "/creator-hosting/checkout", { user: OWNER_USER, body: {} });
+    expect(first.status).toBe(200);
+    const params1 = h.state.stripeCreateParams;
+    const second = await call("POST", "/creator-hosting/checkout", { user: OWNER_USER, body: {} });
+    expect(second.status).toBe(200);
+    const params2 = h.state.stripeCreateParams;
+    /* The helper persisted the mapping on the first call, so the
+       second resolves the SAME customer id from the mapping +
+       retrieve — one customer per user, as designed. */
+    expect(params2.customer).toBe(params1.customer);
+    expect(h.state.stripeCustomersByUser.get(OWNER_USER)).toBe(params1.customer);
   });
 
   it("an already-hosted creator isn't sold the plan twice", async () => {
@@ -309,6 +471,89 @@ describe("POST /creator-hosting/checkout", () => {
 
   it("requires auth", async () => {
     expect((await call("POST", "/creator-hosting/checkout", { body: {} })).status).toBe(401);
+  });
+});
+
+describe("C-39 — the acceptance-faithful double (the seam the old suite faked)", () => {
+  /* The double is reached the only way the route reaches Stripe:
+     through a checkout call. Its rejection rules are Stripe's
+     documented ones; each test below breaks ONE rule and pins the
+     route's honest, coded, leak-free failure. */
+  function armFreshBuyer() {
+    /* The LIVE-SHAPED fixture: the profile row is created by this
+       test, moments before the checkout attempt — no pre-aged rows,
+       no hosting row, no stored customer. */
+    h.state.profilesById.set(FRESH_PROFILE, { id: FRESH_PROFILE, userId: FRESH_USER, slug: "fresh-creator" });
+    process.env["STRIPE_PRICE_HOSTING"] = "price_test_hosting";
+    process.env["STRIPE_SECRET_KEY"] = "sk_test_example";
+  }
+
+  it("the route's create crosses the double with the CURRENT ui_mode value — the retired one is what the double rejects (next tests)", async () => {
+    armFreshBuyer();
+    const ok = await call("POST", "/creator-hosting/checkout", { user: FRESH_USER, body: {} });
+    expect(ok.status).toBe(200);
+    /* The exact param whose retired form killed every live attempt
+       on Nov 8: the route now sends "embedded_page", the value
+       Stripe's current docs define for this session shape. The
+       double's rejection of the retired "embedded" value is proven
+       at route level by the membership-gifts acceptance suite
+       (whose route sent the retired value until this wave) and by
+       the source guard at the end of this block. */
+    expect(h.state.stripeCreateParams.ui_mode).toBe("embedded_page");
+  });
+
+  it("fresh buyer + price whose product lacks its Dashboard tax setup → honest coded failure; setup completed → 200 + clientSecret", async () => {
+    armFreshBuyer();
+    /* The Nov 8 live shape: the price was created the same day and
+       its product never got its Dashboard tax setup. Tax is ON for
+       this account (the staging question the log could not settle
+       from code) — with the product's tax code missing, Stripe
+       refuses the session create. */
+    process.env["STRIPE_TAX_ENABLED"] = "true";
+    h.state.stripeAccount.productTaxCode.set("prod_test_hosting", null);
+    const failed = await call("POST", "/creator-hosting/checkout", { user: FRESH_USER, body: {} });
+    expect(failed.status).toBe(502);
+    expect(failed.json.error).toBe("Checkout couldn't start — try again in a moment.");
+    expect(failed.json.code).toBe("CHECKOUT_SESSION_FAILED");
+    /* House-clean: no provider name, no raw error text, no codes
+       from the provider leak into the body. */
+    const bodyText = JSON.stringify(failed.json);
+    expect(bodyText).not.toMatch(/stripe/i);
+    expect(bodyText).not.toMatch(/tax/i);
+    /* Complete the product's Dashboard setup (its tax code) — the
+       same buyer, the same fresh profile, now succeeds end to end. */
+    h.state.stripeAccount.productTaxCode.set("prod_test_hosting", "txcd_10000000");
+    const ok = await call("POST", "/creator-hosting/checkout", { user: FRESH_USER, body: {} });
+    expect(ok.status).toBe(200);
+    expect(ok.json.clientSecret).toBe("cs_test_hosting_secret_123");
+    expect(ok.json.uiMode).toBe("embedded_page");
+    expect(h.state.stripeCreateParams.ui_mode).toBe("embedded_page");
+    expect(h.state.stripeCreateParams.customer).toBe("cus_test_hosting");
+  });
+
+  it("embedded Checkout not enabled on the account → the session create is refused, honestly and coded", async () => {
+    armFreshBuyer();
+    h.state.stripeAccount.embeddedEnabled = false;
+    const { status, json } = await call("POST", "/creator-hosting/checkout", { user: FRESH_USER, body: {} });
+    expect(status).toBe(502);
+    expect(json.code).toBe("CHECKOUT_SESSION_FAILED");
+    expect(json.error).toBe("Checkout couldn't start — try again in a moment.");
+  });
+
+  it("a price id the account doesn't hold → the session create is refused, honestly and coded", async () => {
+    armFreshBuyer();
+    process.env["STRIPE_PRICE_HOSTING"] = "price_not_on_this_account";
+    const { status, json } = await call("POST", "/creator-hosting/checkout", { user: FRESH_USER, body: {} });
+    expect(status).toBe(502);
+    expect(json.code).toBe("CHECKOUT_SESSION_FAILED");
+  });
+
+  it("source guard: the route sends ui_mode \"embedded_page\" and never the retired value", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const src = fs.readFileSync(path.join(__dirname, "..", "profile-hosting.ts"), "utf8");
+    expect(src).toContain('ui_mode: "embedded_page"');
+    expect(src).not.toContain('ui_mode: "embedded"');
   });
 });
 

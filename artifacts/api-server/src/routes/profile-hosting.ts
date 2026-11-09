@@ -33,15 +33,32 @@ import { stripeTaxSessionFields } from "../lib/stripe-tax";
    the creator's tier (lib/profile-website.ts).
 
    EMBEDDED (Stack-200 wave, money census item 5): checkout is an
-   EMBEDDED Checkout Session (ui_mode "embedded", membership-gifts
-   pattern) — the buyer pays on /creator-pricing and never leaves the
-   site (owner law, 2026-10-26). There is no hosted URL path: the
-   route answers a clientSecret, and completion returns to
+   EMBEDDED Checkout Session (ui_mode "embedded_page") — the buyer
+   pays on /creator-pricing and never leaves the site (owner law,
+   2026-10-26). There is no hosted URL path: the route answers a
+   clientSecret, and completion returns to
    /creator-pricing?hosting=return&session_id=… where the door
    re-reads /me. The webhook sync is untouched — an embedded session
    completes with the same metadata kind, so
    handleHostingCheckoutCompleted lands the entitlement exactly as
-   before.   */
+   before.
+
+   C-39 (Stack 400): the rail originally sent ui_mode "embedded" —
+   a value Stripe has retired. The staging deploy log (Nov 8) proved
+   every live attempt died in the session create with
+   StripeInvalidRequestError, param ui_mode: "The ui_mode value
+   'embedded' is no longer supported. Use 'embedded_page' instead."
+   "embedded_page" is Stripe's current documented value for this
+   session shape (the same value lib/stripe-checkout.ts already
+   sends). The failure stayed invisible in tests because the suite's
+   Stripe double accepted any params unconditionally; the suite now
+   carries an acceptance-faithful double (profile-hosting.test.ts)
+   whose ui_mode rule is written from Stripe's current API docs.
+   Failure answers also carry a distinguishing `code` per segment
+   (CHECKOUT_STATE_READ_FAILED / CHECKOUT_CUSTOMER_RESOLVE_FAILED /
+   CHECKOUT_SESSION_FAILED) so a walk can name the failing segment
+   without a log dive; the client copy stays the same house words
+   and never carries the provider's name or raw error.   */
 
 const router = Router();
 
@@ -258,7 +275,7 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
     currentHosting = row ?? null;
   } catch (err) {
     logger.error({ err, userId: req.userId }, "creator-hosting checkout: hosting state read failed");
-    res.status(500).json({ error: "Checkout couldn't start — try again in a moment." });
+    res.status(500).json({ error: "Checkout couldn't start — try again in a moment.", code: "CHECKOUT_STATE_READ_FAILED" });
     return;
   }
   /* One Stripe customer per user (payfix upgrade-path): hosting shares
@@ -275,7 +292,7 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
     });
   } catch (err) {
     logger.error({ err, userId: req.userId }, "creator-hosting checkout: customer resolve failed");
-    res.status(500).json({ error: "Checkout couldn't start — try again in a moment." });
+    res.status(500).json({ error: "Checkout couldn't start — try again in a moment.", code: "CHECKOUT_CUSTOMER_RESOLVE_FAILED" });
     return;
   }
 
@@ -289,8 +306,11 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
          renders inside /creator-pricing via EmbeddedSessionCheckout
          and completion returns there with the session id; there is
          no success_url/cancel_url pair and no hosted URL to send
-         anyone to. */
-      ui_mode: "embedded",
+         anyone to. ui_mode is "embedded_page", Stripe's current
+         documented value for this shape — the retired "embedded"
+         value is rejected by the API (C-39, proven in the staging
+         deploy log Nov 8). */
+      ui_mode: "embedded_page",
       /* Stripe Tax (lib/stripe-tax.ts): empty while STRIPE_TAX_ENABLED
          is off. Price-ID line: the hosting Product's tax code + the
          Price's tax behavior are set in the Dashboard at activation. */
@@ -309,13 +329,15 @@ router.post("/creator-hosting/checkout", requireAuth, publicApiLimiter, async (r
     const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
     if (!session.client_secret) throw new Error("Embedded checkout session did not return a client secret");
     logger.info({ userId: req.userId, sessionId: session.id }, "hosting checkout session created (embedded)");
-    res.json({ clientSecret: session.client_secret, sessionId: session.id, uiMode: "embedded" });
+    res.json({ clientSecret: session.client_secret, sessionId: session.id, uiMode: "embedded_page" });
   } catch (err) {
     const msg = (err as { message?: string })?.message ?? "unknown";
     logger.error({ err, msg }, "creator-hosting checkout: Stripe session failed");
     /* House copy law: the client never sees the payment provider's name
-       (or its raw error text — that stays in the log line above). */
-    res.status(502).json({ error: "Checkout couldn't start — try again in a moment." });
+       (or its raw error text — that stays in the log line above). The
+       `code` names the segment for support/walks without leaking any
+       of that (C-39). */
+    res.status(502).json({ error: "Checkout couldn't start — try again in a moment.", code: "CHECKOUT_SESSION_FAILED" });
   }
 });
 
