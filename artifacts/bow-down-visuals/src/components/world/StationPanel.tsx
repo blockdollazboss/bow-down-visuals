@@ -244,6 +244,9 @@ const TrendsRadarDesk = lazy(() => import("@/components/world/native/TrendsRadar
    Comment-to-Video, Lyric Stories), two at the My Studio board
    (Dream Collab, Link To Hit). Lazy like every stacked bench. */
 const CaptionStylerBench = lazy(() => import("@/components/world/native/CaptionStylerBench").then((m) => ({ default: m.CaptionStylerBench })));
+const AiInterviewBench = lazy(() => import("@/components/world/native/HookLabBenches").then((m) => ({ default: m.AiInterviewBench })));
+const OpeningsBench = lazy(() => import("@/components/world/native/HookLabBenches").then((m) => ({ default: m.OpeningsBench })));
+const DiagnosticsBenches = lazy(() => import("@/components/world/native/HookLabBenches").then((m) => ({ default: m.DiagnosticsBenches })));
 const RandomizerBench = lazy(() => import("@/components/world/native/RandomizerBench").then((m) => ({ default: m.RandomizerBench })));
 const CommentToVideoBench = lazy(() => import("@/components/world/native/CommentToVideoBench").then((m) => ({ default: m.CommentToVideoBench })));
 const LyricStoriesBench = lazy(() => import("@/components/world/native/LyricStoriesBench").then((m) => ({ default: m.LyricStoriesBench })));
@@ -1223,6 +1226,30 @@ export default function StationPanel(props: StationPanelProps) {
                       Hook Desk. */}
                   <PanelBoundary isLight={isLight} resetKey={`${station.id}:lyric-stories`}><DeskDoor isLight={isLight}>
                     <LyricStoriesBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* AI Interview (Stack 400 world parity,
+                      census B-16): the /hooks page's interview
+                      section — 5 sharp questions, then the
+                      answers packaged into clips, quote cards
+                      and a promo outline — native under the
+                      Hook Desk whose page hosts it. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:ai-interview`}><DeskDoor isLight={isLight}>
+                    <AiInterviewBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* 3-Second Lab openings (Stack 400 world
+                      parity, census B-17): the editor rail's
+                      scored alternate openings, native under
+                      the Hook Desk. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:openings`}><DeskDoor isLight={isLight}>
+                    <OpeningsBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Diagnostics (Stack 400 world parity,
+                      census B-20): the loose analysis tools —
+                      hook analyzer, SEO score, retention
+                      doctor, trend jacker, style stealer — as
+                      one bench group under the Hook Desk. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:diagnostics`}><DeskDoor isLight={isLight}>
+                    <DiagnosticsBenches isLight={isLight} />
                   </DeskDoor></PanelBoundary>
                 </div>
               ) : (

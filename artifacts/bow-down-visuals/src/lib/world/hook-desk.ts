@@ -582,6 +582,651 @@ export interface HookHistoryEntry {
   scriptResult?: ScriptResult;
 }
 
+/* ═══ Stack 400 · census B-16 / B-17 / B-20 — the hooks family's
+   remaining rails, native at this desk ═══════════════════════════
+   Three 2D families had no in-World form; their rails now dock
+   here, on the twins' own posts at the registry's prices:
+
+     B-16  AI Interview (the /hooks page's AIInterviewSection):
+       POST /api/ai-interview/questions { topic, niche }
+         → { questions[≤5] }                       100 VB
+       POST /api/ai-interview/package   { topic, qa[{question,
+         answer}] } → { clips[{quote, why}], quoteCards[],
+         promoOutline[] }                          200 VB
+     B-17  Three-Second Lab openings (the editor rail's
+       ThreeSecondLabSection + the /hooks page):
+       POST /api/three-second-lab/openings
+         { videoDescription, niche }
+         → { openings[{text, visual, score, reasoning}] }  200 VB
+     B-20  the loose diagnostics (Analytics Hub + editor + Plan
+       hub tools with no World form):
+       POST /api/analyze-hook      { transcript, platform, niche,
+         mode } → { analysis{…} }                    75 VB
+       POST /api/seo-score         { title, description, tags[],
+         niche, hasChapters, hasCaptions }
+         → { result{…} }                             75 VB
+       POST /api/retention-doctor  { title, dropOffs[{at,
+         dropPct}], totalLength?, niche?, videoType?,
+         platform? } → { reportCard, summary, diagnoses[] } 150 VB
+       POST /api/trend-jacker/draft { trend, trendWhy, niche,
+         styleNotes } → { hook, script, visualPlan[], caption,
+         hashtags[] }                                200 VB
+       POST /api/style-stealer/analyze { videoUrl, description,
+         niche } → { formula{…}, editRecipe?, applyHints? } 200 VB
+
+   Every run rides confirmedFetch at the registry price (the
+   twins' confirm-before-charge law); a declined confirmation
+   runs nothing; failures are refunded server-side. Payload
+   builders below mirror the twins' posts field for field and
+   the readers hold the twins' own usability bars — drift
+   parses to null, never to dressed-up rows. */
+
+export const AI_INTERVIEW_QUESTIONS_PATH = "/api/ai-interview/questions";
+export const AI_INTERVIEW_PACKAGE_PATH = "/api/ai-interview/package";
+export const OPENINGS_PATH = "/api/three-second-lab/openings";
+export const ANALYZE_HOOK_PATH = "/api/analyze-hook";
+export const SEO_SCORE_PATH = "/api/seo-score";
+export const RETENTION_DOCTOR_PATH = "/api/retention-doctor";
+export const TREND_JACKER_PATH = "/api/trend-jacker/draft";
+export const STYLE_STEALER_PATH = "/api/style-stealer/analyze";
+
+/** POST /api/ai-interview/questions — registry 100, the 2D
+ *  section's Q_COST agrees. */
+export function aiInterviewQuestionsCost(): number {
+  return registryCost(AI_INTERVIEW_QUESTIONS_PATH);
+}
+
+/** POST /api/ai-interview/package — registry 200, the 2D
+ *  section's PKG_COST agrees. */
+export function aiInterviewPackageCost(): number {
+  return registryCost(AI_INTERVIEW_PACKAGE_PATH);
+}
+
+/** POST /api/three-second-lab/openings — registry 200, the
+ *  rail's OPENINGS_CREDITS agrees (the section reads the
+ *  registry for its display; no override rides the post). */
+export function openingsCost(): number {
+  return registryCost(OPENINGS_PATH);
+}
+
+/** POST /api/analyze-hook — registry 75, StepHookLab's COST. */
+export function hookAnalyzerCost(): number {
+  return registryCost(ANALYZE_HOOK_PATH);
+}
+
+/** POST /api/seo-score — registry 75 (the My Clips toast's own
+ *  "costs 75 Visual Bucs" copy agrees). */
+export function seoScoreCost(): number {
+  return registryCost(SEO_SCORE_PATH);
+}
+
+/** POST /api/retention-doctor — registry 150. */
+export function retentionDoctorCost(): number {
+  return registryCost(RETENTION_DOCTOR_PATH);
+}
+
+/** POST /api/trend-jacker/draft — registry 200, the section's
+ *  DRAFT_CREDITS agrees. */
+export function trendJackerCost(): number {
+  return registryCost(TREND_JACKER_PATH);
+}
+
+/** POST /api/style-stealer/analyze — registry 200, the
+ *  section's COST agrees. */
+export function styleStealerCost(): number {
+  return registryCost(STYLE_STEALER_PATH);
+}
+
+/* ─── The diagnostics' own enums (verbatim from the twins) ───── */
+
+/** intelligence/types.ts IntelPlatform (StepHookLab's post). */
+export const DIAG_PLATFORMS = ["tiktok", "instagram", "youtube", "x"] as const;
+export type DiagPlatform = (typeof DIAG_PLATFORMS)[number];
+
+/** StepHookLab's analysis modes (the viral-loop toggle). */
+export const HOOK_ANALYSIS_MODES = ["viral", "standard"] as const;
+export type HookAnalysisMode = (typeof HOOK_ANALYSIS_MODES)[number];
+
+/** RetentionDoctor.tsx VIDEO_TYPES. */
+export const DOCTOR_VIDEO_TYPES = [
+  "music-video",
+  "tutorial",
+  "vlog",
+  "short",
+  "promo",
+  "livestream-clip",
+  "other",
+] as const;
+export type DoctorVideoType = (typeof DOCTOR_VIDEO_TYPES)[number];
+
+/** RetentionDoctor.tsx PLATFORMS. */
+export const DOCTOR_PLATFORMS = ["tiktok", "instagram", "youtube", "x"] as const;
+export type DoctorPlatform = (typeof DOCTOR_PLATFORMS)[number];
+
+/** RetentionDoctor.tsx MM_SS — a drop-off point / total length
+ *  is only real in m:ss shape. */
+export const DOCTOR_TIME_RE = /^\d{1,3}:[0-5]\d$/;
+
+export const SEO_SEVERITIES = ["high", "medium", "low"] as const;
+export type SeoSeverity = (typeof SEO_SEVERITIES)[number];
+
+export const DOCTOR_FIX_ACTIONS = ["hook", "script", "editor"] as const;
+export type DoctorFixAction = (typeof DOCTOR_FIX_ACTIONS)[number];
+
+/* ─── Payload shaping — the twins' posts, field for field ────── */
+
+/** AIInterviewSection getQuestions' body:
+ *  { topic, niche } — both trimmed, niche rides even empty. */
+export function buildInterviewQuestionsPayload(input: {
+  topic: string;
+  niche: string;
+}): Record<string, unknown> {
+  return { topic: input.topic.trim(), niche: input.niche.trim() };
+}
+
+export interface InterviewQaPair {
+  question: string;
+  answer: string;
+}
+
+/** AIInterviewSection buildPackage's qa shaping: pair each
+ *  question with its answer, keep only the answered ones. */
+export function interviewQaPairs(
+  questions: readonly string[],
+  answers: readonly string[],
+): InterviewQaPair[] {
+  return questions
+    .map((q, i) => ({ question: q, answer: (answers[i] ?? "").trim() }))
+    .filter((x) => x.answer.length > 0);
+}
+
+/** AIInterviewSection buildPackage's body: { topic, qa }. */
+export function buildInterviewPackagePayload(input: {
+  topic: string;
+  qa: readonly InterviewQaPair[];
+}): Record<string, unknown> {
+  return { topic: input.topic.trim(), qa: input.qa };
+}
+
+/** ThreeSecondLabSection generate()'s body:
+ *  { videoDescription, niche } — both trimmed. (The section's
+ *  optional clip upload only pre-describes the clip client-side;
+ *  the rail's post is these two fields.) */
+export function buildOpeningsPayload(input: {
+  videoDescription: string;
+  niche: string;
+}): Record<string, unknown> {
+  return { videoDescription: input.videoDescription.trim(), niche: input.niche.trim() };
+}
+
+/** StepHookLab run()'s body: the transcript clipped to 3,000
+ *  chars, the niche to 100, mode from the viral toggle. */
+export function buildHookAnalysisPayload(input: {
+  transcript: string;
+  platform: DiagPlatform;
+  niche: string;
+  mode: HookAnalysisMode;
+}): Record<string, unknown> {
+  return {
+    transcript: input.transcript.trim().slice(0, 3000),
+    platform: input.platform,
+    niche: input.niche.trim().slice(0, 100),
+    mode: input.mode,
+  };
+}
+
+/** The My Clips SEO post's tags shaping: comma text → at most
+ *  15 trimmed, non-empty tags. */
+export function seoTagsFromText(text: string): string[] {
+  return text
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 15);
+}
+
+/** The My Clips SEO Score post's body, field for field. */
+export function buildSeoScorePayload(input: {
+  title: string;
+  description: string;
+  tagsText: string;
+  niche: string;
+  hasChapters: boolean;
+  hasCaptions: boolean;
+}): Record<string, unknown> {
+  return {
+    title: input.title.trim(),
+    description: input.description.trim(),
+    tags: seoTagsFromText(input.tagsText),
+    niche: input.niche.trim(),
+    hasChapters: input.hasChapters,
+    hasCaptions: input.hasCaptions,
+  };
+}
+
+export interface DoctorDropOffRow {
+  at: string;
+  dropPct: string;
+}
+
+/** RetentionDoctor's validRows rule: a real m:ss point and a
+ *  drop percentage in 1–99. Invalid rows never ride the post. */
+export function doctorDropOffValid(row: DoctorDropOffRow): boolean {
+  return (
+    DOCTOR_TIME_RE.test(row.at.trim()) &&
+    row.dropPct.trim() !== "" &&
+    Number(row.dropPct) >= 1 &&
+    Number(row.dropPct) <= 99
+  );
+}
+
+/** RetentionDoctor run()'s body: title clipped to 200, only the
+ *  valid drop-off rows (percentages as numbers), and the
+ *  optionals riding ONLY when set — totalLength only in m:ss
+ *  shape, niche clipped to 100, type/platform only when picked. */
+export function buildDoctorPayload(input: {
+  title: string;
+  dropOffs: readonly DoctorDropOffRow[];
+  totalLength: string;
+  niche: string;
+  videoType: string;
+  platform: string;
+}): Record<string, unknown> {
+  const validRows = input.dropOffs.filter(doctorDropOffValid);
+  return {
+    title: input.title.trim().slice(0, 200),
+    dropOffs: validRows.map((r) => ({ at: r.at.trim(), dropPct: Number(r.dropPct) })),
+    ...(input.totalLength.trim() && DOCTOR_TIME_RE.test(input.totalLength.trim())
+      ? { totalLength: input.totalLength.trim() }
+      : {}),
+    ...(input.niche.trim() ? { niche: input.niche.trim().slice(0, 100) } : {}),
+    ...(input.videoType ? { videoType: input.videoType } : {}),
+    ...(input.platform ? { platform: input.platform } : {}),
+  };
+}
+
+/** TrendJackerSection generate()'s body: the niche defaults to
+ *  "Music" when blank, exactly as the section posts it. */
+export function buildTrendDraftPayload(input: {
+  trend: string;
+  trendWhy: string;
+  niche: string;
+  styleNotes: string;
+}): Record<string, unknown> {
+  return {
+    trend: input.trend.trim(),
+    trendWhy: input.trendWhy.trim(),
+    niche: input.niche.trim() || "Music",
+    styleNotes: input.styleNotes.trim(),
+  };
+}
+
+/** StyleStealerSection analyze()'s body:
+ *  { videoUrl, description, niche } — all trimmed. */
+export function buildStyleStealerPayload(input: {
+  videoUrl: string;
+  description: string;
+  niche: string;
+}): Record<string, unknown> {
+  return {
+    videoUrl: input.videoUrl.trim(),
+    description: input.description.trim(),
+    niche: input.niche.trim(),
+  };
+}
+
+/* ─── Input readiness — the twins' own run gates ─────────────── */
+
+export function interviewQuestionsReady(topic: string): boolean {
+  return topic.trim().length > 0;
+}
+
+export function interviewPackageReady(
+  questions: readonly string[],
+  answers: readonly string[],
+): boolean {
+  return questions.length > 0 && interviewQaPairs(questions, answers).length > 0;
+}
+
+export function openingsReady(videoDescription: string): boolean {
+  return videoDescription.trim().length > 0;
+}
+
+export function hookAnalysisReady(transcript: string): boolean {
+  return transcript.trim().length > 0;
+}
+
+export function seoScoreReady(title: string): boolean {
+  return title.trim().length > 0;
+}
+
+/** The doctor's formValid: a title of 3+ chars and at least one
+ *  valid drop-off row. */
+export function doctorReady(title: string, dropOffs: readonly DoctorDropOffRow[]): boolean {
+  return title.trim().length >= 3 && dropOffs.some(doctorDropOffValid);
+}
+
+export function trendDraftReady(trend: string): boolean {
+  return trend.trim().length > 0;
+}
+
+export function styleStealerReady(description: string): boolean {
+  return description.trim().length > 0;
+}
+
+/* ─── Response guards — the twins' usability bars ────────────── */
+
+function numOr(v: unknown, fallback: number): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+
+function clampScore(v: unknown): number {
+  return Math.max(0, Math.min(100, Math.round(numOr(v, 0))));
+}
+
+/** The interview questions out of a questions answer — the
+ *  section slices to 5 and treats an empty list as no result. */
+export function interviewQuestionsOfResponse(raw: unknown): string[] | null {
+  if (!isRecord(raw)) return null;
+  const questions = stringList(raw["questions"]).slice(0, 5);
+  return questions.length > 0 ? questions : null;
+}
+
+export interface InterviewClipMoment {
+  quote: string;
+  why: string;
+}
+
+export interface InterviewPackageResult {
+  clips: InterviewClipMoment[];
+  quoteCards: string[];
+  promoOutline: string[];
+}
+
+/** The package out of a package answer — the clips array is the
+ *  payload (the section sets the package on its presence);
+ *  quote cards and the promo outline ride as string lists. */
+export function interviewPackageOfResponse(raw: unknown): InterviewPackageResult | null {
+  if (!isRecord(raw)) return null;
+  if (!Array.isArray(raw["clips"])) return null;
+  const clips: InterviewClipMoment[] = [];
+  for (const c of raw["clips"]) {
+    if (!isRecord(c)) continue;
+    if (typeof c["quote"] !== "string" || c["quote"].trim().length === 0) continue;
+    clips.push({
+      quote: c["quote"].trim(),
+      why: typeof c["why"] === "string" ? c["why"].trim() : "",
+    });
+  }
+  return {
+    clips,
+    quoteCards: stringList(raw["quoteCards"]),
+    promoOutline: stringList(raw["promoOutline"]),
+  };
+}
+
+export interface OpeningResult {
+  text: string;
+  visual: string;
+  score: number;
+  reasoning: string;
+}
+
+/** The openings out of an openings answer — the section refuses
+ *  an empty list and sorts best-first by score; the desk holds
+ *  both rules. Rows without opening text are not openings. */
+export function openingsOfResponse(raw: unknown): OpeningResult[] | null {
+  if (!isRecord(raw)) return null;
+  if (!Array.isArray(raw["openings"])) return null;
+  const out: OpeningResult[] = [];
+  for (const o of raw["openings"]) {
+    if (!isRecord(o)) continue;
+    if (typeof o["text"] !== "string" || o["text"].trim().length === 0) continue;
+    out.push({
+      text: o["text"].trim(),
+      visual: typeof o["visual"] === "string" ? o["visual"].trim() : "",
+      score: clampScore(o["score"]),
+      reasoning: typeof o["reasoning"] === "string" ? o["reasoning"].trim() : "",
+    });
+  }
+  if (out.length === 0) return null;
+  return out.sort((a, b) => b.score - a.score);
+}
+
+export interface HookAnalysisResult {
+  curiosityGap: number;
+  patternInterrupt: number;
+  clarity: number;
+  overallScore: number;
+  verdict: string;
+  weaknesses: string[];
+  rewrittenHook: string;
+  rewriteNotes: string[];
+  alternativeHooks: string[];
+}
+
+/** The analysis out of an analyze-hook answer — StepHookLab
+ *  accepts it only with an analysis carrying an overallScore;
+ *  the three axes are 0–10 scores, clamped as the step clamps
+ *  them for display. */
+export function hookAnalysisOfResponse(raw: unknown): HookAnalysisResult | null {
+  if (!isRecord(raw)) return null;
+  const a = raw["analysis"];
+  if (!isRecord(a)) return null;
+  if (typeof a["overallScore"] !== "number") return null;
+  const axis = (v: unknown) => Math.max(0, Math.min(10, numOr(v, 0)));
+  return {
+    curiosityGap: axis(a["curiosityGap"]),
+    patternInterrupt: axis(a["patternInterrupt"]),
+    clarity: axis(a["clarity"]),
+    overallScore: clampScore(a["overallScore"]),
+    verdict: typeof a["verdict"] === "string" ? a["verdict"].trim() : "",
+    weaknesses: stringList(a["weaknesses"]),
+    rewrittenHook: typeof a["rewrittenHook"] === "string" ? a["rewrittenHook"].trim() : "",
+    rewriteNotes: stringList(a["rewriteNotes"]),
+    alternativeHooks: stringList(a["alternativeHooks"]),
+  };
+}
+
+export interface SeoScoreIssue {
+  severity: SeoSeverity;
+  message: string;
+  fix: string;
+}
+
+export interface SeoScoreResult {
+  overallScore: number;
+  dimensions: {
+    titleStrength: number;
+    keywordCoverage: number;
+    descriptionQuality: number;
+    tagRelevance: number;
+    packagingComplete: number;
+  };
+  issues: SeoScoreIssue[];
+  optimizedTitle: string;
+  optimizedDescriptionFirst150: string;
+}
+
+/** The score out of a seo-score answer — the result record with
+ *  its five dimensions is the payload; an issue whose severity
+ *  is not one of the route's three is dropped, not rendered. */
+export function seoScoreOfResponse(raw: unknown): SeoScoreResult | null {
+  if (!isRecord(raw)) return null;
+  const r = raw["result"];
+  if (!isRecord(r)) return null;
+  if (typeof r["overallScore"] !== "number") return null;
+  const dims = isRecord(r["dimensions"]) ? r["dimensions"] : {};
+  const issues: SeoScoreIssue[] = [];
+  if (Array.isArray(r["issues"])) {
+    for (const i of r["issues"]) {
+      if (!isRecord(i)) continue;
+      if (!(SEO_SEVERITIES as readonly string[]).includes(i["severity"] as string)) continue;
+      issues.push({
+        severity: i["severity"] as SeoSeverity,
+        message: typeof i["message"] === "string" ? i["message"].trim() : "",
+        fix: typeof i["fix"] === "string" ? i["fix"].trim() : "",
+      });
+    }
+  }
+  return {
+    overallScore: clampScore(r["overallScore"]),
+    dimensions: {
+      titleStrength: clampScore(dims["titleStrength"]),
+      keywordCoverage: clampScore(dims["keywordCoverage"]),
+      descriptionQuality: clampScore(dims["descriptionQuality"]),
+      tagRelevance: clampScore(dims["tagRelevance"]),
+      packagingComplete: clampScore(dims["packagingComplete"]),
+    },
+    issues,
+    optimizedTitle: typeof r["optimizedTitle"] === "string" ? r["optimizedTitle"].trim() : "",
+    optimizedDescriptionFirst150:
+      typeof r["optimizedDescriptionFirst150"] === "string"
+        ? r["optimizedDescriptionFirst150"].trim()
+        : "",
+  };
+}
+
+export interface DoctorDiagnosis {
+  at: string;
+  dropPct: number;
+  causeCategory: string;
+  causeLabel: string;
+  diagnosis: string;
+  prescription: string;
+  fixAction: DoctorFixAction;
+  fixLabel: string;
+  fixUrl: string;
+}
+
+export interface DoctorResult {
+  reportCard: { grade: string; score: number; headline: string };
+  summary: string;
+  diagnoses: DoctorDiagnosis[];
+}
+
+/** The diagnosis out of a retention-doctor answer — the page
+ *  accepts it only with a report card AND at least one
+ *  diagnosis; a row without its moment, cause or prescription
+ *  is dropped rather than rendered half-told. */
+export function doctorOfResponse(raw: unknown): DoctorResult | null {
+  if (!isRecord(raw)) return null;
+  const card = raw["reportCard"];
+  if (!isRecord(card)) return null;
+  if (typeof card["grade"] !== "string" || typeof card["score"] !== "number") return null;
+  if (!Array.isArray(raw["diagnoses"])) return null;
+  const diagnoses: DoctorDiagnosis[] = [];
+  for (const d of raw["diagnoses"]) {
+    if (!isRecord(d)) continue;
+    if (
+      typeof d["at"] !== "string" ||
+      typeof d["dropPct"] !== "number" ||
+      typeof d["causeLabel"] !== "string" ||
+      typeof d["prescription"] !== "string"
+    ) {
+      continue;
+    }
+    diagnoses.push({
+      at: d["at"].trim(),
+      dropPct: d["dropPct"],
+      causeCategory: typeof d["causeCategory"] === "string" ? d["causeCategory"].trim() : "",
+      causeLabel: d["causeLabel"].trim(),
+      diagnosis: typeof d["diagnosis"] === "string" ? d["diagnosis"].trim() : "",
+      prescription: d["prescription"].trim(),
+      fixAction: (DOCTOR_FIX_ACTIONS as readonly string[]).includes(d["fixAction"] as string)
+        ? (d["fixAction"] as DoctorFixAction)
+        : "hook",
+      fixLabel: typeof d["fixLabel"] === "string" ? d["fixLabel"].trim() : "",
+      fixUrl: typeof d["fixUrl"] === "string" ? d["fixUrl"].trim() : "",
+    });
+  }
+  if (diagnoses.length === 0) return null;
+  return {
+    reportCard: {
+      grade: card["grade"].trim(),
+      score: clampScore(card["score"]),
+      headline: typeof card["headline"] === "string" ? card["headline"].trim() : "",
+    },
+    summary: typeof raw["summary"] === "string" ? raw["summary"].trim() : "",
+    diagnoses,
+  };
+}
+
+export interface TrendDraftResult {
+  hook: string;
+  script: string;
+  visualPlan: string[];
+  caption: string;
+  hashtags: string[];
+}
+
+/** The draft out of a trend-jacker answer — the section refuses
+ *  a draft without a hook or a script; the rest rides along. */
+export function trendDraftOfResponse(raw: unknown): TrendDraftResult | null {
+  if (!isRecord(raw)) return null;
+  const hook = typeof raw["hook"] === "string" ? raw["hook"].trim() : "";
+  const script = typeof raw["script"] === "string" ? raw["script"].trim() : "";
+  if (!hook || !script) return null;
+  return {
+    hook,
+    script,
+    visualPlan: stringList(raw["visualPlan"]),
+    caption: typeof raw["caption"] === "string" ? raw["caption"].trim() : "",
+    hashtags: stringList(raw["hashtags"]),
+  };
+}
+
+export interface StyleFormulaResult {
+  formula: {
+    hook: string;
+    pacing: string;
+    cutPattern: string;
+    captionStyle: string;
+    audioCues: string;
+    whyItWorks: string;
+  };
+  editRecipe: { name: string; steps: string[] } | null;
+  applyHints: { captionStyle: string; effects: string[]; overlays: string[] } | null;
+}
+
+/** The formula out of a style-stealer answer — the section
+ *  refuses an answer without the formula record; its hook line
+ *  is the payload. The recipe and apply hints ride when the
+ *  route sends them (the World bench shows the recipe; the
+ *  editor-apply step stays the editor page's own). */
+export function styleFormulaOfResponse(raw: unknown): StyleFormulaResult | null {
+  if (!isRecord(raw)) return null;
+  const f = raw["formula"];
+  if (!isRecord(f)) return null;
+  if (typeof f["hook"] !== "string" || f["hook"].trim().length === 0) return null;
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const recipe = isRecord(raw["editRecipe"])
+    ? {
+        name: str(raw["editRecipe"]["name"]),
+        steps: stringList(raw["editRecipe"]["steps"]),
+      }
+    : null;
+  const hints = isRecord(raw["applyHints"])
+    ? {
+        captionStyle: str(raw["applyHints"]["captionStyle"]),
+        effects: stringList(raw["applyHints"]["effects"]),
+        overlays: stringList(raw["applyHints"]["overlays"]),
+      }
+    : null;
+  return {
+    formula: {
+      hook: str(f["hook"]),
+      pacing: str(f["pacing"]),
+      cutPattern: str(f["cutPattern"]),
+      captionStyle: str(f["captionStyle"]),
+      audioCues: str(f["audioCues"]),
+      whyItWorks: str(f["whyItWorks"]),
+    },
+    editRecipe: recipe,
+    applyHints: hints,
+  };
+}
+
 export const HOOK_HISTORY_LIMIT = 8;
 
 /** Prepend a landed make, deduped on mode+label+lines, capped —
