@@ -249,6 +249,18 @@ const CommentToVideoBench = lazy(() => import("@/components/world/native/Comment
 const LyricStoriesBench = lazy(() => import("@/components/world/native/LyricStoriesBench").then((m) => ({ default: m.LyricStoriesBench })));
 const DreamCollabBench = lazy(() => import("@/components/world/native/DreamCollabBench").then((m) => ({ default: m.DreamCollabBench })));
 const LinkToHitBench = lazy(() => import("@/components/world/native/LinkToHitBench").then((m) => ({ default: m.LinkToHitBench })));
+/* Stack 400 world parity (Lane B items 9, 10, 13, 14, 22):
+   the Social Kit bench in the Post Office family, the Deal
+   Matcher + Sponsor Read + Invoice + One-Sheet benches at the
+   Get Paid board, and the Content Calendar + Stock benches at
+   the My Studio board beside Publish. Lazy like every bench. */
+const SocialKitBench = lazy(() => import("@/components/world/native/SocialKitBench").then((m) => ({ default: m.SocialKitBench })));
+const DealMatchBench = lazy(() => import("@/components/world/native/BusinessBenches").then((m) => ({ default: m.DealMatchBench })));
+const SponsorReadBench = lazy(() => import("@/components/world/native/BusinessBenches").then((m) => ({ default: m.SponsorReadBench })));
+const InvoiceBench = lazy(() => import("@/components/world/native/BusinessBenches").then((m) => ({ default: m.InvoiceBench })));
+const OneSheetBench = lazy(() => import("@/components/world/native/BusinessBenches").then((m) => ({ default: m.OneSheetBench })));
+const ContentCalendarBench = lazy(() => import("@/components/world/native/BusinessBenches").then((m) => ({ default: m.ContentCalendarBench })));
+const StockBench = lazy(() => import("@/components/world/native/BusinessBenches").then((m) => ({ default: m.StockBench })));
 
 /* ─── Round-4 doors (world-perf round 4, stack1200) ─────────────
    After round 3 the frame still statically carried every block
@@ -1083,9 +1095,21 @@ export default function StationPanel(props: StationPanelProps) {
           return (
             <PanelBoundary isLight={isLight} resetKey={station.id}>
               {station.id === "post-office" ? (
-                <DeskDoor isLight={isLight}>
-                  <PostOfficeDesk isLight={isLight} />
-                </DeskDoor>
+                <div className="flex flex-col gap-6">
+                  <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
+                    <PostOfficeDesk isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                  {/* Social Kit (Stack 400 world parity, Lane B
+                      item 9): the hub's brand-kit generator —
+                      profile picture, banner, header, highlight
+                      covers — on the /api/social-kit rail at the
+                      registry's 400 Bucs, stacked in the Post
+                      Office family; the kit lands in the hub
+                      project like the panel's does. */}
+                  <PanelBoundary isLight={isLight} resetKey={`${station.id}:social-kit`}><DeskDoor isLight={isLight}>
+                    <SocialKitBench isLight={isLight} />
+                  </DeskDoor></PanelBoundary>
+                </div>
               ) : station.id === "community-hall" ? (
                 <div className="flex flex-col gap-6">
                   <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
@@ -1256,6 +1280,40 @@ export default function StationPanel(props: StationPanelProps) {
                 <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <BrandCalculatorDesk isLight={isLight} isGuest={isGuest} />
                 </DeskDoor></PanelBoundary>
+                {/* Deal Matcher (Stack 400 world parity, Lane B
+                    item 10): the Brand Deals page's "Find my
+                    matches" on the /api/sponsors/match rail at
+                    the owner-ruled 100 Bucs, stacked at the Get
+                    Paid board beside the Brand Deals desk family
+                    (the Charts board's outreach panel). */}
+                <PanelBoundary isLight={isLight} resetKey={`${station.id}:deal-match`}><DeskDoor isLight={isLight}>
+                  <DealMatchBench isLight={isLight} />
+                </DeskDoor></PanelBoundary>
+                {/* Sponsor Read (Stack 400 world parity, Lane B
+                    item 22): the outreach panel's spoken-read
+                    writer on the /api/sponsor-read rail at the
+                    registry's 100 Bucs, beside the matcher. */}
+                <PanelBoundary isLight={isLight} resetKey={`${station.id}:sponsor-read`}><DeskDoor isLight={isLight}>
+                  <SponsorReadBench isLight={isLight} />
+                </DeskDoor></PanelBoundary>
+                {/* Invoice Generator (Stack 400 world parity,
+                    Lane B item 13): the outreach panel's invoice
+                    rail — generate at the registry's 50 Bucs,
+                    the PDF downloads, and the saved list flips
+                    paid/unpaid on the free rails — stacked at
+                    the Get Paid board. */}
+                <PanelBoundary isLight={isLight} resetKey={`${station.id}:invoice`}><DeskDoor isLight={isLight}>
+                  <InvoiceBench isLight={isLight} />
+                </DeskDoor></PanelBoundary>
+                {/* Sync One-Sheet (Stack 400 world parity, Lane
+                    B item 14): the Sync Pitch tab's one-sheet
+                    generator on the /api/sync-pitch/one-sheet
+                    rail at the registry's 150 Bucs, typed-title
+                    form, stacked at the Get Paid board with the
+                    business desks. */}
+                <PanelBoundary isLight={isLight} resetKey={`${station.id}:one-sheet`}><DeskDoor isLight={isLight}>
+                  <OneSheetBench isLight={isLight} />
+                </DeskDoor></PanelBoundary>
               </div>
             ) : resolution.pattern === "board" && station.id === "my-studio" ? (
               <div className="flex flex-col gap-6">
@@ -1372,6 +1430,24 @@ export default function StationPanel(props: StationPanelProps) {
                     library. */}
                 <PanelBoundary isLight={isLight} resetKey={station.id}><DeskDoor isLight={isLight}>
                   <PublishDesk isLight={isLight} />
+                </DeskDoor></PanelBoundary>
+                {/* Content Calendar (Stack 400 world parity,
+                    Lane B item 22): Content Intelligence Step 5's
+                    30-day posting plan on the /api/content-calendar
+                    rail at the registry's 150 Bucs, stacked at the
+                    My Studio board beside Publish — the planning
+                    step that feeds the scheduler. */}
+                <PanelBoundary isLight={isLight} resetKey={`${station.id}:content-calendar`}><DeskDoor isLight={isLight}>
+                  <ContentCalendarBench isLight={isLight} />
+                </DeskDoor></PanelBoundary>
+                {/* Stock Library (Stack 400 world parity, Lane B
+                    item 22): the editor panel's stock rails —
+                    free search on /api/stock/search, imports on
+                    /api/stock/import at the registry's 50 Bucs
+                    landing in the hub project — stacked beside
+                    Publish at the My Studio board. */}
+                <PanelBoundary isLight={isLight} resetKey={`${station.id}:stock`}><DeskDoor isLight={isLight}>
+                  <StockBench isLight={isLight} />
                 </DeskDoor></PanelBoundary>
                 {/* Repurpose (stack200 world parity lane B1,
                     census item 4): the Content Pack mode of the
