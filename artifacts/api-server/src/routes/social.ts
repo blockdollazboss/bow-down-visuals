@@ -10,6 +10,7 @@ import {
   storyHighlightsTable,
   postsTable,
   postReplyDraftsTable,
+  postAssistResultsTable,
   POST_REPLY_DRAFT_TONES,
   reactionsTable,
   savesTable,
@@ -3284,12 +3285,106 @@ router.get("/posts/:id/analytics", requireAuth, async (req: Request, res: Respon
    stack300 the allowance is real (lib/ai-boosts.ts, migration 0326):
    a member with boosts left pays one boost, not Bucs. The 100 VB
    price itself is unchanged. Admin accounts bypass the counter
-   (admin-unrestricted ruling) and take the charge path as before. */
+   (admin-unrestricted ruling) and take the charge path as before.
+
+   Stored results (Stack400 C-03/C-36): every successful generation
+   is persisted in post_assist_results keyed by that same charge
+   key, and a duplicate submit — mid-call or long after — is
+   answered from the stored row instead of running the provider
+   again for a second, different draft on the one boost/charge. */
 export const POST_ASSIST_CREDITS = 100;
 const assistSchema = z.object({
   prompt: z.string().trim().min(3).max(300),
   tone: z.enum(["hype", "chill", "professional", "funny"]).optional().default("hype"),
 });
+
+/* ── Stored results (Stack400 C-03 / C-36) ────────────────────────
+   RESPONSE SHAPE CONTRACT — the same one the contract rail answers
+   with (C-02), so a paid intent reads identically on every rail:
+
+   - A FRESH success answers the bare body, with NO `replayed` field:
+       { draft, boost }
+   - A REPLAY answers the stored body VERBATIM plus exactly one
+     added top-level field:  replayed: true.
+
+   Nothing else differs — same draft bytes, same boost snapshot — so
+   one paid intent can never surface two different drafts, and copy
+   keyed on `replayed` can honestly say "this is the draft you
+   already made for this request" (C-36).
+
+   Both reads and writes are FAIL-OPEN against a lagging database:
+   if the post_assist_results table is not there yet (migration 0330
+   not applied), the rail generates exactly as it did before C-03 —
+   a stored result is an upgrade, never a gate on a paid ask. */
+export interface StoredPostAssistResult {
+  draft: string;
+  boost: {
+    applied: boolean;
+    allowance: number;
+    used: number;
+    remaining: number;
+  } | null;
+}
+
+async function findStoredAssistResult(
+  idempotencyKey: string,
+  userId: string,
+): Promise<StoredPostAssistResult | null> {
+  try {
+    const [row] = await db
+      .select({
+        userId: postAssistResultsTable.userId,
+        result: postAssistResultsTable.result,
+      })
+      .from(postAssistResultsTable)
+      .where(eq(postAssistResultsTable.idempotencyKey, idempotencyKey))
+      .limit(1);
+    /* The key is user-scoped by construction; a row naming another
+       user is never served (defense in depth, not an expected path). */
+    if (!row || row.userId !== userId || !row.result) return null;
+    return row.result;
+  } catch (err) {
+    if (!isMissingSchemaError(err)) {
+      logger.warn(
+        { err, idempotencyKey },
+        "[social] post_assist stored-result lookup failed — generating fresh (fail-open)",
+      );
+    }
+    return null;
+  }
+}
+
+async function storeAssistResult(
+  idempotencyKey: string,
+  userId: string,
+  result: StoredPostAssistResult,
+): Promise<void> {
+  try {
+    await db
+      .insert(postAssistResultsTable)
+      .values({ userId, idempotencyKey, result })
+      .onConflictDoNothing({ target: postAssistResultsTable.idempotencyKey });
+  } catch (err) {
+    /* Never fail a paid, successful generation over its bookkeeping:
+       the member holds their draft; the worst case is a later replay
+       generating fresh (the pre-C-03 behavior). Log loudly. */
+    logger.error(
+      { err, idempotencyKey },
+      "[social] post_assist failed to store the assist result — a replay of this intent would generate fresh",
+    );
+  }
+}
+
+/* In-flight generations, per idempotency key (Stack400 C-03).
+   The durable stored row answers a replay that arrives AFTER a
+   generation lands; this map answers the twin that arrives WHILE it
+   is still running — the twin waits for the one generation instead
+   of starting a second provider call. In-process by design (the
+   same pattern as the contract rail's): a cross-process twin still
+   resolves through the two ledgers' replay outcomes and the
+   stored-row checks — never a double boost, never a double charge.
+   Entries are removed the moment the generation settles. */
+const inflightAssists = new Map<string, Promise<StoredPostAssistResult>>();
 
 router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, res: Response) => {
   /* Set once the charge lands; a provider failure after it refunds the
@@ -3300,6 +3395,18 @@ router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, r
   let assistBoosted = false;
   let assistBoostState: AiBoostState | null = null;
   let assistIdempotencyKey: string | null = null;
+  /* Set when the boost ledger reports this exact ask already holds a
+     boost (a twin funded it) — C-03: never a second generation for
+     the one boost. */
+  let boostReplay = false;
+  /* This request's in-flight settle handles, once it registers as
+     the generating twin for its key (C-03); the failure path settles
+     them so a waiting twin falls through to its own fresh attempt. */
+  let settleInflight: {
+    resolve: (r: StoredPostAssistResult) => void;
+    reject: (e: unknown) => void;
+  } | null = null;
+  let clearInflight: (() => void) | null = null;
   try {
     const parsed = assistSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "invalid", details: parsed.error.issues });
@@ -3312,6 +3419,48 @@ router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, r
       tone: parsed.data.tone,
     });
     assistIdempotencyKey = idempotencyKey;
+    /* C-03/C-36: a stored result under this key means this exact
+       prompt+tone was already paid for and answered — serve the
+       stored draft verbatim, marked as a replay so the surface can
+       say so plainly. No boost, no charge, no provider call. */
+    const prior = await findStoredAssistResult(idempotencyKey, req.userId!);
+    if (prior) {
+      logger.info(
+        { userId: req.userId, idempotencyKey },
+        "[social] post_assist replay served from the stored result",
+      );
+      return res.json({ ...prior, replayed: true });
+    }
+    /* A twin of this exact ask is generating right now: wait for its
+       result instead of paying the provider twice for one draft. */
+    const twinInFlight = inflightAssists.get(idempotencyKey);
+    if (twinInFlight) {
+      const twinResult = await twinInFlight.catch(() => null);
+      if (twinResult) {
+        return res.json({ ...twinResult, replayed: true });
+      }
+      /* The twin failed; its funding is refunded and its keys voided
+         by its own failure path below — fall through and run this
+         request as the fresh attempt it now is. */
+    }
+    /* Register this request as the generating twin BEFORE funding,
+       so a duplicate arriving during funding or the provider call
+       waits for this one generation instead of double-funding. */
+    let resolveInflight!: (r: StoredPostAssistResult) => void;
+    let rejectInflight!: (e: unknown) => void;
+    const inflightPromise = new Promise<StoredPostAssistResult>((resolve, reject) => {
+      resolveInflight = resolve;
+      rejectInflight = reject;
+    });
+    /* A rejection with no waiter attached must never surface unhandled. */
+    inflightPromise.catch(() => {});
+    inflightAssists.set(idempotencyKey, inflightPromise);
+    settleInflight = { resolve: resolveInflight, reject: rejectInflight };
+    clearInflight = () => {
+      if (inflightAssists.get(idempotencyKey) === inflightPromise) {
+        inflightAssists.delete(idempotencyKey);
+      }
+    };
     /* Funding, in order: admin → the unchanged charge path; a boost
        remaining → the boost pays; otherwise → the 100 VB charge.
        A boosts-ledger failure degrades to the charge path (the
@@ -3326,7 +3475,17 @@ router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, r
         funding = fundingFor({ isAdmin, remaining: state.remaining });
         if (funding === "boost") {
           const consumed = await tryConsumeAiBoost(req.userId!, tier, idempotencyKey);
-          if (consumed.outcome !== "exhausted") {
+          if (consumed.outcome === "replay") {
+            /* C-03: this exact ask already holds its boost — a twin
+               funded it (in another process, or one whose stored
+               result has not landed yet). This request consumed
+               nothing and must never generate a second draft for the
+               one boost: the post-funding check below serves the
+               landed draft or answers honestly that it is still
+               being written. */
+            boostReplay = true;
+            assistBoostState = consumed.state;
+          } else if (consumed.outcome !== "exhausted") {
             assistBoosted = true;
             assistBoostState = consumed.state;
           } else {
@@ -3343,16 +3502,51 @@ router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, r
         assistBoostState = null;
       }
     }
-    if (!assistBoosted) {
+    if (!assistBoosted && !boostReplay) {
       try {
         await chargeCredits(req.userId!, POST_ASSIST_CREDITS, { action: "post_assist" }, { idempotencyKey });
         assistCharged = true;
       } catch (e) {
         if (e instanceof OutOfCreditsError) {
+          /* Settle the in-flight entry before answering: a waiting
+             twin falls through to its own attempt and its own 402. */
+          settleInflight?.reject(e);
+          clearInflight?.();
           return res.status(402).json({ error: "out_of_credits", message: "That draft costs 100 Visual Bucs — top up to keep the cheat code writing." });
         }
         throw e;
       }
+    }
+    if (boostReplay) {
+      /* The boost ledger says this ask was already funded, but no
+         stored draft was there when this request started. If the
+         first generation has landed since, serve it; otherwise the
+         honest answer is that the draft is still being written —
+         never a second generation for the one boost. A twin waiting
+         on THIS request falls through to its own attempt. */
+      const landedForBoost = await findStoredAssistResult(idempotencyKey, req.userId!);
+      if (landedForBoost) {
+        settleInflight?.resolve(landedForBoost);
+        clearInflight?.();
+        return res.json({ ...landedForBoost, replayed: true });
+      }
+      settleInflight?.reject(new Error("post_assist boost replay while the first generation is still in flight"));
+      clearInflight?.();
+      return res.status(409).json({
+        error: "assist_in_progress",
+        message: "That draft is already being written — give it a moment, then ask again to pick it up.",
+      });
+    }
+    /* The funding may have been a suppressed replay whose twin has
+       since finished (the charge ledger's replay outcome, or a boost
+       consumed a breath ago): if its draft is stored by now, serve
+       it instead of generating a second, different draft for the
+       same paid intent. */
+    const landedAfterFunding = await findStoredAssistResult(idempotencyKey, req.userId!);
+    if (landedAfterFunding) {
+      settleInflight?.resolve(landedAfterFunding);
+      clearInflight?.();
+      return res.json({ ...landedAfterFunding, replayed: true });
     }
     const openai = getOpenAI();
     const completion = await openai.chat.completions.create({
@@ -3368,7 +3562,7 @@ router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, r
       ],
     });
     const draft = completion.choices[0]?.message?.content?.trim().slice(0, 500) ?? "";
-    return res.json({
+    const result: StoredPostAssistResult = {
       draft,
       /* How this assist was funded + the caller's boost standing, so
          the surfaces can say what it cost and what is left. Null when
@@ -3381,8 +3575,22 @@ router.post("/posts/assist", requireAuth, w8WriteLimiter, async (req: Request, r
             remaining: assistBoostState.remaining,
           }
         : null,
-    });
+    };
+    /* Persist BEFORE answering, and wake any waiting twin with the
+       same body: the stored row is what every future duplicate of
+       this ask is served from (C-03/C-36), and the twin is served
+       this very draft, marked as the replay it is. */
+    await storeAssistResult(idempotencyKey, req.userId!, result);
+    settleInflight?.resolve(result);
+    clearInflight?.();
+    return res.json(result);
   } catch (err) {
+    /* Settle the in-flight entry first: a twin waiting on this
+       request falls through to its own fresh attempt — the refunds
+       below restore this request's funding and void its keys, so
+       the twin's attempt funds clean. */
+    settleInflight?.reject(err);
+    clearInflight?.();
     if (assistCharged) {
       try {
         await refundCredits(req.userId!, POST_ASSIST_CREDITS, { action: "post_assist — Refund (assist failed)" });

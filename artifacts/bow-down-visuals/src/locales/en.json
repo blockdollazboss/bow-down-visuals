@@ -20129,6 +20129,7 @@
     "assistButton": "Write it for me · {{cost}} VB",
     "assistDidntAnswer": "The assist didn't answer — a failed assist is refunded. Try again.",
     "assistDraftedNote": "Drafted into your composer below — make it yours, then post it.",
+    "assistReplayNote": "This is the draft you already made for this request — tweak the words for a fresh one.",
     "assistBoostNote": "Drafted into your composer below — written with a plan boost ({{remaining}} left this month). Make it yours, then post it.",
     "assistFailedFallback": "The pen ran dry — a failed assist is refunded. Try again.",
     "assistNoWords": "The assist came back without words — a failed assist is refunded. Try again.",

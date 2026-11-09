@@ -20266,6 +20266,7 @@
     "assistButton": "Write it for me · {{cost}} VB",
     "assistDidntAnswer": "لم ترد المساعدة — تُسترد قيمة المساعدة الفاشلة. حاول مرة أخرى.",
     "assistDraftedNote": "تمت صياغة المسودة في محرر الإنشاء أدناه — اجعلها بصوتك، ثم انشرها.",
+    "assistReplayNote": "This is the draft you already made for this request — tweak the words for a fresh one.",
     "assistBoostNote": "Drafted into your composer below — written with a plan boost ({{remaining}} left this month). Make it yours, then post it.",
     "assistFailedFallback": "جف القلم — تُسترد قيمة المساعدة الفاشلة. حاول مرة أخرى.",
     "assistNoWords": "عادت المساعدة دون كلمات — تُسترد قيمة المساعدة الفاشلة. حاول مرة أخرى.",

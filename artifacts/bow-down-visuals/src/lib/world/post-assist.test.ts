@@ -19,6 +19,7 @@ import {
   isPostAssistTone,
   parsePostAssistBoost,
   parsePostAssistDraft,
+  parsePostAssistReplayed,
   postAssistPromptReady,
 } from "./post-assist";
 
@@ -64,6 +65,23 @@ describe("post assist — the rail's own shape", () => {
     expect(appendAssistDraft("", "Fresh words")).toBe("Fresh words");
     expect(appendAssistDraft("My intro", "Fresh words")).toBe("My intro\n\nFresh words");
     expect(appendAssistDraft("x".repeat(490), "y".repeat(50))).toHaveLength(500);
+  });
+});
+
+describe("post assist — replay marking (Stack400 C-03/C-36)", () => {
+  it("only the rail's replayed: true marks a replay — a fresh body never reads as one", () => {
+    expect(parsePostAssistReplayed({ draft: "x", boost: null, replayed: true })).toBe(true);
+    expect(parsePostAssistReplayed({ draft: "x", boost: null })).toBe(false);
+    expect(parsePostAssistReplayed({ draft: "x", replayed: false })).toBe(false);
+    expect(parsePostAssistReplayed({ replayed: "true" })).toBe(false);
+    expect(parsePostAssistReplayed(null)).toBe(false);
+    expect(parsePostAssistReplayed("replayed")).toBe(false);
+  });
+
+  it("the block answers a replay with the honest helper line, keyed in the catalog", () => {
+    const block = readFileSync(new URL("../../components/world/native/PostAssist.tsx", import.meta.url), "utf8");
+    expect(block).toContain("parsePostAssistReplayed(data)");
+    expect(block).toContain('t("worldSocialDesk.assistReplayNote")');
   });
 });
 

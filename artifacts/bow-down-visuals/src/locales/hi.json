@@ -20150,6 +20150,7 @@
     "assistButton": "Write it for me · {{cost}} VB",
     "assistDidntAnswer": "सहायता ने जवाब नहीं दिया — विफल सहायता का पैसा वापस मिलता है। फिर से कोशिश करें।",
     "assistDraftedNote": "नीचे आपके कंपोज़र में मसौदा तैयार है — इसे अपना बनाएं, फिर पोस्ट करें।",
+    "assistReplayNote": "This is the draft you already made for this request — tweak the words for a fresh one.",
     "assistBoostNote": "Drafted into your composer below — written with a plan boost ({{remaining}} left this month). Make it yours, then post it.",
     "assistFailedFallback": "कलम सूख गई — विफल सहायता का पैसा वापस मिलता है। फिर से कोशिश करें।",
     "assistNoWords": "सहायता बिना शब्दों के लौटी — विफल सहायता का पैसा वापस मिलता है। फिर से कोशिश करें।",

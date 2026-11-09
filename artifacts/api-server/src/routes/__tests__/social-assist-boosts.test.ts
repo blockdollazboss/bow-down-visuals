@@ -16,6 +16,13 @@
  *   - a boosts-ledger failure degrades to the charge path.
  * The charge-path contract itself (price, credit refund, key void)
  * stays pinned in social-assist-refund.test.ts.
+ *
+ * Stack400 C-03 note: the rail now persists each success in
+ * post_assist_results and answers duplicate submits from the stored
+ * row, so this file's db fake models that one table for real (the
+ * double-submit pin below asserts the replayed stored draft). The
+ * concurrency + replay-shape pins live in
+ * social-assist-stored-results.test.ts.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import express from "express";
@@ -35,6 +42,10 @@ const h = vi.hoisted(() => ({
   boostRows: new Map<string, string>(),
   consumeCalls: 0,
   boostRefunds: [] as string[],
+  /* The post_assist_results store (Stack400 C-03), keyed by
+     idempotency key — the fake @workspace/db below reads/writes it
+     for that one table; every other table keeps the generic chain. */
+  assistStored: new Map<string, { userId: string; result: any }>(),
 }));
 
 const currentPeriod = () => new Date().toISOString().slice(0, 7);
@@ -233,6 +244,29 @@ vi.mock("../../lib/logger", () => ({
   logger: { info: () => {}, warn: () => {}, error: () => {} },
 }));
 
+/* The stored-result lookup always goes BY KEY — recover it from
+   the eq() the route built (drizzle parameterizes the value; it
+   rides the condition's queryChunks as a Param node). */
+function keyFromCondition(cond: unknown): string | null {
+  const walk = (node: unknown, depth: number): string | null => {
+    if (node === null || typeof node !== "object" || depth > 6) return null;
+    if ((node as { constructor?: { name?: string } }).constructor?.name === "Param") {
+      const v = (node as { value?: unknown }).value;
+      return typeof v === "string" ? v : null;
+    }
+    if (Array.isArray(node)) {
+      for (const child of node) {
+        const hit = walk(child, depth + 1);
+        if (hit !== null) return hit;
+      }
+      return null;
+    }
+    const chunks = (node as { queryChunks?: unknown }).queryChunks;
+    return Array.isArray(chunks) ? walk(chunks, depth + 1) : null;
+  };
+  return walk(cond, 0);
+}
+
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   const chain: any = {
@@ -241,11 +275,37 @@ vi.mock("@workspace/db", async (importOriginal) => {
     limit: () => chain,
     then: (res: any, rej: any) => Promise.resolve([]).then(res, rej),
   };
+  /* Stack400 C-03: post_assist_results gets a real key-aware fake —
+     the rail persists each success there and answers replays from
+     the row, so a harness that cannot store cannot see the rail's
+     actual behavior. Every other table keeps the generic chain. */
+  const storedSelect = {
+    where: (cond: unknown) => ({
+      limit: async () => {
+        const key = keyFromCondition(cond);
+        const row = key !== null ? h.assistStored.get(key) : undefined;
+        return row ? [row] : [];
+      },
+    }),
+  };
+  const storedInsert = {
+    values: (v: { idempotencyKey: string; userId: string; result: any }) => ({
+      onConflictDoNothing: async () => {
+        if (!h.assistStored.has(v.idempotencyKey)) {
+          h.assistStored.set(v.idempotencyKey, { userId: v.userId, result: v.result });
+        }
+        return [];
+      },
+    }),
+  };
   return {
     ...actual,
     db: {
-      select: () => ({ from: () => chain }),
-      insert: () => ({ values: async () => [] }),
+      select: () => ({
+        from: (table: unknown) => (table === actual.postAssistResultsTable ? storedSelect : chain),
+      }),
+      insert: (table: unknown) =>
+        table === actual.postAssistResultsTable ? storedInsert : { values: async () => [] },
       update: () => ({ set: () => ({ where: async () => [] }) }),
       delete: () => ({ where: async () => [] }),
     },
@@ -286,6 +346,7 @@ beforeEach(() => {
   h.boostRows = new Map();
   h.consumeCalls = 0;
   h.boostRefunds = [];
+  h.assistStored = new Map();
 });
 
 async function assist(prompt = "my new single drops friday") {
@@ -320,6 +381,12 @@ describe("POST /posts/assist — boost funding order", () => {
     expect(second.status).toBe(200);
     expect(h.boostRows.size).toBe(1);
     expect(h.charges).toEqual([]);
+    /* Stack400 C-03: the second submit is answered from the stored
+       result of the first (same draft, marked replayed) — never a
+       second generation for the one boost. */
+    expect(second.body.draft).toBe(first.body.draft);
+    expect(second.body.replayed).toBe(true);
+    expect("replayed" in first.body).toBe(false);
   });
 
   it("past the Free allowance the flat 100 VB charge applies", async () => {

@@ -138,7 +138,9 @@ describe("Social-family extraction (unit 43)", () => {
   });
 
   it("the namespace holds the family's full extracted key set", () => {
-    expect(enKeys.length).toBe(648);
+    /* 648 + assistReplayNote (Stack400 C-36: the Post Assist replay
+       helper line, keyed in all 10 catalogs). */
+    expect(enKeys.length).toBe(649);
   });
 
   it("every catalog key is referenced by a component (no orphans, no remainder)", () => {

@@ -20150,6 +20150,7 @@
     "assistButton": "Write it for me · {{cost}} VB",
     "assistDidntAnswer": "Die Hilfe hat nicht geantwortet — eine fehlgeschlagene Hilfe wird erstattet. Versuch es noch einmal.",
     "assistDraftedNote": "Unten in deinen Composer entworfen — mach ihn zu deinem, dann poste ihn.",
+    "assistReplayNote": "This is the draft you already made for this request — tweak the words for a fresh one.",
     "assistBoostNote": "Drafted into your composer below — written with a plan boost ({{remaining}} left this month). Make it yours, then post it.",
     "assistFailedFallback": "Die Feder ist leer — eine fehlgeschlagene Hilfe wird erstattet. Versuch es noch einmal.",
     "assistNoWords": "Die Hilfe kam ohne Worte zurück — eine fehlgeschlagene Hilfe wird erstattet. Versuch es noch einmal.",
