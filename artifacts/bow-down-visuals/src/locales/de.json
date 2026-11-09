@@ -2124,7 +2124,9 @@
     "presetLofi": "Lo-Fi",
     "presetPop": "Pop",
     "presetEdm": "EDM",
-    "presetDancehall": "Dancehall"
+    "presetDancehall": "Dancehall",
+    "presetAmapiano": "Amapiano",
+    "presetPhonk": "Phonk"
   },
   "beats": {
     "aiSuggestsPrefix": "KI schlägt vor: ",

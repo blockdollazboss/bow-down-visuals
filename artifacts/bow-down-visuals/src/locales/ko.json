@@ -2124,7 +2124,9 @@
     "presetLofi": "Lo-Fi",
     "presetPop": "Pop",
     "presetEdm": "EDM",
-    "presetDancehall": "Dancehall"
+    "presetDancehall": "Dancehall",
+    "presetAmapiano": "Amapiano",
+    "presetPhonk": "Phonk"
   },
   "beats": {
     "errorTitleUrlRequired": "제목과 오디오 URL은 필수입니다.",

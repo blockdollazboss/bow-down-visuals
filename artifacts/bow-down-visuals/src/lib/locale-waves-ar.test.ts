@@ -390,6 +390,7 @@ const W4_ALLOW = new Set([
   "beatMaker.bpmValue",
   "beatMaker.presetJerseyClub",
   "beatMaker.presetLofi", "beatMaker.presetPop", "beatMaker.presetEdm", "beatMaker.presetDancehall",
+  "beatMaker.presetAmapiano", "beatMaker.presetPhonk",
   "beatMaker.presetRnB",
   "beatMaker.soundBankComing",
   "beatMaker.soundGroupBank",
