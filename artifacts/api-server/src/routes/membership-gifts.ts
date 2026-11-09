@@ -167,7 +167,10 @@ router.post("/membership-gifts/checkout", requireAuth, publicApiLimiter, async (
   try {
     stripe = getStripe();
   } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
+    logger.error({ err }, "membership-gifts checkout: Stripe unavailable");
+    /* The raw message is an internal config error (it names the
+       provider and key modes) — the client gets house copy instead. */
+    res.status(500).json({ error: "Checkout isn't available right now." });
     return;
   }
 
@@ -255,7 +258,11 @@ router.post("/membership-gifts/checkout", requireAuth, publicApiLimiter, async (
   } catch (err) {
     const msg = (err as { message?: string })?.message ?? "unknown";
     logger.error({ err, msg }, "membership-gifts checkout: Stripe session failed");
-    res.status(502).json({ error: `Stripe couldn't start checkout: ${msg}` });
+    /* House copy law: the client never sees the payment provider's
+       name (or its raw error text — that stays in the log line
+       above). The `code` names the segment for support/walks
+       without leaking any of that. */
+    res.status(502).json({ error: "Checkout couldn't start — try again in a moment.", code: "CHECKOUT_SESSION_FAILED" });
   }
 });
 
@@ -274,7 +281,10 @@ router.post("/membership-gifts/verify", requireAuth, publicApiLimiter, async (re
   try {
     stripe = getStripe();
   } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
+    logger.error({ err }, "membership-gifts verify: Stripe unavailable");
+    /* The raw message is an internal config error (it names the
+       provider and key modes) — the client gets house copy instead. */
+    res.status(502).json({ error: "Billing is unavailable right now — try again in a moment." });
     return;
   }
   let session: Stripe.Checkout.Session;
