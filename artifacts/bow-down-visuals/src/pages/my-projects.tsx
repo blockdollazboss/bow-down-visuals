@@ -801,6 +801,11 @@ export default function MyProjects() {
   const [websitesLoading, setWebsitesLoading] = useState(false);
   const [websitesError, setWebsitesError] = useState<string | null>(null);
 
+  /* Delete failures surface in-page (house failure messaging, Stack 400
+     D-44) — the same deleteError banner shape HubProjectsSection uses on
+     this page; never the browser's native alert dialog. */
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const [openProject, setOpenProject] = useState<Project | null>(null);
 
   useEffect(() => {
@@ -878,36 +883,40 @@ export default function MyProjects() {
   }
 
   async function handleDeleteProject(id: string) {
+    setDeleteError(null);
     try {
       const token = await getAccessToken();
       await fetch(`/api/projects/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } });
       setProjects((prev) => prev.filter((p) => p.id !== id));
       if (openProject?.id === id) setOpenProject(null);
-    } catch { alert(t("myProjects.failedDeleteProject")); }
+    } catch { setDeleteError(t("myProjects.failedDeleteProject")); }
   }
 
   async function handleDeleteDraft(id: string) {
+    setDeleteError(null);
     try {
       const token = await getAccessToken();
       await fetch(`/api/drafts/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } });
       setDrafts((prev) => prev.filter((d) => d.id !== id));
-    } catch { alert(t("myProjects.failedDeleteDraft")); }
+    } catch { setDeleteError(t("myProjects.failedDeleteDraft")); }
   }
 
   async function handleDeleteClip(id: string) {
+    setDeleteError(null);
     try {
       const token = await getAccessToken();
       await fetch(`/api/generated-clips/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } });
       setClips((prev) => prev.filter((c) => c.id !== id));
-    } catch { alert(t("myProjects.failedDeleteClip")); }
+    } catch { setDeleteError(t("myProjects.failedDeleteClip")); }
   }
 
   async function handleDeleteWebsite(id: string) {
+    setDeleteError(null);
     try {
       const token = await getAccessToken();
       await fetch(`/api/website-builder/projects/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } });
       setWebsites((prev) => prev.filter((w) => w.id !== id));
-    } catch { alert(t("myProjects.failedDeleteWebsite")); }
+    } catch { setDeleteError(t("myProjects.failedDeleteWebsite")); }
   }
 
   async function loadHistory() {
@@ -1004,6 +1013,10 @@ export default function MyProjects() {
             </button>
           ))}
         </div>
+
+        {deleteError && (
+          <p role="alert" className="text-sm text-red-400 font-semibold mb-3">{deleteError}</p>
+        )}
 
         {/* ── PROJECTS TAB ── */}
         {tab === "projects" && (
