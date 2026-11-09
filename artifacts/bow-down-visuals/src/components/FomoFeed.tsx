@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
+import { fetchWithRetry } from "@/lib/fetch-with-retry";
 
 interface FeedItem {
   kind: string;
@@ -72,9 +73,15 @@ export default function FomoFeed({ getToken }: { getToken: () => Promise<string 
     }
   }, [authHeaders]);
 
-  const loadFeed = useCallback(async () => {
+  /* C-16: the FIRST load rides the shared retrying fetch — a cold
+     origin's slow or 5xx first answer retries with backoff instead of
+     parking the panel on its failure state. Later loads keep the
+     plain fetch: the 60 s poll already self-heals, and the manual
+     Try again stays a single honest attempt. */
+  const loadFeed = useCallback(async (firstLoad = false) => {
     try {
-      const res = await fetch("/api/activity/feed", { headers: await authHeaders() });
+      const doFetch = firstLoad ? fetchWithRetry : fetch;
+      const res = await doFetch("/api/activity/feed", { headers: await authHeaders() });
       if (!res.ok) throw new Error("feed load failed");
       setFeed((await res.json()) as FeedResponse);
       setFeedFailed(false);
@@ -97,7 +104,7 @@ export default function FomoFeed({ getToken }: { getToken: () => Promise<string 
 
   useEffect(() => {
     void loadPrefs();
-    void loadFeed();
+    void loadFeed(true);
     const id = setInterval(() => {
       if (!hiddenRef.current) void loadFeed(); // pause polling while tab hidden
     }, POLL_MS);

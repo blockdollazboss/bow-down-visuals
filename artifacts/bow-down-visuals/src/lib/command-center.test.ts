@@ -278,7 +278,10 @@ describe("CommandCenter.tsx wiring (source pins)", () => {
   });
 
   it("fetches each panel from its own endpoint and settles through the shared seam", () => {
-    expect(componentSource).toContain("fetch(`/api/command/${key}`");
+    /* C-16: panel fetches ride the ONE shared retrying transport —
+       a cold origin's slow or 5xx first answer retries with backoff
+       instead of parking the panel on its failure state. */
+    expect(componentSource).toContain("fetchWithRetry(`/api/command/${key}`");
     expect(componentSource).toContain("initialSectionStates(COMMAND_PANEL_KEYS)");
     expect(componentSource).toContain("settleSection(");
     expect(componentSource).toContain("markSectionLoading(");
@@ -295,7 +298,14 @@ describe("CommandCenter.tsx wiring (source pins)", () => {
   it("renders the digest fallback as its own state — flagged payload, honest line, never the failure note", () => {
     expect(componentSource).toContain("shapeBriefFallback(raw)");
     expect(componentSource).toContain('data-testid="command-brief-digest"');
-    expect(componentSource).toContain("command.brief_narrative_unavailable");
+    /* C-17: the fallback line names the reason class — the brief is
+       in digest form because the writing service isn't connected on
+       this site yet — instead of the old failure-shaped apology,
+       which read as breakage on every staging load. The line is
+       driven by the same flagged payload that selects this state,
+       and names no provider and promises no date. */
+    expect(componentSource).toContain("command.brief_digest_note");
+    expect(componentSource).toContain("writing service isn’t connected on this site yet");
     /* The failure note stays reserved for a response that never
        arrives: the fallback branch renders ABOVE the empty state and
        does not reuse the failure testid. */
@@ -314,5 +324,36 @@ describe("CommandCenter.tsx wiring (source pins)", () => {
     expect(dockAt).toBeGreaterThan(-1);
     expect(dockAt).toBeLessThan(retentionAt);
     expect(dockAt).toBeLessThan(gateAt);
+  });
+});
+
+/* Stack 400 C-16 / C-17 consumer + copy pins. The retry semantics
+   themselves are pinned in fetch-with-retry.test.ts; these pin the
+   two consumers and the fallback copy's catalog treatment. */
+describe("dashboard retry consumers + digest copy (C-16 / C-17)", () => {
+  const fomoSource = readFileSync(new URL("../components/FomoFeed.tsx", import.meta.url), "utf8");
+
+  it("FomoFeed's first load rides the shared retrying fetch; the poll stays a plain fetch", () => {
+    expect(fomoSource).toContain('import { fetchWithRetry } from "@/lib/fetch-with-retry"');
+    expect(fomoSource).toContain("firstLoad ? fetchWithRetry : fetch");
+    expect(fomoSource).toContain("void loadFeed(true);");
+    /* The honest first-load failure state is untouched — the retry
+       only makes it stop appearing spuriously. */
+    expect(fomoSource).toContain('data-testid="fomo-feed-load-error"');
+  });
+
+  it("the digest note is English source in en; the other 9 catalogs carry it English-verbatim, UNREVIEWED", () => {
+    const NOTE = "Your brief is in digest form — the writing service isn’t connected on this site yet, so here are your numbers, straight from your business.";
+    const loadCat = (l: string) =>
+      JSON.parse(readFileSync(new URL(`../locales/${l}.json`, import.meta.url), "utf8")) as {
+        command: Record<string, string>;
+      };
+    expect(loadCat("en").command.brief_digest_note).toBe(NOTE);
+    for (const l of ["es", "fr", "pt", "de", "it", "hi", "ar", "ja", "ko"]) {
+      /* English-verbatim pending real translation — the house
+         honesty flag for agent-carried copy. When a reviewed
+         translation lands, this pin is updated in the same commit. */
+      expect(loadCat(l).command.brief_digest_note, `${l}: brief_digest_note`).toBe(NOTE);
+    }
   });
 });
