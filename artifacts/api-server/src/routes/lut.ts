@@ -10,7 +10,18 @@ import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+  OutOfCreditsError,
+} from "../lib/credits";
+import { createHash } from "crypto";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -27,6 +38,64 @@ const execFileAsync = promisify(execFile);
 
 /** 150 Visual Bucs per LUT apply (matches the color-grade price). */
 const LUT_APPLY_COST = Number(process.env["LUT_APPLY_CREDITS"]) || 150;
+
+/* Replay safety (CA-7): the apply-lut charge keys on a server-derived
+   idempotency key over the request intent — content hashes of the
+   uploaded video + LUT files, or the videoUrl / preset / saved-LUT
+   identity — computed from the multipart parts in memory, BEFORE any
+   download or render, so a re-ask of the same request (double-tap,
+   retry, timeout resend) is answered from the stored result instead
+   of charging again and re-rendering. The up-front 402 gate stays
+   first, exactly as before. The refund path VOIDS the key once the
+   refund lands, so a refunded apply always runs fresh on retry.
+   Fresh responses are byte-identical to before; stored lookups fail
+   open. */
+const LUT_APPLY_SCOPE = "lut-apply";
+const LUT_REPLAY_NOTE =
+  "This is the graded clip you already made for this request — it is already in your library.";
+const REPLAY_STORE_MAX = 500;
+const storedLutResults = new Map<string, Record<string, unknown>>();
+const inFlightLuts = new Map<string, Promise<Record<string, unknown>>>();
+
+function storeLutInProcess(key: string, body: Record<string, unknown>): void {
+  if (storedLutResults.size >= REPLAY_STORE_MAX) {
+    const first = storedLutResults.keys().next().value;
+    if (first !== undefined) storedLutResults.delete(first);
+  }
+  storedLutResults.set(key, body);
+}
+
+export function __resetLutReplayCache(): void {
+  storedLutResults.clear();
+  inFlightLuts.clear();
+}
+
+/** The /apply-lut intent fingerprint, from the multipart parts only:
+ *  uploaded video buffer hash or the videoUrl string; uploaded LUT
+ *  buffer hash, presetId, or saved-lutId. */
+function lutApplyIntent(req: {
+  files?: Express.Multer.File[] | Record<string, Express.Multer.File[]>;
+  file?: Express.Multer.File;
+  body?: Record<string, unknown>;
+}): Record<string, unknown> {
+  const pick = (field: string): Express.Multer.File | undefined => {
+    if (Array.isArray(req.files)) return req.files.find((f) => f.fieldname === field);
+    return req.files?.[field]?.[0] ?? (req.file?.fieldname === field ? req.file : undefined);
+  };
+  const hash = (f: Express.Multer.File | undefined): string | null =>
+    f?.buffer?.length ? createHash("sha256").update(f.buffer).digest("hex") : null;
+  const body = req.body ?? {};
+  const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
+  const videoFile = pick("video") ?? pick("clip");
+  const lutFile = pick("lut");
+  return {
+    videoHash: hash(videoFile),
+    videoUrl: videoFile ? null : str(body["videoUrl"]),
+    lutHash: hash(lutFile),
+    presetId: lutFile ? null : str(body["presetId"]),
+    lutId: lutFile ? null : str(body["lutId"]),
+  };
+}
 
 const VIDEO_MAX_BYTES = 80 * 1024 * 1024; // 80 MB, same as /upload-clip
 const LUT_MAX_BYTES = 5 * 1024 * 1024; // LUT files are small text
@@ -440,6 +509,47 @@ router.post(
       return;
     }
 
+    /* Replay safety (CA-7): key from the multipart content fingerprint
+       BEFORE any download or render; a re-ask is answered from the
+       stored result — no second charge, no second LUT render. */
+    const lutKey = buildChargeIdempotencyKey(LUT_APPLY_SCOPE, req.userId!, undefined, lutApplyIntent(req));
+    {
+      const durable = await findStoredGenerationResult(LUT_APPLY_SCOPE, lutKey, req.userId!);
+      if (durable) {
+        res.json({ ...durable, replayed: true, replayNote: LUT_REPLAY_NOTE });
+        return;
+      }
+      const local = storedLutResults.get(lutKey);
+      if (local) {
+        res.json({ ...local, replayed: true, replayNote: LUT_REPLAY_NOTE });
+        return;
+      }
+      const pending = inFlightLuts.get(lutKey);
+      if (pending) {
+        try {
+          const twinBody = await pending;
+          const stored = storedLutResults.get(lutKey) ?? twinBody;
+          res.json({ ...stored, replayed: true, replayNote: LUT_REPLAY_NOTE });
+          return;
+        } catch {
+          /* The twin failed and refunded (voiding the key) — run fresh. */
+        }
+      }
+    }
+
+    let lutResolve: (body: Record<string, unknown>) => void = () => {};
+    let lutReject: (err: unknown) => void = () => {};
+    const lutFlight = new Promise<Record<string, unknown>>((resolve, reject) => {
+      lutResolve = resolve;
+      lutReject = reject;
+    });
+    lutFlight.catch(() => {});
+    inFlightLuts.set(lutKey, lutFlight);
+    const failLutFlight = (err: unknown) => {
+      lutReject(err);
+      if (inFlightLuts.get(lutKey) === lutFlight) inFlightLuts.delete(lutKey);
+    };
+
     const workDir = await mkdtemp(join(tmpdir(), "lutapply-"));
     let charged = false;
     let displayName = "LUT";
@@ -452,10 +562,11 @@ router.post(
       try {
         creditsAfter = await chargeCredits(req.userId!, LUT_APPLY_COST, {
           action: `LUT apply (${displayName})`,
-        });
+        }, { idempotencyKey: lutKey });
         charged = true;
       } catch (err) {
         if (err instanceof OutOfCreditsError) {
+          failLutFlight(err);
           res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
           return;
         }
@@ -484,12 +595,27 @@ router.post(
       const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
       const url = await refreshSupabaseStorageUrl(storageRef);
 
-      res.json({ url, storageRef, lut: displayName, creditsRemaining: creditsAfter });
+      const lutBody: Record<string, unknown> = { url, storageRef, lut: displayName, creditsRemaining: creditsAfter };
+      storeLutInProcess(lutKey, lutBody);
+      await storeGenerationResult(LUT_APPLY_SCOPE, lutKey, req.userId!, lutBody);
+      lutResolve(lutBody);
+      if (inFlightLuts.get(lutKey) === lutFlight) inFlightLuts.delete(lutKey);
+      const storedBody = storedLutResults.get(lutKey);
+      if (storedBody && storedBody !== lutBody) {
+        res.json({ ...storedBody, replayed: true, replayNote: LUT_REPLAY_NOTE });
+        return;
+      }
+      res.json(lutBody);
     } catch (err) {
+      failLutFlight(err);
       if (charged) {
+        let lutRefunded = true;
         await refundCredits(req.userId!, LUT_APPLY_COST, {
           action: "LUT apply — Refund",
-        }).catch(() => {});
+        }).catch(() => {
+          lutRefunded = false;
+        });
+        if (lutRefunded) await voidChargeIdempotencyKey(lutKey);
       }
       sendLutError(res, err, req, "[lut] apply failed");
     } finally {

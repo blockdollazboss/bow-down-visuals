@@ -14,6 +14,7 @@
  * capture the outbound Discord webhook call.
  */
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from "vitest";
+import { createHash } from "crypto";
 import express from "express";
 import type { AddressInfo } from "node:net";
 
@@ -72,6 +73,15 @@ const creditsState = vi.hoisted(() => ({
 }));
 
 vi.mock("../../lib/credits", () => ({
+  /* CA-7: routes now derive charge keys via lib/credits —
+     deterministic sha256 over the JSON intent, same as the real helper. */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+      return `${scope}:${userId}:client:${clientKey.trim()}`;
+    }
+    return `${scope}:${userId}:${createHash("sha256").update(JSON.stringify(intent ?? null)).digest("hex").slice(0, 32)}`;
+  },
+  voidChargeIdempotencyKey: vi.fn(async () => true),
   chargeCredits: vi.fn((userId: string, amount: number) => {
     if (creditsState.chargeImpl) return creditsState.chargeImpl(userId, amount);
     creditsState.charged.push({ userId, amount });

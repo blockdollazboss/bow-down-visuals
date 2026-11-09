@@ -2,7 +2,17 @@ import { Router } from "express";
 import { createHash } from "crypto";
 import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+  OutOfCreditsError,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import {
   db,
   showcaseItemsTable,
@@ -69,6 +79,31 @@ async function showcaseItemBySlug(slug: string) {
    switch. Editing an approved set returns it to draft: nothing unreviewed
    ever shows. */
 
+/* Replay safety (CA-7): the auto-chapters charge keys on a
+   server-derived idempotency key over the owned item's identity, so
+   a re-ask of the same generate (double-tap, retry, timeout resend)
+   is answered from the stored result instead of charging again and
+   re-transcribing. The refund path VOIDS the key, so a refunded
+   generate always runs fresh on retry. Fresh responses are
+   byte-identical to before; stored lookups fail open. */
+const AUTO_CHAPTERS_SCOPE = "showcase-auto-chapters";
+const REPLAY_STORE_MAX = 500;
+const storedAutoChapters = new Map<string, Record<string, unknown>>();
+const inFlightAutoChapters = new Map<string, Promise<Record<string, unknown>>>();
+
+function storeAutoChaptersInProcess(key: string, body: Record<string, unknown>): void {
+  if (storedAutoChapters.size >= REPLAY_STORE_MAX) {
+    const first = storedAutoChapters.keys().next().value;
+    if (first !== undefined) storedAutoChapters.delete(first);
+  }
+  storedAutoChapters.set(key, body);
+}
+
+export function __resetAutoChaptersReplayCache(): void {
+  storedAutoChapters.clear();
+  inFlightAutoChapters.clear();
+}
+
 router.post("/showcase-items/:itemId/auto-chapters/generate", requireAuth, async (req, res) => {
   const { itemId } = req.params as { itemId: string };
   const item = await ownedShowcaseItem(itemId, req.userId!);
@@ -82,9 +117,33 @@ router.post("/showcase-items/:itemId/auto-chapters/generate", requireAuth, async
     res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating." });
     return;
   }
+
+  const key = buildChargeIdempotencyKey(AUTO_CHAPTERS_SCOPE, req.userId!, undefined, { itemId: item.id });
+  const durable = await findStoredGenerationResult(AUTO_CHAPTERS_SCOPE, key, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+  const local = storedAutoChapters.get(key);
+  if (local) {
+    res.json({ ...local, replayed: true });
+    return;
+  }
+  const pending = inFlightAutoChapters.get(key);
+  if (pending) {
+    try {
+      const twinBody = await pending;
+      const stored = storedAutoChapters.get(key) ?? twinBody;
+      res.json({ ...stored, replayed: true });
+      return;
+    } catch {
+      /* The twin failed and refunded (voiding the key) — run fresh. */
+    }
+  }
+
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, AUTO_CHAPTERS_COST, { action: "Auto Chapters" });
+    creditsAfter = await chargeCredits(req.userId!, AUTO_CHAPTERS_COST, { action: "Auto Chapters" }, { idempotencyKey: key });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -92,6 +151,16 @@ router.post("/showcase-items/:itemId/auto-chapters/generate", requireAuth, async
     }
     throw err;
   }
+
+  let resolveFlight: (body: Record<string, unknown>) => void = () => {};
+  let rejectFlight: (err: unknown) => void = () => {};
+  const flight = new Promise<Record<string, unknown>>((resolve, reject) => {
+    resolveFlight = resolve;
+    rejectFlight = reject;
+  });
+  flight.catch(() => {});
+  inFlightAutoChapters.set(key, flight);
+
   try {
     const segments = await transcribeAudioUrl(item.media_url);
     const fullText = segments.map((s) => s.text).join(" ");
@@ -113,11 +182,25 @@ router.post("/showcase-items/:itemId/auto-chapters/generate", requireAuth, async
         set: { chapters, summary, status: "draft", updated_at: new Date() },
       })
       .returning();
-    res.json({ autoChapters: row, creditsRemaining: creditsAfter });
+    const body: Record<string, unknown> = { autoChapters: row, creditsRemaining: creditsAfter };
+    storeAutoChaptersInProcess(key, body);
+    await storeGenerationResult(AUTO_CHAPTERS_SCOPE, key, req.userId!, body);
+    resolveFlight(body);
+    if (inFlightAutoChapters.get(key) === flight) inFlightAutoChapters.delete(key);
+    const storedBody = storedAutoChapters.get(key);
+    if (storedBody && storedBody !== body) {
+      res.json({ ...storedBody, replayed: true });
+      return;
+    }
+    res.json(body);
   } catch (err) {
+    rejectFlight(err);
+    if (inFlightAutoChapters.get(key) === flight) inFlightAutoChapters.delete(key);
     const message = err instanceof Error ? err.message : "Auto chapter generation failed.";
     req.log.error({ err: message }, "[auto-chapters-watch] generate failed");
     await refundCredits(req.userId!, AUTO_CHAPTERS_COST, { action: "Auto Chapters — Refund" }).catch(() => {});
+    /* The refund was attempted as before — void the key so a retry charges fresh. */
+    await voidChargeIdempotencyKey(key);
     res.status(500).json({ error: message });
   }
 });

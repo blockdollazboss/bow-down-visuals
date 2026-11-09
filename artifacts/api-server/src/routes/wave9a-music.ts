@@ -5,7 +5,14 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import { db, wave9aSongStructuresTable, wave9aSongVersionsTable } from "@workspace/db";
 import { mirrorExternalMediaUrl } from "../lib/mirrorMedia";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
@@ -49,6 +56,48 @@ const router = Router();
 
 const STRUCTURE_GENERATE_CREDITS = 200;
 const LYRICS_TIMING_CREDITS = 50;
+
+/* CA-KEY scopes: one per charged site, so a structure key can never
+   collide with a lyrics-timing key even inside the shared store. */
+const STRUCTURE_SCOPE = "wave9a-structure";
+const LYRICS_SCOPE = "wave9a-lyrics-timing";
+
+const STRUCTURE_REPLAY_NOTE =
+  "This is the arrangement you already made for this request — tweak the sections, lyrics or vibe for a fresh one.";
+const LYRICS_REPLAY_NOTE =
+  "These are the lyric timings you already made for this request — tweak the lyrics or duration for a fresh set.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+/* ONE in-process store + in-flight map for the whole file; the keys
+   are scope-distinct per site, so entries never cross between the
+   two charged callers. */
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetWave9aReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
+
+/** Store a success under its full derived charge key — in-process AND
+ *  durable (migration 0333) — BEFORE the caller answers. Fail-open. */
+async function storeWave9aResult(
+  scope: string,
+  key: string,
+  userId: string,
+  body: Record<string, unknown>,
+): Promise<void> {
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(key, { body, at: Date.now() });
+    await storeGenerationResult(scope, key, userId, { ...body });
+  } catch { /* storing is best-effort */ }
+}
 
 /* ─── shared shapes ─── */
 
@@ -101,10 +150,48 @@ function aiUnavailable(res: Response, feature: string): boolean {
   return false;
 }
 
-async function chargeOr402(res: Response, userId: string, amount: number, action: string): Promise<number | null> {
+type ChargeGate =
+  | { kind: "charged"; remaining: number; key: string }
+  | { kind: "replay"; body: Record<string, unknown>; key: string };
+
+/**
+ * The keyed charge gate SHARED by both charged callers in this file.
+ * The KEY lives here: each caller threads its own scope + intent
+ * (which product + that caller's defining inputs) into this helper,
+ * so the derived key — and therefore the stored result — is
+ * per-caller: a structure key can never serve a lyrics result or
+ * vice versa. Before funding, the helper checks the durable stored
+ * result, then the in-process store, then an in-flight twin, all
+ * under the full derived key; a hit comes back as
+ * `{ kind: "replay", body }` and the caller answers from the stored
+ * body without running its work or charging again. No caller schema
+ * in this file accepts a client idempotencyKey, so the intent hash
+ * IS the key. Returns null only after writing today's exact 402.
+ */
+async function chargeOr402(
+  res: Response,
+  userId: string,
+  amount: number,
+  action: string,
+  scope: string,
+  intent: unknown,
+): Promise<ChargeGate | null> {
+  const key = buildChargeIdempotencyKey(scope, userId, undefined, intent);
+
+  const durable = await findStoredGenerationResult(scope, key, userId);
+  if (durable) return { kind: "replay", body: durable, key };
+  const stored = storedResults.get(key);
+  if (stored) return { kind: "replay", body: stored.body, key };
+  const pending = inFlight.get(key);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody) return { kind: "replay", body: twinBody, key };
+    /* The twin failed (refunded + key voided) — fall through fresh. */
+  }
+
   let remaining: number;
   try {
-    remaining = await chargeCredits(userId, amount, { action });
+    remaining = await chargeCredits(userId, amount, { action }, { idempotencyKey: key });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -115,14 +202,20 @@ async function chargeOr402(res: Response, userId: string, amount: number, action
     }
     throw err;
   }
-  return remaining;
+  return { kind: "charged", remaining, key };
 }
 
-async function refund(userId: string, amount: number, action: string, tag: string) {
+async function refund(userId: string, amount: number, action: string, tag: string, idempotencyKey?: string) {
   try {
     await refundCredits(userId, amount, { action });
   } catch (refundErr) {
     logger.error({ userId, refundErr }, `[wave9a-music] CRITICAL: refund failed (${tag})`);
+    return;
+  }
+  /* The refund landed — VOID the charge's idempotency key so the
+     retry charges fresh instead of being suppressed as a replay. */
+  if (idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
   }
 }
 
@@ -155,12 +248,25 @@ router.post("/wave9a/structure/generate", requireAuth, publicApiLimiter, async (
   /* 1) AI availability check BEFORE charging. */
   if (aiUnavailable(res, "the Song Structure Builder")) return;
 
-  /* 2) Charge BEFORE the model call. */
-  const remaining = await chargeOr402(res, req.userId!, STRUCTURE_GENERATE_CREDITS, "Song Structure Builder");
-  if (remaining === null) return;
+  /* 2) Charge BEFORE the model call — keyed at the shared helper
+     (scope + this caller's intent), which serves a stored replay
+     instead when this exact ask already landed. */
+  const gate = await chargeOr402(res, req.userId!, STRUCTURE_GENERATE_CREDITS, "Song Structure Builder", STRUCTURE_SCOPE, {
+    sections: parsed.data.sections,
+    lyrics: parsed.data.lyrics,
+    vibe: parsed.data.vibe,
+    title: parsed.data.title,
+  });
+  if (gate === null) return;
+  if (gate.kind === "replay") {
+    res.json({ ...gate.body, replayed: true, replayNote: STRUCTURE_REPLAY_NOTE });
+    return;
+  }
+  const remaining = gate.remaining;
 
   const { sections, lyrics, vibe, title } = parsed.data;
 
+  const work = (async (): Promise<Record<string, unknown>> => {
   try {
     const completion = await getOpenAI().chat.completions.create({
       model: getTextModel(),
@@ -202,20 +308,46 @@ router.post("/wave9a/structure/generate", requireAuth, publicApiLimiter, async (
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const arrangement = arrangementSchema.parse(parseJsonOrThrow(raw, "structure"));
 
-    res.json({
+    return {
       ...arrangement,
       creditsUsed: STRUCTURE_GENERATE_CREDITS,
       creditsRemaining: remaining,
-    });
+    };
   } catch (err) {
-    /* 3) Refund on ANY failure — no charge without delivery. */
+    /* 3) Refund on ANY failure — no charge without delivery. The
+       refund (and the key void inside it) completes BEFORE this
+       promise rejects, so an in-flight twin that was waiting on it
+       falls through to a fresh, paid retry. */
     logger.error({ err, userId: req.userId }, "[wave9a-music] structure generate failed — refunding");
-    await refund(req.userId!, STRUCTURE_GENERATE_CREDITS, "Song Structure Builder — Refund", "structure");
+    await refund(req.userId!, STRUCTURE_GENERATE_CREDITS, "Song Structure Builder — Refund", "structure", gate.key);
+    throw err;
+  }
+  })();
+
+  inFlight.set(gate.key, work);
+  let body: Record<string, unknown>;
+  try {
+    body = await work;
+  } catch {
     res.status(500).json({
       error: "The structure studio hiccupped — your Visual Bucs were refunded.",
       refunded: true,
     });
+    return;
+  } finally {
+    if (inFlight.get(gate.key) === work) inFlight.delete(gate.key);
   }
+
+  /* Store BEFORE answering, fail-open. */
+  await storeWave9aResult(STRUCTURE_SCOPE, gate.key, req.userId!, body);
+
+  const postCharge = storedResults.get(gate.key);
+  if (postCharge && postCharge.body !== body) {
+    res.json({ ...postCharge.body, replayed: true, replayNote: STRUCTURE_REPLAY_NOTE });
+    return;
+  }
+
+  res.json(body);
 });
 
 /* ─── POST /wave9a/lyrics/timing — 50 VB ───
@@ -241,11 +373,21 @@ router.post("/wave9a/lyrics/timing", requireAuth, publicApiLimiter, async (req, 
 
   if (aiUnavailable(res, "the Lyrics-to-Timeline tool")) return;
 
-  const remaining = await chargeOr402(res, req.userId!, LYRICS_TIMING_CREDITS, "Lyrics-to-Timeline");
-  if (remaining === null) return;
+  const gate = await chargeOr402(res, req.userId!, LYRICS_TIMING_CREDITS, "Lyrics-to-Timeline", LYRICS_SCOPE, {
+    lyrics: parsed.data.lyrics,
+    durationSec: parsed.data.durationSec,
+    title: parsed.data.title,
+  });
+  if (gate === null) return;
+  if (gate.kind === "replay") {
+    res.json({ ...gate.body, replayed: true, replayNote: LYRICS_REPLAY_NOTE });
+    return;
+  }
+  const remaining = gate.remaining;
 
   const { lyrics, durationSec, title } = parsed.data;
 
+  const work = (async (): Promise<Record<string, unknown>> => {
   try {
     const completion = await getOpenAI().chat.completions.create({
       model: getTextModel(),
@@ -294,20 +436,43 @@ router.post("/wave9a/lyrics/timing", requireAuth, publicApiLimiter, async (req, 
       return { text: l.text, start: Math.round(start * 10) / 10, end: Math.round(end * 10) / 10 };
     });
 
-    res.json({
+    return {
       lines,
       durationSec,
       creditsUsed: LYRICS_TIMING_CREDITS,
       creditsRemaining: remaining,
-    });
+    };
   } catch (err) {
     logger.error({ err, userId: req.userId }, "[wave9a-music] lyric timing failed — refunding");
-    await refund(req.userId!, LYRICS_TIMING_CREDITS, "Lyrics-to-Timeline — Refund", "timing");
+    await refund(req.userId!, LYRICS_TIMING_CREDITS, "Lyrics-to-Timeline — Refund", "timing", gate.key);
+    throw err;
+  }
+  })();
+
+  inFlight.set(gate.key, work);
+  let body: Record<string, unknown>;
+  try {
+    body = await work;
+  } catch {
     res.status(500).json({
       error: "The timing studio hiccupped — your Visual Bucs were refunded.",
       refunded: true,
     });
+    return;
+  } finally {
+    if (inFlight.get(gate.key) === work) inFlight.delete(gate.key);
   }
+
+  /* Store BEFORE answering, fail-open. */
+  await storeWave9aResult(LYRICS_SCOPE, gate.key, req.userId!, body);
+
+  const postCharge = storedResults.get(gate.key);
+  if (postCharge && postCharge.body !== body) {
+    res.json({ ...postCharge.body, replayed: true, replayNote: LYRICS_REPLAY_NOTE });
+    return;
+  }
+
+  res.json(body);
 });
 
 /* ─── Song structures — free CRUD ─── */

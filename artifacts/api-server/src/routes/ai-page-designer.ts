@@ -7,7 +7,17 @@ import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../lib/ai-clients
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+  OutOfCreditsError,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { r2Upload } from "../lib/r2-client";
 
@@ -242,12 +252,85 @@ router.get("/vertical-hints", (req, res) => {
 });
 
 /* ─── Paid helper: 402 pre-check + charge + refund-on-failure ─── */
+
+/* Replay safety (CA-7): every paid designer rail keys its charge on a
+   server-derived idempotency key over a hash of the request intent,
+   so a re-ask of the same request (double-tap, retry, timeout resend)
+   is answered from the stored result instead of charging again. The
+   key is derived at this shared helper, so all three callers (theme /
+   bio / banner) are covered at once. Refunds VOID the key (see
+   refundOnFail), so a refunded request always runs fresh on retry.
+   Fresh responses are byte-identical to before; lookups fail open. */
+const THEME_SCOPE = "ai-page-designer-theme";
+const BIO_SCOPE = "ai-page-designer-bio";
+const BANNER_SCOPE = "ai-page-designer-banner";
+const REPLAY_NOTE =
+  "This is the design you already made for this request — tweak the brief for a fresh one.";
+const REPLAY_STORE_MAX = 500;
+const storedDesignerResults = new Map<string, Record<string, unknown>>();
+const inFlightDesigner = new Map<string, Promise<Record<string, unknown>>>();
+
+function scopeForAction(action: string): string {
+  if (action.endsWith("— Theme")) return THEME_SCOPE;
+  if (action.endsWith("— Bio")) return BIO_SCOPE;
+  return BANNER_SCOPE;
+}
+
+function storeDesignerInProcess(key: string, body: Record<string, unknown>): void {
+  if (storedDesignerResults.size >= REPLAY_STORE_MAX) {
+    const first = storedDesignerResults.keys().next().value;
+    if (first !== undefined) storedDesignerResults.delete(first);
+  }
+  storedDesignerResults.set(key, body);
+}
+
+export function __resetPageDesignerReplayCache(): void {
+  storedDesignerResults.clear();
+  inFlightDesigner.clear();
+}
+
+export interface DesignerCharge {
+  remaining: number;
+  key: string;
+}
+
+/**
+ * Replay pre-check + keyed charge, shared by the three designer
+ * rails. Returns null when the request has been fully answered here:
+ * a 402 (out of credits, as before) or a replay of the stored result
+ * (with `replayed: true` + the replay note). Callers thread `key`
+ * into their finish path so the fresh body is stored for replays.
+ */
 async function precheckAndCharge(
   req: { userCredits?: number; userId?: string },
-  res: { status: (c: number) => { json: (b: unknown) => void } },
+  res: { status: (c: number) => { json: (b: unknown) => void }; json: (b: unknown) => void },
   cost: number,
-  action: string
-): Promise<number | null> {
+  action: string,
+  intent: unknown,
+): Promise<DesignerCharge | null> {
+  const key = buildChargeIdempotencyKey(scopeForAction(action), req.userId!, undefined, intent);
+  const scope = scopeForAction(action);
+  const durable = await findStoredGenerationResult(scope, key, req.userId!);
+  if (durable) {
+    (res as { json: (b: unknown) => void }).json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return null;
+  }
+  const local = storedDesignerResults.get(key);
+  if (local) {
+    (res as { json: (b: unknown) => void }).json({ ...local, replayed: true, replayNote: REPLAY_NOTE });
+    return null;
+  }
+  const pending = inFlightDesigner.get(key);
+  if (pending) {
+    try {
+      const twinBody = await pending;
+      const stored = storedDesignerResults.get(key) ?? twinBody;
+      (res as { json: (b: unknown) => void }).json({ ...stored, replayed: true, replayNote: REPLAY_NOTE });
+      return null;
+    } catch {
+      /* The twin failed and refunded (voiding the key) — run fresh. */
+    }
+  }
   if ((req.userCredits ?? 0) < cost) {
     res.status(402).json({
       error: "out_of_credits",
@@ -256,7 +339,8 @@ async function precheckAndCharge(
     return null;
   }
   try {
-    return await chargeCredits(req.userId!, cost, { action });
+    const remaining = await chargeCredits(req.userId!, cost, { action }, { idempotencyKey: key });
+    return { remaining, key };
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -269,10 +353,50 @@ async function precheckAndCharge(
   }
 }
 
-async function refundOnFail(userId: string, cost: number, action: string, logCtx: object) {
+/**
+ * Begin tracking a designer run for same-key twins, and finish it:
+ * on success the body is stored (in-process + durable) so later
+ * re-asks replay it; the returned `serve` closure answers the fresh
+ * request — or the stored body, if a twin landed first.
+ */
+function beginDesignerRun(scope: string, key: string, userId: string): {
+  serve: (res: { json: (b: unknown) => void }, body: Record<string, unknown>) => Promise<void>;
+  fail: () => void;
+} {
+  let resolveFlight: (body: Record<string, unknown>) => void = () => {};
+  let rejectFlight: (err: unknown) => void = () => {};
+  const flight = new Promise<Record<string, unknown>>((resolve, reject) => {
+    resolveFlight = resolve;
+    rejectFlight = reject;
+  });
+  flight.catch(() => {});
+  inFlightDesigner.set(key, flight);
+  return {
+    serve: async (res, body) => {
+      storeDesignerInProcess(key, body);
+      await storeGenerationResult(scope, key, userId, body);
+      resolveFlight(body);
+      if (inFlightDesigner.get(key) === flight) inFlightDesigner.delete(key);
+      const stored = storedDesignerResults.get(key);
+      if (stored && stored !== body) {
+        res.json({ ...stored, replayed: true, replayNote: REPLAY_NOTE });
+        return;
+      }
+      res.json(body);
+    },
+    fail: () => {
+      rejectFlight(new Error("designer run failed"));
+      if (inFlightDesigner.get(key) === flight) inFlightDesigner.delete(key);
+    },
+  };
+}
+
+async function refundOnFail(userId: string, cost: number, action: string, logCtx: object, key?: string) {
   logger.error(logCtx, `[ai-page-designer] ${action} failed — refunding`);
   try {
     await refundCredits(userId, cost, { action: `${action} — Refund` });
+    /* The refund landed — void the charge key so a retry charges fresh. */
+    if (key) await voidChargeIdempotencyKey(key);
   } catch (refundErr) {
     logger.error(
       { userId, cost, refundErr },
@@ -319,8 +443,17 @@ router.post("/theme", requireAuth, publicApiLimiter, async (req, res) => {
   }
   if (openAiUnavailable(res)) return;
 
-  const remaining = await precheckAndCharge(req, res, THEME_CREDITS, "AI Page Designer — Theme");
-  if (remaining === null) return;
+  const charge = await precheckAndCharge(req, res, THEME_CREDITS, "AI Page Designer — Theme", {
+    vertical: parsed.data.vertical,
+    vibe: parsed.data.vibe,
+    displayName: parsed.data.displayName,
+    palette: parsed.data.palette,
+    baseThemeId: parsed.data.baseThemeId ?? null,
+    regenerate: parsed.data.regenerate,
+  });
+  if (charge === null) return;
+  const { remaining, key } = charge;
+  const run = beginDesignerRun(THEME_SCOPE, key, req.userId!);
   const { vertical, vibe, displayName, palette, baseThemeId, regenerate } = parsed.data;
   const hints = VERTICAL_LAYOUTS[vertical];
   const labels = SECTION_LABELS[vertical];
@@ -395,7 +528,7 @@ router.post("/theme", requireAuth, publicApiLimiter, async (req, res) => {
       throw new Error("Model returned an unusable design");
     }
 
-    res.json({
+    await run.serve(res, {
       themeConfig,
       sections,
       rationale,
@@ -403,10 +536,11 @@ router.post("/theme", requireAuth, publicApiLimiter, async (req, res) => {
       creditsRemaining: remaining,
     });
   } catch (err) {
+    run.fail();
     await refundOnFail(req.userId!, THEME_CREDITS, "AI Page Designer — Theme", {
       err: err instanceof Error ? err.message : String(err),
       userId: req.userId,
-    });
+    }, key);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       res.status(503).json({ error: "The studio is catching its breath — try again in a moment.", refunded: true });
       return;
@@ -436,8 +570,16 @@ router.post("/bio", requireAuth, publicApiLimiter, async (req, res) => {
   }
   if (openAiUnavailable(res)) return;
 
-  const remaining = await precheckAndCharge(req, res, BIO_CREDITS, "AI Page Designer — Bio");
-  if (remaining === null) return;
+  const charge = await precheckAndCharge(req, res, BIO_CREDITS, "AI Page Designer — Bio", {
+    vertical: parsed.data.vertical,
+    displayName: parsed.data.displayName,
+    facts: parsed.data.facts,
+    tone: parsed.data.tone ?? null,
+    length: parsed.data.length,
+  });
+  if (charge === null) return;
+  const { remaining, key } = charge;
+  const run = beginDesignerRun(BIO_SCOPE, key, req.userId!);
   const { vertical, displayName, facts, tone, length } = parsed.data;
   const hints = VERTICAL_LAYOUTS[vertical];
   const targetLen = length === "short" ? "1-2 sentences" : length === "long" ? "150-200 words" : "60-100 words";
@@ -478,12 +620,13 @@ router.post("/bio", requireAuth, publicApiLimiter, async (req, res) => {
     } catch { /* fall through */ }
     if (!bio) throw new Error("Model returned no bio");
 
-    res.json({ bio, creditsUsed: BIO_CREDITS, creditsRemaining: remaining });
+    await run.serve(res, { bio, creditsUsed: BIO_CREDITS, creditsRemaining: remaining });
   } catch (err) {
+    run.fail();
     await refundOnFail(req.userId!, BIO_CREDITS, "AI Page Designer — Bio", {
       err: err instanceof Error ? err.message : String(err),
       userId: req.userId,
-    });
+    }, key);
     logger.error({ err }, "[ai-page-designer] bio generation failed");
     res.status(502).json({ error: "The studio hiccupped — your Visual Bucs were refunded.", refunded: true });
   }
@@ -507,15 +650,22 @@ router.post("/banner", requireAuth, publicApiLimiter, async (req, res) => {
   }
   if (openAiUnavailable(res)) return;
 
-  const remaining = await precheckAndCharge(req, res, BANNER_CREDITS, "AI Page Designer — Banner");
-  if (remaining === null) return;
+  const charge = await precheckAndCharge(req, res, BANNER_CREDITS, "AI Page Designer — Banner", {
+    vertical: parsed.data.vertical,
+    vibe: parsed.data.vibe,
+    palette: parsed.data.palette,
+  });
+  if (charge === null) return;
+  const { remaining, key } = charge;
+  const run = beginDesignerRun(BANNER_SCOPE, key, req.userId!);
   const { vertical, vibe, palette } = parsed.data;
 
   const refundAndFail = async (status: number, message: string) => {
+    run.fail();
     await refundOnFail(req.userId!, BANNER_CREDITS, "AI Page Designer — Banner", {
       userId: req.userId,
       message,
-    });
+    }, key);
     res.status(status).json({ error: message, refunded: true });
   };
 
@@ -553,7 +703,7 @@ router.post("/banner", requireAuth, publicApiLimiter, async (req, res) => {
     }
 
     logger.info({ userId: req.userId, vertical }, "[ai-page-designer] banner generated");
-    res.json({
+    await run.serve(res, {
       url: stored.url,
       path: stored.path,
       creditsUsed: BANNER_CREDITS,

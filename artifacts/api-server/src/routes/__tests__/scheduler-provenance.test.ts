@@ -12,7 +12,7 @@
  *  - PATCH can relink or clear; the legacy surface stamps it too.
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
-import { randomUUID } from "crypto";
+import { randomUUID , createHash } from "crypto";
 import express from "express";
 import type { AddressInfo } from "node:net";
 
@@ -120,6 +120,15 @@ vi.mock("@workspace/db", async (importOriginal) => {
 });
 
 vi.mock("../../lib/credits", () => ({
+  /* CA-7: routes now derive charge keys via lib/credits —
+     deterministic sha256 over the JSON intent, same as the real helper. */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+      return `${scope}:${userId}:client:${clientKey.trim()}`;
+    }
+    return `${scope}:${userId}:${createHash("sha256").update(JSON.stringify(intent ?? null)).digest("hex").slice(0, 32)}`;
+  },
+  voidChargeIdempotencyKey: vi.fn(async () => true),
   chargeCredits: vi.fn(async (_u: string, cost: number) => { h.userCredits -= cost; return h.userCredits; }),
   refundCredits: vi.fn(async (_u: string, cost: number) => { h.userCredits += cost; return h.userCredits; }),
   OutOfCreditsError: class OutOfCreditsError extends Error {},

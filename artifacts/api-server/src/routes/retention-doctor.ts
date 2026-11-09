@@ -5,7 +5,17 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+  OutOfCreditsError,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 
 const router = Router();
 
@@ -113,6 +123,33 @@ const CAUSE_CATEGORIES = [
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
 
+/* Replay safety (CA-7): the diagnosis charge keys on a server-derived
+   idempotency key over the parsed request intent, so a re-ask of the
+   same request (double-tap, retry, timeout resend) is answered from
+   the stored result instead of charging again. The refund path VOIDS
+   the key (only when the refund landed), so a refunded request always
+   runs fresh on retry. Fresh responses are byte-identical to before;
+   stored lookups fail open. */
+const RETENTION_DOCTOR_SCOPE = "retention-doctor";
+const RETENTION_REPLAY_NOTE =
+  "This is the diagnosis you already got for this video — change the drop-offs for a fresh one.";
+const REPLAY_STORE_MAX = 500;
+const storedRetentionResults = new Map<string, Record<string, unknown>>();
+const inFlightRetention = new Map<string, Promise<Record<string, unknown>>>();
+
+function storeRetentionInProcess(key: string, body: Record<string, unknown>): void {
+  if (storedRetentionResults.size >= REPLAY_STORE_MAX) {
+    const first = storedRetentionResults.keys().next().value;
+    if (first !== undefined) storedRetentionResults.delete(first);
+  }
+  storedRetentionResults.set(key, body);
+}
+
+export function __resetRetentionDoctorReplayCache(): void {
+  storedRetentionResults.clear();
+  inFlightRetention.clear();
+}
+
 /* POST /api/retention-doctor { title, dropOffs, ... } → 200
    { reportCard, summary, diagnoses, creditsUsed, creditsRemaining }
    Paid: 150 Visual Bucs per diagnosis. Auth required; credits are deducted
@@ -136,11 +173,35 @@ router.post("/retention-doctor", requireAuth, publicApiLimiter, async (req, res)
     });
     return;
   }
+
+  const key = buildChargeIdempotencyKey(RETENTION_DOCTOR_SCOPE, req.userId!, undefined, parsed.data);
+  const durable = await findStoredGenerationResult(RETENTION_DOCTOR_SCOPE, key, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: RETENTION_REPLAY_NOTE });
+    return;
+  }
+  const local = storedRetentionResults.get(key);
+  if (local) {
+    res.json({ ...local, replayed: true, replayNote: RETENTION_REPLAY_NOTE });
+    return;
+  }
+  const pending = inFlightRetention.get(key);
+  if (pending) {
+    try {
+      const twinBody = await pending;
+      const stored = storedRetentionResults.get(key) ?? twinBody;
+      res.json({ ...stored, replayed: true, replayNote: RETENTION_REPLAY_NOTE });
+      return;
+    } catch {
+      /* The twin failed and refunded (voiding the key) — run fresh. */
+    }
+  }
+
   let creditsRemaining = balance;
   try {
     creditsRemaining = await chargeCredits(req.userId!, RETENTION_DOCTOR_CREDITS, {
       action: "AI Retention Doctor — Drop-off Diagnosis",
-    });
+    }, { idempotencyKey: key });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -151,6 +212,15 @@ router.post("/retention-doctor", requireAuth, publicApiLimiter, async (req, res)
     }
     throw err;
   }
+
+  let resolveFlight: (body: Record<string, unknown>) => void = () => {};
+  let rejectFlight: (err: unknown) => void = () => {};
+  const flight = new Promise<Record<string, unknown>>((resolve, reject) => {
+    resolveFlight = resolve;
+    rejectFlight = reject;
+  });
+  flight.catch(() => {});
+  inFlightRetention.set(key, flight);
 
   try {
     const { title, dropOffs, totalLength, niche, videoType, platform, context } = parsed.data;
@@ -287,26 +357,42 @@ router.post("/retention-doctor", requireAuth, publicApiLimiter, async (req, res)
       throw new Error("Model returned no usable diagnosis");
     }
 
-    res.json({
+    const body: Record<string, unknown> = {
       reportCard,
       summary,
       diagnoses,
       creditsUsed: RETENTION_DOCTOR_CREDITS,
       creditsRemaining,
-    });
+    };
+    storeRetentionInProcess(key, body);
+    await storeGenerationResult(RETENTION_DOCTOR_SCOPE, key, req.userId!, body);
+    resolveFlight(body);
+    if (inFlightRetention.get(key) === flight) inFlightRetention.delete(key);
+    const storedBody = storedRetentionResults.get(key);
+    if (storedBody && storedBody !== body) {
+      res.json({ ...storedBody, replayed: true, replayNote: RETENTION_REPLAY_NOTE });
+      return;
+    }
+    res.json(body);
   } catch (err) {
+    rejectFlight(err);
+    if (inFlightRetention.get(key) === flight) inFlightRetention.delete(key);
     /* The charge was taken before the model call — give it back so a
        provider failure never costs the creator. */
+    let refunded = false;
     try {
       await refundCredits(req.userId!, RETENTION_DOCTOR_CREDITS, {
         action: "AI Retention Doctor — Refund (diagnosis failed)",
       });
+      refunded = true;
     } catch (refundErr) {
       logger.error(
         { err: refundErr, userId: req.userId },
         "[retention-doctor] refund failed after generation failure"
       );
     }
+    /* The refund landed — void the charge key so a retry charges fresh. */
+    if (refunded) await voidChargeIdempotencyKey(key);
 
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[retention-doctor] OpenAI rate limit / quota");

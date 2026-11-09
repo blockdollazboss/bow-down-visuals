@@ -6,7 +6,8 @@ import { getOpenAI } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../lib/credits";
+import { findStoredGenerationResult, storeGenerationResult } from "../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -18,6 +19,20 @@ const router = Router();
 const VARIANTS_COST = 75;
 /** Image model — env-overridable like the other image routes. */
 const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL"] || "gpt-image-2.5";
+
+const REPLAY_NOTE =
+  "These are the thumbnail variants you already made for this request — tweak the title or source for a fresh pair.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetWave8ThumbnailAbReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
 
 const bodySchema = z.object({
   sourceImageUrl: z.string().url().max(2000),
@@ -44,38 +59,26 @@ async function fetchSourceFile(sourceImageUrl: string) {
   return await toFile(buffer, "thumbnail-source.png", { type: contentType });
 }
 
-router.post("/wave8/thumbnail-ab/variants", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = bodySchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({ error: "invalid_request" });
-    return;
-  }
-  const { sourceImageUrl, title, niche } = parsed.data;
+async function runWave8ThumbnailAb(
+  userId: string,
+  parsedData: z.infer<typeof bodySchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  const openai = getOpenAI();
 
-  /* Provider key check FIRST — 503 with no charge when the key is absent. */
-  let openai;
+  let creditsRemaining: number;
   try {
-    openai = getOpenAI();
-  } catch {
-    res.status(503).json({
-      error: "ai_unavailable",
-      message: "AI image generation is not configured on this server.",
-    });
-    return;
-  }
-
-  let creditsRemaining = req.userCredits ?? 0;
-  try {
-    creditsRemaining = await chargeCredits(req.userId!, VARIANTS_COST, {
+    creditsRemaining = await chargeCredits(userId, VARIANTS_COST, {
       action: "Thumbnail A/B Variants",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits" });
-      return;
+      return { __status: 402, error: "out_of_credits" };
     }
     throw err;
   }
+
+  const { sourceImageUrl, title, niche } = parsedData;
 
   const contextBits = [title.trim(), niche.trim()].filter(Boolean);
   const subject = contextBits.length > 0 ? ` ("${contextBits.join(" — ")}")` : "";
@@ -106,7 +109,7 @@ router.post("/wave8/thumbnail-ab/variants", requireAuth, publicApiLimiter, async
     } catch (fetchErr) {
       /* Fall back to pure text-to-image if the source can't be downloaded. */
       logger.warn(
-        { userId: req.userId, err: fetchErr instanceof Error ? fetchErr.message : String(fetchErr) },
+        { userId, err: fetchErr instanceof Error ? fetchErr.message : String(fetchErr) },
         "[wave8] thumbnail-ab source fetch failed — falling back to text-to-image",
       );
     }
@@ -145,21 +148,104 @@ router.post("/wave8/thumbnail-ab/variants", requireAuth, publicApiLimiter, async
       );
       const url = await refreshSupabaseStorageUrl(storageRef);
       variants.push({ url, label: spec.label, prompt: spec.prompt });
-      logger.info({ userId: req.userId, variant: spec.label }, "[wave8] thumbnail-ab variant complete");
+      logger.info({ userId, variant: spec.label }, "[wave8] thumbnail-ab variant complete");
     }
 
-    res.json({ variants, creditsRemaining });
+    return { variants, creditsRemaining };
   } catch (err) {
+    let refunded = true;
     try {
-      await refundCredits(req.userId!, VARIANTS_COST, {
+      await refundCredits(userId, VARIANTS_COST, {
         action: "Thumbnail A/B Variants (refund)",
       });
     } catch {
+      refunded = false;
       /* refund logged inside refundCredits */
     }
-    logger.error({ err, userId: req.userId }, "[wave8] thumbnail-ab failed");
-    res.status(500).json({ error: "generation_failed" });
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
+    }
+    logger.error({ err, userId }, "[wave8] thumbnail-ab failed");
+    return { __status: 500, error: "generation_failed" };
   }
+}
+
+router.post("/wave8/thumbnail-ab/variants", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = bodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_request" });
+    return;
+  }
+
+  /* Provider key check FIRST — 503 with no charge when the key is absent. */
+  try {
+    getOpenAI();
+  } catch {
+    res.status(503).json({
+      error: "ai_unavailable",
+      message: "AI image generation is not configured on this server.",
+    });
+    return;
+  }
+
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "wave8-thumbnail-ab", req.userId!, undefined,
+    { sourceImageUrl: parsed.data.sourceImageUrl, title: parsed.data.title, niche: parsed.data.niche },
+  );
+
+  const durable = await findStoredGenerationResult("wave8-thumbnail-ab", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json({ ...stored.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json({ ...twinBody, replayed: true, replayNote: REPLAY_NOTE });
+      return;
+    }
+  }
+
+  const run = runWave8ThumbnailAb(req.userId!, parsed.data, idempotencyKey);
+  inFlight.set(idempotencyKey, run);
+  let body: Record<string, unknown>;
+  try {
+    body = await run;
+  } finally {
+    if (inFlight.get(idempotencyKey) === run) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult("wave8-thumbnail-ab", idempotencyKey, req.userId!, { ...body });
+  } catch { /* storing is best-effort */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json({ ...postCharge.body, replayed: true, replayNote: REPLAY_NOTE });
+    return;
+  }
+
+  res.json(body);
 });
 
 export default router;

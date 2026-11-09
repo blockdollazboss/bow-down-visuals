@@ -37,7 +37,18 @@ import { randomUUID } from "crypto";
 import { db, songsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+  OutOfCreditsError,
+  LedgerWriteError,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -299,6 +310,106 @@ function buildSectionPrompt(d: {
   return p.slice(0, 2000);
 }
 
+/* Replay safety (CA-7): both charges in this file key on a
+   server-derived idempotency key over the parsed request intent, so
+   a re-ask of the same request (double-tap, retry, timeout resend)
+   is answered from the stored result instead of charging again and
+   re-generating. Dev mode (no charge) skips keying entirely. The
+   refund paths VOID their key (only when the refund landed), so a
+   refunded request always runs fresh on retry. Fresh responses are
+   byte-identical to before; stored lookups fail open. */
+const REMIX_SCOPE = "song-remix";
+const REPLACE_SCOPE = "song-replace-section";
+const REPLAY_STORE_MAX = 500;
+const storedRemixResults = new Map<string, Record<string, unknown>>();
+const inFlightRemixes = new Map<string, Promise<Record<string, unknown>>>();
+
+function storeRemixInProcess(store: Map<string, Record<string, unknown>>, key: string, body: Record<string, unknown>): void {
+  if (store.size >= REPLAY_STORE_MAX) {
+    const first = store.keys().next().value;
+    if (first !== undefined) store.delete(first);
+  }
+  store.set(key, body);
+}
+
+export function __resetSongRemixReplayCache(): void {
+  storedRemixResults.clear();
+  inFlightRemixes.clear();
+}
+
+/** Shared replay pre-check for this file's two rails: serves the
+ *  stored body (+ `replayed: true`) and returns true when the request
+ *  has been answered — durable store, in-process store, or a twin
+ *  still in flight. A failed twin falls through to a fresh run. */
+async function serveRemixReplayIfAny(
+  scope: string,
+  key: string,
+  userId: string,
+  res: { json: (b: unknown) => void },
+): Promise<boolean> {
+  const durable = await findStoredGenerationResult(scope, key, userId);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return true;
+  }
+  const local = storedRemixResults.get(key);
+  if (local) {
+    res.json({ ...local, replayed: true });
+    return true;
+  }
+  const pending = inFlightRemixes.get(key);
+  if (pending) {
+    try {
+      const twinBody = await pending;
+      const stored = storedRemixResults.get(key) ?? twinBody;
+      res.json({ ...stored, replayed: true });
+      return true;
+    } catch {
+      /* The twin failed and refunded (voiding the key) — run fresh. */
+    }
+  }
+  return false;
+}
+
+/** Register an in-flight run for same-key twins; returns the finishers. */
+function beginRemixFlight(key: string): {
+  flight: Promise<Record<string, unknown>>;
+  resolve: (body: Record<string, unknown>) => void;
+  reject: (err: unknown) => void;
+  cleanup: () => void;
+} {
+  let resolve: (body: Record<string, unknown>) => void = () => {};
+  let reject: (err: unknown) => void = () => {};
+  const flight = new Promise<Record<string, unknown>>((res, rej) => { resolve = res; reject = rej; });
+  flight.catch(() => {});
+  inFlightRemixes.set(key, flight);
+  return {
+    flight,
+    resolve,
+    reject,
+    cleanup: () => { if (inFlightRemixes.get(key) === flight) inFlightRemixes.delete(key); },
+  };
+}
+
+/** Store a fresh success (in-process + durable) and answer it — or
+ *  the stored body, if a twin's store landed first. */
+async function serveRemixSuccess(
+  scope: string,
+  key: string,
+  userId: string,
+  body: Record<string, unknown>,
+  res: { json: (b: unknown) => void },
+): Promise<void> {
+  storeRemixInProcess(storedRemixResults, key, body);
+  await storeGenerationResult(scope, key, userId, body);
+  const stored = storedRemixResults.get(key);
+  if (stored && stored !== body) {
+    res.json({ ...stored, replayed: true });
+    return;
+  }
+  res.json(body);
+}
+
 /* ── POST /api/song-remix ───────────────────────────────────────────────── */
 router.post("/song-remix", requireAuth, async (req, res) => {
   const parsed = remixSchema.safeParse(req.body ?? {});
@@ -339,10 +450,30 @@ router.post("/song-remix", requireAuth, async (req, res) => {
   }
   const title = (d.title?.trim() || song?.title || "Untitled Song").slice(0, 200);
 
+  /* Replay safety (CA-7): key from the parsed intent; a re-ask is
+     answered from the stored remix — no second charge, no second
+     generation, no second song row. */
+  let remixKey: string | null = null;
+  if (!isDev) {
+    remixKey = buildChargeIdempotencyKey(REMIX_SCOPE, req.userId!, undefined, {
+      songId: d.songId ?? null,
+      audioUrl: d.audioUrl ?? null,
+      lyrics: d.lyrics ?? null,
+      title: d.title ?? null,
+      genre: d.genre ?? null,
+      mood: d.mood ?? null,
+      styleTweak: d.styleTweak ?? null,
+      instrumental: d.instrumental ?? null,
+      vocalGender: d.vocalGender ?? null,
+      lengthSeconds: d.lengthSeconds ?? null,
+    });
+    if (await serveRemixReplayIfAny(REMIX_SCOPE, remixKey, req.userId!, res)) return;
+  }
+
   // Charge upfront: the music generation starts immediately.
   if (!isDev) {
     try {
-      await chargeCredits(req.userId!, REMIX_CREDIT_COST, { action: "Song Remix (new arrangement)" });
+      await chargeCredits(req.userId!, REMIX_CREDIT_COST, { action: "Song Remix (new arrangement)" }, { idempotencyKey: remixKey ?? undefined });
     } catch (chargeErr) {
       if (chargeErr instanceof OutOfCreditsError) {
         res.status(402).json({ error: "out_of_credits", message: `A song remix costs ${REMIX_CREDIT_COST} Visual Bucs — top up to remix.` });
@@ -355,6 +486,8 @@ router.post("/song-remix", requireAuth, async (req, res) => {
       throw chargeErr;
     }
   }
+
+  const remixFlight = remixKey ? beginRemixFlight(remixKey) : null;
 
   try {
     // Remix length: explicit override, else the original song's duration when
@@ -386,17 +519,31 @@ router.post("/song-remix", requireAuth, async (req, res) => {
       parentSongId: song?.id,
     });
 
-    res.json({
+    const remixBody: Record<string, unknown> = {
       song: saved,
       creditsAfter: isDev ? currentCredits : currentCredits - REMIX_CREDIT_COST,
-    });
+    };
+    if (remixKey && remixFlight) {
+      await serveRemixSuccess(REMIX_SCOPE, remixKey, req.userId!, remixBody, res);
+      remixFlight.resolve(remixBody);
+      remixFlight.cleanup();
+    } else {
+      res.json(remixBody);
+    }
   } catch (err) {
+    if (remixFlight) {
+      remixFlight.reject(err);
+      remixFlight.cleanup();
+    }
     req.log.error({ err }, "song-remix: failed");
     if (!isDev) {
+      let remixRefunded = true;
       await refundCredits(req.userId!, REMIX_CREDIT_COST, { action: "Song Remix — Refund (provider failure)" })
         .catch((refundErr) => {
+          remixRefunded = false;
           req.log.error({ userId: req.userId, err: refundErr }, "[song-remix] failed to refund remix credits");
         });
+      if (remixRefunded && remixKey) await voidChargeIdempotencyKey(remixKey);
     }
     res.status(500).json({
       error: err instanceof Error ? err.message : "Remix failed — your Visual Bucs were refunded. Please try again.",
@@ -446,10 +593,34 @@ router.post("/song-replace-section", requireAuth, async (req, res) => {
   const title = (d.title?.trim() || song?.title || "Untitled Song").slice(0, 200);
   const section = (d.section?.trim() || "Section").slice(0, 80);
 
+  /* Replay safety (CA-7): key from the parsed intent (incl. the
+     section identity); a re-ask is answered from the stored result —
+     no second charge, no second splice. */
+  let replaceKey: string | null = null;
+  if (!isDev) {
+    replaceKey = buildChargeIdempotencyKey(REPLACE_SCOPE, req.userId!, undefined, {
+      songId: d.songId ?? null,
+      audioUrl: d.audioUrl ?? null,
+      section: d.section ?? null,
+      sectionIndex: d.sectionIndex ?? null,
+      totalSections: d.totalSections ?? null,
+      startSec: d.startSec ?? null,
+      endSec: d.endSec ?? null,
+      sectionLyrics: d.sectionLyrics ?? null,
+      genre: d.genre ?? null,
+      mood: d.mood ?? null,
+      styleTweak: d.styleTweak ?? null,
+      title: d.title ?? null,
+      instrumental: d.instrumental ?? null,
+      vocalGender: d.vocalGender ?? null,
+    });
+    if (await serveRemixReplayIfAny(REPLACE_SCOPE, replaceKey, req.userId!, res)) return;
+  }
+
   // Charge upfront: the section generation starts immediately.
   if (!isDev) {
     try {
-      await chargeCredits(req.userId!, REPLACE_CREDIT_COST, { action: `Replace Song Section [${section}]` });
+      await chargeCredits(req.userId!, REPLACE_CREDIT_COST, { action: `Replace Song Section [${section}]` }, { idempotencyKey: replaceKey ?? undefined });
     } catch (chargeErr) {
       if (chargeErr instanceof OutOfCreditsError) {
         res.status(402).json({ error: "out_of_credits", message: `Replacing a section costs ${REPLACE_CREDIT_COST} Visual Bucs — top up to continue.` });
@@ -462,6 +633,8 @@ router.post("/song-replace-section", requireAuth, async (req, res) => {
       throw chargeErr;
     }
   }
+
+  const replaceFlight = replaceKey ? beginRemixFlight(replaceKey) : null;
 
   try {
     const original = await downloadAudio(song, d.audioUrl);
@@ -509,21 +682,35 @@ router.post("/song-replace-section", requireAuth, async (req, res) => {
       parentSongId: song?.id,
     });
 
-    res.json({
+    const replaceBody: Record<string, unknown> = {
       song: saved,
       section,
       startSec: Math.round(startSec * 10) / 10,
       endSec: Math.round(endSec * 10) / 10,
       estimated,
       creditsAfter: isDev ? currentCredits : currentCredits - REPLACE_CREDIT_COST,
-    });
+    };
+    if (replaceKey && replaceFlight) {
+      await serveRemixSuccess(REPLACE_SCOPE, replaceKey, req.userId!, replaceBody, res);
+      replaceFlight.resolve(replaceBody);
+      replaceFlight.cleanup();
+    } else {
+      res.json(replaceBody);
+    }
   } catch (err) {
+    if (replaceFlight) {
+      replaceFlight.reject(err);
+      replaceFlight.cleanup();
+    }
     req.log.error({ err }, "song-replace-section: failed");
     if (!isDev) {
+      let replaceRefunded = true;
       await refundCredits(req.userId!, REPLACE_CREDIT_COST, { action: "Replace Song Section — Refund (provider failure)" })
         .catch((refundErr) => {
+          replaceRefunded = false;
           req.log.error({ userId: req.userId, err: refundErr }, "[song-replace-section] failed to refund credits");
         });
+      if (replaceRefunded && replaceKey) await voidChargeIdempotencyKey(replaceKey);
     }
     res.status(500).json({
       error: err instanceof Error ? err.message : "Section replacement failed — your Visual Bucs were refunded. Please try again.",

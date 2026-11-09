@@ -13,6 +13,7 @@
  *    (the owner-ruled living-wallpaper price, Oct 27, 2026).
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
+import { createHash } from "crypto";
 import express from "express";
 import type { AddressInfo } from "node:net";
 import { writeFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
@@ -40,6 +41,15 @@ vi.mock("../../middlewares/require-auth", () => ({
 }));
 
 vi.mock("../../lib/credits", () => ({
+  /* CA-7: routes now derive charge keys via lib/credits —
+     deterministic sha256 over the JSON intent, same as the real helper. */
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    if (typeof clientKey === "string" && clientKey.trim().length >= 8) {
+      return `${scope}:${userId}:client:${clientKey.trim()}`;
+    }
+    return `${scope}:${userId}:${createHash("sha256").update(JSON.stringify(intent ?? null)).digest("hex").slice(0, 32)}`;
+  },
+  voidChargeIdempotencyKey: vi.fn(async () => true),
   chargeCredits: vi.fn(async () => 9600),
   refundCredits: vi.fn(async () => undefined),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
@@ -80,6 +90,7 @@ vi.mock("child_process", async (importOriginal) => {
 });
 
 import wallpapersRouter, {
+  __resetWallpaperReplayCache,
   buildWallpaperFfmpegArgs,
   buildScreensaverFfmpegArgs,
   buildWallpaperScaleFilter,
@@ -169,6 +180,9 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
+  /* CA-7: replay stores are module-level — reset between tests so a
+     prior success can't answer a later failure case. */
+  __resetWallpaperReplayCache();
   h.ffmpegCalls.length = 0;
   h.ffmpegFail = false;
   h.fetchCalls.length = 0;
@@ -415,6 +429,7 @@ describe("wallpapers routes (HTTP)", () => {
       "user-1",
       300,
       expect.objectContaining({ action: "Screensaver Loop Render" }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     );
     const args = h.ffmpegCalls[0]!;
     expect(args).toContain("-stream_loop");
@@ -523,6 +538,7 @@ describe("wallpapers routes (HTTP)", () => {
       "user-1",
       400,
       expect.objectContaining({ action: "Wallpaper Clean Render" }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     );
     const joined = h.ffmpegCalls[0]!.join(" ");
     expect(joined).not.toContain("drawtext");
@@ -561,6 +577,7 @@ describe("wallpapers routes (HTTP)", () => {
       "user-1",
       300,
       expect.objectContaining({ action: "Screensaver Loop Render" }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     );
     const joined = h.ffmpegCalls[0]!.join(" ");
     expect(joined).toContain("overlay=");
@@ -676,6 +693,7 @@ describe("pack of 10 clean wallpapers (audit #6)", () => {
       "user-1",
       500,
       expect.objectContaining({ action: "Wallpaper Pack of 10" }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     );
     expect(h.ffmpegCalls).toHaveLength(10);
     // Clean renders: no branding overlays on any render in the pack.
