@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
@@ -10,7 +10,15 @@ import multer from "multer";
 import { createAdminAwareUpload, ADMIN_UPLOAD_MAX_BYTES } from "../../lib/upload-storage";
 import { isAdminRequest } from "../../lib/admin";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import { promises as fsp } from "fs";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -129,6 +137,9 @@ interface MixMasterJob {
   sourceSongId: string | null;
   /** Library row recorded for the finished output (DE-6 round-trip). */
   librarySongId: string | null;
+  /** CA-4: the charge's idempotency key — refundJob voids it (only
+   *  when the refund landed) so a refunded retry charges fresh. */
+  chargeKey: string;
 }
 
 const jobs = new Map<string, MixMasterJob>();
@@ -279,12 +290,19 @@ async function resolveTargetFromReference(
 async function refundJob(job: MixMasterJob, err: unknown): Promise<void> {
   job.status = "failed";
   job.error = err instanceof Error ? err.message : "Processing failed";
+  let refunded = true;
   try {
     await refundCredits(job.userId, job.creditsCharged, {
       action: `AI ${job.kind === "master" ? "Master" : "Mix"} — Refund (job failed)`,
     });
   } catch (refundErr) {
+    refunded = false;
     void refundErr; // logged inside refundCredits; don't mask the original failure
+  }
+  /* Void the charge's key only when the refund landed (CA-4): a
+     refunded retry charges fresh, never replays free. */
+  if (refunded) {
+    await voidChargeIdempotencyKey(job.chargeKey).catch(() => {});
   }
 }
 
@@ -451,6 +469,7 @@ async function chargeOr402(
   res: Response,
   cost: number,
   action: string,
+  idempotencyKey?: string,
 ): Promise<number | null> {
   const balance = req.userCredits ?? 0;
   if (balance < cost) {
@@ -461,7 +480,7 @@ async function chargeOr402(
     return null;
   }
   try {
-    return await chargeCredits(req.userId!, cost, { action });
+    return await chargeCredits(req.userId!, cost, { action }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to continue." });
@@ -554,9 +573,50 @@ router.post(
       return;
     }
 
+    /* Idempotency (CA-4, Pattern B): the job's identity DERIVES from
+       the server-derived charge key (avatar-presenter precedent) —
+       the ask is the uploaded bytes + parsed mix fields. Hashes are
+       derived BEFORE the charge (uploads are cleaned up on every
+       charge-failure exit). A duplicate computes the same jobId,
+       finds the existing job, and answers from it with replayed:
+       true and NO new charge; a FAILED job whose charge was refunded
+       + voided falls through to a fresh attempt under the same id. */
+    const masterIntent = {
+      audioHash: createHash("sha256").update(await fsp.readFile(audio.path)).digest("hex").slice(0, 32),
+      referenceHash: reference
+        ? createHash("sha256").update(await fsp.readFile(reference.path)).digest("hex").slice(0, 32)
+        : null,
+      genre: parsed.genre,
+      intensity: parsed.intensity,
+      loudness: parsed.loudness,
+      vocalLevelDb: parsed.vocalLevelDb,
+      sourceSongId: bodyParse.data.sourceSongId ?? null,
+    };
+    const masterKey = buildChargeIdempotencyKey(
+      "mix-master-master", req.userId!,
+      (req.body as Record<string, unknown> | undefined)?.["idempotencyKey"],
+      masterIntent,
+    );
+    const masterJobId = createHash("sha256").update(masterKey).digest("hex").slice(0, 32);
+    const existingMaster = jobs.get(masterJobId);
+    if (existingMaster && existingMaster.userId === req.userId! && existingMaster.status !== "failed") {
+      cleanupUploads(files?.["audio"]);
+      if (reference) cleanupUploads([reference]);
+      res.status(202).json({
+        jobId: existingMaster.id,
+        status: existingMaster.status,
+        kind: existingMaster.kind,
+        creditsCharged: MIX_MASTER_CREDIT_COST,
+        creditsRemaining: req.userCredits ?? 0,
+        replayed: true,
+      });
+      return;
+    }
+
     const creditsRemaining = await chargeOr402(
       req, res, MIX_MASTER_CREDIT_COST,
       `AI Master (${GENRE_PRESETS[parsed.genre].label})`,
+      `mix-master-master:${masterJobId}`,
     );
     if (creditsRemaining === null) {
       cleanupUploads(files?.["audio"]);
@@ -565,7 +625,7 @@ router.post(
     }
 
     const job: MixMasterJob = {
-      id: randomUUID(),
+      id: masterJobId,
       userId: req.userId!,
       kind: "master",
       status: "queued",
@@ -590,6 +650,7 @@ router.post(
       createdAt: Date.now(),
       sourceSongId: bodyParse.data.sourceSongId ?? null,
       librarySongId: null,
+      chargeKey: `mix-master-master:${masterJobId}`,
     };
     jobs.set(job.id, job);
 
@@ -656,9 +717,50 @@ router.post(
 
     const stemTypes = stems.map((s) => detectStemType(s.originalname));
 
+    /* Idempotency (CA-4, Pattern B): same derived-identity shape as
+       the master route — the ask is the stem bytes + types + parsed
+       mix fields. */
+    const stemHashes: string[] = [];
+    for (const s of stems) {
+      stemHashes.push(createHash("sha256").update(await fsp.readFile(s.path)).digest("hex").slice(0, 32));
+    }
+    const mixIntent = {
+      stemHashes,
+      stemTypes,
+      genre: parsed.genre,
+      intensity: parsed.intensity,
+      loudness: parsed.loudness,
+      vocalLevelDb: parsed.vocalLevelDb,
+      referenceHash: reference
+        ? createHash("sha256").update(await fsp.readFile(reference.path)).digest("hex").slice(0, 32)
+        : null,
+    };
+    const mixKey = buildChargeIdempotencyKey(
+      "mix-master-mix", req.userId!,
+      (req.body as Record<string, unknown> | undefined)?.["idempotencyKey"],
+      mixIntent,
+    );
+    const mixJobId = createHash("sha256").update(mixKey).digest("hex").slice(0, 32);
+    const existingMix = jobs.get(mixJobId);
+    if (existingMix && existingMix.userId === req.userId! && existingMix.status !== "failed") {
+      cleanupUploads(stems);
+      if (reference) cleanupUploads([reference]);
+      res.status(202).json({
+        jobId: existingMix.id,
+        status: existingMix.status,
+        kind: existingMix.kind,
+        stemTypes,
+        creditsCharged: MIX_STEMS_CREDIT_COST,
+        creditsRemaining: req.userCredits ?? 0,
+        replayed: true,
+      });
+      return;
+    }
+
     const creditsRemaining = await chargeOr402(
       req, res, MIX_STEMS_CREDIT_COST,
       `AI Mix (${stems.length} stems, ${GENRE_PRESETS[parsed.genre].label})`,
+      `mix-master-mix:${mixJobId}`,
     );
     if (creditsRemaining === null) {
       cleanupUploads(stems);
@@ -667,7 +769,7 @@ router.post(
     }
 
     const job: MixMasterJob = {
-      id: randomUUID(),
+      id: mixJobId,
       userId: req.userId!,
       kind: "mix",
       status: "queued",
@@ -692,6 +794,7 @@ router.post(
       createdAt: Date.now(),
       sourceSongId: null,
       librarySongId: null,
+      chargeKey: `mix-master-mix:${mixJobId}`,
     };
     jobs.set(job.id, job);
 

@@ -7,7 +7,17 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -309,6 +319,19 @@ router.post("/producer-tag", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Idempotency (CA-4): server-derived key from the ask's defining
+     inputs; a landed replay is served the stored body verbatim +
+     replayed: true BEFORE any funding — no charge, no provider call. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "producer-tag", req.userId!, req.body?.idempotencyKey,
+    { text, voice, vaultId, preset, format },
+  );
+  const durable = await findStoredGenerationResult("producer-tag", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < PRODUCER_TAG_COST) {
     res.status(402).json({
@@ -322,7 +345,7 @@ router.post("/producer-tag", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, PRODUCER_TAG_COST, {
       action: "Producer Tag",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -358,7 +381,7 @@ router.post("/producer-tag", requireAuth, async (req, res) => {
     );
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       text,
@@ -367,13 +390,20 @@ router.post("/producer-tag", requireAuth, async (req, res) => {
       preset,
       format,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("producer-tag", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Producer tag generation failed.";
     req.log.error({ err: message }, "[producer-tag] failed");
-    await refundCredits(req.userId!, PRODUCER_TAG_COST, {
+    const refunded = await refundCredits(req.userId!, PRODUCER_TAG_COST, {
       action: "Producer Tag — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
     res.status(500).json({ error: message });
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});

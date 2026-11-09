@@ -8,7 +8,17 @@ import {
   distributionReleasesTable,
 } from "@workspace/db";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { getTextModel } from "../../lib/ai-clients";
 import { logger } from "../../lib/logger";
 
@@ -262,6 +272,25 @@ router.post("/analyze-niche", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Idempotency (CA-4): server-derived key from the RESOLVED ask —
+     after grounding, so a profile-derived niche keys exactly like a
+     typed one; a landed replay is served the stored body verbatim +
+     replayed: true BEFORE any funding — no charge, no provider call. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "niche-analyzer", req.userId!, req.body?.idempotencyKey,
+    {
+      niche,
+      targetPlatform: parsed.data.targetPlatform,
+      experienceLevel: parsed.data.experienceLevel,
+      useMyData: parsed.data.useMyData,
+    },
+  );
+  const durable = await findStoredGenerationResult("niche-analyzer", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (!process.env.OPENAI_API_KEY) {
     res.status(503).json({
@@ -281,7 +310,7 @@ router.post("/analyze-niche", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, NICHE_ANALYZER_COST, {
       action: "Niche Analyzer",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -433,7 +462,7 @@ router.post("/analyze-niche", requireAuth, async (req, res) => {
       summary: clean(raw.summary, 400),
     };
 
-    res.json({
+    const body = {
       analysis: result,
       creditsRemaining: creditsAfter,
       /* When grounded, say what it was built from — the creator sees
@@ -448,13 +477,20 @@ router.post("/analyze-niche", requireAuth, async (req, res) => {
               signals: nicheProfile.signals,
             }
           : null,
-    });
+    };
+    await storeGenerationResult("niche-analyzer", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Niche analysis failed.";
     req.log.error({ err: message }, "[niche-analyzer] failed");
-    await refundCredits(req.userId!, NICHE_ANALYZER_COST, {
+    const refunded = await refundCredits(req.userId!, NICHE_ANALYZER_COST, {
       action: "Niche Analyzer — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
     res.status(500).json({ error: message });
   }
 });

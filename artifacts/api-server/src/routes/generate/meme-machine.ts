@@ -9,7 +9,13 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 /* ─── Meme Machine ────────────────────────────────────────────────────────
    /api/meme-machine/captions — 100 credits: the creator describes a clip
@@ -28,13 +34,26 @@ const captionsSchema = z.object({
   format: z.string().max(80).optional().default(""),
 });
 
-async function refundOnFailure(userId: string, amount: number, label: string) {
+async function refundOnFailure(
+  userId: string,
+  amount: number,
+  label: string,
+  idempotencyKey?: string,
+) {
+  let refunded = true;
   try {
     await refundCredits(userId, amount, {
       action: `${label} — Refund (generation failed)`,
     });
   } catch (refundErr) {
+    refunded = false;
     logger.error({ err: refundErr, userId }, "[meme-machine] refund failed after generation error");
+  }
+  /* Void the charge's key only when the refund landed: a refunded retry
+     charges fresh, never replays free; an unrefunded key stays landed
+     so the charge is never silently duplicated. */
+  if (refunded && idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
   }
 }
 
@@ -52,6 +71,19 @@ router.post("/meme-machine/captions", requireAuth, publicApiLimiter, async (req,
     return;
   }
 
+  /* Idempotency (CA-4): server-derived key from the ask's defining
+     inputs; a landed replay is served the stored body verbatim +
+     replayed: true BEFORE any funding — no charge, no provider call. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "meme-machine", req.userId!, req.body?.idempotencyKey,
+    { context: parsed.data.context, format: parsed.data.format },
+  );
+  const durable = await findStoredGenerationResult("meme-machine", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < CAPTIONS_CREDITS) {
     res.status(402).json({
@@ -62,7 +94,10 @@ router.post("/meme-machine/captions", requireAuth, publicApiLimiter, async (req,
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, CAPTIONS_CREDITS, { action: "Meme Machine — Captions" });
+    creditsRemaining = await chargeCredits(
+      req.userId!, CAPTIONS_CREDITS, { action: "Meme Machine — Captions" },
+      { idempotencyKey },
+    );
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -123,13 +158,15 @@ router.post("/meme-machine/captions", requireAuth, publicApiLimiter, async (req,
       throw new Error("Model returned no usable captions");
     }
 
-    res.json({
+    const body = {
       captions,
       creditsUsed: CAPTIONS_CREDITS,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("meme-machine", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
-    await refundOnFailure(req.userId!, CAPTIONS_CREDITS, "Meme Machine — Captions");
+    await refundOnFailure(req.userId!, CAPTIONS_CREDITS, "Meme Machine — Captions", idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[meme-machine] OpenAI rate limit / quota");
       res.status(503).json({ error: "The meme machine is catching its breath — try again in a moment." });

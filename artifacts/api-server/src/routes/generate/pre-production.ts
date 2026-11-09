@@ -6,7 +6,18 @@ import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { buildCoStarContext } from "../../lib/co-stars";
 import { LOOK_RAIL_KEYS, normalizeLookPicks } from "../../lib/scene-look";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl, refreshSupabaseStorageUrlsDeep } from "../../lib/objectStorage";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { db, preproductionPacksTable, artistVaultsTable, locationsTable } from "@workspace/db";
@@ -181,6 +192,19 @@ router.post("/pre-production/bible", requireAuth, async (req, res) => {
   if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
   const { songTitle, genre, mood, artistName, artistVault } = bodyParse.data;
 
+  /* Idempotency (CA-4): server-derived key from the ask; a landed
+     replay is served the stored body verbatim + replayed: true
+     BEFORE any funding — no charge, no provider call. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "pre-production-bible", req.userId!, req.body?.idempotencyKey,
+    { songTitle, genre, mood, artistName, artistVault },
+  );
+  const durable = await findStoredGenerationResult("pre-production-bible", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < TEXT_CREDIT_COST) { outOfCredits(res, TEXT_CREDIT_COST); return; }
   /* ── Reserve at job start (spend-pacing, stack1000 P2) ──
@@ -192,7 +216,7 @@ router.post("/pre-production/bible", requireAuth, async (req, res) => {
      charge failed. Same price, same action name. */
   let after: number;
   try {
-    after = await chargeCredits(req.userId!, TEXT_CREDIT_COST, { action: "Production Bible" });
+    after = await chargeCredits(req.userId!, TEXT_CREDIT_COST, { action: "Production Bible" }, { idempotencyKey });
   } catch (chargeErr) {
     if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, TEXT_CREDIT_COST); return; }
     if (chargeErr instanceof LedgerWriteError) {
@@ -206,7 +230,13 @@ router.post("/pre-production/bible", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    await refundCredits(req.userId!, TEXT_CREDIT_COST, { action: "Production Bible — Refund" }).catch(() => {});
+    const refunded = await refundCredits(req.userId!, TEXT_CREDIT_COST, { action: "Production Bible — Refund" })
+      .then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
   };
 
   const prompt =
@@ -243,7 +273,9 @@ Return ONLY valid JSON (no markdown, no commentary) with exactly these keys:
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const bible = JSON.parse(raw);
     // (The charge already landed at reserve-at-start, above.)
-    res.json({ bible, creditsAfter: after });
+    const body = { bible, creditsAfter: after };
+    await storeGenerationResult("pre-production-bible", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     await refundCharge();
     res.status(500).json({ error: err instanceof Error ? err.message : "Bible generation failed." });
@@ -255,6 +287,18 @@ router.post("/pre-production/storyboard", requireAuth, async (req, res) => {
   const bodyParse = storyboardRouteSchema.safeParse(req.body ?? {});
   if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
   const { songTitle, bible, shotCount, artistVault } = bodyParse.data;
+
+  /* Idempotency (CA-4): keyed on the RAW ask (the shot count clamp
+     is derived after the charge today — the raw ask keys). */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "pre-production-storyboard", req.userId!, req.body?.idempotencyKey,
+    { songTitle, bible, shotCount, artistVault },
+  );
+  const durable = await findStoredGenerationResult("pre-production-storyboard", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < TEXT_CREDIT_COST) { outOfCredits(res, TEXT_CREDIT_COST); return; }
@@ -268,7 +312,7 @@ router.post("/pre-production/storyboard", requireAuth, async (req, res) => {
      charge failed. Same price, same action name. */
   let after: number;
   try {
-    after = await chargeCredits(req.userId!, TEXT_CREDIT_COST, { action: "Storyboard" });
+    after = await chargeCredits(req.userId!, TEXT_CREDIT_COST, { action: "Storyboard" }, { idempotencyKey });
   } catch (chargeErr) {
     if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, TEXT_CREDIT_COST); return; }
     if (chargeErr instanceof LedgerWriteError) {
@@ -282,7 +326,13 @@ router.post("/pre-production/storyboard", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    await refundCredits(req.userId!, TEXT_CREDIT_COST, { action: "Storyboard — Refund" }).catch(() => {});
+    const refunded = await refundCredits(req.userId!, TEXT_CREDIT_COST, { action: "Storyboard — Refund" })
+      .then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
   };
 
 
@@ -311,7 +361,9 @@ Cover the full arc: opening hook, verses, chorus peaks, bridge, outro. Vary came
     const parsed = JSON.parse(raw);
     const shots = Array.isArray(parsed) ? parsed : parsed.shots ?? [];
     // (The charge already landed at reserve-at-start, above.)
-    res.json({ shots, creditsAfter: after });
+    const body = { shots, creditsAfter: after };
+    await storeGenerationResult("pre-production-storyboard", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     await refundCharge();
     res.status(500).json({ error: err instanceof Error ? err.message : "Storyboard generation failed." });
@@ -332,6 +384,17 @@ router.post("/pre-production/image", requireAuth, async (req, res) => {
   if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
   const { kind, category, prompt, shotDescription, cameraAngle, bible, artistVault } = bodyParse.data;
 
+  /* Idempotency (CA-4): server-derived key from the ask. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "pre-production-image", req.userId!, req.body?.idempotencyKey,
+    { kind, category, prompt, shotDescription, cameraAngle, bible, artistVault },
+  );
+  const durable = await findStoredGenerationResult("pre-production-image", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < IMAGE_CREDIT_COST) { outOfCredits(res, IMAGE_CREDIT_COST); return; }
 
@@ -344,7 +407,7 @@ router.post("/pre-production/image", requireAuth, async (req, res) => {
      charge failed. Same price, same action name. */
   let after: number;
   try {
-    after = await chargeCredits(req.userId!, IMAGE_CREDIT_COST, { action: kind === "asset" ? "Production Asset" : kind === "endframe" ? "Storyboard End Frame" : "Storyboard Start Frame" });
+    after = await chargeCredits(req.userId!, IMAGE_CREDIT_COST, { action: kind === "asset" ? "Production Asset" : kind === "endframe" ? "Storyboard End Frame" : "Storyboard Start Frame" }, { idempotencyKey });
   } catch (chargeErr) {
     if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, IMAGE_CREDIT_COST); return; }
     if (chargeErr instanceof LedgerWriteError) {
@@ -358,7 +421,13 @@ router.post("/pre-production/image", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    await refundCredits(req.userId!, IMAGE_CREDIT_COST, { action: "Pre-production Image — Refund" }).catch(() => {});
+    const refunded = await refundCredits(req.userId!, IMAGE_CREDIT_COST, { action: "Pre-production Image — Refund" })
+      .then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
   };
 
   const subject = kind === "asset"
@@ -409,7 +478,9 @@ Style: ultra-detailed cinematic still, professional music video production quali
     const url = await refreshSupabaseStorageUrl(storageRef);
 
     // (The charge already landed at reserve-at-start, above.)
-    res.json({ imageUrl: url, creditsAfter: after });
+    const body = { imageUrl: url, creditsAfter: after };
+    await storeGenerationResult("pre-production-image", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     await refundCharge();
     res.status(500).json({ error: err instanceof Error ? err.message : "Image generation failed." });
@@ -469,6 +540,20 @@ router.post("/pre-production/pack", requireAuth, async (req, res) => {
     projectId, shotCount, propCount, ratio,
   } = bodyParse.data;
 
+  /* Idempotency (CA-4, Pattern C): the pack handler INSERTS a
+     preproductionPacks row — the stored result carries that row
+     (incl. its id), and a replay returns it without inserting a
+     second row. Keyed on the raw ask (clamps derive later). */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "pre-production-pack", req.userId!, req.body?.idempotencyKey,
+    bodyParse.data,
+  );
+  const durable = await findStoredGenerationResult("pre-production-pack", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < PACK_TEXT_CREDIT_COST) { outOfCredits(res, PACK_TEXT_CREDIT_COST); return; }
 
@@ -481,7 +566,7 @@ router.post("/pre-production/pack", requireAuth, async (req, res) => {
      charge failed. Same price, same action name. */
   let after: number;
   try {
-    after = await chargeCredits(req.userId!, PACK_TEXT_CREDIT_COST, { action: "Pre-production Pack" });
+    after = await chargeCredits(req.userId!, PACK_TEXT_CREDIT_COST, { action: "Pre-production Pack" }, { idempotencyKey });
   } catch (chargeErr) {
     if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, PACK_TEXT_CREDIT_COST); return; }
     if (chargeErr instanceof LedgerWriteError) {
@@ -495,7 +580,13 @@ router.post("/pre-production/pack", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    await refundCredits(req.userId!, PACK_TEXT_CREDIT_COST, { action: "Pre-production Pack — Refund" }).catch(() => {});
+    const refunded = await refundCredits(req.userId!, PACK_TEXT_CREDIT_COST, { action: "Pre-production Pack — Refund" })
+      .then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
   };
 
   const shots = Math.min(Math.max(shotCount ?? 6, 4), PACK_MAX_SHOTS);
@@ -623,14 +714,16 @@ Return: { "props": [...], "ingredients": [...] }` }],
 
     // (The charge already landed at reserve-at-start, above.)
 
-    res.json({
+    const body = {
       pack,
       propNameRefs,
       creditsAfter: after,
       /* What it will cost to finish: one asset image per hero prop. */
       assetsRemaining: packProps.length,
       assetCreditCost: IMAGE_CREDIT_COST,
-    });
+    };
+    await storeGenerationResult("pre-production-pack", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     await refundCharge();
     res.status(500).json({ error: err instanceof Error ? err.message : "Pack generation failed." });

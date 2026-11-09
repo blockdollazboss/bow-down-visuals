@@ -7,7 +7,17 @@ import { mkdtempSync, writeFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { logger } from "../../lib/logger";
 import { refreshSupabaseStorageUrl, uploadMediaToSupabaseStorage } from "../../lib/objectStorage";
 
@@ -70,6 +80,22 @@ router.post("/podcast-intro", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Idempotency (CA-4): server-derived key from the ask — including
+     the RESOLVED voice, since the default depends on server config;
+     a landed replay is served the stored body verbatim +
+     replayed: true BEFORE any funding — no charge, no provider call. */
+  const { podcastName, hostName, tagline, musicStyle, voiceId } = parsed.data;
+  const voice = voiceId || defaultVoiceId();
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "podcast-intro", req.userId!, req.body?.idempotencyKey,
+    { podcastName, hostName, tagline, musicStyle, voiceId: voice },
+  );
+  const durable = await findStoredGenerationResult("podcast-intro", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < PODCAST_INTRO_COST) {
     res.status(402).json({
@@ -83,7 +109,7 @@ router.post("/podcast-intro", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, PODCAST_INTRO_COST, {
       action: "Podcast Intro",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -93,14 +119,16 @@ router.post("/podcast-intro", requireAuth, async (req, res) => {
   }
 
   const fail = async (message: string, status = 500) => {
-    await refundCredits(req.userId!, PODCAST_INTRO_COST, {
+    const refunded = await refundCredits(req.userId!, PODCAST_INTRO_COST, {
       action: "Podcast Intro — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
     res.status(status).json({ error: message });
   };
-
-  const { podcastName, hostName, tagline, musicStyle, voiceId } = parsed.data;
-  const voice = voiceId || defaultVoiceId();
 
   const apiKey = elevenKey();
   if (!apiKey) {
@@ -214,7 +242,7 @@ router.post("/podcast-intro", requireAuth, async (req, res) => {
       "audio/mpeg",
     );
     const playUrl = await refreshSupabaseStorageUrl(ref);
-    res.json({
+    const body = {
       url: playUrl,
       storageRef: ref,
       podcastName,
@@ -223,7 +251,9 @@ router.post("/podcast-intro", requireAuth, async (req, res) => {
       musicStyle,
       durationSec: INTRO_SECONDS,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("podcast-intro", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     logger.error({ err: err instanceof Error ? err.message : err }, "[podcast-intro] upload failed");
     await fail("Intro mixed but upload failed.");

@@ -4,7 +4,18 @@ import { invokeRailHandler, type RailCoreDeps, type RailCoreResult } from "../..
 import { requireAuth } from "../../middlewares/require-auth";
 import { isAdminRequest } from "../../lib/admin";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { db, artistVaultsTable, songsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { swapSongVocalsToVoice } from "../../lib/voice-swap";
@@ -203,6 +214,29 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
       : creditCostForLength(musicLengthMs);
   // Dual-variant costs 2x — two provider calls.
   const creditCost = baseCost * variantCount;
+  /* Idempotency (CA-4, Pattern A): server-derived key from the
+     priced ask — the built prompt inputs, the PRICED length, and
+     the variant count (an identical duplicate computes the same
+     key). Replay is checked BEFORE the balance gate: a paid re-ask
+     must never 402 on a since-spent balance. Stored bodies carry
+     provider-generated storage paths and song ids (Date.now()-based)
+     — the stored body IS what makes a replay return the originals. */
+  const genKey = buildChargeIdempotencyKey(
+    "music-audio-generate", req.userId!,
+    (req.body as Record<string, unknown> | undefined)?.["idempotencyKey"],
+    {
+      prompt, lyrics, vocalGender, instrumental,
+      musicLengthMs, variantCount,
+      artistVaultId: artistVaultId ?? null,
+      personaVoiceId: personaVoiceId ?? null,
+      artistName, songTitle,
+    },
+  );
+  const durableGen = await findStoredGenerationResult("music-audio-generate", genKey, req.userId!);
+  if (durableGen) {
+    res.json({ ...durableGen, replayed: true });
+    return;
+  }
   if (!isDev && currentCredits < creditCost) {
     res.status(402).json({
       error: "out_of_credits",
@@ -224,7 +258,7 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
      own Bucs. Same price, same action name — only the order moved. */
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Generate Audio" });
+    creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Generate Audio" }, { idempotencyKey: genKey });
   } catch (deductErr) {
     if (deductErr instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -246,10 +280,17 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
+    let refunded = false;
     try {
       await refundCredits(req.userId!, creditCost, { action: "Generate Audio — Refund" });
+      refunded = true;
     } catch (refundErr) {
       req.log.error({ err: refundErr }, "generate-music-audio: refund failed");
+    }
+    /* Void the charge's key only when the refund landed (CA-4): a
+       refunded retry charges fresh, never replays free. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(genKey).catch(() => {});
     }
   };
 
@@ -463,7 +504,7 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
     // Step 4: Fire-and-forget — mark charged + log usage
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
-    res.json({
+    const genBody = {
       // Back-compat: single-variant shape
       url: variantsOut[0].url,
       storagePath: variantsOut[0].storagePath,
@@ -477,7 +518,11 @@ const generateMusicAudioHandler = async (req: Request, res: Response) => {
       voiceSwapped,
       songId: songIds[0],
       songIds,
-    });
+    };
+    /* Store BEFORE answering (CA-4) — replay serves the ORIGINAL
+       storage paths and song ids instead of generating twins. */
+    await storeGenerationResult("music-audio-generate", genKey, req.userId!, { ...genBody });
+    res.json(genBody);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     req.log.error({ err }, "generate-music-audio: unexpected error");
@@ -616,7 +661,6 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
   const extendMs = Math.min(EXTEND_MAX_MS, Math.max(EXTEND_MIN_MS,
     Math.round(Number(extendSeconds || 30) * 1000)));
   const creditCost = creditCostForLength(extendMs);
-
   /* Extend-from-point (optional): null = append to the full original,
    * exactly the pre-existing behavior. The charge above never depends on
    * it — it is keyed to the continuation length only. */
@@ -624,6 +668,24 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
     typeof startSeconds === "number" && Number.isFinite(startSeconds) && startSeconds > 0
       ? Math.max(MIN_START_SECONDS, startSeconds)
       : null;
+  /* Idempotency (CA-4, Pattern A): key from the continuation ask —
+     the original's URL, the segment prompt inputs, and the clamped
+     priced length + start point. Replay checked before funding. */
+  const extKey = buildChargeIdempotencyKey(
+    "music-audio-extend", req.userId!,
+    (req.body as Record<string, unknown> | undefined)?.["idempotencyKey"],
+    {
+      originalAudioUrl, originalPrompt, extendPrompt,
+      lyrics, vocalGender, instrumental,
+      extendMs,
+      startSec,
+    },
+  );
+  const durableExt = await findStoredGenerationResult("music-audio-extend", extKey, req.userId!);
+  if (durableExt) {
+    res.json({ ...durableExt, replayed: true });
+    return;
+  }
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < creditCost) {
@@ -641,7 +703,7 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
      against one balance. Same price, same action name. */
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Extend Audio" });
+    creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Extend Audio" }, { idempotencyKey: extKey });
   } catch (deductErr) {
     if (deductErr instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -658,10 +720,16 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
+    let refunded = false;
     try {
       await refundCredits(req.userId!, creditCost, { action: "Extend Audio — Refund" });
+      refunded = true;
     } catch (refundErr) {
       req.log.error({ err: refundErr }, "generate-music-audio/extend: refund failed");
+    }
+    /* Void the charge's key only when the refund landed (CA-4). */
+    if (refunded) {
+      await voidChargeIdempotencyKey(extKey).catch(() => {});
     }
   };
 
@@ -790,7 +858,7 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
 
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
 
-    res.json({
+    const extBody = {
       url: extendedUrl,
       storagePath: path,
       creditsRemaining: creditsAfter,
@@ -801,7 +869,10 @@ router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
       songId,
       /* The point the continuation was joined at; null = appended at the end. */
       extendedFromSeconds: startSec,
-    });
+    };
+    /* Store BEFORE answering (CA-4). */
+    await storeGenerationResult("music-audio-extend", extKey, req.userId!, { ...extBody });
+    res.json(extBody);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Extension failed";
     req.log.error({ err }, "generate-music-audio/extend: failed");

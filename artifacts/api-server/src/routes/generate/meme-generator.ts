@@ -9,7 +9,17 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -231,6 +241,19 @@ router.post("/meme", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Idempotency (CA-4): server-derived key from the full ask; a
+     landed replay is served the stored body verbatim +
+     replayed: true BEFORE any funding — no charge, no provider call. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "meme-generator", req.userId!, req.body?.idempotencyKey,
+    parsed.data,
+  );
+  const durable = await findStoredGenerationResult("meme-generator", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < MEME_COST) {
     res.status(402).json({
@@ -242,7 +265,10 @@ router.post("/meme", requireAuth, async (req, res) => {
 
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, MEME_COST, { action: "Meme Generator" });
+    creditsAfter = await chargeCredits(
+      req.userId!, MEME_COST, { action: "Meme Generator" },
+      { idempotencyKey },
+    );
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -340,17 +366,25 @@ router.post("/meme", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "image/jpeg");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    const body = {
       url,
       storageRef,
       template: templateKey ?? "custom",
       attribution: parsed.data.attribution,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("meme-generator", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Meme generation failed.";
     req.log.error({ err: message }, "[meme] failed");
-    await refundCredits(req.userId!, MEME_COST, { action: "Meme Generator — Refund" }).catch(() => {});
+    const refunded = await refundCredits(req.userId!, MEME_COST, { action: "Meme Generator — Refund" })
+      .then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
     res.status(500).json({ error: message });
   } finally {
     await unlink(inputPath).catch(() => {});

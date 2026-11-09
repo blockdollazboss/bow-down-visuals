@@ -44,7 +44,13 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { publicApiLimiter, freeAiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -421,12 +427,28 @@ router.post(
       return;
     }
 
+    /* Idempotency (CA-4): server-derived key from the ask — the
+       transcript resolution above is pre-charge work, so the key sits
+       at the charge point. A landed replay is served the stored body
+       verbatim (incl. its kitId) + replayed: true — no charge, no
+       kit rebuild. */
+    const idempotencyKey = buildChargeIdempotencyKey(
+      "podcast-multiplier", req.userId!, req.body?.idempotencyKey,
+      { episodeAudioUrl, title, description, transcript, chapters },
+    );
+    const durable = await findStoredGenerationResult("podcast-multiplier", idempotencyKey, req.userId!);
+    if (durable) {
+      await cleanup();
+      res.json({ ...durable, replayed: true });
+      return;
+    }
+
     /* ── Charge, then build the kit; refund on any failure ── */
     let creditsRemaining = balance;
     try {
       creditsRemaining = await chargeCredits(req.userId!, PODCAST_MULTIPLIER_CREDITS, {
         action: "Podcast Multiplier",
-      });
+      }, { idempotencyKey });
     } catch (err) {
       await cleanup();
       if (err instanceof OutOfCreditsError) {
@@ -437,9 +459,17 @@ router.post(
     }
 
     const failWithRefund = async (message: string): Promise<void> => {
-      await refundCredits(req.userId!, PODCAST_MULTIPLIER_CREDITS, {
+      const refunded = await refundCredits(req.userId!, PODCAST_MULTIPLIER_CREDITS, {
         action: "Podcast Multiplier — Refund (kit failed)",
-      }).catch((refundErr) => logger.error({ refundErr }, "podcast-multiplier: refund failed"));
+      }).then(() => true).catch((refundErr) => {
+        logger.error({ refundErr }, "podcast-multiplier: refund failed");
+        return false;
+      });
+      /* Void only when the refund landed — a refunded retry charges
+         fresh; an unrefunded key stays landed. */
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+      }
       await cleanup();
       res.status(502).json({ error: message });
     };
@@ -503,7 +533,7 @@ router.post(
       });
 
       await cleanup();
-      res.json({
+      const body = {
         kitId,
         title,
         shorts,
@@ -514,7 +544,9 @@ router.post(
         durationSeconds: Math.round(durationSec),
         creditsUsed: PODCAST_MULTIPLIER_CREDITS,
         creditsRemaining,
-      });
+      };
+      await storeGenerationResult("podcast-multiplier", idempotencyKey, req.userId!, { ...body });
+      res.json(body);
     } catch (err) {
       logger.error({ err }, "podcast-multiplier: kit build failed");
       await failWithRefund("The publish kit couldn't be built — your Visual Bucs were refunded. Please try again.");

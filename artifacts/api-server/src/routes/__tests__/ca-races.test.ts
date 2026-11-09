@@ -84,6 +84,11 @@ vi.mock("../../lib/credits", () => {
     OutOfCreditsError,
     LedgerWriteError,
     getUserCreditBalance: async () => h.balance,
+    buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+      const ck = typeof clientKey === "string" && clientKey.trim().length >= 8 ? clientKey.trim() : null;
+      return ck ? `${scope}:${userId}:client:${ck}` : `${scope}:${userId}:${JSON.stringify(intent ?? {})}`;
+    },
+    voidChargeIdempotencyKey: async () => {},
     chargeCredits: async (_userId: string, amount: number) => {
       const barrier = h.chargeBarrier;
       if (barrier) {

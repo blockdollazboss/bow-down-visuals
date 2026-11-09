@@ -41,6 +41,11 @@ vi.mock("../../../lib/credits", () => ({
     testState.userCredits -= amount;
     return testState.userCredits;
   }),
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    const ck = typeof clientKey === "string" && clientKey.trim().length >= 8 ? clientKey.trim() : null;
+    return ck ? `${scope}:${userId}:client:${ck}` : `${scope}:${userId}:${JSON.stringify(intent ?? {})}`;
+  },
+  voidChargeIdempotencyKey: async () => {},
   refundCredits: vi.fn(async (userId: string, amount: number) => {
     testState.refundCalls.push({ userId, amount });
     testState.userCredits += amount;

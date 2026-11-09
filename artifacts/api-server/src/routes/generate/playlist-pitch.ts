@@ -9,7 +9,13 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   db,
   playlistPitchesTable,
@@ -360,6 +366,19 @@ router.post(
       return;
     }
 
+    /* Idempotency (CA-4): server-derived key from the ask's defining
+       inputs; a landed replay is served the stored body verbatim +
+       replayed: true BEFORE any funding — no charge, no provider call. */
+    const idempotencyKey = buildChargeIdempotencyKey(
+      "playlist-pitch", req.userId!, req.body?.idempotencyKey,
+      parsed.data,
+    );
+    const durable = await findStoredGenerationResult("playlist-pitch", idempotencyKey, req.userId!);
+    if (durable) {
+      res.json({ ...durable, replayed: true });
+      return;
+    }
+
     const balance = req.userCredits ?? 0;
     if (balance < PLAYLIST_PITCH_CREDIT_COST) {
       res.status(402).json({
@@ -373,7 +392,7 @@ router.post(
     try {
       creditsRemaining = await chargeCredits(req.userId!, PLAYLIST_PITCH_CREDIT_COST, {
         action: "Playlist Pitch Kit",
-      });
+      }, { idempotencyKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -386,15 +405,22 @@ router.post(
     }
 
     const refundOnFailure = async () => {
+      let refunded = true;
       try {
         await refundCredits(req.userId!, PLAYLIST_PITCH_CREDIT_COST, {
           action: "Playlist Pitch Kit — Refund (generation failed)",
         });
       } catch (refundErr) {
+        refunded = false;
         logger.error(
           { err: refundErr, userId: req.userId },
           "[playlist-pitch] refund failed after generation error",
         );
+      }
+      /* Void only when the refund landed — a refunded retry charges
+         fresh; an unrefunded key stays landed. */
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
       }
     };
 
@@ -420,11 +446,13 @@ router.post(
       const raw = completion.choices[0]?.message?.content ?? "{}";
       const kit = parsePitchKitResponse(raw);
 
-      res.json({
+      const body = {
         kit,
         creditsUsed: PLAYLIST_PITCH_CREDIT_COST,
         creditsRemaining,
-      });
+      };
+      await storeGenerationResult("playlist-pitch", idempotencyKey, req.userId!, { ...body });
+      res.json(body);
     } catch (err) {
       await refundOnFailure();
       if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {

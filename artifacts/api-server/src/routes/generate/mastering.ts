@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
@@ -7,7 +7,14 @@ import { promisify } from "util";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -94,6 +101,9 @@ export interface MasteringJob {
   sourceSongId: string | null;
   /** Library row recorded for the finished master (DE-6 round-trip). */
   librarySongId: string | null;
+  /** CA-4: the charge's idempotency key — the runner voids it when it
+   *  refunds a failed job, so a refunded retry charges fresh. */
+  chargeKey: string;
 }
 
 const jobs = new Map<string, MasteringJob>();
@@ -217,13 +227,20 @@ export async function runMasteringJob(job: MasteringJob, uploadedPath: string, o
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Mastering failed";
     // Refund: the user paid for a master they didn't get.
+    let refunded = true;
     try {
       await refundCredits(job.userId, job.creditsCharged, {
         action: "AI Mastering — Refund (job failed)",
       });
     } catch (refundErr) {
       // Logged inside refundCredits; don't mask the original failure.
+      refunded = false;
       void refundErr;
+    }
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(job.chargeKey).catch(() => {});
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
@@ -259,6 +276,39 @@ router.post("/mastering", requireAuth, upload.single("audio"), async (req: Reque
     return;
   }
 
+  /* Idempotency (CA-4, Pattern B): the job's identity DERIVES from
+     the server-derived charge key (avatar-presenter precedent) — the
+     ask is the uploaded bytes + parsed preset/source, so hash them.
+     A duplicate (concurrent or sequential) computes the same jobId,
+     finds the existing job, and answers from it with replayed: true
+     and NO new charge; a FAILED job whose charge was refunded+voided
+     falls through to a fresh attempt under the same derived id. */
+  const fileBytes = await fs.readFile(req.file.path);
+  const fileHash = createHash("sha256").update(fileBytes).digest("hex").slice(0, 32);
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "mastering", req.userId!,
+    (req.body as Record<string, unknown> | undefined)?.["idempotencyKey"],
+    {
+      fileHash,
+      preset,
+      sourceSongId: parsed.success ? parsed.data.sourceSongId ?? null : null,
+      originalName: req.file.originalname,
+    },
+  );
+  const jobId = createHash("sha256").update(idempotencyKey).digest("hex").slice(0, 32);
+  const existingJob = jobs.get(jobId);
+  if (existingJob && existingJob.userId === req.userId! && existingJob.status !== "failed") {
+    res.status(202).json({
+      jobId: existingJob.id,
+      status: existingJob.status,
+      preset: existingJob.preset,
+      creditsCharged: MASTERING_CREDIT_COST,
+      creditsRemaining: req.userCredits ?? 0,
+      replayed: true,
+    });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < MASTERING_CREDIT_COST) {
     res.status(402).json({
@@ -272,7 +322,7 @@ router.post("/mastering", requireAuth, upload.single("audio"), async (req: Reque
   try {
     creditsRemaining = await chargeCredits(req.userId!, MASTERING_CREDIT_COST, {
       action: `AI Mastering (${MASTERING_PRESETS[preset].label})`,
-    });
+    }, { idempotencyKey: `mastering:${jobId}` });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -289,7 +339,7 @@ router.post("/mastering", requireAuth, upload.single("audio"), async (req: Reque
   }
 
   const job: MasteringJob = {
-    id: randomUUID(),
+    id: jobId,
     userId: req.userId!,
     status: "queued",
     preset,
@@ -309,6 +359,7 @@ router.post("/mastering", requireAuth, upload.single("audio"), async (req: Reque
     createdAt: Date.now(),
     sourceSongId: parsed.success ? parsed.data.sourceSongId ?? null : null,
     librarySongId: null,
+    chargeKey: `mastering:${jobId}`,
   };
   jobs.set(job.id, job);
 

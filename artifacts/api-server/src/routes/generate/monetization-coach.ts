@@ -14,7 +14,18 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { recordCreditUsage } from "../../lib/payment-record";
 import { sellerEarningsSummary } from "../../lib/seller-earnings";
 
@@ -226,14 +237,22 @@ const coachSchema = z.object({
 /* The charge lands BEFORE the catalog read + model call; any failure
    after it refunds the exact charged amount (D5 sweep G11 — the
    refundOnFailure pattern from academy.ts). */
-async function refundOnFailure(userId: string): Promise<void> {
+async function refundOnFailure(userId: string, idempotencyKey?: string): Promise<void> {
+  let refunded = true;
   try {
     await refundCredits(userId, COACH_CREDITS, {
       action: "Monetization Coach — Refund (generation failed)",
     });
   } catch (refundErr) {
     /* Logged inside refundCredits; don't mask the original failure. */
+    refunded = false;
     void refundErr;
+  }
+  /* Void the charge's key only when the refund landed: a refunded retry
+     charges fresh, never replays free; an unrefunded key stays landed
+     so the charge is never silently duplicated. */
+  if (refunded && idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
   }
 }
 
@@ -252,6 +271,21 @@ router.post("/monetization-coach", requireAuth, publicApiLimiter, async (req, re
     return;
   }
 
+  /* Idempotency (CA-4): server-derived key from the ask's defining
+     inputs; a landed replay is served the stored body verbatim +
+     replayed: true BEFORE any funding — no charge, no provider call.
+     The derived creator state is server-side grounding, not part of
+     the ask, so it stays out of the intent. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "monetization-coach", req.userId!, req.body?.idempotencyKey,
+    parsed.data,
+  );
+  const durable = await findStoredGenerationResult("monetization-coach", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < COACH_CREDITS) {
     res.status(402).json({
@@ -262,7 +296,10 @@ router.post("/monetization-coach", requireAuth, publicApiLimiter, async (req, re
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, COACH_CREDITS, { action: "Monetization Coach" });
+    creditsRemaining = await chargeCredits(
+      req.userId!, COACH_CREDITS, { action: "Monetization Coach" },
+      { idempotencyKey },
+    );
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -417,7 +454,7 @@ router.post("/monetization-coach", requireAuth, publicApiLimiter, async (req, re
       throw new Error("Model returned no usable money plan");
     }
 
-    res.json({
+    const body = {
       eligibility,
       earnings,
       moneyMoves,
@@ -430,9 +467,11 @@ router.post("/monetization-coach", requireAuth, publicApiLimiter, async (req, re
       creatorState,
       creditsUsed: COACH_CREDITS,
       creditsRemaining,
-    });
+    };
+    await storeGenerationResult("monetization-coach", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
-    await refundOnFailure(req.userId!);
+    await refundOnFailure(req.userId!, idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[monetization-coach] OpenAI rate limit / quota");
       res.status(503).json({ error: "The coach is catching its breath — try again in a moment." });

@@ -84,6 +84,11 @@ vi.mock("../../lib/ai-clients", () => ({
 vi.mock("../../lib/credits", () => ({
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   chargeCredits: async () => 900,
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    const ck = typeof clientKey === "string" && clientKey.trim().length >= 8 ? clientKey.trim() : null;
+    return ck ? `${scope}:${userId}:client:${ck}` : `${scope}:${userId}:${JSON.stringify(intent ?? {})}`;
+  },
+  voidChargeIdempotencyKey: async () => {},
   refundCredits: async () => undefined,
 }));
 

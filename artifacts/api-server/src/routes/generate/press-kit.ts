@@ -4,7 +4,18 @@ import { eq, and, desc } from "drizzle-orm";
 import { db, pressKitsTable, artistVaultsTable, pressKitHandleSchema, pressKitReleaseSchema, pressKitLayoutSchema } from "@workspace/db";
 import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { refreshSupabaseStorageUrl } from "../../lib/objectStorage";
@@ -356,6 +367,27 @@ router.post("/press-kit/:id/regenerate-bio", requireAuth, publicApiLimiter, asyn
     return;
   }
 
+  /* Idempotency (CA-4): server-derived key from the raw ask (kit id +
+     requested achievements/tone — the effective inputs fall back to
+     the kit's stored values when omitted, but the ASK is what keys);
+     a landed replay is served the stored body verbatim +
+     replayed: true BEFORE any funding — no charge, no provider call.
+     NOTE: the stored body carries presentKit's originally signed
+     photo URLs, same as the contracts/bio replay precedent. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "press-kit-bio-refresh", req.userId!, req.body?.idempotencyKey,
+    {
+      kitId,
+      achievements: parsed.data.achievements ?? null,
+      tone: parsed.data.tone,
+    },
+  );
+  const durable = await findStoredGenerationResult("press-kit-bio-refresh", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < PRESS_KIT_BIO_REFRESH_CREDITS) {
     res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to refresh the bio." });
@@ -366,7 +398,7 @@ router.post("/press-kit/:id/regenerate-bio", requireAuth, publicApiLimiter, asyn
   try {
     creditsRemaining = await chargeCredits(req.userId!, PRESS_KIT_BIO_REFRESH_CREDITS, {
       action: "Press Kit Bio Refresh",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to refresh the bio." });
@@ -402,11 +434,18 @@ router.post("/press-kit/:id/regenerate-bio", requireAuth, publicApiLimiter, asyn
       .where(eq(pressKitsTable.id, kitId))
       .returning();
 
-    res.json({ kit: await presentKit(updated!), creditsUsed: PRESS_KIT_BIO_REFRESH_CREDITS, creditsRemaining });
+    const body = { kit: await presentKit(updated!), creditsUsed: PRESS_KIT_BIO_REFRESH_CREDITS, creditsRemaining };
+    await storeGenerationResult("press-kit-bio-refresh", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
-    await refundCredits(req.userId!, PRESS_KIT_BIO_REFRESH_CREDITS, {
+    const refunded = await refundCredits(req.userId!, PRESS_KIT_BIO_REFRESH_CREDITS, {
       action: "Press Kit Bio Refresh — Refund (generation failed)",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
     if (err instanceof LedgerWriteError) throw err;
     res.status(502).json({ error: "generation_failed", message: "The bio couldn't be refreshed — your Visual Bucs were refunded." });
   }

@@ -3,7 +3,17 @@ import { z } from "zod";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { r2Upload } from "../../lib/r2-client";
 
 const router = Router();
@@ -180,6 +190,21 @@ router.post("/photo-backdrop", requireAuth, generationLimiter, async (req, res) 
     return;
   }
 
+  /* Idempotency (CA-4): server-derived key from the ask; a landed
+     replay is served the stored body verbatim + replayed: true BEFORE
+     any funding — no charge, no provider call. Sits after the
+     provider gate (still 503 like today) and before the balance gate
+     (a paid replay never 402s on a since-spent balance). */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "photo-backdrop", req.userId!, req.body?.idempotencyKey,
+    { prompt, provider, ratio },
+  );
+  const durable = await findStoredGenerationResult("photo-backdrop", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < BACKDROP_COST) {
     res.status(402).json({
@@ -193,7 +218,7 @@ router.post("/photo-backdrop", requireAuth, generationLimiter, async (req, res) 
   try {
     creditsAfter = await chargeCredits(req.userId!, BACKDROP_COST, {
       action: "Photo AI Backdrop",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -216,20 +241,27 @@ router.post("/photo-backdrop", requireAuth, generationLimiter, async (req, res) 
     const filePath = `photo-backdrops/${req.userId}/${randomUUID()}.png`;
     const url = await r2Upload(filePath, buffer, "image/png");
 
-    res.json({
+    const body = {
       status: "succeeded",
       url,
       path: filePath,
       creditCost: BACKDROP_COST,
       model: provider,
       creditsRemaining: creditsAfter,
-    });
+    };
+    await storeGenerationResult("photo-backdrop", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     const message = err instanceof Error ? err.message : "AI backdrop generation failed.";
     req.log.error({ err: message }, "[photo-backdrop] failed");
-    await refundCredits(req.userId!, BACKDROP_COST, {
+    const refunded = await refundCredits(req.userId!, BACKDROP_COST, {
       action: "Photo AI Backdrop — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
     res.status(500).json({ error: message });
   }
 });

@@ -6,9 +6,19 @@ import { existsSync } from "fs";
 import { writeFile, readFile, rm, mkdtemp, readdir } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -130,6 +140,9 @@ interface TrackJob {
   result: TrackResult | null;
   error: string | null;
   createdAt: number;
+  /** CA-4: the charge's idempotency key — the failure path voids it
+   *  (only when the refund landed) so a refunded retry charges fresh. */
+  chargeKey: string;
 }
 
 const jobs = new Map<string, TrackJob>();
@@ -379,9 +392,13 @@ async function runTrackJob(job: TrackJob) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Motion tracking failed.";
     setJob(job.id, { state: "failed", stage: "Failed", progress: 0, error: message });
-    await refundCredits(job.userId, MOTION_TRACK_COST, {
+    const refunded = await refundCredits(job.userId, MOTION_TRACK_COST, {
       action: "Motion Tracking — Refund",
-    }).catch(() => {});
+    }).then(() => true).catch(() => false);
+    /* Void the charge's key only when the refund landed (CA-4). */
+    if (refunded) {
+      await voidChargeIdempotencyKey(job.chargeKey).catch(() => {});
+    }
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
     workerRunning = false;
@@ -415,6 +432,28 @@ router.post("/motion-track/track", requireAuth, async (req, res) => {
     return;
   }
 
+  /* Idempotency (CA-4, Pattern B): the job's identity DERIVES from
+     the server-derived charge key (avatar-presenter precedent). A
+     duplicate finds the existing job and answers from it with
+     replayed: true and NO new charge; a FAILED job whose charge was
+     refunded + voided falls through to a fresh attempt. */
+  const trackKey = buildChargeIdempotencyKey(
+    "motion-track", req.userId!,
+    (req.body as Record<string, unknown> | undefined)?.["idempotencyKey"],
+    parsed.data,
+  );
+  const trackJobId = createHash("sha256").update(trackKey).digest("hex").slice(0, 32);
+  const existingTrack = jobs.get(trackJobId);
+  if (existingTrack && existingTrack.userId === req.userId! && existingTrack.state !== "failed") {
+    res.status(202).json({
+      jobId: existingTrack.id,
+      cost: MOTION_TRACK_COST,
+      creditsRemaining: req.userCredits ?? 0,
+      replayed: true,
+    });
+    return;
+  }
+
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < MOTION_TRACK_COST) {
     res.status(402).json({
@@ -428,7 +467,7 @@ router.post("/motion-track/track", requireAuth, async (req, res) => {
   try {
     creditsAfter = await chargeCredits(req.userId!, MOTION_TRACK_COST, {
       action: "Motion Tracking",
-    });
+    }, { idempotencyKey: `motion-track:${trackJobId}` });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
@@ -437,7 +476,7 @@ router.post("/motion-track/track", requireAuth, async (req, res) => {
     throw err;
   }
 
-  const id = randomUUID();
+  const id = trackJobId;
   jobs.set(id, {
     id,
     userId: req.userId!,
@@ -448,6 +487,7 @@ router.post("/motion-track/track", requireAuth, async (req, res) => {
     result: null,
     error: null,
     createdAt: Date.now(),
+    chargeKey: `motion-track:${trackJobId}`,
   });
   queue.push(id);
   pumpQueue();
@@ -484,6 +524,18 @@ router.post("/motion-track/apply", requireAuth, async (req, res) => {
   }
   const d = parsed.data;
 
+  /* Idempotency (CA-4, Pattern A on the charged path): the key is
+     derived from the full apply ask. A replay (stored result found)
+     answers the original artifact body + replayed: true with NO new
+     charge and NO re-render. The key is computed up front; it is
+     only CONSUMED when the charge actually fires (the free path —
+     consuming a completed track job — never reads or writes it). */
+  const applyKey = buildChargeIdempotencyKey(
+    "motion-track-apply", req.userId!,
+    (req.body as Record<string, unknown> | undefined)?.["idempotencyKey"],
+    d,
+  );
+
   /* Resolve the track points: from a completed owned job, or inline. */
   let points: TrackPoint[] | null = null;
   let trackStart = d.startSec;
@@ -507,6 +559,13 @@ router.post("/motion-track/apply", requireAuth, async (req, res) => {
 
   /* Charge only when not consuming an already-paid track job. */
   if (!job) {
+    /* Stored-result pre-check BEFORE any funding — a paid replay
+       must never 402 on a since-spent balance. */
+    const durableApply = await findStoredGenerationResult("motion-track-apply", applyKey, req.userId!);
+    if (durableApply) {
+      res.json({ ...durableApply, replayed: true });
+      return;
+    }
     if (creditsAfter < MOTION_TRACK_COST) {
       res.status(402).json({
         error: "out_of_credits",
@@ -517,7 +576,7 @@ router.post("/motion-track/apply", requireAuth, async (req, res) => {
     try {
       creditsAfter = await chargeCredits(req.userId!, MOTION_TRACK_COST, {
         action: "Motion Track Burn-in",
-      });
+      }, { idempotencyKey: applyKey });
       charged = true;
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
@@ -677,13 +736,24 @@ router.post("/motion-track/apply", requireAuth, async (req, res) => {
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({ url, storageRef, creditsRemaining: creditsAfter, mode: d.mode });
+    /* Store BEFORE answering (CA-4) — only on the charged path; the
+       free path never stored anything. */
+    const applyBody = { url, storageRef, creditsRemaining: creditsAfter, mode: d.mode };
+    if (charged) {
+      await storeGenerationResult("motion-track-apply", applyKey, req.userId!, { ...applyBody });
+    }
+    res.json(applyBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Motion track burn-in failed.";
     if (charged) {
-      await refundCredits(req.userId!, MOTION_TRACK_COST, {
+      const refunded = await refundCredits(req.userId!, MOTION_TRACK_COST, {
         action: "Motion Track Burn-in — Refund",
-      }).catch(() => {});
+      }).then(() => true).catch(() => false);
+      /* Void only when the refund landed (CA-4) — a refunded retry
+         charges fresh, never replays free. */
+      if (refunded) {
+        await voidChargeIdempotencyKey(applyKey).catch(() => {});
+      }
     }
     res.status(500).json({ error: message });
   } finally {

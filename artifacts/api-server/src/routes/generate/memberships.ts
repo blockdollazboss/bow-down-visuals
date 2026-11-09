@@ -41,7 +41,17 @@ import {
 } from "../../lib/membership-pause";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { emitNewMemberWebhook } from "../../lib/api-webhooks";
 import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
 import { emitOverlayMemberAlert } from "../../lib/overlay-events";
@@ -1713,6 +1723,19 @@ router.post("/memberships/ai-perks", requireAuth, publicApiLimiter, async (req, 
     return;
   }
 
+  /* Idempotency (CA-4): server-derived key from the ask; a landed
+     replay is served the stored body verbatim + replayed: true
+     BEFORE any funding — no charge, no provider call. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    "memberships-ai-perks", req.userId!, req.body?.idempotencyKey,
+    parsed.data,
+  );
+  const durable = await findStoredGenerationResult("memberships-ai-perks", idempotencyKey, req.userId!);
+  if (durable) {
+    res.json({ ...durable, replayed: true });
+    return;
+  }
+
   const balance = req.userCredits ?? 0;
   if (balance < MEMBERSHIPS_AI_CREDITS) {
     res.status(402).json({
@@ -1725,7 +1748,7 @@ router.post("/memberships/ai-perks", requireAuth, publicApiLimiter, async (req, 
   try {
     creditsRemaining = await chargeCredits(req.userId!, MEMBERSHIPS_AI_CREDITS, {
       action: "Fan Memberships AI Perks",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -1798,12 +1821,19 @@ router.post("/memberships/ai-perks", requireAuth, publicApiLimiter, async (req, 
       throw new Error("Model returned no usable tier suggestions");
     }
 
-    res.json({ tiers, creditsUsed: MEMBERSHIPS_AI_CREDITS, creditsRemaining });
+    const body = { tiers, creditsUsed: MEMBERSHIPS_AI_CREDITS, creditsRemaining };
+    await storeGenerationResult("memberships-ai-perks", idempotencyKey, req.userId!, { ...body });
+    res.json(body);
   } catch (err) {
     /* Provider failure after charging → refund, then report. */
-    await refundCredits(req.userId!, MEMBERSHIPS_AI_CREDITS, {
+    const refunded = await refundCredits(req.userId!, MEMBERSHIPS_AI_CREDITS, {
       action: "Fan Memberships AI Perks — Refund (provider failed)",
-    });
+    }).then(() => true).catch(() => false);
+    /* Void only when the refund landed — a refunded retry charges
+       fresh; an unrefunded key stays landed. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[memberships] OpenAI rate limit / quota");
       res.status(503).json({ error: "The suggester is catching its breath — try again in a moment." });

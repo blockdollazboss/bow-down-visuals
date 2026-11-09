@@ -34,6 +34,11 @@ vi.mock("../../middlewares/require-auth", () => ({
 
 vi.mock("../../lib/credits", () => ({
   chargeCredits: vi.fn(async () => 0),
+  buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) => {
+    const ck = typeof clientKey === "string" && clientKey.trim().length >= 8 ? clientKey.trim() : null;
+    return ck ? `${scope}:${userId}:client:${ck}` : `${scope}:${userId}:${JSON.stringify(intent ?? {})}`;
+  },
+  voidChargeIdempotencyKey: async () => {},
   refundCredits: vi.fn(async () => {}),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
 }));

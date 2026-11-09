@@ -47,7 +47,13 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { refreshSupabaseStorageUrl, uploadMediaToSupabaseStorage } from "../../lib/objectStorage";
@@ -378,6 +384,19 @@ router.post(
     const est = estimateDialogueCost(script);
     const creditsToCharge = est.credits;
     const actionName = "Podcast Dialogue Studio";
+    /* Idempotency (CA-4, Pattern A): key from the dialogue ask;
+       replay checked BEFORE the balance gate — a paid re-ask must
+       never 402 on a since-spent balance. */
+    const dialogueKey = buildChargeIdempotencyKey(
+      "podcast-dialogue", req.userId!,
+      (req.body as Record<string, unknown> | undefined)?.["idempotencyKey"],
+      { script, speakers, title, description, musicBed, attribution, creditsToCharge },
+    );
+    const durableDialogue = await findStoredGenerationResult("podcast-dialogue", dialogueKey, req.userId!);
+    if (durableDialogue) {
+      res.json({ ...durableDialogue, replayed: true });
+      return;
+    }
     const balance = req.userCredits ?? 0;
     if (balance < creditsToCharge) {
       res.status(402).json({
@@ -398,17 +417,22 @@ router.post(
     };
 
     async function failWithRefund(status: number, message: string): Promise<void> {
-      await refundCredits(req.userId!, creditsToCharge, {
+      const refunded = await refundCredits(req.userId!, creditsToCharge, {
         action: `${actionName} — Refund (generation failed)`,
-      }).catch((refundErr) =>
-        logger.error({ refundErr }, "podcast-dialogue: refund after failure failed"),
-      );
+      }).then(() => true).catch((refundErr) => {
+        logger.error({ refundErr }, "podcast-dialogue: refund after failure failed");
+        return false;
+      });
+      /* Void the charge's key only when the refund landed (CA-4). */
+      if (refunded) {
+        await voidChargeIdempotencyKey(dialogueKey).catch(() => {});
+      }
       res.status(status).json({ error: message });
     }
 
     let creditsRemaining = balance;
     try {
-      creditsRemaining = await chargeCredits(req.userId!, creditsToCharge, { action: actionName });
+      creditsRemaining = await chargeCredits(req.userId!, creditsToCharge, { action: actionName }, { idempotencyKey: dialogueKey });
     } catch (err) {
       await cleanup();
       if (err instanceof OutOfCreditsError) {
@@ -472,7 +496,7 @@ router.post(
       });
 
       await cleanup();
-      res.json({
+      const dialogueBody = {
         audioUrl,
         audioRef: `generated-clips/${fileName}`,
         audioPlayUrl,
@@ -487,7 +511,11 @@ router.post(
         untaggedLines,
         creditsUsed: creditsToCharge,
         creditsRemaining,
-      });
+      };
+      /* Store BEFORE answering (CA-4) — replay serves the original
+         episode body instead of rendering a twin. */
+      await storeGenerationResult("podcast-dialogue", dialogueKey, req.userId!, { ...dialogueBody });
+      res.json(dialogueBody);
     } catch (err) {
       logger.error({ err }, "podcast-dialogue: generation failed");
       await cleanup();
