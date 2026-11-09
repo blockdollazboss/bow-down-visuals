@@ -2,6 +2,7 @@ import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
+import { getCreditCost } from "@/lib/credit-costs";
 import { useAuth } from "@/contexts/AuthContext";
 import { CreateDeskRunner, type CreateDeskJobState } from "./CreateDeskRunner";
 import {
@@ -22,11 +23,19 @@ import {
   audioBenchJobIdOf,
   audioBenchOf,
   audioBenchResultStrings,
+  buildCaptionLines,
+  buildCloneVoicePayload,
+  buildFillerAnalyzePayload,
   buildHarmonyPayload,
   buildPodcastPayload,
   buildSingingVoicePayload,
+  buildSoundMatchPayload,
+  buildTranscribeUrlPayload,
+  buildTranslateCaptionsPayload,
   buildVocalPolishPayload,
   buildVoiceoverPayload,
+  cloneVoiceOfResponse,
+  fillerAnalysisOfResponse,
   HARMONY_MODES_ENDPOINT,
   harmonyDefaultMode,
   harmonyModeCost,
@@ -40,13 +49,24 @@ import {
   quickMasterFields,
   rateMyMixFields,
   RATE_MY_MIX_FILE_FIELD,
+  soundMatchesOfResponse,
   stemKeyOfResultLabel,
   stemsFields,
+  transcribeUrlCostForDuration,
+  transcribeUrlOfResponse,
+  translateCaptionsCost,
+  translateCaptionsOfResponse,
+  TRANSLATE_LANGUAGE_CODES,
   vocalTuneFields,
+  VOICE_CLONE_MIN_SAMPLE_SEC,
   type AudioBenchId,
   type AudioBenchResult,
+  type FillerCutResult,
   type HarmonyModesProbe,
+  type SoundMatchResult,
 } from "@/lib/world/audio-benches";
+import { probeMediaDurationSec } from "@/lib/credit-costs";
+import { uploadStemFile, readAudioDuration } from "@/lib/audio-stems";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import ArrangementStudio from "@/components/audio-studio/ArrangementStudio";
 import {
@@ -148,6 +168,26 @@ const BENCH_LABEL_KEYS: Record<AudioBenchId, string> = {
   voiceover: "worldAudioDesk.benchVoiceover",
   hum: "worldAudioDesk.benchHum",
   arrangement: "worldAudioDesk.benchArrangement",
+  "voice-clone": "worldAudioDesk.benchVoiceClone",
+  "sound-match": "worldAudioDesk.benchSoundMatch",
+  fillers: "worldAudioDesk.benchFillers",
+  "transcribe-url": "worldAudioDesk.benchTranscribeUrl",
+  "translate-captions": "worldAudioDesk.benchTranslate",
+};
+
+/** The desk's translate-bench language words (worldAudioDesk keys
+ *  per TRANSLATE_LANGUAGE_CODES code, in the same order). */
+const TRANSLATE_LANG_LABEL_KEYS: Record<string, string> = {
+  es: "worldAudioDesk.mediaLangEs",
+  fr: "worldAudioDesk.mediaLangFr",
+  de: "worldAudioDesk.mediaLangDe",
+  pt: "worldAudioDesk.mediaLangPt",
+  it: "worldAudioDesk.mediaLangIt",
+  ja: "worldAudioDesk.mediaLangJa",
+  ko: "worldAudioDesk.mediaLangKo",
+  ar: "worldAudioDesk.mediaLangAr",
+  hi: "worldAudioDesk.mediaLangHi",
+  zh: "worldAudioDesk.mediaLangZh",
 };
 
 /** The A/B After-tab words per comparable bench — the catalog
@@ -182,6 +222,10 @@ export function AudioDesk(props: CreateDeskProps) {
   const { isLight } = props;
   const { t, i18n } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
+  /* Stack-400 B-02: the quick bench's five tools ride the SAME
+     confirmed-spend seam as their 2D twins — the credit
+     confirmation shows BEFORE the charge, every time. */
+  const { confirmedFetch } = useConfirmedApi();
   const authHeaders = useDeskAuthHeaders();
   const [tool, setTool] = useState<BenchTool>("cleanup");
   const [prompt, setPrompt] = useState("");
@@ -361,7 +405,11 @@ export function AudioDesk(props: CreateDeskProps) {
         form.append("mode", tool === "cleanup" ? cleanupMode : deverbMode);
         if (tool === "cleanup" && sourceSongId) form.append("sourceSongId", sourceSongId);
         const path = tool === "cleanup" ? "/api/audio-cleanup" : "/api/deverb";
-        const res = await fetch(path, { method: "POST", headers: await authHeaders(), body: form });
+        const res = await confirmedFetch(path, { method: "POST", body: form });
+        if (!res) {
+          setState("idle"); // the member cancelled the credit confirmation
+          return;
+        }
         const data = (await res.json().catch(() => ({}))) as { jobId?: string; error?: string; message?: string };
         if (res.status === 402 && data.error === "pricing_pending") {
           throw new Error(apiErrorMessage(data, t("worldAudioDesk.gateDeverbPricing")));
@@ -375,11 +423,14 @@ export function AudioDesk(props: CreateDeskProps) {
         form.append("demo", file!);
         form.append("notes", notes.trim());
         if (sourceSongId) form.append("sourceSongId", sourceSongId);
-        const res = await fetch("/api/finish-my-song/complete", {
+        const res = await confirmedFetch("/api/finish-my-song/complete", {
           method: "POST",
-          headers: await authHeaders(),
           body: form,
         });
+        if (!res) {
+          setState("idle"); // the member cancelled the credit confirmation
+          return;
+        }
         const data = (await res.json().catch(() => ({}))) as { songUrl?: string; error?: string; message?: string };
         if (!res.ok || !data.songUrl) throw new Error(apiErrorMessage(data, t("worldAudioDesk.finishFailed")));
         setResultUrl(data.songUrl);
@@ -390,9 +441,9 @@ export function AudioDesk(props: CreateDeskProps) {
         return;
       }
       const isBeat = tool === "beat";
-      const res = await fetch(isBeat ? "/api/beat/generate" : "/api/generate-sfx", {
+      const res = await confirmedFetch(isBeat ? "/api/beat/generate" : "/api/generate-sfx", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           isBeat
             ? buildBeatPayload(prompt, {
@@ -405,6 +456,10 @@ export function AudioDesk(props: CreateDeskProps) {
             : buildSfxPayload(prompt, { category: sfxCategory }),
         ),
       });
+      if (!res) {
+        setState("idle"); // the member cancelled the credit confirmation
+        return;
+      }
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
       if (!res.ok || !data.url) throw new Error(apiErrorMessage(data, t("worldAudioDesk.generationFailed")));
       setResultUrl(data.url);
@@ -759,7 +814,7 @@ function AudioFullBench(props: {
 }) {
   const { isLight } = props;
   const { t, i18n } = useTranslation();
-  const { getAccessToken, refreshProfile } = useAuth();
+  const { getAccessToken, refreshProfile, user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
@@ -818,6 +873,19 @@ function AudioFullBench(props: {
   const [keepInstrumental, setKeepInstrumental] = useState(true);
   const [humRef, setHumRef] = useState<string | null>(null);
   const [humNote, setHumNote] = useState<string | null>(null);
+  /* Stack-400 B-07/B-21: the voice-clone + media-utility fields. */
+  const [cloneName, setCloneName] = useState("");
+  const [cloneFile, setCloneFile] = useState<File | null>(null);
+  const [cloneConsent, setCloneConsent] = useState(false);
+  const [cloneNote, setCloneNote] = useState<string | null>(null);
+  const [soundIdea, setSoundIdea] = useState("");
+  const [soundMatches, setSoundMatches] = useState<SoundMatchResult[] | null>(null);
+  const [mediaUrlInput, setMediaUrlInput] = useState("");
+  const [fillerCuts, setFillerCuts] = useState<FillerCutResult[] | null>(null);
+  const [transcriptText, setTranscriptText] = useState<string | null>(null);
+  const [captionText, setCaptionText] = useState("");
+  const [captionLangs, setCaptionLangs] = useState<string[]>(["es"]);
+  const [translations, setTranslations] = useState<Record<string, Array<{ start: number; end: number; text: string }>> | null>(null);
 
   const def = audioBenchOf(benchId);
   const sourceUrl = audioUrlInput.trim() || props.sourceSong?.audioUrl || "";
@@ -911,6 +979,10 @@ function AudioFullBench(props: {
         const read = interpretAudioBenchResponse(benchId, data, audioBenchResultStrings(t));
         if (read.done) {
           stopPolling();
+          /* Stack-400 B-21: the fillers job's cut list rides its
+             own state so the desk can say how many spots were found
+             (the interpreter only carries the cut lines as text). */
+          if (benchId === "fillers" && !read.failed) setFillerCuts(fillerAnalysisOfResponse(data).cuts);
           finishWith(read);
         }
       } catch {
@@ -926,6 +998,7 @@ function AudioFullBench(props: {
     setResult(null);
     setResultSource(null);
     if (benchId === "stems") setStemsJobId(null);
+    if (benchId === "fillers") setFillerCuts(null);
     runSourceRef.current = def.input === "url" ? sourceUrl || null : def.input === "file" ? props.file : null;
     void quest.snapshot();
     try {
@@ -948,7 +1021,11 @@ function AudioFullBench(props: {
         }
         const form = new FormData();
         for (const [k, v] of humGenerateFields({ humRef: ref, mode: "simple" })) form.append(k, v);
-        const res = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
+        const res = await confirmedFetch(def.endpoint, { method: "POST", body: form });
+        if (!res) {
+          setBusy(false); // the member cancelled the credit confirmation
+          return;
+        }
         const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
         if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.humSongFailed")));
         const url = humSongUrlOfResponse(data);
@@ -956,19 +1033,150 @@ function AudioFullBench(props: {
         finishWith({ done: true, failed: false, urls: [{ label: t("worldAudioDesk.humResultTitle"), url }], text: null, error: null });
         return;
       }
+      /* ── Stack-400 B-07 — voice clone: the sample rides the
+         lane's upload rail first (free), the clone itself through
+         confirmedFetch at the registry's 500, exactly the page. */
+      if (benchId === "voice-clone") {
+        const name = cloneName.trim();
+        if (!name) throw new Error(t("worldAudioDesk.voiceCloneNameFirst"));
+        if (!props.file && !cloneFile) throw new Error(t("worldAudioDesk.fileBenchNeedsFile"));
+        if (!cloneConsent) throw new Error(t("worldAudioDesk.voiceCloneConsentFirst"));
+        if (!user) throw new Error(t("worldAudioDesk.benchDidntStart"));
+        const sample = cloneFile ?? props.file!;
+        const durationSec = await readAudioDuration(sample).catch(() => undefined);
+        if (durationSec !== undefined && durationSec < VOICE_CLONE_MIN_SAMPLE_SEC) {
+          throw new Error(t("worldAudioDesk.voiceCloneSampleTooShort"));
+        }
+        let sampleUrl: string;
+        try {
+          sampleUrl = (await uploadStemFile(user.id, sample)).url;
+        } catch {
+          throw new Error(t("worldAudioDesk.voiceCloneUploadFailed"));
+        }
+        const res = await confirmedFetch(def.endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildCloneVoicePayload({ name, sampleUrl })),
+        });
+        if (!res) {
+          setBusy(false); // the member cancelled the credit confirmation
+          return;
+        }
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.voiceCloneDidntLand")));
+        const got = cloneVoiceOfResponse(data);
+        if (!got.libraryVoiceId && got.source !== "elevenlabs") {
+          throw new Error(t("worldAudioDesk.voiceCloneSavedOnly", { name }));
+        }
+        setVoices([]);
+        if (got.libraryVoiceId) setVoiceId(got.libraryVoiceId);
+        setCloneNote(t("worldAudioDesk.voiceCloneCloned", { name: got.name ?? name }));
+        finishWith({ done: true, failed: false, urls: [], text: null, error: null });
+        return;
+      }
+      /* ── Stack-400 B-21 — the media utilities ── */
+      if (benchId === "sound-match") {
+        if (!soundIdea.trim()) throw new Error(t("worldAudioDesk.soundIdeaFirst"));
+        const res = await confirmedFetch(def.endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildSoundMatchPayload({ videoIdea: soundIdea, niche: "", platform: "tiktok" })),
+        });
+        if (!res) {
+          setBusy(false); // the member cancelled the credit confirmation
+          return;
+        }
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.benchDidntStart")));
+        const matches = soundMatchesOfResponse(data);
+        if (matches.length === 0) throw new Error(t("worldAudioDesk.soundMatchEmpty"));
+        setSoundMatches(matches);
+        finishWith({ done: true, failed: false, urls: [], text: typeof data["disclaimer"] === "string" ? (data["disclaimer"] as string) : null, error: null });
+        return;
+      }
+      if (benchId === "fillers") {
+        if (!mediaUrlInput.trim()) throw new Error(t("worldAudioDesk.fillersMediaFirst"));
+        const res = await confirmedFetch(def.endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildFillerAnalyzePayload({ mediaUrl: mediaUrlInput })),
+        });
+        if (!res) {
+          setBusy(false); // the member cancelled the credit confirmation
+          return;
+        }
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.benchDidntStart")));
+        const jobId = audioBenchJobIdOf(data);
+        if (!jobId) throw new Error(t("worldAudioDesk.benchDidntStart"));
+        startPoll(jobId);
+        return;
+      }
+      if (benchId === "transcribe-url") {
+        if (!mediaUrlInput.trim()) throw new Error(t("worldAudioDesk.transcribeUrlFirst"));
+        /* The page's length pricing: probe the link's real
+           duration so the confirmation quotes the tier the server
+           will charge — never the flat base for a long file. */
+        const durationSec = await probeMediaDurationSec(mediaUrlInput.trim()).catch(() => null);
+        const res = await confirmedFetch(def.endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildTranscribeUrlPayload({ audioUrl: mediaUrlInput })),
+          overrideCost: transcribeUrlCostForDuration(durationSec),
+          overrideFeature: "Transcribe",
+        });
+        if (!res) {
+          setBusy(false); // the member cancelled the credit confirmation
+          return;
+        }
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.benchDidntStart")));
+        const read = transcribeUrlOfResponse(data);
+        if (!read.transcript) throw new Error(t("worldAudioDesk.transcribeEmpty"));
+        setTranscriptText(read.transcript);
+        finishWith({ done: true, failed: false, urls: [], text: read.transcript, error: null });
+        return;
+      }
+      if (benchId === "translate-captions") {
+        const lines = buildCaptionLines(captionText);
+        if (lines.length === 0) throw new Error(t("worldAudioDesk.translateTextFirst"));
+        if (captionLangs.length === 0) throw new Error(t("worldAudioDesk.translateLangsFirst"));
+        const res = await confirmedFetch(def.endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildTranslateCaptionsPayload({ captions: lines, targetLanguages: captionLangs })),
+          overrideCost: translateCaptionsCost(captionLangs.length),
+          overrideFeature: getCreditCost("/api/translate-captions")!.feature,
+        });
+        if (!res) {
+          setBusy(false); // the member cancelled the credit confirmation
+          return;
+        }
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
+        if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.benchDidntStart")));
+        const got = translateCaptionsOfResponse(data);
+        if (Object.keys(got).length === 0) throw new Error(t("worldAudioDesk.benchNoResult"));
+        setTranslations(got);
+        finishWith({ done: true, failed: false, urls: [], text: null, error: null });
+        return;
+      }
       /* ── text benches ── */
       if (def.input === "text") {
         if (!script.trim()) throw new Error(t("worldAudioDesk.scriptFirst"));
         const isPodcast = benchId === "podcast";
-        const res = await fetch(def.endpoint, {
+        const res = await confirmedFetch(def.endpoint, {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
             isPodcast
               ? buildPodcastPayload({ mode: podMode, script, topic: script, title: podTitle || "My podcast", format: "mp3", musicBed: false })
               : buildVoiceoverPayload({ script, voiceId, emotion, format: voFormat, speed: 1 }),
           ),
         });
+        if (!res) {
+          setBusy(false); // the member cancelled the credit confirmation
+          return;
+        }
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
         if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.generationFailed")));
         const read = interpretAudioBenchResponse(benchId, data, audioBenchResultStrings(t));
@@ -1019,11 +1227,15 @@ function AudioFullBench(props: {
           benchId === "vocal-polish"
             ? buildVocalPolishPayload({ audioUrl: sourceUrl, correctionStrength: strength, keyShift, tempoPercent })
             : buildSingingVoicePayload({ voiceId: singVoiceId, sourceAudioUrl: sourceUrl, strength, keepInstrumental });
-        const res = await fetch(def.endpoint, {
+        const res = await confirmedFetch(def.endpoint, {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
+        if (!res) {
+          setBusy(false); // the member cancelled the credit confirmation
+          return;
+        }
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
         if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.benchDidntStart")));
         const jobId = audioBenchJobIdOf(data);
@@ -1037,7 +1249,11 @@ function AudioFullBench(props: {
         const form = new FormData();
         for (const f of stemFiles) form.append(MIX_STEMS_FIELD, f);
         for (const [k, v] of mixFields({ genre, intensity, loudness, vocalLevelDb: vocalDb })) form.append(k, v);
-        const res = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
+        const res = await confirmedFetch(def.endpoint, { method: "POST", body: form });
+        if (!res) {
+          setBusy(false); // the member cancelled the credit confirmation
+          return;
+        }
         const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
         if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.mixDidntStart")));
         const jobId = audioBenchJobIdOf(data);
@@ -1058,7 +1274,11 @@ function AudioFullBench(props: {
         if (benchId === "vocal-tune") for (const [k, v] of vocalTuneFields({ style: tuneStyle, keyShift })) form.append(k, v);
         if (benchId === "lufs-normalize") for (const [k, v] of lufsNormalizeFields({ targetLufs, format: lufsFormat })) form.append(k, v);
       }
-      const res = await fetch(def.endpoint, { method: "POST", headers: await authHeaders(), body: form });
+      const res = await confirmedFetch(def.endpoint, { method: "POST", body: form });
+      if (!res) {
+        setBusy(false); // the member cancelled the credit confirmation
+        return;
+      }
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown> & { error?: string; message?: string };
       if (!res.ok) throw new Error(apiErrorMessage(data, t("worldAudioDesk.benchDidntStart")));
       if (!def.pollPath) {
@@ -1079,7 +1299,12 @@ function AudioFullBench(props: {
     }
   };
 
-  const cost = benchId === "harmony" ? harmonyModeCost(harmonyProbe, harmonyMode) : def.cost(benchId === "voiceover" ? script : undefined);
+  const cost =
+    benchId === "harmony"
+      ? harmonyModeCost(harmonyProbe, harmonyMode)
+      : benchId === "translate-captions"
+        ? translateCaptionsCost(captionLangs.length)
+        : def.cost(benchId === "voiceover" ? script : undefined);
 
   /* STACK-20 R2 #9: the result's honest A/B — the one output
      that is a treated version of the captured source, when the
@@ -1140,6 +1365,103 @@ function AudioFullBench(props: {
       {def.input === "url" ? (
         <DeskTextField isLight={isLight} label={t("worldAudioDesk.audioUrlLabel")} value={audioUrlInput} onChange={setAudioUrlInput} placeholder={props.sourceSong ? props.sourceSong.title : "https://…"} />
       ) : null}
+      {benchId === "voice-clone" ? (
+        <div className="space-y-3" data-testid="world-audio-voice-clone">
+          <DeskTextField isLight={isLight} label={t("worldAudioDesk.voiceCloneNameLabel")} value={cloneName} onChange={setCloneName} />
+          <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold bdv-touch-target ${isLight ? "border-[#7A5A12]/30 text-[#6B5B36]" : "border-white/15 text-white/75"}`}>
+            {cloneFile ? t("worldAudioDesk.fileChosen", { name: cloneFile.name }) : t("worldAudioDesk.uploadSongOrFile")}
+            <input
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              data-testid="world-audio-voice-clone-file"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) setCloneFile(f);
+              }}
+            />
+          </label>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">
+            <input type="checkbox" checked={cloneConsent} onChange={(e) => setCloneConsent(e.target.checked)} data-testid="world-audio-voice-clone-consent" />
+            {t("worldAudioDesk.voiceCloneConsent")}
+          </label>
+          {cloneNote ? <p className={`text-xs font-semibold ${muted}`}>{cloneNote}</p> : null}
+        </div>
+      ) : null}
+      {benchId === "sound-match" ? (
+        <div className="space-y-2" data-testid="world-audio-sound-match">
+          <DeskTextField isLight={isLight} label={t("worldAudioDesk.soundIdeaLabel")} value={soundIdea} onChange={setSoundIdea} placeholder={t("worldAudioDesk.soundIdeaPlaceholder")} />
+          {soundMatches ? (
+            <div className="space-y-2">
+              {soundMatches.map((m, i) => (
+                <div key={i} className={`rounded-xl border p-3 text-xs ${isLight ? "border-[#C9A84C]/40 bg-white/50" : "border-white/10 bg-white/5"}`}>
+                  <p className="text-sm font-bold">{m.soundType}</p>
+                  {m.why ? <p className={muted}>{t("worldAudioDesk.soundMatchWhy", { why: m.why })}</p> : null}
+                  {m.searchTerms.length > 0 ? <p>{t("worldAudioDesk.soundMatchTry", { terms: m.searchTerms.join(", ") })}</p> : null}
+                  {m.timingTip ? <p className={muted}>{t("worldAudioDesk.soundMatchTip", { tip: m.timingTip })}</p> : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {def.input === "media-url" ? (
+        <div className="space-y-2" data-testid="world-audio-media-url">
+          <DeskTextField
+            isLight={isLight}
+            label={benchId === "fillers" ? t("worldAudioDesk.fillersMediaLabel") : t("worldAudioDesk.transcribeUrlLabel")}
+            value={mediaUrlInput}
+            onChange={setMediaUrlInput}
+            placeholder="https://…"
+          />
+          {benchId === "fillers" && busy ? <p className={`text-xs font-semibold ${muted}`}>{t("worldAudioDesk.fillersWorking")}</p> : null}
+          {benchId === "fillers" && fillerCuts ? (
+            <p className={`text-xs font-semibold ${muted}`}>
+              {fillerCuts.length === 0 ? t("worldAudioDesk.fillersNoCuts") : t("worldAudioDesk.fillersCutsFound", { count: fillerCuts.length })}
+            </p>
+          ) : null}
+          {benchId === "transcribe-url" && busy ? <p className={`text-xs font-semibold ${muted}`}>{t("worldAudioDesk.transcribeWorking")}</p> : null}
+        </div>
+      ) : null}
+      {def.input === "captions" ? (
+        <div className="space-y-3" data-testid="world-audio-translate-captions">
+          <label className="block">
+            <span className={`mb-1 block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldAudioDesk.translateTextLabel")}</span>
+            <textarea value={captionText} onChange={(e) => setCaptionText(e.target.value)} rows={4} className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#d4af37] bdv-touch-target ${isLight ? "border-[#C9A84C]/40 bg-white/60 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white"}`} />
+          </label>
+          <span className={`block text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>{t("worldAudioDesk.translateLanguagesLabel")}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {TRANSLATE_LANGUAGE_CODES.map((code) => (
+              <button
+                key={code}
+                type="button"
+                data-testid={`world-audio-translate-lang-${code}`}
+                aria-pressed={captionLangs.includes(code)}
+                onClick={() => setCaptionLangs((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]))}
+                className={`rounded-full border px-3 py-1.5 text-xs font-bold transition bdv-touch-target ${
+                  captionLangs.includes(code)
+                    ? "border-[#d4af37] bg-[#d4af37] text-black"
+                    : isLight
+                      ? "border-[#7A5A12]/30 text-[#6B5B36] hover:text-[#2a1e07]"
+                      : "border-white/15 text-white/75 hover:text-white"
+                }`}
+              >
+                {t(TRANSLATE_LANG_LABEL_KEYS[code] ?? code)}
+              </button>
+            ))}
+          </div>
+          {translations ? (
+            <div className="space-y-2">
+              {Object.entries(translations).map(([code, lines]) => (
+                <pre key={code} className={`max-h-[160px] overflow-y-auto whitespace-pre-wrap rounded-xl border p-3 text-xs leading-relaxed ${isLight ? "border-[#C9A84C]/40 bg-white/50 text-[#2a1e07]" : "border-white/10 bg-white/5 text-white/80"}`}>
+                  {lines.map((l) => l.text).join("\n")}
+                </pre>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {def.input === "text" ? (
         <div className="space-y-3">
           {benchId === "podcast" ? (

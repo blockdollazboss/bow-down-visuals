@@ -19,9 +19,18 @@
  *   - the arrangement bench rides the hub's draft rail
  *     (POST /api/drafts, workflow "audio-arrangement") — editing
  *     there is FREE on the hub, and it is free here.
+ * Stack-400 (B-07 + B-21) adds the five benches the desk had no
+ * in-world form for — voice clone (registry /api/clone-voice 500)
+ * and the four loose media utilities (sound-finder match 100,
+ * remove-fillers analyze 200, transcribe-url 100, translate
+ * captions 50 per language) — each riding its page's own endpoint,
+ * form shape and registry price, and every one running through
+ * confirmedFetch: the desk never charges without the SAME credit
+ * confirmation its 2D twin shows (World law; Stack-400 B-01/B-02
+ * ride the same seam in AudioDesk).
  * Naming law applies: no provider names in any user-facing string.
  */
-import { getCreditCost } from "../credit-costs";
+import { getCreditCost, transcribeCostForDurationSec } from "../credit-costs";
 import { estimateVoiceoverCost } from "../voiceover";
 
 function registryCost(endpoint: string): number {
@@ -48,14 +57,23 @@ export type AudioBenchId =
   | "podcast"
   | "voiceover"
   | "hum"
-  | "arrangement";
+  | "arrangement"
+  | "voice-clone"
+  | "sound-match"
+  | "fillers"
+  | "transcribe-url"
+  | "translate-captions";
 
 /** How a bench takes its source: an uploaded/library audio FILE
  *  (multipart), several stem FILES (mix), a hosted audio URL (the
  *  vocal benches work on library songs' URLs, as their modals do),
  *  typed TEXT (podcast / voiceover scripts), a hum FILE (two-step),
- *  or the arrangement DRAFT rail. */
-type AudioBenchInput = "file" | "stem-files" | "url" | "text" | "hum" | "draft";
+ *  or the arrangement DRAFT rail. Stack-400 (B-07/B-21) adds:
+ *  a voice sample that rides the sample-upload rail (voice clone),
+ *  a URL-input bench (the media utilities' media/audio URL — the
+ *  fillers + transcribe benches), and a caption-text bench
+ *  (translate captions). */
+type AudioBenchInput = "file" | "stem-files" | "url" | "text" | "hum" | "draft" | "clone" | "media-url" | "captions";
 
 interface AudioBenchDef {
   id: AudioBenchId;
@@ -203,7 +221,256 @@ export const AUDIO_BENCHES: readonly AudioBenchDef[] = [
     pollPath: null,
     cost: () => 0,
   },
+  {
+    id: "voice-clone",
+    label: "Voice clone — new voice",
+    input: "clone",
+    endpoint: "/api/clone-voice",
+    pollPath: null,
+    cost: () => registryCost("/api/clone-voice"),
+  },
+  {
+    id: "sound-match",
+    label: "Sound finder — match",
+    input: "text",
+    endpoint: "/api/sound-finder/match",
+    pollPath: null,
+    cost: () => registryCost("/api/sound-finder/match"),
+  },
+  {
+    id: "fillers",
+    label: "Filler words — find & cut",
+    input: "media-url",
+    endpoint: "/api/remove-fillers/analyze",
+    pollPath: (jobId) => `/api/remove-fillers/analyze/${jobId}`,
+    cost: () => registryCost("/api/remove-fillers/analyze"),
+  },
+  {
+    id: "transcribe-url",
+    label: "Transcribe — from a link",
+    input: "media-url",
+    endpoint: "/api/transcribe-url",
+    pollPath: null,
+    cost: () => registryCost("/api/transcribe-url"),
+  },
+  {
+    id: "translate-captions",
+    label: "Translate captions",
+    input: "captions",
+    endpoint: "/api/translate-captions",
+    pollPath: null,
+    cost: () => registryCost("/api/translate-captions"),
+  },
 ];
+
+/* ─── Stack-400 B-07 — Voice clone: the form + response shapes ────
+   GenerateAudio's clone flow, mirrored: the member names the
+   voice, picks a voice recording, consents that the voice is
+   theirs (or permitted), and the sample rides the lane's upload
+   path (uploadStemFile → R2 public URL) because /api/clone-voice
+   takes a sampleUrl it downloads server-side. The 10-second
+   minimum is pre-checked from the file's own duration so a
+   too-short sample never reaches the paid call — the route
+   re-validates and refunds. */
+
+export const VOICE_CLONE_MIN_SAMPLE_SEC = 10;
+
+export function buildCloneVoicePayload(input: { name: string; sampleUrl: string }): Record<string, unknown> {
+  return { name: input.name.trim(), sampleUrl: input.sampleUrl };
+}
+
+/** The clone outcome in the route's own words: a real library
+ *  voice (its library id + the source label the route reports)
+ *  or an honest nothing. */
+export function cloneVoiceOfResponse(data: Record<string, unknown>): { name: string | null; libraryVoiceId: string | null; source: string | null } {
+  const voice = (data["voice"] ?? null) as Record<string, unknown> | null;
+  if (!voice || typeof voice !== "object") return { name: null, libraryVoiceId: null, source: null };
+  return {
+    name: typeof voice["name"] === "string" && voice["name"] ? (voice["name"] as string) : null,
+    libraryVoiceId: typeof voice["libraryVoiceId"] === "string" && voice["libraryVoiceId"] ? (voice["libraryVoiceId"] as string) : null,
+    source: typeof voice["source"] === "string" && voice["source"] ? (voice["source"] as string) : null,
+  };
+}
+
+/* ─── Stack-400 B-21 — the four media utilities' form shapes ──────
+   Each payload mirrors its own page's POST body field for field:
+   the Sound Finder's match (ViralSoundFinder's runMatch), the
+   Filler Remover's analyze (FillerRemoverCard's startAnalyze —
+   the desk passes no custom words and the analyze defaults, the
+   page's own starting state), the Song Workflow's transcribe-url
+   (length-priced by the file's real duration — the desk probes
+   the URL the same way the page does), and the Caption Suite's
+   translate (captions + target languages, priced per language). */
+
+export function buildSoundMatchPayload(input: { videoIdea: string; niche: string; platform: string }): Record<string, unknown> {
+  return {
+    videoIdea: input.videoIdea.trim(),
+    niche: input.niche,
+    platform: input.platform,
+  };
+}
+
+export interface SoundMatchResult {
+  soundType: string;
+  why: string;
+  searchTerms: string[];
+  timingTip: string;
+}
+
+/** The match response's rows, in the page's own row shape. An
+ *  empty or malformed answer reads as no matches — the desk says
+ *  so honestly instead of blanking. */
+export function soundMatchesOfResponse(data: Record<string, unknown>): SoundMatchResult[] {
+  if (!Array.isArray(data["matches"])) return [];
+  const out: SoundMatchResult[] = [];
+  for (const raw of data["matches"]) {
+    if (!raw || typeof raw !== "object") continue;
+    const m = raw as Record<string, unknown>;
+    out.push({
+      soundType: typeof m["soundType"] === "string" ? (m["soundType"] as string) : "",
+      why: typeof m["why"] === "string" ? (m["why"] as string) : "",
+      searchTerms: Array.isArray(m["searchTerms"]) ? (m["searchTerms"] as unknown[]).filter((x): x is string => typeof x === "string") : [],
+      timingTip: typeof m["timingTip"] === "string" ? (m["timingTip"] as string) : "",
+    });
+  }
+  return out;
+}
+
+export function buildFillerAnalyzePayload(input: { mediaUrl: string }): Record<string, unknown> {
+  return {
+    mediaUrl: input.mediaUrl.trim(),
+    fillerWords: [],
+    removeSilences: true,
+    minSilenceDuration: 0.5,
+  };
+}
+
+export interface FillerCutResult {
+  id: string;
+  start: number;
+  end: number;
+  kind: "filler" | "silence";
+  label: string;
+}
+
+/** One analyze poll answer in the card's own shapes: the job's
+ *  status, its cuts (the page's FillerCut shape), and the time
+ *  the cuts would save. */
+export function fillerAnalysisOfResponse(data: Record<string, unknown>): {
+  status: string | null;
+  cuts: FillerCutResult[];
+  durationSec: number | null;
+  timeSavedSec: number;
+} {
+  const cuts: FillerCutResult[] = [];
+  if (Array.isArray(data["cuts"])) {
+    for (const raw of data["cuts"]) {
+      if (!raw || typeof raw !== "object") continue;
+      const c = raw as Record<string, unknown>;
+      cuts.push({
+        id: typeof c["id"] === "string" ? (c["id"] as string) : "",
+        start: typeof c["start"] === "number" ? (c["start"] as number) : 0,
+        end: typeof c["end"] === "number" ? (c["end"] as number) : 0,
+        kind: c["kind"] === "silence" ? "silence" : "filler",
+        label: typeof c["label"] === "string" ? (c["label"] as string) : "",
+      });
+    }
+  }
+  return {
+    status: typeof data["status"] === "string" ? (data["status"] as string) : null,
+    cuts,
+    durationSec: typeof data["durationSec"] === "number" ? (data["durationSec"] as number) : null,
+    timeSavedSec: typeof data["timeSavedSec"] === "number" ? (data["timeSavedSec"] as number) : 0,
+  };
+}
+
+export function buildTranscribeUrlPayload(input: { audioUrl: string }): Record<string, unknown> {
+  return { audioUrl: input.audioUrl.trim() };
+}
+
+export interface TranscribeUrlSegment {
+  id: number;
+  start: number;
+  end: number;
+  text: string;
+}
+
+/** The transcribe-url answer in SongWorkflow's own shapes: the
+ *  transcript text + its timed segments. */
+export function transcribeUrlOfResponse(data: Record<string, unknown>): { transcript: string | null; segments: TranscribeUrlSegment[] } {
+  const segments: TranscribeUrlSegment[] = [];
+  if (Array.isArray(data["segments"])) {
+    for (const raw of data["segments"]) {
+      if (!raw || typeof raw !== "object") continue;
+      const s = raw as Record<string, unknown>;
+      segments.push({
+        id: typeof s["id"] === "number" ? (s["id"] as number) : 0,
+        start: typeof s["start"] === "number" ? (s["start"] as number) : 0,
+        end: typeof s["end"] === "number" ? (s["end"] as number) : 0,
+        text: typeof s["text"] === "string" ? (s["text"] as string) : "",
+      });
+    }
+  }
+  return {
+    transcript: typeof data["transcript"] === "string" && data["transcript"] ? (data["transcript"] as string) : null,
+    segments,
+  };
+}
+
+/** The transcribe confirm price for a probed duration — the
+ *  registry's own length-pricing curve (100 up to 5 minutes,
+ *  +20 per minute after), exactly the page's override. */
+export function transcribeUrlCostForDuration(durationSec: number | null): number {
+  return transcribeCostForDurationSec(durationSec);
+}
+
+/** One caption line from the desk's textarea: evenly timed lines
+ *  (10 seconds each, the caption-suite shape), built the way the
+ *  suite builds its translate body. */
+export function buildCaptionLines(text: string): Array<{ start: number; end: number; text: string }> {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .map((l, i) => ({ start: i * 10, end: (i + 1) * 10, text: l }));
+}
+
+export function buildTranslateCaptionsPayload(input: {
+  captions: Array<{ start: number; end: number; text: string }>;
+  targetLanguages: string[];
+}): Record<string, unknown> {
+  return { captions: input.captions, targetLanguages: input.targetLanguages };
+}
+
+/** The translate answer: each language's translated lines. */
+export function translateCaptionsOfResponse(data: Record<string, unknown>): Record<string, Array<{ start: number; end: number; text: string }>> {
+  const out: Record<string, Array<{ start: number; end: number; text: string }>> = {};
+  const translations = data["translations"];
+  if (!translations || typeof translations !== "object") return out;
+  for (const [code, lines] of Object.entries(translations as Record<string, unknown>)) {
+    if (!Array.isArray(lines)) continue;
+    out[code] = lines
+      .filter((l): l is Record<string, unknown> => !!l && typeof l === "object")
+      .map((l) => ({
+        start: typeof l["start"] === "number" ? (l["start"] as number) : 0,
+        end: typeof l["end"] === "number" ? (l["end"] as number) : 0,
+        text: typeof l["text"] === "string" ? (l["text"] as string) : "",
+      }));
+  }
+  return out;
+}
+
+/** The translate confirm price: the registry's per-language
+ *  price × the chosen languages, exactly the suite's override. */
+export function translateCaptionsCost(languageCount: number): number {
+  return registryCost("/api/translate-captions") * Math.max(0, languageCount);
+}
+
+/** The caption languages the desk offers — the ten most-used of
+ *  the suite's own ladder (its full 15-language list stays on
+ *  the 2D page; the bench offers the same rail at the same
+ *  per-language price). */
+export const TRANSLATE_LANGUAGE_CODES: readonly string[] = ["es", "fr", "de", "pt", "it", "ja", "ko", "ar", "hi", "zh"];
 
 export function audioBenchOf(id: AudioBenchId): AudioBenchDef {
   const def = AUDIO_BENCHES.find((b) => b.id === id);
@@ -628,6 +895,22 @@ export function interpretAudioBenchResponse(
   data: Record<string, unknown>,
   strings: AudioBenchResultStrings = AUDIO_BENCH_RESULT_STRINGS_EN,
 ): AudioBenchResult {
+  /* Stack-400 B-21: the fillers analyze job speaks the card's own
+     poll shape — queued/processing reads not-done; a done job
+     carries its cut list as text (an honest empty line when the
+     clip had nothing to cut); failed reads as its failure. */
+  if (benchId === "fillers") {
+    const read = fillerAnalysisOfResponse(data);
+    if (read.status === "failed") {
+      return failed(
+        typeof data["error"] === "string" ? (data["error"] as string) : typeof data["message"] === "string" ? (data["message"] as string) : null,
+        strings,
+      );
+    }
+    if (read.status !== "done") return EMPTY;
+    const lines = read.cuts.map((c) => `${c.label || c.kind} — ${c.start.toFixed(1)}s → ${c.end.toFixed(1)}s`);
+    return { done: true, failed: false, urls: [], text: lines.join("\n"), error: null };
+  }
   const status = typeof data["status"] === "string" ? (data["status"] as string) : null;
   if (status === "failed") {
     return failed(

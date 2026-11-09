@@ -13,11 +13,19 @@ import {
   AUDIO_BENCHES,
   audioBenchOf,
   audioBenchJobIdOf,
+  buildCaptionLines,
+  buildCloneVoicePayload,
+  buildFillerAnalyzePayload,
   buildHarmonyPayload,
   buildPodcastPayload,
   buildSingingVoicePayload,
+  buildSoundMatchPayload,
+  buildTranscribeUrlPayload,
+  buildTranslateCaptionsPayload,
   buildVocalPolishPayload,
   buildVoiceoverPayload,
+  cloneVoiceOfResponse,
+  fillerAnalysisOfResponse,
   interpretAudioBenchResponse,
   lufsNormalizeFields,
   masterFields,
@@ -26,8 +34,15 @@ import {
   quickMasterFields,
   rateMyMixFields,
   RATE_MY_MIX_COST_VB,
+  soundMatchesOfResponse,
   stemsFields,
+  transcribeUrlCostForDuration,
+  transcribeUrlOfResponse,
+  TRANSLATE_LANGUAGE_CODES,
+  translateCaptionsCost,
+  translateCaptionsOfResponse,
   vocalTuneFields,
+  VOICE_CLONE_MIN_SAMPLE_SEC,
 } from "./audio-benches";
 import { getCreditCost } from "../credit-costs";
 import { estimateVoiceoverCost } from "../voiceover";
@@ -69,10 +84,102 @@ describe("audio bench prices — from each bench's own source (pin a)", () => {
 
   it("every hub bench from the brief is present exactly once", () => {
     expect(AUDIO_BENCHES.map((b) => b.id).sort()).toEqual([
-      "arrangement", "harmony", "hum", "lufs-analyze", "lufs-normalize", "master", "mix", "podcast",
-      "quick-master", "rate-my-mix", "singing-voice", "stems", "vocal-polish", "vocal-removal",
-      "vocal-tune", "voiceover",
+      "arrangement", "fillers", "harmony", "hum", "lufs-analyze", "lufs-normalize", "master", "mix", "podcast",
+      "quick-master", "rate-my-mix", "singing-voice", "sound-match", "stems", "transcribe-url",
+      "translate-captions", "vocal-polish", "vocal-removal", "vocal-tune", "voice-clone", "voiceover",
     ]);
+  });
+});
+
+describe("Stack-400 B-07/B-21 — the new benches' prices + shapes", () => {
+  it("every new bench's displayed price equals the credit-cost registry for its endpoint", () => {
+    const byEndpoint: Record<string, string> = {
+      "voice-clone": "/api/clone-voice",
+      "sound-match": "/api/sound-finder/match",
+      fillers: "/api/remove-fillers/analyze",
+      "transcribe-url": "/api/transcribe-url",
+      "translate-captions": "/api/translate-captions",
+    };
+    for (const [id, endpoint] of Object.entries(byEndpoint)) {
+      expect(audioBenchOf(id as never).cost(), id).toBe(getCreditCost(endpoint)!.cost);
+    }
+    expect(audioBenchOf("voice-clone").cost()).toBe(500);
+    expect(audioBenchOf("sound-match").cost()).toBe(100);
+    expect(audioBenchOf("fillers").cost()).toBe(200);
+    expect(audioBenchOf("transcribe-url").cost()).toBe(100);
+    expect(audioBenchOf("translate-captions").cost()).toBe(50);
+  });
+
+  it("voice clone payload mirrors the page (name + sampleUrl); the sample minimum is the page's 10s", () => {
+    expect(buildCloneVoicePayload({ name: "  My Voice ", sampleUrl: "https://x/s.mp3" })).toEqual({ name: "My Voice", sampleUrl: "https://x/s.mp3" });
+    expect(VOICE_CLONE_MIN_SAMPLE_SEC).toBe(10);
+    const got = cloneVoiceOfResponse({ voice: { name: "bdv-u1-My Voice", libraryVoiceId: "v9", source: "elevenlabs" } });
+    expect(got).toEqual({ name: "bdv-u1-My Voice", libraryVoiceId: "v9", source: "elevenlabs" });
+    expect(cloneVoiceOfResponse({})).toEqual({ name: null, libraryVoiceId: null, source: null });
+  });
+
+  it("sound match payload + rows mirror ViralSoundFinder's shapes", () => {
+    expect(buildSoundMatchPayload({ videoIdea: "  gym PR ", niche: "", platform: "tiktok" })).toEqual({ videoIdea: "gym PR", niche: "", platform: "tiktok" });
+    const rows = soundMatchesOfResponse({ matches: [{ soundType: "Phonk", why: "heavy", searchTerms: ["phonk edit"], timingTip: "drop at 0:03" }, null, { soundType: 42 }] });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toEqual({ soundType: "Phonk", why: "heavy", searchTerms: ["phonk edit"], timingTip: "drop at 0:03" });
+    expect(soundMatchesOfResponse({})).toEqual([]);
+  });
+
+  it("filler analyze payload + poll answer mirror FillerRemoverCard's shapes", () => {
+    expect(buildFillerAnalyzePayload({ mediaUrl: " https://x/v.mp4 " })).toEqual({
+      mediaUrl: "https://x/v.mp4",
+      fillerWords: [],
+      removeSilences: true,
+      minSilenceDuration: 0.5,
+    });
+    const read = fillerAnalysisOfResponse({
+      status: "done",
+      cuts: [{ id: "c1", start: 1.2, end: 1.6, kind: "filler", label: "um" }, { id: "c2", start: 5, end: 7, kind: "silence", label: "silence" }],
+      durationSec: 60,
+      timeSavedSec: 2.4,
+    });
+    expect(read.status).toBe("done");
+    expect(read.cuts).toHaveLength(2);
+    expect(read.cuts[0]).toEqual({ id: "c1", start: 1.2, end: 1.6, kind: "filler", label: "um" });
+    expect(read.timeSavedSec).toBe(2.4);
+    /* the interpreter: running is not-done, done carries the cut lines, failed is honest */
+    expect(interpretAudioBenchResponse("fillers", { status: "processing" }).done).toBe(false);
+    const done = interpretAudioBenchResponse("fillers", { status: "done", cuts: [{ id: "c1", start: 1, end: 2, kind: "filler", label: "um" }] });
+    expect(done.done).toBe(true);
+    expect(done.text).toContain("um");
+    expect(interpretAudioBenchResponse("fillers", { status: "failed", error: "boom" })).toMatchObject({ done: true, failed: true, error: "boom" });
+    /* the fillers bench polls its job like the card does */
+    expect(audioBenchOf("fillers").pollPath!("j7")).toBe("/api/remove-fillers/analyze/j7");
+  });
+
+  it("transcribe-url: payload, response, and the length-priced confirm cost mirror SongWorkflow", () => {
+    expect(buildTranscribeUrlPayload({ audioUrl: " https://x/a.mp3 " })).toEqual({ audioUrl: "https://x/a.mp3" });
+    const read = transcribeUrlOfResponse({ transcript: "hello world", segments: [{ id: 1, start: 0, end: 2, text: "hello" }] });
+    expect(read.transcript).toBe("hello world");
+    expect(read.segments).toEqual([{ id: 1, start: 0, end: 2, text: "hello" }]);
+    expect(transcribeUrlOfResponse({}).transcript).toBeNull();
+    /* the ruling's curve: 100 base up to 5 min, +20 per minute after */
+    expect(transcribeUrlCostForDuration(null)).toBe(100);
+    expect(transcribeUrlCostForDuration(300)).toBe(100);
+    expect(transcribeUrlCostForDuration(360)).toBe(120);
+    expect(transcribeUrlCostForDuration(600)).toBe(200);
+  });
+
+  it("translate captions: lines, payload, per-language confirm cost mirror AiCaptionSuite", () => {
+    expect(buildCaptionLines(" one \n\n two ")).toEqual([
+      { start: 0, end: 10, text: "one" },
+      { start: 10, end: 20, text: "two" },
+    ]);
+    const captions = buildCaptionLines("one\ntwo");
+    expect(buildTranslateCaptionsPayload({ captions, targetLanguages: ["es", "fr"] })).toEqual({ captions, targetLanguages: ["es", "fr"] });
+    expect(translateCaptionsCost(1)).toBe(50);
+    expect(translateCaptionsCost(3)).toBe(150);
+    expect(translateCaptionsCost(0)).toBe(0);
+    const got = translateCaptionsOfResponse({ translations: { es: [{ start: 0, end: 10, text: "uno" }] } });
+    expect(got).toEqual({ es: [{ start: 0, end: 10, text: "uno" }] });
+    expect(translateCaptionsOfResponse({})).toEqual({});
+    expect(TRANSLATE_LANGUAGE_CODES).toContain("es");
   });
 });
 
