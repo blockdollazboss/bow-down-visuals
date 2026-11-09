@@ -12,6 +12,18 @@
  *    (187°), at the family's accepted distinctness benchmark
  *    (sapphire-court was admitted at RGB distance 89.4 from its
  *    nearest sibling; teal sits 91.5 / 84.1 from its two nearest).
+ *  - bronze-gladiator + pearl-regency (stack400 D-32/D-33): the
+ *    registry grows 12 → 14 — a bronze arena palette and a pearl +
+ *    soft ivory palette. Both are METALS/NEUTRALS, not wheel hues:
+ *    a hue-wheel slot argument cannot carry them (their primaries
+ *    read 25° / 34°, inside the gold cluster), so their admission
+ *    rests on the same distance benchmark the family already uses,
+ *    argued in VALUE and SATURATION instead of hue — bronze is the
+ *    deep, muted metal (saturation ~41%, value ~61%) where
+ *    gold-royalty is the bright one (~62% / ~79%) and sunset-blaze
+ *    is the saturated orange (~83% / 100%); pearl is a warm near-
+ *    neutral (saturation ~11%) — the only sibling quieter is the
+ *    deliberately achromatic shadow-noir grey (~11%, hue-less).
  */
 import { describe, it, expect } from "vitest";
 import { CHARACTER_THEMES, getCharacterTheme, themeAlpha } from "./character-themes";
@@ -39,7 +51,18 @@ function hue(hex: string): number {
   return 60 * ((r - g) / d) + 240;
 }
 
+function hsv(hex: string): { s: number; v: number } {
+  const [r, g, b] = rgb(hex).map((x) => x / 255) as [number, number, number];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  return { s: max === 0 ? 0 : (max - min) / max, v: max };
+}
+
 describe("registry hygiene", () => {
+  it("ships exactly fourteen themes — the twelve proven plus the stack400 pair", () => {
+    expect(CHARACTER_THEMES).toHaveLength(14);
+  });
+
   it("ships unique ids with complete, well-formed tuples", () => {
     const ids = CHARACTER_THEMES.map((t) => t.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -90,6 +113,80 @@ describe("teal-abyss — the deep teal court (stack300)", () => {
     for (const t of CHARACTER_THEMES) {
       if (t.id === "teal-abyss") continue;
       expect(rgbDistance(teal!.primary, t.primary), t.id).toBeGreaterThan(80);
+    }
+  });
+});
+
+describe("bronze-gladiator — the bronze arena metal (stack400 D-32)", () => {
+  const bronze = CHARACTER_THEMES.find((t) => t.id === "bronze-gladiator");
+
+  it("exists with the standard tuple, exactly as censused", () => {
+    expect(bronze).toBeDefined();
+    expect(bronze!.name).toBe("Bronze Gladiator");
+    expect(bronze!.vibe).toBe("Arena · sand · hard-won glory");
+    expect(bronze!.primary).toBe("#9C6642");
+    expect(bronze!.highlight).toBe("#DCB287");
+    expect(bronze!.deep).toBe("#5C3A21");
+    expect(bronze!.cardTint).toBe("rgba(156,102,66,0.08)");
+    expect(getCharacterTheme("bronze-gladiator")).toBe(bronze);
+  });
+
+  it("is the deep, muted metal — distinct from gold and sunset in value + saturation, not hue", () => {
+    const b = hsv(bronze!.primary);
+    const gold = hsv("#C9A84C"); /* gold-royalty */
+    const sunset = hsv("#FF922B"); /* sunset-blaze */
+    /* Bronze reads darker AND quieter than both warm siblings. */
+    expect(b.v).toBeLessThan(gold.v);
+    expect(b.v).toBeLessThan(sunset.v);
+    expect(b.s).toBeLessThan(gold.s);
+    expect(b.s).toBeLessThan(sunset.s);
+    /* …and still a metal, not a brown paint: it stays off the floor. */
+    expect(b.v).toBeGreaterThan(0.55);
+    expect(b.s).toBeGreaterThan(0.35);
+  });
+
+  it("its primary clears the family's RGB distance benchmark from every sibling", () => {
+    for (const t of CHARACTER_THEMES) {
+      if (t.id === "bronze-gladiator") continue;
+      expect(rgbDistance(bronze!.primary, t.primary), t.id).toBeGreaterThan(80);
+    }
+  });
+});
+
+describe("pearl-regency — the pearl + soft ivory neutral (stack400 D-33)", () => {
+  const pearl = CHARACTER_THEMES.find((t) => t.id === "pearl-regency");
+
+  it("exists with the standard tuple, exactly as censused", () => {
+    expect(pearl).toBeDefined();
+    expect(pearl!.name).toBe("Pearl Regency");
+    expect(pearl!.vibe).toBe("Pearl · ivory · quiet ceremony");
+    expect(pearl!.primary).toBe("#DCCEB8");
+    expect(pearl!.highlight).toBe("#FBF7EE");
+    expect(pearl!.deep).toBe("#9A8B72");
+    expect(pearl!.cardTint).toBe("rgba(220,206,184,0.08)");
+    expect(getCharacterTheme("pearl-regency")).toBe(pearl);
+  });
+
+  it("is the shelf's palest warm identity — near-neutral saturation, high value", () => {
+    const p = hsv(pearl!.primary);
+    /* Every CHROMATIC sibling is far more saturated; the only theme
+       as quiet is shadow-noir, whose primary is an achromatic grey
+       (hue-less by design) — pearl stays a warm ivory, not a grey. */
+    for (const t of CHARACTER_THEMES) {
+      if (t.id === "pearl-regency" || t.id === "shadow-noir") continue;
+      expect(p.s, t.id).toBeLessThan(hsv(t.primary).s);
+    }
+    expect(p.s).toBeLessThan(0.2);
+    expect(p.v).toBeGreaterThan(0.8);
+    expect(hue(pearl!.primary)).toBeGreaterThan(30);
+    expect(hue(pearl!.primary)).toBeLessThan(50);
+  });
+
+  it("clears the distance benchmark from its nearest sibling (arctic-ice)", () => {
+    expect(rgbDistance(pearl!.primary, "#66D9E8")).toBeGreaterThan(80);
+    for (const t of CHARACTER_THEMES) {
+      if (t.id === "pearl-regency") continue;
+      expect(rgbDistance(pearl!.primary, t.primary), t.id).toBeGreaterThan(60);
     }
   });
 });
