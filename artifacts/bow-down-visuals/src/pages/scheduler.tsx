@@ -56,6 +56,7 @@ import {
 import { fetchProvenance, type ProvenanceRecord as AssetProvenanceRecord, type LicenceOption } from "@/lib/asset-library";
 import { deadlineFlagFor, deadlineFlagLabel, flaggedDeadlines } from "@/lib/release-deadlines";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import {
   parseSchedulerMediaType,
   type SchedulerMediaType,
@@ -525,6 +526,7 @@ export default function Scheduler() {
         </div>
 
         {/* hero */}
+        <SectionBoundary name="scheduler-hero">
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
             <CalendarDays className="h-3 w-3" aria-hidden="true" /> {t("scheduler.badge")}
@@ -546,6 +548,7 @@ export default function Scheduler() {
             </Button>
           </div>
         </div>
+        </SectionBoundary>
 
         {outOfCredits && (
           <div className="relative mt-8"><OutOfCredits /></div>
@@ -581,11 +584,13 @@ export default function Scheduler() {
         </div>
 
         {!loading && (
-          <PostingAccountsStrip
-            accounts={accounts}
-            loadFailed={accountsError}
-            onRetry={() => { void loadAccounts(); }}
-          />
+          <SectionBoundary name="scheduler-accounts-strip">
+            <PostingAccountsStrip
+              accounts={accounts}
+              loadFailed={accountsError}
+              onRetry={() => { void loadAccounts(); }}
+            />
+          </SectionBoundary>
         )}
 
         {loading ? (
@@ -610,7 +615,7 @@ export default function Scheduler() {
         ) : (
           <div className="relative mt-8">
             {tab === "calendar" && (
-              <>
+              <SectionBoundary key="calendar" name="scheduler-tab-calendar">
                 {/* Wave 8 · AI Week Planner — drag-and-drop week grid */}
                 <CalendarAutofill
                   onOpenComposer={(date, time, caption) =>
@@ -632,38 +637,66 @@ export default function Scheduler() {
                 onEdit={(p) => openComposer(p)}
                 onCancel={handleCancel}
               />
-              </>
+              </SectionBoundary>
             )}
             {tab === "queue" && (
-              <QueueTab posts={scheduled} onEdit={(p) => openComposer(p)} onCancel={handleCancel} />
+              <SectionBoundary key="queue" name="scheduler-tab-queue">
+                <QueueTab posts={scheduled} onEdit={(p) => openComposer(p)} onCancel={handleCancel} />
+              </SectionBoundary>
             )}
             {tab === "drafts" && (
-              <DraftsTab
-                posts={drafts}
-                onSchedule={(p) => openComposer(p)}
-                onDelete={handleCancel}
-              />
+              <SectionBoundary key="drafts" name="scheduler-tab-drafts">
+                <DraftsTab
+                  posts={drafts}
+                  onSchedule={(p) => openComposer(p)}
+                  onDelete={handleCancel}
+                />
+              </SectionBoundary>
             )}
-            {tab === "posted" && <PostedTab posts={history} />}
+            {tab === "posted" && (
+              <SectionBoundary key="posted" name="scheduler-tab-posted">
+                <PostedTab posts={history} />
+              </SectionBoundary>
+            )}
             {tab === "community" && (
-              <CommunityPostsTab
-                onSchedulePost={(text) => openComposer(undefined, undefined, undefined, text)}
-                onOutOfCredits={() => setOutOfCredits(true)}
-              />
+              <SectionBoundary key="community" name="scheduler-tab-community">
+                <CommunityPostsTab
+                  onSchedulePost={(text) => openComposer(undefined, undefined, undefined, text)}
+                  onOutOfCredits={() => setOutOfCredits(true)}
+                />
+              </SectionBoundary>
             )}
-            {tab === "trends" && <TrendPredictor />}
-            {tab === "trend-jacker" && <TrendJackerSection />}
-            {tab === "vault-drip" && <VaultDripSection />}
-            {tab === "evergreen" && <EvergreenPanel />}
+            {tab === "trends" && (
+              <SectionBoundary key="trends" name="scheduler-tab-trends">
+                <TrendPredictor />
+              </SectionBoundary>
+            )}
+            {tab === "trend-jacker" && (
+              <SectionBoundary key="trend-jacker" name="scheduler-tab-trend-jacker">
+                <TrendJackerSection />
+              </SectionBoundary>
+            )}
+            {tab === "vault-drip" && (
+              <SectionBoundary key="vault-drip" name="scheduler-tab-vault-drip">
+                <VaultDripSection />
+              </SectionBoundary>
+            )}
+            {tab === "evergreen" && (
+              <SectionBoundary key="evergreen" name="scheduler-tab-evergreen">
+                <EvergreenPanel />
+              </SectionBoundary>
+            )}
           </div>
         )}
 
         {/* ── Best time to post optimizer ── */}
-        <BestTimeOptimizer
-          timezone={timezone}
-          onUseSlot={handleUseSlot}
-          onOutOfCredits={() => setOutOfCredits(true)}
-        />
+        <SectionBoundary name="scheduler-best-time">
+          <BestTimeOptimizer
+            timezone={timezone}
+            onUseSlot={handleUseSlot}
+            onOutOfCredits={() => setOutOfCredits(true)}
+          />
+        </SectionBoundary>
       </main>
 
 
