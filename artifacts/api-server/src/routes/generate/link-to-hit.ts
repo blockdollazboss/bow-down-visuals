@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -9,7 +9,13 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 
 /* ─── Link to Hit ─────────────────────────────────────────────────────────
    /api/link-to-hit/analyze — 300 credits: the creator pastes a link (or
@@ -121,53 +127,153 @@ function parseSegment(e: Record<string, unknown>): SegmentItem | null {
   return seg;
 }
 
-async function refundOnFailure(userId: string, amount: number, label: string) {
+async function refundOnFailure(userId: string, amount: number, label: string, idempotencyKey?: string) {
+  let refunded = true;
   try {
     await refundCredits(userId, amount, {
       action: `${label} — Refund (generation failed)`,
     });
   } catch (refundErr) {
+    refunded = false;
     logger.error({ err: refundErr, userId }, "[link-to-hit] refund failed after generation error");
   }
+  /* VOID the refunded charge's key (CA-3): without the void, the
+     refunded attempt's key still reads as "already charged", so a
+     genuine retry would be suppressed as a replay and run free. */
+  if (refunded && idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey);
+  }
+}
+
+
+/* ── CA-3 replay protection (charge audit C-38) ───────────────────────
+   This rail used to charge with NO idempotency key: a retry of a
+   SUCCESSFUL request re-charged and re-ran the work. Now the server
+   derives the key from the request intent on EVERY call, a
+   stored-result pre-check (durable table, migration 0333, then the
+   in-process cache) answers a replay with no charge and no provider
+   call, and a failed attempt refunds AND voids its key so a genuine
+   retry charges fresh. An identical ask serves the stored result
+   with replayed: true instead of charging again (C-36 ruling). */
+const LINK_TO_HIT_SCOPE = "link-to-hit";
+const LINK_TO_HIT_REPLAY_NOTE =
+  "This is the comedy package you already made for this link — change the link, description or comments for a fresh one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetLinkToHitReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
+
+/**
+ * Serve one replayable run: durable + in-process stored-result
+ * pre-checks before any funding, the in-flight twin wait for a
+ * concurrent duplicate, then the run itself. A success is stored
+ * BEFORE answering (contracts / post-assist pattern); an error body
+ * (carrying __status) is answered bare and never stored.
+ */
+async function serveReplayableRun(args: {
+  res: Response;
+  userId: string;
+  idempotencyKey: string;
+  run: () => Promise<Record<string, unknown>>;
+}): Promise<void> {
+  const { res, userId, idempotencyKey } = args;
+  const replayOf = (body: Record<string, unknown>) => ({
+    ...body, replayed: true, replayNote: LINK_TO_HIT_REPLAY_NOTE,
+  });
+
+  const durable = await findStoredGenerationResult(LINK_TO_HIT_SCOPE, idempotencyKey, userId);
+  if (durable) {
+    res.json(replayOf(durable));
+    return;
+  }
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json(replayOf(stored.body));
+    return;
+  }
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json(replayOf(twinBody));
+      return;
+    }
+    /* The twin failed (refunded + key voided) — fall through fresh. */
+  }
+
+  const runPromise = args.run();
+  inFlight.set(idempotencyKey, runPromise);
+  let body: Record<string, unknown>;
+  try {
+    body = await runPromise;
+  } finally {
+    if (inFlight.get(idempotencyKey) === runPromise) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult(LINK_TO_HIT_SCOPE, idempotencyKey, userId, { ...body });
+  } catch { /* storing is best-effort — never fail a paid success over it */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json(replayOf(postCharge.body));
+    return;
+  }
+  res.json(body);
 }
 
 /* POST /api/link-to-hit/analyze { url?, description, comments?, genre? }
    → 200 { source|null, comedyConcept, segments[{type,description,prompt?}], songTitle, hook, songLyrics, musicPrompt, creditsUsed, creditsRemaining }
    Paid: 300 credits. Auth required; credits deducted BEFORE the model call.
    Provider failure or unusable output → refund + 502. */
-router.post("/link-to-hit/analyze", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = analyzeSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid link-to-hit request.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
-    return;
-  }
-
-  const balance = req.userCredits ?? 0;
+async function runLinkToHitAnalyze(
+  userId: string,
+  userCredits: number,
+  data: z.infer<typeof analyzeSchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  const balance = userCredits;
   if (balance < ANALYZE_CREDITS) {
-    res.status(402).json({
+    return {
+      __status: 402,
       error: "out_of_credits",
       message: "You're out of Visual Bucs — top up to turn this link into a hit.",
-    });
-    return;
+    };
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await chargeCredits(req.userId!, ANALYZE_CREDITS, { action: "Link to Hit — Analyze" });
+    creditsRemaining = await chargeCredits(userId, ANALYZE_CREDITS, { action: "Link to Hit — Analyze" }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+      return {
+        __status: 402,
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to turn this link into a hit.",
-      });
-      return;
+      };
     }
     throw err;
   }
 
-  const { url, description, comments, genre } = parsed.data;
+  const { url, description, comments, genre } = data;
   const musicGenre = genre.trim() || "Comedy Pop";
 
   /* oEmbed lookup is fail-soft by design: any failure → source null,
@@ -250,7 +356,7 @@ router.post("/link-to-hit/analyze", requireAuth, publicApiLimiter, async (req, r
       throw new Error("Model returned no usable comedy package");
     }
 
-    res.json({
+    return {
       source,
       comedyConcept,
       segments,
@@ -260,17 +366,47 @@ router.post("/link-to-hit/analyze", requireAuth, publicApiLimiter, async (req, r
       musicPrompt,
       creditsUsed: ANALYZE_CREDITS,
       creditsRemaining,
-    });
+    };
   } catch (err) {
-    await refundOnFailure(req.userId!, ANALYZE_CREDITS, "Link to Hit — Analyze");
+    await refundOnFailure(userId, ANALYZE_CREDITS, "Link to Hit — Analyze", idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[link-to-hit] OpenAI rate limit / quota");
-      res.status(503).json({ error: "Link to hit is catching its breath — try again in a moment." });
-      return;
+      return { __status: 503, error: "Link to hit is catching its breath — try again in a moment." };
     }
     logger.error({ err }, "[link-to-hit] analysis failed");
-    res.status(502).json({ error: "Link to hit hiccupped — your Visual Bucs were refunded." });
+    return { __status: 502, error: "Link to hit hiccupped — your Visual Bucs were refunded." };
   }
+}
+
+router.post("/link-to-hit/analyze", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = analyzeSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid link-to-hit request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  /* Idempotency (CA-3): the server derives the key from the request
+     intent on EVERY call — a replay of the same ask is served from
+     the stored package instead of charging again. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    LINK_TO_HIT_SCOPE, req.userId!, undefined,
+    {
+      url: parsed.data.url ?? null, description: parsed.data.description,
+      comments: parsed.data.comments, genre: parsed.data.genre,
+    },
+  );
+
+  await serveReplayableRun({
+    res,
+    userId: req.userId!,
+    idempotencyKey,
+    run: () => runLinkToHitAnalyze(
+      req.userId!, req.userCredits ?? 0, parsed.data, idempotencyKey,
+    ),
+  });
 });
 
 export default router;

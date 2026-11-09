@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -9,7 +9,13 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { getLlcStateFee, LLC_STATE_CODES } from "../../lib/llc-state-fees";
 
 const router = Router();
@@ -185,51 +191,169 @@ const PLAN_SYSTEM_PROMPT =
   `fee numbers provided in the user message — never invent or round them. ` +
   `Be specific and practical, no generic fluff. ` + NOT_LEGAL_ADVICE;
 
-/* Shared charge-then-generate flow: deduct 1 credit up front, refund it if
-   the provider call fails so creators never pay for an error. */
-async function chargeOr402(
-  req: { userId?: string; userCredits?: number },
-  res: { status: (c: number) => { json: (b: unknown) => void } },
-  action: string,
-): Promise<number | null> {
-  const balance = req.userCredits ?? 0;
-  if (balance < LLC_GUIDE_CREDIT_COST) {
-    res.status(402).json({
-      error: "out_of_credits",
-      message: "You're out of Visual Bucs — top up to use the AI LLC guide.",
-    });
-    return null;
+
+/* ── CA-3 replay protection (charge audit C-38) ───────────────────────
+   This rail used to charge with NO idempotency key: a retry of a
+   SUCCESSFUL request re-charged and re-ran the work. Now the server
+   derives the key from the request intent on EVERY call, a
+   stored-result pre-check (durable table, migration 0333, then the
+   in-process cache) answers a replay with no charge and no provider
+   call, and a failed attempt refunds AND voids its key so a genuine
+   retry charges fresh. An identical ask serves the stored result
+   with replayed: true instead of charging again (C-36 ruling). */
+const LLC_GUIDE_SCOPE = "llc-guide";
+const LLC_GUIDE_REPLAY_NOTE =
+  "This is the answer you already got for this request — change the question or details for a fresh one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetLlcGuideReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
+
+/**
+ * Serve one replayable run: durable + in-process stored-result
+ * pre-checks before any funding, the in-flight twin wait for a
+ * concurrent duplicate, then the run itself. A success is stored
+ * BEFORE answering (contracts / post-assist pattern); an error body
+ * (carrying __status) is answered bare and never stored.
+ */
+async function serveReplayableRun(args: {
+  res: Response;
+  userId: string;
+  idempotencyKey: string;
+  run: () => Promise<Record<string, unknown>>;
+}): Promise<void> {
+  const { res, userId, idempotencyKey } = args;
+  const replayOf = (body: Record<string, unknown>) => ({
+    ...body, replayed: true, replayNote: LLC_GUIDE_REPLAY_NOTE,
+  });
+
+  const durable = await findStoredGenerationResult(LLC_GUIDE_SCOPE, idempotencyKey, userId);
+  if (durable) {
+    res.json(replayOf(durable));
+    return;
   }
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json(replayOf(stored.body));
+    return;
+  }
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json(replayOf(twinBody));
+      return;
+    }
+    /* The twin failed (refunded + key voided) — fall through fresh. */
+  }
+
+  const runPromise = args.run();
+  inFlight.set(idempotencyKey, runPromise);
+  let body: Record<string, unknown>;
   try {
-    return await chargeCredits(req.userId!, LLC_GUIDE_CREDIT_COST, { action });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
+    body = await runPromise;
+  } finally {
+    if (inFlight.get(idempotencyKey) === runPromise) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult(LLC_GUIDE_SCOPE, idempotencyKey, userId, { ...body });
+  } catch { /* storing is best-effort — never fail a paid success over it */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json(replayOf(postCharge.body));
+    return;
+  }
+  res.json(body);
+}
+
+/* Shared charge-then-generate flow: deduct up front, refund on a
+   provider failure so creators never pay for an error. CA-3: the
+   charge carries the request's idempotency key (the helper is the
+   single charge site for BOTH the ask and plan rails — keying it
+   here, with the intent threaded from each caller, closes both),
+   and every refund VOIDS the key so a genuine retry charges fresh. */
+async function chargeForRun(
+  userId: string,
+  userCredits: number,
+  action: string,
+  idempotencyKey: string,
+): Promise<{ creditsRemaining: number } | { errorBody: Record<string, unknown> }> {
+  const balance = userCredits;
+  if (balance < LLC_GUIDE_CREDIT_COST) {
+    return {
+      errorBody: {
+        __status: 402,
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to use the AI LLC guide.",
-      });
-      return null;
+      },
+    };
+  }
+  try {
+    return {
+      creditsRemaining: await chargeCredits(userId, LLC_GUIDE_CREDIT_COST, { action }, { idempotencyKey }),
+    };
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      return {
+        errorBody: {
+          __status: 402,
+          error: "out_of_credits",
+          message: "You're out of Visual Bucs — top up to use the AI LLC guide.",
+        },
+      };
     }
     throw err;
   }
 }
 
-/* POST /api/llc-guide/ask { question, state?, history? }
-   → 200 { answer, creditsUsed, creditsRemaining }
-   Paid: 1 credit per answer. */
-router.post("/llc-guide/ask", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = askSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid question.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
-    return;
+async function refundAndVoid(
+  userId: string,
+  action: string,
+  idempotencyKey: string,
+): Promise<void> {
+  let refunded = true;
+  try {
+    await refundCredits(userId, LLC_GUIDE_CREDIT_COST, { action });
+  } catch {
+    refunded = false;
   }
-  const creditsRemaining = await chargeOr402(req, res, "LLC Guide Q&A");
-  if (creditsRemaining === null) return;
+  if (refunded) {
+    await voidChargeIdempotencyKey(idempotencyKey);
+  }
+}
 
-  const { question, state, history } = parsed.data;
+async function runLlcGuideAsk(
+  userId: string,
+  userCredits: number,
+  data: z.infer<typeof askSchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  const charged = await chargeForRun(userId, userCredits, "LLC Guide Q&A", idempotencyKey);
+  if ("errorBody" in charged) return charged.errorBody;
+  const creditsRemaining = charged.creditsRemaining;
+
+  const { question, state, history } = data;
   try {
     const completion = await getOpenAI().chat.completions.create({
       model: getTextModel(),
@@ -245,37 +369,52 @@ router.post("/llc-guide/ask", requireAuth, publicApiLimiter, async (req, res) =>
     const answer =
       completion.choices[0]?.message?.content?.trim() ||
       "My fins slipped — ask that again? 🦈";
-    res.json({ answer, creditsUsed: LLC_GUIDE_CREDIT_COST, creditsRemaining });
+    return { answer, creditsUsed: LLC_GUIDE_CREDIT_COST, creditsRemaining };
   } catch (err) {
-    await refundCredits(req.userId!, LLC_GUIDE_CREDIT_COST, {
-      action: "LLC Guide Q&A (provider failure refund)",
-    }).catch(() => {});
+    await refundAndVoid(userId, "LLC Guide Q&A (provider failure refund)", idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[llc-guide] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The guide is catching its breath — try again in a moment. (Visual Buc refunded.)" });
-      return;
+      return { __status: 503, error: "The guide is catching its breath — try again in a moment. (Visual Buc refunded.)" };
     }
     logger.error({ err }, "[llc-guide] ask failed");
-    res.status(502).json({ error: "The guide hiccupped — try again. (Visual Buc refunded.)" });
+    return { __status: 502, error: "The guide hiccupped — try again. (Visual Buc refunded.)" };
   }
-});
+}
 
-/* POST /api/llc-guide/plan { state, creatorType, businessName? }
-   → 200 { plan, creditsUsed, creditsRemaining }
-   Paid: 1 credit per plan. */
-router.post("/llc-guide/plan", requireAuth, publicApiLimiter, async (req, res) => {
-  const parsed = planSchema.safeParse(req.body ?? {});
+/* POST /api/llc-guide/ask { question, state?, history? }
+   → 200 { answer, creditsUsed, creditsRemaining }
+   Paid: 1 credit per answer. */
+router.post("/llc-guide/ask", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = askSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
-      error: "Invalid plan request.",
+      error: "Invalid question.",
       details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
     });
     return;
   }
-  const creditsRemaining = await chargeOr402(req, res, "LLC Guide Filing Plan");
-  if (creditsRemaining === null) return;
+  const idempotencyKey = buildChargeIdempotencyKey(
+    LLC_GUIDE_SCOPE, req.userId!, undefined, { product: "ask", ...parsed.data },
+  );
+  await serveReplayableRun({
+    res,
+    userId: req.userId!,
+    idempotencyKey,
+    run: () => runLlcGuideAsk(req.userId!, req.userCredits ?? 0, parsed.data, idempotencyKey),
+  });
+});
 
-  const { state, creatorType, businessName } = parsed.data;
+async function runLlcGuidePlan(
+  userId: string,
+  userCredits: number,
+  data: z.infer<typeof planSchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  const charged = await chargeForRun(userId, userCredits, "LLC Guide Filing Plan", idempotencyKey);
+  if ("errorBody" in charged) return charged.errorBody;
+  const creditsRemaining = charged.creditsRemaining;
+
+  const { state, creatorType, businessName } = data;
   try {
     const completion = await getOpenAI().chat.completions.create({
       model: getTextModel(),
@@ -291,19 +430,39 @@ router.post("/llc-guide/plan", requireAuth, publicApiLimiter, async (req, res) =
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const plan = parsePlanJson(raw);
-    res.json({ plan, creditsUsed: LLC_GUIDE_CREDIT_COST, creditsRemaining });
+    return { plan, creditsUsed: LLC_GUIDE_CREDIT_COST, creditsRemaining };
   } catch (err) {
-    await refundCredits(req.userId!, LLC_GUIDE_CREDIT_COST, {
-      action: "LLC Guide Filing Plan (provider failure refund)",
-    }).catch(() => {});
+    await refundAndVoid(userId, "LLC Guide Filing Plan (provider failure refund)", idempotencyKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[llc-guide] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The guide is catching its breath — try again in a moment. (Visual Buc refunded.)" });
-      return;
+      return { __status: 503, error: "The guide is catching its breath — try again in a moment. (Visual Buc refunded.)" };
     }
     logger.error({ err }, "[llc-guide] plan failed");
-    res.status(502).json({ error: "The guide hiccupped — try again. (Visual Buc refunded.)" });
+    return { __status: 502, error: "The guide hiccupped — try again. (Visual Buc refunded.)" };
   }
+}
+
+/* POST /api/llc-guide/plan { state, creatorType, businessName? }
+   → 200 { plan, creditsUsed, creditsRemaining }
+   Paid: 1 credit per plan. */
+router.post("/llc-guide/plan", requireAuth, publicApiLimiter, async (req, res) => {
+  const parsed = planSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid plan request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const idempotencyKey = buildChargeIdempotencyKey(
+    LLC_GUIDE_SCOPE, req.userId!, undefined, { product: "plan", ...parsed.data },
+  );
+  await serveReplayableRun({
+    res,
+    userId: req.userId!,
+    idempotencyKey,
+    run: () => runLlcGuidePlan(req.userId!, req.userCredits ?? 0, parsed.data, idempotencyKey),
+  });
 });
 
 export default router;

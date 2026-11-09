@@ -20,7 +20,7 @@
  * 500 per render (CPU encode + storage). Both env-overridable.
  */
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -37,7 +37,13 @@ import {
   refundCredits,
   OutOfCreditsError,
   LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -809,6 +815,9 @@ interface LyricRenderJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /* CA-3: the charge key that funded this job — voided when the job
+     fails + refunds, so a retry of the same ask charges fresh. */
+  idempotencyKey: string;
 }
 
 const renderJobs = new Map<string, LyricRenderJob>();
@@ -821,6 +830,161 @@ export function getLyricRenderJob(id: string): LyricRenderJob | undefined {
 /** Test hook: clear the in-memory job store. */
 export function __clearLyricRenderJobs(): void {
   renderJobs.clear();
+}
+
+/* ─── Idempotent charge + stored-result replay (CA-3) ──────────────────
+   This file carries TWO paid rails: align (Pattern A, synchronous)
+   and render (Pattern B, background job). Each has its own scope and
+   replay note; they share one in-process replay cache. The server
+   derives the charge key from the request intent (for align, a hash
+   of the uploaded audio bytes rides in the intent when a file is
+   uploaded — the file itself never enters the key); a replay — the
+   same ask sent twice, a double-tap, a retried request — is served
+   the STORED result (flagged replayed:true) instead of charging
+   again. Render's stored body carries its jobId and is only served
+   while that job is still tracked and not failed (Pattern B gate): a
+   failed job refunded + voided its key, and a job lost to a restart
+   falls through to a fresh run the ledger dedup keeps charge-free.
+   The durable check runs through lib/generation-stored-results.ts so
+   a replay survives a restart; fresh responses are byte-identical;
+   storage is fail-open. Every refund path VOIDS its charge key. */
+const LYRIC_ALIGN_SCOPE = "lyric-video-align";
+const LYRIC_ALIGN_REPLAY_NOTE =
+  "This is the alignment you already made for these lyrics and this audio — change the lyrics or audio for a fresh one.";
+const LYRIC_RENDER_SCOPE = "lyric-video-render";
+const LYRIC_RENDER_REPLAY_NOTE =
+  "This render job is already on its way for this request — same job, no second charge.";
+
+interface StoredResult {
+  body: Record<string, unknown>;
+  storedAt: number;
+}
+
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: clear the in-process replay cache between cases. */
+export function __resetLyricVideoReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
+
+function renderJobAlive(body: Record<string, unknown>): boolean {
+  const jobId = body["jobId"];
+  if (typeof jobId !== "string") return true;
+  const job = renderJobs.get(jobId);
+  return !!job && job.status !== "failed";
+}
+
+async function serveReplayableRun(opts: {
+  res: Response;
+  userId: string;
+  idempotencyKey: string;
+  note: string;
+  successStatus: number;
+  gate?: (body: Record<string, unknown>) => boolean;
+  run: () => Promise<Record<string, unknown>>;
+}): Promise<void> {
+  const { res, userId, idempotencyKey, note, successStatus, gate, run } = opts;
+  const pass = (body: Record<string, unknown>): boolean =>
+    body["error"] === undefined && (gate ? gate(body) : true);
+  const sendReplay = (body: Record<string, unknown>): void => {
+    res
+      .status(successStatus)
+      .json({ ...body, replayed: true, replayNote: note });
+  };
+
+  /* 1) Durable pre-check (restart-surviving) — BEFORE funding. */
+  const durable = await findStoredGenerationResult(
+    "lyric-video",
+    idempotencyKey,
+    userId,
+  );
+  if (durable) {
+    const body =
+      durable.result && typeof durable.result === "object"
+        ? (durable.result as Record<string, unknown>)
+        : null;
+    if (body && pass(body)) {
+      storedResults.set(idempotencyKey, { body, storedAt: Date.now() });
+      sendReplay(body);
+      return;
+    }
+  }
+
+  /* 2) In-process completed result (same gate). */
+  const done = storedResults.get(idempotencyKey);
+  if (done) {
+    if (pass(done.body)) {
+      sendReplay(done.body);
+      return;
+    }
+    storedResults.delete(idempotencyKey);
+  }
+
+  /* 3) In-flight twin: wait for it, then serve its result as a replay.
+        If the twin failed, fall through and run fresh. */
+  const twin = inFlight.get(idempotencyKey);
+  if (twin) {
+    const twinBody = await twin.catch(() => null);
+    if (twinBody && twinBody["__status"] === undefined) {
+      sendReplay(twinBody);
+      return;
+    }
+  }
+
+  /* 4) Fresh run. */
+  const promise = (async () => run())();
+  inFlight.set(idempotencyKey, promise);
+  let body: Record<string, unknown>;
+  try {
+    body = await promise;
+  } finally {
+    if (inFlight.get(idempotencyKey) === promise) {
+      inFlight.delete(idempotencyKey);
+    }
+  }
+
+  const status = body["__status"];
+  if (typeof status === "number") {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  /* 5) Success: remember it in-process AND durably BEFORE answering. */
+  if (storedResults.size >= MAX_STORED_RESULTS) {
+    storedResults.clear();
+  }
+  storedResults.set(idempotencyKey, { body, storedAt: Date.now() });
+  await storeGenerationResult("lyric-video", idempotencyKey, userId, body);
+
+  /* Post-charge guard: if a DIFFERENT stored body won the durable
+     slot while this run was working, serve that stored body as the
+     replay — but only if it still passes the gate. */
+  const winner = await findStoredGenerationResult(
+    "lyric-video",
+    idempotencyKey,
+    userId,
+  );
+  if (winner) {
+    const winnerBody =
+      winner.result && typeof winner.result === "object"
+        ? (winner.result as Record<string, unknown>)
+        : null;
+    if (
+      winnerBody &&
+      pass(winnerBody) &&
+      JSON.stringify(winnerBody) !== JSON.stringify(body)
+    ) {
+      storedResults.set(idempotencyKey, { body: winnerBody, storedAt: Date.now() });
+      sendReplay(winnerBody);
+      return;
+    }
+  }
+
+  res.status(successStatus).json(body);
 }
 
 interface RenderJobInput {
@@ -850,12 +1014,21 @@ async function runLyricRenderJob(
   const fail = async (message: string): Promise<void> => {
     job.status = "failed";
     job.error = message;
+    let refunded = true;
     try {
       await refundCredits(job.userId, job.creditsCharged, {
         action: "Lyric Video — Refund (render failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       void refundErr; // logged inside refundCredits
+    }
+    /* CA-3: VOID the failed job's charge key and drop its stored 202
+       body, so a retry of the same render charges fresh and mints a
+       new job instead of being served the dead one. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(job.idempotencyKey);
+      storedResults.delete(job.idempotencyKey);
     }
   };
 
@@ -1057,40 +1230,101 @@ router.post(
         return;
       }
 
-      const balance = req.userCredits ?? 0;
+      const idempotencyKey = buildChargeIdempotencyKey(
+        LYRIC_ALIGN_SCOPE, req.userId!, undefined,
+        {
+          lyrics,
+          songId: songId ?? null,
+          audioUrl: audioUrl ?? null,
+          audioHash: req.file
+            ? createHash("sha256").update(req.file.buffer).digest("hex")
+            : null,
+        },
+      );
+
+      await serveReplayableRun({
+        res,
+        userId: req.userId!,
+        idempotencyKey,
+        note: LYRIC_ALIGN_REPLAY_NOTE,
+        successStatus: 200,
+        run: () => runLyricAlign(
+          req.userId!,
+          req.userCredits ?? 0,
+          { lyrics, lyricLines, songId, audioUrl },
+          req.file
+            ? {
+                buffer: req.file.buffer,
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype,
+              }
+            : undefined,
+          idempotencyKey,
+        ),
+      });
+      return;
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+async function runLyricAlign(
+  userId: string,
+  userCredits: number,
+  input: {
+    lyrics: string;
+    lyricLines: string[];
+    songId?: string;
+    audioUrl?: string;
+  },
+  file:
+    | { buffer: Buffer; originalname: string; mimetype: string }
+    | undefined,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+      const { lyricLines, songId, audioUrl } = input;
+      const balance = userCredits;
       if (balance < LYRIC_ALIGN_CREDIT_COST) {
-        res.status(402).json({
+        return {
+          __status: 402,
           error: "out_of_credits",
           message: "You're out of Visual Bucs — top up to align lyrics.",
-        });
-        return;
+        };
       }
 
       let creditsRemaining = balance;
       try {
-        creditsRemaining = await chargeCredits(req.userId!, LYRIC_ALIGN_CREDIT_COST, {
+        creditsRemaining = await chargeCredits(userId, LYRIC_ALIGN_CREDIT_COST, {
           action: "Lyric Video — Lyric Alignment",
-        });
+        }, { idempotencyKey });
       } catch (err) {
         if (err instanceof OutOfCreditsError) {
-          res.status(402).json({
+          return {
+            __status: 402,
             error: "out_of_credits",
             message: "You're out of Visual Bucs — top up to align lyrics.",
-          });
-          return;
+          };
         }
         if (err instanceof LedgerWriteError) {
-          res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
-          return;
+          return { __status: 500, error: "Could not record the Visual Buc charge. Please try again." };
         }
         throw err;
       }
 
+      /* Every refund in this run funnels through doRefund (CA-3):
+         when the refund lands, the charge key is VOIDED so a genuine
+         retry charges fresh instead of running free as a "replay". */
       const doRefund = async (action: string) => {
+        let refunded = true;
         try {
-          await refundCredits(req.userId!, LYRIC_ALIGN_CREDIT_COST, { action });
+          await refundCredits(userId, LYRIC_ALIGN_CREDIT_COST, { action });
         } catch {
+          refunded = false;
           /* logged inside refundCredits */
+        }
+        if (refunded) {
+          await voidChargeIdempotencyKey(idempotencyKey);
         }
       };
 
@@ -1099,12 +1333,12 @@ router.post(
       let audioName = "audio.mp3";
       let audioMime = "audio/mpeg";
       try {
-        if (req.file) {
-          audioBuffer = req.file.buffer;
-          audioName = req.file.originalname || audioName;
-          audioMime = req.file.mimetype || audioMime;
+        if (file) {
+          audioBuffer = file.buffer;
+          audioName = file.originalname || audioName;
+          audioMime = file.mimetype || audioMime;
         } else if (songId) {
-          const dl = await downloadSongAudio(req.userId!, songId);
+          const dl = await downloadSongAudio(userId, songId);
           audioBuffer = dl.buffer;
           audioName = dl.name;
         } else {
@@ -1112,34 +1346,33 @@ router.post(
         }
       } catch (err) {
         await doRefund("Lyric Video — Refund (audio download failed)");
-        res.status(400).json({
+        return {
+          __status: 400,
           error: "AUDIO_DOWNLOAD_FAILED",
           message:
             err instanceof Error ? err.message : "Could not load the audio.",
-        });
-        return;
+        };
       }
 
       if (audioBuffer.length > WHISPER_MAX_BYTES) {
         await doRefund("Lyric Video — Refund (audio too large)");
-        res.status(400).json({
+        return {
+          __status: 400,
           error: "AUDIO_TOO_LARGE",
           message:
             "That audio file is over 24 MB — Whisper can't take it. Trim it down or use a lower-bitrate MP3 and try again.",
-        });
-        return;
+        };
       }
 
       // Persist the audio now so the render step can fetch it by ref.
       let audioRef: string;
       try {
-        const objectName = `lyric-audio/${req.userId!}/${Date.now()}-${randomUUID()}.mp3`;
+        const objectName = `lyric-audio/${userId}/${Date.now()}-${randomUUID()}.mp3`;
         audioRef = await uploadMediaToSupabaseStorage(objectName, audioBuffer, "audio/mpeg");
       } catch (err) {
         await doRefund("Lyric Video — Refund (audio storage failed)");
         logger.error({ err }, "[lyric-video] audio staging upload failed");
-        res.status(500).json({ error: "Could not stage the audio. Please try again." });
-        return;
+        return { __status: 500, error: "Could not stage the audio. Please try again." };
       }
 
       // ── Transcribe with word timestamps ──
@@ -1150,24 +1383,23 @@ router.post(
         await doRefund("Lyric Video — Refund (transcription failed)");
         logger.error({ err }, "[lyric-video] whisper transcription failed");
         if (isTimeoutError(err)) {
-          res.status(504).json({
+          return {
+            __status: 504,
             error: "TRANSCRIBE_TIMEOUT",
             message: "Transcription took too long. Try a shorter audio file.",
-          });
-          return;
+          };
         }
-        res.status(500).json({ error: "Transcription failed. Please try again." });
-        return;
+        return { __status: 500, error: "Transcription failed. Please try again." };
       }
 
       if (transcript.words.length === 0) {
         await doRefund("Lyric Video — Refund (no speech detected)");
-        res.status(422).json({
+        return {
+          __status: 422,
           error: "NO_SPEECH",
           message:
             "We couldn't hear any vocals in that audio — alignment needs a track with singing or rapping. An instrumental won't work here.",
-        });
-        return;
+        };
       }
 
       // ── Align ──
@@ -1179,27 +1411,23 @@ router.post(
 
       if (alignment.matchRate < MIN_MATCH_RATE) {
         await doRefund("Lyric Video — Refund (lyrics did not match audio)");
-        res.status(422).json({
+        return {
+          __status: 422,
           error: "LOW_MATCH",
           message: `Only ${Math.round(alignment.matchRate * 100)}% of your lyric words matched what we heard in the audio. Double-check the lyrics belong to this song, then try again — you were not charged.`,
           matchRate: alignment.matchRate,
-        });
-        return;
+        };
       }
 
-      res.json({
+      return {
         audioRef,
         lines: alignment.lines,
         matchRate: alignment.matchRate,
         durationSec: alignment.durationSec,
         creditsCharged: LYRIC_ALIGN_CREDIT_COST,
         creditsRemaining,
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
+      };
+}
 
 /**
  * POST /api/lyric-video/render
@@ -1234,31 +1462,59 @@ router.post(
         }
       }
 
-      const balance = req.userCredits ?? 0;
+      const idempotencyKey = buildChargeIdempotencyKey(
+        LYRIC_RENDER_SCOPE, req.userId!, undefined, parsed.data,
+      );
+
+      await serveReplayableRun({
+        res,
+        userId: req.userId!,
+        idempotencyKey,
+        note: LYRIC_RENDER_REPLAY_NOTE,
+        successStatus: 202,
+        gate: renderJobAlive,
+        run: () => runLyricRenderCreate(
+          req.userId!, req.userCredits ?? 0, parsed.data, idempotencyKey,
+        ),
+      });
+      return;
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+async function runLyricRenderCreate(
+  userId: string,
+  userCredits: number,
+  data: z.infer<typeof renderBodySchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+      const { audioRef, lines, style, aspect, attribution } = data;
+      const balance = userCredits;
       if (balance < LYRIC_RENDER_CREDIT_COST) {
-        res.status(402).json({
+        return {
+          __status: 402,
           error: "out_of_credits",
           message: "You're out of Visual Bucs — top up to render the lyric video.",
-        });
-        return;
+        };
       }
 
       let creditsRemaining = balance;
       try {
-        creditsRemaining = await chargeCredits(req.userId!, LYRIC_RENDER_CREDIT_COST, {
+        creditsRemaining = await chargeCredits(userId, LYRIC_RENDER_CREDIT_COST, {
           action: `Lyric Video — Render (${style}, ${aspect})`,
-        });
+        }, { idempotencyKey });
       } catch (err) {
         if (err instanceof OutOfCreditsError) {
-          res.status(402).json({
+          return {
+            __status: 402,
             error: "out_of_credits",
             message: "You're out of Visual Bucs — top up to render the lyric video.",
-          });
-          return;
+          };
         }
         if (err instanceof LedgerWriteError) {
-          res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
-          return;
+          return { __status: 500, error: "Could not record the Visual Buc charge. Please try again." };
         }
         throw err;
       }
@@ -1268,23 +1524,28 @@ router.post(
       try {
         audioBuffer = await downloadAudioFromUrl(audioRef);
       } catch {
+        let refunded = true;
         try {
-          await refundCredits(req.userId!, LYRIC_RENDER_CREDIT_COST, {
+          await refundCredits(userId, LYRIC_RENDER_CREDIT_COST, {
             action: "Lyric Video — Refund (staged audio missing)",
           });
         } catch {
+          refunded = false;
           /* logged inside refundCredits */
         }
-        res.status(400).json({
+        if (refunded) {
+          await voidChargeIdempotencyKey(idempotencyKey);
+        }
+        return {
+          __status: 400,
           error: "AUDIO_REF_EXPIRED",
           message: "The staged audio expired — re-run the lyric alignment step.",
-        });
-        return;
+        };
       }
 
       const job: LyricRenderJob = {
         id: randomUUID(),
-        userId: req.userId!,
+        userId,
         status: "queued",
         style,
         aspect,
@@ -1294,6 +1555,7 @@ router.post(
         error: null,
         creditsCharged: LYRIC_RENDER_CREDIT_COST,
         createdAt: Date.now(),
+        idempotencyKey,
       };
       renderJobs.set(job.id, job);
 
@@ -1318,7 +1580,7 @@ router.post(
         attribution,
       });
 
-      res.status(202).json({
+      return {
         jobId: job.id,
         status: job.status,
         style,
@@ -1326,12 +1588,8 @@ router.post(
         attribution,
         creditsCharged: LYRIC_RENDER_CREDIT_COST,
         creditsRemaining,
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
+      };
+}
 
 /**
  * GET /api/lyric-video/render/:jobId

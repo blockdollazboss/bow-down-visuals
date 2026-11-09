@@ -1,7 +1,14 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError,
+  buildChargeIdempotencyKey, voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
@@ -61,6 +68,101 @@ interface IdeaVerdict {
   summary: string;
 }
 
+/* ── CA-3 replay protection (charge audit C-38) ───────────────────────
+   This rail used to charge with NO idempotency key: a retry of a
+   SUCCESSFUL request re-charged 75 and re-ran the model. Now the
+   server derives the key from the request intent on EVERY call, a
+   stored-result pre-check (durable table, migration 0333, then the
+   in-process cache) answers a replay with no charge and no provider
+   call, and a failed attempt refunds AND voids its key so a genuine
+   retry charges fresh. An identical ask serves the stored verdict
+   with replayed: true instead of charging again (C-36 ruling). */
+const IDEA_VALIDATOR_SCOPE = "idea-validator";
+const IDEA_VALIDATOR_REPLAY_NOTE =
+  "This is the verdict you already got for this idea — tweak the idea, niche or platform for a fresh take.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetIdeaValidatorReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
+
+/**
+ * Serve one replayable run: durable + in-process stored-result
+ * pre-checks before any funding, the in-flight twin wait for a
+ * concurrent duplicate, then the run itself. A success is stored
+ * BEFORE answering (contracts / post-assist pattern); an error body
+ * (carrying __status) is answered bare and never stored.
+ */
+async function serveReplayableRun(args: {
+  res: Response;
+  userId: string;
+  idempotencyKey: string;
+  run: () => Promise<Record<string, unknown>>;
+}): Promise<void> {
+  const { res, userId, idempotencyKey } = args;
+  const replayOf = (body: Record<string, unknown>) => ({
+    ...body, replayed: true, replayNote: IDEA_VALIDATOR_REPLAY_NOTE,
+  });
+
+  const durable = await findStoredGenerationResult(IDEA_VALIDATOR_SCOPE, idempotencyKey, userId);
+  if (durable) {
+    res.json(replayOf(durable));
+    return;
+  }
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json(replayOf(stored.body));
+    return;
+  }
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json(replayOf(twinBody));
+      return;
+    }
+    /* The twin failed (refunded + key voided) — fall through fresh. */
+  }
+
+  const runPromise = args.run();
+  inFlight.set(idempotencyKey, runPromise);
+  let body: Record<string, unknown>;
+  try {
+    body = await runPromise;
+  } finally {
+    if (inFlight.get(idempotencyKey) === runPromise) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult(IDEA_VALIDATOR_SCOPE, idempotencyKey, userId, { ...body });
+  } catch { /* storing is best-effort — never fail a paid success over it */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json(replayOf(postCharge.body));
+    return;
+  }
+  res.json(body);
+}
+
 router.get("/idea-validator-info", requireAuth, (_req, res) => {
   res.json({
     platforms: PLATFORMS.map((p) => ({ id: p, label: PLATFORM_DIRECTION[p] })),
@@ -69,56 +171,51 @@ router.get("/idea-validator-info", requireAuth, (_req, res) => {
   });
 });
 
-router.post("/validate-idea", requireAuth, async (req, res) => {
-  const parsed = ideaValidatorSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid request.",
-      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
-    });
-    return;
-  }
-
-  const currentCredits = req.userCredits ?? 0;
+async function runIdeaValidation(
+  userId: string,
+  userCredits: number,
+  data: z.infer<typeof ideaValidatorSchema>,
+  idempotencyKey: string,
+  log: { error: (obj: object, msg: string) => void },
+): Promise<Record<string, unknown>> {
   if (!process.env.OPENAI_API_KEY) {
-    res.status(503).json({
+    return {
+      __status: 503,
       error: "OPENAI_API_KEY is not configured — this AI feature is unavailable.",
-    });
-    return;
+    };
   }
-  if (currentCredits < IDEA_VALIDATOR_COST) {
-    res.status(402).json({
+  if (userCredits < IDEA_VALIDATOR_COST) {
+    return {
+      __status: 402,
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
-    });
-    return;
+    };
   }
 
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, IDEA_VALIDATOR_COST, {
+    creditsAfter = await chargeCredits(userId, IDEA_VALIDATOR_COST, {
       action: "Idea Validator",
-    });
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      return { __status: 402, error: "out_of_credits", message: "Not enough Visual Bucs." };
     }
     throw err;
   }
 
   try {
     const model = getTextModel();
-    const audienceLine = parsed.data.targetAudience
-      ? `Target audience: ${parsed.data.targetAudience}\n`
+    const audienceLine = data.targetAudience
+      ? `Target audience: ${data.targetAudience}\n`
       : "";
 
     const prompt =
       `You are a ruthless content strategist who has studied what goes viral and what flops. ` +
       `Validate this content idea honestly — do not sugarcoat.\n\n` +
-      `Content idea: ${parsed.data.idea}\n` +
-      `Niche: ${parsed.data.niche}\n` +
-      `Platform: ${PLATFORM_DIRECTION[parsed.data.platform]}\n` +
+      `Content idea: ${data.idea}\n` +
+      `Niche: ${data.niche}\n` +
+      `Platform: ${PLATFORM_DIRECTION[data.platform]}\n` +
       `${audienceLine}\n` +
       `Score three dimensions, each 1-100:\n` +
       `- virality: how likely this idea is to earn shares, saves, and comments on this platform (hooks, novelty, emotional triggers, trend alignment)\n` +
@@ -154,8 +251,8 @@ router.post("/validate-idea", requireAuth, async (req, res) => {
     });
 
     if (!response.ok) throw new Error("Idea validation failed.");
-    const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const content = data.choices?.[0]?.message?.content;
+    const respData = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = respData.choices?.[0]?.message?.content;
     if (!content) throw new Error("Empty idea validation result.");
 
     const raw = JSON.parse(content) as {
@@ -221,18 +318,59 @@ router.post("/validate-idea", requireAuth, async (req, res) => {
       summary: clean(raw.summary, 300),
     };
 
-    res.json({
+    return {
       verdict: result,
       creditsRemaining: creditsAfter,
-    });
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Idea validation failed.";
-    req.log.error({ err: message }, "[idea-validator] failed");
-    await refundCredits(req.userId!, IDEA_VALIDATOR_COST, {
-      action: "Idea Validator — Refund",
-    }).catch(() => {});
-    res.status(500).json({ error: message });
+    log.error({ err: message }, "[idea-validator] failed");
+    /* Refund + VOID so a genuine retry charges fresh instead of
+       being suppressed as a replay and running free. */
+    let refunded = true;
+    try {
+      await refundCredits(userId, IDEA_VALIDATOR_COST, {
+        action: "Idea Validator — Refund",
+      });
+    } catch {
+      refunded = false;
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
+    }
+    return { __status: 500, error: message };
   }
+}
+
+router.post("/validate-idea", requireAuth, async (req, res) => {
+  const parsed = ideaValidatorSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  /* Idempotency (CA-3): the server derives the key from the request
+     intent on EVERY call — a replay of the same ask is served from
+     the stored verdict instead of charging again. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    IDEA_VALIDATOR_SCOPE, req.userId!, undefined,
+    {
+      idea: parsed.data.idea, niche: parsed.data.niche,
+      platform: parsed.data.platform, targetAudience: parsed.data.targetAudience,
+    },
+  );
+
+  await serveReplayableRun({
+    res,
+    userId: req.userId!,
+    idempotencyKey,
+    run: () => runIdeaValidation(
+      req.userId!, req.userCredits ?? 0, parsed.data, idempotencyKey, req.log,
+    ),
+  });
 });
 
 export default router;

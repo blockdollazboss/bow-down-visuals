@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
@@ -7,7 +7,18 @@ import { promisify } from "util";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -267,10 +278,153 @@ interface LufsNormalizeJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /* CA-3: the charge key that funded this job — voided when the job
+     fails + refunds, so a retry of the same ask charges fresh. */
+  idempotencyKey: string;
 }
 
 const jobs = new Map<string, LufsNormalizeJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ─── Idempotent charge + stored-result replay (CA-3, Pattern B) ─────
+   The server derives the charge key from the request intent (a hash
+   of the uploaded audio bytes rides in the intent — the file itself
+   never enters the key); a replay — the same upload sent twice, a
+   double-tap, a retried request — is served the STORED 202 body
+   (same jobId, flagged replayed:true) instead of charging again or
+   minting a second job. Pattern B gate: a stored body is only served
+   while its job is still tracked and not failed — a job that failed
+   refunded + voided its key, and a job lost to a restart/TTL falls
+   through to a fresh run (the ledger dedup keeps that run from
+   double-charging when the original charge still stands). The
+   durable check runs through lib/generation-stored-results.ts;
+   storage is fail-open; fresh responses are byte-identical. */
+const LUFS_SCOPE = "lufs-normalize";
+const LUFS_REPLAY_NOTE =
+  "This normalize job is already on its way for this upload — same job, no second charge.";
+
+interface StoredResult {
+  body: Record<string, unknown>;
+  storedAt: number;
+}
+
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: clear the in-process replay cache between cases. */
+export function __resetLufsReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
+
+function storedJobAlive(body: Record<string, unknown>): boolean {
+  const jobId = body["jobId"];
+  if (typeof jobId !== "string") return true;
+  const job = jobs.get(jobId);
+  return !!job && job.status !== "failed";
+}
+
+async function serveReplayableRun(opts: {
+  res: Response;
+  userId: string;
+  idempotencyKey: string;
+  run: () => Promise<Record<string, unknown>>;
+}): Promise<void> {
+  const { res, userId, idempotencyKey, run } = opts;
+
+  /* 1) Durable pre-check (restart-surviving) — BEFORE funding. */
+  const durable = await findStoredGenerationResult(
+    "lufs-meter",
+    idempotencyKey,
+    userId,
+  );
+  if (durable) {
+    const body =
+      durable.result && typeof durable.result === "object"
+        ? (durable.result as Record<string, unknown>)
+        : null;
+    if (body && body["error"] === undefined && storedJobAlive(body)) {
+      storedResults.set(idempotencyKey, { body, storedAt: Date.now() });
+      res.status(202).json({ ...body, replayed: true, replayNote: LUFS_REPLAY_NOTE });
+      return;
+    }
+  }
+
+  /* 2) In-process completed result (same job-alive gate). */
+  const done = storedResults.get(idempotencyKey);
+  if (done) {
+    if (storedJobAlive(done.body)) {
+      res.status(202).json({ ...done.body, replayed: true, replayNote: LUFS_REPLAY_NOTE });
+      return;
+    }
+    storedResults.delete(idempotencyKey);
+  }
+
+  /* 3) In-flight twin: wait for it, then serve its result as a replay.
+        If the twin failed, fall through and run fresh. */
+  const twin = inFlight.get(idempotencyKey);
+  if (twin) {
+    const twinBody = await twin.catch(() => null);
+    if (twinBody && twinBody["__status"] === undefined) {
+      res.status(202).json({ ...twinBody, replayed: true, replayNote: LUFS_REPLAY_NOTE });
+      return;
+    }
+  }
+
+  /* 4) Fresh run. */
+  const promise = (async () => run())();
+  inFlight.set(idempotencyKey, promise);
+  let body: Record<string, unknown>;
+  try {
+    body = await promise;
+  } finally {
+    if (inFlight.get(idempotencyKey) === promise) {
+      inFlight.delete(idempotencyKey);
+    }
+  }
+
+  const status = body["__status"];
+  if (typeof status === "number") {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  /* 5) Success: remember it in-process AND durably BEFORE answering. */
+  if (storedResults.size >= MAX_STORED_RESULTS) {
+    storedResults.clear();
+  }
+  storedResults.set(idempotencyKey, { body, storedAt: Date.now() });
+  await storeGenerationResult("lufs-meter", idempotencyKey, userId, body);
+
+  /* Post-charge guard: if a DIFFERENT stored body won the durable
+     slot while this run was working, serve that stored body as the
+     replay — but only while its job is still alive. */
+  const winner = await findStoredGenerationResult(
+    "lufs-meter",
+    idempotencyKey,
+    userId,
+  );
+  if (winner) {
+    const winnerBody =
+      winner.result && typeof winner.result === "object"
+        ? (winner.result as Record<string, unknown>)
+        : null;
+    if (
+      winnerBody &&
+      winnerBody["error"] === undefined &&
+      storedJobAlive(winnerBody) &&
+      JSON.stringify(winnerBody) !== JSON.stringify(body)
+    ) {
+      storedResults.set(idempotencyKey, { body: winnerBody, storedAt: Date.now() });
+      res.status(202).json({ ...winnerBody, replayed: true, replayNote: LUFS_REPLAY_NOTE });
+      return;
+    }
+  }
+
+  res.status(202).json(body);
+}
 
 
 /** Test hook: clear the in-memory job store. */
@@ -325,12 +479,21 @@ async function runLufsNormalizeJob(
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Loudness normalization failed";
     // Refund: the user paid for an output they didn't get.
+    let refunded = true;
     try {
       await refundCredits(job.userId, job.creditsCharged, {
         action: "LUFS Loudness Normalize — Refund (job failed)",
       });
     } catch (refundErr) {
+      refunded = false;
       void refundErr;
+    }
+    /* CA-3: VOID the failed job's charge key and drop its stored 202
+       body, so a retry of the same upload charges fresh and mints a
+       new job instead of being served the dead one. */
+    if (refunded) {
+      await voidChargeIdempotencyKey(job.idempotencyKey);
+      storedResults.delete(job.idempotencyKey);
     }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
@@ -405,6 +568,75 @@ router.post("/lufs/analyze", requireAuth, upload.single("audio"), async (req: Re
  * upload + target + format → charge → poll
  * GET /api/lufs/normalize/:jobId → download. Failed jobs refund.
  */
+async function runLufsNormalizeCreate(
+  userId: string,
+  userCredits: number,
+  targetLufs: LufsTarget,
+  format: "wav" | "mp3",
+  filePath: string,
+  originalName: string,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  const balance = userCredits;
+  if (balance < LUFS_NORMALIZE_CREDIT_COST) {
+    return {
+      __status: 402,
+      error: "out_of_credits",
+      message: "You're out of Visual Bucs — top up to normalize loudness.",
+    };
+  }
+
+  let creditsRemaining = balance;
+  try {
+    creditsRemaining = await chargeCredits(userId, LUFS_NORMALIZE_CREDIT_COST, {
+      action: `LUFS Loudness Normalize (${TARGET_LABELS[targetLufs]})`,
+    }, { idempotencyKey });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      return {
+        __status: 402,
+        error: "out_of_credits",
+        message: "You're out of Visual Bucs — top up to normalize loudness.",
+      };
+    }
+    if (err instanceof LedgerWriteError) {
+      return { __status: 500, error: "Could not record the Visual Buc charge. Please try again." };
+    }
+    throw err;
+  }
+
+  const job: LufsNormalizeJob = {
+    id: randomUUID(),
+    userId,
+    status: "queued",
+    targetLufs,
+    format,
+    sourceName: originalName,
+    outputUrl: null,
+    outputRef: null,
+    before: null,
+    after: null,
+    error: null,
+    creditsCharged: LUFS_NORMALIZE_CREDIT_COST,
+    createdAt: Date.now(),
+    idempotencyKey,
+  };
+  jobs.set(job.id, job);
+
+  // Server-owned: runs detached from the request/tab lifecycle.
+  void runLufsNormalizeJob(job, filePath, originalName);
+
+  return {
+    jobId: job.id,
+    status: job.status,
+    targetLufs: job.targetLufs,
+    targetLabel: TARGET_LABELS[targetLufs],
+    format: job.format,
+    creditsCharged: LUFS_NORMALIZE_CREDIT_COST,
+    creditsRemaining,
+  };
+}
+
 router.post("/lufs/normalize", requireAuth, upload.single("audio"), async (req: Request, res: Response) => {
   const parsed = normalizeSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -422,63 +654,27 @@ router.post("/lufs/normalize", requireAuth, upload.single("audio"), async (req: 
   const targetLufs = parseInt(parsed.data.targetLufs, 10) as LufsTarget;
   const format = parsed.data.format;
 
-  const balance = req.userCredits ?? 0;
-  if (balance < LUFS_NORMALIZE_CREDIT_COST) {
-    res.status(402).json({
-      error: "out_of_credits",
-      message: "You're out of Visual Bucs — top up to normalize loudness.",
-    });
-    return;
-  }
+  /* Idempotency (CA-3): key from intent — target, format, and a hash
+     of the uploaded audio's bytes (disk-backed upload; the file
+     itself never enters the key). */
+  const fileBytes = await fs.readFile(req.file.path);
+  const idempotencyKey = buildChargeIdempotencyKey(
+    LUFS_SCOPE, req.userId!, undefined,
+    {
+      targetLufs,
+      format,
+      fileHash: createHash("sha256").update(fileBytes).digest("hex"),
+    },
+  );
 
-  let creditsRemaining = balance;
-  try {
-    creditsRemaining = await chargeCredits(req.userId!, LUFS_NORMALIZE_CREDIT_COST, {
-      action: `LUFS Loudness Normalize (${TARGET_LABELS[targetLufs]})`,
-    });
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
-        error: "out_of_credits",
-        message: "You're out of Visual Bucs — top up to normalize loudness.",
-      });
-      return;
-    }
-    if (err instanceof LedgerWriteError) {
-      res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
-      return;
-    }
-    throw err;
-  }
-
-  const job: LufsNormalizeJob = {
-    id: randomUUID(),
+  await serveReplayableRun({
+    res,
     userId: req.userId!,
-    status: "queued",
-    targetLufs,
-    format,
-    sourceName: req.file.originalname,
-    outputUrl: null,
-    outputRef: null,
-    before: null,
-    after: null,
-    error: null,
-    creditsCharged: LUFS_NORMALIZE_CREDIT_COST,
-    createdAt: Date.now(),
-  };
-  jobs.set(job.id, job);
-
-  // Server-owned: runs detached from the request/tab lifecycle.
-  void runLufsNormalizeJob(job, req.file.path, req.file.originalname);
-
-  res.status(202).json({
-    jobId: job.id,
-    status: job.status,
-    targetLufs: job.targetLufs,
-    targetLabel: TARGET_LABELS[targetLufs],
-    format: job.format,
-    creditsCharged: LUFS_NORMALIZE_CREDIT_COST,
-    creditsRemaining,
+    idempotencyKey,
+    run: () => runLufsNormalizeCreate(
+      req.userId!, req.userCredits ?? 0, targetLufs, format,
+      req.file!.path, req.file!.originalname, idempotencyKey,
+    ),
   });
 });
 

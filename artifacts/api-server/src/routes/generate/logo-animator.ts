@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { z } from "zod";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -7,7 +7,14 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import {
+  chargeCredits, refundCredits, OutOfCreditsError,
+  buildChargeIdempotencyKey, voidChargeIdempotencyKey,
+} from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -102,37 +109,125 @@ router.get("/logo-animations", requireAuth, (_req, res) => {
   });
 });
 
-router.post("/animate-logo", requireAuth, async (req, res) => {
-  const parsed = logoAnimatorSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "Invalid request.",
-      details: parsed.error.issues.map((i) => ({
-        field: i.path.join("."),
-        message: i.message,
-      })),
-    });
+
+/* ── CA-3 replay protection (charge audit C-38) ───────────────────────
+   This rail used to charge with NO idempotency key: a retry of a
+   SUCCESSFUL request re-charged and re-ran the work. Now the server
+   derives the key from the request intent on EVERY call, a
+   stored-result pre-check (durable table, migration 0333, then the
+   in-process cache) answers a replay with no charge and no provider
+   call, and a failed attempt refunds AND voids its key so a genuine
+   retry charges fresh. An identical ask serves the stored result
+   with replayed: true instead of charging again (C-36 ruling). */
+const LOGO_ANIMATOR_SCOPE = "logo-animator";
+const LOGO_ANIMATOR_REPLAY_NOTE =
+  "This is the logo sting you already made for this request — change the logo, style or background for a fresh one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetLogoAnimatorReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
+
+/**
+ * Serve one replayable run: durable + in-process stored-result
+ * pre-checks before any funding, the in-flight twin wait for a
+ * concurrent duplicate, then the run itself. A success is stored
+ * BEFORE answering (contracts / post-assist pattern); an error body
+ * (carrying __status) is answered bare and never stored.
+ */
+async function serveReplayableRun(args: {
+  res: Response;
+  userId: string;
+  idempotencyKey: string;
+  run: () => Promise<Record<string, unknown>>;
+}): Promise<void> {
+  const { res, userId, idempotencyKey } = args;
+  const replayOf = (body: Record<string, unknown>) => ({
+    ...body, replayed: true, replayNote: LOGO_ANIMATOR_REPLAY_NOTE,
+  });
+
+  const durable = await findStoredGenerationResult(LOGO_ANIMATOR_SCOPE, idempotencyKey, userId);
+  if (durable) {
+    res.json(replayOf(durable));
+    return;
+  }
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json(replayOf(stored.body));
+    return;
+  }
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json(replayOf(twinBody));
+      return;
+    }
+    /* The twin failed (refunded + key voided) — fall through fresh. */
+  }
+
+  const runPromise = args.run();
+  inFlight.set(idempotencyKey, runPromise);
+  let body: Record<string, unknown>;
+  try {
+    body = await runPromise;
+  } finally {
+    if (inFlight.get(idempotencyKey) === runPromise) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
     return;
   }
 
-  const currentCredits = req.userCredits ?? 0;
-  if (currentCredits < LOGO_ANIMATOR_COST) {
-    res.status(402).json({
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult(LOGO_ANIMATOR_SCOPE, idempotencyKey, userId, { ...body });
+  } catch { /* storing is best-effort — never fail a paid success over it */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json(replayOf(postCharge.body));
+    return;
+  }
+  res.json(body);
+}
+
+async function runLogoAnimation(
+  userId: string,
+  userCredits: number,
+  data: z.infer<typeof logoAnimatorSchema>,
+  idempotencyKey: string,
+  log: { error: (obj: object, msg: string) => void },
+): Promise<Record<string, unknown>> {
+  if (userCredits < LOGO_ANIMATOR_COST) {
+    return {
+      __status: 402,
       error: "out_of_credits",
       message: "Not enough Visual Bucs. Buy more Visual Bucs to keep creating.",
-    });
-    return;
+    };
   }
 
   let creditsAfter: number;
   try {
-    creditsAfter = await chargeCredits(req.userId!, LOGO_ANIMATOR_COST, {
-      action: `Logo Animator (${parsed.data.style})`,
-    });
+    creditsAfter = await chargeCredits(userId, LOGO_ANIMATOR_COST, {
+      action: `Logo Animator (${data.style})`,
+    }, { idempotencyKey });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs." });
-      return;
+      return { __status: 402, error: "out_of_credits", message: "Not enough Visual Bucs." };
     }
     throw err;
   }
@@ -142,16 +237,16 @@ router.post("/animate-logo", requireAuth, async (req, res) => {
   const outputPath = join(workDir, "sting.mp4");
 
   try {
-    const logoRes = await fetch(parsed.data.logoUrl, { signal: AbortSignal.timeout(120_000) });
+    const logoRes = await fetch(data.logoUrl, { signal: AbortSignal.timeout(120_000) });
     if (!logoRes.ok) throw new Error("Could not download the logo.");
     await writeFile(inputPath, Buffer.from(await logoRes.arrayBuffer()));
 
-    const style = ANIMATION_STYLES[parsed.data.style];
-    const bgColor = parsed.data.backgroundColor.replace(/^#/, "").toLowerCase();
+    const style = ANIMATION_STYLES[data.style];
+    const bgColor = data.backgroundColor.replace(/^#/, "").toLowerCase();
 
     // Scale the logo to a target width (pulse scales dynamically instead).
     const logoScale =
-      parsed.data.style === "pulse" ? "" : `scale=${LOGO_TARGET_W}:-1,`;
+      data.style === "pulse" ? "" : `scale=${LOGO_TARGET_W}:-1,`;
     const logoChain = style.logoChain ? `,${style.logoChain}` : "";
 
     const filterComplex =
@@ -182,30 +277,74 @@ router.post("/animate-logo", requireAuth, async (req, res) => {
     );
 
     const buffer = await readFile(outputPath);
-    const objectName = `logo-animator/${req.userId}/${randomUUID()}.mp4`;
+    const objectName = `logo-animator/${userId}/${randomUUID()}.mp4`;
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "video/mp4");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    res.json({
+    return {
       url,
       storageRef,
-      style: parsed.data.style,
+      style: data.style,
       durationSec: STING_DURATION,
       creditsRemaining: creditsAfter,
-    });
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Logo animation failed.";
-    req.log.error({ err: message }, "[animate-logo] failed");
-    await refundCredits(req.userId!, LOGO_ANIMATOR_COST, {
-      action: "Logo Animator — Refund",
-    }).catch(() => {});
-    res.status(500).json({ error: message });
+    log.error({ err: message }, "[animate-logo] failed");
+    /* Refund + VOID so a genuine retry charges fresh instead of
+       being suppressed as a replay and running free. */
+    let refunded = true;
+    try {
+      await refundCredits(userId, LOGO_ANIMATOR_COST, {
+        action: "Logo Animator — Refund",
+      });
+    } catch {
+      refunded = false;
+    }
+    if (refunded) {
+      await voidChargeIdempotencyKey(idempotencyKey);
+    }
+    return { __status: 500, error: message };
   } finally {
     await unlink(inputPath).catch(() => {});
     await unlink(outputPath).catch(() => {});
     const { rm } = await import("fs/promises");
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+router.post("/animate-logo", requireAuth, async (req, res) => {
+  const parsed = logoAnimatorSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({
+        field: i.path.join("."),
+        message: i.message,
+      })),
+    });
+    return;
+  }
+
+  /* Idempotency (CA-3): the server derives the key from the request
+     intent on EVERY call — a replay of the same ask is served from
+     the stored sting instead of charging again. */
+  const idempotencyKey = buildChargeIdempotencyKey(
+    LOGO_ANIMATOR_SCOPE, req.userId!, undefined,
+    {
+      logoUrl: parsed.data.logoUrl, style: parsed.data.style,
+      backgroundColor: parsed.data.backgroundColor,
+    },
+  );
+
+  await serveReplayableRun({
+    res,
+    userId: req.userId!,
+    idempotencyKey,
+    run: () => runLogoAnimation(
+      req.userId!, req.userCredits ?? 0, parsed.data, idempotencyKey, req.log,
+    ),
+  });
 });
 
 export default router;

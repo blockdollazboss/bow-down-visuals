@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
@@ -9,7 +9,13 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
 import { db, labelPitchesTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 
@@ -365,61 +371,153 @@ function parseDemoKitResponse(raw: string): DemoKit {
   };
 }
 
+
+/* ── CA-3 replay protection (charge audit C-38) ───────────────────────
+   This rail used to charge with NO idempotency key: a retry of a
+   SUCCESSFUL request re-charged and re-ran the work. Now the server
+   derives the key from the request intent on EVERY call, a
+   stored-result pre-check (durable table, migration 0333, then the
+   in-process cache) answers a replay with no charge and no provider
+   call, and a failed attempt refunds AND voids its key so a genuine
+   retry charges fresh. An identical ask serves the stored result
+   with replayed: true instead of charging again (C-36 ruling). */
+const LABEL_PITCH_SCOPE = "label-pitch";
+const LABEL_PITCH_REPLAY_NOTE =
+  "This is the demo kit you already made for this song — change the song details or target label for a fresh one.";
+
+interface StoredResult { body: Record<string, unknown>; at: number }
+const storedResults = new Map<string, StoredResult>();
+const inFlight = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_STORED_RESULTS = 500;
+
+/** Test hook: forget every stored result and in-flight wait. */
+export function __resetLabelPitchReplayCache(): void {
+  storedResults.clear();
+  inFlight.clear();
+}
+
+/**
+ * Serve one replayable run: durable + in-process stored-result
+ * pre-checks before any funding, the in-flight twin wait for a
+ * concurrent duplicate, then the run itself. A success is stored
+ * BEFORE answering (contracts / post-assist pattern); an error body
+ * (carrying __status) is answered bare and never stored.
+ */
+async function serveReplayableRun(args: {
+  res: Response;
+  userId: string;
+  idempotencyKey: string;
+  run: () => Promise<Record<string, unknown>>;
+}): Promise<void> {
+  const { res, userId, idempotencyKey } = args;
+  const replayOf = (body: Record<string, unknown>) => ({
+    ...body, replayed: true, replayNote: LABEL_PITCH_REPLAY_NOTE,
+  });
+
+  const durable = await findStoredGenerationResult(LABEL_PITCH_SCOPE, idempotencyKey, userId);
+  if (durable) {
+    res.json(replayOf(durable));
+    return;
+  }
+  const stored = storedResults.get(idempotencyKey);
+  if (stored) {
+    res.json(replayOf(stored.body));
+    return;
+  }
+  const pending = inFlight.get(idempotencyKey);
+  if (pending) {
+    const twinBody = await pending.catch(() => null);
+    if (twinBody && typeof twinBody["__status"] !== "number") {
+      res.json(replayOf(twinBody));
+      return;
+    }
+    /* The twin failed (refunded + key voided) — fall through fresh. */
+  }
+
+  const runPromise = args.run();
+  inFlight.set(idempotencyKey, runPromise);
+  let body: Record<string, unknown>;
+  try {
+    body = await runPromise;
+  } finally {
+    if (inFlight.get(idempotencyKey) === runPromise) inFlight.delete(idempotencyKey);
+  }
+
+  const status = typeof body["__status"] === "number" ? (body["__status"] as number) : 200;
+  if (status !== 200) {
+    const { __status: _ignored, ...errorBody } = body;
+    res.status(status).json(errorBody);
+    return;
+  }
+
+  try {
+    if (storedResults.size >= MAX_STORED_RESULTS) {
+      const oldest = storedResults.keys().next().value as string | undefined;
+      if (oldest !== undefined) storedResults.delete(oldest);
+    }
+    storedResults.set(idempotencyKey, { body, at: Date.now() });
+    await storeGenerationResult(LABEL_PITCH_SCOPE, idempotencyKey, userId, { ...body });
+  } catch { /* storing is best-effort — never fail a paid success over it */ }
+
+  const postCharge = storedResults.get(idempotencyKey);
+  if (postCharge && postCharge.body !== body) {
+    res.json(replayOf(postCharge.body));
+    return;
+  }
+  res.json(body);
+}
+
 /* POST /api/label-pitch/kit — 3 credits.
    Body: song details (+ optional label to personalize).
    Returns: { kit, creditsUsed, creditsRemaining } */
-router.post(
-  "/label-pitch/kit",
-  requireAuth,
-  publicApiLimiter,
-  async (req, res) => {
-    const parsed = demoKitSchema.safeParse(req.body ?? {});
-    if (!parsed.success) {
-      res.status(400).json({
-        error: "Invalid demo kit request.",
-        details: parsed.error.issues.map((i) => ({
-          field: i.path.join("."),
-          message: i.message,
-        })),
-      });
-      return;
-    }
-
-    const balance = req.userCredits ?? 0;
+async function runLabelPitchKit(
+  userId: string,
+  userCredits: number,
+  data: z.infer<typeof demoKitSchema>,
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+    const balance = userCredits;
     if (balance < LABEL_PITCH_CREDIT_COST) {
-      res.status(402).json({
+      return {
+        __status: 402,
         error: "out_of_credits",
         message: "You're out of credits — top up to generate a demo kit.",
-      });
-      return;
+      };
     }
 
     let creditsRemaining = balance;
     try {
-      creditsRemaining = await chargeCredits(req.userId!, LABEL_PITCH_CREDIT_COST, {
+      creditsRemaining = await chargeCredits(userId, LABEL_PITCH_CREDIT_COST, {
         action: "Label Pitch Demo Kit",
-      });
+      }, { idempotencyKey });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
-        res.status(402).json({
+        return {
+          __status: 402,
           error: "out_of_credits",
           message: "You're out of credits — top up to generate a demo kit.",
-        });
-        return;
+        };
       }
       throw err;
     }
 
     const refundOnFailure = async () => {
+      let refunded = true;
       try {
-        await refundCredits(req.userId!, LABEL_PITCH_CREDIT_COST, {
+        await refundCredits(userId, LABEL_PITCH_CREDIT_COST, {
           action: "Label Pitch Demo Kit — Refund (generation failed)",
         });
       } catch (refundErr) {
+        refunded = false;
         logger.error(
-          { err: refundErr, userId: req.userId },
+          { err: refundErr, userId },
           "[label-pitch] refund failed after generation error",
         );
+      }
+      /* VOID the refunded charge's key (CA-3) so a genuine retry
+         charges fresh instead of running free as a "replay". */
+      if (refunded) {
+        await voidChargeIdempotencyKey(idempotencyKey);
       }
     };
 
@@ -438,7 +536,7 @@ router.post(
               "where facts are missing. You are honest that no package " +
               "guarantees a deal.",
           },
-          { role: "user", content: buildDemoKitPrompt(parsed.data) },
+          { role: "user", content: buildDemoKitPrompt(data) },
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 2000,
@@ -447,21 +545,54 @@ router.post(
       const raw = completion.choices[0]?.message?.content ?? "{}";
       const kit = parseDemoKitResponse(raw);
 
-      res.json({
+      return {
         kit,
         creditsUsed: LABEL_PITCH_CREDIT_COST,
         creditsRemaining,
-      });
+      };
     } catch (err) {
       await refundOnFailure();
       if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
         logger.warn({ err }, "[label-pitch] OpenAI rate limit / quota");
-        res.status(503).json({ error: "The studio is catching its breath — try again in a moment." });
-        return;
+        return { __status: 503, error: "The studio is catching its breath — try again in a moment." };
       }
       logger.error({ err }, "[label-pitch] demo kit generation failed");
-      res.status(502).json({ error: "The demo kit didn't come together — credits refunded. Try again." });
+      return { __status: 502, error: "The demo kit didn't come together — credits refunded. Try again." };
     }
+}
+
+router.post(
+  "/label-pitch/kit",
+  requireAuth,
+  publicApiLimiter,
+  async (req, res) => {
+    const parsed = demoKitSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({
+        error: "Invalid demo kit request.",
+        details: parsed.error.issues.map((i) => ({
+          field: i.path.join("."),
+          message: i.message,
+        })),
+      });
+      return;
+    }
+
+    /* Idempotency (CA-3): the server derives the key from the request
+       intent on EVERY call — a replay of the same ask is served from
+       the stored kit instead of charging again. */
+    const idempotencyKey = buildChargeIdempotencyKey(
+      LABEL_PITCH_SCOPE, req.userId!, undefined, parsed.data,
+    );
+
+    await serveReplayableRun({
+      res,
+      userId: req.userId!,
+      idempotencyKey,
+      run: () => runLabelPitchKit(
+        req.userId!, req.userCredits ?? 0, parsed.data, idempotencyKey,
+      ),
+    });
   },
 );
 
