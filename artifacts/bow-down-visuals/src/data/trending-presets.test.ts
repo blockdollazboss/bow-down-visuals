@@ -6,8 +6,9 @@
  * must be well-formed on its own. The slug list is pinned in file order:
  * the Stack 200 U5 additions (speed-ramp-surge, ink-splash-reveal) close
  * out their categories, the Stack 300 additions (noir-mono-grade,
- * spin-swap, fade-through, vhs-static-drift) close out theirs, and the
- * pin keeps the count honest at 26.
+ * spin-swap, fade-through, vhs-static-drift) close out theirs, the
+ * Stack 400 additions (thermal-vision-grade, paper-tear-reveal) close
+ * out Style and Transition, and the pin keeps the count honest at 28.
  */
 import { describe, it, expect } from "vitest";
 import { TRENDING_PRESETS, getTrendingPreset } from "./trending-presets";
@@ -30,6 +31,7 @@ const EXPECTED_SLUGS = [
   "vintage-film",
   "anime-pop",
   "noir-mono-grade",
+  "thermal-vision-grade",
   /* Transition */
   "match-cut-snap",
   "whoosh-wipe",
@@ -37,6 +39,7 @@ const EXPECTED_SLUGS = [
   "glitch-cut",
   "spin-swap",
   "fade-through",
+  "paper-tear-reveal",
   /* Effect */
   "film-grain-storm",
   "light-leaks",
@@ -48,7 +51,7 @@ const EXPECTED_SLUGS = [
 const CATEGORIES = ["Motion", "Style", "Transition", "Effect"];
 
 describe("trending preset catalog", () => {
-  it("holds the full pinned catalog (26 presets)", () => {
+  it("holds the full pinned catalog (28 presets)", () => {
     expect(TRENDING_PRESETS.map((p) => p.slug)).toEqual(EXPECTED_SLUGS);
   });
 
@@ -125,6 +128,22 @@ describe("trending preset catalog", () => {
       category: "Effect",
       editorEffect: "VHS",
       remixParams: { fx: "fx-static-vhs" },
+    });
+  });
+
+  it("the Stack 400 additions close out Style and Transition on the remix fallback", () => {
+    /* Neither look exists in the editor's built-in catalogs (no thermal
+       grade, no paper-tear transition), so both ride the feed-built
+       remix fallback rather than inventing a mapping. */
+    expect(getTrendingPreset("thermal-vision-grade")).toMatchObject({
+      name: "Thermal Vision Grade",
+      category: "Style",
+      remixParams: { remix: "thermal-vision-grade" },
+    });
+    expect(getTrendingPreset("paper-tear-reveal")).toMatchObject({
+      name: "Paper Tear Reveal",
+      category: "Transition",
+      remixParams: { remix: "paper-tear-reveal" },
     });
   });
 });

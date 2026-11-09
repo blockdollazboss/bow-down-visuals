@@ -44,6 +44,8 @@ const EXPECTED_KEYS = [
   "countdown-teaser",
   "interview-qa-cut",
   "behind-the-scenes-cut",
+  "day-in-the-life-recap",
+  "grwm-routine-cut",
 ];
 
 const ASPECTS = ["9:16", "16:9", "1:1"];
@@ -63,7 +65,7 @@ function slotStarts(recipe: VideoTemplateRecipe): number[] {
 }
 
 describe("video template library", () => {
-  it("holds the full pinned library (22 recipes)", () => {
+  it("holds the full pinned library (24 recipes)", () => {
     expect(VIDEO_TEMPLATES.length).toBeGreaterThanOrEqual(16);
     expect(VIDEO_TEMPLATES.map((t) => t.key)).toEqual(EXPECTED_KEYS);
   });
