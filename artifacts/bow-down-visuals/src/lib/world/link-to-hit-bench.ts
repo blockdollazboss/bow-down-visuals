@@ -5,7 +5,9 @@
    a social link and/or upload the video, paste the comments,
    get a funny music-video package on the panel's own rails:
 
-     POST /api/upload-clip (multipart "clip") → { url }
+     The shared clip door (lib/clip-upload: /api/upload-clip/session
+       mints the key, the /api/r2 doors carry the bytes, /complete
+       records it) → { url }
        The free hosting step: the picked file REALLY uploads
        and its URL rides along with the analyze request.
      POST /api/link-to-hit/analyze
@@ -47,7 +49,6 @@
    the catalogs with this bench, its en values the panel's
    own literal strings, so bench and page can never drift. */
 export const LINK_TO_HIT_ANALYZE_PATH = "/api/link-to-hit/analyze";
-export const LINK_TO_HIT_UPLOAD_PATH = "/api/upload-clip";
 
 /** The route's ANALYZE_CREDITS default (300) — the same
  *  number the 2D panel's COST carries. */
@@ -70,7 +71,7 @@ export const LINK_TO_HIT_DESCRIPTION_MAX = 1000;
 export const LINK_TO_HIT_COMMENT_MAX = 500;
 export const LINK_TO_HIT_CUSTOM_GENRE_MAX = 60;
 
-/** The member upload ceiling on /api/upload-clip (the
+/** The member upload ceiling on the clip door (the
  *  panel's 80 MB; the owner-admin ceiling is the upload
  *  helper's business, applied by the bench via useIsAdmin
  *  exactly as the panel applies it). */

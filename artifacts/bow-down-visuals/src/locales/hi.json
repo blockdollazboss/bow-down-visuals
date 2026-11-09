@@ -23867,7 +23867,6 @@
     "shoDeclinedRefunded": "Declined — {{fan}}'s {{amount}} was refunded in full, and they've been emailed that it's on its way back.",
     "shoDidntGoThrough": "वह नहीं हो पाया — फिर कोशिश करें।",
     "shoVideoTooBig": "वह वीडियो 80 MB से बड़ा है — उसे छोटा करें या छोटी फ़ाइल चुनें।",
-    "shoUploadFailed": "अपलोड विफल ({{status}})",
     "shoOutOfCredits": "You're out of Visual Bucs — top up to polish the words.",
     "shoRevenueLoadTitle": "आय की जानकारी नहीं खुली",
     "shoRevenueLoadMessage": "आपके अनुरोध और कमाई सुरक्षित हैं — यह जानकारी बस उन तक नहीं पहुँच पाई।",

@@ -1,4 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
+import { uploadClipDirect } from "../../../lib/clip-upload";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -187,7 +188,7 @@ const GEN_TIPS = [
 export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimeline, captionSettings, onCaptionSettingsChange }: Props) {
   const { t } = useTranslation();
   const { confirmedFetch } = useConfirmedApi();
-  /* Caption uploads ride the disk-backed rails (/api/upload-clip into
+  /* Caption uploads ride the direct storage door (lib/clip-upload into
      /api/caption-styler): members 80 MB, owner 1 GB. */
   const isAdmin = useIsAdmin();
 
@@ -371,17 +372,7 @@ export function AiCaptionSuite({ getAccessToken, timelineVideos, onPushToTimelin
     if (!file) throw new Error(t("captionSuite.chooseFileFirst"));
     const token = await getAccessToken?.().catch(() => null);
     if (!token) throw new Error(t("captionSuite.signInToUpload"));
-    const form = new FormData();
-    form.append("clip", file, file.name);
-    const upRes = await fetch("/api/upload-clip", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    });
-    const upData = (await upRes.json().catch(() => ({}))) as { url?: string; error?: string; message?: string };
-    if (!upRes.ok || !upData.url) {
-      throw new Error(apiErrorMessage(upData, t("captionSuite.uploadFailed")));
-    }
+    const upData = await uploadClipDirect(file, token);
     setVideoUrl(upData.url);
     return upData.url;
   }

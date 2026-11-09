@@ -32,12 +32,11 @@
                                                 charge-before-generate,
                                                 the rail refunds a
                                                 provider failure)
-     POST  /api/upload-clip                   → the delivery-video
+     The shared clip door (lib/clip-upload)  → the delivery-video
                                                 upload the 2D page
-                                                uses (multipart "clip",
-                                                ≤ 80 MB page-side cap);
-                                                the answer's ref (or
-                                                url) is then PATCHed
+                                                uses (≤ 80 MB page-side
+                                                cap); the answer's ref
+                                                (or url) is then PATCHed
                                                 onto the request as
                                                 its delivery
 
@@ -76,7 +75,6 @@ function registryCost(endpoint: string): number {
 export const SHOUTOUT_REQUESTS_PATH = "/api/shoutouts/requests";
 export const SHOUTOUT_REVENUE_PATH = "/api/shoutouts/revenue";
 export const SHOUTOUT_AI_MESSAGE_PATH = "/api/shoutouts/ai-message";
-export const SHOUTOUT_UPLOAD_CLIP_PATH = "/api/upload-clip";
 
 export function shoutoutRequestPath(id: string): string {
   return `${SHOUTOUT_REQUESTS_PATH}/${encodeURIComponent(id)}`;

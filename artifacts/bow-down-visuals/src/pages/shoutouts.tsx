@@ -1,4 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../lib/api-error";
+import { uploadClipDirect } from "../lib/clip-upload";
 import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useEffect, useRef, useState } from "react";
@@ -419,19 +420,8 @@ export default function Shoutouts() {
     try {
       const token = await getAccessToken();
       if (!token) throw new Error(t("shoutouts.errorUploadSignIn"));
-      const form = new FormData();
-      form.append("clip", file, file.name);
-      const upRes = await fetch("/api/upload-clip", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-      const upData = (await upRes.json().catch(() => ({}))) as {
-        url?: string; ref?: string; error?: string; message?: string;
-      };
-      if (!upRes.ok) throw new Error(apiErrorMessage(upData, `Upload failed (${upRes.status})`));
-      const stored = upData.ref ?? upData.url;
-      if (!stored) throw new Error(t("shoutouts.errorUploadNoRef"));
+      const upData = await uploadClipDirect(file, token);
+      const stored = upData.ref;
       const res = await fetch(`/api/shoutouts/requests/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

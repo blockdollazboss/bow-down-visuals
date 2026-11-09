@@ -39,8 +39,9 @@ describe("the sell desk rides the site's sell rails", () => {
   });
 
   it("delivers by upload through the page's clip rail, ref attached on the PATCH", () => {
-    expect(desk).toContain('form.append("clip", file, file.name)');
-    expect(desk).toContain("SHOUTOUT_UPLOAD_CLIP_PATH");
+    /* D-45: the delivery upload rides the shared direct clip door
+       (lib/clip-upload), the same door the 2D page uses. */
+    expect(desk).toContain("uploadClipDirect(");
     expect(desk).toContain("shoutoutDeliveryFileReady(file.size)");
     expect(desk).toContain("shoutoutUploadRef(upData)");
     expect(desk).toContain('patchRequest(req, "delivered", stored)');

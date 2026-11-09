@@ -23863,7 +23863,6 @@
     "shoDeclinedRefunded": "Declined — {{fan}}'s {{amount}} was refunded in full, and they've been emailed that it's on its way back.",
     "shoDidntGoThrough": "うまくいきませんでした — もう一度お試しください。",
     "shoVideoTooBig": "その動画は80 MBを超えています — トリミングするか、小さいファイルを選んでください。",
-    "shoUploadFailed": "アップロードに失敗しました（{{status}}）",
     "shoOutOfCredits": "You're out of Visual Bucs — top up to polish the words.",
     "shoRevenueLoadTitle": "収益の読み取りを開けませんでした",
     "shoRevenueLoadMessage": "あなたのリクエストと収益は安全です — この読み取りが届きませんでした。",

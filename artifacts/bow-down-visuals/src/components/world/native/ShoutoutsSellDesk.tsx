@@ -1,4 +1,5 @@
 import { apiErrorMessage, plainErrorText } from "../../../lib/api-error";
+import { uploadClipDirect } from "../../../lib/clip-upload";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -26,7 +27,6 @@ import {
   shoutoutUploadRef,
   SHOUTOUT_AI_MESSAGE_PATH,
   SHOUTOUT_REVENUE_PATH,
-  SHOUTOUT_UPLOAD_CLIP_PATH,
   SHOUTOUT_FILTER_STATUSES,
   type ShoutoutRevenue,
   type ShoutoutSellRequest,
@@ -43,8 +43,8 @@ import {
      the rail's transition map — the desk offers only the verbs
      the map allows from the request's current status, so no tap
      is born 409);
-   - deliver by upload (POST /api/upload-clip, the page's rail,
-     ≤ 80 MB) or by pasted video URL, exactly the page's two ways;
+   - deliver by upload (the shared direct clip door, the page's
+     rail, ≤ 80 MB) or by pasted video URL, exactly the page's two ways;
    - revenue (GET /api/shoutouts/revenue): counts and the gross /
      you-keep figures are the rail's own sums at its flat 5% fee —
      the desk computes no money of its own;
@@ -219,17 +219,10 @@ export function ShoutoutsSellDesk({ isLight, isGuest }: { isLight: boolean; isGu
     setUploading((u) => ({ ...u, [req.id]: true }));
     setRowError((e) => ({ ...e, [req.id]: "" }));
     try {
-      const token = (await authHeaders())["Authorization"];
-      if (!token) throw new Error(t("shoutouts.errorUploadSignIn"));
-      const form = new FormData();
-      form.append("clip", file, file.name);
-      const upRes = await fetch(SHOUTOUT_UPLOAD_CLIP_PATH, {
-        method: "POST",
-        headers: { Authorization: token },
-        body: form,
-      });
-      const upData = (await upRes.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!upRes.ok) throw new Error(apiErrorMessage(upData, t("worldRemainder.shoUploadFailed", { status: upRes.status })));
+      const auth = (await authHeaders())["Authorization"];
+      if (!auth) throw new Error(t("shoutouts.errorUploadSignIn"));
+      const token = auth.replace(/^Bearer\s+/i, "");
+      const upData: Record<string, unknown> = { ...(await uploadClipDirect(file, token || null)) };
       const stored = shoutoutUploadRef(upData);
       if (!stored) throw new Error(t("shoutouts.errorUploadNoRef"));
       await patchRequest(req, "delivered", stored);

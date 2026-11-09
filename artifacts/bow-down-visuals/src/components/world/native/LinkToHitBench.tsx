@@ -7,7 +7,7 @@
  *
  * The panel's own flow on its own rails (lib/world/
  * link-to-hit-bench.ts): a social link and/or a REAL upload
- * (the picked file hosts through /api/upload-clip first —
+ * (the picked file hosts through the direct clip door first —
  * free, unconfirmed), comments the song is written from, a
  * genre that's the creator's call, then the analyze run —
  * 300 Bucs behind the spend confirmation, the override the
@@ -24,6 +24,7 @@ import { useState } from "react";
 import { Check, Copy, Film, Link2, Loader2, Music2, Plus, Sparkles, Upload, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { apiErrorMessage, plainErrorText } from "@/lib/api-error";
+import { uploadClipDirect } from "@/lib/clip-upload";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useIsAdmin, uploadLimitBytes, uploadLimitLabel } from "@/lib/use-is-admin";
@@ -36,7 +37,6 @@ import {
   LINK_TO_HIT_GENRE_PRESETS,
   LINK_TO_HIT_MEMBER_UPLOAD_BYTES,
   LINK_TO_HIT_SONG_STATION_ID,
-  LINK_TO_HIT_UPLOAD_PATH,
   addLinkToHitComment,
   buildLinkToHitPayload,
   linkToHitFileVerdict,
@@ -56,9 +56,9 @@ export function LinkToHitBench({
   onOpenStation?: (stationId: string) => void;
 }) {
   const { t } = useTranslation();
-  const { refreshProfile } = useAuth();
+  const { refreshProfile, getAccessToken } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
-  /* Uploads ride /api/upload-clip: members 80 MB, owner 1 GB —
+  /* Uploads ride the direct clip door: members 80 MB, owner 1 GB —
      the panel's own helpers. */
   const isAdmin = useIsAdmin();
 
@@ -119,18 +119,18 @@ export function LinkToHitBench({
     try {
       /* The picked file REALLY uploads (the panel's own fix:
          the analysis once ran on the filename alone). Hosted
-         via /api/upload-clip, its URL rides along. */
+         via the direct storage door (lib/clip-upload), its URL
+         rides along. */
       let effectiveUrl = url.trim();
       if (uploadFile) {
         setUploading(true);
-        const form = new FormData();
-        form.append("clip", uploadFile, uploadFile.name);
-        const upRes = await fetch(LINK_TO_HIT_UPLOAD_PATH, { method: "POST", body: form });
-        const upData: unknown = await upRes.json().catch(() => ({}));
-        setUploading(false);
+        const upData: unknown = await uploadClipDirect(
+          uploadFile,
+          await getAccessToken().catch(() => null),
+        ).finally(() => setUploading(false));
         const hosted = linkToHitUploadUrlOf(upData);
-        if (!upRes.ok || !hosted) {
-          throw new Error(apiErrorMessage(upData, t("linkToHit.uploadFailed")));
+        if (!hosted) {
+          throw new Error(t("linkToHit.uploadFailed"));
         }
         effectiveUrl = hosted;
       }
