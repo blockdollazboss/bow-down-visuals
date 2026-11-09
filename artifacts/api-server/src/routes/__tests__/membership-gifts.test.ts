@@ -16,6 +16,9 @@
  *    exactly when the first ends — no paid time lost, none doubled);
  *    checkout is embedded (ui_mode=embedded_page, mode=payment —
  *    never a subscription, never a hosted-page redirect).
+ *  - house copy: a provider failure answers the site's established
+ *    error words only — the provider's raw message (and its name)
+ *    never reaches the response body; it stays in the server log.
  *
  * ACCEPTANCE-FAITHFUL DOUBLE (Stack 400, item C-39 audit): the
  * guarded-client double below used to accept ANY session params —
@@ -47,6 +50,12 @@ const h = vi.hoisted(() => ({
   sessions: new Map<string, any>(),
   sessionSeq: 0,
   createdParams: [] as any[],
+  /* Provider-failure controls for the house-copy pins: when set, the
+     double fails the way the live provider does — a distinctive raw
+     message on session-create, a throw at client construction —
+     so the suite can prove none of that text reaches the client. */
+  createError: null as Error | null,
+  clientError: null as Error | null,
 }));
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -83,11 +92,14 @@ vi.mock("../../lib/stripe-client", async (importOriginal) => {
   }
   return {
     ...actual,
-    createGuardedStripeClient: () => ({
-      checkout: {
-        sessions: {
-          create: async (params: any) => {
-            validateSessionParams(params);
+    createGuardedStripeClient: () => {
+      if (h.clientError) throw h.clientError;
+      return {
+        checkout: {
+          sessions: {
+            create: async (params: any) => {
+              if (h.createError) throw h.createError;
+              validateSessionParams(params);
             h.sessionSeq += 1;
             const id = `cs_test_gift_${h.sessionSeq}`;
             const session = {
@@ -99,18 +111,19 @@ vi.mock("../../lib/stripe-client", async (importOriginal) => {
               currency: "usd",
               metadata: params.metadata,
             };
-            h.sessions.set(id, session);
-            h.createdParams.push(params);
-            return session;
-          },
-          retrieve: async (id: string) => {
-            const s = h.sessions.get(id);
-            if (!s) throw new Error("No such session");
-            return s;
+              h.sessions.set(id, session);
+              h.createdParams.push(params);
+              return session;
+            },
+            retrieve: async (id: string) => {
+              const s = h.sessions.get(id);
+              if (!s) throw new Error("No such session");
+              return s;
+            },
           },
         },
-      },
-    }),
+      };
+    },
   };
 });
 
@@ -215,6 +228,8 @@ beforeEach(async () => {
   h.sessions.clear();
   h.createdParams = [];
   h.sessionSeq = 0;
+  h.createError = null;
+  h.clientError = null;
   h.userId = SENDER;
   await h.db.execute(sql`
     INSERT INTO profiles (id, email, display_name) VALUES
@@ -475,5 +490,61 @@ describe("C-39 — the acceptance-faithful double (the seam the old suite faked)
     const src = fs.readFileSync(path.join(__dirname, "..", "membership-gifts.ts"), "utf8");
     expect(src).toContain('ui_mode: "embedded_page"');
     expect(src).not.toContain('ui_mode: "embedded"');
+  });
+});
+
+describe("house copy — provider failures never leak raw provider text", () => {
+  /* The raw provider message the double fails with: distinctive on
+     purpose, so any leak into a response body is unmissable. */
+  const RAW_PROVIDER_MESSAGE = "RAW_PROVIDER_LEAK_MARKER_7f3a: No such price: 'price_deadbeef'; a live-mode key was used with a test-mode account.";
+
+  it("session-create failure answers the house checkout copy and nothing of the provider's", async () => {
+    h.createError = new Error(RAW_PROVIDER_MESSAGE);
+    const { status, json } = await call("POST", "/membership-gifts/checkout", {
+      recipient: "@lucky-creator",
+      tier: "pro",
+      months: 1,
+    });
+    expect(status).toBe(502);
+    expect(json.error).toBe("Checkout couldn't start — try again in a moment.");
+    expect(json.code).toBe("CHECKOUT_SESSION_FAILED");
+    const body = JSON.stringify(json);
+    expect(body).not.toContain("RAW_PROVIDER_LEAK_MARKER_7f3a");
+    expect(body).not.toContain("Stripe");
+    expect(await count("membership_gifts")).toBe(0);
+  });
+
+  it("client construction failure on checkout answers the house availability copy", async () => {
+    h.clientError = new Error(RAW_PROVIDER_MESSAGE);
+    const { status, json } = await call("POST", "/membership-gifts/checkout", {
+      recipient: "@lucky-creator",
+      tier: "pro",
+      months: 1,
+    });
+    expect(status).toBe(500);
+    expect(json.error).toBe("Checkout isn't available right now.");
+    const body = JSON.stringify(json);
+    expect(body).not.toContain("RAW_PROVIDER_LEAK_MARKER_7f3a");
+    expect(body).not.toContain("Stripe");
+    expect(await count("membership_gifts")).toBe(0);
+  });
+
+  it("client construction failure on verify answers the house billing copy", async () => {
+    h.clientError = new Error(RAW_PROVIDER_MESSAGE);
+    const { status, json } = await call("POST", "/membership-gifts/verify", { sessionId: "cs_test_gift_1" });
+    expect(status).toBe(502);
+    expect(json.error).toBe("Billing is unavailable right now — try again in a moment.");
+    const body = JSON.stringify(json);
+    expect(body).not.toContain("RAW_PROVIDER_LEAK_MARKER_7f3a");
+    expect(body).not.toContain("Stripe");
+  });
+
+  it("source guard: no response in the gifts route carries a raw error message", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const src = fs.readFileSync(path.join(__dirname, "..", "membership-gifts.ts"), "utf8");
+    expect(src).not.toContain("(err as Error).message");
+    expect(src).not.toContain("${msg}");
+    expect(src).not.toContain("Stripe couldn't start checkout");
   });
 });
