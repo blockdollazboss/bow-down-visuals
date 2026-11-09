@@ -9,7 +9,19 @@ import {
   chargeCredits,
   refundCredits,
   OutOfCreditsError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
 } from "../../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../../lib/generation-stored-results";
+
+/* CA-5 (EXPOSED-REPLAY): one replay note per stream-copilot rail. */
+const REPLAY_NOTE_PREP =
+  "This is the prep pack you already made for this stream — change the title or topic for a fresh one.";
+const REPLAY_NOTE_CLIP_PLAN =
+  "This is the clip plan you already made for this recap — change the recap for a fresh one.";
 
 /* ─── Stream Copilot ──────────────────────────────────────────────────────
    /api/stream-copilot/prep — 100 credits: PRE-STREAM prep pack — a pre-stream
@@ -72,24 +84,30 @@ function parseMoment(e: Record<string, unknown>): ClipMoment | null {
   };
 }
 
-async function refundOnFailure(userId: string, amount: number, label: string) {
+async function refundOnFailure(userId: string, amount: number, label: string, idempotencyKey?: string) {
+  /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+  let refunded = true;
   try {
     await refundCredits(userId, amount, {
       action: `${label} — Refund (generation failed)`,
     });
   } catch (refundErr) {
+    refunded = false;
     logger.error({ err: refundErr, userId }, "[stream-copilot] refund failed after generation error");
+  }
+  if (refunded && idempotencyKey) {
+    await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
   }
 }
 
-async function guardCredits(req: { userCredits?: number }, amount: number, topupMsg: string, res: { status: (c: number) => { json: (b: unknown) => void } }, chargeLabel: string, userId: string): Promise<number | null> {
+async function guardCredits(req: { userCredits?: number }, amount: number, topupMsg: string, res: { status: (c: number) => { json: (b: unknown) => void } }, chargeLabel: string, userId: string, idempotencyKey?: string): Promise<number | null> {
   const balance = req.userCredits ?? 0;
   if (balance < amount) {
     res.status(402).json({ error: "out_of_credits", message: topupMsg });
     return null;
   }
   try {
-    return await chargeCredits(userId, amount, { action: chargeLabel });
+    return await chargeCredits(userId, amount, { action: chargeLabel }, idempotencyKey ? { idempotencyKey } : undefined);
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({ error: "out_of_credits", message: topupMsg });
@@ -114,13 +132,25 @@ router.post("/stream-copilot/prep", requireAuth, publicApiLimiter, async (req, r
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the prep pack already made, free. */
+  const prepKey = buildChargeIdempotencyKey("stream-copilot-prep", req.userId!, null, {
+    ...parsed.data,
+  });
+  const prepStored = await findStoredGenerationResult("stream-copilot-prep", prepKey, req.userId!);
+  if (prepStored && Array.isArray(prepStored["checklist"])) {
+    res.json({ ...prepStored, replayed: true, replayNote: REPLAY_NOTE_PREP });
+    return;
+  }
+
   const creditsRemaining = await guardCredits(
     req,
     PREP_CREDITS,
     "You're out of Visual Bucs — top up to prep your stream.",
     res,
     "Stream Copilot — Prep",
-    req.userId!
+    req.userId!,
+    prepKey
   );
   if (creditsRemaining === null) return;
 
@@ -177,15 +207,18 @@ router.post("/stream-copilot/prep", requireAuth, publicApiLimiter, async (req, r
       throw new Error("Model returned no usable prep pack");
     }
 
-    res.json({
+    const prepBody = {
       checklist,
       talkingPoints,
       clipWatchFors,
       creditsUsed: PREP_CREDITS,
       creditsRemaining,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("stream-copilot-prep", prepKey, req.userId!, { ...prepBody });
+    res.json(prepBody);
   } catch (err) {
-    await refundOnFailure(req.userId!, PREP_CREDITS, "Stream Copilot — Prep");
+    await refundOnFailure(req.userId!, PREP_CREDITS, "Stream Copilot — Prep", prepKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[stream-copilot] OpenAI rate limit / quota");
       res.status(503).json({ error: "Stream copilot is catching its breath — try again in a moment." });
@@ -210,13 +243,25 @@ router.post("/stream-copilot/clip-plan", requireAuth, publicApiLimiter, async (r
     return;
   }
 
+  /* CA-5: durable replay pre-check BEFORE funding — an identical re-ask
+     returns the clip plan already made, free. */
+  const clipPlanKey = buildChargeIdempotencyKey("stream-copilot-clip-plan", req.userId!, null, {
+    ...parsed.data,
+  });
+  const clipPlanStored = await findStoredGenerationResult("stream-copilot-clip-plan", clipPlanKey, req.userId!);
+  if (clipPlanStored && Array.isArray(clipPlanStored["moments"])) {
+    res.json({ ...clipPlanStored, replayed: true, replayNote: REPLAY_NOTE_CLIP_PLAN });
+    return;
+  }
+
   const creditsRemaining = await guardCredits(
     req,
     CLIP_PLAN_CREDITS,
     "You're out of Visual Bucs — top up to plan your clips.",
     res,
     "Stream Copilot — Clip Plan",
-    req.userId!
+    req.userId!,
+    clipPlanKey
   );
   if (creditsRemaining === null) return;
 
@@ -272,13 +317,16 @@ router.post("/stream-copilot/clip-plan", requireAuth, publicApiLimiter, async (r
       throw new Error("Model returned no usable clip moments");
     }
 
-    res.json({
+    const clipPlanBody = {
       moments,
       creditsUsed: CLIP_PLAN_CREDITS,
       creditsRemaining,
-    });
+    };
+    /* Persist BEFORE answering (fail-open inside the helper). */
+    await storeGenerationResult("stream-copilot-clip-plan", clipPlanKey, req.userId!, { ...clipPlanBody });
+    res.json(clipPlanBody);
   } catch (err) {
-    await refundOnFailure(req.userId!, CLIP_PLAN_CREDITS, "Stream Copilot — Clip Plan");
+    await refundOnFailure(req.userId!, CLIP_PLAN_CREDITS, "Stream Copilot — Clip Plan", clipPlanKey);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[stream-copilot] OpenAI rate limit / quota");
       res.status(503).json({ error: "Stream copilot is catching its breath — try again in a moment." });
