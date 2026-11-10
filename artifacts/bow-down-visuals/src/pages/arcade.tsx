@@ -9,6 +9,7 @@ import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import { useAuth } from "@/contexts/AuthContext";
 import SharkRunnerGame from "@/components/arcade/SharkRunnerGame";
 import RoyalSkeetGame from "@/components/arcade/RoyalSkeetGame";
+import CrownfallRunGame from "@/components/arcade/CrownfallRunGame";
 import ArcadeLeaderboard from "@/components/arcade/ArcadeLeaderboard";
 import {
   ARCADE_GAME_META,
@@ -18,12 +19,12 @@ import {
 } from "@/lib/arcade-games";
 
 /* ─── The Arcade (/arcade) ────────────────────────────────────────────────
-   Play surface for the retention loop: two house games (Shark King
-   Endless Runner, Royal Skeet), real leaderboards, and rewards that
-   ride the EXISTING rails — a qualifying run checks the Shark Drop rail
-   (dice + caps + prefs all live there); quests, streaks, the Daily Drop
-   and the hourly wheel live on the Dashboard, one tap away below.
-   Nothing on this page mints Visual Bucs. */
+   Play surface for the retention loop: three house games (Shark King
+   Endless Runner, Royal Skeet, Crownfall Run), real leaderboards, and
+   rewards that ride the EXISTING rails — a qualifying run checks the
+   Shark Drop rail (dice + caps + prefs all live there); quests,
+   streaks, the Daily Drop and the hourly wheel live on the Dashboard,
+   one tap away below. Nothing on this page mints Visual Bucs. */
 
 interface SubmitOutcome {
   score: number;
@@ -45,7 +46,7 @@ type DropState =
 export default function ArcadePage() {
   usePageTitle(
     "The Arcade — Bow Down Visuals",
-    "Play Shark King Endless Runner and Royal Skeet. Climb the arcade leaderboards and earn Shark Drops in Visual Bucs.",
+    "Play Shark King Endless Runner, Royal Skeet and Crownfall Run. Climb the arcade leaderboards and earn Shark Drops in Visual Bucs.",
   );
   const light = useIsLightTheme();
   const { getAccessToken } = useAuth();
@@ -204,7 +205,7 @@ export default function ArcadePage() {
           <Gamepad2 className="h-8 w-8 text-[#C9A84C]" /> The Arcade
         </h1>
         <p className={`mt-2 max-w-2xl text-sm ${muted}`}>
-          Two house games, real leaderboards, and Shark Drops for qualifying
+          Three house games, real leaderboards, and Shark Drops for qualifying
           runs — paid in Visual Bucs through the same drop rail as the rest
           of the palace. Play sharp: the board remembers everything.
         </p>
@@ -276,6 +277,14 @@ export default function ArcadePage() {
         <p className={`mb-4 mt-1 text-sm ${muted}`}>{ARCADE_GAME_META.skeet.tagline}</p>
         <RoyalSkeetGame light={light} onGameOver={handleGameOver} />
         <div className="mt-3">{outcomeLine("skeet")}</div>
+      </section>
+
+      {/* Crownfall Run */}
+      <section className={`mt-6 rounded-2xl border p-5 md:p-6 ${panel}`}>
+        <h2 className={`text-lg font-black ${ink}`}>{ARCADE_GAME_META.crownfall.title}</h2>
+        <p className={`mb-4 mt-1 text-sm ${muted}`}>{ARCADE_GAME_META.crownfall.tagline}</p>
+        <CrownfallRunGame light={light} onGameOver={handleGameOver} />
+        <div className="mt-3">{outcomeLine("crownfall")}</div>
       </section>
 
       {/* Leaderboard */}

@@ -1,15 +1,16 @@
 import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
 
 /** Arcade scores — one row per finished run (Shark King Endless
- *  Runner / Royal Skeet; the Skeet replaced the Shooter Gallery in the
- *  games upgrade, same text column, no migration). Status and
+ *  Runner / Royal Skeet / Crownfall Run; the Skeet replaced the
+ *  Shooter Gallery in the games upgrade and Crownfall Run joined as
+ *  the third house game, same text column, no migration). Status and
  *  leaderboards only: rewards are paid exclusively through the Shark
  *  Drop rail (shark_drops), never from this table. Indexes live in
  *  migration 0140. */
 export const arcadeScoresTable = pgTable("arcade_scores", {
   id:         uuid("id").primaryKey().defaultRandom(),
   userId:     uuid("user_id").notNull(),
-  game:       text("game").notNull(), // "runner" | "skeet"
+  game:       text("game").notNull(), // "runner" | "skeet" | "crownfall"
   score:      integer("score").notNull(),
   durationMs: integer("duration_ms").notNull(),
   createdAt:  timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

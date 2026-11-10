@@ -5,7 +5,7 @@
    game faster or more generous here, raise the server caps there too,
    or legitimate runs will start failing validation. */
 
-export type ArcadeGameId = "runner" | "skeet";
+export type ArcadeGameId = "runner" | "skeet" | "crownfall";
 
 export interface ArcadeRunResult {
   game: ArcadeGameId;
@@ -79,6 +79,69 @@ export function skeetAccuracy(hits: number, shots: number): number {
   return Math.round((hits / shots) * 100);
 }
 
+/* ── Crownfall Run ───────────────────────────────────────────────────────
+   Top-down arena roguelike (the third house game). The King holds a
+   720×720 studio room against waves of Glitches, Spam Bots and Trolls;
+   THE USURPER waits every 5th floor. Clear the room and the golden
+   door opens to the next floor down. Score = depth × 100 + Bucs coins
+   × 25 + foes felled × 10 + combo bonus (a kill that lands within 3s
+   of the previous one extends the chain; the n-th chained kill adds
+   n − 1 bonus points). Coins are SCORE ONLY — no charge, no wager.
+   The server mirrors the pacing bounds in arcade-rules.ts: a floor
+   cannot be cleared in under 4s of play (weakest foe 20 HP vs 3.1
+   bolts/s at 10 damage, plus a ~555px entrance-to-door walk at
+   238 px/s), a floor holds at most 11 foes, and a floor yields at
+   most 5 placed coins + 2 dropped per foe. */
+export const CROWNFALL = {
+  width: 720,
+  height: 720,
+  wall: 30,
+  depthPoints: 100,
+  coinPoints: 25,
+  killPoints: 10,
+  comboWindowSec: 3,
+  baseHp: 100,
+  baseSpeed: 238,
+  baseDamage: 10,
+  baseFireRate: 3.1,
+  baseMagnet: 74,
+  dashCooldownSec: 2.2,
+  maxFoesPerFloor: 11,
+} as const;
+
+export function crownfallScore(
+  depth: number,
+  crowns: number,
+  kills: number,
+  comboBonus: number,
+): number {
+  return (
+    depth * CROWNFALL.depthPoints +
+    crowns * CROWNFALL.coinPoints +
+    kills * CROWNFALL.killPoints +
+    comboBonus
+  );
+}
+
+/* The studio's rooms, in descent order; deeper floors cycle the list
+   with the depth counter carrying the difficulty. */
+export const CROWNFALL_FLOOR_NAMES = [
+  "The Lobby",
+  "The Beat Lab",
+  "The Video Studio",
+  "The Green Screen Stage",
+  "The Mixing Room",
+  "The Bucs Vault",
+  "The Throne Room",
+  "The Deep Vaults",
+  "The Server Deep",
+  "The Throne Steps",
+] as const;
+
+export function crownfallFloorName(depth: number): string {
+  return CROWNFALL_FLOOR_NAMES[(depth - 1) % CROWNFALL_FLOOR_NAMES.length]!;
+}
+
 /* ── Drop-rail qualification ─────────────────────────────────────────────
    After a qualifying run the arcade checks the EXISTING Shark Drop rail
    (GET /api/retention/shark-drop). The rail itself decides — dice roll,
@@ -88,6 +151,9 @@ export function skeetAccuracy(hits: number, shots: number): number {
 export const DROP_QUALIFYING_SCORE: Record<ArcadeGameId, number> = {
   runner: 250,
   skeet: 1_500,
+  /* Two rooms cleared with a real haul: reaching floor 3 is 300 depth
+     points before a single coin or kill is counted. */
+  crownfall: 500,
 };
 
 export const ARCADE_GAME_META: Record<
@@ -101,5 +167,9 @@ export const ARCADE_GAME_META: Record<
   skeet: {
     title: "Royal Skeet",
     tagline: "Break the Plates — 45 seconds. Gold plates arc over the courtyard; shatter them mid-flight, build your streak, don't spray.",
+  },
+  crownfall: {
+    title: "Crownfall Run",
+    tagline: "Defend the studio. Bots and glitches are invading — clear each room, grab the gold Bucs coins, and take the golden door down. The Usurper waits every 5th floor.",
   },
 };

@@ -61,7 +61,7 @@ interface ArcadeCabinet {
 }
 
 /** The cabinets on the arcade floor, in house order — the same
- *  two self-contained game components the /arcade page hosts. */
+ *  self-contained game components the /arcade page hosts. */
 export const ARCADE_CABINETS: ArcadeCabinet[] = (
   Object.keys(ARCADE_GAME_META) as ArcadeGameId[]
 ).map((id) => ({
@@ -79,7 +79,7 @@ export function parseArcadeMe(
   if (!Array.isArray(games)) return out;
   for (const g of games) {
     const row = g as { game?: unknown; best?: unknown };
-    if (row.game !== "runner" && row.game !== "skeet") continue;
+    if (row.game !== "runner" && row.game !== "skeet" && row.game !== "crownfall") continue;
     out[row.game] = typeof row.best === "number" ? row.best : null;
   }
   return out;

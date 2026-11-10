@@ -109,6 +109,7 @@ import ArcadeLeaderboard from "@/components/arcade/ArcadeLeaderboard";
 
 const SharkRunnerGame = lazy(() => import("@/components/arcade/SharkRunnerGame"));
 const RoyalSkeetGame = lazy(() => import("@/components/arcade/RoyalSkeetGame"));
+const CrownfallRunGame = lazy(() => import("@/components/arcade/CrownfallRunGame"));
 const PartyRoomView = lazy(() =>
   import("@/pages/party").then((m) => ({ default: m.RoomView })),
 );
@@ -406,8 +407,10 @@ function ArcadeCabinetsPanel({ isLight }: { isLight: boolean }) {
             <Suspense fallback={<StepthroughLoading label={t("worldPrimitives.gmWarmingUp")} />}>
               {playing === "runner" ? (
                 <SharkRunnerGame light={isLight} onGameOver={handleGameOver} />
-              ) : (
+              ) : playing === "skeet" ? (
                 <RoyalSkeetGame light={isLight} onGameOver={handleGameOver} />
+              ) : (
+                <CrownfallRunGame light={isLight} onGameOver={handleGameOver} />
               )}
             </Suspense>
             <div className="mt-3">{outcomeLine(playing)}</div>

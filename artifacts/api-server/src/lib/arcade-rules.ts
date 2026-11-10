@@ -11,11 +11,11 @@
    rail), so the blast radius of a faked score is a leaderboard lie,
    not money. */
 
-export const ARCADE_GAMES = ["runner", "skeet"] as const;
+export const ARCADE_GAMES = ["runner", "skeet", "crownfall"] as const;
 export type ArcadeGame = (typeof ARCADE_GAMES)[number];
 
 export function isArcadeGame(v: unknown): v is ArcadeGame {
-  return v === "runner" || v === "skeet";
+  return v === "runner" || v === "skeet" || v === "crownfall";
 }
 
 /* Runner construction (client): speed starts 420 px/s, ramps +6 px/s per
@@ -34,9 +34,42 @@ const SKEET_ROUND_MS = 45_000;
 const SKEET_MIN_SPAWN_INTERVAL_MS = 500;
 const SKEET_MAX_HIT_POINTS = 150;
 
+/* Crownfall Run construction (client): a roguelike descent — each
+   floor is one 720×720 room the King must clear before the golden
+   door opens. Score = depth × 100 + coins × 25 + kills × 10 + combo
+   bonus. The reported durationMs is PLAY time only (pause and the
+   between-floor upgrade pick are not counted by the client), which
+   makes every bound below tighter, never looser.
+   - A floor cannot end in under 4 seconds of play: the weakest foe
+     has 20 HP and the King's base weapon fires 3.1 bolts/s at 10
+     damage (≥2 bolts per foe, foes spawn ≥215px away, bolts fly
+     545 px/s), and after the last kill the King must still cross
+     ~555px from the entrance to the door at 238 px/s (≈2.3s of pure
+     walking, dash bursts included). Upgrades only arrive AFTER a
+     floor, so floor 1 is always fought at base stats.
+   - Foes per floor: regular floors spawn min(11, 3 + d + ⌊d/3⌋) ≤ 11;
+     boss floors spawn 1 boss (+2 adds from floor 10) — never more.
+   - Coins per floor: 3–5 are placed, and a kill drops at most 2
+     (elites and the boss drop exactly 2; regular foes at most 1) —
+     so ≤ 5 + 2 × 11 = 27 per floor.
+   - Combo bonus: a kill extends the chain only within 3s of the
+     previous kill, and the n-th chained kill adds n − 1. Over K total
+     kills the most one unbroken chain can add is K(K−1)/2 — the
+     combo rule's own arithmetic, quadratic term and all.
+   A real Crownfall run can also legitimately outlast the shared
+   20-minute ceiling (a deep descent is the whole point), so this
+   game carries its own 60-minute duration cap. */
+const CROWNFALL_MIN_FLOOR_MS = 4_000;
+const CROWNFALL_MAX_FOES_PER_FLOOR = 11;
+const CROWNFALL_MAX_COINS_PER_FLOOR = 5 + 2 * CROWNFALL_MAX_FOES_PER_FLOOR;
+const CROWNFALL_DEPTH_POINTS = 100;
+const CROWNFALL_COIN_POINTS = 25;
+const CROWNFALL_KILL_POINTS = 10;
+const CROWNFALL_MAX_DURATION_MS = 60 * 60_000;
+
 /* A scored run must last at least this long, and no submission may
-   claim more than 20 minutes of play (both games end far sooner:
-   runner runs end on collision, skeet rounds are 45s). */
+   claim more than 20 minutes of play (runner runs end on collision,
+   skeet rounds are 45s; Crownfall's deeper cap is above). */
 const ARCADE_MIN_DURATION_MS = 2_000;
 const ARCADE_MAX_DURATION_MS = 20 * 60_000;
 
@@ -47,6 +80,18 @@ export function maxPlausibleScore(game: ArcadeGame, durationMs: number): number 
     const distancePoints = Math.ceil((seconds * RUNNER_MAX_SPEED_PX_S) / RUNNER_PX_PER_POINT);
     const maxCoins = Math.floor(seconds / RUNNER_MIN_COIN_INTERVAL_S) + 1;
     return distancePoints + maxCoins * RUNNER_COIN_POINTS;
+  }
+  if (game === "crownfall") {
+    const maxDepth = Math.floor(durationMs / CROWNFALL_MIN_FLOOR_MS) + 1;
+    const maxKills = maxDepth * CROWNFALL_MAX_FOES_PER_FLOOR;
+    const maxCoins = maxDepth * CROWNFALL_MAX_COINS_PER_FLOOR;
+    const maxComboBonus = (maxKills * (maxKills - 1)) / 2;
+    return (
+      maxDepth * CROWNFALL_DEPTH_POINTS +
+      maxCoins * CROWNFALL_COIN_POINTS +
+      maxKills * CROWNFALL_KILL_POINTS +
+      maxComboBonus
+    );
   }
   const maxTargets = Math.floor(durationMs / SKEET_MIN_SPAWN_INTERVAL_MS) + 1;
   return maxTargets * SKEET_MAX_HIT_POINTS;
@@ -75,7 +120,9 @@ export function validateArcadeScore(input: {
   if (durationMs < ARCADE_MIN_DURATION_MS) {
     return { ok: false, reason: "Run too short to score" };
   }
-  if (durationMs > ARCADE_MAX_DURATION_MS) {
+  const maxDurationMs =
+    input.game === "crownfall" ? CROWNFALL_MAX_DURATION_MS : ARCADE_MAX_DURATION_MS;
+  if (durationMs > maxDurationMs) {
     return { ok: false, reason: "Run duration out of range" };
   }
   if (input.game === "skeet" && durationMs > SKEET_ROUND_MS + 5_000) {
