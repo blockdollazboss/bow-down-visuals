@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, HeadObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand, ListPartsCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, HeadObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand, AbortMultipartUploadCommand, ListPartsCommand, ListMultipartUploadsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Readable } from "stream";
 
@@ -167,6 +167,43 @@ export async function r2AbortMultipartUpload(key: string, uploadId: string): Pro
     Key: key,
     UploadId: uploadId,
   }));
+}
+
+export interface R2MultipartUpload {
+  key: string;
+  uploadId: string;
+  initiated: Date | null;
+}
+
+/** Every multipart session still open in the bucket, oldest truth the
+ *  bucket itself holds. The in-process tracker in routes/r2-upload.ts
+ *  only knows sessions this process started; this listing is what a
+ *  bucket-wide sweep (stack400 C-08's config half) reconciles against —
+ *  sessions orphaned by a restart or another instance show up here and
+ *  nowhere else. Follows ListParts' pagination shape: S3 continues a
+ *  truncated listing only when BOTH markers are carried forward. */
+export async function r2ListMultipartUploads(prefix?: string): Promise<R2MultipartUpload[]> {
+  const s3 = getR2Client();
+  const uploads: R2MultipartUpload[] = [];
+  let keyMarker: string | undefined;
+  let uploadIdMarker: string | undefined;
+  for (;;) {
+    const res = await s3.send(new ListMultipartUploadsCommand({
+      Bucket: R2_BUCKET,
+      Prefix: prefix,
+      KeyMarker: keyMarker,
+      UploadIdMarker: uploadIdMarker,
+    }));
+    for (const u of res.Uploads ?? []) {
+      if (u.Key && u.UploadId) {
+        uploads.push({ key: u.Key, uploadId: u.UploadId, initiated: u.Initiated ?? null });
+      }
+    }
+    if (!res.IsTruncated || !res.NextKeyMarker || !res.NextUploadIdMarker) break;
+    keyMarker = res.NextKeyMarker;
+    uploadIdMarker = res.NextUploadIdMarker;
+  }
+  return uploads;
 }
 
 export async function r2GetSignedUrl(key: string, expiresIn = 3600): Promise<string> {
