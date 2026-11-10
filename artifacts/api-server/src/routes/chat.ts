@@ -5,7 +5,18 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import {
+  chargeCredits,
+  refundCredits,
+  OutOfCreditsError,
+  LedgerWriteError,
+  buildChargeIdempotencyKey,
+  voidChargeIdempotencyKey,
+} from "../lib/credits";
+import {
+  findStoredGenerationResult,
+  storeGenerationResult,
+} from "../lib/generation-stored-results";
 import {
   buildChatSystemPrompt,
   CHAT_MAX_OUTPUT_TOKENS,
@@ -41,6 +52,15 @@ const chatSchema = z.object({
    is free and guest-open by default. An explicit CHAT_CREDIT_COST > 0
    in the environment re-enables the per-message charge (and auth). */
 const chatCreditCost = getChatCreditCost();
+
+/* Chat-key (house Pattern A): the replay note a paid replay carries,
+   and the in-flight twin map for the paid chat rail — an identical
+   message already being answered shares its run instead of paying
+   for a second model call. Both live only inside the paid branch
+   below; free mode (the default) never touches either. */
+export const CHAT_REPLAY_NOTE =
+  "This is the answer you already got for this message — tweak the words for a fresh one.";
+const chatInFlight = new Map<string, Promise<Record<string, unknown> | null>>();
 const maybeAuth =
   chatCreditCost > 0
     ? requireAuth
@@ -111,11 +131,55 @@ router.post("/chat", maybeAuth, publicApiLimiter, async (req, res) => {
 
   /* Optional paid mode: charge first, but refund on any model failure below.
      Charge-then-refund keeps the 402 pre-check simple while guaranteeing
-     the user never pays for a failed generation. */
+     the user never pays for a failed generation.
+
+     Chat-key (owner ruling, Nov 10, 2026 — "key it anyway"): the
+     conditional charge is keyed + stored-result backed, house
+     Pattern A, entirely inside this cost > 0 branch — at the default
+     cost 0 none of it runs and the free path is exactly the old one.
+     The key derives from the member + the message and history that
+     define the generation; a landed key's stored reply is served
+     back before any funding (a paid replay never 402s on a
+     since-spent balance and never re-charges), and a refunded
+     failure voids the key so a genuine retry charges fresh. */
   let chatCharged = false;
+  let chatKey: string | null = null;
+  let settleChatRun: ((body: Record<string, unknown> | null) => void) | null = null;
   if (chatCreditCost > 0) {
+    chatKey = buildChargeIdempotencyKey("chat", req.userId!, null, {
+      message: message.trim(),
+      history,
+    });
+
+    /* Stored-result pre-check BEFORE any funding — including the 402
+       balance gate below (thumbnail-generator precedent). A malformed
+       stored payload is a miss, never served. Fail-open. */
+    const storedChat = await findStoredGenerationResult("chat", chatKey, req.userId!);
+    if (storedChat && typeof storedChat["reply"] === "string") {
+      res.json({ ...storedChat, replayed: true, replayNote: CHAT_REPLAY_NOTE });
+      return;
+    }
+
+    /* Twin join: an identical message already in flight shares its
+       run — one charge, one model call, both responses honest. */
+    const pendingChat = chatInFlight.get(chatKey);
+    if (pendingChat) {
+      const twinBody = await pendingChat.catch(() => null);
+      if (twinBody) {
+        res.json({ ...twinBody, replayed: true, replayNote: CHAT_REPLAY_NOTE });
+        return;
+      }
+      /* The twin failed (refunded + key voided) — run this one fresh. */
+    }
+    let settle!: (body: Record<string, unknown> | null) => void;
+    const chatRun = new Promise<Record<string, unknown> | null>((resolve) => { settle = resolve; });
+    chatInFlight.set(chatKey, chatRun);
+    settleChatRun = settle;
+
     const balance = req.userCredits ?? 0;
     if (balance < chatCreditCost) {
+      chatInFlight.delete(chatKey);
+      settle(null);
       res.status(402).json({
         error: "out_of_credits",
         message: "You're out of Visual Bucs — top up to keep chatting with Thy Cheat Code.",
@@ -123,9 +187,11 @@ router.post("/chat", maybeAuth, publicApiLimiter, async (req, res) => {
       return;
     }
     try {
-      await chargeCredits(req.userId!, chatCreditCost, { action: "AI Chat Assistant" });
+      await chargeCredits(req.userId!, chatCreditCost, { action: "AI Chat Assistant" }, { idempotencyKey: chatKey });
       chatCharged = true;
     } catch (err) {
+      chatInFlight.delete(chatKey);
+      settle(null);
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
@@ -140,6 +206,20 @@ router.post("/chat", maybeAuth, publicApiLimiter, async (req, res) => {
       throw err;
     }
   }
+
+  /* Serve a success body. On the paid rail the body is stored under
+     the charge key BEFORE it is answered (Pattern A), so a later
+     identical request is served as a replay instead of re-charging;
+     the in-flight twins settle with the same body. Free mode skips
+     straight to the answer, exactly as before. */
+  const serveChatBody = async (body: Record<string, unknown>) => {
+    if (chatCharged && chatKey) {
+      await storeGenerationResult("chat", chatKey, req.userId!, body);
+      chatInFlight.delete(chatKey);
+      settleChatRun?.(body);
+    }
+    res.json(body);
+  };
 
   try {
     const model = getTextModel();
@@ -173,7 +253,7 @@ router.post("/chat", maybeAuth, publicApiLimiter, async (req, res) => {
       return null;
     });
     if (actionTurn) {
-      res.json({ reply: actionTurn.replyText, model, creditCost: chatCreditCost, action: actionTurn.action, ...doorPayload });
+      await serveChatBody({ reply: actionTurn.replyText, model, creditCost: chatCreditCost, action: actionTurn.action, ...doorPayload });
       return;
     }
 
@@ -186,16 +266,30 @@ router.post("/chat", maybeAuth, publicApiLimiter, async (req, res) => {
       reply = PRICE_FALLBACK_REPLY;
     }
 
-    res.json({ reply, model, creditCost: chatCreditCost, ...doorPayload });
+    await serveChatBody({ reply, model, creditCost: chatCreditCost, ...doorPayload });
   } catch (err) {
     /* Refund: the model call failed after we charged — the user must not
-       pay for a failed generation. */
+       pay for a failed generation. A landed refund also VOIDS the
+       charge's idempotency key (Pattern A), so the member's retry
+       charges fresh instead of being suppressed as a replay and
+       running free; the void lands before the in-flight twins are
+       settled, so a waiting twin re-charges rather than free-riding
+       the voided key. */
     if (chatCharged) {
+      let refunded = true;
       await refundCredits(req.userId!, chatCreditCost, {
         action: "AI Chat Assistant — Refund (model failed)",
       }).catch((refundErr) => {
+        refunded = false;
         logger.error({ refundErr }, "[chat] refund failed after model error");
       });
+      if (refunded && chatKey) {
+        await voidChargeIdempotencyKey(chatKey).catch(() => false);
+      }
+    }
+    if (chatKey) {
+      chatInFlight.delete(chatKey);
+      settleChatRun?.(null);
     }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[chat] OpenAI rate limit / quota");
