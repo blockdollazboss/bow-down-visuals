@@ -497,10 +497,15 @@ export function CreatorPacksSection() {
       const json = (await res.json().catch(() => null)) as { id?: string; message?: string } | null;
       if (!res.ok || !json?.id) throw new Error(apiErrorMessage(json, "That design hit a snag."));
       if (publish) {
-        await fetch(`/api/theme-packs/creator-packs/${json.id}/publish`, {
+        const pub = await fetch(`/api/theme-packs/creator-packs/${json.id}/publish`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
+        /* "Live in the store" is a claim the publish call has to
+           earn: an unchecked publish could fail and still be
+           announced as live. The draft exists either way — say
+           which world landed. */
+        if (!pub.ok) throw new Error("Your pack saved as a draft below, but publishing hit a snag — it isn't live yet.");
       }
       setMessage(publish ? "Your pack is live in the creator store below." : "Draft saved — publish it when the mix is right.");
       setName("");

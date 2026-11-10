@@ -99,6 +99,7 @@ export default function OpenVerseDesk() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const headers = await authHeaders();
       const [openRes, mineRes, songsRes] = await Promise.all([
@@ -106,6 +107,10 @@ export default function OpenVerseDesk() {
         fetch("/api/open-verse/mine", { headers }),
         fetch("/api/songs", { headers }),
       ]);
+      /* A non-ok read is a FAILED load, not an empty desk: without
+         this check a 500 parsed as {} and the desk rendered "No open
+         verses yet" with ready stamped true from the ?? defaults. */
+      if (!openRes.ok || !mineRes.ok || !songsRes.ok) throw new Error("open verse load failed");
       const openBody = (await openRes.json().catch(() => ({}))) as { posts?: OpenVersePostDto[]; open_verse_ready?: boolean };
       const mineBody = (await mineRes.json().catch(() => ({}))) as { posts?: OpenVersePostDto[]; open_verse_ready?: boolean };
       const byId = new Map<string, OpenVersePostDto>();
@@ -313,7 +318,7 @@ export default function OpenVerseDesk() {
       <div className="mt-5 space-y-3">
         {loading ? (
           <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-white/40" /></div>
-        ) : posts.length === 0 ? (
+        ) : posts.length === 0 && !error ? (
           <p className="py-6 text-center text-sm text-white/40">No open verses yet — post yours above, or check back when a creator opens a slot.</p>
         ) : (
           posts.map((post) => (
