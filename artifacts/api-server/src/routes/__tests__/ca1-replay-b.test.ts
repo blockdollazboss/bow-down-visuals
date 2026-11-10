@@ -137,9 +137,34 @@ vi.mock("../../lib/ai-clients", () => ({
   getOpenAI: () => ({
     chat: {
       completions: {
-        create: async () => {
+        create: async (params: any) => {
           h.providerCalls++;
           if (h.providerMode === "throw") throw new Error("provider down");
+          /* auto-chapters (untimed path) is the one rail whose parse
+             contract depends on the REQUEST: anchors must be verbatim
+             phrases from the transcript in THIS call, in order. A
+             static canned answer can only ever align with one
+             transcript, so derive the anchors from the prompt's
+             transcript the way a real model following the prompt
+             would — first topic at the very beginning, second topic
+             from the middle. */
+          const promptText = String(params?.messages?.map((m: any) => m?.content ?? "").join("\n") ?? "");
+          if (promptText.includes("verbatim opening phrase")) {
+            const tStart = promptText.indexOf("Transcript:\n");
+            const tEnd = promptText.indexOf("\n\nReturn ONLY JSON");
+            const transcript = tStart >= 0 && tEnd > tStart ? promptText.slice(tStart + "Transcript:\n".length, tEnd) : "";
+            const words = transcript.trim().split(/\s+/).filter(Boolean);
+            if (words.length >= 10) {
+              const mid = Math.floor(words.length / 2);
+              const content = JSON.stringify({
+                chapters: [
+                  { title: "Opening", anchor: words.slice(0, 5).join(" ") },
+                  { title: "Growth", anchor: words.slice(mid, mid + 5).join(" ") },
+                ],
+              });
+              return { choices: [{ message: { content } }] };
+            }
+          }
           const content = JSON.stringify({
             /* brand-kit */
             colors: [
@@ -240,10 +265,29 @@ vi.mock("../../lib/job-map-sweeper", () => ({
 
 vi.mock("../../lib/payment-record", async (importOriginal) => {
   /* Keep the REAL module (credits.ts's ledger write rides it) and stub
-     only the generation-history helpers the rails call. */
+     only the generation-history helpers the rails call. The real
+     recordCreditUsageStrict is wrapped ONLY to observe, at the moment
+     a charge row is written, the key it was written with — the same
+     observation syncTrackers() makes on an earlier sync for async
+     rails. Synchronous rails charge, fail and void inside ONE request,
+     so without a charge-time observation the key is already NULL at
+     the first post-request sync and a landed void is indistinguishable
+     from a charge that never carried a key. */
   const actual = await importOriginal<any>();
   return {
     ...actual,
+    recordCreditUsageStrict: async (record: any) => {
+      const outcome = await actual.recordCreditUsageStrict(record);
+      if (record?.creditsUsed > 0 && record?.idempotencyKey && h.db) {
+        try {
+          const { sql } = await import("drizzle-orm");
+          const r: any = await h.db.execute(sql`SELECT id FROM credit_usage WHERE idempotency_key = ${record.idempotencyKey} LIMIT 1`);
+          const rows = (r?.rows ?? r) as any[];
+          if (rows[0]) h.seenKeys.set(String(rows[0].id), String(record.idempotencyKey));
+        } catch { /* observation only — never disturb the real write */ }
+      }
+      return outcome;
+    },
     recordGenerationHistory: async () => "hist-1",
     markGenerationHistoryCharged: async () => {},
   };

@@ -219,10 +219,29 @@ vi.mock("../../lib/logger", () => ({
 
 vi.mock("../../lib/payment-record", async (importOriginal) => {
   /* Keep the REAL module (credits.ts's ledger write rides it) and stub
-     only the generation-history helpers the rails call. */
+     only the generation-history helpers the rails call. The real
+     recordCreditUsageStrict is wrapped ONLY to observe, at the moment
+     a charge row is written, the key it was written with — the same
+     observation syncTrackers() makes on an earlier sync for async
+     rails. Synchronous rails charge, fail and void inside ONE request,
+     so without a charge-time observation the key is already NULL at
+     the first post-request sync and a landed void is indistinguishable
+     from a charge that never carried a key. */
   const actual = await importOriginal<any>();
   return {
     ...actual,
+    recordCreditUsageStrict: async (record: any) => {
+      const outcome = await actual.recordCreditUsageStrict(record);
+      if (record?.creditsUsed > 0 && record?.idempotencyKey && h.db) {
+        try {
+          const { sql } = await import("drizzle-orm");
+          const r: any = await h.db.execute(sql`SELECT id FROM credit_usage WHERE idempotency_key = ${record.idempotencyKey} LIMIT 1`);
+          const rows = (r?.rows ?? r) as any[];
+          if (rows[0]) h.seenKeys.set(String(rows[0].id), String(record.idempotencyKey));
+        } catch { /* observation only — never disturb the real write */ }
+      }
+      return outcome;
+    },
     recordGenerationHistory: async () => "hist-1",
     markGenerationHistoryCharged: async () => {},
   };
