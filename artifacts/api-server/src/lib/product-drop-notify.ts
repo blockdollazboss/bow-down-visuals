@@ -98,11 +98,18 @@ export interface ProductDropNotifyStore {
       (drop moment + grace). */
   listEligibleCaptures(dropId: string, cutoff: Date): Promise<EligibleCapture[]>;
   /** Insert-first claim: lands a 'pending' row and returns it, or
-      null when a row for (drop, email) already exists. */
+      null when a row for (drop, email) already exists. The row is
+      stamped with the caller's clock (`now`), like every other
+      write in this flow (claimRetry / markSent / markFailed): the
+      stale-pending retry judges a claim's age by updated_at against
+      that same clock, so the claim must be born on it too — a row
+      stamped by the DB's own default would age on a different clock
+      than the one judging it. */
   claimDelivery(input: {
     dropId: string;
     captureId: string | null;
     email: string;
+    now: Date;
   }): Promise<ProductDropDelivery | null>;
   /** Read the existing ledger row for (drop, email), if any. */
   getDelivery(dropId: string, email: string): Promise<ProductDropDelivery | null>;
@@ -235,8 +242,8 @@ export function createDrizzleProductDropNotifyStore(db: Db = defaultDb): Product
          surfaces the pre-existing row instead of no row. */
       const claimId = randomUUID();
       const result = await db.execute(sql`
-        INSERT INTO product_drop_deliveries (id, drop_id, capture_id, email, status)
-        VALUES (${claimId}, ${input.dropId}, ${input.captureId}, ${input.email}, 'pending')
+        INSERT INTO product_drop_deliveries (id, drop_id, capture_id, email, status, created_at, updated_at)
+        VALUES (${claimId}, ${input.dropId}, ${input.captureId}, ${input.email}, 'pending', ${input.now}, ${input.now})
         ON CONFLICT (drop_id, email) DO NOTHING
         RETURNING ${DELIVERY_COLUMNS}
       `);
@@ -383,6 +390,7 @@ export async function notifyDropFansForDrop(
         dropId: drop.id,
         captureId: capture.id,
         email: capture.email,
+        now: d.now,
       });
       if (!row) {
         const existing = await d.store.getDelivery(drop.id, capture.email);
