@@ -22,6 +22,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 
 const router = Router();
@@ -294,10 +295,51 @@ export interface CaptionStylerJob {
      unit tests / other callers keep working unchanged. */
   chargeKey?: string;
   replayBody?: Record<string, unknown>;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
+  /** Durable jobs (0335): the worker's inputs, persisted with the job
+   *  so a worker resumed after a restart re-runs the exact ask. The
+   *  upload is disk-backed; if the file did not survive, the job
+   *  settles (failed + refunded exactly once). */
+  workerInput?: { uploadedPath: string; originalName: string };
 }
 
 const jobs = new Map<string, CaptionStylerJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Jobs persist at creation, mirror on settle, and a lookup
+   that misses the Map rehydrates from the table — a job survives
+   a server restart: its worker resumes from the persisted upload
+   path when the file survived, and settles (failed + refunded
+   exactly once, claim first) when it did not. Fail-open throughout
+   (lib/generation-jobs). */
+const jobStore = new DurableJobStore<CaptionStylerJob>(jobs, {
+  rail: "caption-styler",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.chargeKey ?? null,
+  refundAction: "Caption Styler — Refund (job failed)",
+  settleError: "Caption styling was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    const input = job.workerInput;
+    if (!input) return false;
+    const survived = await fs.access(input.uploadedPath).then(
+      () => true,
+      () => false,
+    );
+    if (!survived) return false;
+    void runCaptionStylerJob(job, input.uploadedPath, input.originalName);
+    return true;
+  },
+});
 
 export function getCaptionStylerJob(id: string): CaptionStylerJob | undefined {
   return jobs.get(id);
@@ -405,28 +447,33 @@ export async function runCaptionStylerJob(job: CaptionStylerJob, uploadedPath: s
     }
   } catch (err) {
     job.error = err instanceof Error ? err.message : "Caption styling failed";
-    // Refund: the user paid for an output they didn't get. The refund
-    // lands BEFORE the job reads "failed" (and before the key void),
-    // so a retry that sees the failed job always faces a voided key
-    // and charges fresh — never a suppressed free re-run.
-    let refunded = true;
-    try {
-      await refundCredits(job.userId, job.creditsCharged, {
-        action: "Caption Styler — Refund (job failed)",
-      });
-    } catch (refundErr) {
-      refunded = false;
-      void refundErr;
-    }
-    if (refunded && job.chargeKey) {
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. The refund still
+       lands BEFORE the job reads "failed" (and before the key void),
+       so a retry that sees the failed job always faces a voided key
+       and charges fresh — never a suppressed free re-run. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      let refunded = true;
       try {
-        await voidChargeIdempotencyKey(job.chargeKey);
-      } catch {
-        /* void is best-effort here; a failed void is logged in credits */
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "Caption Styler — Refund (job failed)",
+        });
+      } catch (refundErr) {
+        refunded = false;
+        void refundErr;
+      }
+      if (refunded && job.chargeKey) {
+        try {
+          await voidChargeIdempotencyKey(job.chargeKey);
+        } catch {
+          /* void is best-effort here; a failed void is logged in credits */
+        }
       }
     }
     job.status = "failed";
   } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
     await fs.unlink(uploadedPath).catch(() => {});
   }
@@ -521,7 +568,7 @@ router.post("/caption-styler", requireAuth, upload.single("video"), async (req, 
   /* Replay, in-memory first: the same ask returns the SAME job. A
      FAILED job (refunded + key voided by the runner) is dropped so
      this request runs fresh below. */
-  const existing = jobs.get(jobId);
+  const existing = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (existing && existing.userId === req.userId) {
     if (existing.status !== "failed") {
       res.status(202).json({
@@ -594,6 +641,8 @@ router.post("/caption-styler", requireAuth, upload.single("video"), async (req, 
       creditsCharged: CAPTION_STYLER_CREDIT_COST,
       createdAt: Date.now(),
       chargeKey: idempotencyKey,
+      creditsRefunded: false,
+      workerInput: { uploadedPath, originalName },
     };
     const body: Record<string, unknown> = {
       jobId: job.id,
@@ -604,6 +653,7 @@ router.post("/caption-styler", requireAuth, upload.single("video"), async (req, 
     };
     job.replayBody = body;
     jobs.set(job.id, job);
+    await jobStore.persist(job); // durable (0335): the row lands before the worker fires
 
     // Server-owned: runs detached from the request/tab lifecycle.
     void runCaptionStylerJob(job, uploadedPath, originalName);
@@ -625,7 +675,7 @@ router.post("/caption-styler", requireAuth, upload.single("video"), async (req, 
  * Jobs are scoped to the requesting user.
  */
 router.get("/caption-styler/:jobId", requireAuth, async (req, res) => {
-  const job = getCaptionStylerJob(req.params.jobId as string);
+  const job = await jobStore.find(req.params.jobId as string); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;

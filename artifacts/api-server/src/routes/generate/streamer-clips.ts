@@ -50,6 +50,7 @@ import {
   attributionDrawtext,
 } from "../../lib/attribution";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 import { uploadFileStreamToSupabaseStorage, SUPABASE_CLIPS_BUCKET } from "../../lib/objectStorage";
 
@@ -590,10 +591,44 @@ interface CutJob {
      Stored durably ONLY when the cut completes (runCutJob) — a failed
      cut refunds + voids and must never leave a stored body behind. */
   chargeBody?: Record<string, unknown>;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
+  /** Durable jobs (0335): the worker's video input — a durable
+   *  storage ref, re-passed to the worker on a restart resume. */
+  workerInput?: { videoRef: string };
 }
 
 const cutJobs = new Map<string, CutJob>();
 attachJobMapTtl(cutJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Cut jobs persist at creation, mirror on settle, and a
+   lookup that misses the Map rehydrates from the table — a job
+   survives a server restart. The worker's input is a durable
+   storage ref (videoRef), so a rehydrated in-flight job RESUMES
+   the cut; if the ref is gone the resume throws and the job
+   settles instead: failed + refunded exactly once (claim first).
+   Fail-open throughout (lib/generation-jobs). */
+const cutJobStore = new DurableJobStore<CutJob>(cutJobs, {
+  rail: "streamer-clips-cut",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.chargeKey ?? null,
+  refundAction: "Streamer Clips — Refund (cut failed)",
+  settleError: "Clip cutting was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (j) => {
+    if (!j.workerInput) throw new Error("streamer-clips cut job has no persisted worker input");
+    await runCutJob(j, j.workerInput.videoRef);
+    return true; // the worker settled the job itself (store contract)
+  },
+});
 export function getStreamerClipJob(id: string): CutJob | undefined {
   return cutJobs.get(id);
 }
@@ -636,20 +671,26 @@ async function runCutJob(job: CutJob, videoRef: string): Promise<void> {
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Clip cutting failed";
-    /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    let refunded = true;
-    try {
-      await refundCredits(job.userId, job.creditsCharged, {
-        action: "Streamer Clips — Refund (cut failed)",
-      });
-    } catch {
-      refunded = false;
-      /* logged inside refundCredits */
-    }
-    if (refunded && job.chargeKey) {
-      await voidChargeIdempotencyKey(job.chargeKey).catch(() => false);
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await cutJobStore.claimRefund(job);
+    if (claimed) {
+      /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+      let refunded = true;
+      try {
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "Streamer Clips — Refund (cut failed)",
+        });
+      } catch {
+        refunded = false;
+        /* logged inside refundCredits */
+      }
+      if (refunded && job.chargeKey) {
+        await voidChargeIdempotencyKey(job.chargeKey).catch(() => false);
+      }
     }
   } finally {
+    void cutJobStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
@@ -689,9 +730,15 @@ export async function startStreamerCutJob(
   const creditsRemaining = await chargeCredits(userId, cost, {
     action: `Streamer Clips — cut ${clips.length} clip${clips.length > 1 ? "s" : ""}`,
   }, { idempotencyKey: cutKey });
-  const existing = [...cutJobs.values()].find(
-    (j) => j.chargeKey === cutKey && j.status !== "failed",
-  );
+  const existing =
+    [...cutJobs.values()].find(
+      (j) => j.chargeKey === cutKey && j.status !== "failed",
+    ) ??
+    /* Durable (0335): after a restart the in-process scan misses —
+       the persisted row answers by charge key instead. */
+    (await cutJobStore.findByChargeKey(cutKey).then((j) =>
+      j && j.status !== "failed" ? j : undefined,
+    ));
   if (existing) {
     return { job: existing, creditsRemaining, creditsCharged: cost };
   }
@@ -711,8 +758,11 @@ export async function startStreamerCutJob(
     createdAt: Date.now(),
     attribution,
     chargeKey: cutKey,
+    creditsRefunded: false,
+    workerInput: { videoRef },
   };
   cutJobs.set(job.id, job);
+  await cutJobStore.persist(job); // durable (0335): the row lands before the worker fires
   // Server-owned: runs detached from the request/tab lifecycle.
   void runCutJob(job, videoRef);
   return { job, creditsRemaining, creditsCharged: cost };
@@ -805,9 +855,9 @@ router.post("/streamer-clips/cut", requireAuth, publicApiLimiter, async (req: Re
 });
 
 /** GET /api/streamer-clips/cut/:jobId — poll cut job status. */
-router.get("/streamer-clips/cut/:jobId", requireAuth, (req: Request, res: Response) => {
+router.get("/streamer-clips/cut/:jobId", requireAuth, async (req: Request, res: Response) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
-  const job = cutJobs.get(jobId);
+  const job = await cutJobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;

@@ -54,6 +54,7 @@ import {
   attributionDrawtext,
 } from "../../lib/attribution";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 import {
   DUB_CAPTION_LANGUAGES,
@@ -213,10 +214,53 @@ export interface TranslateJob {
      stored/replayed verbatim. */
   idempotencyKey?: string;
   creditsRemaining?: number;
+  /** Durable jobs (0335): the exactly-once refund claim for the
+   *  full-failure refund — claimed in the persisted row before the
+   *  refund moves. (Partial-success refunds keep their own path:
+   *  they land once, at the end of a completed run.) */
+  creditsRefunded?: boolean;
+  /** Durable jobs (0335): the worker's inputs, persisted with the job
+   *  so a worker resumed after a restart re-runs the exact ask. The
+   *  upload is disk-backed; if the file did not survive, the job
+   *  settles (failed + refunded exactly once). */
+  workerInput?: { uploadedPath: string; originalName: string; voiceId: string };
 }
 
 const jobs = new Map<string, TranslateJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Jobs persist at creation, mirror on settle, and a lookup
+   that misses the Map rehydrates from the table — a job survives
+   a server restart: its worker resumes from the persisted upload
+   path when the file survived, and settles (failed + refunded
+   exactly once, claim first) when it did not. Fail-open throughout
+   (lib/generation-jobs). */
+const jobStore = new DurableJobStore<TranslateJob>(jobs, {
+  rail: "video-translator",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.idempotencyKey ?? null,
+  refundAction: "AI Video Translator — Refund (job failed)",
+  settleError: "Translation was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    const input = job.workerInput;
+    if (!input) return false;
+    const survived = await fs.access(input.uploadedPath).then(
+      () => true,
+      () => false,
+    );
+    if (!survived) return false;
+    void runTranslateJob(job, input.uploadedPath, input.originalName, input.voiceId);
+    return true;
+  },
+});
 
 
 /** Test hook: clear the in-memory job store. */
@@ -501,22 +545,28 @@ export async function runTranslateJob(
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Translation failed";
-    let refunded = true;
-    try {
-      await refundCredits(job.userId, job.creditsCharged, {
-        action: "AI Video Translator — Refund (job failed)",
-      });
-    } catch (refundErr) {
-      refunded = false;
-      void refundErr;
-    }
-    /* CA-6: a landed full refund voids the key, so the retry
-       re-charges. (Partial-success refunds above never void.) */
-    if (refunded && job.idempotencyKey) {
-      await voidChargeIdempotencyKey(job.idempotencyKey).catch(() => false);
-      await storeCompletedJobResult("video-translator", job.idempotencyKey, job.userId, null);
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      let refunded = true;
+      try {
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "AI Video Translator — Refund (job failed)",
+        });
+      } catch (refundErr) {
+        refunded = false;
+        void refundErr;
+      }
+      /* CA-6: a landed full refund voids the key, so the retry
+         re-charges. (Partial-success refunds above never void.) */
+      if (refunded && job.idempotencyKey) {
+        await voidChargeIdempotencyKey(job.idempotencyKey).catch(() => false);
+        await storeCompletedJobResult("video-translator", job.idempotencyKey, job.userId, null);
+      }
     }
   } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
     await fs.unlink(uploadedPath).catch(() => {});
   }
@@ -680,7 +730,7 @@ router.post(
 
     /* Concurrent twin: the ledger deduped this charge — answer with
        the twin's job instead of starting a second run. */
-    const twin = jobs.get(deterministicJobId(idempotencyKey));
+    const twin = await jobStore.find(deterministicJobId(idempotencyKey)); // Map first, durable store on a miss (0335)
     if (twin && twin.userId === req.userId! && twin.status !== "failed") {
       res.status(202).json({
         jobId: twin.id,
@@ -716,8 +766,11 @@ router.post(
       attribution,
       idempotencyKey,
       creditsRemaining,
+      creditsRefunded: false,
+      workerInput: { uploadedPath: req.file.path, originalName: req.file.originalname, voiceId },
     };
     jobs.set(job.id, job);
+    await jobStore.persist(job); // durable (0335): the row lands before the worker fires
 
     // Server-owned: runs detached from the request/tab lifecycle.
     void runTranslateJob(job, req.file.path, req.file.originalname, voiceId);
@@ -739,9 +792,9 @@ router.post(
  * Poll job status. When done, outputs carry per-language videoUrl + srtUrl
  * (signed, reviewable URLs retained in Supabase storage).
  */
-router.get("/video-translator/jobs/:jobId", requireAuth, (req, res) => {
+router.get("/video-translator/jobs/:jobId", requireAuth, async (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
-  const job = jobs.get(jobId);
+  const job = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;

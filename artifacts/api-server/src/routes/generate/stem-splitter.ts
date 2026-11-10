@@ -35,6 +35,7 @@ import {
 import { runGatedDemucs, DEMUCS_THREAD_ENV } from "../../lib/demucs-gate";
 import { buildMelodyMidi, midiFilenameBase, NoMelodyError } from "../../lib/midi-file";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 
 const router = Router();
 
@@ -296,10 +297,41 @@ export interface StemJob {
      when the job completes (runStemJob) — a job that fails refunds +
      voids and must never leave a stored body behind for its key. */
   chargeBody?: Record<string, unknown>;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
 }
 
 const jobs = new Map<string, StemJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Jobs persist at creation, mirror on settle, and a lookup
+   that misses the Map rehydrates from the table — a job survives
+   a server restart (a finished split stays pollable and remixable;
+   twin POSTs find it by charge key). The worker's input is an
+   in-memory upload BUFFER, which no restart can bring back, so a
+   rehydrated in-flight job SETTLES instead of resuming: failed +
+   refunded exactly once (claim first), never silently lost with
+   its charge standing. Fail-open throughout (lib/generation-jobs). */
+const jobStore = new DurableJobStore<StemJob>(jobs, {
+  rail: "stem-splitter",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.chargeKey ?? null,
+  refundAction: "AI Stem Splitter — Refund (job failed)",
+  settleError: "Stem splitting was interrupted by a server restart — your Visual Bucs were refunded.",
+  /* The upload BUFFER never survives a restart, so a rehydrated
+     in-flight job cannot resume — settle it (store contract:
+     resume returning false settles with the refund above). */
+  resume: async () => false,
+});
 
 export function getStemJob(id: string): StemJob | undefined {
   return jobs.get(id);
@@ -497,21 +529,27 @@ export async function runStemJob(job: StemJob, inputBuffer: Buffer, originalName
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Stem splitting failed";
     // Refund: the user paid for stems they didn't get.
-    // CA-5: a landed refund also VOIDS the charge's idempotency key.
-    let refunded = true;
-    try {
-      await refundCredits(job.userId, job.creditsCharged, {
-        action: "AI Stem Splitter — Refund (job failed)",
-      });
-    } catch (refundErr) {
-      refunded = false;
-      // Logged inside refundCredits; don't mask the original failure.
-      void refundErr;
-    }
-    if (refunded && job.chargeKey) {
-      await voidChargeIdempotencyKey(job.chargeKey).catch(() => false);
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      // CA-5: a landed refund also VOIDS the charge's idempotency key.
+      let refunded = true;
+      try {
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "AI Stem Splitter — Refund (job failed)",
+        });
+      } catch (refundErr) {
+        refunded = false;
+        // Logged inside refundCredits; don't mask the original failure.
+        void refundErr;
+      }
+      if (refunded && job.chargeKey) {
+        await voidChargeIdempotencyKey(job.chargeKey).catch(() => false);
+      }
     }
   } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
@@ -619,9 +657,15 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
      in this process) — rejoin it instead of charging for a second one.
      Failed jobs are skipped: they refunded + voided, so a re-ask falls
      through and charges fresh. */
-  const existingJob = [...jobs.values()].find(
-    (j) => j.chargeKey === idempotencyKey && j.userId === req.userId! && j.status !== "failed",
-  );
+  const existingJob =
+    [...jobs.values()].find(
+      (j) => j.chargeKey === idempotencyKey && j.userId === req.userId! && j.status !== "failed",
+    ) ??
+    /* Durable (0335): after a restart the in-process scan misses —
+       the persisted row answers by charge key instead. */
+    (await jobStore.findByChargeKey(idempotencyKey).then((j) =>
+      j && j.userId === req.userId! && j.status !== "failed" ? j : undefined,
+    ));
   if (existingJob?.chargeBody) {
     res.status(202).json({ ...existingJob.chargeBody, replayed: true, replayNote: REPLAY_NOTE });
     return;
@@ -681,9 +725,11 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
     createdAt: Date.now(),
     chargeKey: idempotencyKey,
     chargeBody: body,
+    creditsRefunded: false,
   };
   body.jobId = job.id;
   jobs.set(job.id, job);
+  await jobStore.persist(job); // durable (0335): the row lands before the worker fires
 
   // Server-owned: runs detached from the request/tab lifecycle.
   // runStemJob stores the creation body durably when the split lands.
@@ -699,9 +745,9 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
  * single instrumental URL (instrumental mode) — signed, reviewable WAVs
  * retained in Supabase storage.
  */
-router.get("/stems/:jobId", requireAuth, (req, res) => {
+router.get("/stems/:jobId", requireAuth, async (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
-  const job = jobs.get(jobId);
+  const job = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;
@@ -747,7 +793,7 @@ router.post("/stems/:jobId/remix", requireAuth, async (req, res) => {
   }
 
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
-  const job = jobs.get(jobId);
+  const job = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;
@@ -787,7 +833,7 @@ router.post("/stems/:jobId/remix", requireAuth, async (req, res) => {
  */
 router.get("/stems/:jobId/midi/:stem", requireAuth, async (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
-  const job = jobs.get(jobId);
+  const job = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;

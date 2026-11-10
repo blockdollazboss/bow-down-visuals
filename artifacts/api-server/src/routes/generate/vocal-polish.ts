@@ -22,6 +22,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -217,10 +218,39 @@ interface VocalPolishJob {
      stored/replayed verbatim. */
   idempotencyKey?: string;
   creditsRemaining?: number;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
 }
 
 const jobs = new Map<string, VocalPolishJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Jobs persist at creation, mirror on settle, and a lookup
+   that misses the Map rehydrates from the table — a job survives
+   a server restart. This worker needs only the job record (the
+   source audio URL and settings ride on it), so a rehydrated
+   in-flight job simply resumes. Fail-open throughout
+   (lib/generation-jobs). */
+const jobStore = new DurableJobStore<VocalPolishJob>(jobs, {
+  rail: "vocal-polish",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.idempotencyKey ?? null,
+  refundAction: "AI Vocal Polish — Refund (job failed)",
+  settleError: "Vocal polish was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    void runVocalPolishJob(job);
+    return true;
+  },
+});
 
 
 /** Test hook: clear the in-memory job store. */
@@ -333,22 +363,28 @@ async function runVocalPolishJob(job: VocalPolishJob): Promise<void> {
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Vocal polish failed";
-    // Refund: the user paid for an output they didn't get.
-    let refunded = true;
-    try {
-      await refundCredits(job.userId, job.creditsCharged, {
-        action: "AI Vocal Polish — Refund (job failed)",
-      });
-    } catch (refundErr) {
-      refunded = false;
-      void refundErr;
-    }
-    /* CA-6: a landed refund voids the key, so the retry re-charges. */
-    if (refunded && job.idempotencyKey) {
-      await voidChargeIdempotencyKey(job.idempotencyKey).catch(() => false);
-      await storeCompletedJobResult("vocal-polish", job.idempotencyKey, job.userId, null);
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      // Refund: the user paid for an output they didn't get.
+      let refunded = true;
+      try {
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "AI Vocal Polish — Refund (job failed)",
+        });
+      } catch (refundErr) {
+        refunded = false;
+        void refundErr;
+      }
+      /* CA-6: a landed refund voids the key, so the retry re-charges. */
+      if (refunded && job.idempotencyKey) {
+        await voidChargeIdempotencyKey(job.idempotencyKey).catch(() => false);
+        await storeCompletedJobResult("vocal-polish", job.idempotencyKey, job.userId, null);
+      }
     }
   } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
@@ -394,6 +430,10 @@ router.post("/vocal-polish", requireAuth, async (req: Request, res: Response) =>
     keyShift,
     tempoFactor,
   });
+  /* Durable (0335): rehydrate a persisted job for this exact ask
+     into the Map first, so the replay check below sees it even
+     after a restart. */
+  await jobStore.find(deterministicJobId(idempotencyKey));
   const replay = await findJobCreateReplay("vocal-polish", idempotencyKey, req.userId!, jobs, (j) => ({
     jobId: j.id,
     status: j.status,
@@ -436,7 +476,7 @@ router.post("/vocal-polish", requireAuth, async (req: Request, res: Response) =>
 
   /* Concurrent twin: the ledger deduped this charge — answer with
      the twin's job instead of starting a second run. */
-  const twin = jobs.get(deterministicJobId(idempotencyKey));
+  const twin = await jobStore.find(deterministicJobId(idempotencyKey)); // Map first, durable store on a miss (0335)
   if (twin && twin.userId === req.userId! && twin.status !== "failed") {
     res.status(202).json({
       jobId: twin.id,
@@ -467,8 +507,10 @@ router.post("/vocal-polish", requireAuth, async (req: Request, res: Response) =>
     createdAt: Date.now(),
     idempotencyKey,
     creditsRemaining,
+    creditsRefunded: false,
   };
   jobs.set(job.id, job);
+  await jobStore.persist(job); // durable (0335): the row lands before the worker fires
 
   // Server-owned: runs detached from the request/tab lifecycle.
   void runVocalPolishJob(job);
@@ -488,9 +530,9 @@ router.post("/vocal-polish", requireAuth, async (req: Request, res: Response) =>
  * done (a signed, reviewable URL for the polished audio retained in
  * Supabase storage).
  */
-router.get("/vocal-polish/:jobId", requireAuth, (req: Request, res: Response) => {
+router.get("/vocal-polish/:jobId", requireAuth, async (req: Request, res: Response) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
-  const job = jobs.get(jobId);
+  const job = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;

@@ -29,6 +29,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 
@@ -161,10 +162,53 @@ interface AudioCleanupJob {
   /** CA-1: the charge's idempotency key — the async job-failure refund
    *  VOIDS it so a retry after a failed job charges fresh. */
   idempotencyKey: string | null;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves, so a completion
+   *  replayed or resumed after a restart can never double-refund. */
+  creditsRefunded?: boolean;
+  /** Durable jobs (0335): the worker's inputs, persisted with the job
+   *  so a worker resumed after a restart re-runs the exact ask the
+   *  member paid for. The upload is disk-backed; if the file did not
+   *  survive, the job settles (failed + refunded exactly once). */
+  workerInput?: { uploadedPath: string; originalName: string };
 }
 
 const jobs = new Map<string, AudioCleanupJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Every job is persisted at creation and mirrored on
+   settle, and a lookup that misses the Map rehydrates from the
+   table — a job survives a server restart: its worker resumes
+   from the persisted upload path when the file survived, and
+   settles (failed + refunded exactly once, claim first) when it
+   did not. All storage is fail-open (lib/generation-jobs): a
+   storage failure degrades to the pre-0335 in-process behavior. */
+const jobStore = new DurableJobStore<AudioCleanupJob>(jobs, {
+  rail: "audio-cleanup",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.idempotencyKey ?? null,
+  refundAction: "Audio Cleanup — Refund (job failed)",
+  settleError: "Audio cleanup was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    const input = job.workerInput;
+    if (!input) return false;
+    const survived = await fs.access(input.uploadedPath).then(
+      () => true,
+      () => false,
+    );
+    if (!survived) return false;
+    void runAudioCleanupJob(job, input.uploadedPath, input.originalName);
+    return true;
+  },
+});
 
 
 /** Test hook: clear the in-memory job store. */
@@ -237,21 +281,27 @@ async function runAudioCleanupJob(
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Audio cleanup failed";
-    // Refund: the user paid for an output they didn't get.
-    let refunded = true;
-    try {
-      await refundCredits(job.userId, job.creditsCharged, {
-        action: "Audio Cleanup — Refund (job failed)",
-      });
-    } catch (refundErr) {
-      refunded = false;
-      // Logged inside refundCredits; don't mask the original failure.
-      void refundErr;
-    }
-    /* CA-1: a landed refund VOIDS the charge's key so the retry charges
-       fresh instead of replay-suppressing into a free run. */
-    if (refunded && job.idempotencyKey) {
-      await voidChargeIdempotencyKey(job.idempotencyKey);
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed (in this process, or settled from the
+       persisted row after a restart) never refunds twice. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      // Refund: the user paid for an output they didn't get.
+      let refunded = true;
+      try {
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "Audio Cleanup — Refund (job failed)",
+        });
+      } catch (refundErr) {
+        refunded = false;
+        // Logged inside refundCredits; don't mask the original failure.
+        void refundErr;
+      }
+      /* CA-1: a landed refund VOIDS the charge's key so the retry charges
+         fresh instead of replay-suppressing into a free run. */
+      if (refunded && job.idempotencyKey) {
+        await voidChargeIdempotencyKey(job.idempotencyKey);
+      }
     }
     /* CA-1 follow-on — the stored FAILURE marker: the creation body
        was stored BEFORE the job ran (Pattern B), so while this
@@ -278,6 +328,7 @@ async function runAudioCleanupJob(
       });
     }
   } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
     await fs.unlink(uploadedPath).catch(() => {});
   }
@@ -334,7 +385,8 @@ router.post("/audio-cleanup", requireAuth, upload.single("audio"), async (req: R
     },
   );
   const stored = await findStoredGenerationResult("audio-cleanup", idempotencyKey, req.userId!);
-  const storedJob = stored && typeof stored["jobId"] === "string" ? jobs.get(stored["jobId"]) : undefined;
+  const storedJob =
+    stored && typeof stored["jobId"] === "string" ? await jobStore.find(stored["jobId"]) : undefined;
   const storedIsFailedTombstone = !!storedJob && storedJob.userId === req.userId && storedJob.status === "failed";
   /* The durable twin of the tombstone: a stored FAILURE marker (see
      runAudioCleanupJob) means this intent's job failed — readable
@@ -415,8 +467,15 @@ router.post("/audio-cleanup", requireAuth, upload.single("audio"), async (req: R
     sourceSongId: parsed.data.sourceSongId ?? null,
     librarySongId: null,
     idempotencyKey,
+    creditsRefunded: false,
+    workerInput: { uploadedPath: req.file.path, originalName: req.file.originalname },
   };
   jobs.set(job.id, job);
+  /* Durable (0335): the row lands before the worker fires, so the
+     job exists on the record from its first moment. Awaited — and
+     fail-open: a storage failure logs and the job still runs
+     in-process exactly as it did before this table existed. */
+  await jobStore.persist(job);
 
   // Server-owned: runs detached from the request/tab lifecycle.
   void runAudioCleanupJob(job, req.file.path, req.file.originalname);
@@ -441,9 +500,9 @@ router.post("/audio-cleanup", requireAuth, upload.single("audio"), async (req: R
  * (a signed, reviewable URL for the cleaned audio retained in
  * Supabase storage).
  */
-router.get("/audio-cleanup/:jobId", requireAuth, (req: Request, res: Response) => {
+router.get("/audio-cleanup/:jobId", requireAuth, async (req: Request, res: Response) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
-  const job = jobs.get(jobId);
+  const job = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;

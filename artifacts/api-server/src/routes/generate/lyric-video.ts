@@ -58,6 +58,7 @@ import {
 } from "../../lib/attribution";
 import { eq, and } from "drizzle-orm";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -818,10 +819,60 @@ interface LyricRenderJob {
   /* CA-3: the charge key that funded this job — voided when the job
      fails + refunds, so a retry of the same ask charges fresh. */
   idempotencyKey: string;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
+  /** Durable jobs (0335): everything the render worker needs beyond
+   *  the audio bytes — the audio itself lives in staged storage
+   *  under audioRef and is re-downloaded on a restart resume. */
+  workerInput?: {
+    audioRef: string;
+    lines: AlignedLine[];
+    style: LyricStyle;
+    aspect: LyricAspect;
+    attribution?: boolean;
+  };
 }
 
 const renderJobs = new Map<string, LyricRenderJob>();
 attachJobMapTtl(renderJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Render jobs persist at creation, mirror on settle, and
+   a poll that misses the Map rehydrates from the table — a job
+   survives a server restart. The render's audio is STAGED in
+   durable storage (audioRef), so a rehydrated in-flight job
+   RESUMES: re-download the staged audio and re-run the render.
+   If the staged audio is gone, the resume throws and the job
+   settles instead: failed + refunded exactly once (claim first).
+   Fail-open throughout (lib/generation-jobs). */
+const renderJobStore = new DurableJobStore<LyricRenderJob>(renderJobs, {
+  rail: "lyric-video-render",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.idempotencyKey,
+  refundAction: "Lyric Video — Refund (render failed)",
+  settleError: "Lyric video render was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (j) => {
+    if (!j.workerInput) throw new Error("lyric render job has no persisted worker input");
+    const audioBuffer = await downloadAudioFromUrl(j.workerInput.audioRef);
+    await runLyricRenderJob(j, {
+      audioBuffer,
+      audioName: "audio.mp3",
+      lines: j.workerInput.lines,
+      style: j.workerInput.style,
+      aspect: j.workerInput.aspect,
+      attribution: j.workerInput.attribution,
+    });
+    return true; // the worker settled the job itself (store contract)
+  },
+});
 
 export function getLyricRenderJob(id: string): LyricRenderJob | undefined {
   return renderJobs.get(id);
@@ -1014,6 +1065,10 @@ async function runLyricRenderJob(
   const fail = async (message: string): Promise<void> => {
     job.status = "failed";
     job.error = message;
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await renderJobStore.claimRefund(job);
+    if (!claimed) return;
     let refunded = true;
     try {
       await refundCredits(job.userId, job.creditsCharged, {
@@ -1079,6 +1134,7 @@ async function runLyricRenderJob(
   } catch (err) {
     await fail(err instanceof Error ? err.message : "Lyric video render failed");
   } finally {
+    void renderJobStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
@@ -1543,6 +1599,18 @@ async function runLyricRenderCreate(
         };
       }
 
+      const renderLines: AlignedLine[] = lines.map((l) => ({
+        text: l.text,
+        startSec: l.startSec,
+        endSec: l.endSec,
+        matched: l.matched ?? true,
+        words: l.words.map((w) => ({
+          word: w.word,
+          startSec: w.startSec,
+          endSec: w.endSec,
+          matched: w.matched ?? true,
+        })),
+      }));
       const job: LyricRenderJob = {
         id: randomUUID(),
         userId,
@@ -1556,25 +1624,17 @@ async function runLyricRenderCreate(
         creditsCharged: LYRIC_RENDER_CREDIT_COST,
         createdAt: Date.now(),
         idempotencyKey,
+        creditsRefunded: false,
+        workerInput: { audioRef, lines: renderLines, style, aspect, attribution },
       };
       renderJobs.set(job.id, job);
+      await renderJobStore.persist(job); // durable (0335): the row lands before the worker fires
 
       // Server-owned: runs detached from the request/tab lifecycle.
       void runLyricRenderJob(job, {
         audioBuffer,
         audioName: "audio.mp3",
-        lines: lines.map((l) => ({
-          text: l.text,
-          startSec: l.startSec,
-          endSec: l.endSec,
-          matched: l.matched ?? true,
-          words: l.words.map((w) => ({
-            word: w.word,
-            startSec: w.startSec,
-            endSec: w.endSec,
-            matched: w.matched ?? true,
-          })),
-        })),
+        lines: renderLines,
         style,
         aspect,
         attribution,
@@ -1600,7 +1660,7 @@ router.get(
   "/lyric-video/render/:jobId",
   requireAuth,
   async (req: Request, res: Response) => {
-    const job = getLyricRenderJob(req.params.jobId as string);
+    const job = await renderJobStore.find(req.params.jobId as string); // Map first, durable store on a miss (0335)
     if (!job || job.userId !== req.userId) {
       res.status(404).json({ error: "Job not found." });
       return;

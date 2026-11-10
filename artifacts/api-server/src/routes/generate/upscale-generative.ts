@@ -18,6 +18,7 @@ import {
   type GenerativeUpscaleTarget,
 } from "../../lib/generative-upscale-client";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 
 const router = Router();
 
@@ -55,10 +56,97 @@ interface GenerativeUpscaleJob {
      stored/replayed verbatim. */
   idempotencyKey?: string;
   creditsRemaining?: number;
+  /** The creativity setting, carried on the job (0335) so a worker
+   *  resumed after a restart submits the exact ask. */
+  creativity?: number;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
 }
 
 const jobs = new Map<string, GenerativeUpscaleJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Jobs persist at creation, mirror on settle, and a lookup
+   that misses the Map rehydrates from the table — a job survives
+   a server restart. This worker needs only the job record (the
+   source video URL and settings ride on it), so a rehydrated
+   in-flight job simply resumes. Fail-open throughout
+   (lib/generation-jobs). */
+const jobStore = new DurableJobStore<GenerativeUpscaleJob>(jobs, {
+  rail: "upscale-generative",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.idempotencyKey ?? null,
+  refundAction: "Generative AI Upscale — Refund (job failed)",
+  settleError: "Generative upscale was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    void runGenerativeUpscaleJob(job);
+    return true;
+  },
+});
+
+/**
+ * The provider worker: submit → settle. The charge was already
+ * reserved at submit (POST); this worker never charges — it keeps
+ * the reserve on success and refunds it exactly once on failure.
+ * Extracted from the POST closure (0335) so a worker resumed after
+ * a restart runs the identical code.
+ */
+async function runGenerativeUpscaleJob(job: GenerativeUpscaleJob): Promise<void> {
+  try {
+    job.status = "processing";
+    const result = await submitGenerativeUpscale({
+      sourceVideoUrl: job.sourceVideoUrl,
+      target: job.target,
+      creativity: job.creativity,
+      userId: job.userId,
+    });
+    job.status = result.status === "done" ? "done" : "processing";
+    job.outputUrl = result.videoUrl ?? null;
+    /* CA-6: the job landed — persist the create body durably so a
+       replayed create after a restart is served from the store,
+       never re-charged or re-submitted. Fail-open. */
+    if (job.idempotencyKey) {
+      await storeCompletedJobResult("upscale-generative", job.idempotencyKey, job.userId, {
+        jobId: job.id,
+        status: "queued",
+        creditsRemaining: job.creditsRemaining,
+      });
+    }
+  } catch (err) {
+    job.status = "failed";
+    job.error = err instanceof Error ? err.message : "Generative upscale failed";
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      let refunded = true;
+      try {
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "Generative AI Upscale — Refund (job failed)",
+        });
+      } catch {
+        refunded = false;
+        /* logged inside refundCredits */
+      }
+      /* CA-6: a landed refund voids the key, so the retry re-charges. */
+      if (refunded && job.idempotencyKey) {
+        await voidChargeIdempotencyKey(job.idempotencyKey).catch(() => false);
+        await storeCompletedJobResult("upscale-generative", job.idempotencyKey, job.userId, null);
+      }
+    }
+  } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
+  }
+}
 
 
 /** Test hook: clear the in-memory job store. */
@@ -122,7 +210,7 @@ router.post("/ai-upscale", requireAuth, async (req: Request, res: Response) => {
     creativity: parsed.data.creativity ?? null,
   });
   const jobId = deterministicJobId(idempotencyKey);
-  const existing = jobs.get(jobId);
+  const existing = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (existing && existing.userId === req.userId! && existing.status !== "failed") {
     res.status(202).json({
       jobId: existing.id,
@@ -169,7 +257,7 @@ router.post("/ai-upscale", requireAuth, async (req: Request, res: Response) => {
   /* A concurrent twin may have created the job while this charge was
      in flight — the ledger deduped the charge, so answer with the
      twin's job instead of starting a second provider run. */
-  const twin = jobs.get(jobId);
+  const twin = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (twin && twin.userId === req.userId! && twin.status !== "failed") {
     res.status(202).json({
       jobId: twin.id,
@@ -192,48 +280,14 @@ router.post("/ai-upscale", requireAuth, async (req: Request, res: Response) => {
     createdAt: Date.now(),
     idempotencyKey,
     creditsRemaining,
+    creativity: parsed.data.creativity,
+    creditsRefunded: false,
   };
   jobs.set(job.id, job);
+  await jobStore.persist(job); // durable (0335): the row lands before the worker fires
 
   // Fire-and-forget: the provider submit is stubbed until a provider is wired.
-  void (async () => {
-    try {
-      job.status = "processing";
-      const result = await submitGenerativeUpscale({
-        sourceVideoUrl: job.sourceVideoUrl,
-        target: job.target,
-        creativity: parsed.data.creativity,
-        userId: job.userId,
-      });
-      job.status = result.status === "done" ? "done" : "processing";
-      job.outputUrl = result.videoUrl ?? null;
-      /* CA-6: the job landed — persist the create body durably so a
-         replayed create after a restart is served from the store,
-         never re-charged or re-submitted. Fail-open. */
-      await storeCompletedJobResult("upscale-generative", idempotencyKey, job.userId, {
-        jobId: job.id,
-        status: "queued",
-        creditsRemaining: job.creditsRemaining,
-      });
-    } catch (err) {
-      job.status = "failed";
-      job.error = err instanceof Error ? err.message : "Generative upscale failed";
-      let refunded = true;
-      try {
-        await refundCredits(job.userId, job.creditsCharged, {
-          action: "Generative AI Upscale — Refund (job failed)",
-        });
-      } catch {
-        refunded = false;
-        /* logged inside refundCredits */
-      }
-      /* CA-6: a landed refund voids the key, so the retry re-charges. */
-      if (refunded) {
-        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
-        await storeCompletedJobResult("upscale-generative", idempotencyKey, job.userId, null);
-      }
-    }
-  })();
+  void runGenerativeUpscaleJob(job);
 
   res.status(202).json({ jobId: job.id, status: job.status, creditsRemaining });
 });
@@ -245,7 +299,7 @@ router.post("/ai-upscale", requireAuth, async (req: Request, res: Response) => {
  * /api/upscale/:jobId pattern treats "generative" as a job id.
  */
 router.get("/ai-upscale/:jobId", requireAuth, async (req: Request, res: Response) => {
-  const job = jobs.get(String(req.params.jobId));
+  const job = await jobStore.find(String(req.params.jobId)); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "JOB_NOT_FOUND", message: "Job not found." });
     return;

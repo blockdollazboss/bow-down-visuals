@@ -25,6 +25,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -546,6 +547,9 @@ interface FillerAnalyzeJob {
      key and the exact POST body served at creation. */
   chargeKey?: string;
   replayBody?: Record<string, unknown>;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
 }
 
 type FillerRenderStatus =
@@ -569,12 +573,62 @@ interface FillerRenderJob {
   error: string | null;
   creditsCharged: number;
   createdAt: number;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
 }
 
 const analyzeJobs = new Map<string, FillerAnalyzeJob>();
 attachJobMapTtl(analyzeJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 const renderJobs = new Map<string, FillerRenderJob>();
 attachJobMapTtl(renderJobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Maps above are the working caches; generation_jobs is the
+   record, one store per map. Jobs persist at creation, mirror on
+   settle, and a lookup that misses a Map rehydrates from the
+   table — jobs survive a server restart: the analyze worker needs
+   only its job record (the media URL rides on it) and resumes; a
+   render job resumes from its persisted cuts once its analyze job
+   is rehydrated done, and settles (failed + refunded exactly once,
+   claim first — the same refund its worker pays, key never voided)
+   when it cannot. Fail-open throughout (lib/generation-jobs). */
+const analyzeStore = new DurableJobStore<FillerAnalyzeJob>(analyzeJobs, {
+  rail: "filler-removal-analyze",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.chargeKey ?? null,
+  refundAction: "Filler-Word Remover — Refund (analysis failed)",
+  settleError: "Filler analysis was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    void runFillerAnalyzeJob(job);
+    return true;
+  },
+});
+const renderStore = new DurableJobStore<FillerRenderJob>(renderJobs, {
+  rail: "filler-removal-render",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: () => null, // render refunds never void the analyze key (see refundJob)
+  refundAction: "Filler-Word Remover — Refund (render failed)",
+  settleError: "Filler render was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    const analyzeJob = await analyzeStore.find(job.analyzeJobId);
+    if (!analyzeJob || analyzeJob.status !== "done") return false;
+    void runFillerRenderJob(job, analyzeJob);
+    return true;
+  },
+});
 
 
 
@@ -664,10 +718,15 @@ async function runFillerAnalyzeJob(job: FillerAnalyzeJob): Promise<void> {
   } catch (err) {
     job.error = err instanceof Error ? err.message : "Filler analysis failed.";
     /* Refund (+ key void) lands BEFORE the job reads "failed", so a
-       retry that sees the failed job always charges fresh. */
-    await refundJob(job.userId, job.creditsCharged, "Filler-Word Remover — Refund (analysis failed)", job.chargeKey);
+       retry that sees the failed job always charges fresh. Durable
+       (0335): the refund is claimed first — a job whose refund
+       already landed never refunds twice. */
+    if (await analyzeStore.claimRefund(job)) {
+      await refundJob(job.userId, job.creditsCharged, "Filler-Word Remover — Refund (analysis failed)", job.chargeKey);
+    }
     job.status = "failed";
   } finally {
+    void analyzeStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
@@ -721,8 +780,13 @@ async function runFillerRenderJob(
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Filler render failed.";
-    await refundJob(job.userId, job.creditsCharged, "Filler-Word Remover — Refund (render failed)");
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    if (await renderStore.claimRefund(job)) {
+      await refundJob(job.userId, job.creditsCharged, "Filler-Word Remover — Refund (render failed)");
+    }
   } finally {
+    void renderStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
@@ -838,7 +902,7 @@ router.post("/remove-fillers/analyze", requireAuth, async (req: Request, res: Re
   /* Replay, in-memory first: the same ask returns the SAME job. A
      FAILED job (refunded + key voided by the runner) is dropped so
      this request runs fresh below. */
-  const existing = analyzeJobs.get(jobId);
+  const existing = await analyzeStore.find(jobId); // Map first, durable store on a miss (0335)
   if (existing && existing.userId === req.userId) {
     if (existing.status !== "failed") {
       res.status(202).json({
@@ -884,6 +948,7 @@ router.post("/remove-fillers/analyze", requireAuth, async (req: Request, res: Re
       creditsCharged: FILLER_REMOVAL_CREDIT_COST,
       createdAt: Date.now(),
       chargeKey: idempotencyKey,
+      creditsRefunded: false,
     };
     const body: Record<string, unknown> = {
       jobId: job.id,
@@ -893,6 +958,7 @@ router.post("/remove-fillers/analyze", requireAuth, async (req: Request, res: Re
     };
     job.replayBody = body;
     analyzeJobs.set(job.id, job);
+    await analyzeStore.persist(job); // durable (0335): the row lands before the worker fires
 
     // Server-owned: runs detached from the request/tab lifecycle.
     void runFillerAnalyzeJob(job);
@@ -908,9 +974,9 @@ router.post("/remove-fillers/analyze", requireAuth, async (req: Request, res: Re
 });
 
 /** GET /api/remove-fillers/analyze/:jobId — poll analysis progress. */
-router.get("/remove-fillers/analyze/:jobId", requireAuth, (req: Request, res: Response) => {
+router.get("/remove-fillers/analyze/:jobId", requireAuth, async (req: Request, res: Response) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
-  const job = analyzeJobs.get(jobId);
+  const job = await analyzeStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;
@@ -945,7 +1011,7 @@ router.post("/remove-fillers/render", requireAuth, async (req: Request, res: Res
     return;
   }
 
-  const analyzeJob = analyzeJobs.get(parsed.data.analyzeJobId);
+  const analyzeJob = await analyzeStore.find(parsed.data.analyzeJobId); // Map first, durable store on a miss (0335)
   if (!analyzeJob || analyzeJob.userId !== req.userId) {
     res.status(404).json({ error: "Analysis job not found — run the analysis first." });
     return;
@@ -968,8 +1034,10 @@ router.post("/remove-fillers/render", requireAuth, async (req: Request, res: Res
     error: null,
     creditsCharged: analyzeJob.creditsCharged,
     createdAt: Date.now(),
+    creditsRefunded: false,
   };
   renderJobs.set(job.id, job);
+  await renderStore.persist(job); // durable (0335): the row lands before the worker fires
 
   // Server-owned: runs detached from the request/tab lifecycle.
   void runFillerRenderJob(job, analyzeJob);
@@ -978,9 +1046,9 @@ router.post("/remove-fillers/render", requireAuth, async (req: Request, res: Res
 });
 
 /** GET /api/remove-fillers/render/:jobId — poll render progress. */
-router.get("/remove-fillers/render/:jobId", requireAuth, (req: Request, res: Response) => {
+router.get("/remove-fillers/render/:jobId", requireAuth, async (req: Request, res: Response) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
-  const job = renderJobs.get(jobId);
+  const job = await renderStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;

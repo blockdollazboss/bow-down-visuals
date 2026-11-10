@@ -50,6 +50,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 
 const router = Router();
@@ -181,10 +182,51 @@ interface DeverbJob {
      the exact POST body served at creation. */
   chargeKey?: string;
   replayBody?: Record<string, unknown>;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
+  /** Durable jobs (0335): the worker's inputs, persisted with the job
+   *  so a worker resumed after a restart re-runs the exact ask. The
+   *  upload is disk-backed; if the file did not survive, the job
+   *  settles (failed + refunded exactly once). */
+  workerInput?: { uploadedPath: string; originalName: string };
 }
 
 const jobs = new Map<string, DeverbJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Jobs persist at creation, mirror on settle, and a lookup
+   that misses the Map rehydrates from the table — a job survives
+   a server restart: its worker resumes from the persisted upload
+   path when the file survived, and settles (failed + refunded
+   exactly once, claim first) when it did not. Fail-open throughout
+   (lib/generation-jobs). */
+const jobStore = new DurableJobStore<DeverbJob>(jobs, {
+  rail: "deverb",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.chargeKey ?? null,
+  refundAction: "De-Reverb — Refund (job failed)",
+  settleError: "De-reverb was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    const input = job.workerInput;
+    if (!input) return false;
+    const survived = await fs.access(input.uploadedPath).then(
+      () => true,
+      () => false,
+    );
+    if (!survived) return false;
+    void runDeverbJob(job, input.uploadedPath, input.originalName);
+    return true;
+  },
+});
 
 
 /** Test hook: clear the in-memory job store. */
@@ -223,28 +265,33 @@ async function runDeverbJob(
     }
   } catch (err) {
     job.error = err instanceof Error ? err.message : "De-reverb failed";
-    // Refund: the user paid for an output they didn't get. The refund
-    // lands (and the key is voided) BEFORE the job reads "failed", so
-    // a retry that sees the failed job always charges fresh.
-    let refunded = true;
-    try {
-      await refundCredits(job.userId, job.creditsCharged, {
-        action: "De-Reverb — Refund (job failed)",
-      });
-    } catch (refundErr) {
-      refunded = false;
-      // Logged inside refundCredits; don't mask the original failure.
-      void refundErr;
-    }
-    if (refunded && job.chargeKey) {
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. The refund still
+       lands (and the key is still voided) BEFORE the job reads
+       "failed", so a retry that sees the failed job charges fresh. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      let refunded = true;
       try {
-        await voidChargeIdempotencyKey(job.chargeKey);
-      } catch {
-        /* void is best-effort here; a failed void is logged in credits */
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "De-Reverb — Refund (job failed)",
+        });
+      } catch (refundErr) {
+        refunded = false;
+        // Logged inside refundCredits; don't mask the original failure.
+        void refundErr;
+      }
+      if (refunded && job.chargeKey) {
+        try {
+          await voidChargeIdempotencyKey(job.chargeKey);
+        } catch {
+          /* void is best-effort here; a failed void is logged in credits */
+        }
       }
     }
     job.status = "failed";
   } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
     await fs.unlink(uploadedPath).catch(() => {});
   }
@@ -361,7 +408,7 @@ router.post("/deverb", requireAuth, upload.single("audio"), async (req: Request,
   /* Replay, in-memory first: the same ask returns the SAME job. A
      FAILED job (refunded + key voided by the runner) is dropped so
      this request runs fresh below. */
-  const existing = jobs.get(jobId);
+  const existing = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (existing && existing.userId === req.userId) {
     if (existing.status !== "failed") {
       res.status(202).json({
@@ -431,6 +478,8 @@ router.post("/deverb", requireAuth, upload.single("audio"), async (req: Request,
       creditsCharged: DEVERB_CREDIT_COST,
       createdAt: Date.now(),
       chargeKey: idempotencyKey,
+      creditsRefunded: false,
+      workerInput: { uploadedPath, originalName },
     };
     const body: Record<string, unknown> = {
       jobId: job.id,
@@ -441,6 +490,7 @@ router.post("/deverb", requireAuth, upload.single("audio"), async (req: Request,
     };
     job.replayBody = body;
     jobs.set(job.id, job);
+    await jobStore.persist(job); // durable (0335): the row lands before the worker fires
 
     // Server-owned: runs detached from the request/tab lifecycle.
     void runDeverbJob(job, uploadedPath, originalName);
@@ -461,9 +511,9 @@ router.post("/deverb", requireAuth, upload.single("audio"), async (req: Request,
  * Poll job status. Returns outputUrl when done (a signed, reviewable
  * URL for the de-reverbed audio retained in Supabase storage).
  */
-router.get("/deverb/:jobId", requireAuth, (req: Request, res: Response) => {
+router.get("/deverb/:jobId", requireAuth, async (req: Request, res: Response) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
-  const job = jobs.get(jobId);
+  const job = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;

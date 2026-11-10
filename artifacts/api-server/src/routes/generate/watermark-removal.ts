@@ -22,6 +22,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -138,10 +139,40 @@ export interface WatermarkJob {
      stored/replayed verbatim. */
   idempotencyKey?: string;
   creditsRemaining?: number;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
 }
 
 const jobs = new Map<string, WatermarkJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Jobs persist at creation, mirror on settle, and a lookup
+   that misses the Map rehydrates from the table — a job survives
+   a server restart. The worker's input is an in-memory upload
+   BUFFER, which no restart can bring back, so a rehydrated
+   in-flight job SETTLES instead of resuming: failed + refunded
+   exactly once (claim first), never silently lost with its charge
+   standing. Fail-open throughout (lib/generation-jobs). */
+const jobStore = new DurableJobStore<WatermarkJob>(jobs, {
+  rail: "watermark-removal",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.idempotencyKey ?? null,
+  refundAction: "Watermark Removal — Refund (job failed)",
+  settleError: "Watermark removal was interrupted by a server restart — your Visual Bucs were refunded.",
+  /* The upload BUFFER never survives a restart, so a rehydrated
+     in-flight job cannot resume — settle it (store contract:
+     resume returning false settles with the refund above). */
+  resume: async () => false,
+});
 
 
 /** Test hook: clear the in-memory job store. */
@@ -215,23 +246,29 @@ export async function runWatermarkJob(job: WatermarkJob, inputBuffer: Buffer, or
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Watermark removal failed";
-    // Refund: the user paid for an output they didn't get.
-    let refunded = true;
-    try {
-      await refundCredits(job.userId, job.creditsCharged, {
-        action: "Watermark Removal — Refund (job failed)",
-      });
-    } catch (refundErr) {
-      refunded = false;
-      // Logged inside refundCredits; don't mask the original failure.
-      void refundErr;
-    }
-    /* CA-6: a landed refund voids the key, so the retry re-charges. */
-    if (refunded && job.idempotencyKey) {
-      await voidChargeIdempotencyKey(job.idempotencyKey).catch(() => false);
-      await storeCompletedJobResult("watermark-removal", job.idempotencyKey, job.userId, null);
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      // Refund: the user paid for an output they didn't get.
+      let refunded = true;
+      try {
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "Watermark Removal — Refund (job failed)",
+        });
+      } catch (refundErr) {
+        refunded = false;
+        // Logged inside refundCredits; don't mask the original failure.
+        void refundErr;
+      }
+      /* CA-6: a landed refund voids the key, so the retry re-charges. */
+      if (refunded && job.idempotencyKey) {
+        await voidChargeIdempotencyKey(job.idempotencyKey).catch(() => false);
+        await storeCompletedJobResult("watermark-removal", job.idempotencyKey, job.userId, null);
+      }
     }
   } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
@@ -284,6 +321,10 @@ router.post("/watermark-removal", requireAuth, upload.single("video"), async (re
     region,
     fileHash: createHash("sha256").update(req.file.buffer).digest("hex"),
   });
+  /* Durable (0335): rehydrate a persisted job for this exact ask
+     into the Map first, so the replay check below sees it even
+     after a restart. */
+  await jobStore.find(deterministicJobId(idempotencyKey));
   const replay = await findJobCreateReplay("watermark-removal", idempotencyKey, req.userId!, jobs, (j) => ({
     jobId: j.id,
     status: j.status,
@@ -327,7 +368,7 @@ router.post("/watermark-removal", requireAuth, upload.single("video"), async (re
 
   /* Concurrent twin: the ledger deduped this charge — answer with
      the twin's job instead of starting a second run. */
-  const twin = jobs.get(deterministicJobId(idempotencyKey));
+  const twin = await jobStore.find(deterministicJobId(idempotencyKey)); // Map first, durable store on a miss (0335)
   if (twin && twin.userId === req.userId! && twin.status !== "failed") {
     res.status(202).json({
       jobId: twin.id,
@@ -354,8 +395,10 @@ router.post("/watermark-removal", requireAuth, upload.single("video"), async (re
     createdAt: Date.now(),
     idempotencyKey,
     creditsRemaining,
+    creditsRefunded: false,
   };
   jobs.set(job.id, job);
+  await jobStore.persist(job); // durable (0335): the row lands before the worker fires
 
   // Server-owned: runs detached from the request/tab lifecycle.
   void runWatermarkJob(job, req.file.buffer, req.file.originalname);
@@ -375,9 +418,9 @@ router.post("/watermark-removal", requireAuth, upload.single("video"), async (re
  * Poll job status. Returns outputUrl when done (a signed, reviewable URL
  * for the cleaned video retained in Supabase storage).
  */
-router.get("/watermark-removal/:jobId", requireAuth, (req, res) => {
+router.get("/watermark-removal/:jobId", requireAuth, async (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
-  const job = jobs.get(jobId);
+  const job = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;

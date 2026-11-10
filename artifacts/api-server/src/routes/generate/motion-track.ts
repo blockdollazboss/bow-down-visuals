@@ -24,6 +24,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -143,6 +144,9 @@ interface TrackJob {
   /** CA-4: the charge's idempotency key — the failure path voids it
    *  (only when the refund landed) so a refunded retry charges fresh. */
   chargeKey: string;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
 }
 
 const jobs = new Map<string, TrackJob>();
@@ -150,9 +154,43 @@ attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
 const queue: string[] = [];
 let workerRunning = false;
 
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Jobs persist at creation, mirror on state transitions,
+   and a lookup that misses the Map rehydrates from the table — a
+   job survives a server restart: a queued/active job re-enters
+   the pump queue from its persisted params and runs to completion
+   (or settles: failed + refunded exactly once, claim first).
+   Fail-open throughout (lib/generation-jobs). */
+const jobStore = new DurableJobStore<TrackJob>(jobs, {
+  rail: "motion-track",
+  statusOf: (j) => j.state,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.state = "failed";
+    j.stage = "Failed";
+    j.error = error;
+  },
+  amountOf: () => MOTION_TRACK_COST,
+  chargeKeyOf: (j) => j.chargeKey,
+  refundAction: "Motion Tracking — Refund",
+  settleError: "Motion tracking was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    setJob(job.id, { state: "queued", stage: "Queued", progress: 0 });
+    queue.push(job.id);
+    pumpQueue();
+    return true;
+  },
+});
+
 function setJob(id: string, patch: Partial<TrackJob>) {
   const j = jobs.get(id);
-  if (j) Object.assign(j, patch);
+  if (j) {
+    Object.assign(j, patch);
+    /* Durable (0335): state transitions mirror to the row;
+       stage/progress-only patches ride the worker's settle sync. */
+    if ("state" in patch) void jobStore.sync(j);
+  }
 }
 
 /* ─── Embedded numpy tracker (written to the job workdir at runtime) ─── */
@@ -392,14 +430,20 @@ async function runTrackJob(job: TrackJob) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Motion tracking failed.";
     setJob(job.id, { state: "failed", stage: "Failed", progress: 0, error: message });
-    const refunded = await refundCredits(job.userId, MOTION_TRACK_COST, {
-      action: "Motion Tracking — Refund",
-    }).then(() => true).catch(() => false);
-    /* Void the charge's key only when the refund landed (CA-4). */
-    if (refunded) {
-      await voidChargeIdempotencyKey(job.chargeKey).catch(() => {});
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      const refunded = await refundCredits(job.userId, MOTION_TRACK_COST, {
+        action: "Motion Tracking — Refund",
+      }).then(() => true).catch(() => false);
+      /* Void the charge's key only when the refund landed (CA-4). */
+      if (refunded) {
+        await voidChargeIdempotencyKey(job.chargeKey).catch(() => {});
+      }
     }
   } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
     workerRunning = false;
     pumpQueue();
@@ -443,7 +487,7 @@ router.post("/motion-track/track", requireAuth, async (req, res) => {
     parsed.data,
   );
   const trackJobId = createHash("sha256").update(trackKey).digest("hex").slice(0, 32);
-  const existingTrack = jobs.get(trackJobId);
+  const existingTrack = await jobStore.find(trackJobId); // Map first, durable store on a miss (0335)
   if (existingTrack && existingTrack.userId === req.userId! && existingTrack.state !== "failed") {
     res.status(202).json({
       jobId: existingTrack.id,
@@ -477,7 +521,7 @@ router.post("/motion-track/track", requireAuth, async (req, res) => {
   }
 
   const id = trackJobId;
-  jobs.set(id, {
+  const job: TrackJob = {
     id,
     userId: req.userId!,
     state: "queued",
@@ -488,17 +532,20 @@ router.post("/motion-track/track", requireAuth, async (req, res) => {
     error: null,
     createdAt: Date.now(),
     chargeKey: `motion-track:${trackJobId}`,
-  });
+    creditsRefunded: false,
+  };
+  jobs.set(id, job);
+  await jobStore.persist(job); // durable (0335): the row lands before the worker fires
   queue.push(id);
   pumpQueue();
 
   res.status(202).json({ jobId: id, cost: MOTION_TRACK_COST, creditsRemaining: creditsAfter });
 });
 
-router.get("/motion-track/job/:jobId", requireAuth, (req, res) => {
+router.get("/motion-track/job/:jobId", requireAuth, async (req, res) => {
   const rawId = req.params.jobId;
   const jobId = Array.isArray(rawId) ? (rawId[0] ?? "") : (rawId ?? "");
-  const job = jobs.get(jobId);
+  const job = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Track job not found." });
     return;
