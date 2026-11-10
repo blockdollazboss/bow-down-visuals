@@ -326,10 +326,10 @@ export const APPROVED_ART_IDS: readonly string[] = APPROVED_ART_SOURCES.map((a) 
 
 /* ─── Designed icon set (the approved art — never code-drawn) ────────
    QC-200 G3: the kit ships the owner-approved DESIGNED emblem set
-   from the theme-pack art manifest (Oct 25 2026): 5 packs × 50 icons
-   × light+dark = 500 files, generated per pack in its own character
+   from the theme-pack art manifest (Oct 25 2026): 6 packs × 50 icons
+   × light+dark = 600 files, generated per pack in its own character
    (gold-foil emblem, regal gold, amber glow, teal-and-gold ocean,
-   8-bit arcade). The files live under public/theme-packs/icons/ as
+   8-bit arcade, crimson stone with antique gold). The files live under public/theme-packs/icons/ as
    scale-only 512×512 renders of the masters; provenance + hashes
    are pinned in public/theme-packs/kit-assets-manifest.json. The
    old code-drawn SVG glyph set (one shared semantic mark in
@@ -352,13 +352,14 @@ export type DesignedIconName = (typeof DESIGNED_ICON_NAMES)[number];
     asset library — all 50 icons × light+dark on disk, hashes pinned
     in kit-assets-manifest.json. Every other pack's set is
     owner-approved art-program work that has not landed yet
-    (crimson-marble, sapphire-marble, emerald-marble): its icon-set + folder-icons
+    (sapphire-marble, emerald-marble): its icon-set + folder-icons
     components are marked artPending in the kit manifest, the desk
     says so, and its bundles name the missing files
     (ICONS-MISSING.txt) — never a substitute. Pinned against the
     files on disk by theme-kit.test.ts (kit-vs-manifest). */
 export const DESIGNED_ICON_SET_PACK_IDS: readonly string[] = [
   "golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold",
+  "crimson-marble",
 ];
 
 export function hasDesignedIconSet(packId: string): boolean {

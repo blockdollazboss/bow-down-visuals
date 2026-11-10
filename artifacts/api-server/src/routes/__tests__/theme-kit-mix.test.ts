@@ -170,7 +170,7 @@ CREATE TABLE creator_subscriptions (
 );`;
 
 const LIBRARY_WAV = Buffer.from("RIFF----WAVEfmt library-master-bytes");
-const PACK_IDS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold"];
+const PACK_IDS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold", "crimson-marble"];
 
 beforeAll(async () => {
   const root = mkdtempSync(join(tmpdir(), "theme-kit-mix-assets-"));
@@ -376,19 +376,20 @@ describe("creator pack mix → buyer bundle", () => {
 });
 
 describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", () => {
-  /* The fixture tree carries designed files for the five raised packs
-     only. crimson-marble + sapphire-marble + emerald-marble sets are NOT raised: their
+  /* The fixture tree carries designed files for the six raised packs
+     only. sapphire-marble + emerald-marble sets are NOT raised: their
      bundles must say so in their own paperwork (README, kit.json,
      install texts) instead of claiming all 50 icons, and the
-     manifests endpoint must carry the missing list. A raised pack
-     (golden-marble) is the control: complete, missing []. */
+     manifests endpoint must carry the missing list. Raised packs
+     (golden-marble, crimson-marble) are the controls: complete,
+     missing []. */
   async function buyPack(packId: string): Promise<void> {
     await h.db.execute(
       sql`INSERT INTO theme_pack_purchases (user_id, pack_id, price_vb) VALUES (${BUYER}, ${packId}, 1000)`,
     );
   }
 
-  for (const packId of ["crimson-marble", "sapphire-marble", "emerald-marble"]) {
+  for (const packId of ["sapphire-marble", "emerald-marble"]) {
     it(`${packId}: the full bundle names its missing designed set everywhere`, async () => {
       await buyPack(packId);
       const r = await callBytes("POST", `/theme-packs/kit/${packId}/download`, { kind: "full", mode: "dark" });
@@ -414,17 +415,22 @@ describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", (
     });
   }
 
-  it("golden-marble (raised set): the paperwork stays the complete claim", async () => {
-    const r = await callBytes("POST", "/theme-packs/kit/golden-marble/download", { kind: "full", mode: "dark" });
-    expect(r.status).toBe(200);
-    const entries = unzipEntries(r.buf);
-    const kit = JSON.parse(entries.get("golden-marble-dark/kit.json")!.toString("utf8"));
-    expect(kit.icons.complete).toBe(true);
-    expect(kit.icons.missing).toEqual([]);
-    const readme = entries.get("golden-marble-dark/README.txt")!.toString("utf8");
-    expect(readme).toContain("all 50 icons in light");
-    expect(entries.get("golden-marble-dark/android/icons/ICONS-MISSING.txt")).toBeUndefined();
-  });
+  for (const packId of ["golden-marble", "crimson-marble"]) {
+    it(`${packId} (raised set): the paperwork stays the complete claim`, async () => {
+      // golden-marble is the house pack (no purchase); premium packs
+      // like crimson-marble must be owned before the kit downloads.
+      if (packId !== "golden-marble") await buyPack(packId);
+      const r = await callBytes("POST", `/theme-packs/kit/${packId}/download`, { kind: "full", mode: "dark" });
+      expect(r.status).toBe(200);
+      const entries = unzipEntries(r.buf);
+      const kit = JSON.parse(entries.get(`${packId}-dark/kit.json`)!.toString("utf8"));
+      expect(kit.icons.complete).toBe(true);
+      expect(kit.icons.missing).toEqual([]);
+      const readme = entries.get(`${packId}-dark/README.txt`)!.toString("utf8");
+      expect(readme).toContain("all 50 icons in light");
+      expect(entries.get(`${packId}-dark/android/icons/ICONS-MISSING.txt`)).toBeUndefined();
+    });
+  }
 
   it("manifests endpoint: missing lists + notes separate raised from unraised packs", async () => {
     const r = await call("GET", "/theme-packs/kit/manifests");
@@ -432,7 +438,9 @@ describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", (
     const byId = new Map(r.json.packs.map((p: any) => [p.packId, p]));
     expect(byId.get("golden-marble").icons.missing).toEqual([]);
     expect(byId.get("golden-marble").icons.note).toContain("downloads ship these files");
-    for (const packId of ["crimson-marble", "sapphire-marble", "emerald-marble"]) {
+    expect(byId.get("crimson-marble").icons.missing).toEqual([]);
+    expect(byId.get("crimson-marble").icons.note).toContain("downloads ship these files");
+    for (const packId of ["sapphire-marble", "emerald-marble"]) {
       expect(byId.get(packId).icons.missing).toHaveLength(100);
       expect(byId.get(packId).icons.note).toContain("has not been raised yet");
     }
