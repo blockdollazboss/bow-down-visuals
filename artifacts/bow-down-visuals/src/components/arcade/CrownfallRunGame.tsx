@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { mediaUrl } from "@/lib/media-cdn";
 import {
   CROWNFALL,
   crownfallFloorName,
@@ -9,13 +10,30 @@ import {
 
 /* ─── Crownfall Run ───────────────────────────────────────────────────────
    Top-down arena roguelike, ported whole from the owner-approved
-   preview Space (same mechanics, same numbers, same repairs):
-   the King auto-fires golden bolts at the nearest foe; clear the room
-   and the golden door opens to the next studio floor down. Glitches
-   chase, Spam Bots shoot, Trolls telegraph and lunge; THE USURPER
-   waits every 5th floor. One upgrade card (of three) between floors.
-   Permadeath. Score = depth × 100 + Bucs coins × 25 + foes × 10 +
-   combo bonus — coins are score only, never a charge or a wager.
+   preview Space (same mechanics, same numbers, same repairs), then
+   re-ruled by the owner on Nov 10, 2026:
+   - AIM IS MANUAL, AUTO-SHOOT IS OFF (owner, twice confirmed): the
+     King fires ONLY where the player aims — right stick on a pad,
+     the mouse pointer on desktop, the right thumb-stick on touch.
+     No aim input, no shots, ever; there is no nearest-foe targeting
+     anywhere in the firing path.
+   - NO TELEPORTING: clearing a room starts a visible walk-through —
+     the King walks to the golden door and the view slides up into
+     the next room before the upgrade cards appear.
+   - EVERY ROOM READS AS ITS ROOM: each company floor carries its own
+     set dressing (desks, speaker stacks, cameras, the green screen,
+     the vault, the throne dais…) drawn over the same collision rects.
+   - THE KING is a purpose-drawn game sprite in the King's identity
+     (grey shark, gold crown, gold fishbone chain, wine sash) — the
+     same character in both themes; the theme changes the room's
+     light, not the King. Pickups are the site's real Visual Buc coin.
+   Clear the room and the golden door opens to the next studio floor
+   down. Glitches chase, Spam Bots shoot, Trolls telegraph and lunge;
+   THE USURPER waits every 5th floor. One upgrade card (of three)
+   between floors. Permadeath. Score = depth × 100 + Bucs coins × 25
+   + foes × 10 + combo bonus — coins are score only, never a charge
+   or a wager. Aiming changes accuracy only, never the score economy,
+   so the server caps in arcade-rules.ts stand unchanged.
 
    Hostile-host rules carried from the preview (they were each learned
    from a real failure there):
@@ -130,7 +148,7 @@ const sfx = {
 };
 
 /* ─── game state ──────────────────────────────────────────────────────── */
-type Phase = "start" | "playing" | "upgrade" | "dead";
+type Phase = "start" | "playing" | "upgrade" | "dead" | "transit";
 type EnemyType = "chaser" | "shooter" | "dasher" | "boss";
 
 interface Player {
@@ -153,7 +171,7 @@ interface EBolt { x: number; y: number; vx: number; vy: number; r: number; dmg: 
 interface Pickup { x: number; y: number; r: number; kind: "crown" | "heart"; bob: number }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number }
 interface Floater { x: number; y: number; life: number; text: string; color: string }
-interface Obstacle { x: number; y: number; w: number; h: number }
+interface Obstacle { x: number; y: number; w: number; h: number; skin?: string }
 interface Afterimage { x: number; y: number; faceX: number; faceY: number; life: number }
 
 interface PadState {
@@ -187,6 +205,24 @@ export interface RunSummary {
   bestCombo: number; timeSec: number; bossDeath: boolean; isSessionBest: boolean;
 }
 
+/* The walk-through passage between rooms (owner ruling: no teleport).
+   Phase 1 (walkT): the King walks from wherever he stands to the open
+   door. Phase 2 (slideT): the view slides up one full room — the old
+   room (kept as a snapshot) slides down out of frame while the new
+   room, already generated into the spare bg canvas, slides in. Input
+   is locked for the whole passage and nothing is queued. */
+interface Transit {
+  t: number;
+  fromX: number; fromY: number;
+  camY: number;         /* current view slide, 0..LH */
+  kingX: number; kingY: number; /* King's screen-space draw position */
+  done: boolean;
+  snapObstacles: Obstacle[];
+  snapPickups: Pickup[];
+}
+const TRANSIT_WALK_SEC = 0.32;
+const TRANSIT_SLIDE_SEC = 0.78; /* total passage ≈ 1.1s */
+
 interface G {
   theme: ThemeName;
   phase: Phase;
@@ -204,6 +240,13 @@ interface G {
   runTime: number;
   keys: Record<string, boolean>;
   joy: { on: boolean; id: number | null; bx: number; by: number; dx: number; dy: number };
+  /* manual aim (auto-shoot is OFF — the King fires only along aim) */
+  aimJoy: { on: boolean; id: number | null; bx: number; by: number; dx: number; dy: number };
+  padAim: { on: boolean; x: number; y: number };
+  mouseAim: { x: number; y: number; lastAt: number; inside: boolean };
+  aim: { on: boolean; x: number; y: number };
+  transit: Transit | null;
+  bgSwap: boolean; /* set when a passage ends: the component swaps bg canvases */
   padVec: { x: number; y: number };
   pad: PadState;
   upgradePicks: UpgradeDef[];
@@ -233,6 +276,27 @@ function enemyName(e: Enemy) {
   const base = e.type === "chaser" ? "Glitch" : e.type === "shooter" ? "Spam Bot" : e.type === "dasher" ? "Troll" : "The Usurper";
   return e.elite ? "Gold-" + base : base;
 }
+
+/* ─── rooms: every floor reads as its room ──────────────────────────────
+   The floor name cycle maps to a room kind; each kind dresses the SAME
+   collision rects with its own furniture skins and floor/wall accents
+   (the accents live in makeBg). Collision never changes — only what a
+   rect is drawn as. Deeper cycles reuse the set with the room's trim. */
+type RoomKind = "lobby" | "beatlab" | "studio" | "green" | "mixing" | "vault" | "throne" | "server";
+function roomKind(depth: number): RoomKind {
+  const kinds: RoomKind[] = ["lobby", "beatlab", "studio", "green", "mixing", "vault", "throne", "vault", "server", "throne"];
+  return kinds[(depth - 1) % kinds.length]!;
+}
+const ROOM_SKINS: Record<RoomKind, string[]> = {
+  lobby: ["desk", "planter", "pillar", "desk", "planter", "pillar"],
+  beatlab: ["workdesk", "speakers", "pillar", "workdesk", "speakers", "pillar"],
+  studio: ["camera", "lightstand", "pillar", "camera", "lightstand", "pillar"],
+  green: ["lightstand", "camera", "lightstand", "speakers"],
+  mixing: ["console", "speakers", "pillar", "console", "speakers", "pillar"],
+  vault: ["goldbars", "coinpile", "pillar", "goldbars", "coinpile", "pillar"],
+  throne: ["pillar", "brazier", "pillar", "brazier", "pillar", "brazier"],
+  server: ["rack", "pillar", "rack", "rack", "pillar", "rack"],
+};
 
 /* ─── floor generation ────────────────────────────────────────────────── */
 function rectsOverlap(a: Obstacle, b: Obstacle, pad: number) {
@@ -267,6 +331,9 @@ function genFloor(g: G, d: number, bg: HTMLCanvasElement | null) {
     for (const o of g.obstacles) if (rectsOverlap(r, o, 30)) { bad = true; break; }
     if (!bad) g.obstacles.push(r);
   }
+  /* dress each collision rect as this room's furniture */
+  const skins = ROOM_SKINS[roomKind(d)];
+  g.obstacles.forEach((o, i) => { o.skin = skins[i % skins.length]; });
 
   /* crown pickups */
   const nc = 3 + Math.floor(rng() * 3); /* 3..5 */
@@ -357,11 +424,13 @@ function makeBg(g: G, bg: HTMLCanvasElement | null) {
     b.fillStyle = gr;
     b.fillRect(0, 0, LW, LH);
   }
-  /* pale-gold marble veins, biased to the edges */
-  for (i = 0; i < 16; i++) {
+  /* pale-gold marble veins carried across the whole floor — the
+     centre included, fainter there so the room still reads calm */
+  for (i = 0; i < 22; i++) {
     const edge = rng();
-    if (edge < 0.5) { x = rng() < 0.5 ? rng() * 90 : LW - rng() * 90; y = rng() * LH; }
-    else { x = rng() * LW; y = rng() < 0.5 ? rng() * 90 : LH - rng() * 90; }
+    if (edge < 0.45) { x = rng() < 0.5 ? rng() * 90 : LW - rng() * 90; y = rng() * LH; }
+    else if (edge < 0.7) { x = rng() * LW; y = rng() < 0.5 ? rng() * 90 : LH - rng() * 90; }
+    else { x = 120 + rng() * (LW - 240); y = 120 + rng() * (LH - 240); }
     b.strokeStyle = pal.vein + (0.05 + rng() * 0.10) + ")";
     b.lineWidth = 0.8 + rng() * 1.1;
     b.beginPath(); b.moveTo(x, y);
@@ -397,6 +466,106 @@ function makeBg(g: G, bg: HTMLCanvasElement | null) {
   b.strokeRect(rx0, ry0, rw0, rh0);
   b.lineWidth = 1; b.strokeStyle = g.theme === "dark" ? "rgba(212,175,55,0.3)" : "rgba(138,109,31,0.3)";
   b.strokeRect(rx0 + 9, ry0 + 9, rw0 - 18, rh0 - 18);
+
+  /* ── room dressing: floor + wall accents so each room reads as
+     itself before the intro card is read. All non-collision. ── */
+  const kind = roomKind(Math.max(1, Math.round((g.bgSeed - g.runSeed) / 104729)));
+  const dark = g.theme === "dark";
+  if (kind === "green") {
+    /* THE green screen: one unmistakable green backdrop wall */
+    const gx = 128, gw = LW - 256, gy = WALL + 2, gh = 96;
+    const gg = b.createLinearGradient(0, gy, 0, gy + gh);
+    gg.addColorStop(0, dark ? "#1faa59" : "#2fbf71"); gg.addColorStop(1, dark ? "#0d7a3c" : "#1d9e57");
+    b.fillStyle = gg; b.fillRect(gx, gy, gw, gh);
+    b.fillStyle = "rgba(255,255,255,0.10)"; b.fillRect(gx, gy, gw, 10);
+    b.fillStyle = "rgba(0,0,0,0.22)"; b.fillRect(gx, gy + gh - 8, gw, 8);
+    b.strokeStyle = dark ? "#3a3a40" : "#8a7a4a"; b.lineWidth = 4; b.strokeRect(gx, gy, gw, gh);
+    b.fillStyle = "rgba(0,0,0,0.3)";
+    b.fillRect(gx - 6, gy + gh, 8, 14); b.fillRect(gx + gw - 2, gy + gh, 8, 14);
+  }
+  if (kind === "studio") {
+    /* pale seamless backdrop sweeping down the left wall */
+    const sg = b.createLinearGradient(WALL, 0, WALL + 120, 0);
+    sg.addColorStop(0, dark ? "rgba(226,230,236,0.20)" : "rgba(255,255,255,0.55)");
+    sg.addColorStop(1, "rgba(226,230,236,0)");
+    b.fillStyle = sg; b.fillRect(WALL, WALL, 120, LH - 2 * WALL);
+    b.strokeStyle = dark ? "rgba(255,255,255,0.14)" : "rgba(120,100,50,0.2)"; b.lineWidth = 2;
+    b.beginPath(); b.moveTo(WALL + 118, WALL); b.lineTo(WALL + 118, LH - WALL); b.stroke();
+  }
+  if (kind === "beatlab") {
+    /* a keyboard strip inlaid along the entrance wall */
+    const ky = LH - WALL - 17, kx = 130, kw = LW - 260;
+    b.fillStyle = dark ? "#e8e4da" : "#fffdf4"; b.fillRect(kx, ky, kw, 15);
+    b.strokeStyle = "rgba(60,50,20,0.5)"; b.lineWidth = 1; b.strokeRect(kx, ky, kw, 15);
+    b.fillStyle = "#17171a";
+    for (let kx2 = kx + 7; kx2 < kx + kw - 6; kx2 += 13) {
+      if (((kx2 / 13) | 0) % 7 === 2 || ((kx2 / 13) | 0) % 7 === 6) continue;
+      b.fillRect(kx2, ky, 7, 9);
+    }
+  }
+  if (kind === "throne") {
+    /* red carpet runner: entrance to throne door, gold fringe */
+    const cx0 = LW / 2 - 52;
+    b.fillStyle = dark ? "rgba(122,26,36,0.55)" : "rgba(150,40,48,0.30)";
+    b.fillRect(cx0, WALL, 104, LH - 2 * WALL);
+    b.strokeStyle = dark ? "rgba(240,201,79,0.5)" : "rgba(138,109,31,0.5)"; b.lineWidth = 2;
+    b.beginPath(); b.moveTo(cx0, WALL); b.lineTo(cx0, LH - WALL); b.moveTo(cx0 + 104, WALL); b.lineTo(cx0 + 104, LH - WALL); b.stroke();
+    b.strokeStyle = dark ? "rgba(240,201,79,0.16)" : "rgba(120,40,30,0.14)"; b.lineWidth = 1;
+    for (let dy2 = WALL + 26; dy2 < LH - WALL; dy2 += 34) {
+      b.beginPath(); b.moveTo(cx0 + 8, dy2); b.lineTo(cx0 + 96, dy2); b.stroke();
+    }
+    /* wine banners flanking the door, crown at the heart of each */
+    for (const bx of [LW / 2 - 168, LW / 2 + 128]) {
+      b.fillStyle = dark ? "#5e1420" : "#7e2430";
+      b.fillRect(bx, WALL + 2, 40, 86);
+      b.beginPath(); b.moveTo(bx, WALL + 88); b.lineTo(bx + 20, WALL + 74); b.lineTo(bx + 40, WALL + 88); b.closePath(); b.fill();
+      b.fillStyle = "#c49a22"; b.fillRect(bx, WALL + 2, 40, 5);
+      b.fillStyle = "#f0c94f";
+      crownPath(b, bx + 20, WALL + 42, 11); b.fill();
+    }
+  }
+  if (kind === "vault") {
+    /* coin-pile decals + a great vault ring on the far wall */
+    b.strokeStyle = dark ? "rgba(212,175,55,0.5)" : "rgba(138,109,31,0.5)"; b.lineWidth = 5;
+    b.beginPath(); b.arc(LW / 2, WALL + 46, 30, 0, 6.283); b.stroke();
+    b.lineWidth = 2; b.beginPath(); b.arc(LW / 2, WALL + 46, 20, 0, 6.283); b.stroke();
+    b.fillStyle = "#c49a22";
+    for (let sp = 0; sp < 6; sp++) {
+      const a2 = (sp / 6) * 6.283;
+      b.beginPath(); b.arc(LW / 2 + Math.cos(a2) * 25, WALL + 46 + Math.sin(a2) * 25, 2.6, 0, 6.283); b.fill();
+    }
+    for (let cp = 0; cp < 7; cp++) {
+      const px2 = 70 + rng() * (LW - 140), py2 = 90 + rng() * (LH - 180);
+      if (Math.abs(px2 - LW / 2) < 90 && py2 < 200) continue;
+      b.fillStyle = dark ? "rgba(240,201,79,0.20)" : "rgba(180,140,40,0.22)";
+      b.beginPath(); b.ellipse(px2, py2, 17, 6, 0, 0, 6.283); b.fill();
+      b.fillStyle = dark ? "rgba(255,232,138,0.35)" : "rgba(200,155,45,0.35)";
+      b.beginPath(); b.ellipse(px2, py2 - 3, 10, 4, 0, 0, 6.283); b.fill();
+    }
+  }
+  if (kind === "server") {
+    /* cool light pools + floor cable runs */
+    for (const [lx, ly] of [[150, 170], [570, 170], [150, 540], [570, 540]] as const) {
+      const lg = b.createRadialGradient(lx, ly, 0, lx, ly, 95);
+      lg.addColorStop(0, dark ? "rgba(96,165,250,0.13)" : "rgba(96,140,220,0.10)"); lg.addColorStop(1, "rgba(0,0,0,0)");
+      b.fillStyle = lg; b.fillRect(lx - 95, ly - 95, 190, 190);
+    }
+    b.strokeStyle = dark ? "rgba(120,130,150,0.25)" : "rgba(90,100,120,0.22)"; b.lineWidth = 3;
+    for (const cx3 of [110, 610]) {
+      b.beginPath(); b.moveTo(cx3, WALL); b.lineTo(cx3, LH - WALL); b.stroke();
+    }
+  }
+  if (kind === "lobby") {
+    /* gold inlay diamonds in the floor corners — a lobby's welcome */
+    b.strokeStyle = dark ? "rgba(212,175,55,0.35)" : "rgba(138,109,31,0.35)"; b.lineWidth = 1.6;
+    for (const [ix2, iy2] of [[120, 130], [600, 130], [120, 590], [600, 590]] as const) {
+      b.beginPath();
+      b.moveTo(ix2, iy2 - 17); b.lineTo(ix2 + 17, iy2); b.lineTo(ix2, iy2 + 17); b.lineTo(ix2 - 17, iy2);
+      b.closePath(); b.stroke();
+      b.fillStyle = dark ? "rgba(240,201,79,0.5)" : "rgba(160,120,35,0.5)";
+      b.beginPath(); b.arc(ix2, iy2, 2.6, 0, 6.283); b.fill();
+    }
+  }
   /* vignette */
   const vg = b.createRadialGradient(LW / 2, LH / 2, LH * 0.42, LW / 2, LH / 2, LH * 0.78);
   vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, pal.vign);
@@ -480,15 +649,33 @@ function killEnemy(g: G, e: Enemy) {
   }
   g.ui.hud();
 }
+/* Resolve the player's aim for this frame. AUTO-SHOOT IS OFF (owner
+   ruling, Nov 10): there is no fallback targeting — with no aim input
+   the King simply does not fire. Priority: pad right stick, then the
+   touch aim stick, then a recently-moved mouse over the arena. */
+function resolveAim(g: G) {
+  const P = g.P;
+  if (g.padAim.on) { g.aim.on = true; g.aim.x = g.padAim.x; g.aim.y = g.padAim.y; return; }
+  if (g.aimJoy.on) {
+    const m = Math.sqrt(g.aimJoy.dx * g.aimJoy.dx + g.aimJoy.dy * g.aimJoy.dy);
+    if (m > 0.35) {
+      g.aim.on = true; g.aim.x = g.aimJoy.dx / (m || 1); g.aim.y = g.aimJoy.dy / (m || 1);
+      return;
+    }
+  }
+  const ma = g.mouseAim;
+  if (ma.inside && g.timeNow - ma.lastAt < 2.5) {
+    const dx = ma.x - P.x, dy = ma.y - P.y;
+    const m = Math.sqrt(dx * dx + dy * dy);
+    if (m > 10) { g.aim.on = true; g.aim.x = dx / m; g.aim.y = dy / m; return; }
+  }
+  g.aim.on = false;
+}
+
 function fireBolts(g: G) {
   const P = g.P;
-  let tgt: Enemy | null = null, bd = Infinity;
-  for (const e of g.enemies) {
-    const dd = dist2(P.x, P.y, e.x, e.y);
-    if (dd < bd) { bd = dd; tgt = e; }
-  }
-  if (!tgt || bd > 470 * 470) return;
-  const base = Math.atan2(tgt.y - P.y, tgt.x - P.x);
+  if (!g.aim.on) return; /* no aim, no shots — the player's call alone */
+  const base = Math.atan2(g.aim.y, g.aim.x);
   P.faceX = Math.cos(base); P.faceY = Math.sin(base);
   sfx.shoot();
   burst(g, P.x + Math.cos(base) * 20, P.y + Math.sin(base) * 20, "#ffe98a", 2, 60);
@@ -599,20 +786,67 @@ function setUpgradeHighlight(g: G, i: number) {
   g.upgradeIndex = ((i % g.upgradePicks.length) + g.upgradePicks.length) % g.upgradePicks.length;
   g.ui.highlight(g.upgradeIndex);
 }
-function pickUpgrade(g: G, idx: number, bg: HTMLCanvasElement | null) {
+function pickUpgrade(g: G, idx: number, _bg: HTMLCanvasElement | null) {
   if (g.phase !== "upgrade" || !g.upgradePicks.length) return;
   const u = g.upgradePicks[clamp(idx, 0, g.upgradePicks.length - 1)];
   if (!u) return;
   sfx.upgrade();
   u.apply(g.P);
   g.upgradePicks = [];
-  g.depth++;
+  /* The next floor was already generated and walked into during the
+     door passage — picking the card simply starts the fight there. */
   g.phase = "playing";
-  g.ui.flash();
   g.ui.phase("playing");
   g.ui.upgrades([]);
-  genFloor(g, g.depth, bg);
   g.ui.hud();
+}
+
+/* ─── the door passage (no teleport — owner ruling) ─────────────────────
+   Stepping through the golden door: snapshot the cleared room, THEN
+   generate the next floor into the spare backdrop. updateTransit
+   walks the King to the door and slides the view up a full room;
+   only on arrival do the upgrade cards appear, in the new room. */
+function beginTransit(g: G, _bg: HTMLCanvasElement | null, bgAlt: HTMLCanvasElement | null) {
+  if (g.transit || g.phase !== "playing") return;
+  const snapObstacles = g.obstacles;
+  const snapPickups = g.pickups;
+  const fromX = g.P.x, fromY = g.P.y;
+  g.depth++;
+  g.phase = "transit";
+  g.ui.phase("transit");
+  genFloor(g, g.depth, bgAlt);
+  g.transit = {
+    t: 0, fromX, fromY, camY: 0, kingX: fromX, kingY: fromY,
+    done: false, snapObstacles, snapPickups,
+  };
+}
+function updateTransit(g: G, dt: number) {
+  const tr = g.transit;
+  if (!tr) return;
+  tr.t += dt;
+  if (tr.t < TRANSIT_WALK_SEC) {
+    const k = tr.t / TRANSIT_WALK_SEC;
+    const e = 1 - (1 - k) * (1 - k); /* ease-out toward the door */
+    tr.camY = 0;
+    tr.kingX = tr.fromX + (LW / 2 - tr.fromX) * e;
+    tr.kingY = tr.fromY + (WALL + 6 - tr.fromY) * e;
+    return;
+  }
+  const k = clamp((tr.t - TRANSIT_WALK_SEC) / TRANSIT_SLIDE_SEC, 0, 1);
+  const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; /* easeInOutCubic */
+  tr.camY = e * LH;
+  tr.kingX = LW / 2;
+  tr.kingY = WALL + 6 + (LH - 110 - (WALL + 6)) * e;
+  if (k >= 1) {
+    g.transit = null;
+    g.bgSwap = true; /* the component now treats the spare bg as current */
+    g.P.x = LW / 2; g.P.y = LH - 110; /* genFloor's entrance, exactly */
+    g.phase = "upgrade";
+    g.ui.phase("upgrade");
+    g.ui.intro(g.depth);
+    showUpgrades(g);
+    g.ui.hud();
+  }
 }
 function showUpgrades(g: G) {
   const pool = UPGRADES.slice();
@@ -677,7 +911,7 @@ function tryDash(g: G) {
   burst(g, P.x, P.y, "#f0c94f", 6, 90);
 }
 
-function update(g: G, dt: number, bg: HTMLCanvasElement | null) {
+function update(g: G, dt: number, bg: HTMLCanvasElement | null, bgAlt: HTMLCanvasElement | null = null) {
   g.timeNow += dt;
   g.doorPulse += dt;
   if (g.shake > 0) g.shake = Math.max(0, g.shake - dt * 26);
@@ -699,6 +933,7 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null) {
     if ((g.afterimages[i]!.life += dt) > 0.3) g.afterimages.splice(i, 1);
   }
   if (g.paused) return;
+  if (g.phase === "transit") { updateTransit(g, dt); return; }
   if (g.phase !== "playing") return;
   const P = g.P;
   g.runTime += dt;
@@ -729,9 +964,14 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null) {
     moveCircle(g, P, ix * P.speed * dt, iy * P.speed * dt);
   }
 
-  /* ---- auto-fire ---- */
+  /* ---- manual fire: bolts fly only while the player aims ---- */
+  resolveAim(g);
+  if (g.aim.on) { P.faceX = g.aim.x; P.faceY = g.aim.y; }
   g.fireTimer -= dt;
-  if (g.fireTimer <= 0 && g.enemies.length) { fireBolts(g); g.fireTimer = 1 / P.fireRate; }
+  if (g.fireTimer <= 0) {
+    if (g.aim.on && g.enemies.length) { fireBolts(g); g.fireTimer = 1 / P.fireRate; }
+    else g.fireTimer = 0; /* ready the instant aim is given */
+  }
 
   /* ---- player bolts ---- */
   for (i = g.bolts.length - 1; i >= 0; i--) {
@@ -795,11 +1035,9 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null) {
     }
   }
 
-  /* ---- the golden door ---- */
+  /* ---- the golden door: step through and WALK into the next room ---- */
   if (g.doorOpen && P.y < WALL + 26 && Math.abs(P.x - LW / 2) < 42) {
-    g.phase = "upgrade";
-    g.ui.phase("upgrade");
-    showUpgrades(g);
+    beginTransit(g, bg, bgAlt ?? bg);
   }
 
   g.ui.hud();
@@ -818,76 +1056,168 @@ function crownPath(ctx: CanvasRenderingContext2D, x: number, y: number, s: numbe
   ctx.closePath();
 }
 
-function drawKing(g: G, ctx: CanvasRenderingContext2D) {
+/* ─── THE KING — a purpose-drawn game sprite ──────────────────────────
+   Drawn to live in the room (not a photo cutout): grey shark body with
+   consistent outline + shading, gold crown, gold-bead chain with the
+   fishbone pendant, wine robe sash. The same King in both themes —
+   the theme changes the room's light, never the King. Faces his aim /
+   move direction (horizontal flip; portrait art is never rotated). */
+function drawKingSprite(g: G, ctx: CanvasRenderingContext2D, x: number, y: number, s: number, alpha: number, faceX?: number, faceY?: number) {
   const P = g.P;
-  const blink = P.invuln > 0 && P.dashT <= 0 && Math.floor(g.timeNow * 14) % 2 === 0;
+  const fx = faceX ?? P.faceX, fy = faceY ?? P.faceY;
   ctx.save();
-  ctx.translate(P.x, P.y);
-  ctx.scale(1.7, 1.7); /* the King is the biggest read in the room */
-  ctx.fillStyle = "rgba(0,0,0,0.28)";
-  ctx.beginPath(); ctx.ellipse(0, 15, 15, 5.5, 0, 0, 6.283); ctx.fill();
-  if (blink) ctx.globalAlpha = 0.35;
-  const ang = Math.atan2(P.faceY, P.faceX) + Math.PI / 2;
-  ctx.rotate(ang);
-  const bob = Math.sin(g.timeNow * 6) * 1.1;
-  ctx.translate(0, bob * 0.4);
-  /* tail fin — sways with movement */
-  const sway = Math.sin(g.timeNow * (4 + (P.moveMag || 0) * 8)) * (2 + (P.moveMag || 0) * 4);
-  ctx.fillStyle = "#646e78";
-  ctx.beginPath();
-  ctx.moveTo(0, 10); ctx.lineTo(-11 + sway, 23); ctx.lineTo(sway * 0.4, 19); ctx.lineTo(11 + sway, 23); ctx.closePath(); ctx.fill();
-  /* body — shark-fin token, grey like a shark */
-  const grd = ctx.createLinearGradient(0, -20, 0, 20);
-  grd.addColorStop(0, "#c3cad2"); grd.addColorStop(0.55, "#8b95a0"); grd.addColorStop(1, "#525a63");
-  ctx.fillStyle = grd;
-  ctx.beginPath();
-  ctx.moveTo(0, -19);
-  ctx.quadraticCurveTo(13, -6, 12, 7);
-  ctx.quadraticCurveTo(11, 16, 0, 17);
-  ctx.quadraticCurveTo(-11, 16, -12, 7);
-  ctx.quadraticCurveTo(-13, -6, 0, -19);
-  ctx.fill();
-  ctx.strokeStyle = "rgba(212,175,55,0.85)"; ctx.lineWidth = 1.4; ctx.stroke();
-  /* dorsal fin ridge */
-  ctx.fillStyle = "#d4af37";
-  ctx.beginPath();
-  ctx.moveTo(0, -17); ctx.lineTo(3.4, -3); ctx.lineTo(-3.4, -3); ctx.closePath(); ctx.fill();
-  /* gold gill accents */
-  ctx.strokeStyle = "rgba(240,201,79,0.8)"; ctx.lineWidth = 1.6;
-  ctx.beginPath(); ctx.moveTo(-8, 3); ctx.quadraticCurveTo(-5, 6, -7.4, 10); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(8, 3); ctx.quadraticCurveTo(5, 6, 7.4, 10); ctx.stroke();
-  /* gold chain hint across the chest */
-  ctx.strokeStyle = "rgba(240,201,79,0.95)"; ctx.lineWidth = 1.6;
-  ctx.beginPath(); ctx.arc(0, 4, 8.5, 0.25, Math.PI - 0.25); ctx.stroke();
-  ctx.fillStyle = "#f0c94f";
-  ctx.beginPath(); ctx.arc(0, 12.2, 2, 0, 6.283); ctx.fill();
-  /* eyes */
-  ctx.fillStyle = "#fff";
-  ctx.beginPath(); ctx.arc(-5.4, -6, 2.5, 0, 6.283); ctx.arc(5.4, -6, 2.5, 0, 6.283); ctx.fill();
-  ctx.fillStyle = "#10151c";
-  ctx.beginPath(); ctx.arc(-5.4, -6.4, 1.3, 0, 6.283); ctx.arc(5.4, -6.4, 1.3, 0, 6.283); ctx.fill();
-  ctx.restore();
+  ctx.translate(x, y);
+  ctx.globalAlpha *= alpha;
+  /* soft gold ring + glow beneath him */
+  const pulse = 0.8 + Math.sin(g.timeNow * 3.2) * 0.2;
+  const gg = ctx.createRadialGradient(0, 26 * s, 0, 0, 26 * s, 46 * s);
+  gg.addColorStop(0, "rgba(240,201,79," + 0.16 * pulse + ")"); gg.addColorStop(1, "rgba(240,201,79,0)");
+  ctx.fillStyle = gg;
+  ctx.beginPath(); ctx.arc(0, 26 * s, 46 * s, 0, 6.283); ctx.fill();
+  ctx.fillStyle = "rgba(0,0,0,0.30)";
+  ctx.beginPath(); ctx.ellipse(0, 29 * s, 27 * s, 8 * s, 0, 0, 6.283); ctx.fill();
+  ctx.strokeStyle = "rgba(240,201,79," + 0.45 * pulse + ")"; ctx.lineWidth = 1.8 * s;
+  ctx.beginPath(); ctx.ellipse(0, 29 * s, 24 * s, 7 * s, 0, 0, 6.283); ctx.stroke();
 
-  /* the crown — always upright, riding on top */
+  const flip = fx < -0.05 ? -1 : 1;
+  ctx.scale(flip * s, s);
+  ctx.rotate(clamp(fy, -1, 1) * 0.13);
+  const bob = Math.sin(g.timeNow * (5 + (P.moveMag || 0) * 6)) * 1.5 * (0.35 + (P.moveMag || 0));
+  ctx.translate(0, bob);
+  const outline = "rgba(22,17,8,0.62)";
+
+  /* tail fin — sways behind him */
+  const sway = Math.sin(g.timeNow * (4 + (P.moveMag || 0) * 8)) * (1.5 + (P.moveMag || 0) * 3);
+  const tg = ctx.createLinearGradient(-36, 0, -12, 0);
+  tg.addColorStop(0, "#59636d"); tg.addColorStop(1, "#7d8791");
+  ctx.fillStyle = tg;
+  ctx.beginPath();
+  ctx.moveTo(-13, -3);
+  ctx.quadraticCurveTo(-26, -6 + sway * 0.3, -33, -13 + sway);
+  ctx.quadraticCurveTo(-30, -1, -35, 9 + sway);
+  ctx.quadraticCurveTo(-25, 7, -13, 5);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = outline; ctx.lineWidth = 1.4; ctx.stroke();
+
+  /* body — one Path2D so sash/chain shade clip to the shark */
+  const body = new Path2D();
+  body.moveTo(31, 2);
+  body.quadraticCurveTo(24, -13, 3, -16);
+  body.quadraticCurveTo(-15, -15, -21, -5);
+  body.quadraticCurveTo(-26, 5, -14, 12);
+  body.quadraticCurveTo(3, 18, 18, 13);
+  body.quadraticCurveTo(29, 9, 31, 2);
+  body.closePath();
+  const bg2 = ctx.createLinearGradient(-24, -16, 28, 16);
+  bg2.addColorStop(0, "#98a2ac"); bg2.addColorStop(0.45, "#c3cad2"); bg2.addColorStop(1, "#59636d");
+  ctx.fillStyle = bg2; ctx.fill(body);
   ctx.save();
-  ctx.translate(P.x, P.y - 36 + Math.sin(g.timeNow * 6) * 1.9);
-  ctx.scale(1.7, 1.7);
-  if (blink) ctx.globalAlpha = 0.35;
-  ctx.shadowColor = "rgba(240,201,79,0.8)"; ctx.shadowBlur = 8;
-  const cg = ctx.createLinearGradient(0, -8, 0, 6);
+  ctx.clip(body);
+  /* pale belly */
+  ctx.fillStyle = "rgba(233,237,241,0.55)";
+  ctx.beginPath(); ctx.ellipse(7, 11, 16, 6.5, 0.1, 0, 6.283); ctx.fill();
+  /* the wine robe sash, gold-trimmed, diagonal across the torso */
+  ctx.save();
+  ctx.translate(1, 1); ctx.rotate(0.62);
+  ctx.fillStyle = "#6d1420"; ctx.fillRect(-3.4, -24, 12.5, 48);
+  ctx.fillStyle = "#c49a22"; ctx.fillRect(-3.4, -24, 2.2, 48); ctx.fillRect(6.9, -24, 2.2, 48);
+  ctx.restore();
+  /* shade the tail side */
+  ctx.fillStyle = "rgba(30,36,44,0.18)"; ctx.fillRect(-26, -18, 13, 36);
+  ctx.restore();
+  ctx.strokeStyle = outline; ctx.lineWidth = 1.6; ctx.stroke(body);
+
+  /* dorsal fin */
+  ctx.fillStyle = "#6a747f";
+  ctx.beginPath();
+  ctx.moveTo(-1, -14.5); ctx.quadraticCurveTo(6, -25, 13, -15.5); ctx.quadraticCurveTo(6, -12.5, -1, -14.5);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = outline; ctx.lineWidth = 1.3; ctx.stroke();
+
+  /* gill slits */
+  ctx.strokeStyle = "rgba(38,44,52,0.55)"; ctx.lineWidth = 1.5;
+  for (let gi = 0; gi < 3; gi++) {
+    ctx.beginPath();
+    ctx.moveTo(13 - gi * 3.4, -5 + gi * 0.7);
+    ctx.quadraticCurveTo(11 - gi * 3.4, 0, 13.5 - gi * 3.4, 5.5);
+    ctx.stroke();
+  }
+
+  /* near pectoral fin — his arm, knuckle-low and ready */
+  ctx.fillStyle = "#77828d";
+  ctx.beginPath();
+  ctx.moveTo(6, 9);
+  ctx.quadraticCurveTo(13, 20, 23, 19);
+  ctx.quadraticCurveTo(17, 9.5, 8, 7);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = outline; ctx.lineWidth = 1.3; ctx.stroke();
+
+  /* jaw line + teeth */
+  ctx.strokeStyle = "rgba(28,32,38,0.7)"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(30.5, 4.5); ctx.quadraticCurveTo(22, 10.5, 13, 9); ctx.stroke();
+  ctx.fillStyle = "#f4f6f8";
+  for (let ti = 0; ti < 3; ti++) {
+    const tx = 25 - ti * 5.2, ty = 7.6 - ti * 0.9;
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx + 3.4, ty + 0.6); ctx.lineTo(tx + 1.4, ty + 3.6); ctx.closePath(); ctx.fill();
+  }
+
+  /* the eye — set and determined, gold brow over a dark bead */
+  ctx.strokeStyle = "#c49a22"; ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.moveTo(15.5, -8.2); ctx.lineTo(24.5, -6.2); ctx.stroke();
+  ctx.fillStyle = "#10151c";
+  ctx.beginPath(); ctx.arc(20.2, -3.2, 2.7, 0, 6.283); ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.arc(21.1, -4.1, 0.95, 0, 6.283); ctx.fill();
+  ctx.fillStyle = "rgba(16,21,28,0.7)";
+  ctx.beginPath(); ctx.arc(27.6, -0.6, 0.8, 0, 6.283); ctx.fill();
+
+  /* gold-bead chain across the chest + the fishbone pendant */
+  ctx.strokeStyle = "#8a6d1f"; ctx.lineWidth = 0.7;
+  for (let bi = 0; bi <= 6; bi++) {
+    const t = bi / 6;
+    /* beads along a quadratic drape: (-7,-8.5) → ctrl (4,5) → (16,-3.5) */
+    const qx = (1 - t) * (1 - t) * -7 + 2 * (1 - t) * t * 4 + t * t * 16;
+    const qy = (1 - t) * (1 - t) * -8.5 + 2 * (1 - t) * t * 5 + t * t * -3.5;
+    ctx.fillStyle = bi % 2 ? "#f0c94f" : "#d9b23c";
+    ctx.beginPath(); ctx.arc(qx, qy, 1.55, 0, 6.283); ctx.fill(); ctx.stroke();
+  }
+  /* fishbone pendant at the chain's low point */
+  ctx.strokeStyle = "#f3e9d2"; ctx.lineWidth = 1.4;
+  const px3 = 4, py3 = 4.6;
+  ctx.beginPath(); ctx.moveTo(px3, py3); ctx.lineTo(px3, py3 + 7.5); ctx.stroke();
+  for (let ri = 0; ri < 3; ri++) {
+    const ry = py3 + 1.8 + ri * 2;
+    ctx.beginPath(); ctx.moveTo(px3 - 3 + ri * 0.6, ry + 1.6); ctx.lineTo(px3, ry); ctx.lineTo(px3 + 3 - ri * 0.6, ry + 1.6); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(px3, py3 + 7.5); ctx.lineTo(px3 - 2.8, py3 + 10.6); ctx.lineTo(px3 + 2.8, py3 + 10.6); ctx.closePath();
+  ctx.fillStyle = "#f3e9d2"; ctx.fill();
+
+  /* THE CROWN — always his, riding the head with a living tilt */
+  ctx.save();
+  ctx.translate(12, -18.5);
+  ctx.rotate(-0.05 + Math.sin(g.timeNow * 2.3) * 0.035);
+  ctx.shadowColor = "rgba(240,201,79,0.85)"; ctx.shadowBlur = 9;
+  const cg = ctx.createLinearGradient(0, -9, 0, 7);
   cg.addColorStop(0, "#ffe98a"); cg.addColorStop(0.6, "#f0c94f"); cg.addColorStop(1, "#b8860b");
   ctx.fillStyle = cg;
-  crownPath(ctx, 0, 0, 10);
+  crownPath(ctx, 0, 0, 11.5);
   ctx.fill();
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = "#8a6d1f"; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = "#8a6d1f"; ctx.lineWidth = 1.1; ctx.stroke();
   ctx.fillStyle = "#e5484d";
-  ctx.beginPath(); ctx.arc(0, 2.2, 2.1, 0, 6.283); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, 2.4, 2.3, 0, 6.283); ctx.fill();
   ctx.fillStyle = "#fff3c4";
-  ctx.beginPath(); ctx.arc(-10, -5, 1.7, 0, 6.283); ctx.arc(0, -8.5, 1.7, 0, 6.283); ctx.arc(10, -5, 1.7, 0, 6.283); ctx.fill();
+  ctx.beginPath(); ctx.arc(-11.5, -5.7, 1.8, 0, 6.283); ctx.arc(0, -9.8, 1.8, 0, 6.283); ctx.arc(11.5, -5.7, 1.8, 0, 6.283); ctx.fill();
   ctx.restore();
 
-  if (P.flash > 0) {
+  ctx.restore();
+}
+
+function drawKing(g: G, ctx: CanvasRenderingContext2D, ox?: number, oy?: number) {
+  const P = g.P;
+  const blink = P.invuln > 0 && P.dashT <= 0 && Math.floor(g.timeNow * 14) % 2 === 0;
+  drawKingSprite(g, ctx, ox ?? P.x, oy ?? P.y, 1.35, blink ? 0.35 : 1);
+  if (P.flash > 0 && ox === undefined) {
     ctx.save();
     ctx.globalAlpha = P.flash * 2.2;
     ctx.fillStyle = "#e5484d";
@@ -896,93 +1226,178 @@ function drawKing(g: G, ctx: CanvasRenderingContext2D) {
   }
 }
 
+/* ─── foes — designed sprites in the King's outline style ─────────────
+   Glitch: a jagged static shard with electric edges and an RGB-split
+   ghost. Spam Bot: a boxy bot — antenna, one red eye, vents. Troll: a
+   hunched brute with brow, tusks and knuckle arms; its aim telegraph
+   (lean back, shake, warning ring) is untouched. The Usurper keeps his
+   stolen crown, shaded deep. Elites keep the gold ring + Gold- name. */
 function drawEnemy(g: G, ctx: CanvasRenderingContext2D, e: Enemy) {
   const P = g.P;
+  const OL = "rgba(16,12,6,0.6)";
   ctx.save();
   ctx.translate(e.x, e.y);
   if (e.elite) { ctx.strokeStyle = "#f0c94f"; ctx.lineWidth = 2.4; ctx.shadowColor = "#f0c94f"; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(0, 0, e.r + 5, 0, 6.283); ctx.stroke(); ctx.shadowBlur = 0; }
-  ctx.fillStyle = "rgba(0,0,0,0.25)";
-  ctx.beginPath(); ctx.ellipse(0, e.r * 0.82, e.r * 0.9, e.r * 0.32, 0, 0, 6.283); ctx.fill();
+  ctx.fillStyle = "rgba(0,0,0,0.28)";
+  ctx.beginPath(); ctx.ellipse(0, e.r * 0.85, e.r * 0.95, e.r * 0.34, 0, 0, 6.283); ctx.fill();
   const flash = e.flash > 0;
   if (e.type === "chaser") {
-    ctx.fillStyle = flash ? "#ffb3b5" : "#a9232a";
+    /* GLITCH — shard polygon, corners re-rolled by the wobble clock */
+    const shard = (off: number, fill: string, alpha: number) => {
+      ctx.save();
+      ctx.globalAlpha *= alpha;
+      ctx.translate(off, 0);
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      const pts = 8;
+      for (let i = 0; i < pts; i++) {
+        const a = (i / pts) * 6.283 + e.wob * 0.16;
+        const jitter = 1 + 0.16 * Math.sin(e.wob * 7 + i * 2.7);
+        const rr = e.r * (i % 2 ? 0.68 : 1.12) * jitter;
+        const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    };
+    shard(-2.4, "rgba(80,200,255,0.35)", 1);   /* cyan ghost */
+    shard(2.4, "rgba(255,60,80,0.35)", 1);      /* red ghost */
+    shard(0, flash ? "#ffb3b5" : "#7e1a20", 1); /* the shard itself */
+    ctx.strokeStyle = flash ? "#ffffff" : "#67e8f9"; ctx.lineWidth = 1.6;
+    ctx.shadowColor = "#22d3ee"; ctx.shadowBlur = 7;
     ctx.beginPath();
-    const spikes = 9;
-    for (let i = 0; i < spikes; i++) {
-      const a = (i / spikes) * 6.283 + e.wob * 0.25;
-      const rr = e.r + (i % 2 ? 2.5 : 5.5);
+    const pts2 = 8;
+    for (let i = 0; i < pts2; i++) {
+      const a = (i / pts2) * 6.283 + e.wob * 0.16;
+      const jitter = 1 + 0.16 * Math.sin(e.wob * 7 + i * 2.7);
+      const rr = e.r * (i % 2 ? 0.68 : 1.12) * jitter;
       const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
       if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = "#5d0f13";
-    ctx.beginPath(); ctx.arc(0, 2, e.r * 0.52, 0, 6.283); ctx.fill();
-    ctx.fillStyle = "#fff";
-    for (let tI = 0; tI < 5; tI++) {
-      const ta = -0.7 + tI * 0.35;
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(ta) * e.r * 0.5, 2 + Math.sin(ta) * e.r * 0.5 - 1);
-      ctx.lineTo(Math.cos(ta) * e.r * 0.5 + 2.4, 2 + Math.sin(ta) * e.r * 0.5 - 1);
-      ctx.lineTo(Math.cos(ta) * e.r * 0.5 + 1.2, 2 + Math.sin(ta) * e.r * 0.5 + 3.6);
-      ctx.closePath(); ctx.fill();
-    }
-    ctx.fillStyle = "#ffd9da";
-    ctx.beginPath(); ctx.arc(-5.5, -6, 2.6, 0, 6.283); ctx.arc(5.5, -6, 2.6, 0, 6.283); ctx.fill();
-    /* Glitch horns */
-    ctx.fillStyle = "#e8dcc0";
-    ctx.beginPath(); ctx.moveTo(-e.r * 0.7, -e.r * 0.6); ctx.lineTo(-e.r * 1.05, -e.r * 1.05); ctx.lineTo(-e.r * 0.3, -e.r * 0.8); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(e.r * 0.7, -e.r * 0.6); ctx.lineTo(e.r * 1.05, -e.r * 1.05); ctx.lineTo(e.r * 0.3, -e.r * 0.8); ctx.closePath(); ctx.fill();
-  } else if (e.type === "shooter") {
-    ctx.fillStyle = flash ? "#bfe6da" : "#1f5f52";
-    ctx.beginPath();
-    ctx.moveTo(0, -e.r - 3);
-    ctx.quadraticCurveTo(e.r + 3, -2, e.r * 0.8, e.r);
-    ctx.lineTo(-e.r * 0.8, e.r);
-    ctx.quadraticCurveTo(-e.r - 3, -2, 0, -e.r - 3);
-    ctx.fill();
-    ctx.fillStyle = flash ? "#e8fff7" : "#0d2f28";
-    ctx.beginPath(); ctx.arc(0, -3, e.r * 0.58, 0, 6.283); ctx.fill();
-    ctx.fillStyle = "#ffd34d";
-    ctx.shadowColor = "#ffd34d"; ctx.shadowBlur = 7;
-    ctx.beginPath(); ctx.arc(0, -3, 3, 0, 6.283); ctx.fill();
+    ctx.closePath(); ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.fillStyle = "#d4af37";
-    ctx.beginPath(); ctx.arc(e.r * 0.72, e.r * 0.55, 3.2, 0, 6.283); ctx.fill();
-    /* Spam Bot hood */
-    ctx.strokeStyle = flash ? "#e8fff7" : "#2e7d6b"; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(0, -3, e.r * 0.78, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+    /* static flecks */
+    ctx.fillStyle = "rgba(190,240,255,0.85)";
+    for (let fi = 0; fi < 4; fi++) {
+      const fa = e.wob * 3 + fi * 1.9;
+      ctx.fillRect(Math.cos(fa) * e.r * 0.55 - 1.4, Math.sin(fa * 1.3) * e.r * 0.5 - 1, 2.8, 2);
+    }
+    /* one hostile eye, slit over a dark core */
+    ctx.fillStyle = "#2b0508";
+    ctx.beginPath(); ctx.arc(0, 1, e.r * 0.44, 0, 6.283); ctx.fill();
+    ctx.fillStyle = "#ffdf6b";
+    ctx.beginPath(); ctx.ellipse(0, 0, e.r * 0.3, 2.1, 0, 0, 6.283); ctx.fill();
+    ctx.fillStyle = "#12060a";
+    ctx.beginPath(); ctx.ellipse(0, 0, 2, 2.1, 0, 0, 6.283); ctx.fill();
+  } else if (e.type === "shooter") {
+    /* SPAM BOT — boxy bot: tread base, panel body, antenna, red eye */
+    const r = e.r;
+    ctx.fillStyle = "#24262b";
+    ctx.beginPath(); ctx.ellipse(0, r * 0.78, r * 0.92, r * 0.3, 0, 0, 6.283); ctx.fill();
+    ctx.fillStyle = "rgba(240,201,79,0.75)";
+    for (let ti = -1; ti <= 1; ti++) { ctx.beginPath(); ctx.arc(ti * r * 0.5, r * 0.78, 2, 0, 6.283); ctx.fill(); }
+    const bodyG = ctx.createLinearGradient(0, -r, 0, r);
+    bodyG.addColorStop(0, flash ? "#cfe8de" : "#3f7a68"); bodyG.addColorStop(1, flash ? "#9fc9ba" : "#1d4a3e");
+    ctx.fillStyle = bodyG;
+    ctx.beginPath();
+    ctx.roundRect(-r * 0.92, -r * 0.72, r * 1.84, r * 1.5, 5);
+    ctx.fill();
+    ctx.strokeStyle = OL; ctx.lineWidth = 1.5; ctx.stroke();
+    /* rivets */
+    ctx.fillStyle = "rgba(10,20,16,0.6)";
+    for (const [rx2, ry2] of [[-0.72, -0.52], [0.72, -0.52], [-0.72, 0.58], [0.72, 0.58]] as const) {
+      ctx.beginPath(); ctx.arc(rx2 * r, ry2 * r, 1.6, 0, 6.283); ctx.fill();
+    }
+    /* antenna with a blinking spam tip */
+    ctx.strokeStyle = "#9aa3ab"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.72); ctx.lineTo(0, -r * 1.22); ctx.stroke();
+    const blinkOn = Math.floor(g.timeNow * 2.4 + e.wob) % 2 === 0;
+    ctx.fillStyle = blinkOn ? "#ff5347" : "#7e1a20";
+    ctx.shadowColor = "#ff5347"; ctx.shadowBlur = blinkOn ? 8 : 0;
+    ctx.beginPath(); ctx.arc(0, -r * 1.3, 3.1, 0, 6.283); ctx.fill();
+    ctx.shadowBlur = 0;
+    /* the one big red eye */
+    ctx.fillStyle = "#0b1512";
+    ctx.beginPath(); ctx.arc(0, -r * 0.08, r * 0.46, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = "rgba(240,201,79,0.5)"; ctx.lineWidth = 1.2; ctx.stroke();
+    const look = Math.atan2(P.y - e.y, P.x - e.x);
+    ctx.fillStyle = "#ff5347";
+    ctx.shadowColor = "#ff5347"; ctx.shadowBlur = 7;
+    ctx.beginPath(); ctx.arc(Math.cos(look) * 2.6, -r * 0.08 + Math.sin(look) * 2.6, r * 0.2, 0, 6.283); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(Math.cos(look) * 2.6 - 1.4, -r * 0.08 + Math.sin(look) * 2.6 - 1.4, 1.3, 0, 6.283); ctx.fill();
+    /* speaker-vent mouth: it spams */
+    ctx.fillStyle = "rgba(8,16,13,0.75)";
+    for (let vi = 0; vi < 3; vi++) ctx.fillRect(-r * 0.4, r * (0.42 + vi * 0.16), r * 0.8, 2.2);
   } else if (e.type === "dasher") {
+    /* TROLL — hunched brute: heavy shoulders, brow, tusks, knuckles */
     let ang = Math.atan2(P.y - e.y, P.x - e.x) + Math.PI / 2;
     if (e.state === "lunge") ang = Math.atan2(e.lockY, e.lockX) + Math.PI / 2;
     ctx.rotate(ang);
     if (e.state === "aim") {
-      /* Troll telegraph: lean back, shake, flash — fair warning before the lunge */
+      /* telegraph: lean back, shake, flash — fair warning (unchanged) */
       ctx.translate(-e.lockX * 4 + Math.sin(g.timeNow * 55) * 1.6, -e.lockY * 4);
       ctx.scale(1.12, 0.9);
       ctx.strokeStyle = Math.floor(g.timeNow * 12) % 2 === 0 ? "rgba(255,60,60,0.95)" : "rgba(255,200,60,0.8)"; ctx.lineWidth = 2.6;
       ctx.beginPath(); ctx.arc(0, 0, e.r + 6, 0, 6.283); ctx.stroke();
     }
-    ctx.fillStyle = e.state === "aim" && Math.floor(g.timeNow * 12) % 2 === 0 ? "#ffdf6b" : flash ? "#ffe1a8" : "#c97a16";
+    const r = e.r;
+    const skin = e.state === "aim" && Math.floor(g.timeNow * 12) % 2 === 0 ? "#ffdf6b" : flash ? "#ffe1a8" : "#c97a16";
+    /* knuckle arms, low at the sides */
+    ctx.fillStyle = flash ? "#f2c184" : "#a35f10";
+    ctx.beginPath(); ctx.ellipse(-r * 0.98, r * 0.42, r * 0.34, r * 0.5, 0.35, 0, 6.283); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * 0.98, r * 0.42, r * 0.34, r * 0.5, -0.35, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = OL; ctx.lineWidth = 1.2; ctx.stroke();
+    /* hunched mass: shoulders over a low head */
+    const tg2 = ctx.createLinearGradient(0, -r, 0, r);
+    tg2.addColorStop(0, skin); tg2.addColorStop(1, flash ? "#d99a3c" : "#8a4f0c");
+    ctx.fillStyle = tg2;
     ctx.beginPath();
-    ctx.moveTo(0, -e.r - 4);
-    ctx.lineTo(e.r * 0.78, e.r * 0.6);
-    ctx.lineTo(e.r * 0.3, e.r * 0.28);
-    ctx.lineTo(0, e.r + 3);
-    ctx.lineTo(-e.r * 0.3, e.r * 0.28);
-    ctx.lineTo(-e.r * 0.78, e.r * 0.6);
+    ctx.moveTo(0, -r * 0.62);
+    ctx.quadraticCurveTo(r * 1.04, -r * 0.72, r * 0.94, r * 0.34);
+    ctx.quadraticCurveTo(r * 0.8, r * 1.02, 0, r * 1.06);
+    ctx.quadraticCurveTo(-r * 0.8, r * 1.02, -r * 0.94, r * 0.34);
+    ctx.quadraticCurveTo(-r * 1.04, -r * 0.72, 0, -r * 0.62);
     ctx.closePath(); ctx.fill();
-    ctx.fillStyle = "#fff2d9";
-    ctx.beginPath(); ctx.arc(0, -3, 2.6, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = OL; ctx.lineWidth = 1.5; ctx.stroke();
+    /* heavy brow + hostile eyes under it */
+    ctx.fillStyle = flash ? "#8a4f0c" : "#5f3606";
+    ctx.beginPath(); ctx.ellipse(0, -r * 0.34, r * 0.52, r * 0.24, 0, 0, 6.283); ctx.fill();
+    ctx.fillStyle = "#ffd34d";
+    ctx.beginPath(); ctx.arc(-r * 0.24, -r * 0.2, 2.3, 0, 6.283); ctx.arc(r * 0.24, -r * 0.2, 2.3, 0, 6.283); ctx.fill();
+    ctx.fillStyle = "#1a0d02";
+    ctx.beginPath(); ctx.arc(-r * 0.24, -r * 0.18, 1.1, 0, 6.283); ctx.arc(r * 0.24, -r * 0.18, 1.1, 0, 6.283); ctx.fill();
+    /* underbite jaw + tusks */
+    ctx.fillStyle = flash ? "#f7cf8e" : "#b06a12";
+    ctx.beginPath(); ctx.ellipse(0, r * 0.52, r * 0.5, r * 0.3, 0, 0, 6.283); ctx.fill();
+    ctx.fillStyle = "#fff6e0";
+    for (const tx of [-0.3, 0.3]) {
+      ctx.beginPath();
+      ctx.moveTo(tx * r - 2.4, r * 0.62); ctx.lineTo(tx * r + 2.4, r * 0.62); ctx.lineTo(tx * r, r * 0.22);
+      ctx.closePath(); ctx.fill();
+    }
+    /* back spikes */
+    ctx.fillStyle = "#5f3606";
+    for (let si = -1; si <= 1; si++) {
+      ctx.beginPath();
+      ctx.moveTo(si * r * 0.44 - 3, -r * 0.6); ctx.lineTo(si * r * 0.44, -r * 1.02); ctx.lineTo(si * r * 0.44 + 3, -r * 0.6);
+      ctx.closePath(); ctx.fill();
+    }
   } else if (e.type === "boss") {
     ctx.fillStyle = flash ? "#ffb3b5" : "#8c1d23";
+    const bossG = ctx.createRadialGradient(-e.r * 0.3, -e.r * 0.35, e.r * 0.2, 0, 0, e.r * 1.15);
+    bossG.addColorStop(0, flash ? "#ffc9cb" : "#b03036"); bossG.addColorStop(1, flash ? "#e08a8e" : "#5d0f13");
+    ctx.fillStyle = bossG;
     ctx.beginPath(); ctx.arc(0, 0, e.r, 0, 6.283); ctx.fill();
-    ctx.strokeStyle = "#5d0f13"; ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = OL; ctx.lineWidth = 2.4; ctx.stroke();
     /* horns */
     ctx.fillStyle = "#e8dcc0";
     ctx.beginPath();
     ctx.moveTo(-e.r * 0.8, -e.r * 0.55); ctx.lineTo(-e.r * 1.18, -e.r * 1.05); ctx.lineTo(-e.r * 0.38, -e.r * 0.86); ctx.closePath();
     ctx.moveTo(e.r * 0.8, -e.r * 0.55); ctx.lineTo(e.r * 1.18, -e.r * 1.05); ctx.lineTo(e.r * 0.38, -e.r * 0.86); ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle = OL; ctx.lineWidth = 1.2; ctx.stroke();
     /* stolen crown, tilted */
     ctx.save();
     ctx.translate(0, -e.r - 4); ctx.rotate(0.28 + Math.sin(g.timeNow * 2) * 0.05);
@@ -1027,11 +1442,12 @@ function drawEnemy(g: G, ctx: CanvasRenderingContext2D, e: Enemy) {
   }
 }
 
-function drawDoor(g: G, ctx: CanvasRenderingContext2D) {
+function drawDoor(g: G, ctx: CanvasRenderingContext2D, open?: boolean) {
   const pal = PAL[g.theme];
+  const isOpen = open ?? g.doorOpen;
   const dx = LW / 2, dw = 74;
   ctx.save();
-  if (g.doorOpen) {
+  if (isOpen) {
     const pulse = 0.72 + Math.sin(g.doorPulse * 5) * 0.28;
     ctx.shadowColor = "rgba(240,201,79," + 0.85 * pulse + ")";
     ctx.shadowBlur = 26 * pulse;
@@ -1040,6 +1456,15 @@ function drawDoor(g: G, ctx: CanvasRenderingContext2D) {
     ctx.fillStyle = gr;
     ctx.fillRect(dx - dw / 2, 2, dw, WALL + 12);
     ctx.shadowBlur = 0;
+    /* golden DOUBLE door: two panels, centre seam, ring handles */
+    ctx.strokeStyle = "rgba(122,92,14,0.8)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(dx, 4); ctx.lineTo(dx, WALL + 10); ctx.stroke();
+    ctx.strokeStyle = "rgba(122,92,14,0.45)"; ctx.lineWidth = 1.4;
+    ctx.strokeRect(dx - dw / 2 + 6, 7, dw / 2 - 10, WALL - 2);
+    ctx.strokeRect(dx + 4, 7, dw / 2 - 10, WALL - 2);
+    ctx.fillStyle = "#7a5c0e";
+    ctx.beginPath(); ctx.arc(dx - 5, WALL / 2 + 4, 2.6, 0, 6.283); ctx.fill();
+    ctx.beginPath(); ctx.arc(dx + 5, WALL / 2 + 4, 2.6, 0, 6.283); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255," + (0.35 + 0.3 * pulse) + ")";
     ctx.fillRect(dx - dw / 2 + 8, 6, 7, WALL);
     ctx.fillRect(dx + dw / 2 - 15, 6, 7, WALL);
@@ -1053,11 +1478,13 @@ function drawDoor(g: G, ctx: CanvasRenderingContext2D) {
     ctx.fillRect(dx - dw / 2, 2, dw, WALL + 8);
     ctx.strokeStyle = pal.obEdge; ctx.lineWidth = 1.6;
     ctx.strokeRect(dx - dw / 2, 2, dw, WALL + 8);
+    /* closed double door: centre seam + panel grooves */
     ctx.strokeStyle = g.theme === "dark" ? "#3d3d42" : "#a68d4e";
     ctx.lineWidth = 3;
-    for (let i = -1; i <= 1; i++) {
-      ctx.beginPath(); ctx.moveTo(dx + i * 20, 5); ctx.lineTo(dx + i * 20, WALL + 6); ctx.stroke();
-    }
+    ctx.beginPath(); ctx.moveTo(dx, 5); ctx.lineTo(dx, WALL + 6); ctx.stroke();
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(dx - dw / 2 + 7, 8, dw / 2 - 12, WALL - 6);
+    ctx.strokeRect(dx + 5, 8, dw / 2 - 12, WALL - 6);
     /* padlock ring */
     ctx.strokeStyle = "#d4af37"; ctx.lineWidth = 2.4;
     ctx.beginPath(); ctx.arc(dx, WALL / 2 + 3, 6.5, 0, 6.283); ctx.stroke();
@@ -1067,13 +1494,356 @@ function drawDoor(g: G, ctx: CanvasRenderingContext2D) {
   ctx.restore();
 }
 
-function render(g: G, ctx: CanvasRenderingContext2D, bg: HTMLCanvasElement | null, scale: number) {
+/* ─── the Visual Buc coin sprite ──────────────────────────────────────
+   Pickups ARE the site's Visual Buc coin: the component loads the
+   primary balance coin (images/visual-bucs-icon.webp — the art
+   VisualBucsIcon puts next to every balance on the site) and hands it
+   here. Until it loads (or if it ever fails) the drawn fallback below
+   matches the site's coin styling: gold face, crown over a B. */
+let coinImg: HTMLImageElement | null = null;
+function setCoinImage(img: HTMLImageElement | null) { coinImg = img; }
+
+function drawPickup(g: G, ctx: CanvasRenderingContext2D, pk: Pickup) {
+  const bobY = Math.sin(g.timeNow * 3.4 + pk.bob) * 2.6;
+  ctx.save();
+  ctx.translate(pk.x, pk.y + bobY);
+  if (pk.kind === "crown") {
+    ctx.shadowColor = "rgba(240,201,79,0.9)"; ctx.shadowBlur = 12;
+    if (coinImg && coinImg.complete && coinImg.naturalWidth > 0) {
+      ctx.beginPath(); ctx.arc(0, 0, 11, 0, 6.283); ctx.clip();
+      ctx.drawImage(coinImg, -11, -11, 22, 22);
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "#8a6d1f"; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(0, 0, 10.6, 0, 6.283); ctx.stroke();
+    } else {
+      const cg2 = ctx.createLinearGradient(0, -10, 0, 10);
+      cg2.addColorStop(0, "#ffe98a"); cg2.addColorStop(1, "#c49a22");
+      ctx.fillStyle = cg2; ctx.beginPath(); ctx.arc(0, 0, 10.5, 0, 6.283); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "#8a6d1f"; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, 7, 0, 6.283); ctx.stroke();
+      ctx.fillStyle = "#7a5c0e";
+      crownPath(ctx, 0, -3.4, 3.6); ctx.fill();
+      ctx.font = "900 10px Cinzel, serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("B", 0, 3.4); ctx.textBaseline = "alphabetic";
+    }
+    /* a soft twinkle so the coin catches the eye */
+    const tw = 0.5 + 0.5 * Math.sin(g.timeNow * 4.2 + pk.bob * 3);
+    ctx.globalAlpha = 0.35 + 0.55 * tw;
+    ctx.strokeStyle = "#fff6cf"; ctx.lineWidth = 1.3;
+    const sx = 6.5, sy = -7.5, ss = 3.4 + tw * 1.6;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - ss); ctx.lineTo(sx, sy + ss);
+    ctx.moveTo(sx - ss, sy); ctx.lineTo(sx + ss, sy);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.shadowColor = "rgba(123,196,127,0.9)"; ctx.shadowBlur = 10;
+    ctx.fillStyle = "#7bc47f";
+    ctx.beginPath();
+    ctx.moveTo(0, 8);
+    ctx.bezierCurveTo(-11, 0, -8, -9, -3.4, -9);
+    ctx.bezierCurveTo(-1, -9, 0, -7.4, 0, -5.8);
+    ctx.bezierCurveTo(0, -7.4, 1, -9, 3.4, -9);
+    ctx.bezierCurveTo(8, -9, 11, 0, 0, 8);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+}
+
+/* ─── obstacle dressing: one collision rect, many room pieces ─────────
+   Every skin draws INSIDE its rect (glow pools excepted) so what you
+   see is exactly what you collide with. */
+function drawObstacle(g: G, ctx: CanvasRenderingContext2D, o: Obstacle) {
   const pal = PAL[g.theme];
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  ctx.clearRect(0, 0, LW, LH);
+  const dark = g.theme === "dark";
+  const skin = o.skin || "pillar";
+  /* warm light pools spilling from studio lights + braziers (dark) */
+  if (dark && (skin === "lightstand" || skin === "brazier")) {
+    const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+    const flick = skin === "brazier" ? 0.8 + Math.sin(g.timeNow * 11 + o.x) * 0.2 : 0.9;
+    const lg = ctx.createRadialGradient(cx, cy, 0, cx, cy, 92 * flick);
+    lg.addColorStop(0, skin === "brazier" ? "rgba(255,150,50,0.20)" : "rgba(255,214,130,0.16)");
+    lg.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = lg;
+    ctx.fillRect(cx - 96, cy - 96, 192, 192);
+  }
+  ctx.fillStyle = dark ? "rgba(0,0,0,0.4)" : "rgba(96,74,20,0.28)";
+  ctx.fillRect(o.x + 4, o.y + 6, o.w, o.h);
+  const OL = "rgba(22,17,8,0.55)";
+  const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+
+  if (skin === "desk") {
+    /* the Lobby front desk: wood counter, stone top, gold trim */
+    const dg = ctx.createLinearGradient(0, o.y, 0, o.y + o.h);
+    dg.addColorStop(0, dark ? "#5a4030" : "#8a6844"); dg.addColorStop(1, dark ? "#33241a" : "#66482c");
+    ctx.fillStyle = dg; ctx.fillRect(o.x, o.y + 7, o.w, o.h - 7);
+    ctx.fillStyle = dark ? "#cbb98f" : "#e8dcc0"; ctx.fillRect(o.x - 1, o.y, o.w + 2, 9);
+    ctx.fillStyle = "#c49a22"; ctx.fillRect(o.x - 1, o.y + 9, o.w + 2, 2.4);
+    ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 1.2;
+    for (let pi = 1; pi <= 3; pi++) {
+      const px = o.x + (o.w / 4) * pi;
+      ctx.beginPath(); ctx.moveTo(px, o.y + 14); ctx.lineTo(px, o.y + o.h - 6); ctx.stroke();
+    }
+    ctx.fillStyle = "#f0c94f";
+    crownPath(ctx, cx, o.y + o.h / 2 + 3, Math.min(9, o.w / 6)); ctx.fill();
+    ctx.strokeStyle = OL; ctx.strokeRect(o.x + 0.5, o.y + 0.5, o.w - 1, o.h - 1);
+    return;
+  }
+  if (skin === "planter") {
+    /* gold pot, deep-green foliage */
+    ctx.fillStyle = "#8a6d1f";
+    ctx.beginPath();
+    ctx.moveTo(cx - o.w * 0.3, o.y + o.h); ctx.lineTo(cx + o.w * 0.3, o.y + o.h);
+    ctx.lineTo(cx + o.w * 0.22, o.y + o.h * 0.55); ctx.lineTo(cx - o.w * 0.22, o.y + o.h * 0.55);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#c49a22"; ctx.fillRect(cx - o.w * 0.26, o.y + o.h * 0.5, o.w * 0.52, 5);
+    for (const [fx, fy, fr] of [[-0.24, 0.3, 0.3], [0.22, 0.26, 0.34], [0, 0.12, 0.36], [-0.05, 0.42, 0.26]] as const) {
+      const fg = ctx.createRadialGradient(o.x + o.w * (0.5 + fx) - 4, o.y + o.h * fy - 4, 2, o.x + o.w * (0.5 + fx), o.y + o.h * fy, o.w * fr);
+      fg.addColorStop(0, dark ? "#3f7d46" : "#4c9455"); fg.addColorStop(1, dark ? "#17301c" : "#26502e");
+      ctx.fillStyle = fg;
+      ctx.beginPath(); ctx.arc(o.x + o.w * (0.5 + fx), o.y + o.h * fy, o.w * fr * 0.62, 0, 6.283); ctx.fill();
+    }
+    return;
+  }
+  if (skin === "workdesk" || skin === "console") {
+    /* Beat Lab workstation / Mixing Room console */
+    const dg = ctx.createLinearGradient(0, o.y, 0, o.y + o.h);
+    dg.addColorStop(0, dark ? "#3a3f46" : "#b9ac8d"); dg.addColorStop(1, dark ? "#1d2025" : "#8f8163");
+    ctx.fillStyle = dg; ctx.fillRect(o.x, o.y + o.h * 0.34, o.w, o.h * 0.66);
+    ctx.strokeStyle = OL; ctx.lineWidth = 1.2; ctx.strokeRect(o.x + 0.5, o.y + o.h * 0.34, o.w - 1, o.h * 0.66 - 1);
+    if (skin === "console") {
+      /* fader tracks on the sloped face */
+      ctx.strokeStyle = dark ? "rgba(240,201,79,0.5)" : "rgba(110,84,30,0.55)"; ctx.lineWidth = 1.4;
+      const n = Math.max(3, Math.floor(o.w / 16));
+      for (let fi = 0; fi < n; fi++) {
+        const fx = o.x + 8 + fi * ((o.w - 16) / Math.max(1, n - 1));
+        ctx.beginPath(); ctx.moveTo(fx, o.y + o.h * 0.48); ctx.lineTo(fx, o.y + o.h * 0.86); ctx.stroke();
+        ctx.fillStyle = "#e8e4da";
+        ctx.fillRect(fx - 2.4, o.y + o.h * (0.52 + ((fi * 37) % 30) / 100), 4.8, 3);
+      }
+    } else {
+      /* producer desk: keyboard tray + mouse pad lines */
+      ctx.strokeStyle = dark ? "rgba(255,255,255,0.16)" : "rgba(80,64,30,0.25)"; ctx.lineWidth = 1;
+      for (let ki = 0; ki < 4; ki++) {
+        ctx.beginPath(); ctx.moveTo(o.x + 8, o.y + o.h * (0.52 + ki * 0.11)); ctx.lineTo(o.x + o.w * 0.62, o.y + o.h * (0.52 + ki * 0.11)); ctx.stroke();
+      }
+      ctx.fillStyle = dark ? "rgba(240,201,79,0.35)" : "rgba(160,120,35,0.4)";
+      ctx.beginPath(); ctx.ellipse(o.x + o.w * 0.82, o.y + o.h * 0.68, 7, 5, 0, 0, 6.283); ctx.fill();
+    }
+    /* twin monitors along the back edge, screens alive */
+    for (const mx of [o.x + o.w * 0.26, o.x + o.w * 0.74]) {
+      const mw = Math.min(40, o.w * 0.4), mh = o.h * 0.34;
+      ctx.fillStyle = "#101216";
+      ctx.beginPath(); ctx.roundRect(mx - mw / 2, o.y, mw, mh, 3); ctx.fill();
+      ctx.strokeStyle = OL; ctx.lineWidth = 1.2; ctx.stroke();
+      const sg = ctx.createLinearGradient(0, o.y, 0, o.y + mh);
+      sg.addColorStop(0, dark ? "#274b63" : "#bcd6ea"); sg.addColorStop(1, dark ? "#101c28" : "#7ea6c4");
+      ctx.fillStyle = sg; ctx.fillRect(mx - mw / 2 + 2.5, o.y + 2.5, mw - 5, mh - 5);
+      /* waveform / level bars on screen */
+      ctx.strokeStyle = "#f0c94f"; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      const seed = Math.floor(mx * 3 + o.y);
+      for (let wi = 0; wi <= 8; wi++) {
+        const wx = mx - mw / 2 + 4 + wi * ((mw - 8) / 8);
+        const wy = o.y + mh / 2 + Math.sin(wi * 1.7 + seed) * mh * 0.22;
+        if (wi === 0) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
+      }
+      ctx.stroke();
+    }
+    return;
+  }
+  if (skin === "speakers") {
+    /* speaker stack: big cab + top cab, coned drivers */
+    const drawCab = (x: number, y: number, w: number, h: number, cones: number) => {
+      ctx.fillStyle = dark ? "#17181c" : "#4c463c";
+      ctx.beginPath(); ctx.roundRect(x, y, w, h, 4); ctx.fill();
+      ctx.strokeStyle = OL; ctx.lineWidth = 1.4; ctx.stroke();
+      for (let ci = 0; ci < cones; ci++) {
+        const ccx = x + w / 2, ccy = y + h * (cones === 1 ? 0.5 : 0.28 + ci * 0.44), cr = Math.min(w, h) * (cones === 1 ? 0.3 : 0.19);
+        ctx.fillStyle = dark ? "#26282e" : "#6a6355";
+        ctx.beginPath(); ctx.arc(ccx, ccy, cr, 0, 6.283); ctx.fill();
+        ctx.strokeStyle = "#c49a22"; ctx.lineWidth = 1.6; ctx.stroke();
+        ctx.fillStyle = dark ? "#0c0d10" : "#37332b";
+        ctx.beginPath(); ctx.arc(ccx, ccy, cr * 0.45, 0, 6.283); ctx.fill();
+      }
+    };
+    drawCab(o.x + o.w * 0.14, o.y + o.h * 0.42, o.w * 0.72, o.h * 0.58, 2);
+    drawCab(o.x + o.w * 0.26, o.y, o.w * 0.48, o.h * 0.4, 1);
+    return;
+  }
+  if (skin === "camera") {
+    /* camera block on a tripod — lens toward the entrance */
+    ctx.strokeStyle = dark ? "#9aa3ab" : "#5d5648"; ctx.lineWidth = 3;
+    for (const lx of [-0.32, 0, 0.32]) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + 2);
+      ctx.lineTo(cx + o.w * lx, o.y + o.h - 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = dark ? "#1b1d21" : "#57503f";
+    ctx.beginPath(); ctx.roundRect(cx - o.w * 0.3, o.y + o.h * 0.08, o.w * 0.6, o.h * 0.44, 4); ctx.fill();
+    ctx.strokeStyle = OL; ctx.lineWidth = 1.4; ctx.stroke();
+    /* lens barrel pointing down-stage */
+    ctx.fillStyle = "#0c0d10";
+    ctx.beginPath(); ctx.roundRect(cx - o.w * 0.13, o.y + o.h * 0.44, o.w * 0.26, o.h * 0.22, 3); ctx.fill();
+    const lensG = ctx.createRadialGradient(cx - 2, cy + o.h * 0.12, 1, cx, cy + o.h * 0.12, o.w * 0.11);
+    lensG.addColorStop(0, "#bfe0ff"); lensG.addColorStop(0.5, "#2c5d8a"); lensG.addColorStop(1, "#0a1622");
+    ctx.fillStyle = lensG;
+    ctx.beginPath(); ctx.arc(cx, cy + o.h * 0.12, o.w * 0.1, 0, 6.283); ctx.fill();
+    /* tally light + top handle */
+    ctx.fillStyle = Math.floor(g.timeNow * 1.6 + o.x) % 2 === 0 ? "#ff5347" : "#7e1a20";
+    ctx.beginPath(); ctx.arc(cx + o.w * 0.2, o.y + o.h * 0.16, 2.6, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = dark ? "#9aa3ab" : "#5d5648"; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.moveTo(cx - o.w * 0.16, o.y + o.h * 0.08); ctx.lineTo(cx - o.w * 0.16, o.y); ctx.lineTo(cx + o.w * 0.16, o.y); ctx.lineTo(cx + o.w * 0.16, o.y + o.h * 0.08); ctx.stroke();
+    return;
+  }
+  if (skin === "lightstand") {
+    /* light stand: tripod feet, pole, glowing softbox head */
+    ctx.strokeStyle = dark ? "#9aa3ab" : "#5d5648"; ctx.lineWidth = 2.6;
+    for (const lx of [-0.3, 0.3]) {
+      ctx.beginPath(); ctx.moveTo(cx, cy + o.h * 0.18); ctx.lineTo(cx + o.w * lx, o.y + o.h - 2); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(cx, o.y + o.h * 0.3); ctx.lineTo(cx, o.y + o.h - 4); ctx.stroke();
+    const bw = o.w * 0.72, bh = o.h * 0.42;
+    const lg2 = ctx.createLinearGradient(0, o.y, 0, o.y + bh);
+    lg2.addColorStop(0, "#fff6d8"); lg2.addColorStop(1, "#e8cf8e");
+    ctx.fillStyle = lg2;
+    ctx.beginPath(); ctx.roundRect(cx - bw / 2, o.y, bw, bh, 4); ctx.fill();
+    ctx.strokeStyle = "#8a6d1f"; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.strokeStyle = "rgba(138,109,31,0.5)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, o.y + 2); ctx.lineTo(cx, o.y + bh - 2); ctx.stroke();
+    return;
+  }
+  if (skin === "goldbars") {
+    /* stacked gold bars, 3-2-1 */
+    const bar = (bx: number, by: number, bw: number, bh: number) => {
+      const bg3 = ctx.createLinearGradient(0, by, 0, by + bh);
+      bg3.addColorStop(0, "#ffe98a"); bg3.addColorStop(0.55, "#e9be4a"); bg3.addColorStop(1, "#a87e17");
+      ctx.fillStyle = bg3;
+      ctx.beginPath();
+      ctx.moveTo(bx + bw * 0.14, by); ctx.lineTo(bx + bw * 0.86, by);
+      ctx.lineTo(bx + bw, by + bh); ctx.lineTo(bx, by + bh);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(90,64,4,0.65)"; ctx.lineWidth = 1.1; ctx.stroke();
+    };
+    const bw = o.w * 0.3, bh = Math.min(15, o.h * 0.26);
+    const rows = Math.max(1, Math.floor(o.h / (bh + 3)));
+    for (let ri = 0; ri < rows; ri++) {
+      const n = 3 - Math.min(2, ri);
+      const y0 = o.y + o.h - (ri + 1) * (bh + 3) + 3;
+      for (let bi = 0; bi < n; bi++) bar(o.x + o.w / 2 + (bi - (n - 1) / 2) * (bw + 3) - bw / 2, y0, bw, bh);
+    }
+    return;
+  }
+  if (skin === "coinpile") {
+    /* a mound of Visual Bucs, drawn as clustered gold discs */
+    const seed = Math.floor(o.x * 5 + o.y * 3);
+    ctx.fillStyle = dark ? "rgba(160,120,30,0.5)" : "rgba(150,115,40,0.4)";
+    ctx.beginPath(); ctx.ellipse(cx, o.y + o.h * 0.72, o.w * 0.46, o.h * 0.26, 0, 0, 6.283); ctx.fill();
+    for (let ci = 0; ci < 16; ci++) {
+      const a = ((seed * (ci + 3) * 37) % 100) / 100 * 6.283;
+      const rr = ((seed * (ci + 7) * 53) % 100) / 100;
+      const px = cx + Math.cos(a) * o.w * 0.36 * rr;
+      const py = o.y + o.h * 0.72 + Math.sin(a) * o.h * 0.18 * rr - (1 - rr) * o.h * 0.16;
+      const cg = ctx.createLinearGradient(px, py - 5, px, py + 5);
+      cg.addColorStop(0, "#ffe98a"); cg.addColorStop(1, "#b8860b");
+      ctx.fillStyle = cg;
+      ctx.beginPath(); ctx.ellipse(px, py, 6.4, 4.4, 0, 0, 6.283); ctx.fill();
+      ctx.strokeStyle = "rgba(90,64,4,0.5)"; ctx.lineWidth = 0.8; ctx.stroke();
+    }
+    return;
+  }
+  if (skin === "rack") {
+    /* server rack: dark cabinet, LED grid, vents */
+    ctx.fillStyle = dark ? "#12141a" : "#3f4450";
+    ctx.beginPath(); ctx.roundRect(o.x, o.y, o.w, o.h, 4); ctx.fill();
+    ctx.strokeStyle = OL; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.strokeStyle = dark ? "rgba(150,165,190,0.25)" : "rgba(230,235,245,0.3)"; ctx.lineWidth = 1;
+    for (let ri = 1; ri < 4; ri++) {
+      const ry = o.y + (o.h / 4) * ri;
+      ctx.beginPath(); ctx.moveTo(o.x + 4, ry); ctx.lineTo(o.x + o.w - 4, ry); ctx.stroke();
+    }
+    const seed = Math.floor(o.x * 7 + o.y * 11);
+    for (let li = 0; li < 12; li++) {
+      const lx = o.x + 7 + (li % 4) * ((o.w - 14) / 3);
+      const ly = o.y + 8 + Math.floor(li / 4) * (o.h / 4) + 4;
+      const on = ((seed + li * 7 + Math.floor(g.timeNow * (1 + (li % 3)))) % 3) !== 0;
+      ctx.fillStyle = !on ? "rgba(120,130,150,0.3)" : li % 5 === 4 ? "#ff5347" : li % 3 === 0 ? "#57d97a" : "#6ab8ff";
+      ctx.beginPath(); ctx.arc(lx, ly, 1.9, 0, 6.283); ctx.fill();
+    }
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    for (let vi = 0; vi < 3; vi++) ctx.fillRect(o.x + o.w * 0.55, o.y + o.h * 0.6 + vi * 5, o.w * 0.36, 2.4);
+    return;
+  }
+  if (skin === "brazier") {
+    /* throne-room brazier: pedestal, bowl, living flame */
+    ctx.fillStyle = dark ? "#2c2c31" : "#a08c5e";
+    ctx.fillRect(cx - 5, cy, 10, o.h / 2);
+    ctx.fillStyle = dark ? "#3a3a41" : "#bfa96f";
+    ctx.beginPath();
+    ctx.moveTo(cx - o.w * 0.34, o.y + o.h * 0.3); ctx.lineTo(cx + o.w * 0.34, o.y + o.h * 0.3);
+    ctx.lineTo(cx + o.w * 0.2, o.y + o.h * 0.52); ctx.lineTo(cx - o.w * 0.2, o.y + o.h * 0.52);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#c49a22"; ctx.fillRect(cx - o.w * 0.36, o.y + o.h * 0.26, o.w * 0.72, 4.4);
+    const fl = 1 + Math.sin(g.timeNow * 12 + o.x * 3) * 0.16;
+    ctx.fillStyle = "#ff9a3c";
+    ctx.beginPath();
+    ctx.moveTo(cx, o.y + o.h * 0.28 - 13 * fl);
+    ctx.quadraticCurveTo(cx + 6.4, o.y + o.h * 0.28 - 3, cx + 3.6, o.y + o.h * 0.28);
+    ctx.lineTo(cx - 3.6, o.y + o.h * 0.28);
+    ctx.quadraticCurveTo(cx - 6.4, o.y + o.h * 0.28 - 3, cx, o.y + o.h * 0.28 - 13 * fl);
+    ctx.fill();
+    ctx.fillStyle = "#ffe98a";
+    ctx.beginPath(); ctx.ellipse(cx, o.y + o.h * 0.28 - 3.4, 2.6, 4.2 * fl, 0, 0, 6.283); ctx.fill();
+    return;
+  }
+  /* pillar — the marble column: bevelled stone, veins, gold capital */
+  const pg = ctx.createLinearGradient(o.x, 0, o.x + o.w, 0);
+  pg.addColorStop(0, pal.ob); pg.addColorStop(0.28, pal.obTop); pg.addColorStop(0.55, pal.ob); pg.addColorStop(1, dark ? "#232329" : "#c9b98f");
+  ctx.fillStyle = pg; ctx.fillRect(o.x, o.y, o.w, o.h);
+  ctx.fillStyle = "rgba(255,255,255,0.10)"; ctx.fillRect(o.x + 2, o.y + 8, 3, o.h - 16);
+  ctx.fillStyle = "rgba(0,0,0,0.20)"; ctx.fillRect(o.x + o.w - 5, o.y + 8, 3, o.h - 16);
+  const vseed = Math.floor(o.x * 3 + o.y * 7);
+  ctx.strokeStyle = dark ? "rgba(255,255,255,0.12)" : "rgba(110,84,30,0.18)";
+  ctx.lineWidth = 1.1;
+  for (let vn = 0; vn < 3; vn++) {
+    const vx = o.x + o.w * (0.22 + 0.26 * vn) + ((vseed >> (vn * 3)) % 9) - 4;
+    ctx.beginPath(); ctx.moveTo(vx, o.y + 10);
+    ctx.quadraticCurveTo(vx + (((vseed >> (vn * 5)) % 13) - 6), o.y + o.h * 0.5, vx + (((vseed >> (vn * 2)) % 9) - 4), o.y + o.h - 8);
+    ctx.stroke();
+  }
+  const cap = ctx.createLinearGradient(0, o.y, 0, o.y + 9);
+  cap.addColorStop(0, "#ffe98a"); cap.addColorStop(1, "#c49a22");
+  ctx.fillStyle = cap; ctx.fillRect(o.x - 1.5, o.y, o.w + 3, 8);
+  ctx.fillStyle = dark ? "#26262c" : "#cbb98f"; ctx.fillRect(o.x - 1.5, o.y + o.h - 7, o.w + 3, 7);
+  ctx.strokeStyle = pal.obEdge; ctx.lineWidth = 1.2;
+  ctx.strokeRect(o.x + 0.5, o.y + 0.5, o.w - 1, o.h - 1);
+}
+
+interface RoomView {
+  bg: HTMLCanvasElement | null;
+  obstacles: Obstacle[];
+  pickups: Pickup[];
+  doorOpen: boolean;
+  enemies: Enemy[];
+  bolts: Bolt[];
+  ebolts: EBolt[];
+  boss: Enemy | null;
+}
+const NO_ENEMIES: Enemy[] = [];
+const NO_BOLTS: Bolt[] = [];
+const NO_EBOLTS: EBolt[] = [];
+
+/* Draw ONE room (backdrop, walls, door, dressing, foes) at the
+   current transform. The caller owns translate/clip — the transit
+   passage draws two of these, the live game draws one. */
+function drawRoom(g: G, ctx: CanvasRenderingContext2D, room: RoomView) {
+  const pal = PAL[g.theme];
   ctx.save();
   if (g.shake > 0) ctx.translate((Math.random() - 0.5) * g.shake, (Math.random() - 0.5) * g.shake);
-  if (bg) ctx.drawImage(bg, 0, 0, LW, LH);
+  if (room.bg) ctx.drawImage(room.bg, 0, 0, LW, LH);
 
   /* walls */
   ctx.fillStyle = pal.wallFace;
@@ -1095,87 +1865,40 @@ function render(g: G, ctx: CanvasRenderingContext2D, bg: HTMLCanvasElement | nul
       ctx.fillStyle = tg; ctx.fillRect(torchPts[ti]![0] - 70, torchPts[ti]![1] - 70, 140, 140);
       ctx.fillStyle = "#ffb347"; ctx.beginPath(); ctx.arc(torchPts[ti]![0], torchPts[ti]![1], 4, 0, 6.283); ctx.fill();
     }
-  }
-
-  drawDoor(g, ctx);
-
-  /* obstacles as marble pillars: stone body, veins, gold cap, shadow */
-  for (const o of g.obstacles) {
-    ctx.fillStyle = g.theme === "dark" ? "rgba(0,0,0,0.4)" : "rgba(96,74,20,0.28)";
-    ctx.fillRect(o.x + 4, o.y + 6, o.w, o.h);
-    const pg = ctx.createLinearGradient(o.x, 0, o.x + o.w, 0);
-    pg.addColorStop(0, pal.ob); pg.addColorStop(0.5, pal.obTop); pg.addColorStop(1, pal.ob);
-    ctx.fillStyle = pg; ctx.fillRect(o.x, o.y, o.w, o.h);
-    /* marble veins — seeded by position so they never shimmer */
-    const vseed = Math.floor(o.x * 3 + o.y * 7);
-    ctx.strokeStyle = g.theme === "dark" ? "rgba(255,255,255,0.10)" : "rgba(110,84,30,0.16)";
-    ctx.lineWidth = 1.1;
-    for (let vn = 0; vn < 3; vn++) {
-      const vx = o.x + o.w * (0.22 + 0.26 * vn) + ((vseed >> (vn * 3)) % 9) - 4;
-      ctx.beginPath(); ctx.moveTo(vx, o.y + 10);
-      ctx.quadraticCurveTo(vx + (((vseed >> (vn * 5)) % 13) - 6), o.y + o.h * 0.5, vx + (((vseed >> (vn * 2)) % 9) - 4), o.y + o.h - 8);
-      ctx.stroke();
+  } else {
+    /* light theme: soft daylight pools from the same corners */
+    const lightPts = [[120, 110], [LW - 120, 110], [120, LH - 110], [LW - 120, LH - 110]] as const;
+    for (const [lx, ly] of lightPts) {
+      const lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, 120);
+      lg.addColorStop(0, "rgba(255,246,214,0.35)"); lg.addColorStop(1, "rgba(255,246,214,0)");
+      ctx.fillStyle = lg; ctx.fillRect(lx - 120, ly - 120, 240, 240);
     }
-    /* gold capital on top, plain stone plinth at the base */
-    const cap = ctx.createLinearGradient(0, o.y, 0, o.y + 8);
-    cap.addColorStop(0, "#ffe98a"); cap.addColorStop(1, "#c49a22");
-    ctx.fillStyle = cap; ctx.fillRect(o.x, o.y, o.w, 7);
-    ctx.fillStyle = "rgba(0,0,0,0.28)"; ctx.fillRect(o.x, o.y + o.h - 6, o.w, 6);
-    ctx.strokeStyle = pal.obEdge; ctx.lineWidth = 1.2;
-    ctx.strokeRect(o.x + 0.5, o.y + 0.5, o.w - 1, o.h - 1);
   }
 
-  /* pickups */
-  for (const pk of g.pickups) {
-    const bobY = Math.sin(g.timeNow * 3.4 + pk.bob) * 2.6;
-    ctx.save();
-    ctx.translate(pk.x, pk.y + bobY);
-    if (pk.kind === "crown") {
-      /* gold Bucs coin — score pickup only */
-      ctx.shadowColor = "rgba(240,201,79,0.9)"; ctx.shadowBlur = 12;
-      const cg2 = ctx.createLinearGradient(0, -10, 0, 10);
-      cg2.addColorStop(0, "#ffe98a"); cg2.addColorStop(1, "#c49a22");
-      ctx.fillStyle = cg2; ctx.beginPath(); ctx.arc(0, 0, 10.5, 0, 6.283); ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = "#8a6d1f"; ctx.lineWidth = 1.4; ctx.stroke();
-      ctx.beginPath(); ctx.arc(0, 0, 7, 0, 6.283); ctx.stroke();
-      ctx.fillStyle = "#7a5c0e"; ctx.font = "900 11px Cinzel, serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText("B", 0, 0.5); ctx.textBaseline = "alphabetic";
-    } else {
-      ctx.shadowColor = "rgba(123,196,127,0.9)"; ctx.shadowBlur = 10;
-      ctx.fillStyle = "#7bc47f";
-      ctx.beginPath();
-      ctx.moveTo(0, 8);
-      ctx.bezierCurveTo(-11, 0, -8, -9, -3.4, -9);
-      ctx.bezierCurveTo(-1, -9, 0, -7.4, 0, -5.8);
-      ctx.bezierCurveTo(0, -7.4, 1, -9, 3.4, -9);
-      ctx.bezierCurveTo(8, -9, 11, 0, 0, 8);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-    ctx.restore();
-  }
+  drawDoor(g, ctx, room.doorOpen);
+
+  for (const o of room.obstacles) drawObstacle(g, ctx, o);
+  for (const pk of room.pickups) drawPickup(g, ctx, pk);
 
   /* enemy bolts */
-  for (const eb of g.ebolts) {
+  for (const eb of room.ebolts) {
     ctx.fillStyle = "#ff6b5e";
     ctx.shadowColor = "#e5484d"; ctx.shadowBlur = 9;
     ctx.beginPath(); ctx.arc(eb.x, eb.y, eb.r, 0, 6.283); ctx.fill();
     ctx.shadowBlur = 0;
   }
 
-  /* enemies */
-  for (const e of g.enemies) drawEnemy(g, ctx, e);
+  for (const e of room.enemies) drawEnemy(g, ctx, e);
 
   /* boss health bar */
-  if (g.boss) {
+  if (room.boss) {
     const bw = 340, bx = LW / 2 - bw / 2, by = WALL + 12;
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.fillRect(bx - 3, by - 3, bw + 6, 15);
     ctx.fillStyle = "#5d0f13";
     ctx.fillRect(bx, by, bw, 9);
     ctx.fillStyle = "#e5484d";
-    ctx.fillRect(bx, by, bw * clamp(g.boss.hp / g.boss.maxhp, 0, 1), 9);
+    ctx.fillRect(bx, by, bw * clamp(room.boss.hp / room.boss.maxhp, 0, 1), 9);
     ctx.strokeStyle = "rgba(212,175,55,0.7)"; ctx.lineWidth = 1;
     ctx.strokeRect(bx - 3, by - 3, bw + 6, 15);
     ctx.fillStyle = "#f3e9d2";
@@ -1185,7 +1908,7 @@ function render(g: G, ctx: CanvasRenderingContext2D, bg: HTMLCanvasElement | nul
   }
 
   /* player bolts */
-  for (const b of g.bolts) {
+  for (const b of room.bolts) {
     ctx.strokeStyle = "rgba(240,201,79,0.4)"; ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(b.x - b.vx * 0.022, b.y - b.vy * 0.022);
@@ -1195,18 +1918,67 @@ function render(g: G, ctx: CanvasRenderingContext2D, bg: HTMLCanvasElement | nul
     ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.283); ctx.fill();
     ctx.shadowBlur = 0;
   }
+  ctx.restore();
+}
 
-  /* dash afterimages */
-  for (const ai of g.afterimages) {
+function render(g: G, ctx: CanvasRenderingContext2D, bg: HTMLCanvasElement | null, bgAlt: HTMLCanvasElement | null, scale: number) {
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.clearRect(0, 0, LW, LH);
+
+  /* ── the door passage: two rooms, one sliding view, no teleport ── */
+  if (g.transit) {
+    const tr = g.transit;
     ctx.save();
-    ctx.globalAlpha = 0.35 * (1 - ai.life / 0.3);
-    ctx.translate(ai.x, ai.y);
-    ctx.fillStyle = "#d4af37";
-    ctx.beginPath(); ctx.arc(0, 0, 24, 0, 6.283); ctx.fill();
+    ctx.beginPath(); ctx.rect(0, tr.camY, LW, LH - tr.camY); ctx.clip();
+    ctx.translate(0, tr.camY);
+    drawRoom(g, ctx, {
+      bg, obstacles: tr.snapObstacles, pickups: tr.snapPickups, doorOpen: true,
+      enemies: NO_ENEMIES, bolts: NO_BOLTS, ebolts: NO_EBOLTS, boss: null,
+    });
+    ctx.restore();
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, LW, Math.max(0.001, tr.camY)); ctx.clip();
+    ctx.translate(0, tr.camY - LH);
+    drawRoom(g, ctx, {
+      bg: bgAlt, obstacles: g.obstacles, pickups: g.pickups, doorOpen: g.doorOpen,
+      enemies: g.enemies, bolts: NO_BOLTS, ebolts: NO_EBOLTS, boss: g.boss,
+    });
+    ctx.restore();
+    /* the King, walking the passage in screen space */
+    drawKing(g, ctx, tr.kingX, tr.kingY);
+    return;
+  }
+
+  drawRoom(g, ctx, {
+    bg, obstacles: g.obstacles, pickups: g.pickups, doorOpen: g.doorOpen,
+    enemies: g.enemies, bolts: g.bolts, ebolts: g.ebolts, boss: g.boss,
+  });
+
+  /* dash afterimages — ghost Kings along the dash path */
+  for (const ai of g.afterimages) {
+    drawKingSprite(g, ctx, ai.x, ai.y, 1.35, 0.32 * (1 - ai.life / 0.3), ai.faceX, ai.faceY);
+  }
+  drawKing(g, ctx);
+
+  /* aim indicator — visible whenever aim input exists, so the manual
+     control is seen, not hidden: a gold line + chevron off the King */
+  if (g.phase === "playing" && g.aim.on) {
+    const P = g.P, ax = g.aim.x, ay = g.aim.y;
+    ctx.save();
+    ctx.strokeStyle = "rgba(240,201,79,0.55)"; ctx.lineWidth = 2.4;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(P.x + ax * 34, P.y + ay * 34);
+    ctx.lineTo(P.x + ax * 54, P.y + ay * 54);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.translate(P.x + ax * 62, P.y + ay * 62);
+    ctx.rotate(Math.atan2(ay, ax));
+    ctx.fillStyle = "#f0c94f"; ctx.shadowColor = "#f0c94f"; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.moveTo(9, 0); ctx.lineTo(-5, -5.4); ctx.lineTo(-5, 5.4); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
-  ctx.globalAlpha = 1;
-  drawKing(g, ctx);
+
   /* arrow pointing to the open golden door */
   if (g.doorOpen && g.phase === "playing") {
     const P = g.P;
@@ -1235,7 +2007,6 @@ function render(g: G, ctx: CanvasRenderingContext2D, bg: HTMLCanvasElement | nul
     ctx.fillText(f.text, f.x, f.y);
   }
   ctx.globalAlpha = 1;
-  ctx.restore();
 }
 
 /* ─── pause + joystick state ──────────────────────────────────────────── */
@@ -1246,6 +2017,7 @@ function togglePause(g: G) {
 }
 function hideJoy(g: G) {
   g.joy.on = false; g.joy.id = null; g.joy.dx = 0; g.joy.dy = 0;
+  g.aimJoy.on = false; g.aimJoy.id = null; g.aimJoy.dx = 0; g.aimJoy.dy = 0;
 }
 
 /* ─── gamepad ─────────────────────────────────────────────────────────────
@@ -1294,7 +2066,7 @@ function shortPadName(id: string) {
 function refreshPadUI(g: G) {
   let key: string, txt: string;
   if (g.pad.connected) {
-    key = "on"; txt = "Controller connected: " + shortPadName(g.pad.name) + " — stick moves, A dashes, Start pauses.";
+    key = "on"; txt = "Controller connected: " + shortPadName(g.pad.name) + " — left stick moves, right stick aims & fires, A dashes, Start pauses.";
   } else if (g.pad.apiState === "blocked") {
     key = "blocked"; txt = "Controllers are blocked in this view — the frame around the game refuses the controller channel. Open Crownfall Run in a full browser tab to play with your controller. Touch and keys work in this window.";
   } else if (padHostState(g) === "policy") {
@@ -1329,7 +2101,7 @@ function notePadSeen(g: G, gp: Gamepad) {
 function notePadGone(g: G) {
   if (g.pad.connected || g.pad.index !== -1) {
     g.pad.connected = false; g.pad.name = ""; g.pad.index = -1;
-    g.padVec.x = 0; g.padVec.y = 0; g.pad.prev = {};
+    g.padVec.x = 0; g.padVec.y = 0; g.pad.prev = {}; g.padAim.on = false;
   }
   refreshPadUI(g);
 }
@@ -1400,11 +2172,14 @@ function pollGamepad(g: G, bg: HTMLCanvasElement | null) {
   if (mag < 0.16) { ax = 0; ay = 0; }
   else if (mag > 1) { ax /= mag; ay /= mag; }
   let dx = ax, dy = ay;
-  /* right stick steers too, when the left stick is centred */
-  if (dx === 0 && dy === 0 && gp.axes && gp.axes.length > 3) {
+  /* right stick AIMS (owner ruling): the King fires where it points.
+     It never steers — movement is the left stick / D-pad alone. */
+  if (gp.axes && gp.axes.length > 3) {
     const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0;
-    if (Math.sqrt(rx * rx + ry * ry) >= 0.3) { dx = rx; dy = ry; }
-  }
+    const rm = Math.sqrt(rx * rx + ry * ry);
+    if (rm >= 0.3) { g.padAim.on = true; g.padAim.x = rx / rm; g.padAim.y = ry / rm; }
+    else g.padAim.on = false;
+  } else g.padAim.on = false;
   /* D-pad buttons (standard mapping) */
   if (padHeld(gp, 14)) dx = -1;
   if (padHeld(gp, 15)) dx = 1;
@@ -1426,6 +2201,12 @@ function pollGamepad(g: G, bg: HTMLCanvasElement | null) {
   const menuEdge = e8 || e9;                      /* Select / Start */
   const leftEdge = padEdge(g, gp, 14), rightEdge = padEdge(g, gp, 15);
 
+  if (g.phase === "transit") {
+    /* the door passage locks input — edges are sampled above so a
+       mashed button can't queue anything into the next room */
+    g.padVec.x = 0; g.padVec.y = 0;
+    return;
+  }
   if (g.phase === "upgrade") {
     g.padVec.x = 0; g.padVec.y = 0;
     const stickDir = ax > 0.55 ? 1 : ax < -0.55 ? -1 : 0;
@@ -1450,6 +2231,8 @@ function pollGamepad(g: G, bg: HTMLCanvasElement | null) {
     return;
   }
   if (g.phase === "dead") {
+    /* the run summary gets its beat first (the preview's 450ms rule) */
+    if (g.timeNow - g.deathAt < 0.45) return;
     if (menuEdge || faceEdge) startRun(g, bg);
     return;
   }
@@ -1498,6 +2281,12 @@ function createG(ui: UiBridge): G {
     runTime: 0,
     keys: {},
     joy: { on: false, id: null, bx: 0, by: 0, dx: 0, dy: 0 },
+    aimJoy: { on: false, id: null, bx: 0, by: 0, dx: 0, dy: 0 },
+    padAim: { on: false, x: 0, y: -1 },
+    mouseAim: { x: 0, y: 0, lastAt: -10, inside: false },
+    aim: { on: false, x: 0, y: -1 },
+    transit: null,
+    bgSwap: false,
     padVec: { x: 0, y: 0 },
     pad: {
       index: -1, apiState: "unknown", nextRetry: 0, uiKey: "",
@@ -1523,6 +2312,9 @@ export default function CrownfallRunGame({
   const stageRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const bgRef = useRef<HTMLCanvasElement | null>(null);
+  const bgAltRef = useRef<HTMLCanvasElement | null>(null);
+  const aimJoyBaseRef = useRef<HTMLDivElement | null>(null);
+  const aimJoyKnobRef = useRef<HTMLDivElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const scaleRef = useRef(1);
   const joyBaseRef = useRef<HTMLDivElement | null>(null);
@@ -1643,7 +2435,7 @@ export default function CrownfallRunGame({
     g.theme = light ? "light" : "dark";
     makeBg(g, bgRef.current);
     const ctx = ctxRef.current;
-    if (ctx) render(g, ctx, bgRef.current, scaleRef.current);
+    if (ctx) render(g, ctx, bgRef.current, bgAltRef.current, scaleRef.current);
   }, [light]);
 
   const startFromUi = useCallback(() => {
@@ -1668,11 +2460,25 @@ export default function CrownfallRunGame({
     bg.width = LW * SCALE;
     bg.height = LH * SCALE;
     bgRef.current = bg;
+    const bgAlt = document.createElement("canvas");
+    bgAlt.width = LW * SCALE;
+    bgAlt.height = LH * SCALE;
+    bgAltRef.current = bgAlt;
+
+    /* the Visual Buc coin — the site's primary balance coin art.
+       Guarded like every host call; the drawn coin is the fallback. */
+    try {
+      const coin = new Image();
+      coin.crossOrigin = "anonymous";
+      coin.onload = () => { setCoinImage(coin); const c2 = ctxRef.current; if (c2 && gRef.current) render(gRef.current, c2, bgRef.current, bgAltRef.current, scaleRef.current); };
+      coin.onerror = () => setCoinImage(null);
+      coin.src = mediaUrl("images/visual-bucs-icon.webp");
+    } catch { /* the drawn coin carries the game */ }
 
     g.theme = lightRef.current ? "light" : "dark";
     genFloor(g, 1, bg);
     refreshPadUI(g);
-    render(g, ctx, bg, SCALE); /* paint one frame immediately — never a blank arena */
+    render(g, ctx, bg, bgAlt, SCALE); /* paint one frame immediately — never a blank arena */
 
     const onKeyDown = (ev: KeyboardEvent) => {
       ensureAudio();
@@ -1742,9 +2548,17 @@ export default function CrownfallRunGame({
         last = now;
         g.pad.navCd = Math.max(0, g.pad.navCd - dt);
         pollGamepad(g, bgRef.current);
-        if (!g.paused) update(g, dt, bgRef.current);
+        if (!g.paused) update(g, dt, bgRef.current, bgAltRef.current);
         else g.timeNow += dt;
-        render(g, ctx, bgRef.current, SCALE);
+        if (g.bgSwap) {
+          /* a door passage just ended: the spare backdrop (the room
+             we walked into) is now the current one */
+          g.bgSwap = false;
+          const cur = bgRef.current;
+          bgRef.current = bgAltRef.current;
+          bgAltRef.current = cur;
+        }
+        render(g, ctx, bgRef.current, bgAltRef.current, SCALE);
         /* joystick visuals follow the engine's joystick state */
         const jb = joyBaseRef.current, jk = joyKnobRef.current;
         if (jb && jk) {
@@ -1756,6 +2570,18 @@ export default function CrownfallRunGame({
             jb.style.top = g.joy.by + "px";
             jk.style.left = g.joy.bx + g.joy.dx * 46 + "px";
             jk.style.top = g.joy.by + g.joy.dy * 46 + "px";
+          }
+        }
+        const ab = aimJoyBaseRef.current, ak = aimJoyKnobRef.current;
+        if (ab && ak) {
+          const on = g.aimJoy.on;
+          ab.style.display = on ? "block" : "none";
+          ak.style.display = on ? "block" : "none";
+          if (on) {
+            ab.style.left = g.aimJoy.bx + "px";
+            ab.style.top = g.aimJoy.by + "px";
+            ak.style.left = g.aimJoy.bx + g.aimJoy.dx * 46 + "px";
+            ak.style.top = g.aimJoy.by + g.aimJoy.dy * 46 + "px";
           }
         }
       } catch { /* keep looping — one bad frame must not end the run */ }
@@ -1782,35 +2608,57 @@ export default function CrownfallRunGame({
     const r = stage.getBoundingClientRect();
     return { x: ev.clientX - r.left, y: ev.clientY - r.top, w: r.width, h: r.height };
   };
+  const trackMouseAim = (ev: React.PointerEvent) => {
+    const g = gRef.current;
+    if (!g) return;
+    const p = stagePoint(ev);
+    if (p.w <= 0 || p.h <= 0) return;
+    g.mouseAim.x = (p.x / p.w) * LW;
+    g.mouseAim.y = (p.y / p.h) * LH;
+    g.mouseAim.lastAt = g.timeNow;
+    g.mouseAim.inside = true;
+  };
   const onStagePointerDown = (ev: React.PointerEvent) => {
     const g = gRef.current;
     if (!g || g.phase !== "playing" || g.paused) return;
     if ((ev.target as HTMLElement).closest("[data-overlay]")) return;
+    if (ev.pointerType === "mouse") { trackMouseAim(ev); return; }
     if ((ev.target as HTMLElement).closest("[data-dash-btn]")) return;
     const p = stagePoint(ev);
-    if (p.x > p.w * 0.62) return; /* right side belongs to dash */
-    g.joy.on = true; g.joy.id = ev.pointerId; g.joy.bx = p.x; g.joy.by = p.y; g.joy.dx = 0; g.joy.dy = 0;
+    if (p.x > p.w * 0.62) {
+      /* right side: the AIM stick (the dash button guards itself) */
+      g.aimJoy.on = true; g.aimJoy.id = ev.pointerId; g.aimJoy.bx = p.x; g.aimJoy.by = p.y; g.aimJoy.dx = 0; g.aimJoy.dy = 0;
+    } else {
+      g.joy.on = true; g.joy.id = ev.pointerId; g.joy.bx = p.x; g.joy.by = p.y; g.joy.dx = 0; g.joy.dy = 0;
+    }
     try { stageRef.current?.setPointerCapture(ev.pointerId); } catch { /* capture is a nicety */ }
     ev.preventDefault();
   };
   const onStagePointerMove = (ev: React.PointerEvent) => {
     const g = gRef.current;
-    if (!g || !g.joy.on || ev.pointerId !== g.joy.id) return;
+    if (!g) return;
+    if (ev.pointerType === "mouse") { trackMouseAim(ev); return; }
+    const stick = g.joy.on && ev.pointerId === g.joy.id ? g.joy
+      : g.aimJoy.on && ev.pointerId === g.aimJoy.id ? g.aimJoy
+      : null;
+    if (!stick) return;
     const p = stagePoint(ev);
-    let dx = p.x - g.joy.bx, dy = p.y - g.joy.by;
+    let dx = p.x - stick.bx, dy = p.y - stick.by;
     const d = Math.sqrt(dx * dx + dy * dy), max = 46;
     if (d > max) { dx = (dx / d) * max; dy = (dy / d) * max; }
-    g.joy.dx = dx / max; g.joy.dy = dy / max;
-    if (d < 7) { g.joy.dx = 0; g.joy.dy = 0; }
+    stick.dx = dx / max; stick.dy = dy / max;
+    if (d < 7) { stick.dx = 0; stick.dy = 0; }
     ev.preventDefault();
   };
   const onStagePointerEnd = (ev: React.PointerEvent) => {
     const g = gRef.current;
-    if (g && g.joy.on && ev.pointerId === g.joy.id) hideJoy(g);
+    if (!g) return;
+    if (g.joy.on && ev.pointerId === g.joy.id) { g.joy.on = false; g.joy.id = null; g.joy.dx = 0; g.joy.dy = 0; }
+    if (g.aimJoy.on && ev.pointerId === g.aimJoy.id) { g.aimJoy.on = false; g.aimJoy.id = null; g.aimJoy.dx = 0; g.aimJoy.dy = 0; }
   };
 
   const ink = light ? "text-[#2A1E07]" : "text-white";
-  const muted = light ? "text-[#6B5B36]" : "text-white/55";
+  const mutedInk = light ? "text-[#6B5B36]" : "text-white/55";
   const goldInk = light ? "text-[#7A5A12]" : "text-[#f0d878]";
   const panelSoft = light ? "bg-[#7A5A12]/10" : "bg-white/[0.06]";
   const overlayBg = light ? "rgba(250,247,240,0.86)" : "rgba(4,4,4,0.78)";
@@ -1827,11 +2675,11 @@ export default function CrownfallRunGame({
       {/* HUD */}
       <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-3 py-2 ${cardCls}`}>
         <span className="min-w-[3.2rem]">
-          <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${muted}`}>Floor</span>
+          <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${mutedInk}`}>Floor</span>
           <span className={`block text-lg font-black leading-tight ${ink}`}>{hud.floor}</span>
         </span>
         <span className="min-w-[6.5rem] flex-1">
-          <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${muted}`}>
+          <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${mutedInk}`}>
             King&rsquo;s HP · {hud.hp}/{hud.maxhp}
           </span>
           <span className={`mt-1 block h-2.5 overflow-hidden rounded-full ${light ? "bg-[#7A5A12]/15" : "bg-white/10"}`}>
@@ -1847,15 +2695,15 @@ export default function CrownfallRunGame({
           </span>
         </span>
         <span className="min-w-[3.6rem]">
-          <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${muted}`}>Bucs coins</span>
+          <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${mutedInk}`}>Bucs coins</span>
           <span className={`block text-lg font-black leading-tight ${goldInk}`}>{hud.crowns}</span>
         </span>
         <span className="min-w-[3.6rem]">
-          <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${muted}`}>Score</span>
+          <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${mutedInk}`}>Score</span>
           <span className={`block text-lg font-black leading-tight ${goldInk}`}>{hud.score.toLocaleString()}</span>
         </span>
       </div>
-      <div className={`flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1 px-1 py-1.5 text-[13px] ${muted}`}>
+      <div className={`flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1 px-1 py-1.5 text-[13px] ${mutedInk}`}>
         <span>Foes felled: <b className={ink}>{hud.kills}</b> · <b className={ink}>{hud.left} left</b></span>
         {padLive && <span className={`font-bold ${goldInk}`}>Controller live</span>}
         {hud.combo >= 2 && <span className={`font-black ${goldInk}`}>Combo x{hud.combo}</span>}
@@ -1902,6 +2750,7 @@ export default function CrownfallRunGame({
         onPointerMove={onStagePointerMove}
         onPointerUp={onStagePointerEnd}
         onPointerCancel={onStagePointerEnd}
+        onPointerLeave={() => { const g = gRef.current; if (g) g.mouseAim.inside = false; }}
         onContextMenu={(e) => e.preventDefault()}
       >
         <canvas
@@ -1924,6 +2773,20 @@ export default function CrownfallRunGame({
           aria-hidden="true"
           className="pointer-events-none absolute z-[4] hidden h-12 w-12 rounded-full border-2 border-[#9a7b1e] shadow-lg"
           style={{ margin: "-24px 0 0 -24px", background: "radial-gradient(circle at 35% 30%, #f0c94f, #9a7b1e)" }}
+        />
+
+        {/* touch AIM joystick visuals (right side) */}
+        <div
+          ref={aimJoyBaseRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute z-[4] hidden h-[108px] w-[108px] rounded-full border-2 border-dashed border-[#e5484d]/60"
+          style={{ margin: "-54px 0 0 -54px", background: "radial-gradient(circle, transparent 55%, rgba(229,72,77,0.14))" }}
+        />
+        <div
+          ref={aimJoyKnobRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute z-[4] hidden h-12 w-12 rounded-full border-2 border-[#8f1d20] shadow-lg"
+          style={{ margin: "-24px 0 0 -24px", background: "radial-gradient(circle at 35% 30%, #ff8a7a, #c22e35)" }}
         />
 
         {phase === "playing" && (
@@ -1960,7 +2823,7 @@ export default function CrownfallRunGame({
           <div data-overlay className="absolute inset-0 z-[5] overflow-y-auto" style={{ background: overlayBg, touchAction: "pan-y" }}>
             <div className="flex min-h-full w-full flex-col items-center justify-center px-4 py-4 text-center">
               <h3 className={`text-3xl font-black ${ink}`}>Paused</h3>
-              <p className={`mb-4 mt-1 max-w-[42ch] text-sm ${muted}`}>The deep waits. Press P, Start, or tap Resume to keep going.</p>
+              <p className={`mb-4 mt-1 max-w-[42ch] text-sm ${mutedInk}`}>The deep waits. Press P, Start, or tap Resume to keep going.</p>
               <button type="button" className={btnGold} onClick={() => { const g = gRef.current; if (g) togglePause(g); }}>
                 Resume
               </button>
@@ -1978,27 +2841,27 @@ export default function CrownfallRunGame({
               <h3 className={`text-3xl font-black leading-tight ${ink}`}>
                 Crownfall <span className={goldInk}>Run</span>
               </h3>
-              <p className={`mt-0.5 max-w-[42ch] text-[15px] ${muted}`}>Defend the studio. How deep can the King go?</p>
-              <p className={`mb-3 mt-2 max-w-[46ch] text-sm ${muted}`}>
+              <p className={`mt-0.5 max-w-[42ch] text-[15px] ${mutedInk}`}>Defend the studio. How deep can the King go?</p>
+              <p className={`mb-3 mt-2 max-w-[46ch] text-sm ${mutedInk}`}>
                 Bots and glitches are invading the Bow Down Visuals studio — clear each room, grab the gold Bucs coins (score only, +25), and take the golden door down. The Usurper waits every 5th floor.
               </p>
               <div className={`mb-4 w-full max-w-[430px] rounded-xl border px-4 py-3 text-left text-sm ${cardCls}`}>
                 <div className="py-0.5"><b className={ink}>Move</b> — WASD or arrow keys · on touch, drag the left side of the arena</div>
-                <div className="py-0.5"><b className={ink}>Attack</b> — automatic: the King fires golden bolts at the nearest foe</div>
+                <div className="py-0.5"><b className={ink}>Aim &amp; fire</b> — right stick / mouse / right thumb-stick aims: your shots go where you point. No aim, no shots — every bolt is yours</div>
                 <div className="py-0.5"><b className={ink}>Dash</b> — Space · or the gold DASH button — briefly untouchable</div>
-                <div className="py-0.5"><b className={ink}>Goal</b> — clear Glitches, Spam Bots and Trolls to open the golden door, then walk through it</div>
-                <div className="py-0.5"><b className={ink}>Controller</b> — Bluetooth or wired: left stick / D-pad to move · A to dash · Start or A to begin · Start pauses</div>
+                <div className="py-0.5"><b className={ink}>Goal</b> — clear Glitches, Spam Bots and Trolls to open the golden door, then walk through it into the next room</div>
+                <div className="py-0.5"><b className={ink}>Controller</b> — Bluetooth or wired: left stick / D-pad to move · right stick aims &amp; fires · A to dash · Start or A to begin · Start pauses</div>
                 <div className="py-0.5"><b className={ink}>Pause</b> — P or the pause button</div>
               </div>
               <button type="button" className={btnGold} onClick={startFromUi} data-testid="crownfall-start">
                 <Play className="h-4 w-4" /> Start the Run
               </button>
               {padStatus && (
-                <p className={`mt-2.5 max-w-[46ch] text-[13px] ${padStatus.waiting ? muted : `font-bold ${goldInk}`}`}>
+                <p className={`mt-2.5 max-w-[46ch] text-[13px] ${padStatus.waiting ? mutedInk : `font-bold ${goldInk}`}`}>
                   {padStatus.text}
                 </p>
               )}
-              <p className={`mt-2 text-[13px] ${muted}`}>{bestLine}</p>
+              <p className={`mt-2 text-[13px] ${mutedInk}`}>{bestLine}</p>
             </div>
           </div>
         )}
@@ -2007,7 +2870,7 @@ export default function CrownfallRunGame({
           <div data-overlay className="absolute inset-0 z-[5] overflow-y-auto" style={{ background: overlayBg, touchAction: "pan-y" }}>
             <div className="flex min-h-full w-full flex-col items-center justify-center px-4 py-4 text-center">
               <h3 className={`text-2xl font-black ${ink}`}>Floor <span className={goldInk}>Cleared</span></h3>
-              <p className={`mt-1 text-sm ${muted}`}>Room cleared. Choose one studio upgrade before descending.</p>
+              <p className={`mt-1 text-sm ${mutedInk}`}>You walked into the next room. Choose one studio upgrade, then the fight starts.</p>
               <div className="mt-3 grid w-full max-w-[430px] grid-cols-1 gap-2.5 min-[560px]:max-w-none min-[560px]:grid-cols-3">
                 {picks.map((u, idx) => (
                   <button
@@ -2022,7 +2885,7 @@ export default function CrownfallRunGame({
                     </span>
                     <span>
                       <span className={`block text-base font-black leading-tight ${ink}`}>{u.name}</span>
-                      <span className={`mt-0.5 block text-[13px] ${muted}`}>{u.desc}</span>
+                      <span className={`mt-0.5 block text-[13px] ${mutedInk}`}>{u.desc}</span>
                     </span>
                   </button>
                 ))}
@@ -2035,7 +2898,7 @@ export default function CrownfallRunGame({
           <div data-overlay className="absolute inset-0 z-[5] overflow-y-auto" style={{ background: overlayBg, touchAction: "pan-y" }}>
             <div className="flex min-h-full w-full flex-col items-center justify-center px-4 py-4 text-center">
               <h3 className={`text-3xl font-black ${ink}`}>The Crown <span className={goldInk}>Falls</span></h3>
-              <p className={`mt-1 max-w-[42ch] text-sm ${muted}`}>
+              <p className={`mt-1 max-w-[42ch] text-sm ${mutedInk}`}>
                 {summary.bossDeath
                   ? "The Usurper wants the throne — and takes it this time."
                   : "The invaders overrun the studio this time."}
@@ -2050,23 +2913,23 @@ export default function CrownfallRunGame({
                   { k: "Time survived", v: fmtTime(summary.timeSec), gold: false },
                 ].map((c) => (
                   <div key={c.k} className={`rounded-xl border px-2 py-2.5 ${cardCls}`}>
-                    <div className={`text-[11px] font-bold uppercase tracking-[0.13em] ${muted}`}>{c.k}</div>
+                    <div className={`text-[11px] font-bold uppercase tracking-[0.13em] ${mutedInk}`}>{c.k}</div>
                     <div className={`text-2xl font-black ${c.gold ? goldInk : ink}`}>{c.v}</div>
                   </div>
                 ))}
               </div>
-              <p className={`mb-2.5 text-[13px] ${muted}`}>Score includes combo bonus points earned from chained kills.</p>
+              <p className={`mb-2.5 text-[13px] ${mutedInk}`}>Score includes combo bonus points earned from chained kills.</p>
               {summary.isSessionBest && <div className={`mb-2.5 font-bold ${goldInk}`}>New best run!</div>}
               <button type="button" className={btnGold} onClick={startFromUi} data-testid="crownfall-restart">
                 <RotateCcw className="h-4 w-4" /> Run Again
               </button>
-              <p className={`mt-2 text-[13px] ${muted}`}>{bestLine}</p>
+              <p className={`mt-2 text-[13px] ${mutedInk}`}>{bestLine}</p>
             </div>
           </div>
         )}
       </div>
 
-      <p className={`px-1 pb-1 pt-3 text-center text-[13px] ${muted}`}>
+      <p className={`px-1 pb-1 pt-3 text-center text-[13px] ${mutedInk}`}>
         Score = depth × 100 + Bucs coins × 25 + foes felled × 10 + combo bonus. Coins are score only — no charge, no wager.
       </p>
     </div>
