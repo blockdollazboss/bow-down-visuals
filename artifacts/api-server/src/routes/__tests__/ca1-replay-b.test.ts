@@ -777,4 +777,107 @@ describe("CA-1 replay — audio-cleanup (Pattern B job rail)", () => {
     await syncTrackers();
     expect(h.charges).toHaveLength(3);
   });
+
+  /* The failure marker is written at the END of the job's failure
+     path (after the refund + void), a beat after the poll first
+     reports "failed" — poll the durable table for it. */
+  async function storedBodies(): Promise<Array<Record<string, any>>> {
+    const rows = await rowsOf(sql`SELECT result FROM generation_stored_results`);
+    return rows.map((r: any) =>
+      typeof r.result === "string" ? JSON.parse(r.result) : r.result,
+    );
+  }
+  async function waitForFailureMarker(jobId: string) {
+    for (let i = 0; i < 50; i++) {
+      const bodies = await storedBodies();
+      const marker = bodies.find((b) => b?.jobId === jobId && b?.failed === true);
+      if (marker) return marker;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    throw new Error("no durable failure marker was stored");
+  }
+
+  it("TTL edge: a failure marker survives job-map eviction — the post-eviction retry re-runs fresh instead of replaying a phantom done", async () => {
+    /* Fail a job and let the whole failure path land. */
+    h.ffmpegFail = true;
+    const f = await postCleanup("AUDIO-BYTES-EVICTED-FAIL");
+    expect(f.status).toBe(202);
+    const failedJobId = f.json!.jobId as string;
+    await syncTrackers();
+    expect(h.charges).toHaveLength(1);
+    expect(h.charges[0]!.amount).toBe(300);
+    const failed = await waitForJob(failedJobId, "failed");
+    expect(failed.status).toBe("failed");
+    const marker = await waitForFailureMarker(failedJobId);
+    expect(marker.status).toBe("failed");
+    await syncTrackers();
+    expect(h.refunds).toEqual([300]);
+    expect(h.voids).toEqual([h.charges[0]!.key]);
+    /* Exactly one durable row, and it is the marker — the creation
+       body (status "queued", no failure flag) is gone. */
+    expect(h.stored.size).toBe(1);
+
+    /* TTL eviction: the in-memory record is gone; only the durable
+       marker remains to speak for the failure. */
+    __clearAudioCleanupJobs();
+
+    /* The retry must NOT be answered "done" off the stale body: it
+       falls through the marker, charges fresh (the first charge was
+       refunded + voided), and mints a NEW job. */
+    h.ffmpegFail = false;
+    const retry = await postCleanup("AUDIO-BYTES-EVICTED-FAIL");
+    expect(retry.status).toBe(202);
+    expect(retry.json?.status).not.toBe("done");
+    expect(retry.json?.replayed).toBeUndefined();
+    const retryJobId = retry.json!.jobId as string;
+    expect(retryJobId).not.toBe(failedJobId);
+    await syncTrackers();
+    expect(h.charges).toHaveLength(2);
+    expect(h.refunds).toEqual([300]);
+
+    /* The retry's own body replaced the marker under the key: an
+       identical re-ask now replays the NEW job, no third charge. */
+    const again = await postCleanup("AUDIO-BYTES-EVICTED-FAIL");
+    expect(again.status).toBe(202);
+    expect(again.json?.jobId).toBe(retryJobId);
+    expect(again.json?.replayed).toBe(true);
+    await syncTrackers();
+    expect(h.charges).toHaveLength(2);
+
+    /* Failure-then-success, then eviction: the stored success is
+       never evicted into a re-charge — the post-eviction re-ask is
+       served from the durable row, honestly marked done. */
+    const done = await waitForJob(retryJobId, "done");
+    expect(done.status).toBe("done");
+    __clearAudioCleanupJobs();
+    const afterEvict = await postCleanup("AUDIO-BYTES-EVICTED-FAIL");
+    expect(afterEvict.status).toBe(202);
+    expect(afterEvict.json?.jobId).toBe(retryJobId);
+    expect(afterEvict.json?.status).toBe("done");
+    expect(afterEvict.json?.replayed).toBe(true);
+    await syncTrackers();
+    expect(h.charges).toHaveLength(2);
+    expect(h.refunds).toEqual([300]);
+  });
+
+  it("TTL edge: a stored success survives job-map eviction — replay answers done with no re-charge", async () => {
+    const a = await postCleanup("AUDIO-BYTES-EVICTED-OK");
+    expect(a.status).toBe(202);
+    const jobId = a.json!.jobId as string;
+    await syncTrackers();
+    expect(h.charges).toHaveLength(1);
+    const done = await waitForJob(jobId, "done");
+    expect(done.status).toBe("done");
+
+    __clearAudioCleanupJobs();
+    const b = await postCleanup("AUDIO-BYTES-EVICTED-OK");
+    expect(b.status).toBe(202);
+    expect(b.json?.jobId).toBe(jobId);
+    expect(b.json?.status).toBe("done");
+    expect(b.json?.replayed).toBe(true);
+    await syncTrackers();
+    expect(h.charges).toHaveLength(1);
+    expect(h.refunds).toEqual([]);
+    expect(h.stored.size).toBe(1);
+  });
 });
