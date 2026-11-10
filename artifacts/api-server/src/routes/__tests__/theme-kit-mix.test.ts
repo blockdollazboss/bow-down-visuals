@@ -170,7 +170,7 @@ CREATE TABLE creator_subscriptions (
 );`;
 
 const LIBRARY_WAV = Buffer.from("RIFF----WAVEfmt library-master-bytes");
-const PACK_IDS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold", "crimson-marble"];
+const PACK_IDS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold", "crimson-marble", "emerald-marble"];
 
 beforeAll(async () => {
   const root = mkdtempSync(join(tmpdir(), "theme-kit-mix-assets-"));
@@ -377,19 +377,21 @@ describe("creator pack mix → buyer bundle", () => {
 
 describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", () => {
   /* The fixture tree carries designed files for the six raised packs
-     only. sapphire-marble + emerald-marble sets are NOT raised: their
-     bundles must say so in their own paperwork (README, kit.json,
-     install texts) instead of claiming all 50 icons, and the
-     manifests endpoint must carry the missing list. Raised packs
-     (golden-marble, crimson-marble) are the controls: complete,
-     missing []. */
+  /* The fixture tree carries designed files for the seven raised packs
+     in PACK_IDS (all eight real sets are raised; the fixture omits
+     sapphire-marble's files). sapphire-marble's set is NOT in the
+     fixture: its bundle must say so in its own paperwork (README,
+     kit.json, install texts) instead of claiming all 50 icons, and
+     the manifests endpoint must carry the missing list. Raised packs
+     (golden-marble, crimson-marble, emerald-marble) are the controls:
+     complete, missing []. */
   async function buyPack(packId: string): Promise<void> {
     await h.db.execute(
       sql`INSERT INTO theme_pack_purchases (user_id, pack_id, price_vb) VALUES (${BUYER}, ${packId}, 1000)`,
     );
   }
 
-  for (const packId of ["sapphire-marble", "emerald-marble"]) {
+  for (const packId of ["sapphire-marble"]) {
     it(`${packId}: the full bundle names its missing designed set everywhere`, async () => {
       await buyPack(packId);
       const r = await callBytes("POST", `/theme-packs/kit/${packId}/download`, { kind: "full", mode: "dark" });
@@ -440,7 +442,9 @@ describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", (
     expect(byId.get("golden-marble").icons.note).toContain("downloads ship these files");
     expect(byId.get("crimson-marble").icons.missing).toEqual([]);
     expect(byId.get("crimson-marble").icons.note).toContain("downloads ship these files");
-    for (const packId of ["sapphire-marble", "emerald-marble"]) {
+    expect(byId.get("emerald-marble").icons.missing).toEqual([]);
+    expect(byId.get("emerald-marble").icons.note).toContain("downloads ship these files");
+    for (const packId of ["sapphire-marble"]) {
       expect(byId.get(packId).icons.missing).toHaveLength(100);
       expect(byId.get(packId).icons.note).toContain("has not been raised yet");
     }

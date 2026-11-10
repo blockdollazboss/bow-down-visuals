@@ -65,20 +65,18 @@ const sha256 = (buf: Buffer): string => createHash("sha256").update(buf).digest(
    has been raised into the kit asset manifest. crimson-marble's set
    landed with the icons-crimson lane (Nov 2026) and sapphire-marble's
    set landed Nov 10, 2026 from its vector masters
-   (theme-pack-art/sapphire-marble/generate_icons.py); emerald-marble
-   ships its registry entry, grounds, per-device renders and app icon
-   now; its designed emblem set is raised by the same owner-approved
-   art program that produced the other sets
-   (theme-pack-art/MANIFEST.md, Oct 25 2026) — until it lands, the
+   (theme-pack-art/sapphire-marble/generate_icons.py), and
+   emerald-marble's set landed Nov 10, 2026 from its designed masters
+   (theme-pack-art/emerald-marble/). Until a pack's set lands, the
    server kit builder declares the gap inside the bundle itself
    (ICONS-MISSING.txt) rather than substituting art, and the FE kit
-   manifest marks the two icon components artPending. The designed-set
+   manifest marks the icon components artPending. The designed-set
    assertions below scope to this list so the gap stays VISIBLE here:
    adding a pack to this list without its 100 files fails the manifest
    pins immediately. This list and the module's
    DESIGNED_ICON_SET_PACK_IDS are the same fact — pinned equal below so
    the two can never drift. */
-const DESIGNED_SET_PACKS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold", "crimson-marble", "sapphire-marble"];
+const DESIGNED_SET_PACKS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold", "crimson-marble", "sapphire-marble", "emerald-marble"];
 
 describe("kit manifest — 12 components × every pack × light+dark", () => {
   it("covers all seven packs with all twelve components in both modes", () => {
@@ -231,21 +229,22 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
     expect(DESIGNED_ICON_NAMES).not.toContain("crown");
   });
 
-  // Explicit 30s budget: this test sha256-hashes 716 files (~20 MB) and
+  // Explicit 30s budget: this test sha256-hashes 816 files (~23 MB) and
   // runs at ~2.5s on a calm box — over half of vitest's 5s default — so
   // under multi-lane contention it used to TIME OUT and read as an asset
   // regression (stack600 reconciliation: the assets and manifest were
   // never wrong; the budget was). Assertions are unchanged.
-  it("kit-vs-manifest: all 700 designed files + 16 app icons exist with the pinned hashes", () => {
+  it("kit-vs-manifest: all 800 designed files + 16 app icons exist with the pinned hashes", () => {
     const assets = JSON.parse(
       readFileSync(publicFile("/theme-packs/kit-assets-manifest.json"), "utf8"),
     ) as {
       icons: Array<{ pack: string; icon: string; mode: string; path: string; sourceAsset: string; sha256: string }>;
       deviceWallpapers: Array<{ pack: string; mode: string; device: string; width: number; height: number; path: string; sha256: string }>;
     };
-    // 700 designed icons (7 raised sets) + 16 app icons (all 8 packs)
+    // 800 designed icons (8 raised sets) + 16 app icons (all 8 packs)
     // ride the same entries list.
-    expect(assets.icons).toHaveLength(716);
+    // ride the same entries list.
+    expect(assets.icons).toHaveLength(816);
     const seen = new Set<string>();
     for (const e of assets.icons) {
       seen.add(`${e.pack}|${e.icon}|${e.mode}`);
