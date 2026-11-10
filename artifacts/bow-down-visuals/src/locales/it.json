@@ -24649,6 +24649,7 @@
     "copStreamDesk": "Scrivania stream",
     "copStreamTitleLabel": "Titolo dello stream *",
     "copStreamsLoadFailed": "Impossibile caricare i tuoi stream",
+    "copDeskLoadFailed": "This stream's desk couldn't load.",
     "copTabClips": "Clip post-stream",
     "copTabPrep": "Preparazione pre-stream",
     "copTalkingPoints": "Punti di discussione",

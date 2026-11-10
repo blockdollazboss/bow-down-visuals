@@ -24616,6 +24616,7 @@
     "copStreamDesk": "配信デスク",
     "copStreamTitleLabel": "配信タイトル *",
     "copStreamsLoadFailed": "配信を読み込めませんでした",
+    "copDeskLoadFailed": "This stream's desk couldn't load.",
     "copTabClips": "配信後のクリップ",
     "copTabPrep": "配信前の準備",
     "copTalkingPoints": "トークポイント",

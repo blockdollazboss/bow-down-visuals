@@ -326,6 +326,7 @@ function StageSection({ isLight }: { isLight: boolean }) {
   const [stage, setStage] = useState<StageStateView | null>(null);
   const [proposals, setProposals] = useState<HighlightProposalView[]>([]);
   const [roster, setRoster] = useState<ClassRosterRow[] | null>(null);
+  const [deskError, setDeskError] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -367,19 +368,29 @@ function StageSection({ isLight }: { isLight: boolean }) {
 
   const loadDesk = useCallback(async () => {
     if (!streamId) return;
-    const headers = await authed();
-    const [stageRes, hlRes] = await Promise.all([
-      fetch(STAGE_MANAGER_PATH(streamId), { headers }),
-      fetch(HIGHLIGHTS_PATH(streamId), { headers }),
-    ]);
-    if (stageRes.ok) setStage(normalizeStageState(await stageRes.json()));
-    if (hlRes.ok) setProposals(normalizeHighlightProposals(await hlRes.json()));
-    const current = streams.find((s) => s.id === streamId);
-    if (current?.isClass) {
-      const rosterRes = await fetch(CLASS_ROSTER_PATH(streamId), { headers });
-      if (rosterRes.ok) setRoster(normalizeClassRoster(await rosterRes.json()));
-    } else {
-      setRoster(null);
+    try {
+      const headers = await authed();
+      const [stageRes, hlRes] = await Promise.all([
+        fetch(STAGE_MANAGER_PATH(streamId), { headers }),
+        fetch(HIGHLIGHTS_PATH(streamId), { headers }),
+      ]);
+      let failed = !stageRes.ok || !hlRes.ok;
+      if (stageRes.ok) setStage(normalizeStageState(await stageRes.json()));
+      if (hlRes.ok) setProposals(normalizeHighlightProposals(await hlRes.json()));
+      const current = streams.find((s) => s.id === streamId);
+      if (current?.isClass) {
+        const rosterRes = await fetch(CLASS_ROSTER_PATH(streamId), { headers });
+        if (rosterRes.ok) setRoster(normalizeClassRoster(await rosterRes.json()));
+        else failed = true;
+      } else {
+        setRoster(null);
+      }
+      /* A failed read is NOT an empty desk — it lands on deskError
+         (the error line + retry above the desk) instead of the
+         proposals/roster empty copy below. */
+      setDeskError(failed);
+    } catch {
+      setDeskError(true);
     }
   }, [authed, streamId, streams]);
 
@@ -537,6 +548,15 @@ function StageSection({ isLight }: { isLight: boolean }) {
           {stream && <span className={`text-xs ${muted}`}>{stream.hasVod ? t("worldDeskRemainder.copRecordingSaved") : t("worldDeskRemainder.copNoRecording")}</span>}
         </div>
 
+        {deskError && (
+          <p className={`mb-4 flex flex-wrap items-center gap-2 text-sm ${strong}`}>
+            {t("worldDeskRemainder.copDeskLoadFailed")}
+            <button type="button" onClick={() => void loadDesk()} className="font-semibold text-[#d4af37] hover:underline" data-testid="world-live-stage-retry-desk">
+              {t("worldDeskRemainder.copTryAgain")}
+            </button>
+          </p>
+        )}
+
         {stage && stream && (
           <div className="mb-5 flex flex-wrap items-center gap-4">
             <Toggle strong={strong} label={stage.muted ? t("worldDeskRemainder.copMuteMuted") : t("worldDeskRemainder.copMuteAction")} on={stage.muted} onClick={() => void toggleMute()} />
@@ -562,9 +582,9 @@ function StageSection({ isLight }: { isLight: boolean }) {
           <Clapperboard className="h-4 w-4 text-[#d4af37]" />
           <p className="text-[11px] font-bold uppercase tracking-widest text-[#d4af37]">{t("worldDeskRemainder.copProposalsTitle")}</p>
         </div>
-        {proposals.length === 0 ? (
+        {proposals.length === 0 && !deskError ? (
           <p className={`text-sm ${muted}`}>{t("worldDeskRemainder.copProposalsEmpty")}</p>
-        ) : (
+        ) : proposals.length === 0 ? null : (
           <div className="grid gap-3 md:grid-cols-3" data-testid="world-live-stage-proposals">
             {proposals.map((p) => (
               <div key={p.id} className={`rounded-2xl border p-4 ${isLight ? "border-[#C9A84C]/40 bg-white/40" : "border-white/10 bg-white/[0.03]"}`}>
@@ -606,9 +626,9 @@ function StageSection({ isLight }: { isLight: boolean }) {
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : roster ? (
               <p className={`text-sm ${muted}`}>{t("worldDeskRemainder.copRosterEmpty")}</p>
-            )}
+            ) : null}
             <p className={`mt-2 text-xs ${muted}`}>
               {stream.classCourseProductId
                 ? t("worldDeskRemainder.copReplayListed")

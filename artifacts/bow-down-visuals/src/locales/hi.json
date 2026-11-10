@@ -24620,6 +24620,7 @@
     "copStreamDesk": "स्ट्रीम डेस्क",
     "copStreamTitleLabel": "स्ट्रीम शीर्षक *",
     "copStreamsLoadFailed": "आपकी स्ट्रीम लोड नहीं हो सकीं",
+    "copDeskLoadFailed": "This stream's desk couldn't load.",
     "copTabClips": "पोस्ट-स्ट्रीम क्लिप",
     "copTabPrep": "प्री-स्ट्रीम तैयारी",
     "copTalkingPoints": "बात के बिंदु",

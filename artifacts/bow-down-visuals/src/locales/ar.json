@@ -24736,6 +24736,7 @@
     "copStreamDesk": "مكتب البث",
     "copStreamTitleLabel": "عنوان البث *",
     "copStreamsLoadFailed": "تعذر تحميل بثوثك",
+    "copDeskLoadFailed": "This stream's desk couldn't load.",
     "copTabClips": "مقاطع ما بعد البث",
     "copTabPrep": "إعداد ما قبل البث",
     "copTalkingPoints": "نقاط الحديث",

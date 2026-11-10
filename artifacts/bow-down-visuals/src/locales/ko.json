@@ -24620,6 +24620,7 @@
     "copStreamDesk": "스트림 데스크",
     "copStreamTitleLabel": "스트림 제목 *",
     "copStreamsLoadFailed": "스트림을 불러오지 못했습니다",
+    "copDeskLoadFailed": "This stream's desk couldn't load.",
     "copTabClips": "스트림 후 클립",
     "copTabPrep": "스트림 전 준비",
     "copTalkingPoints": "토크 포인트",

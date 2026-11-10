@@ -24649,6 +24649,7 @@
     "copStreamDesk": "Mesa de stream",
     "copStreamTitleLabel": "Título do stream *",
     "copStreamsLoadFailed": "Não foi possível carregar seus streams",
+    "copDeskLoadFailed": "This stream's desk couldn't load.",
     "copTabClips": "Clipes pós-stream",
     "copTabPrep": "Preparação pré-stream",
     "copTalkingPoints": "Pontos de conversa",
