@@ -105,6 +105,7 @@ export default function LiveStageDesk() {
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [streams, setStreams] = useState<MyStream[]>([]);
   const [streamsError, setStreamsError] = useState(false);
+  const [deskError, setDeskError] = useState(false);
   const [streamId, setStreamId] = useState<string>("");
   const [stage, setStage] = useState<StageState | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -142,19 +143,28 @@ export default function LiveStageDesk() {
 
   const loadDesk = useCallback(async () => {
     if (!streamId) return;
-    const headers = await authed();
-    const [stageRes, hlRes] = await Promise.all([
-      fetch(`/api/live-streams/${streamId}/stage-manager`, { headers }),
-      fetch(`/api/live-streams/${streamId}/highlights`, { headers }),
-    ]);
-    if (stageRes.ok) setStage((await stageRes.json()) as StageState);
-    if (hlRes.ok) setProposals(((await hlRes.json()) as { proposals: Proposal[] }).proposals);
-    const current = streams.find((s) => s.id === streamId);
-    if (current?.is_class) {
-      const rosterRes = await fetch(`/api/live-streams/${streamId}/class-roster`, { headers });
-      if (rosterRes.ok) setRoster(((await rosterRes.json()) as { roster: RosterEntry[] }).roster);
-    } else {
-      setRoster(null);
+    try {
+      const headers = await authed();
+      const [stageRes, hlRes] = await Promise.all([
+        fetch(`/api/live-streams/${streamId}/stage-manager`, { headers }),
+        fetch(`/api/live-streams/${streamId}/highlights`, { headers }),
+      ]);
+      if (stageRes.ok) setStage((await stageRes.json()) as StageState);
+      if (hlRes.ok) setProposals(((await hlRes.json()) as { proposals: Proposal[] }).proposals);
+      let failed = !stageRes.ok || !hlRes.ok;
+      const current = streams.find((s) => s.id === streamId);
+      if (current?.is_class) {
+        const rosterRes = await fetch(`/api/live-streams/${streamId}/class-roster`, { headers });
+        if (rosterRes.ok) setRoster(((await rosterRes.json()) as { roster: RosterEntry[] }).roster);
+        else failed = true;
+      } else {
+        setRoster(null);
+      }
+      /* A failed desk read is NOT an empty desk — the proposals and
+         roster empty copies are gated on this flag, with a retry. */
+      setDeskError(failed);
+    } catch {
+      setDeskError(true);
     }
   }, [authed, streamId, streams]);
 
@@ -307,6 +317,20 @@ export default function LiveStageDesk() {
           {stream && <span className="text-xs text-white/40">{stream.has_vod ? "Recording saved" : "No recording yet"}</span>}
         </div>
 
+        {deskError && (
+          <p className="mb-4 text-sm text-red-400">
+            Some of this desk didn&rsquo;t load.{" "}
+            <button
+              type="button"
+              onClick={() => void loadDesk()}
+              className="font-semibold text-primary hover:underline"
+              data-testid="btn-retry-desk"
+            >
+              Try again
+            </button>
+          </p>
+        )}
+
         {stage && stream && (
           <div className="mb-5 flex flex-wrap items-center gap-4">
             <Toggle label={stage.muted ? "Co-host is MUTED on this stream" : "Mute the co-host on this stream"} on={stage.muted} onClick={toggleMute} />
@@ -332,7 +356,7 @@ export default function LiveStageDesk() {
           <Clapperboard className="h-4 w-4 text-primary" />
           <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Highlight proposals</p>
         </div>
-        {proposals.length === 0 ? (
+        {proposals.length === 0 && !deskError ? (
           <p className="text-sm text-white/45">No proposals for this stream yet — they land when the stream's recording does, picked from its own chat spikes, tips, and crowd peaks.</p>
         ) : (
           <div className="grid gap-3 md:grid-cols-3">
@@ -378,9 +402,9 @@ export default function LiveStageDesk() {
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : roster ? (
               <p className="text-sm text-white/45">No tickets sold yet — every buyer lands on this roster automatically.</p>
-            )}
+            ) : null}
             <p className="mt-2 text-xs text-white/40">
               {stream.class_course_product_id
                 ? "The replay is listed as a course (draft) in your shop — set its price and publish when you're ready."

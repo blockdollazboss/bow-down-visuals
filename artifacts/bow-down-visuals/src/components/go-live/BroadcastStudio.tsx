@@ -1179,7 +1179,8 @@ export default function BroadcastStudio() {
     if (!leftover) return;
     try {
       const headers = await authed();
-      await fetch(`/api/live-streams/${leftover.id}/end`, { method: "POST", headers });
+      const res = await fetch(`/api/live-streams/${leftover.id}/end`, { method: "POST", headers });
+      if (!res.ok) throw new Error("end leftover failed");
       setLeftover(null);
       toast({ title: "Stream ended", description: "That leftover live stream is closed out." });
     } catch {
