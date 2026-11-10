@@ -63,20 +63,22 @@ const sha256 = (buf: Buffer): string => createHash("sha256").update(buf).digest(
 
 /* Packs whose owner-approved DESIGNED emblem set (50 icons × 2 modes)
    has been raised into the kit asset manifest. crimson-marble's set
-   landed with the icons-crimson lane (Nov 2026); sapphire-marble
-   (Stack-300 theme-packs) and emerald-marble ship their registry
-   entries, grounds, per-device renders and app icons now; their
-   designed emblem sets are raised by the same owner-approved art
-   program that produced the other six sets (theme-pack-art/MANIFEST.md,
-   Oct 25 2026) — until they land, the server kit builder declares
-   the gap inside the bundle itself (ICONS-MISSING.txt) rather than
-   substituting art, and the FE kit manifest marks the two icon
-   components artPending. The designed-set assertions below scope to
-   this list so the gap stays VISIBLE here: adding a pack to this
-   list without its 100 files fails the manifest pins immediately.
-   This list and the module's DESIGNED_ICON_SET_PACK_IDS are the
-   same fact — pinned equal below so the two can never drift. */
-const DESIGNED_SET_PACKS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold", "crimson-marble"];
+   landed with the icons-crimson lane (Nov 2026) and sapphire-marble's
+   set landed Nov 10, 2026 from its vector masters
+   (theme-pack-art/sapphire-marble/generate_icons.py); emerald-marble
+   ships its registry entry, grounds, per-device renders and app icon
+   now; its designed emblem set is raised by the same owner-approved
+   art program that produced the other sets
+   (theme-pack-art/MANIFEST.md, Oct 25 2026) — until it lands, the
+   server kit builder declares the gap inside the bundle itself
+   (ICONS-MISSING.txt) rather than substituting art, and the FE kit
+   manifest marks the two icon components artPending. The designed-set
+   assertions below scope to this list so the gap stays VISIBLE here:
+   adding a pack to this list without its 100 files fails the manifest
+   pins immediately. This list and the module's
+   DESIGNED_ICON_SET_PACK_IDS are the same fact — pinned equal below so
+   the two can never drift. */
+const DESIGNED_SET_PACKS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold", "crimson-marble", "sapphire-marble"];
 
 describe("kit manifest — 12 components × every pack × light+dark", () => {
   it("covers all seven packs with all twelve components in both modes", () => {
@@ -229,21 +231,21 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
     expect(DESIGNED_ICON_NAMES).not.toContain("crown");
   });
 
-  // Explicit 30s budget: this test sha256-hashes 556 files (~16 MB) and
+  // Explicit 30s budget: this test sha256-hashes 716 files (~20 MB) and
   // runs at ~2.5s on a calm box — over half of vitest's 5s default — so
   // under multi-lane contention it used to TIME OUT and read as an asset
   // regression (stack600 reconciliation: the assets and manifest were
   // never wrong; the budget was). Assertions are unchanged.
-  it("kit-vs-manifest: all 600 designed files + 12 app icons exist with the pinned hashes", () => {
+  it("kit-vs-manifest: all 700 designed files + 16 app icons exist with the pinned hashes", () => {
     const assets = JSON.parse(
       readFileSync(publicFile("/theme-packs/kit-assets-manifest.json"), "utf8"),
     ) as {
       icons: Array<{ pack: string; icon: string; mode: string; path: string; sourceAsset: string; sha256: string }>;
       deviceWallpapers: Array<{ pack: string; mode: string; device: string; width: number; height: number; path: string; sha256: string }>;
     };
-    // 600 designed icons (6 raised sets) + 16 app icons (all 8 packs)
+    // 700 designed icons (7 raised sets) + 16 app icons (all 8 packs)
     // ride the same entries list.
-    expect(assets.icons).toHaveLength(616);
+    expect(assets.icons).toHaveLength(716);
     const seen = new Set<string>();
     for (const e of assets.icons) {
       seen.add(`${e.pack}|${e.icon}|${e.mode}`);

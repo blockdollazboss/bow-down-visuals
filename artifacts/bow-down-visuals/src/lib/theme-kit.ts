@@ -352,14 +352,19 @@ export type DesignedIconName = (typeof DESIGNED_ICON_NAMES)[number];
     asset library — all 50 icons × light+dark on disk, hashes pinned
     in kit-assets-manifest.json. Every other pack's set is
     owner-approved art-program work that has not landed yet
-    (sapphire-marble, emerald-marble): its icon-set + folder-icons
+    (): its icon-set + folder-icons
     components are marked artPending in the kit manifest, the desk
     says so, and its bundles name the missing files
     (ICONS-MISSING.txt) — never a substitute. Pinned against the
-    files on disk by theme-kit.test.ts (kit-vs-manifest). */
+    files on disk by theme-kit.test.ts (kit-vs-manifest).
+    sapphire-marble's set was raised Nov 10, 2026: 50 emblems defined
+    once as vector primitives (theme-pack-art/sapphire-marble/
+    generate_icons.py), mastered at 1600×1600 in
+    theme-pack-art/sapphire-marble/masters-webp with SVG masters
+    alongside, shipped scale-only at 512×512 like the other sets. */
 export const DESIGNED_ICON_SET_PACK_IDS: readonly string[] = [
   "golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold",
-  "crimson-marble",
+  "crimson-marble", "sapphire-marble",
 ];
 
 export function hasDesignedIconSet(packId: string): boolean {
