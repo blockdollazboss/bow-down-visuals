@@ -626,7 +626,7 @@ function addWallpapers(archive: InstanceType<typeof ZipArchive>, pack: ServerPac
 /** The designed-icon site paths ABSENT from this deploy's asset
     library for a pack, in bundle order (light then dark, manifest
     name order). A pack whose set the art program has not raised yet
-    (crimson-marble, sapphire-marble, emerald-marble) is missing all 100; a raised
+    (sapphire-marble, emerald-marble) is missing all 100; a raised
     pack is missing none. The bundle paperwork (README, kit.json,
     install texts, the manifests endpoint) conditions itself on
     this list — the kit never claims icons it does not ship. */
