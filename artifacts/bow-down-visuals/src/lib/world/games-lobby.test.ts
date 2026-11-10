@@ -49,10 +49,11 @@ describe("gamesSurfaceForStation", () => {
 });
 
 describe("the cabinets", () => {
-  it("are the two house games, runner first, titles from the shared meta", () => {
-    expect(ARCADE_CABINETS.map((c) => c.id)).toEqual(["runner", "skeet"]);
+  it("are the three house games, runner first, titles from the shared meta", () => {
+    expect(ARCADE_CABINETS.map((c) => c.id)).toEqual(["runner", "skeet", "crownfall"]);
     expect(ARCADE_CABINETS[0]!.title).toBe("Shark King Endless Runner");
     expect(ARCADE_CABINETS[1]!.title).toBe("Royal Skeet");
+    expect(ARCADE_CABINETS[2]!.title).toBe("Crownfall Run");
     for (const c of ARCADE_CABINETS) expect(c.tagline.length).toBeGreaterThan(0);
   });
 });
@@ -64,9 +65,10 @@ describe("parseArcadeMe", () => {
         games: [
           { game: "runner", best: 1200 },
           { game: "skeet", best: null },
+          { game: "crownfall", best: 847 },
         ],
       }),
-    ).toEqual({ runner: 1200, skeet: null });
+    ).toEqual({ runner: 1200, skeet: null, crownfall: 847 });
   });
 
   it("ignores unknown games and malformed payloads", () => {
@@ -105,6 +107,8 @@ describe("the shark-drop rail gate", () => {
     expect(dropQualifies({ game: "runner", score: 249, durationMs: 1 })).toBe(false);
     expect(dropQualifies({ game: "skeet", score: 1500, durationMs: 1 })).toBe(true);
     expect(dropQualifies({ game: "skeet", score: 1499, durationMs: 1 })).toBe(false);
+    expect(dropQualifies({ game: "crownfall", score: 500, durationMs: 1 })).toBe(true);
+    expect(dropQualifies({ game: "crownfall", score: 499, durationMs: 1 })).toBe(false);
   });
 
   it("parses a held drop and nothing else", () => {

@@ -148,6 +148,44 @@ describe("arcade score validation", () => {
   });
 });
 
+/* ─── Crownfall Run caps ─────────────────────────────────────────────── */
+
+describe("crownfall score validation", () => {
+  it("cap is derived from construction: 120s → 31 floors of headroom", () => {
+    // depthMax = floor(120000/4000)+1 = 31; kills ≤ 31×11 = 341;
+    // coins ≤ 31×27 = 837; combo ≤ 341×340/2 (one unbroken chain).
+    expect(maxPlausibleScore("crownfall", 120_000)).toBe(
+      31 * 100 + 837 * 25 + 341 * 10 + (341 * 340) / 2,
+    );
+    expect(maxPlausibleScore("crownfall", 60_000)).toBeLessThan(
+      maxPlausibleScore("crownfall", 120_000),
+    );
+  });
+
+  it("accepts a plausible deep run and exactly the cap, rejects cap + 1", () => {
+    expect(validateArcadeScore({ game: "crownfall", score: 2_500, durationMs: 120_000 }).ok).toBe(true);
+    const cap = maxPlausibleScore("crownfall", 120_000);
+    expect(validateArcadeScore({ game: "crownfall", score: cap, durationMs: 120_000 }).ok).toBe(true);
+    expect(validateArcadeScore({ game: "crownfall", score: cap + 1, durationMs: 120_000 }).ok).toBe(false);
+  });
+
+  it("rejects a rich score claimed for a short run", () => {
+    // 100k in one minute is beyond even the combo rule's arithmetic.
+    expect(validateArcadeScore({ game: "crownfall", score: 100_000, durationMs: 60_000 }).ok).toBe(false);
+  });
+
+  it("rejects the billion-points printer instantly", () => {
+    expect(validateArcadeScore({ game: "crownfall", score: 1_000_000_000, durationMs: 30 * 60_000 }).ok).toBe(false);
+  });
+
+  it("allows a legitimately long descent but caps duration at 60 minutes", () => {
+    expect(validateArcadeScore({ game: "crownfall", score: 20_000, durationMs: 30 * 60_000 }).ok).toBe(true);
+    expect(validateArcadeScore({ game: "crownfall", score: 10, durationMs: 61 * 60_000 }).ok).toBe(false);
+    // The shared 20-minute ceiling still binds the other games.
+    expect(validateArcadeScore({ game: "runner", score: 10, durationMs: 21 * 60_000 }).ok).toBe(false);
+  });
+});
+
 /* ─── Score submission ───────────────────────────────────────────────── */
 
 describe("POST /api/arcade/scores", () => {
@@ -181,6 +219,21 @@ describe("POST /api/arcade/scores", () => {
     ]);
     const r = await post("/arcade/scores", { game: "runner", score: 500, durationMs: 40_000 });
     expect(r.body.rank).toBe(2);
+  });
+
+  it("stores a plausible crownfall run and reports its best", async () => {
+    const r = await post("/arcade/scores", { game: "crownfall", score: 1_240, durationMs: 95_000 });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({
+      ok: true, game: "crownfall", score: 1_240, personalBest: 1_240, isPersonalBest: true, rank: 1, plays: 1,
+    });
+    expect(h.fake.store("arcadeScores").rows).toHaveLength(1);
+  });
+
+  it("rejects an impossible crownfall score and stores NOTHING", async () => {
+    const r = await post("/arcade/scores", { game: "crownfall", score: 500_000, durationMs: 60_000 });
+    expect(r.status).toBe(400);
+    expect(h.fake.store("arcadeScores").rows).toHaveLength(0);
   });
 });
 
@@ -240,6 +293,7 @@ describe("GET /api/arcade/me", () => {
     expect(r.body.games).toEqual([
       { game: "runner", best: 800, plays: 2 },
       { game: "skeet", best: null, plays: 0 },
+      { game: "crownfall", best: null, plays: 0 },
     ]);
   });
 });
