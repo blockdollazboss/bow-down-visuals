@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, generationStoredResultsTable } from "@workspace/db";
 import { logger } from "./logger";
 import { isMissingSchemaError } from "./pg-errors";
@@ -25,6 +25,16 @@ import { isMissingSchemaError } from "./pg-errors";
  *    exactly as it did before this layer — a stored result is an
  *    upgrade, never a gate on a paid ask, and a storage failure can
  *    never become an error response or a double charge.
+ *  - Pattern B exception (audio-cleanup): a job rail must store its
+ *    creation body BEFORE the job runs, so its row is not yet a
+ *    success when written. When the job fails, the rail replaces
+ *    that body with a durable FAILURE marker (delete + store, via
+ *    deleteStoredGenerationResult below) so the failure stays
+ *    readable for the row's whole life — in particular after the
+ *    rail's in-memory job record is TTL-evicted, when the marker is
+ *    the only thing that keeps a retry from mistaking the stale
+ *    creation body for a finished result. Deletes are fail-open
+ *    exactly like reads and writes.
  */
 
 /**
@@ -87,5 +97,44 @@ export async function storeGenerationResult(
       { err, rail, idempotencyKey },
       "[generation-stored-results] failed to store the generation result — a replay of this intent would generate fresh",
     );
+  }
+}
+
+/**
+ * Remove the stored row for a (rail, key, user) pair. Scoped by all
+ * three, like the read: a rail can only ever clear its own rows.
+ *
+ * Used by the Pattern B job rail (audio-cleanup) in exactly two
+ * places: when a job fails, to replace its creation body with a
+ * durable failure marker (delete + storeGenerationResult), and when
+ * a retry falls through past a failure record, to clear the stale
+ * row before the fresh charge so the new job's body can be stored
+ * under the key (the store is conflict-do-nothing — a leftover row
+ * would shadow the new body forever). Never throws — fail-open,
+ * like every operation in this layer: a failed delete only means
+ * the pre-existing row keeps being read, never an error response.
+ */
+export async function deleteStoredGenerationResult(
+  rail: string,
+  idempotencyKey: string,
+  userId: string,
+): Promise<void> {
+  try {
+    await db
+      .delete(generationStoredResultsTable)
+      .where(
+        and(
+          eq(generationStoredResultsTable.idempotencyKey, idempotencyKey),
+          eq(generationStoredResultsTable.userId, userId),
+          eq(generationStoredResultsTable.rail, rail),
+        ),
+      );
+  } catch (err) {
+    if (!isMissingSchemaError(err)) {
+      logger.warn(
+        { err, rail, idempotencyKey },
+        "[generation-stored-results] stored-result delete failed — the existing row keeps being read (fail-open)",
+      );
+    }
   }
 }

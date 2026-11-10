@@ -18,6 +18,7 @@ import {
 import {
   findStoredGenerationResult,
   storeGenerationResult,
+  deleteStoredGenerationResult,
 } from "../../lib/generation-stored-results";
 
 /* CA-1 replay note (CA-KEY wording pattern). */
@@ -252,6 +253,30 @@ async function runAudioCleanupJob(
     if (refunded && job.idempotencyKey) {
       await voidChargeIdempotencyKey(job.idempotencyKey);
     }
+    /* CA-1 follow-on — the stored FAILURE marker: the creation body
+       was stored BEFORE the job ran (Pattern B), so while this
+       in-memory record lives, the POST pre-check can see the failure
+       directly — but the record is TTL-evicted after 2h while the
+       stored body is durable, and the body alone carries no failure
+       marker. Without this write, a retry after eviction would be
+       answered with the stale creation body marked "done": a phantom
+       success for a refunded failure, and the same file + mode would
+       stay bricked for the body's whole durable life. Replace the
+       creation body with a failure marker (delete + store, both
+       fail-open) so the failure stays readable for exactly as long
+       as the stored body would have lived. Written whether or not
+       the refund landed: when it didn't, the un-voided ledger key
+       still suppresses the retry's charge, so the re-run the marker
+       admits is the one the member already paid for. */
+    if (job.idempotencyKey) {
+      await deleteStoredGenerationResult("audio-cleanup", job.idempotencyKey, job.userId);
+      await storeGenerationResult("audio-cleanup", job.idempotencyKey, job.userId, {
+        jobId: job.id,
+        status: "failed",
+        failed: true,
+        mode: job.mode,
+      });
+    }
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
     await fs.unlink(uploadedPath).catch(() => {});
@@ -311,7 +336,13 @@ router.post("/audio-cleanup", requireAuth, upload.single("audio"), async (req: R
   const stored = await findStoredGenerationResult("audio-cleanup", idempotencyKey, req.userId!);
   const storedJob = stored && typeof stored["jobId"] === "string" ? jobs.get(stored["jobId"]) : undefined;
   const storedIsFailedTombstone = !!storedJob && storedJob.userId === req.userId && storedJob.status === "failed";
-  if (stored && !storedIsFailedTombstone) {
+  /* The durable twin of the tombstone: a stored FAILURE marker (see
+     runAudioCleanupJob) means this intent's job failed — readable
+     even after the in-memory record has been TTL-evicted, which is
+     exactly the window the in-memory check cannot cover. */
+  const storedIsFailureMarker =
+    !!stored && (stored["failed"] === true || stored["status"] === "failed");
+  if (stored && !storedIsFailedTombstone && !storedIsFailureMarker) {
     if (storedJob && storedJob.userId === req.userId) {
       res.status(202).json({ ...stored, replayed: true, replayNote: AUDIO_CLEANUP_REPLAY_NOTE });
     } else {
@@ -327,10 +358,18 @@ router.post("/audio-cleanup", requireAuth, upload.single("audio"), async (req: R
     }
     return;
   }
-  /* storedIsFailedTombstone: the stored job FAILED and its charge was
-     refunded + key voided (see runAudioCleanupJob) — the stored body is
-     a tombstone, not a result; fall through and mint a fresh job on a
-     fresh charge. */
+  /* storedIsFailedTombstone / storedIsFailureMarker: the stored job
+     FAILED and its charge was refunded + key voided (see
+     runAudioCleanupJob) — the stored body is a failure record, not a
+     result; fall through and mint a fresh job on a fresh charge.
+     Clear the stale row first: the fresh job's body is stored under
+     this same key with conflict-do-nothing, so a leftover failure
+     row would shadow the new job's body forever (and a later retry
+     would fall through past it again instead of replaying the new
+     job). */
+  if (stored) {
+    await deleteStoredGenerationResult("audio-cleanup", idempotencyKey, req.userId!);
+  }
 
   const balance = req.userCredits ?? 0;
   if (balance < AUDIO_CLEANUP_CREDIT_COST) {
