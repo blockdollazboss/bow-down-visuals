@@ -336,6 +336,7 @@ export function LipSyncStudio({
 
   const [clipScenes, setClipScenes] = useState<ClipSceneOption[] | null>(null);
   const [clipScenesLoading, setClipScenesLoading] = useState(false);
+  const [clipScenesFailed, setClipScenesFailed] = useState(false);
   const [clipSceneIdx, setClipSceneIdx] = useState(0);
   const [clipPhase, setClipPhase] = useState<
     "idle" | "starting" | "running" | "done" | "failed"
@@ -351,6 +352,7 @@ export function LipSyncStudio({
     if (!canSingleClip || !projectId || !audioUrl || !getAccessToken) return;
     let cancelled = false;
     setClipScenesLoading(true);
+    setClipScenesFailed(false);
     void (async () => {
       try {
         const token = await getAccessToken();
@@ -394,7 +396,13 @@ export function LipSyncStudio({
         });
         if (!cancelled) setClipScenes(opts);
       } catch {
-        if (!cancelled) setClipScenes([]);
+        /* A failed read is NOT an empty project — the scenes go
+           back to unproven (null) and the failed flag paints the
+           failure line instead of "no scene clips yet". */
+        if (!cancelled) {
+          setClipScenes(null);
+          setClipScenesFailed(true);
+        }
       } finally {
         if (!cancelled) setClipScenesLoading(false);
       }
@@ -832,6 +840,11 @@ export function LipSyncStudio({
               <p className="text-[11px] text-white/40 flex items-center gap-2">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Loading this project's scene clips…
+              </p>
+            ) : clipScenesFailed ? (
+              <p className="text-[11px] text-red-300 leading-relaxed">
+                This project&rsquo;s scene clips couldn&rsquo;t load — reopen
+                the studio to try again.
               </p>
             ) : clipScenes && clipScenes.length > 0 ? (
               <>
