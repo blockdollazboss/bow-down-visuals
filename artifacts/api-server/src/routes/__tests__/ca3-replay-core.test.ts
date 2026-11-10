@@ -33,6 +33,8 @@ const h = vi.hoisted(() => ({
   imageCalls: 0,
   invoices: [] as Array<Record<string, unknown>>,
   invoiceInsertMode: "ok" as "ok" | "throw",
+  pdfCalls: 0,
+  pdfFailuresRemaining: 0,
   transcribeCalls: 0,
   transcribeMode: "ok" as "ok" | "throw",
   coverCalls: 0,
@@ -162,20 +164,43 @@ vi.mock("../generate/cover-art", () => ({
   }),
 }));
 
+/* The invoice PDF renderer: the real bytes are irrelevant here — what
+   matters is WHEN it runs and whether it throws. pdfFailuresRemaining
+   makes the next N renders fail, simulating a PDF-step failure AFTER
+   the invoice row insert (the CA-3 flagged duplicate-row edge). */
+vi.mock("../../lib/invoice-render", () => ({
+  renderInvoicePdf: () => {
+    h.pdfCalls++;
+    if (h.pdfFailuresRemaining > 0) {
+      h.pdfFailuresRemaining--;
+      throw new Error("pdf render failed");
+    }
+    return Buffer.from("%PDF-fake-invoice");
+  },
+}));
+
 /* @workspace/db fake: the stored-results table (by-key Map) plus the
    invoices table (array) — the only two db surfaces these rails use. */
 vi.mock("@workspace/db", async (importOriginal) => {
   const actual = await importOriginal<any>();
   const fakeDb = {
     select: () => ({
-      from: () => ({
-        where: (cond: unknown) => ({
-          limit: async () => {
-            const key = keyFromCondition(cond);
-            const row = key !== null ? h.stored.get(key) : undefined;
-            return row ? [row] : [];
-          },
-        }),
+      from: (table: unknown) => ({
+        where: (cond: unknown) => {
+          if (table === actual.invoicesTable) {
+            /* GET /invoices list surface: every row in the fake table,
+               newest first — exactly what the customer sees. */
+            const listResult = async () => [...h.invoices].reverse();
+            return { orderBy: () => ({ limit: listResult }), limit: listResult };
+          }
+          return {
+            limit: async () => {
+              const key = keyFromCondition(cond);
+              const row = key !== null ? h.stored.get(key) : undefined;
+              return row ? [row] : [];
+            },
+          };
+        },
       }),
     }),
     insert: () => ({
@@ -207,7 +232,18 @@ vi.mock("@workspace/db", async (importOriginal) => {
     }),
     execute: async () => ({ rows: [{ c: h.invoices.length }] }),
     update: () => ({ set: () => ({ where: async () => [] }) }),
-    delete: () => ({ where: async () => [] }),
+    delete: () => ({
+      where: async (cond: unknown) => {
+        /* Faithful delete: remove the invoice row the condition names
+           (the first string Param in the condition is the row id). */
+        const id = keyFromCondition(cond);
+        if (id) {
+          const idx = h.invoices.findIndex((r) => r["id"] === id);
+          if (idx >= 0) h.invoices.splice(idx, 1);
+        }
+        return [];
+      },
+    }),
   };
   return { ...actual, db: fakeDb };
 });
@@ -272,6 +308,7 @@ beforeEach(() => {
   h.chatCalls = 0; h.chatMode = "ok"; h.chatContent = "{}";
   h.imageCalls = 0;
   h.invoices = []; h.invoiceInsertMode = "ok";
+  h.pdfCalls = 0; h.pdfFailuresRemaining = 0;
   h.transcribeCalls = 0; h.transcribeMode = "ok";
   h.coverCalls = 0; h.coverFailCalls = new Set();
   /* Global fetch: idea-validator calls OpenAI directly; everything
@@ -297,6 +334,11 @@ async function post(path: string, body?: unknown) {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  return { status: res.status, json: (await res.json().catch(() => null)) as Record<string, any> | null };
+}
+
+async function get(path: string) {
+  const res = await realFetch(`${base}${path}`);
   return { status: res.status, json: (await res.json().catch(() => null)) as Record<string, any> | null };
 }
 
@@ -650,6 +692,57 @@ describe("invoice — CA-3 Pattern C (replay never inserts a second invoice)", (
     expect(retry.status).toBe(200);
     expect(h.charges).toHaveLength(2);
     expect(h.invoices).toHaveLength(1);
+  });
+});
+
+describe("invoice — PDF-failure edge (CA-3 flagged residual: insert → PDF fails → retry)", () => {
+  const body = {
+    brandName: "Acme Corp",
+    creatorName: "Thy Cheat Code",
+    lineItems: [{ description: "Brand gig", quantity: 1, rateCents: 5000 }],
+    dueDate: "2027-01-01",
+    currency: "USD",
+  };
+
+  it("a PDF failure after the insert leaves NO residue: row rolled back, nothing stored, the customer's list is empty", async () => {
+    h.pdfFailuresRemaining = 1;
+    const failed = await post("/generate-invoice", body);
+    expect(failed.status).toBe(502); // honest failure body, not a crash
+    expect(h.pdfCalls).toBe(1); // the render really was attempted — after the insert
+    expect(h.refunds).toEqual([50]);
+    expect(h.voids).toHaveLength(1);
+    expect(h.invoices).toHaveLength(0); // the inserted row was rolled back
+    expect(h.stored.size).toBe(0); // no stored result for a failed run
+
+    const list = await get("/invoices");
+    expect(list.status).toBe(200);
+    expect(list.json?.["invoices"]).toEqual([]); // nothing customer-visible
+  });
+
+  it("the retry after a PDF failure yields exactly ONE invoice, ONE stored result, ONE net charge", async () => {
+    h.pdfFailuresRemaining = 1;
+    const failed = await post("/generate-invoice", body);
+    expect(failed.status).toBe(502);
+    expect(h.invoices).toHaveLength(0);
+
+    const retry = await post("/generate-invoice", body);
+    expect(retry.status).toBe(200);
+    expect(retry.json?.["replayed"]).toBeUndefined();
+    expect(h.invoices).toHaveLength(1); // exactly one row — no duplicate
+    expect(h.stored.size).toBe(1);
+    expect(h.charges).toHaveLength(2); // failed attempt + retry; the first was refunded
+    expect(h.refunds).toEqual([50]);
+    expect(retry.json?.["invoice"]?.["id"]).toBe(h.invoices[0]?.["id"]);
+
+    const replay = await post("/generate-invoice", body);
+    expect(replay.status).toBe(200);
+    expect(replay.json?.["replayed"]).toBe(true);
+    expect(replay.json?.["invoice"]?.["id"]).toBe(h.invoices[0]?.["id"]);
+    expect(h.invoices).toHaveLength(1);
+    expect(h.charges).toHaveLength(2);
+
+    const list = await get("/invoices");
+    expect(list.json?.["invoices"]).toHaveLength(1);
   });
 });
 

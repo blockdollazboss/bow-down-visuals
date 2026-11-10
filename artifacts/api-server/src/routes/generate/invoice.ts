@@ -193,7 +193,11 @@ async function serveReplayableRun(args: {
 /* Pattern C (CA-3): the charge guards a SIDE EFFECT — a persisted
    invoice row. The stored result carries the created row (id +
    number) inside the saved success body, so a replay returns that
-   same invoice WITHOUT inserting a second row or charging again. */
+   same invoice WITHOUT inserting a second row or charging again.
+   Failure side: if the run fails AFTER the insert (the PDF render
+   is the step that can), the catch rolls the row back — a refunded
+   attempt leaves no invoice in the customer's list, and a retry
+   mints exactly one. */
 async function runGenerateInvoice(
   userId: string,
   userCredits: number,
@@ -238,6 +242,10 @@ async function runGenerateInvoice(
       await voidChargeIdempotencyKey(idempotencyKey);
     }
   }
+
+  /* The row this run inserted, if it got that far. Hoisted so the
+     failure path can roll it back (see the catch below). */
+  let insertedRow: Invoice | null = null;
 
   try {
     const d = data;
@@ -290,6 +298,7 @@ async function runGenerateInvoice(
     if (!inserted) {
       throw new Error("Could not save the invoice — please try again.");
     }
+    insertedRow = inserted;
 
     const pdf = renderInvoicePdf(inserted);
 
@@ -303,6 +312,26 @@ async function runGenerateInvoice(
       creditsRemaining,
     };
   } catch (err) {
+    /* Roll back the invoice row if this run inserted one before the
+       failure (e.g. the PDF render threw after the insert): the
+       charge is refunded below, so the attempt must leave NO invoice
+       behind. A leftover row would sit in the customer's invoice
+       list as a real invoice they were just told failed — and the
+       retry would mint a second one next to it (the CA-3 flagged
+       duplicate-row edge). Best-effort: a failed rollback is logged
+       loudly, never masking the refund or the failure response. */
+    if (insertedRow) {
+      try {
+        await db
+          .delete(invoicesTable)
+          .where(and(eq(invoicesTable.id, insertedRow.id), eq(invoicesTable.userId, userId)));
+      } catch (rollbackErr) {
+        logger.error(
+          { err: rollbackErr, invoiceId: insertedRow.id },
+          "generate-invoice: invoice-row rollback failed — orphan row remains",
+        );
+      }
+    }
     await refund();
     logger.error({ err }, "generate-invoice: failed, Visual Bucs refunded");
     return {
