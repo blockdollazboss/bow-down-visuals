@@ -666,7 +666,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
         refreshProfile(); /* refresh regardless so credits are up to date */
       }
     } catch {
-      /* best-effort — clip is already in the UI */
+      /* The clip is already in the UI, but it did NOT persist — say so,
+         exactly like the non-ok branch above; silence here would let
+         the creator believe a clip was saved when it was not. */
+      toast({ title: "Save failed", description: "Clip generated but saving failed.", variant: "destructive" });
+      refreshProfile();
     }
   }
 
@@ -1573,12 +1577,17 @@ function fetchLocationsLibrary(getAccessToken: () => Promise<string | null>): Pr
         const res = await fetch("/api/locations", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
+        if (!res.ok) throw new Error("locations library failed to load");
         const data = (await res.json()) as { locations?: LibraryLocation[] };
-        locationsCache = res.ok ? (data.locations ?? []) : [];
-      } catch {
-        locationsCache = [];
+        /* Only a successful load may enter the shared cache: a failure
+           cached as [] would dress up as "No locations saved yet." for
+           the whole page session and never retry. */
+        locationsCache = data.locations ?? [];
+        return locationsCache;
+      } catch (err) {
+        locationsFetch = null;
+        throw err;
       }
-      return locationsCache;
     })();
   }
   return locationsFetch;
@@ -1591,12 +1600,18 @@ function LocationPicker({ scene, onPick }: {
   const { getAccessToken } = useAuth();
   const [open, setOpen] = useState(false);
   const [locations, setLocations] = useState<LibraryLocation[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadNonce, setLoadNonce] = useState(0);
 
   useEffect(() => {
     if (open && locations === null) {
-      void fetchLocationsLibrary(getAccessToken).then(setLocations);
+      setLoadFailed(false);
+      void fetchLocationsLibrary(getAccessToken).then(
+        setLocations,
+        () => setLoadFailed(true),
+      );
     }
-  }, [open, locations, getAccessToken]);
+  }, [open, locations, getAccessToken, loadNonce]);
 
   const picked = scene.locationImageUrl
     ? locations?.find((l) => l.image_url === scene.locationImageUrl) ?? null
@@ -1641,7 +1656,17 @@ function LocationPicker({ scene, onPick }: {
 
       {open && !scene.locationImageUrl && (
         <div className="absolute z-30 mt-2 w-[320px] max-w-[80vw] rounded-xl border border-white/10 bg-zinc-950 p-3 shadow-2xl shadow-black/60">
-          {locations === null ? (
+          {loadFailed ? (
+            <div className="text-center py-4">
+              <p className="text-xs text-white/50 mb-2">Couldn&apos;t load your locations.</p>
+              <button
+                onClick={() => { setLoadFailed(false); setLoadNonce((n) => n + 1); }}
+                className="text-xs font-bold text-primary hover:text-primary/80"
+              >
+                Try again
+              </button>
+            </div>
+          ) : locations === null ? (
             <div className="flex justify-center py-6">
               <Loader2 className="h-5 w-5 animate-spin text-white/40" />
             </div>
