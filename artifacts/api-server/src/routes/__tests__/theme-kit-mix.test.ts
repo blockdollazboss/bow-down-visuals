@@ -170,7 +170,7 @@ CREATE TABLE creator_subscriptions (
 );`;
 
 const LIBRARY_WAV = Buffer.from("RIFF----WAVEfmt library-master-bytes");
-const PACK_IDS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold"];
+const PACK_IDS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold", "emerald-marble"];
 
 beforeAll(async () => {
   const root = mkdtempSync(join(tmpdir(), "theme-kit-mix-assets-"));
@@ -376,19 +376,21 @@ describe("creator pack mix → buyer bundle", () => {
 });
 
 describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", () => {
-  /* The fixture tree carries designed files for the five raised packs
-     only. crimson-marble + sapphire-marble + emerald-marble sets are NOT raised: their
-     bundles must say so in their own paperwork (README, kit.json,
-     install texts) instead of claiming all 50 icons, and the
-     manifests endpoint must carry the missing list. A raised pack
-     (golden-marble) is the control: complete, missing []. */
+  /* The fixture tree carries designed files for the six raised packs
+     only (emerald-marble's set was raised Nov 10 2026,
+     stack1600/icons-emerald). crimson-marble + sapphire-marble sets
+     are NOT raised: their bundles must say so in their own paperwork
+     (README, kit.json, install texts) instead of claiming all 50
+     icons, and the manifests endpoint must carry the missing list.
+     Raised packs (golden-marble, emerald-marble) are the controls:
+     complete, missing []. */
   async function buyPack(packId: string): Promise<void> {
     await h.db.execute(
       sql`INSERT INTO theme_pack_purchases (user_id, pack_id, price_vb) VALUES (${BUYER}, ${packId}, 1000)`,
     );
   }
 
-  for (const packId of ["crimson-marble", "sapphire-marble", "emerald-marble"]) {
+  for (const packId of ["crimson-marble", "sapphire-marble"]) {
     it(`${packId}: the full bundle names its missing designed set everywhere`, async () => {
       await buyPack(packId);
       const r = await callBytes("POST", `/theme-packs/kit/${packId}/download`, { kind: "full", mode: "dark" });
@@ -414,6 +416,20 @@ describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", (
     });
   }
 
+  it("emerald-marble (raised set, Nov 10 2026): the paperwork stays the complete claim", async () => {
+    await buyPack("emerald-marble");
+    const r = await callBytes("POST", "/theme-packs/kit/emerald-marble/download", { kind: "full", mode: "dark" });
+    expect(r.status).toBe(200);
+    const entries = unzipEntries(r.buf);
+    const kit = JSON.parse(entries.get("emerald-marble-dark/kit.json")!.toString("utf8"));
+    expect(kit.icons.complete).toBe(true);
+    expect(kit.icons.missing).toEqual([]);
+    const readme = entries.get("emerald-marble-dark/README.txt")!.toString("utf8");
+    expect(readme).toContain("all 50 icons in light");
+    expect(entries.get("emerald-marble-dark/android/icons/ICONS-MISSING.txt")).toBeUndefined();
+    expect(entries.get("emerald-marble-dark/android/icons/phone-dark.webp")).toBeDefined();
+  });
+
   it("golden-marble (raised set): the paperwork stays the complete claim", async () => {
     const r = await callBytes("POST", "/theme-packs/kit/golden-marble/download", { kind: "full", mode: "dark" });
     expect(r.status).toBe(200);
@@ -432,7 +448,9 @@ describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", (
     const byId = new Map(r.json.packs.map((p: any) => [p.packId, p]));
     expect(byId.get("golden-marble").icons.missing).toEqual([]);
     expect(byId.get("golden-marble").icons.note).toContain("downloads ship these files");
-    for (const packId of ["crimson-marble", "sapphire-marble", "emerald-marble"]) {
+    expect(byId.get("emerald-marble").icons.missing).toEqual([]);
+    expect(byId.get("emerald-marble").icons.note).toContain("downloads ship these files");
+    for (const packId of ["crimson-marble", "sapphire-marble"]) {
       expect(byId.get(packId).icons.missing).toHaveLength(100);
       expect(byId.get(packId).icons.note).toContain("has not been raised yet");
     }

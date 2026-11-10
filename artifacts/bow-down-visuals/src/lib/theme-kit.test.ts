@@ -75,8 +75,10 @@ const sha256 = (buf: Buffer): string => createHash("sha256").update(buf).digest(
    VISIBLE here: adding a pack to this list without its 100 files
    fails the manifest pins immediately. This list and the module's
    DESIGNED_ICON_SET_PACK_IDS are the same fact — pinned equal
-   below so the two can never drift. */
-const DESIGNED_SET_PACKS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold"];
+   below so the two can never drift. emerald-marble joined the
+   raised sets Nov 10 2026 (stack1600/icons-emerald; masters in
+   theme-pack-art/emerald-marble/). */
+const DESIGNED_SET_PACKS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold", "emerald-marble"];
 
 describe("kit manifest — 12 components × every pack × light+dark", () => {
   it("covers all seven packs with all twelve components in both modes", () => {
@@ -229,21 +231,21 @@ describe("designed icon set — the approved art, on disk, per pack × mode", ()
     expect(DESIGNED_ICON_NAMES).not.toContain("crown");
   });
 
-  // Explicit 30s budget: this test sha256-hashes 556 files (~16 MB) and
+  // Explicit 30s budget: this test sha256-hashes ~660 files (~20 MB) and
   // runs at ~2.5s on a calm box — over half of vitest's 5s default — so
   // under multi-lane contention it used to TIME OUT and read as an asset
   // regression (stack600 reconciliation: the assets and manifest were
   // never wrong; the budget was). Assertions are unchanged.
-  it("kit-vs-manifest: all 500 designed files + 12 app icons exist with the pinned hashes", () => {
+  it("kit-vs-manifest: all 600 designed files + app icons exist with the pinned hashes", () => {
     const assets = JSON.parse(
       readFileSync(publicFile("/theme-packs/kit-assets-manifest.json"), "utf8"),
     ) as {
       icons: Array<{ pack: string; icon: string; mode: string; path: string; sourceAsset: string; sha256: string }>;
       deviceWallpapers: Array<{ pack: string; mode: string; device: string; width: number; height: number; path: string; sha256: string }>;
     };
-    // 500 designed icons (5 raised sets) + 14 app icons (all 7 packs)
+    // 600 designed icons (6 raised sets) + 16 app icons (all 8 packs)
     // ride the same entries list.
-    expect(assets.icons).toHaveLength(516);
+    expect(assets.icons).toHaveLength(616);
     const seen = new Set<string>();
     for (const e of assets.icons) {
       seen.add(`${e.pack}|${e.icon}|${e.mode}`);

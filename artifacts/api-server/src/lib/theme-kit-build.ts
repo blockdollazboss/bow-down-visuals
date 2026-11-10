@@ -14,8 +14,8 @@
 
    ART: every image byte resolves from the owner-approved library only
    (QC-200 G3 fix): the DESIGNED icon set from
-   ~/workspace/theme-pack-art/MANIFEST.md (500 designed emblems —
-   5 packs × 50 icons × light+dark — shipped scale-only at 512×512
+   ~/workspace/theme-pack-art/MANIFEST.md (600 designed emblems —
+   6 packs × 50 icons × light+dark — shipped scale-only at 512×512
    under public/theme-packs/icons/, provenance + hashes in
    public/theme-packs/kit-assets-manifest.json), the pack app icons
    (the REAL full logo lockup composited whole onto the pack tile,

@@ -237,7 +237,7 @@ CREATE TABLE creator_subscriptions (
 
 const LIBRARY_WAV = Buffer.from("RIFF----WAVEfmt library-master-bytes");
 
-const PACK_IDS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold"];
+const PACK_IDS = ["golden-marble", "shark-tank", "golden-hour", "kings-set", "arcade-gold", "emerald-marble"];
 
 beforeAll(async () => {
   // Fixture approved-library tree (the asset resolver's test root):
