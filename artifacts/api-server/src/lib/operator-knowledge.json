@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "bd854b54b46510581c4eff53225ac4b0cb7eb79d",
+  "baseCommit": "10922f543fd0198f110dd4e0e29d867d584b16c2",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-09",
+  "generatedAt": "2026-11-10",
   "counts": {
     "routesInApp": 245,
     "pageFiles": 175,
@@ -896,7 +896,7 @@
       ],
       "prices": [],
       "nextSteps": [],
-      "description": "Play Shark King Endless Runner and Royal Skeet. Climb the arcade leaderboards and earn Shark Drops in Visual Bucs.",
+      "description": "Play Shark King Endless Runner, Royal Skeet and Crownfall Run. Climb the arcade leaderboards and earn Shark Drops in Visual Bucs.",
       "descriptionSource": "artifacts/bow-down-visuals/src/pages/arcade.tsx usePageTitle meta description"
     },
     {
