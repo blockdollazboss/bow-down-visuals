@@ -48,3 +48,15 @@ to it, which is exactly why the bucket rule above is still required.
 A bucket-wide sweep would need a `ListMultipartUploads` export in
 `lib/r2-client.ts` (reported to the parent as a proven r2-client need;
 not taken by this lane).
+
+**Bucket-wide sweep shipped (follow-on lanes, 2026-11-10):**
+`r2ListMultipartUploads` now exists in `lib/r2-client.ts`, and its
+consumer `lib/r2-bucket-sweep.ts` rides the same multipart-init
+trigger (throttled to one bucket listing per hour): it aborts any
+untracked upload whose bucket-side Initiated timestamp proves it
+older than 24h, skips anything the live tracker holds, and never
+aborts an upload whose age cannot be proven. This narrows the orphan
+gap to uploads orphaned while no init ever triggers a sweep — the
+bucket lifecycle rule above remains the config-side backstop and its
+status is unchanged: **NOT SET, still blocked on the owner-hand
+dashboard step described above.**

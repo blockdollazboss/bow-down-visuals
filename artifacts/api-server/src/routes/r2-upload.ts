@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { r2GetPresignedPutUrl, r2PublicUrl, r2Delete, r2List, isR2Configured, r2CreateMultipartUpload, r2GetPresignedPartUrl, r2ListParts, r2CompleteMultipartUpload, r2AbortMultipartUpload } from "../lib/r2-client";
+import { sweepOrphanedMultipartUploads } from "../lib/r2-bucket-sweep";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -88,11 +89,23 @@ function untrackSession(userId: string, uploadId: string): void {
   if (sessions.size === 0) inflightSessions.delete(userId);
 }
 
+/* The bucket sweep's view of this tracker: when the tracker started
+   holding an upload, or null when it does not hold it. */
+function trackedSessionStartedAt(uploadId: string): number | null {
+  for (const sessions of inflightSessions.values()) {
+    const session = sessions.get(uploadId);
+    if (session) return session.startedAt;
+  }
+  return null;
+}
+
 /* C-08 (code-side half): abort tracked sessions that have been sitting
    incomplete past the 24h horizon and free their slots. This only sees
-   sessions this process started — uploads orphaned by a restart are the
-   bucket lifecycle rule's job (AbortIncompleteMultipartUpload after 1
-   day; the config step + its blocker are recorded in infra/r2/README.md).
+   sessions this process started — uploads orphaned by a restart are
+   swept bucket-wide by lib/r2-bucket-sweep (same init trigger, below),
+   and the bucket lifecycle rule stays the config-side backstop
+   (AbortIncompleteMultipartUpload after 1 day; the config step + its
+   blocker are recorded in infra/r2/README.md).
    Best-effort: a failed abort is logged, never fatal to the init that
    triggered the sweep. */
 async function sweepStaleSessions(now: number): Promise<void> {
@@ -276,6 +289,12 @@ router.post("/r2/multipart/init", requireAuth, publicApiLimiter, async (req, res
     }
     const userId = req.userId as string;
     await sweepStaleSessions(Date.now());
+    /* Bucket-wide orphan sweep rides the same lazy init trigger (it
+       throttles itself to one bucket listing per interval) and never
+       throws — orphans this process never tracked get aborted past
+       the same 24h horizon; anything the tracker holds is left to
+       sweepStaleSessions above. */
+    await sweepOrphanedMultipartUploads({ trackedStartedAt: trackedSessionStartedAt });
     if (inflightCount(userId) >= MAX_IN_FLIGHT_SESSIONS_PER_USER) {
       res.status(429).json({
         error: "Too many uploads in progress. Finish or cancel one before starting another.",
