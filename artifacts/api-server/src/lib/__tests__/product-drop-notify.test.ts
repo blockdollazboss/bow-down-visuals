@@ -240,6 +240,48 @@ describe("drop-day fan-out", () => {
     expect(sender.calls.filter((c) => c === "good@fan.test")).toHaveLength(1);
   });
 
+  it("failure isolation: a throwing send leaves a claim 'pending' that retries to sent once stale — the claim is born on the caller's clock", async () => {
+    const { dropId, productId } = await seedDrop();
+    await seedCapture(dropId, productId, "good@fan.test", "2026-11-01T00:00:00Z");
+    await seedCapture(dropId, productId, "throws@fan.test", "2026-11-02T00:00:00Z");
+    await seedCapture(dropId, productId, "flaky@fan.test", "2026-11-03T00:00:00Z");
+
+    let throwsFixed = false;
+    let flakyFixed = false;
+    const sender = recordingSender((to) => {
+      if (to === "throws@fan.test" && !throwsFixed) throw new Error("smtp exploded");
+      if (to === "flaky@fan.test" && !flakyFixed) return { sent: false, reason: "provider-error" };
+      return { sent: true, id: "msg-ok" };
+    });
+
+    const first = await notifyDropFansForDrop(dueDrop(dropId, productId), { store, send: sender.send, now: NOW });
+    expect(first).toMatchObject({ captures: 3, sent: 1, failed: 2 });
+    let rows = await deliveries(dropId);
+    expect(rows.find((r) => r.email === "good@fan.test")?.status).toBe("sent");
+    /* The throw was isolated AFTER the claim: the row stays 'pending'
+       (the stale-claim retry path); the refusal is ledgered 'failed'. */
+    expect(rows.find((r) => r.email === "throws@fan.test")?.status).toBe("pending");
+    expect(rows.find((r) => r.email === "flaky@fan.test")).toMatchObject({ status: "failed", last_error: "provider-error", attempts: 1 });
+
+    /* Next pass after the stale-pending window (15 min): both retry,
+       both land. The pending claim was stamped with the first pass's
+       caller clock (NOW), so at NOW + 20 min it reads stale against
+       that same clock. A claim stamped by the DB's own default
+       (wall-clock now) ages on a different clock than the one judging
+       it and never turns stale inside this fixture — the presave
+       twin's clock bug (f9ec0b526), pinned here so it cannot regress
+       silently. */
+    throwsFixed = true;
+    flakyFixed = true;
+    const later = new Date(NOW.getTime() + 20 * 60 * 1000);
+    const second = await notifyDropFansForDrop(dueDrop(dropId, productId), { store, send: sender.send, now: later });
+    expect(second).toMatchObject({ sent: 2, failed: 0 });
+    rows = await deliveries(dropId);
+    expect(rows.map((r) => r.status)).toEqual(["sent", "sent", "sent"]);
+    /* The good fan was never emailed twice across all passes. */
+    expect(sender.calls.filter((c) => c === "good@fan.test")).toHaveLength(1);
+  });
+
   it("no-provider gap: attempts ledger 'failed' with the reason, cap turns the row 'dead', then no more attempts", async () => {
     const { dropId, productId } = await seedDrop();
     await seedCapture(dropId, productId, "a@fan.test", "2026-11-01T00:00:00Z");
