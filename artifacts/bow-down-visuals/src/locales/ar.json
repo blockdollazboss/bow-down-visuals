@@ -21346,6 +21346,8 @@
     "schedUpdatedNote": "تم تحديث البث — الخطة الجديدة أدناه والقديمة ملغاة.",
     "schedCreatedNote": "تمت الجدولة — يظهر في بثوثك القادمة هنا وعلى صفحة بدء البث في الموقع.",
     "schedSaveFailed": "تعذّرت جدولة ذلك البث.",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "“{{title}}” ملغي.",
     "schedLoadFailed": "تعذّرت بثوثك عن التحميل.",
     "schedLoading": "جارٍ تحميل بثوثك…",

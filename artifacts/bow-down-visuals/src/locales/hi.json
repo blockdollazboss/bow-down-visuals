@@ -21230,6 +21230,8 @@
     "schedUpdatedNote": "स्ट्रीम अपडेट हो गई — नई योजना नीचे है और पुरानी रद्द है।",
     "schedCreatedNote": "शेड्यूल हो गई — यह यहां आपकी आगामी स्ट्रीम में और वेबसाइट के Go Live पेज पर दिखती है।",
     "schedSaveFailed": "वह स्ट्रीम शेड्यूल नहीं हो सकी।",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "“{{title}}” रद्द है।",
     "schedLoadFailed": "आपकी स्ट्रीम लोड नहीं हो सकीं।",
     "schedLoading": "आपकी स्ट्रीम लोड हो रही हैं…",

@@ -21230,6 +21230,8 @@
     "schedUpdatedNote": "스트림이 업데이트되었습니다 — 새 계획은 아래에 있고 기존 계획은 취소되었습니다.",
     "schedCreatedNote": "예약되었습니다 — 예정된 스트림에 여기와 웹사이트의 라이브 시작 페이지에 표시됩니다.",
     "schedSaveFailed": "해당 스트림을 예약하지 못했습니다.",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "\"{{title}}\"이(가) 취소되었습니다.",
     "schedLoadFailed": "스트림을 불러오지 못했습니다.",
     "schedLoading": "스트림 불러오는 중…",

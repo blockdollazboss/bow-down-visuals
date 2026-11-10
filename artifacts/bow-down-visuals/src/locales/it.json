@@ -21259,6 +21259,8 @@
     "schedUpdatedNote": "Diretta aggiornata — il nuovo piano è qui sotto e quello vecchio è annullato.",
     "schedCreatedNote": "Programmata — appare nelle tue prossime dirette qui e sulla pagina Vai in diretta del sito.",
     "schedSaveFailed": "Quella diretta non si è potuta programmare.",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "\"{{title}}\" è annullata.",
     "schedLoadFailed": "Le tue dirette non si sono potute caricare.",
     "schedLoading": "Caricamento delle tue dirette…",

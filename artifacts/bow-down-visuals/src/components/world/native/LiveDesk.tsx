@@ -2198,8 +2198,12 @@ export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(apiErrorMessage(data, t("worldLivePromo.schedSaveFailed")));
       if (editingId) {
-        await fetch(SCHEDULED_STREAM_PATH(editingId), { method: "DELETE", headers: await authHeaders() });
-        setNote(t("worldLivePromo.schedUpdatedNote"));
+        const delRes = await fetch(SCHEDULED_STREAM_PATH(editingId), { method: "DELETE", headers: await authHeaders() });
+        /* The updated note claims the old plan is cancelled — it
+           may only be said when the delete actually landed; when
+           it didn't, the note says both plans are on the schedule
+           (and the reload below shows exactly that). */
+        setNote(delRes.ok ? t("worldLivePromo.schedUpdatedNote") : t("worldLivePromo.schedOldStillThere"));
       } else {
         setNote(t("worldLivePromo.schedCreatedNote"));
       }
@@ -2216,10 +2220,13 @@ export function LiveScheduleDesk({ isLight }: { isLight: boolean }) {
     setCancellingId(row.id);
     setNote(null);
     try {
-      await fetch(SCHEDULED_STREAM_PATH(row.id), { method: "DELETE", headers: await authHeaders() });
+      const res = await fetch(SCHEDULED_STREAM_PATH(row.id), { method: "DELETE", headers: await authHeaders() });
+      if (!res.ok) throw new Error("cancel");
       if (editingId === row.id) clearForm();
       setNote(t("worldLivePromo.streamCancelledNote", { title: row.title }));
       await load();
+    } catch {
+      setNote(t("worldLivePromo.schedCancelFailed"));
     } finally {
       setCancellingId(null);
     }

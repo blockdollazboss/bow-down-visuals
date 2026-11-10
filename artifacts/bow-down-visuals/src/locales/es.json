@@ -21259,6 +21259,8 @@
     "schedUpdatedNote": "Transmisión actualizada — el nuevo plan está abajo y el antiguo está cancelado.",
     "schedCreatedNote": "Programada — se muestra en tus próximas transmisiones aquí y en la página En vivo del sitio web.",
     "schedSaveFailed": "Esa transmisión no pudo programarse.",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "\"{{title}}\" está cancelada.",
     "schedLoadFailed": "Tus transmisiones no pudieron cargarse.",
     "schedLoading": "Cargando tus transmisiones…",

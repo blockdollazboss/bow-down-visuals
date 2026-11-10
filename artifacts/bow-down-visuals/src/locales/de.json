@@ -21230,6 +21230,8 @@
     "schedUpdatedNote": "Stream aktualisiert — der neue Plan steht unten, und der alte ist abgebrochen.",
     "schedCreatedNote": "Geplant — er erscheint hier in deinen kommenden Streams und auf der Live-gehen-Seite der Website.",
     "schedSaveFailed": "Dieser Stream konnte nicht geplant werden.",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "\"{{title}}\" ist abgebrochen.",
     "schedLoadFailed": "Deine Streams konnten nicht geladen werden.",
     "schedLoading": "Deine Streams werden geladen…",

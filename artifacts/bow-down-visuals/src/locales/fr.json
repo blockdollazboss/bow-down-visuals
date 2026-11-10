@@ -21259,6 +21259,8 @@
     "schedUpdatedNote": "Direct mis à jour — le nouveau plan est ci-dessous et l'ancien est annulé.",
     "schedCreatedNote": "Programmé — il s'affiche dans vos directs à venir ici et sur la page Passer en direct du site.",
     "schedSaveFailed": "Ce direct n'a pas pu être programmé.",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "« {{title}} » est annulé.",
     "schedLoadFailed": "Vos directs n'ont pas pu se charger.",
     "schedLoading": "Chargement de vos directs…",

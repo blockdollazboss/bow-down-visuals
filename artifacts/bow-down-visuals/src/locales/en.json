@@ -21209,6 +21209,8 @@
     "schedUpdatedNote": "Stream updated — the new plan is below and the old one is cancelled.",
     "schedCreatedNote": "Scheduled — it shows in your upcoming streams here and on the website's Go Live page.",
     "schedSaveFailed": "That stream couldn't be scheduled.",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "\"{{title}}\" is cancelled.",
     "schedLoadFailed": "Your streams couldn't load.",
     "schedLoading": "Loading your streams…",

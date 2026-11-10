@@ -21226,6 +21226,8 @@
     "schedUpdatedNote": "配信を更新しました — 新しい計画は下にあり、古いものはキャンセルされました。",
     "schedCreatedNote": "スケジュールしました — 予定の配信にここでも、ウェブサイトのライブ配信ページでも表示されます。",
     "schedSaveFailed": "その配信をスケジュールできませんでした。",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "「{{title}}」はキャンセルされました。",
     "schedLoadFailed": "配信を読み込めませんでした。",
     "schedLoading": "配信を読み込み中…",
