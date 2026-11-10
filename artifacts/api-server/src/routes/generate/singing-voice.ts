@@ -25,6 +25,7 @@ import {
   submitSingingConversion,
 } from "../../lib/singing-voice-client";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 
 const router = Router();
 
@@ -59,10 +60,95 @@ interface SingingJob {
      leave a stored body behind for its key. */
   chargeKey?: string;
   chargeBody?: Record<string, unknown>;
+  /** The conversion settings, carried on the job (0335) so a worker
+   *  resumed after a restart submits the exact ask. */
+  strength?: number;
+  keepInstrumental?: boolean;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
 }
 
 const jobs = new Map<string, SingingJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Jobs persist at creation, mirror on settle, and a lookup
+   that misses the Map rehydrates from the table — a job survives
+   a server restart. This worker needs only the job record (the
+   source audio URL and settings ride on it), so a rehydrated
+   in-flight job simply resumes. Fail-open throughout
+   (lib/generation-jobs). */
+const jobStore = new DurableJobStore<SingingJob>(jobs, {
+  rail: "singing-voice",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.chargeKey ?? null,
+  refundAction: "Singing-Voice Conversion — Refund (job failed)",
+  settleError: "Singing-voice conversion was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    void runSingingJob(job);
+    return true;
+  },
+});
+
+/**
+ * The conversion worker: submit → settle. The charge was already
+ * reserved at submit (POST); this worker never charges — it keeps
+ * the reserve on success and refunds it exactly once on failure.
+ * Extracted from the POST closure (0335) so a worker resumed after
+ * a restart runs the identical code.
+ */
+async function runSingingJob(job: SingingJob): Promise<void> {
+  try {
+    job.status = "processing";
+    const result = await submitSingingConversion({
+      voiceId: job.voiceId,
+      sourceAudioUrl: job.sourceAudioUrl,
+      strength: job.strength,
+      keepInstrumental: job.keepInstrumental,
+      userId: job.userId,
+    });
+    job.status = result.status === "done" ? "done" : "processing";
+    job.outputUrl = result.audioUrl ?? null;
+    /* CA-5: persist the creation body ONLY now that the conversion
+       actually landed — a replay from here on rejoins this job free.
+       A failed conversion stores nothing, so its refunded + voided
+       key re-asks fresh. */
+    if (job.status === "done" && job.chargeKey && job.chargeBody) {
+      await storeGenerationResult("singing-voice", job.chargeKey, job.userId, { ...job.chargeBody });
+    }
+  } catch (err) {
+    job.status = "failed";
+    job.error = err instanceof Error ? err.message : "Singing-voice conversion failed";
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
+      let refunded = true;
+      try {
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "Singing-Voice Conversion — Refund (job failed)",
+        });
+      } catch {
+        refunded = false;
+        /* logged inside refundCredits */
+      }
+      if (refunded && job.chargeKey) {
+        await voidChargeIdempotencyKey(job.chargeKey).catch(() => false);
+      }
+    }
+  } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
+  }
+}
 
 
 /** Test hook: clear the in-memory job store. */
@@ -135,9 +221,15 @@ router.post("/singing-voice", requireAuth, async (req: Request, res: Response) =
      finished in this process) — rejoin it instead of charging for a
      second one. Failed jobs are skipped: they refunded + voided, so a
      re-ask falls through and charges fresh. */
-  const existingJob = [...jobs.values()].find(
-    (j) => j.chargeKey === idempotencyKey && j.userId === req.userId! && j.status !== "failed",
-  );
+  const existingJob =
+    [...jobs.values()].find(
+      (j) => j.chargeKey === idempotencyKey && j.userId === req.userId! && j.status !== "failed",
+    ) ??
+    /* Durable (0335): after a restart the in-process scan misses —
+       the persisted row answers by charge key instead. */
+    (await jobStore.findByChargeKey(idempotencyKey).then((j) =>
+      j && j.userId === req.userId! && j.status !== "failed" ? j : undefined,
+    ));
   if (existingJob?.chargeBody) {
     res.json({ ...existingJob.chargeBody, replayed: true, replayNote: REPLAY_NOTE });
     return;
@@ -184,48 +276,16 @@ router.post("/singing-voice", requireAuth, async (req: Request, res: Response) =
     createdAt: Date.now(),
     chargeKey: idempotencyKey,
     chargeBody: body,
+    strength: parsed.data.strength,
+    keepInstrumental: parsed.data.keepInstrumental,
+    creditsRefunded: false,
   };
   body.jobId = job.id;
   jobs.set(job.id, job);
+  await jobStore.persist(job); // durable (0335): the row lands before the worker fires
 
   // Fire-and-forget: the provider conversion is stubbed until approved.
-  void (async () => {
-    try {
-      job.status = "processing";
-      const result = await submitSingingConversion({
-        voiceId: job.voiceId,
-        sourceAudioUrl: job.sourceAudioUrl,
-        strength: parsed.data.strength,
-        keepInstrumental: parsed.data.keepInstrumental,
-        userId: job.userId,
-      });
-      job.status = result.status === "done" ? "done" : "processing";
-      job.outputUrl = result.audioUrl ?? null;
-      /* CA-5: persist the creation body ONLY now that the conversion
-         actually landed — a replay from here on rejoins this job free.
-         A failed conversion stores nothing, so its refunded + voided
-         key re-asks fresh. */
-      if (job.status === "done" && job.chargeKey && job.chargeBody) {
-        await storeGenerationResult("singing-voice", job.chargeKey, job.userId, { ...job.chargeBody });
-      }
-    } catch (err) {
-      job.status = "failed";
-      job.error = err instanceof Error ? err.message : "Singing-voice conversion failed";
-      /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-      let refunded = true;
-      try {
-        await refundCredits(job.userId, job.creditsCharged, {
-          action: "Singing-Voice Conversion — Refund (job failed)",
-        });
-      } catch {
-        refunded = false;
-        /* logged inside refundCredits */
-      }
-      if (refunded) {
-        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
-      }
-    }
-  })();
+  void runSingingJob(job);
 
   /* The body is stored durably by the conversion closure when the job
      lands — not here — so a failed conversion never leaves a stored
@@ -240,7 +300,7 @@ router.post("/singing-voice", requireAuth, async (req: Request, res: Response) =
  * GET /api/singing-voice/jobs/:jobId — poll a conversion job.
  */
 router.get("/singing-voice/jobs/:jobId", requireAuth, async (req: Request, res: Response) => {
-  const job = jobs.get(String(req.params.jobId));
+  const job = await jobStore.find(String(req.params.jobId)); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "JOB_NOT_FOUND", message: "Job not found." });
     return;

@@ -24,6 +24,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 
 const router = Router();
@@ -281,10 +282,51 @@ interface LufsNormalizeJob {
   /* CA-3: the charge key that funded this job — voided when the job
      fails + refunds, so a retry of the same ask charges fresh. */
   idempotencyKey: string;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
+  /** Durable jobs (0335): the worker's inputs, persisted with the job
+   *  so a worker resumed after a restart re-runs the exact ask. The
+   *  upload is disk-backed; if the file did not survive, the job
+   *  settles (failed + refunded exactly once). */
+  workerInput?: { uploadedPath: string; originalName: string };
 }
 
 const jobs = new Map<string, LufsNormalizeJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Jobs persist at creation, mirror on settle, and a lookup
+   that misses the Map rehydrates from the table — a job survives
+   a server restart: its worker resumes from the persisted upload
+   path when the file survived, and settles (failed + refunded
+   exactly once, claim first) when it did not. Fail-open throughout
+   (lib/generation-jobs). */
+const jobStore = new DurableJobStore<LufsNormalizeJob>(jobs, {
+  rail: "lufs-meter",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.idempotencyKey,
+  refundAction: "LUFS Loudness Normalize — Refund (job failed)",
+  settleError: "Loudness normalization was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    const input = job.workerInput;
+    if (!input) return false;
+    const survived = await fs.access(input.uploadedPath).then(
+      () => true,
+      () => false,
+    );
+    if (!survived) return false;
+    void runLufsNormalizeJob(job, input.uploadedPath, input.originalName);
+    return true;
+  },
+});
 
 /* ─── Idempotent charge + stored-result replay (CA-3, Pattern B) ─────
    The server derives the charge key from the request intent (a hash
@@ -478,24 +520,30 @@ async function runLufsNormalizeJob(
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Loudness normalization failed";
-    // Refund: the user paid for an output they didn't get.
-    let refunded = true;
-    try {
-      await refundCredits(job.userId, job.creditsCharged, {
-        action: "LUFS Loudness Normalize — Refund (job failed)",
-      });
-    } catch (refundErr) {
-      refunded = false;
-      void refundErr;
-    }
-    /* CA-3: VOID the failed job's charge key and drop its stored 202
-       body, so a retry of the same upload charges fresh and mints a
-       new job instead of being served the dead one. */
-    if (refunded) {
-      await voidChargeIdempotencyKey(job.idempotencyKey);
-      storedResults.delete(job.idempotencyKey);
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      // Refund: the user paid for an output they didn't get.
+      let refunded = true;
+      try {
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "LUFS Loudness Normalize — Refund (job failed)",
+        });
+      } catch (refundErr) {
+        refunded = false;
+        void refundErr;
+      }
+      /* CA-3: VOID the failed job's charge key and drop its stored 202
+         body, so a retry of the same upload charges fresh and mints a
+         new job instead of being served the dead one. */
+      if (refunded) {
+        await voidChargeIdempotencyKey(job.idempotencyKey);
+        storedResults.delete(job.idempotencyKey);
+      }
     }
   } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
     await fs.unlink(uploadedPath).catch(() => {});
   }
@@ -620,8 +668,11 @@ async function runLufsNormalizeCreate(
     creditsCharged: LUFS_NORMALIZE_CREDIT_COST,
     createdAt: Date.now(),
     idempotencyKey,
+    creditsRefunded: false,
+    workerInput: { uploadedPath: filePath, originalName },
   };
   jobs.set(job.id, job);
+  await jobStore.persist(job); // durable (0335): the row lands before the worker fires
 
   // Server-owned: runs detached from the request/tab lifecycle.
   void runLufsNormalizeJob(job, filePath, originalName);
@@ -685,9 +736,9 @@ router.post("/lufs/normalize", requireAuth, upload.single("audio"), async (req: 
  * measured loudness (the output is re-measured, not assumed) when
  * done.
  */
-router.get("/lufs/normalize/:jobId", requireAuth, (req: Request, res: Response) => {
+router.get("/lufs/normalize/:jobId", requireAuth, async (req: Request, res: Response) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
-  const job = jobs.get(jobId);
+  const job = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;

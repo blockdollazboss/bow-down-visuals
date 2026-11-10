@@ -20,6 +20,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 import { tmpUploadStorage, createAdminAwareUpload } from "../../lib/upload-storage";
 import { librarySongTitle, recordLibrarySong } from "../../lib/library-song";
 
@@ -104,10 +105,51 @@ export interface MasteringJob {
   /** CA-4: the charge's idempotency key — the runner voids it when it
    *  refunds a failed job, so a refunded retry charges fresh. */
   chargeKey: string;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
+  /** Durable jobs (0335): the worker's inputs, persisted with the job
+   *  so a worker resumed after a restart re-runs the exact ask. The
+   *  upload is disk-backed; if the file did not survive, the job
+   *  settles (failed + refunded exactly once). */
+  workerInput?: { uploadedPath: string; originalName: string };
 }
 
 const jobs = new Map<string, MasteringJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Jobs persist at creation, mirror on settle, and a lookup
+   that misses the Map rehydrates from the table — a job survives
+   a server restart: its worker resumes from the persisted upload
+   path when the file survived, and settles (failed + refunded
+   exactly once, claim first) when it did not. Fail-open throughout
+   (lib/generation-jobs). */
+const jobStore = new DurableJobStore<MasteringJob>(jobs, {
+  rail: "mastering",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.chargeKey,
+  refundAction: "AI Mastering — Refund (job failed)",
+  settleError: "Mastering was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    const input = job.workerInput;
+    if (!input) return false;
+    const survived = await fs.access(input.uploadedPath).then(
+      () => true,
+      () => false,
+    );
+    if (!survived) return false;
+    void runMasteringJob(job, input.uploadedPath, input.originalName);
+    return true;
+  },
+});
 
 function getMasteringJob(id: string): MasteringJob | undefined {
   return jobs.get(id);
@@ -226,23 +268,29 @@ export async function runMasteringJob(job: MasteringJob, uploadedPath: string, o
   } catch (err) {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Mastering failed";
-    // Refund: the user paid for a master they didn't get.
-    let refunded = true;
-    try {
-      await refundCredits(job.userId, job.creditsCharged, {
-        action: "AI Mastering — Refund (job failed)",
-      });
-    } catch (refundErr) {
-      // Logged inside refundCredits; don't mask the original failure.
-      refunded = false;
-      void refundErr;
-    }
-    /* Void only when the refund landed — a refunded retry charges
-       fresh; an unrefunded key stays landed. */
-    if (refunded) {
-      await voidChargeIdempotencyKey(job.chargeKey).catch(() => {});
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      // Refund: the user paid for a master they didn't get.
+      let refunded = true;
+      try {
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "AI Mastering — Refund (job failed)",
+        });
+      } catch (refundErr) {
+        // Logged inside refundCredits; don't mask the original failure.
+        refunded = false;
+        void refundErr;
+      }
+      /* Void only when the refund landed — a refunded retry charges
+         fresh; an unrefunded key stays landed. */
+      if (refunded) {
+        await voidChargeIdempotencyKey(job.chargeKey).catch(() => {});
+      }
     }
   } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
     await fs.unlink(uploadedPath).catch(() => {});
   }
@@ -296,7 +344,7 @@ router.post("/mastering", requireAuth, upload.single("audio"), async (req: Reque
     },
   );
   const jobId = createHash("sha256").update(idempotencyKey).digest("hex").slice(0, 32);
-  const existingJob = jobs.get(jobId);
+  const existingJob = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (existingJob && existingJob.userId === req.userId! && existingJob.status !== "failed") {
     res.status(202).json({
       jobId: existingJob.id,
@@ -360,8 +408,11 @@ router.post("/mastering", requireAuth, upload.single("audio"), async (req: Reque
     sourceSongId: parsed.success ? parsed.data.sourceSongId ?? null : null,
     librarySongId: null,
     chargeKey: `mastering:${jobId}`,
+    creditsRefunded: false,
+    workerInput: { uploadedPath: req.file.path, originalName: req.file.originalname },
   };
   jobs.set(job.id, job);
+  await jobStore.persist(job); // durable (0335): the row lands before the worker fires
 
   // Server-owned: runs detached from the request/tab lifecycle.
   void runMasteringJob(job, req.file.path, req.file.originalname);
@@ -381,8 +432,8 @@ router.post("/mastering", requireAuth, upload.single("audio"), async (req: Reque
  * Poll job status. Returns the before/after loudness stats and download
  * URLs when done (reviewable output, never faked).
  */
-router.get("/mastering/:jobId", requireAuth, (req: Request, res: Response) => {
-  const job = getMasteringJob(req.params.jobId as string);
+router.get("/mastering/:jobId", requireAuth, async (req: Request, res: Response) => {
+  const job = await jobStore.find(req.params.jobId as string); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });
     return;

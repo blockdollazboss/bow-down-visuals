@@ -21,6 +21,7 @@ import {
 } from "../../lib/objectStorage";
 import { logger } from "../../lib/logger";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -212,10 +213,38 @@ export interface MediaImportJob {
   /** CA-4: the charge's idempotency key — the runner voids it when it
    *  refunds a failed job, so a refunded retry charges fresh. */
   chargeKey: string;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
 }
 
 const jobs = new Map<string, MediaImportJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record. Jobs persist at creation, mirror on settle, and a lookup
+   that misses the Map rehydrates from the table — a job survives
+   a server restart. This worker needs only the job record (the
+   source URL rides on it), so a rehydrated in-flight job simply
+   resumes. Fail-open throughout (lib/generation-jobs). */
+const jobStore = new DurableJobStore<MediaImportJob>(jobs, {
+  rail: "media-importer",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.creditsCharged,
+  chargeKeyOf: (j) => j.chargeKey,
+  refundAction: "Media Import — Refund (job failed)",
+  settleError: "Media import was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (job) => {
+    void runMediaImportJob(job);
+    return true;
+  },
+});
 
 export function getMediaImportJob(id: string): MediaImportJob | undefined {
   return jobs.get(id);
@@ -363,22 +392,28 @@ export async function runMediaImportJob(job: MediaImportJob): Promise<void> {
     job.status = "failed";
     job.error = err instanceof Error ? err.message : "Import failed";
     logger.warn({ err, jobId: job.id }, "[media-importer] job failed");
-    let refunded = true;
-    try {
-      await refundCredits(job.userId, job.creditsCharged, {
-        action: "Media Import — Refund (job failed)",
-      });
-    } catch (refundErr) {
-      // Logged inside refundCredits; don't mask the original failure.
-      refunded = false;
-      void refundErr;
-    }
-    /* Void only when the refund landed — a refunded retry charges
-       fresh; an unrefunded key stays landed. */
-    if (refunded) {
-      await voidChargeIdempotencyKey(job.chargeKey).catch(() => {});
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      let refunded = true;
+      try {
+        await refundCredits(job.userId, job.creditsCharged, {
+          action: "Media Import — Refund (job failed)",
+        });
+      } catch (refundErr) {
+        // Logged inside refundCredits; don't mask the original failure.
+        refunded = false;
+        void refundErr;
+      }
+      /* Void only when the refund landed — a refunded retry charges
+         fresh; an unrefunded key stays landed. */
+      if (refunded) {
+        await voidChargeIdempotencyKey(job.chargeKey).catch(() => {});
+      }
     }
   } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
@@ -436,7 +471,7 @@ router.post("/media-import", requireAuth, async (req, res) => {
     { url: validated.value.url, format, source: validated.value.source, host: validated.value.host },
   );
   const jobId = createHash("sha256").update(idempotencyKey).digest("hex").slice(0, 32);
-  const existingJob = jobs.get(jobId);
+  const existingJob = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (existingJob && existingJob.userId === req.userId! && existingJob.status !== "failed") {
     res.status(202).json({
       jobId: existingJob.id,
@@ -495,8 +530,10 @@ router.post("/media-import", requireAuth, async (req, res) => {
     creditsCharged: MEDIA_IMPORT_CREDIT_COST,
     createdAt: Date.now(),
     chargeKey: `media-importer:${jobId}`,
+    creditsRefunded: false,
   };
   jobs.set(job.id, job);
+  await jobStore.persist(job); // durable (0335): the row lands before the worker fires
 
   // Fire-and-forget: the job is server-owned, the tab can close.
   void runMediaImportJob(job);
@@ -516,10 +553,10 @@ router.post("/media-import", requireAuth, async (req, res) => {
  *
  * Poll this until status is "done" or "failed".
  */
-router.get("/media-import/:jobId", requireAuth, (req, res) => {
+router.get("/media-import/:jobId", requireAuth, async (req, res) => {
   const rawId = req.params.jobId;
   const jobId = Array.isArray(rawId) ? rawId[0] : rawId;
-  const job = getMediaImportJob(jobId ?? "");
+  const job = await jobStore.find(jobId ?? ""); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Import job not found." });
     return;

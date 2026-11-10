@@ -20,6 +20,7 @@ import {
   refreshSupabaseStorageUrl,
 } from "../../lib/objectStorage";
 import { attachJobMapTtl } from "../../lib/job-map-sweeper";
+import { DurableJobStore } from "../../lib/durable-job-store";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -96,10 +97,49 @@ interface FreezeMaskJob {
      the exact POST body served at creation. */
   chargeKey?: string;
   replayBody?: Record<string, unknown>;
+  /** Durable jobs (0335): the exactly-once refund claim — claimed in
+   *  the persisted row before any refund moves. */
+  creditsRefunded?: boolean;
+  /** Durable jobs (0335): the worker's params (the parsed request
+   *  body — JSON-safe), re-passed to the worker on a restart resume.
+   *  The video itself is re-downloaded from params.videoUrl. */
+  workerInput?: { params: Record<string, unknown> };
 }
 
 const jobs = new Map<string, FreezeMaskJob>();
 attachJobMapTtl(jobs); // 2026-10-12 OOM fix: TTL eviction (lib/job-map-sweeper)
+
+/* ── Durable job storage (migration 0335) ─────────────────────────
+   The Map above is the working cache; generation_jobs is the
+   record (one rail for both kinds — the kind rides on the job).
+   Jobs persist at creation, mirror on settle, and a lookup that
+   misses the Map rehydrates from the table — a job survives a
+   server restart. The worker's params carry the source videoUrl,
+   so a rehydrated in-flight job RESUMES the render; if the source
+   is gone the resume's own failure path refunds, and if the job
+   cannot resume at all it settles: failed + refunded exactly
+   once (claim first). Fail-open throughout (lib/generation-jobs). */
+const jobStore = new DurableJobStore<FreezeMaskJob>(jobs, {
+  rail: "freeze-mask",
+  statusOf: (j) => j.status,
+  isTerminalStatus: (s) => s === "done" || s === "failed",
+  setFailed: (j, error) => {
+    j.status = "failed";
+    j.error = error;
+  },
+  amountOf: (j) => j.cost,
+  chargeKeyOf: (j) => j.chargeKey ?? null,
+  refundAction: (j) => `${j.kind === "freeze-frame" ? "Freeze frame" : "Mask effect"} — Refund`,
+  settleError: "The render was interrupted by a server restart — your Visual Bucs were refunded.",
+  resume: async (j) => {
+    if (!j.workerInput) return false;
+    void runJob(j, j.workerInput.params, (obj: object, msg: string) => {
+      console.error(msg, obj);
+    });
+    return true;
+  },
+  ttlMs: JOB_TTL_MS,
+});
 
 function pruneJobs() {
   const now = Date.now();
@@ -376,17 +416,23 @@ async function runJob(job: FreezeMaskJob, params: Record<string, unknown>, log: 
   } catch (err) {
     const message = err instanceof Error ? err.message : "Render failed.";
     log({ err: message }, `[freeze-mask] ${job.kind} job ${job.id} failed`);
-    /* Refund landed → VOID the charge's idempotency key (fire-and-forget
-       chain, response behavior unchanged): without the void a retry
-       would be suppressed as a replay and render free. */
-    await refundCredits(job.userId, job.cost, {
-      action: `${job.kind === "freeze-frame" ? "Freeze frame" : "Mask effect"} — Refund`,
-    })
-      .then(() => (job.chargeKey ? voidChargeIdempotencyKey(job.chargeKey) : undefined))
-      .catch(() => {});
+    /* Durable (0335): claim the refund BEFORE it moves — a job whose
+       refund already landed never refunds twice. */
+    const claimed = await jobStore.claimRefund(job);
+    if (claimed) {
+      /* Refund landed → VOID the charge's idempotency key (fire-and-forget
+         chain, response behavior unchanged): without the void a retry
+         would be suppressed as a replay and render free. */
+      await refundCredits(job.userId, job.cost, {
+        action: `${job.kind === "freeze-frame" ? "Freeze frame" : "Mask effect"} — Refund`,
+      })
+        .then(() => (job.chargeKey ? voidChargeIdempotencyKey(job.chargeKey) : undefined))
+        .catch(() => {});
+    }
     job.status = "failed";
     job.error = message;
   } finally {
+    void jobStore.sync(job); // durable: the settled state is the post-restart record
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
@@ -449,8 +495,10 @@ async function startJob(
 
   /* Replay, in-memory first: the same ask returns the SAME job. A
      FAILED job (refunded + key voided by the runner) is dropped so
-     this request runs fresh below. */
-  const existing = jobs.get(jobId);
+     this request runs fresh below. Durable (0335): the lookup goes
+     through the store, so after a restart the persisted job answers
+     (and an in-flight one resumes/settles) instead of re-charging. */
+  const existing = await jobStore.find(jobId);
   if (existing && existing.userId === req.userId) {
     if (existing.status !== "failed") {
       res.status(202).json({
@@ -498,10 +546,13 @@ async function startJob(
       status: "processing",
       createdAt: Date.now(),
       chargeKey: idempotencyKey,
+      creditsRefunded: false,
+      workerInput: { params },
     };
     const body: Record<string, unknown> = { jobId: job.id, status: "processing", cost };
     job.replayBody = body;
     jobs.set(job.id, job);
+    await jobStore.persist(job); // durable (0335): the row lands before the worker fires
     // Fire and forget — the client polls for completion.
     void runJob(job, params, req.log.error.bind(req.log));
     return { status: 202, body };
@@ -537,7 +588,7 @@ router.post("/apply-mask", requireAuth, async (req, res) => {
 router.get("/freeze-mask/job/:jobId", requireAuth, async (req, res) => {
   const rawJobId = req.params["jobId"];
   const jobId = Array.isArray(rawJobId) ? rawJobId[0] ?? "" : rawJobId ?? "";
-  const job = jobs.get(jobId);
+  const job = await jobStore.find(jobId); // Map first, durable store on a miss (0335)
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found." });
     return;
