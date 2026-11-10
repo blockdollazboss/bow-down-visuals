@@ -99,11 +99,18 @@ export interface PresaveNotifyStore {
       eligibility cutoff (release moment + grace). */
   listEligibleFollows(releaseId: string, cutoff: Date): Promise<EligibleFollow[]>;
   /** Insert-first claim: lands a 'pending' row and returns it, or
-      null when a row for (release, email) already exists. */
+      null when a row for (release, email) already exists. The row
+      is stamped with the caller's clock (`now`), like every other
+      write in this flow (claimRetry / markSent / markFailed): the
+      stale-pending retry judges a claim's age by updated_at against
+      that same clock, so the claim must be born on it too — a row
+      stamped by the DB's own default would age on a different clock
+      than the one judging it. */
   claimDelivery(input: {
     releaseId: string;
     followId: string | null;
     email: string;
+    now: Date;
   }): Promise<PresaveReleaseDelivery | null>;
   /** Read the existing ledger row for (release, email), if any. */
   getDelivery(releaseId: string, email: string): Promise<PresaveReleaseDelivery | null>;
@@ -209,8 +216,8 @@ export function createDrizzlePresaveNotifyStore(db: Db = defaultDb): PresaveNoti
          surfaces the pre-existing row instead of no row. */
       const claimId = randomUUID();
       const result = await db.execute(sql`
-        INSERT INTO presave_release_deliveries (id, release_id, follow_id, email, status)
-        VALUES (${claimId}, ${input.releaseId}, ${input.followId}, ${input.email}, 'pending')
+        INSERT INTO presave_release_deliveries (id, release_id, follow_id, email, status, created_at, updated_at)
+        VALUES (${claimId}, ${input.releaseId}, ${input.followId}, ${input.email}, 'pending', ${input.now}, ${input.now})
         ON CONFLICT (release_id, email) DO NOTHING
         RETURNING ${DELIVERY_COLUMNS}
       `);
@@ -366,6 +373,7 @@ export async function notifyPresaveFansForRelease(
         releaseId: release.id,
         followId: follow.id,
         email: follow.email,
+        now: d.now,
       });
       if (!row) {
         const existing = await d.store.getDelivery(release.id, follow.email);
