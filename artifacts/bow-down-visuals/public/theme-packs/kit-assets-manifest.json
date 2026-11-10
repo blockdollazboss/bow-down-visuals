@@ -4647,6 +4647,906 @@
    "sourceAsset": "appicon-logo-emerald-marble-light.webp",
    "sourceSha256": "9f45474a4c3f0031b0a923fd0d564ae97caa790592a31e09888c23303e30d296",
    "sha256": "9f45474a4c3f0031b0a923fd0d564ae97caa790592a31e09888c23303e30d296"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "bank",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/bank-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/bank-dark.webp",
+   "sourceSha256": "b70a60a2ca0f3a9e647c3065af64c813dc9187620d8f008923ac36b83c25514e",
+   "sha256": "c8dc1401eb398a7fab672b6c6867b2ee6de3ca1a006b6a3bc823c9698d90d148"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "bank",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/bank-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/bank-light.webp",
+   "sourceSha256": "f4038c37290209c289c6d82bfe7b059b471537f0fc2596573a3ffa24e89145ff",
+   "sha256": "37774d90b440e08f923383cfadf478ac30af113bc0b752ada484d56c4bbe190d"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "books",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/books-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/books-dark.webp",
+   "sourceSha256": "b758efc5151bfa81d50f0ce574c66736c62eda08663afd5db75fe1a3c750ebe2",
+   "sha256": "3c5df1598af63b85d358f1e2c561b10fc87b96ad41c09febbecb1bbb2bbe4e56"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "books",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/books-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/books-light.webp",
+   "sourceSha256": "9ad234b13bb00c258cdb4150ea22cf8ac0eda14a7d238eed34ca377516dd3dde",
+   "sha256": "0999b97b10cd9c8b19f3f2f67e44891064173dd5a41fcb174759b6077348950e"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "browser",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/browser-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/browser-dark.webp",
+   "sourceSha256": "f4d4530c11393b966c1310317b1d2e1d148c3cd8cad45fa6325209a9a7ea67a0",
+   "sha256": "c9640df6f7a0d260ca9bf8c8f5b4525a1dffdf9d46580a41ef94bfb290c6f754"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "browser",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/browser-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/browser-light.webp",
+   "sourceSha256": "ac26f47909d1192dcdbd4f8237650aa576f64b3f60c5d842bb880d68856d71b0",
+   "sha256": "5b9cdedf398d36f11435acc28f8029407e2f960d42bf19d7e752690624bbf85f"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "calculator",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/calculator-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/calculator-dark.webp",
+   "sourceSha256": "c8cb0e4448ab7de61d5b2e40d3ae838099f180cfa2c2652701efd50434e0f365",
+   "sha256": "621f1287e090a2558d164dcd6428eda5f26fa6b2b7b19814d197c9abd300b109"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "calculator",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/calculator-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/calculator-light.webp",
+   "sourceSha256": "0d854598f1bd6c58afc5b4674874775306948725f06526f2e98e4889773ca87b",
+   "sha256": "0f0434d98c6e35447f2f6372b709b5c234881e178b3c3f554ce3e0f3110a3a82"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "calendar",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/calendar-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/calendar-dark.webp",
+   "sourceSha256": "6a2694cd15b0c531a83a62fe00b2e54b2a826cf266894f81096b03a732d42522",
+   "sha256": "2bbc19b14ca123f5543a07a40311f10df35a3e2ac6516eb5fbfcd50b8f2bb2b4"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "calendar",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/calendar-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/calendar-light.webp",
+   "sourceSha256": "a390b0b30270854fab64e10521beb8ceee0ec10b53f941cffaf586d497a6d793",
+   "sha256": "713792b57c674b96750bc28375e0357499d27e9da7f1100b1bf407bb4aaf4540"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "camera",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/camera-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/camera-dark.webp",
+   "sourceSha256": "b829ed7288f4da80d2776ea4d74f74ec4b913fce90994aa159de6bf0e84dad8c",
+   "sha256": "4d75a4f2136526e0a8b4071b2a658f5b6fc7d519d034bc845612832e465d6b40"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "camera",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/camera-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/camera-light.webp",
+   "sourceSha256": "d203bde770d5e2c5f64c4c1f87cf47c7d18c6264ca3fe819e91d6a9e4d0c6dff",
+   "sha256": "fab167d13de50e2b4a59d3a53a752dc0c82532c4290078c5d3ad393f2bb099fd"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "clock",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/clock-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/clock-dark.webp",
+   "sourceSha256": "638fe3750d2a37ed22e3fd495c80e8205ef5c514a0566298321475c20112d1c5",
+   "sha256": "c194e23f3dfd3c9e58f528ab23e75c64a4f00ec0c411037e4f64acd720f8cb5b"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "clock",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/clock-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/clock-light.webp",
+   "sourceSha256": "782298064383a6f8fe369a3c061ab880a006b1471946a1db99f04d7c8438f4e8",
+   "sha256": "6aeaaed70f120c28f971ae9c628117c22b907afaa560499b3c0e4dd2323cbb43"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "cloud",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/cloud-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/cloud-dark.webp",
+   "sourceSha256": "d60fe5cbefd99183f9668334affa5387c6b4fe7eaa479a1e9b3dc9e2f463ad82",
+   "sha256": "9a1cee7cd6579207e519c826c5fc838bf366bccd111cd9cec8554eafc5a11026"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "cloud",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/cloud-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/cloud-light.webp",
+   "sourceSha256": "ef2ae1df17e3e08d3d85f0cc3de2cf0a1061d6e2a6be7b948b1d4ef1ee5b962b",
+   "sha256": "3790f46fee6109a636754a6e9e0b284d2f4b9f5a4e6fd9d5008c08b0c50aa21c"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "compass",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/compass-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/compass-dark.webp",
+   "sourceSha256": "29966c36d651dd4ef84397605a98913bda5d14872ee9a84559ee63bd85b6ed49",
+   "sha256": "ef6390f4b3c118823923e71551f3baa5ce0b03c834bf374ecdb07161e5199bf7"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "compass",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/compass-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/compass-light.webp",
+   "sourceSha256": "5ae38f4f9f508e1cf41b84733ed4da525a689c6e7f13c2aecf91b08bb29d126f",
+   "sha256": "520784df6886502b72fd122485ce1b538e12533de2d9c83a6e751a2729cc37a7"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "contacts",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/contacts-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/contacts-dark.webp",
+   "sourceSha256": "c838095eefe43d32fa11bb9da90db4c415ba58754eaf8d2da55de7cd189a455e",
+   "sha256": "9601e398023d4518be3403e95b2addd062ab5c5309908d6e8025d911377fab82"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "contacts",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/contacts-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/contacts-light.webp",
+   "sourceSha256": "b842953b5f2b438b6326ba24b03cc65bcc7dcb0649a3fc55712cf6c195478f7c",
+   "sha256": "c52ba5360a6348fddd8fafdb51a7e7b29011cf3994ba4375496713f9552b6d5f"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "events",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/events-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/events-dark.webp",
+   "sourceSha256": "d4c07e63080c8607cde6f4ad38efebb9e14bbf5cc68faa50a5d90cba513546c0",
+   "sha256": "a7a57a27fde1ca135ade0ae2121d23b889ca4c05f09777fde4f7c89ae6e84f7a"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "events",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/events-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/events-light.webp",
+   "sourceSha256": "fbcfe2861f894a95b89a788646185b518a6ef80637abc065f3d00ed985c9b89c",
+   "sha256": "4cb56051d6b35d6a08fcd4fb7b8b7d72e3bf97c2f521be77cb7369614c4ff8e2"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "files",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/files-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/files-dark.webp",
+   "sourceSha256": "ee1847e961bcee75267568c8759b2c8f3da6d7cf306cef708337b4e327a75b48",
+   "sha256": "86666ee7cc794a8349aa78108ad8d68079f116dc4d43a344ed6992eba516b554"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "files",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/files-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/files-light.webp",
+   "sourceSha256": "c65f79d692e3a5202dd1182b0c64915dfdaf2f1fb6f8753ff77ae1cafa71b940",
+   "sha256": "3354b933ddd5fe35efe642735f861c2ba6805d5266eed36d68fd73e152e35833"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "flashlight",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/flashlight-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/flashlight-dark.webp",
+   "sourceSha256": "eb18249952a28cea87293c12cbf78807c20f98b71fed586ea030cf4b5e839537",
+   "sha256": "3db5422f1a2dd251eeab69de6461791df364770f95c937eca9323f84720f16b1"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "flashlight",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/flashlight-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/flashlight-light.webp",
+   "sourceSha256": "5075af06222aa39c86c39eabfe1d58e93778c7ad26867ec2dc9f026ca75b52d8",
+   "sha256": "8529e245ec7450cff547d5c0261f7abdf95ae4de809b1b7004d2c14d4bbf248c"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "flights",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/flights-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/flights-dark.webp",
+   "sourceSha256": "41b4ab842bb1ec9b5343b491a319b230ab4dc3ec7e2975018d58a87dd1fe184a",
+   "sha256": "3d791edbd13e3a811c68a120e2432d66941e9f455679268d0ec82db3ed493ddb"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "flights",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/flights-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/flights-light.webp",
+   "sourceSha256": "dda85ef469634b61cde6843035b70888cea66d02944f223bced204d614a8b71f",
+   "sha256": "eaf00cc08e8a927efaf0c555f65fb4603889e1f7b6fc3bee1cf669dfe1440fd0"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "food",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/food-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/food-dark.webp",
+   "sourceSha256": "37341030019104a6a2029da51a248a8dc058c657e94ae1c6a52b9f3bc74052f9",
+   "sha256": "b776ded0e3079159abd952d893eda10681d7b4c4c12488c1c0f20a39a7453560"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "food",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/food-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/food-light.webp",
+   "sourceSha256": "09d319544213fe5667ce2ba62f3f9d37cfbf8a2cc85a93067f99ab46737e465c",
+   "sha256": "43bd7288404f4a5af9517ae846d670ad91bb307eb940bdfd4b01668871174054"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "games",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/games-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/games-dark.webp",
+   "sourceSha256": "942263ca2205b0b42f613a9644e77fff56e961b9ce8cd8e73fcce2d333eff615",
+   "sha256": "94f4511bc556fd1f8810330beadb57a58fa4647249b503173167bd56ef3b1fb3"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "games",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/games-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/games-light.webp",
+   "sourceSha256": "55ee85cfce1536346796117bfbc9e0ed9512d68e111769d6411401f43bae83b1",
+   "sha256": "171950f35d5230350612837dd069971c3b7ddb3d91b5b096e1bfe2023e686ff8"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "health",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/health-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/health-dark.webp",
+   "sourceSha256": "96696562591f74ae3e6ab253fd91132fd367de19de74534b5fe5dcab1cccad5b",
+   "sha256": "acd7a5c546088cd422bed1bb0f0e4f1c1bab76f71b39e829295fd04fb5d3d3c2"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "health",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/health-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/health-light.webp",
+   "sourceSha256": "d771a8b685d46c74e10ad17b04905b78ef638fa9f0d476ae0e1bc36506d975d1",
+   "sha256": "b56eaae7110ed12e72b9ecf241c51427a2ac8f5e4aa661d893bebe249d0c7110"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "learn",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/learn-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/learn-dark.webp",
+   "sourceSha256": "a3180600ce350c6cada6020af209f6f7523e23f9ca63d00620eb225d915391ce",
+   "sha256": "f224dd8ce6ed2a8ca7452e6b876105ba72589bc9618df0136bbb214b0142c8f2"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "learn",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/learn-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/learn-light.webp",
+   "sourceSha256": "e8854444d4e274575fdb6e5c5b46181ca23266d3c19a3bc5891410cfd7b7dac7",
+   "sha256": "2df8faf0346d261e5b1f4d0d21412dca955f2ef7f1ad2fe303b18ec60080f367"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "mail",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/mail-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/mail-dark.webp",
+   "sourceSha256": "16fa2ecfee6a2b89f9ed6e4cfbba43043349a5ef9b3075b524699fb5f5cdea43",
+   "sha256": "86b09b41d3c695e6463ea5f7d6f51a3141d89fc9d752f36f9ddd71195f7b7b23"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "mail",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/mail-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/mail-light.webp",
+   "sourceSha256": "308da008a0ef1d667ba694fb7d1b2c32b3383e461c60b039c7c972a9702b5a23",
+   "sha256": "1dd8bf523ecb7766b17e5d9fb8a8a504a482b68e81a831c3b852cabcfcdee11e"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "maps",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/maps-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/maps-dark.webp",
+   "sourceSha256": "60258b7dc4cd925dfe96f32de4750b35320a44245f69df139e9b48c18238563b",
+   "sha256": "8962e36abf9b6ecd759cc15956cd2abef478d11339b3e0aa451c3b45e9209c1e"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "maps",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/maps-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/maps-light.webp",
+   "sourceSha256": "0d71c0ed8e68376a8d953b0b0c5da5152605cad36d58567767beb7be952b2837",
+   "sha256": "f7fee06678ba4df9563d1fc1fa9aa013403aca2c177ca94eb790f7550c1319c8"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "messages",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/messages-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/messages-dark.webp",
+   "sourceSha256": "513c331a6c90fe2d940e6ff217abc5037a0a3289526bfa1a37073c0b6340c751",
+   "sha256": "7146d9e4f7bbb7d537e3327cd42cd246b00be52a3633d3f707eac7c921e6f9e6"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "messages",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/messages-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/messages-light.webp",
+   "sourceSha256": "84b3fd29be7f9a5874b356ec4ad132b7b5fc4e2c961a81cd59c012d0b1d635e8",
+   "sha256": "40717d8dd48c4a934b89798fda1cec8269235f213df2647671598576657e9407"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "music",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/music-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/music-dark.webp",
+   "sourceSha256": "333b31848208a10a77ee27bb7c5a2bfb6796597a862a6e0b53737ae7c52fb8ea",
+   "sha256": "27edd04ed590cd68c8c6b5117282d0c9f49a0d1ba6fdec97d8e1b8db9754e1ab"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "music",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/music-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/music-light.webp",
+   "sourceSha256": "b9d3d1c3206045c48b26b07526ac10503d696c4ebbe38f223ae93808c017e394",
+   "sha256": "b2346e686c027c313fe7faa759cd09d10ce4dc705587a276ff73a45009e09b04"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "news",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/news-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/news-dark.webp",
+   "sourceSha256": "cb9057ed7cd02a0a2144a5d19d7ebae58c2900f55fc813f4ddd7be3a7f53ecef",
+   "sha256": "f123eabeadc2f509016d8b37391dbbfcbc2d70923517fc582addb251b87e64f6"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "news",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/news-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/news-light.webp",
+   "sourceSha256": "2d54f62e7a834f79186754a9713973c30d8b600c8690533baa3c6ea1d273fab7",
+   "sha256": "196ad9011e6926c2d3bce5ba88def34235508179a8962b7c029deecce817ac97"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "notes",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/notes-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/notes-dark.webp",
+   "sourceSha256": "93670a7557201ce564d59b1d58d8a4b71956a91acd1936c43ccaaf7eccad8ddd",
+   "sha256": "e2051eacfc6dc93e7e737c4f78fcff9db9f568dbce33cfc1fbc705f3102e9084"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "notes",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/notes-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/notes-light.webp",
+   "sourceSha256": "107f774316ae832b512837bd04c3c92d521d1f02eef067d06d5bb900d7a49158",
+   "sha256": "83e451370f786c262646200c0d7b4710e4597765711aa7eee97fa82c73953898"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "passwords",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/passwords-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/passwords-dark.webp",
+   "sourceSha256": "225baccffd6ed03c3bfb81111a0db1960620424b3a4f1081e0e472cde577fc0b",
+   "sha256": "62eab775425790e9d9d4a962eedf52c65bd4a2527d7f60a8f9f23dd465ceeb24"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "passwords",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/passwords-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/passwords-light.webp",
+   "sourceSha256": "c87edc335f236d75892d898f80cb4a21be18766e560fd54810543d31e3ede2b1",
+   "sha256": "e65a2baf72eb361b90f90f64cc7d588efd0fea098795a001821e7d5e445347fe"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "phone",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/phone-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/phone-dark.webp",
+   "sourceSha256": "a2cbecb530755082dbfac398dd1e89a9c55b1419205c7d7e9e53929d2f4b2c30",
+   "sha256": "adff2d92518b727fb0bb044623fdb4fd6ad70a33f6eb24a2a4dacf0002efb17c"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "phone",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/phone-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/phone-light.webp",
+   "sourceSha256": "83a66e62a0fbb17a40067ae0d7ad3f813c1a0e8db214bf071860910b28246783",
+   "sha256": "3480dfbe45984f9e0d4f925b4bfa47b174c9772b9cc9f045257e4e45bfdb4262"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "photos",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/photos-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/photos-dark.webp",
+   "sourceSha256": "95cf31747ce4b856d4e1d458f8c789aa332aa70224fa984c12b70d7ee9f29a42",
+   "sha256": "2da34cf0e1786130aae9d165a93414cabc44208f55f21b90ee66c1ed15aa877b"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "photos",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/photos-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/photos-light.webp",
+   "sourceSha256": "d485df53c3eba78fc676c87336895cdc60acdb536bc24f7f3eb5b1814100c8ff",
+   "sha256": "145fafc7dc450c23fda7ebb250af58cc24317f74bb421bcc2350171943fb1598"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "podcasts",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/podcasts-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/podcasts-dark.webp",
+   "sourceSha256": "b3bed4b63907218c27f6576b508dc8a050bc908d640d9ce18503817d150e6180",
+   "sha256": "bae4b2b9b3bb2eefc13bfc7af017ba64c228d39b03a883e737035a27f0b7103f"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "podcasts",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/podcasts-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/podcasts-light.webp",
+   "sourceSha256": "5d9bf4f34599f275ea68ead46c2e3bf3d4c0faac6eba0b8baec18f0af753ac82",
+   "sha256": "820d2dfe200573c2f7fc7fe98209f04c75a0ebd5b26a79492d468e2cd0040503"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "radio",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/radio-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/radio-dark.webp",
+   "sourceSha256": "395fe2f4f29de95c097219d2f9e2fa034a756b257189f5dee4144e94cceec3f7",
+   "sha256": "98aea7c63631655b9cceae61d158083cb2295408d8cee8eb837cb0c24b151a96"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "radio",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/radio-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/radio-light.webp",
+   "sourceSha256": "ce584208c695fd89fdf0d783c00cedca19956bb11ba8c4884a52c411490b6b99",
+   "sha256": "ce817b23d745023bf0ce77a0940eb9e15f9a8990421b7c934888add7cf42c26b"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "reminders",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/reminders-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/reminders-dark.webp",
+   "sourceSha256": "ceccda7e853628982cce0b051336e5e9571e9966faf550f6ee10a10443531b6b",
+   "sha256": "9d865dc45c2320fdf32da0e76ef16ad18ded1e80795f8539973af6da5e89996b"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "reminders",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/reminders-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/reminders-light.webp",
+   "sourceSha256": "adff16bfd3c2edfca0536a017b4059098af482ddc5557428f3a6901cacf1194a",
+   "sha256": "a0cdf4057849ac50e18336aef29a52084eaac7ed9933a9d1d82537e88cbc46c7"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "rides",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/rides-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/rides-dark.webp",
+   "sourceSha256": "8410e8d4f8794ffe31644624c9718d2b44a50484d9aec81bcefadf803e48d42a",
+   "sha256": "6ed468216270a78811dca00df2773534b2add56258beee30efedf6ee51babad4"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "rides",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/rides-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/rides-light.webp",
+   "sourceSha256": "96b773153ddacbdd10ebc648f978a44c75aab9c9895ad71e04eb6296abc7c32d",
+   "sha256": "57b1bdc6c26015fcd5a297ce2d4384489fdb4760db241c583117088d8377dbf6"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "scanner",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/scanner-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/scanner-dark.webp",
+   "sourceSha256": "d8a54ed2e0c72f34e9663697f7d200e9de739ad0bd770b07d17fc4df4351c9ed",
+   "sha256": "a53fb8f4847c2ab7847fa63c4ba33a89be2d9b5d71564c3a03d365ac68f03f73"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "scanner",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/scanner-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/scanner-light.webp",
+   "sourceSha256": "759485cbf54762272113b56371084c85e0efc9b41482de54dadb73caf06a2df8",
+   "sha256": "70b300a08cedf6817d418594df365d65ef958c22cbc7d635f8c0a31c73ccb131"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "search",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/search-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/search-dark.webp",
+   "sourceSha256": "b3816f3c264cf2f01ec7a9723c97360a30c58f83e6aee2b61c30046aae08c648",
+   "sha256": "d32c89858f9851c4011d313e5c61ad7721b64769175b6befca025435f8e682a7"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "search",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/search-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/search-light.webp",
+   "sourceSha256": "ad423131e86748c1f1a0ea8b11b6f16c062c11903461f9670e1281a3de3309df",
+   "sha256": "e9f767d5f01b4e480db465a3c7843f380c6905b95e0eb3f786100cd4544fa296"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "security",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/security-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/security-dark.webp",
+   "sourceSha256": "cd159afeab025c75fb2f5613c37e3b5c0383810dacd02bd2eb78806ddbcf20b7",
+   "sha256": "428678560b89efb7b3546263544eb34aae501840f729d079b1b5ceeea6a5f436"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "security",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/security-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/security-light.webp",
+   "sourceSha256": "323c2b0dfd81e237bb176f176e13743a7f787941b475e745ccdf1205350ed1c5",
+   "sha256": "3247cb238f057d7506b33f63965fb2c09b41b66e51ab5408056f36fda1d25265"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "settings",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/settings-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/settings-dark.webp",
+   "sourceSha256": "348e512dfa29246bc8c496e2720d96a731444511737395317f981ca9ac52c7fa",
+   "sha256": "230b69bfd2045cb668a3823286053ff6f554d82d02a3b5989f618e85f398c9ba"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "settings",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/settings-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/settings-light.webp",
+   "sourceSha256": "fa434073f99559fc4e15ed30d06401e5ab8a8e95480b52a97d75ec3a7bebea9c",
+   "sha256": "1967d0564db81315250b27797b1c0b80e9430aa9a07718c4244104d11a959b69"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "shop",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/shop-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/shop-dark.webp",
+   "sourceSha256": "783dd54ea7585bcd00ff99d5c29e89e1e77f5a4be8394816012e598fd4cea5f9",
+   "sha256": "71f653fdf051e34791af17a0d563f2740ce671a00188c9a8e6cd78ece017e30a"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "shop",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/shop-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/shop-light.webp",
+   "sourceSha256": "7b348c9998eddedf420d285f71cc4248502c6dad235c36d4a54974b809503705",
+   "sha256": "f650e0df23a2eea560b5dc0c278b24419d24e80ee6178ef4f05b2d670d861459"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "smart-home",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/smart-home-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/smart-home-dark.webp",
+   "sourceSha256": "249414ca859a05883eadb7891a3d6f9fdcbbca03906f9595ae9ea3cb60295bb1",
+   "sha256": "38ac487e822a74c5af3eb11b32da2388bc21f61328a69574ab66662de4541af5"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "smart-home",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/smart-home-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/smart-home-light.webp",
+   "sourceSha256": "028ef5d2066df4d82c934d716f5de215b926862eb04a1074ff2f46a56c5364d7",
+   "sha256": "33f1d6647473b397371765183cec64c401944cf4ea0ba0a9fafdbb2a41bc69ee"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "social",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/social-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/social-dark.webp",
+   "sourceSha256": "faa6ddb7afabac56de82ea38b8932f5bc17eb40a91d851fca1b02454fa772fe3",
+   "sha256": "0b8a04c65907e1579b420be3eaec4b1129ae9507de86e749febf5403662e6740"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "social",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/social-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/social-light.webp",
+   "sourceSha256": "c96ebaf93191fe5268a30e49738bb10e2824b83101bdee80f00540d337df5691",
+   "sha256": "c86bd97216bf61f460b107cd24a46dc8fa5e0c211eb8da5a88690dac4acce505"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "stocks",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/stocks-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/stocks-dark.webp",
+   "sourceSha256": "9de3e6c6164ffd3e277fb63451e143a6d6eef4d71e25407790d24beec55c2294",
+   "sha256": "674a4a8e3f2ead2b2a394f217800a5d0c69e4cd164a82c022f72ecfb5eb319d1"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "stocks",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/stocks-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/stocks-light.webp",
+   "sourceSha256": "95adc4a0597d79291a3e0418c1db66007ea9a4717f5022c812d1b5322b22def5",
+   "sha256": "fb0364d7084d386eb503865c878cde8f2a546eec32a17ebddabcd35073991399"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "tickets",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/tickets-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/tickets-dark.webp",
+   "sourceSha256": "d4bcd4456535a39272c27166ddb5dd38416961338039eb1b446d498308daada2",
+   "sha256": "ac4689790a8f737cb9e851a03011be095fae4413428428fdff821190ddcfb573"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "tickets",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/tickets-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/tickets-light.webp",
+   "sourceSha256": "ff7fe3b1ce07c4ed71fca1f2420b3551d7406953f6b3133d0af4ab031ef05fe1",
+   "sha256": "add8e22d2d0f9575446bf72162a7e60c460cc7a795d43082de2e2827b8e57d20"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "timer",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/timer-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/timer-dark.webp",
+   "sourceSha256": "f6d59b8d709de59c1924d97d3fe8ac29e0969fdffe8b7be8fc3f93720b43f51f",
+   "sha256": "c5baef44a66f7d4cfee59a58d4c1cfefd1d78402077057124c954f3c2f0dfbef"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "timer",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/timer-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/timer-light.webp",
+   "sourceSha256": "88d9f8e5a130da90161b35b9edf7d39cfde57e8a6d56c2f421e9129bb4196ece",
+   "sha256": "eb936a2a38f0895fdf147d576ea01b0a4923e12e746b2013af126a274399190d"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "translator",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/translator-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/translator-dark.webp",
+   "sourceSha256": "b73d2e2aa3f0065a3f27b741125e41765eb05f51a1ba7f0f9fad2ce12ea0d4ca",
+   "sha256": "590e63b5c10e8940069b2b0fe88f22d8ec7cb819ddec20a5f3b5326fcdafa194"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "translator",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/translator-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/translator-light.webp",
+   "sourceSha256": "43eba5fdf4efb036b80a98d7aa71da14b5e6f838c103df76cec76a3b5827e7c9",
+   "sha256": "dbd0d13d035243e286f1f134c01ac3a65834045a3886598521563df553de5ccd"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "tv",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/tv-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/tv-dark.webp",
+   "sourceSha256": "1d4d418dca3414a297719f6146255dc93c49bf70c4c4f79b5e617b24e1728768",
+   "sha256": "d2c53035bc8336a82a9d9544de50b03d2017ec59819b3ba532ee7f91508b22ed"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "tv",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/tv-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/tv-light.webp",
+   "sourceSha256": "fa03a1cd4217b15f508c4ebd37c74d3831654d70ca2a5f1bc34ce48e06dea7a0",
+   "sha256": "d8168bf519b8cbcd2543a559347662b3c8cf097d16745159e79b58470b8afb92"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "video",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/video-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/video-dark.webp",
+   "sourceSha256": "4a50375ecf40873ac91ce2b363ebdb434e50250f9e4e213d5f90f13f406fc9fc",
+   "sha256": "d87f4d1e9e0922add031516825eaad52eabed171124fb993296e7cba06bf3065"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "video",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/video-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/video-light.webp",
+   "sourceSha256": "dc3c69911f5c04a108223d4b5af45fcaf5e563354400a85a633925a029e7f32e",
+   "sha256": "76c73ec1b0e6ead8eadd3c0d7bc44574c9d4df22c3e01bb6b6d339a0584ef0de"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "video-call",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/video-call-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/video-call-dark.webp",
+   "sourceSha256": "b59e8a9a1530a6ad4c4e123d90525664ccde6dd4640f112151ea7eb23f89c1ba",
+   "sha256": "37b1e27f83e0addaaaad575f4060f98e3720ad370bd18e96affe8f060b9945d6"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "video-call",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/video-call-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/video-call-light.webp",
+   "sourceSha256": "3438f9d5708d1e4ff3cc84184d44026775592dda20ac158cf80d392274f5800a",
+   "sha256": "c13740bafa335eddce5bdd15edb2f22067ac4209090185c5a343e1fd04be397b"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "voice-recorder",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/voice-recorder-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/voice-recorder-dark.webp",
+   "sourceSha256": "9346700f563a6d9b1aec7be2c3101853904136abe6c4638c98f027630527a670",
+   "sha256": "ab516c8603bbf49dc5a450cab6f1340875eda7a512c16e744619f7875349e0ff"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "voice-recorder",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/voice-recorder-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/voice-recorder-light.webp",
+   "sourceSha256": "dc48dfacf222a091d20c8d1bb89ce10cdc0110e37a4a5993db87e0ac914442dd",
+   "sha256": "8b2626fcbc5bad063e0283183f494c73de4ea7486f350ccfdadaca441051798b"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "vpn",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/vpn-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/vpn-dark.webp",
+   "sourceSha256": "6b5321984dad997e05d801c16fbbc0028edff5288827e31ac36385d3dd176f91",
+   "sha256": "91a9251207b662f15eb00c103e5431b49854aa0d431d2a76e5cbf519670d3522"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "vpn",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/vpn-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/vpn-light.webp",
+   "sourceSha256": "8ffb9d36b6b41c6fd3ab373c608949b44a6fb7bb5cad3a178e7eb1f13145a2d2",
+   "sha256": "63193f1080cef502901499fa9ad4354a5b0871390a7199b3c20a4e137cf12c2c"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "wallet",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/wallet-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/wallet-dark.webp",
+   "sourceSha256": "12ee66c33fd7bdf30861ac09f0c23fa73accad85468fb476bca718a7b9ac4a1a",
+   "sha256": "de2db7c0464948e858639755e975d604a10a5b6c8e1f74b7b11b5a43e3ae80a3"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "wallet",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/wallet-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/wallet-light.webp",
+   "sourceSha256": "ca73108f7a5ffda5b9fd382d8439a6213937e228eee126689f48f8dd0ea27f8e",
+   "sha256": "043acc2efb800fb53d7cf20cd8aeadd1106ff37b33383ae75b2f9dfaae74ba0a"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "weather",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/weather-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/weather-dark.webp",
+   "sourceSha256": "538478771e7a6d809048e6f0730bb58216b47473b43896450c702fa7128defe3",
+   "sha256": "c40bcdb40cc2da8dd16ff1f12877d01e01ef4aa21fc61617e904909350fbc139"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "weather",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/weather-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/weather-light.webp",
+   "sourceSha256": "7e723d58b91d1e1b1c2ebf312a9a083e8529273526375b99fe243676f1ade63c",
+   "sha256": "a299f76c08367e5248f8d7e806912a3847f71590fad3e9f141ea9f081d52addd"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "workout",
+   "mode": "dark",
+   "path": "/theme-packs/icons/sapphire-marble/workout-dark.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/workout-dark.webp",
+   "sourceSha256": "1004bb81619776c05dc803298a6f4178de5ea35c96d6551fdbf492d648278120",
+   "sha256": "8bb7c1623379e85720e3468bd942e8b32f5eca384504b0054db037ea96478468"
+  },
+  {
+   "pack": "sapphire-marble",
+   "icon": "workout",
+   "mode": "light",
+   "path": "/theme-packs/icons/sapphire-marble/workout-light.webp",
+   "sourceAsset": "theme-pack-art/sapphire-marble/masters-webp/workout-light.webp",
+   "sourceSha256": "22dc32bb9d4d4cc9d9c7d11047d67a1e6a78e722918dddf9dc70ec2d249f7b6f",
+   "sha256": "b752e83aa611b9a288d8ed8ac262063376a76751e560a854c211861c112b0fe8"
   }
  ],
  "deviceWallpapers": [

@@ -113,9 +113,10 @@ describe("(b) designed icon art — bespoke per pack, from the approved art prog
   it("every raised pack's masters are its own generation files — no shared source across packs", () => {
     /* Scoped to the packs whose designed sets have been raised into
        the manifest (DESIGNED_ICON_SET_PACK_IDS in lib/theme-kit.ts):
-       crimson-marble's and sapphire-marble's designed emblem sets
-       are raised by the owner-approved art program, not invented
-       in code. */
+       crimson-marble's and emerald-marble's designed emblem sets
+       are still raised by the owner-approved art program, not
+       invented in code; sapphire-marble's set landed Nov 10, 2026
+       from its vector masters in theme-pack-art/sapphire-marble/. */
     const raised = THEME_PACKS.filter((p) => DESIGNED_ICON_SET_PACK_IDS.includes(p.id));
     for (const icon of ["phone", "camera", "wallet"] as const) {
       for (const mode of ["light", "dark"] as const) {
