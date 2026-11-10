@@ -41,6 +41,7 @@ interface GameCard {
 const ARCADE_GAME_TITLES: Record<string, string> = {
   runner: "Shark King Endless Runner",
   skeet: "Royal Skeet",
+  crownfall: "Crownfall Run",
 };
 
 const PARTY_GAME_TITLES: Record<string, string> = {

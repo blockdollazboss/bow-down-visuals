@@ -177,6 +177,7 @@ describe("GET /creator-profiles/:slug/game-stats", () => {
     expect(json.arcade).toEqual([
       { game: "runner", best: 450, plays: 3 },
       { game: "skeet", best: 80, plays: 1 },
+      { game: "crownfall", best: null, plays: 0 },
     ]);
 
     expect(json.party.totalMatches).toBe(3);
@@ -193,6 +194,7 @@ describe("GET /creator-profiles/:slug/game-stats", () => {
     expect(json.arcade).toEqual([
       { game: "runner", best: null, plays: 0 },
       { game: "skeet", best: null, plays: 0 },
+      { game: "crownfall", best: null, plays: 0 },
     ]);
     expect(json.party).toEqual({
       games: [
