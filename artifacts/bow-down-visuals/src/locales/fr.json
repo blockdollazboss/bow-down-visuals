@@ -18174,6 +18174,7 @@
     "voiceLabel": "Voix",
     "voiceoverScriptLabel": "Script de voix off",
     "voicesLoading": "Chargement des voix…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "Le banc complet — mix & master, stems, arrangement et les bancs de voix — est ancré juste en dessous.",
     "workingBtn": "Travail…",
     "workingLabel": "Travail…",

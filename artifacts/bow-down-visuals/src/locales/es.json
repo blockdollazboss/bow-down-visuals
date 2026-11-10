@@ -18174,6 +18174,7 @@
     "voiceLabel": "Voz",
     "voiceoverScriptLabel": "Guion de voz en off",
     "voicesLoading": "Cargando voces…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "El banco de trabajo completo — mezcla y máster, stems, arreglos y los bancos de voz — está acoplado justo abajo.",
     "workingBtn": "Trabajando…",
     "workingLabel": "Trabajando…",

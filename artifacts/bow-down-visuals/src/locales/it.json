@@ -18174,6 +18174,7 @@
     "voiceLabel": "Voce",
     "voiceoverScriptLabel": "Script voce fuori campo",
     "voicesLoading": "Caricamento voci…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "Il banco completo — mix & master, stem, arrangiamento e i banchi voce — è ancorato proprio sotto.",
     "workingBtn": "Lavoro…",
     "workingLabel": "Lavoro…",

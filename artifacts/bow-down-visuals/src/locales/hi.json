@@ -18145,6 +18145,7 @@
     "voiceLabel": "आवाज़",
     "voiceoverScriptLabel": "वॉइसओवर स्क्रिप्ट",
     "voicesLoading": "आवाज़ें लोड हो रही हैं…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "पूरा वर्कबेंच — मिक्स और मास्टर, स्टेम, अरेंजमेंट और वॉइस बेंच — ठीक नीचे डॉक किया गया है।",
     "workingBtn": "काम हो रहा है…",
     "workingLabel": "काम हो रहा है…",

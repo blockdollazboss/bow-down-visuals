@@ -18174,6 +18174,7 @@
     "voiceLabel": "Voz",
     "voiceoverScriptLabel": "Roteiro de locução",
     "voicesLoading": "Carregando vozes…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "A bancada completa — mixagem e masterização, stems, arranjo e as bancadas de voz — está encaixada logo abaixo.",
     "workingBtn": "Trabalhando…",
     "workingLabel": "Trabalhando…",

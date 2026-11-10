@@ -18141,6 +18141,7 @@
     "voiceLabel": "ボイス",
     "voiceoverScriptLabel": "ボイスオーバー台本",
     "voicesLoading": "ボイスを読み込み中…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "フルワークベンチ — ミックス＆マスター、ステム、アレンジメント、ボイスベンチ — はすぐ下にドッキングされています。",
     "workingBtn": "処理中…",
     "workingLabel": "処理中…",

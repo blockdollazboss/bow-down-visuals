@@ -865,9 +865,11 @@ function AudioFullBench(props: {
   const [podMode, setPodMode] = useState("script");
   const [voiceId, setVoiceId] = useState("");
   const [voices, setVoices] = useState<Array<{ voice_id: string; name: string }>>([]);
+  const [voicesFailed, setVoicesFailed] = useState(false);
   const [emotion, setEmotion] = useState("conversational");
   const [voFormat, setVoFormat] = useState("mp3");
   const [singVoices, setSingVoices] = useState<Array<{ id: string; name: string; style: string }>>([]);
+  const [singVoicesFailed, setSingVoicesFailed] = useState(false);
   const [singVoiceId, setSingVoiceId] = useState("");
   const [singConfigured, setSingConfigured] = useState<boolean | null>(null);
   const [keepInstrumental, setKeepInstrumental] = useState(true);
@@ -904,11 +906,13 @@ function AudioFullBench(props: {
       void (async () => {
         try {
           const res = await fetch("/api/voices", { headers: await authHeaders() });
+          if (!res.ok) throw new Error("voices");
           const data = (await res.json().catch(() => ({}))) as { voices?: Array<{ voice_id: string; name: string }> };
           const list = Array.isArray(data.voices) ? data.voices : [];
           setVoices(list);
+          setVoicesFailed(false);
           if (list.length > 0 && !voiceId) setVoiceId(list[0]!.voice_id);
-        } catch { /* the bench says so below */ }
+        } catch { setVoicesFailed(true); /* the picker says so below — never "loading" forever */ }
       })();
     }
     if (benchId === "singing-voice" && singConfigured === null) {
@@ -923,10 +927,12 @@ function AudioFullBench(props: {
             const vdata = (await vRes.json().catch(() => ({}))) as { voices?: Array<{ id: string; name: string; style: string }> };
             const list = Array.isArray(vdata.voices) ? vdata.voices : [];
             setSingVoices(list);
+            setSingVoicesFailed(false);
             if (list.length > 0 && !singVoiceId) setSingVoiceId(list[0]!.id);
-          }
+          } else setSingVoicesFailed(true);
         } catch {
           setSingConfigured(false);
+          setSingVoicesFailed(true);
         }
       })();
     }
@@ -1476,7 +1482,7 @@ function AudioFullBench(props: {
           </label>
           {benchId === "voiceover" ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <DeskSelectField isLight={isLight} label={t("worldAudioDesk.voiceLabel")} value={voiceId} onChange={setVoiceId} options={voices.length > 0 ? voices.map((v) => ({ value: v.voice_id, label: v.name })) : [{ value: "", label: t("worldAudioDesk.voicesLoading") }]} />
+              <DeskSelectField isLight={isLight} label={t("worldAudioDesk.voiceLabel")} value={voiceId} onChange={setVoiceId} options={voices.length > 0 ? voices.map((v) => ({ value: v.voice_id, label: v.name })) : [{ value: "", label: voicesFailed ? t("worldAudioDesk.voicesFailed") : t("worldAudioDesk.voicesLoading") }]} />
               <DeskSelectField isLight={isLight} label={t("worldAudioDesk.emotionLabel")} value={emotion} onChange={setEmotion} options={["energetic", "calm", "dramatic", "conversational"].map((e) => ({ value: e, label: e }))} />
               <DeskSelectField isLight={isLight} label={t("worldAudioDesk.formatLabel")} value={voFormat} onChange={setVoFormat} options={[{ value: "mp3", label: "MP3" }, { value: "wav", label: "WAV" }]} />
             </div>
@@ -1571,7 +1577,7 @@ function AudioFullBench(props: {
             <p className={`text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`}>{t("worldAudioDesk.singingNotConnectedBench")}</p>
           ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
-            <DeskSelectField isLight={isLight} label={t("worldAudioDesk.singingVoiceLabel")} value={singVoiceId} onChange={setSingVoiceId} options={singVoices.length > 0 ? singVoices.map((v) => ({ value: v.id, label: `${v.name} — ${v.style}` })) : [{ value: "", label: t("worldAudioDesk.voicesLoading") }]} />
+            <DeskSelectField isLight={isLight} label={t("worldAudioDesk.singingVoiceLabel")} value={singVoiceId} onChange={setSingVoiceId} options={singVoices.length > 0 ? singVoices.map((v) => ({ value: v.id, label: `${v.name} — ${v.style}` })) : [{ value: "", label: singVoicesFailed ? t("worldAudioDesk.voicesFailed") : t("worldAudioDesk.voicesLoading") }]} />
             <DeskTextField isLight={isLight} label={t("worldAudioDesk.strengthLabel")} value={String(strength)} onChange={(v) => setStrength(Math.min(1, Math.max(0, Number(v) || 0)))} />
           </div>
           <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold bdv-touch-target">

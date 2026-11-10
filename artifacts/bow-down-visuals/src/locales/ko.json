@@ -18145,6 +18145,7 @@
     "voiceLabel": "보이스",
     "voiceoverScriptLabel": "보이스오버 대본",
     "voicesLoading": "보이스를 불러오는 중…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "풀 워크벤치 — 믹스 & 마스터, 스템, 편곡과 보이스 벤치 — 가 바로 아래에 도킹돼 있어요.",
     "workingBtn": "작업 중…",
     "workingLabel": "작업 중…",

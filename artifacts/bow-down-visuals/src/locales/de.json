@@ -18145,6 +18145,7 @@
     "voiceLabel": "Stimme",
     "voiceoverScriptLabel": "Voiceover-Skript",
     "voicesLoading": "Stimmen werden geladen…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "Die komplette Werkbank — Mix & Master, Stems, Arrangement und die Stimm-Werkbänke — ist direkt unten angedockt.",
     "workingBtn": "Wird gearbeitet…",
     "workingLabel": "Wird gearbeitet…",

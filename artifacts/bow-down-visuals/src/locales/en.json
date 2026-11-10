@@ -18124,6 +18124,7 @@
     "voiceLabel": "Voice",
     "voiceoverScriptLabel": "Voiceover script",
     "voicesLoading": "Voices loading…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "The full workbench — mix & master, stems, arrangement and the voice benches — is docked right below.",
     "workingBtn": "Working…",
     "workingLabel": "Working…",

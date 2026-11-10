@@ -18261,6 +18261,7 @@
     "voiceLabel": "الصوت",
     "voiceoverScriptLabel": "نص التعليق الصوتي",
     "voicesLoading": "جارٍ تحميل الأصوات…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "منضدة العمل الكاملة — المزج والماسترينغ والستيمات والتوزيع ومنضدات الصوت — مثبتة أسفله تمامًا.",
     "workingBtn": "جارٍ العمل…",
     "workingLabel": "جارٍ العمل…",
