@@ -200,7 +200,16 @@ import { apiErrorMessage, apiThrowMessage, plainErrorText } from "../lib/api-err
             refreshProfile();
           }
         } catch {
-          // Best effort autosave.
+          // The clip is already in the UI, but it did NOT persist — say
+          // so, exactly like the non-ok branch above; silence here would
+          // let the creator believe a clip was saved when it was not.
+          toast({
+            title: "Save failed",
+            description: "Clip generated but saving failed.",
+            variant: "destructive",
+          });
+
+          refreshProfile();
         }
       }
 
