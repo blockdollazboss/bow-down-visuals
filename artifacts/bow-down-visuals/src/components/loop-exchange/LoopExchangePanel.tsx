@@ -42,6 +42,7 @@ export default function LoopExchangePanel() {
   const [loops, setLoops] = useState<LoopExchangeLoop[]>([]);
   const [mine, setMine] = useState<LoopExchangeMine | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -77,15 +78,28 @@ export default function LoopExchangePanel() {
         fetch("/api/loop-exchange/loops"),
         user ? fetch("/api/loop-exchange/mine", { headers: await authHeaders() }) : Promise.resolve(null),
       ]);
+      /* The open-loops leg carries a failed state of its own: a
+         non-ok or unparseable answer is NOT "no loops posted" —
+         it renders before the empty branch whenever there is
+         nothing on screen to show instead. (With loops already
+         listed, a failed refresh keeps the list — stale beats a
+         lie — and the flag clears on the next good read.) */
+      let loopsFailed = true;
       if (loopsRes.ok) {
         const parsed = parseLoopsResponse(await loopsRes.json().catch(() => null));
-        if (parsed) setLoops(parsed);
+        if (parsed) {
+          setLoops(parsed);
+          loopsFailed = false;
+        }
       }
+      setLoadFailed(loopsFailed);
       if (mineRes && mineRes.ok) {
         const parsed = parseMineResponse(await mineRes.json().catch(() => null));
         if (parsed) setMine(parsed);
       }
-    } catch { /* lists stay as they are; actions surface their own errors */ }
+    } catch {
+      setLoadFailed(true);
+    }
     finally { setLoading(false); }
   }, [user, authHeaders]);
 
@@ -343,6 +357,13 @@ export default function LoopExchangePanel() {
       </h3>
       {loading ? (
         <div className="mt-4 flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      ) : loadFailed && loops.length === 0 ? (
+        <p className="mt-3 text-sm text-red-300">
+          {t("loopExchange.listFailed", { defaultValue: "The open loops couldn't load just now." })}{" "}
+          <button type="button" onClick={() => void reload()} className="font-bold text-primary underline underline-offset-2">
+            {t("common.retry")}
+          </button>
+        </p>
       ) : loops.length === 0 ? (
         <p className="mt-3 text-sm text-white/50">{t("loopExchange.noLoops", { defaultValue: "No loops are posted yet — post the first one and set your terms." })}</p>
       ) : (

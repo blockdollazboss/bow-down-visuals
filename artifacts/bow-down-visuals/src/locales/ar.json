@@ -9117,6 +9117,9 @@
       "planFailed": "فشلت خطة الإصدار — حاول مرة أخرى."
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "نسخ",
     "copied": "تم النسخ",
@@ -9234,6 +9237,7 @@
       "mailBody": "مرحبًا {{brand}}،\n\nتجد مرفقة الفاتورة {{number}} بمبلغ {{total}}، المستحقة في {{due}}.\n\nتفاصيل الدفع: {{payment}}\n\nشكرًا،\n{{creator}}",
       "listTitle": "فواتيرك",
       "listEmpty": "لا توجد فواتير بعد — أنشئ أول فاتورة أعلاه.",
+      "listFailed": "تعذّر تحميل فواتيرك الآن.",
       "markPaid": "وضع علامة مدفوعة",
       "markUnpaid": "وضع علامة غير مدفوعة",
       "paid": "مدفوعة",
@@ -10309,6 +10313,7 @@
     },
     "voicePicker": {
       "error": "تعذّر تحميل الأصوات — تحقق من اتصالك وحدّث الصفحة.",
+      "empty": "No voices are available right now.",
       "loading": "جارٍ تحميل الأصوات…",
       "previewAria": "معاينة {{name}}"
     },
@@ -15681,6 +15686,7 @@
     "errorNetwork": "خطأ في الشبكة — حاول مجدداً.",
     "errorStartFailed": "تعذّر بدء الضبط. حاول مجدداً.",
     "errorTuneFailed": "فشل الضبط — استُردت Visual Bucs الخاصة بك.",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} MB — اضغط للتغيير",
     "hardtuneFallbackNote": "تتبع مستوى النغمة لم يتمكن من القفل على هذا الصوت، فطبّقنا ضبطاً عاماً لطيفاً بدلاً من ذلك — بدون فرق رسوم، وما زالت Bucs الخاصة بك أُنفقت مرة واحدة فقط.",
     "honestIntro": "DSP نغمة حقيقي، بدون تخمين ذكاء اصطناعي. يعمل بأفضل شكل على أصوات معزولة — على مزيج كامل يتبع أقوى صوت منغّم. لا يمكنه إصلاح لحن خاطئ، فقط سحب النغمات المغناة نحو النغمة الصحيحة.",

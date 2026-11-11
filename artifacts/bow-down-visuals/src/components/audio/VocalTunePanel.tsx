@@ -139,6 +139,9 @@ export function VocalTunePanel() {
   const [origUrl, setOrigUrl] = useState<string | null>(null);
 
   const pollRef = useRef<number | null>(null);
+  /* Consecutive poll transport failures — a job whose status can
+     never be read must fail honestly instead of spinning forever. */
+  const pollFailuresRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -150,12 +153,22 @@ export function VocalTunePanel() {
       try {
         const res = await fetch(`/api/vocal-tune/${jobId}`);
         const data: TuneJobResponse = await res.json();
+        pollFailuresRef.current = 0;
         if (!res.ok) {
           setStatus("failed");
           setError(apiErrorMessage(data, t("vocalTune.errorJobNotFound", { defaultValue: "Tuning job not found." })));
           return;
         }
         if (data.status === "done") {
+          /* "done" without an output is a failed tune, not a
+             result: the result panel renders only on done +
+             outputUrl, so an empty done would strand the panel
+             on a blank state. */
+          if (!data.outputUrl) {
+            setStatus("failed");
+            setError(t("vocalTune.errorDoneNoResult", { defaultValue: "Tuning finished without a result — your Visual Bucs were refunded." }));
+            return;
+          }
           setStatus("done");
           setOutputUrl(data.outputUrl ?? null);
           setNotesCorrected(typeof data.notesCorrected === "number" ? data.notesCorrected : null);
@@ -172,11 +185,22 @@ export function VocalTunePanel() {
         } else if (data.status === "failed") {
           setStatus("failed");
           setError(apiErrorMessage(data, t("vocalTune.errorTuneFailed", { defaultValue: "Tuning failed — your Visual Bucs were refunded." })));
+        } else if (data.status === "queued" || data.status === "processing") {
+          setStatus(data.status);
         } else {
-          setStatus(data.status as TuneJobStatus);
+          /* An unknown status is terminal, never a blank panel. */
+          setStatus("failed");
+          setError(apiErrorMessage(data, t("vocalTune.errorTuneFailed", { defaultValue: "Tuning failed — your Visual Bucs were refunded." })));
         }
       } catch {
-        /* keep polling on transient network errors */
+        /* Keep polling through transient network errors — but not
+           forever: ~20 straight unreadable polls (≈1 min) fail the
+           job honestly instead of spinning without end. */
+        pollFailuresRef.current += 1;
+        if (pollFailuresRef.current >= 20) {
+          setStatus("failed");
+          setError(t("vocalTune.errorNetwork", { defaultValue: "Network error — please try again." }));
+        }
       }
     }, 3000);
     return () => {
@@ -262,6 +286,7 @@ export function VocalTunePanel() {
     setStatus("uploading");
     setError(null);
     setOutOfCredits(false);
+    pollFailuresRef.current = 0;
     try {
       const form = new FormData();
       form.append("audio", file);

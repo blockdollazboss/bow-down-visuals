@@ -9065,6 +9065,9 @@
       "planFailed": "Release-Plan fehlgeschlagen — versuche es erneut."
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "Kopieren",
     "copied": "Kopiert",
@@ -9182,6 +9185,7 @@
       "mailBody": "Hi {{brand}},\n\nanbei findest du Rechnung {{number}} über {{total}}, fällig am {{due}}.\n\nZahlungsdetails: {{payment}}\n\nDanke,\n{{creator}}",
       "listTitle": "Deine Rechnungen",
       "listEmpty": "Noch keine Rechnungen — erstelle oben deine erste.",
+      "listFailed": "Deine Rechnungen konnten gerade nicht geladen werden.",
       "markPaid": "Als bezahlt markieren",
       "markUnpaid": "Als unbezahlt markieren",
       "paid": "Bezahlt",
@@ -10245,6 +10249,7 @@
     },
     "voicePicker": {
       "error": "Stimmen konnten nicht geladen werden — prüfe deine Verbindung und lade die Seite neu.",
+      "empty": "No voices are available right now.",
       "loading": "Stimmen werden geladen…",
       "previewAria": "{{name}} anhören"
     },
@@ -15705,6 +15710,7 @@
     "errorNetwork": "Netzwerkfehler — bitte erneut versuchen.",
     "errorStartFailed": "Die Stimmung konnte nicht gestartet werden. Bitte erneut versuchen.",
     "errorTuneFailed": "Stimmung fehlgeschlagen — Ihre Visual Bucs wurden erstattet.",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} MB — tippen zum Ändern",
     "hardtuneFallbackNote": "Die Noten-Verfolgung konnte sich auf diesem Audio nicht festsetzen, daher haben wir stattdessen eine sanfte globale Stimmung angewendet — kein Preisunterschied, und Ihre Bucs wurden trotzdem nur einmal ausgegeben.",
     "honestIntro": "Echtes Pitch-DSP, kein KI-Raten. Funktioniert am besten auf isolierten Vocals — auf einem vollen Mix folgt es dem stärksten gestimmten Klang. Es kann keine falsche Melodie reparieren, nur gesungene Noten zur richtigen Tonhöhe ziehen.",

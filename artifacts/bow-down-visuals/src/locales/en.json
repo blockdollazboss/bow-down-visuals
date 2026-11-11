@@ -9558,6 +9558,9 @@
       "planFailed": "Release plan failed — try again."
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "Copy",
     "copied": "Copied",
@@ -9675,6 +9678,7 @@
       "mailBody": "Hi {{brand}},\n\nPlease find attached invoice {{number}} for {{total}}, due {{due}}.\n\nPayment details: {{payment}}\n\nThanks,\n{{creator}}",
       "listTitle": "Your invoices",
       "listEmpty": "No invoices yet — generate your first one above.",
+      "listFailed": "Your invoices couldn't load just now.",
       "markPaid": "Mark paid",
       "markUnpaid": "Mark unpaid",
       "paid": "Paid",
@@ -10738,6 +10742,7 @@
     },
     "voicePicker": {
       "error": "Couldn't load voices — check your connection and refresh.",
+      "empty": "No voices are available right now.",
       "loading": "Loading voices…",
       "previewAria": "Preview {{name}}"
     },
@@ -15074,6 +15079,7 @@
     "errorNetwork": "Network error — please try again.",
     "errorStartFailed": "Couldn't start tuning. Please try again.",
     "errorTuneFailed": "Tuning failed — your Visual Bucs were refunded.",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} MB — tap to change",
     "hardtuneFallbackNote": "Note-level tracking couldn't lock onto this audio, so we applied a gentle global tune instead — no charge difference, and your Bucs were still only spent once.",
     "honestIntro": "Real pitch DSP, no AI guessing. Works best on isolated vocals — on a full mix it follows the strongest pitched sound. It can't fix a wrong melody, only pull sung notes toward the right pitch.",

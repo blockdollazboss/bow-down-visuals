@@ -9019,6 +9019,9 @@
       "planFailed": "O plano de lançamento falhou — tente de novo."
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "Copiar",
     "copied": "Copiado",
@@ -9136,6 +9139,7 @@
       "mailBody": "Olá {{brand}},\n\nSegue em anexo a fatura {{number}} no valor de {{total}}, com vencimento em {{due}}.\n\nDados de pagamento: {{payment}}\n\nObrigado,\n{{creator}}",
       "listTitle": "Suas faturas",
       "listEmpty": "Nenhuma fatura ainda — gere a primeira acima.",
+      "listFailed": "Não foi possível carregar suas faturas agora.",
       "markPaid": "Marcar como paga",
       "markUnpaid": "Marcar como não paga",
       "paid": "Paga",
@@ -10006,6 +10010,7 @@
     },
     "voicePicker": {
       "error": "Não foi possível carregar as vozes — verifique sua conexão e atualize a página.",
+      "empty": "No voices are available right now.",
       "loading": "Carregando vozes…",
       "previewAria": "Ouvir {{name}}"
     },
@@ -15421,6 +15426,7 @@
     "errorNetwork": "Erro de rede — tente de novo.",
     "errorStartFailed": "Não foi possível iniciar a afinação. Tente de novo.",
     "errorTuneFailed": "A afinação falhou — seus Visual Bucs foram reembolsados.",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} MB — toque para trocar",
     "hardtuneFallbackNote": "O rastreamento nota por nota não conseguiu travar neste áudio, então aplicamos uma afinação global suave — sem diferença de custo, e seus Bucs foram gastos uma única vez.",
     "honestIntro": "DSP de tom de verdade, sem adivinhação de IA. Funciona melhor em vocais isolados — em um mix completo, ele segue o som mais agudo. Não conserta uma melodia errada, só puxa as notas cantadas em direção ao tom certo.",

@@ -9019,6 +9019,9 @@
       "planFailed": "Piano di uscita non riuscito — riprova."
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "Copia",
     "copied": "Copiato",
@@ -9136,6 +9139,7 @@
       "mailBody": "Ciao {{brand}},\n\nin allegato trovi la fattura {{number}} di {{total}}, con scadenza {{due}}.\n\nDati di pagamento: {{payment}}\n\nGrazie,\n{{creator}}",
       "listTitle": "Le tue fatture",
       "listEmpty": "Ancora nessuna fattura: genera la prima qui sopra.",
+      "listFailed": "Non è stato possibile caricare le tue fatture in questo momento.",
       "markPaid": "Segna come pagata",
       "markUnpaid": "Segna come non pagata",
       "paid": "Pagata",
@@ -10006,6 +10010,7 @@
     },
     "voicePicker": {
       "error": "Impossibile caricare le voci — controlla la connessione e aggiorna la pagina.",
+      "empty": "No voices are available right now.",
       "loading": "Caricamento voci…",
       "previewAria": "Ascolta {{name}}"
     },
@@ -15421,6 +15426,7 @@
     "errorNetwork": "Errore di rete — riprova.",
     "errorStartFailed": "Impossibile avviare l'accordatura. Riprova.",
     "errorTuneFailed": "Accordatura fallita — i tuoi Visual Bucs sono stati rimborsati.",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} MB — tocca per cambiare",
     "hardtuneFallbackNote": "Il tracciamento nota per nota non è riuscito ad agganciarsi a questo audio, quindi abbiamo applicato un'accordatura globale delicata — nessuna differenza di prezzo, e i tuoi Bucs sono stati spesi una sola volta.",
     "honestIntro": "Vero DSP di altezza, nessuna ipotesi dell'IA. Funziona meglio sulle voci isolate — su un mix completo segue il suono più acuto. Non può riparare una melodia sbagliata, solo tirare le note cantate verso l'altezza giusta.",

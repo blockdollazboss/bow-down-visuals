@@ -9005,6 +9005,9 @@
       "planFailed": "リリース計画に失敗しました — もう一度お試しください。"
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "コピー",
     "copied": "コピーしました",
@@ -9122,6 +9125,7 @@
       "mailBody": "{{brand}} 様\n\n請求書 {{number}}（金額：{{total}}、期日：{{due}}）を添付いたします。\n\nお支払い情報：{{payment}}\n\nよろしくお願いいたします。\n{{creator}}",
       "listTitle": "あなたの請求書",
       "listEmpty": "まだ請求書がありません — 上で最初の1枚を生成しましょう。",
+      "listFailed": "請求書を読み込めませんでした。",
       "markPaid": "支払い済みにする",
       "markUnpaid": "未払いに戻す",
       "paid": "支払い済み",
@@ -9990,6 +9994,7 @@
     },
     "voicePicker": {
       "error": "ボイスを読み込めませんでした — 接続を確認して再読み込みしてください。",
+      "empty": "No voices are available right now.",
       "loading": "ボイスを読み込み中…",
       "previewAria": "{{name}}をプレビュー"
     },
@@ -15395,6 +15400,7 @@
     "errorNetwork": "ネットワークエラー — もう一度お試しください。",
     "errorStartFailed": "チューニングを開始できませんでした。もう一度お試しください。",
     "errorTuneFailed": "チューニングに失敗しました — あなたのVisual Bucsは返金されました。",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} MB — タップして変更",
     "hardtuneFallbackNote": "音レベルのトラッキングがこの音声に固定できなかったため、代わりに穏やかな全体チューニングを適用しました — 料金の差はなく、あなたのBucsが使われたのは一度だけです。",
     "honestIntro": "本物のピッチDSP、AIの推測なし。分離されたボーカルで最もよく働きます — フルミックスでは最も強いピッチ音を追います。間違ったメロディを直すことはできません。歌われた音を正しいピッチへ引き寄せるだけです。",

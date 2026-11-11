@@ -140,6 +140,8 @@ export function ColorGradeSection({
   const { toast } = useToast();
 
   const [presets, setPresets] = useState<ColorPreset[]>([]);
+  const [presetsLoading, setPresetsLoading] = useState(true);
+  const [presetsFailed, setPresetsFailed] = useState(false);
   const [sceneId, setSceneId] = useState<string>("");
   const [wheels, setWheels] = useState<ManualGrade>(DEFAULT_WHEELS);
   const [grading, setGrading] = useState<string | null>(null); // preset key being burned
@@ -158,13 +160,23 @@ export function ColorGradeSection({
 
   /* ── Load the 8 server presets (free) ── */
   const loadPresets = useCallback(async () => {
+    setPresetsLoading(true);
     try {
       const res = await confirmedFetch("/api/color-presets", { skipConfirm: true });
       if (res?.ok) {
         const data = (await res.json()) as { presets: ColorPreset[] };
         setPresets(data.presets ?? []);
+        setPresetsFailed(false);
+      } else {
+        /* A failed preset load is its own state with a retry —
+           it must never sit on "Loading presets…" forever. */
+        setPresetsFailed(true);
       }
-    } catch { /* non-fatal */ }
+    } catch {
+      setPresetsFailed(true);
+    } finally {
+      setPresetsLoading(false);
+    }
   }, [confirmedFetch]);
 
   useEffect(() => {
@@ -438,9 +450,22 @@ export function ColorGradeSection({
               );
             })}
           </div>
-          {presets.length === 0 && (
+          {presets.length === 0 && presetsFailed ? (
+            <p className="text-xs text-red-300 py-2">
+              Presets couldn&rsquo;t load.{" "}
+              <button
+                type="button"
+                onClick={() => void loadPresets()}
+                className="font-bold underline underline-offset-2"
+              >
+                Retry
+              </button>
+            </p>
+          ) : presets.length === 0 && presetsLoading ? (
             <p className="text-xs text-white/40 py-2">Loading presets…</p>
-          )}
+          ) : presets.length === 0 ? (
+            <p className="text-xs text-white/40 py-2">No presets came back from the server.</p>
+          ) : null}
         </div>
 
         {error && (

@@ -9370,6 +9370,9 @@
       "planFailed": "Le plan de sortie a échoué — réessaie."
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "Copier",
     "copied": "Copié",
@@ -9487,6 +9490,7 @@
       "mailBody": "Bonjour {{brand}},\n\nVeuillez trouver ci-joint la facture {{number}} d'un montant de {{total}}, à échéance le {{due}}.\n\nCoordonnées de paiement : {{payment}}\n\nMerci,\n{{creator}}",
       "listTitle": "Tes factures",
       "listEmpty": "Aucune facture pour l'instant — génère la première ci-dessus.",
+      "listFailed": "Tes factures n'ont pas pu se charger pour le moment.",
       "markPaid": "Marquer payée",
       "markUnpaid": "Marquer non payée",
       "paid": "Payée",
@@ -10553,6 +10557,7 @@
     },
     "voicePicker": {
       "error": "Impossible de charger les voix — vérifie ta connexion et actualise la page.",
+      "empty": "No voices are available right now.",
       "loading": "Chargement des voix…",
       "previewAria": "Écouter {{name}}"
     },
@@ -15761,6 +15766,7 @@
     "errorNetwork": "Erreur réseau — veuillez réessayer.",
     "errorStartFailed": "Impossible de démarrer l'accordage. Veuillez réessayer.",
     "errorTuneFailed": "L'accordage a échoué — vos Visual Bucs ont été remboursés.",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} Mo — touchez pour changer",
     "hardtuneFallbackNote": "Le suivi note à note n'a pas pu s'accrocher à cet audio, nous avons donc appliqué un accordage global doux à la place — aucune différence de prix, et vos Bucs n'ont été dépensés qu'une fois.",
     "honestIntro": "Un vrai DSP de hauteur, aucune devinette d'IA. Fonctionne mieux sur des voix isolées — sur un mix complet, il suit le son le plus aigu. Il ne peut pas réparer une mauvaise mélodie, seulement tirer les notes chantées vers la bonne hauteur.",

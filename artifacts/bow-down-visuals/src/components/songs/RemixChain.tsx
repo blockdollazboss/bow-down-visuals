@@ -48,6 +48,7 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
   const [open, setOpen] = useState(false);
   const [versions, setVersions] = useState<SongVersion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [label, setLabel] = useState("");
@@ -67,7 +68,7 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
 
   async function load() {
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     try {
       const res = await fetch(`/api/wave9a/versions?song_id=${encodeURIComponent(songId)}`, {
         headers: await authHeaders(),
@@ -75,8 +76,13 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
       const data = (await res.json()) as { versions?: SongVersion[]; error?: string };
       if (!res.ok) throw new Error(apiErrorMessage(data, t("wave9.remix.errorGeneric")));
       setVersions(data.versions ?? []);
+      setLoadError(null);
     } catch (err) {
-      setError(plainErrorText(err, t("wave9.remix.errorGeneric")));
+      /* A failed load gets its OWN state: it renders before the
+         empty branch, so "no versions yet" can never dress up a
+         failure (the shared verb-error box below stays for
+         create / promote / remove). */
+      setLoadError(plainErrorText(err, t("wave9.remix.errorGeneric")));
     } finally {
       setLoading(false);
     }
@@ -222,6 +228,18 @@ export function RemixChain({ songId, songTitle, songAudioUrl }: RemixChainProps)
             <p className="text-xs text-white/40 flex items-center gap-2 py-2">
               <Loader2 className="h-3 w-3 animate-spin" /> {t("wave9.remix.loading")}
             </p>
+          ) : loadError && versions.length === 0 ? (
+            <div className="flex items-start gap-2 rounded-lg border border-red-400/30 bg-red-400/10 p-2.5 text-xs text-red-200">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span className="flex-1">{loadError}</span>
+              <button
+                type="button"
+                onClick={() => void load()}
+                className="shrink-0 font-black uppercase tracking-wide text-red-100 underline underline-offset-2"
+              >
+                {t("common.retry")}
+              </button>
+            </div>
           ) : versions.length === 0 ? (
             <p className="text-[11px] text-white/35 py-1">{t("wave9.remix.empty")}</p>
           ) : (

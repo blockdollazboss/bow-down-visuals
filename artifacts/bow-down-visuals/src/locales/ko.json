@@ -9006,6 +9006,9 @@
       "planFailed": "발매 계획에 실패했습니다 — 다시 시도하세요."
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "복사",
     "copied": "복사됨",
@@ -9123,6 +9126,7 @@
       "mailBody": "안녕하세요 {{brand}} 님,\n\n{{total}} 금액의 청구서 {{number}}를 첨부합니다. 마감일은 {{due}}입니다.\n\n결제 정보: {{payment}}\n\n감사합니다.\n{{creator}}",
       "listTitle": "내 청구서",
       "listEmpty": "아직 청구서가 없습니다 — 위에서 첫 청구서를 생성하세요.",
+      "listFailed": "청구서를 불러오지 못했습니다.",
       "markPaid": "결제 완료로 표시",
       "markUnpaid": "미결제로 표시",
       "paid": "결제 완료",
@@ -9991,6 +9995,7 @@
     },
     "voicePicker": {
       "error": "목소리를 불러오지 못했습니다 — 연결을 확인하고 새로고침하세요.",
+      "empty": "No voices are available right now.",
       "loading": "목소리를 불러오는 중…",
       "previewAria": "{{name}} 미리 듣기"
     },
@@ -15250,6 +15255,7 @@
     "errorNetwork": "네트워크 오류 — 다시 시도하세요.",
     "errorStartFailed": "튜닝을 시작할 수 없었습니다. 다시 시도하세요.",
     "errorTuneFailed": "튜닝에 실패했습니다 — Visual Bucs가 환불됐습니다.",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} MB — 탭하여 변경",
     "hardtuneFallbackNote": "음 수준 추적이 이 오디오에 고정되지 않아, 대신 부드러운 전체 튜닝을 적용했습니다 — 청구 차이는 없고, Bucs는 여전히 한 번만 사용됐습니다.",
     "honestIntro": "실제 피치 DSP, AI 추측 없음. 분리된 보컬에서 가장 잘 작동합니다 — 풀 믹스에서는 가장 강한 피치 사운드를 따라갑니다. 잘못된 멜로디는 고칠 수 없고, 부른 음을 올바른 피치 쪽으로 당길 뿐입니다.",
