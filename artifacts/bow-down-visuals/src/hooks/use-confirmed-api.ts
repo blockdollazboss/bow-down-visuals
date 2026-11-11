@@ -43,11 +43,13 @@ export function useConfirmedApi() {
       let paidFeature = "Feature";
       if (!skipConfirm) {
         const registered = getCreditCost(endpoint);
-        paidCost = overrideCost ?? registered?.cost ?? 0;
-        paidFeature = overrideFeature ?? registered?.feature ?? "Feature";
+        const cost = overrideCost ?? registered?.cost ?? 0;
+        const feature = overrideFeature ?? registered?.feature ?? "Feature";
+        paidCost = cost;
+        paidFeature = feature;
 
-        if (paidCost > 0) {
-          const confirmed = await confirmSpend({ cost: paidCost, feature: paidFeature });
+        if (cost > 0) {
+          const confirmed = await confirmSpend({ cost, feature });
           if (!confirmed) return null;
         }
       }
