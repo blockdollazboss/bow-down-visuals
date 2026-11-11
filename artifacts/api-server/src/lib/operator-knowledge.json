@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "67dce74ee467b14df84ce97c36c7e2cb29f2fb40",
+  "baseCommit": "f774453dd1ed1ec8da44f10964a3803f4efafbed",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -22,7 +22,7 @@
     "withDescriptions": 254,
     "withoutDescriptions": 0,
     "serverRouteFiles": 433,
-    "serverEndpoints": 1754,
+    "serverEndpoints": 1755,
     "serverEndpointsVisible": 1098,
     "serverFilesClassified": 98
   },
@@ -21016,13 +21016,14 @@
       },
       {
         "file": "artifacts/api-server/src/routes/live-streams.ts",
-        "endpoints": 16,
+        "endpoints": 17,
         "visible": 11,
         "unseen": [
           "/api/live-streams",
           "/api/live-streams/:id/class-roster",
           "/api/live-streams/:id/hls/:file",
           "/api/live-streams/:id/ingest/segment",
+          "/api/live-streams/:id/shop",
           "/api/live-streams/profile/:slug"
         ]
       },
