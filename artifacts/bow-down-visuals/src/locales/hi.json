@@ -15377,7 +15377,9 @@
     "outOfCredits": "गायन-आवाज़ रूपांतरण के लिए पर्याप्त Visual Bucs नहीं हैं (800)।",
     "startFailed": "रूपांतरण शुरू नहीं हो सका।",
     "failedRefunded": "रूपांतरण विफल रहा — क्रेडिट रिफ़ंड हुए।",
-    "notConfiguredError": "गायन-आवाज़ रूपांतरण अभी कनेक्ट नहीं है।"
+    "notConfiguredError": "गायन-आवाज़ रूपांतरण अभी कनेक्ट नहीं है।",
+    "pollFailed": "Couldn't check the conversion — please try again.",
+    "doneNoResult": "The conversion finished without a result — please try again."
   },
   "bgReplace": {
     "ai": {

@@ -95,6 +95,11 @@ export function SingingVoiceModal({ open, onClose, source, onConverted }: Singin
   const [playing, setPlaying] = useState(false);
   const [usedInSong, setUsedInSong] = useState(false);
 
+  // The conversion poll never outlives the modal.
+  useEffect(() => () => {
+    if (pollRef.current) window.clearInterval(pollRef.current);
+  }, []);
+
   // Reset when opened for a new source; load gate + catalog.
   useEffect(() => {
     if (open && source) {
@@ -168,16 +173,30 @@ export function SingingVoiceModal({ open, onClose, source, onConverted }: Singin
       if (!res.ok || !data.jobId) throw new Error(apiErrorMessage(data, "Conversion failed to start"));
       setJobId(data.jobId);
       setJobStatus("queued");
+      let pollFailures = 0;
       pollRef.current = window.setInterval(async () => {
         try {
           const pr = await fetch(`/api/singing-voice/jobs/${data.jobId}`);
-          const pd: ConvertResponse = await pr.json();
-          if (!pr.ok) return;
-          if (pd.status === "done") {
+          const pd = (await pr.json().catch(() => ({}))) as ConvertResponse;
+          if (!pr.ok) {
+            /* A refused poll (dead job, server gone) is terminal — never
+             * keep the member locked in "generating" polling forever. */
+            if (pollRef.current) window.clearInterval(pollRef.current);
+            setError(apiErrorMessage(pd, t("singingVoice.pollFailed", { defaultValue: "Couldn't check the conversion — please try again." })));
+            setPhase("form");
+            return;
+          }
+          pollFailures = 0;
+          if (pd.status === "done" && pd.outputUrl) {
             if (pollRef.current) window.clearInterval(pollRef.current);
             setJobStatus("done");
-            setOutputUrl(pd.outputUrl ?? null);
+            setOutputUrl(pd.outputUrl);
             setPhase("done");
+          } else if (pd.status === "done") {
+            /* Done with no result is a failed ending, not a silent one. */
+            if (pollRef.current) window.clearInterval(pollRef.current);
+            setError(t("singingVoice.doneNoResult", { defaultValue: "The conversion finished without a result — please try again." }));
+            setPhase("form");
           } else if (pd.status === "failed") {
             if (pollRef.current) window.clearInterval(pollRef.current);
             setError(apiErrorMessage(pd, t("singingVoice.failedRefunded", { defaultValue: "Conversion failed — credits refunded." })));
@@ -186,7 +205,14 @@ export function SingingVoiceModal({ open, onClose, source, onConverted }: Singin
             setJobStatus(pd.status ?? "processing");
           }
         } catch {
-          /* keep polling on transient errors */
+          /* Transient network errors get a bounded grace — after five in a
+           * row the poll gives up honestly instead of spinning forever. */
+          pollFailures += 1;
+          if (pollFailures >= 5) {
+            if (pollRef.current) window.clearInterval(pollRef.current);
+            setError(t("singingVoice.pollFailed", { defaultValue: "Couldn't check the conversion — please try again." }));
+            setPhase("form");
+          }
         }
       }, 3000);
     } catch (e) {

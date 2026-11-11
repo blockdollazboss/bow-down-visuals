@@ -14611,7 +14611,9 @@
     "outOfCredits": "Not enough Visual Bucs for singing-voice conversion (800).",
     "startFailed": "Could not start conversion.",
     "failedRefunded": "Conversion failed — credits refunded.",
-    "notConfiguredError": "Singing-voice conversion isn't connected yet."
+    "notConfiguredError": "Singing-voice conversion isn't connected yet.",
+    "pollFailed": "Couldn't check the conversion — please try again.",
+    "doneNoResult": "The conversion finished without a result — please try again."
   },
   "headshotStudio": {
     "eyebrow": "Profile pics",

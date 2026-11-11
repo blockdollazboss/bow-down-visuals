@@ -65,6 +65,7 @@ export function YourOwnTag(props: {
   const { confirmedFetch } = useConfirmedApi();
 
   const [mine, setMine] = useState<MineResponse | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "failed">("loading");
   const [kind, setKind] = useState<"spoken" | "sonic">("spoken");
   const [drafting, setDrafting] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
@@ -78,9 +79,16 @@ export function YourOwnTag(props: {
       const res = await fetch("/api/producer-tag/mine", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (res.ok) setMine((await res.json()) as MineResponse);
+      if (res.ok) {
+        setMine((await res.json()) as MineResponse);
+        setLoadState("ready");
+      } else {
+        /* A failed load must never read as "no tag yet" — the member may
+         * well have one; say it failed and offer the retry instead. */
+        setLoadState("failed");
+      }
     } catch {
-      /* section is additive — failing to load leaves the studio as-is */
+      setLoadState("failed");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -250,6 +258,24 @@ export function YourOwnTag(props: {
             It plays on your public profile, right under your name — and when stamping is on,
             exports open with it.
           </p>
+        </div>
+      ) : loadState === "loading" ? (
+        <p className="text-sm text-white/50">Loading your tag…</p>
+      ) : loadState === "failed" ? (
+        <div className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-sm text-red-200">
+            Your tag couldn't load — it may still be there. Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setLoadState("loading");
+              void loadMine();
+            }}
+            className="shrink-0 rounded-lg bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-bold text-white transition-colors"
+          >
+            Retry
+          </button>
         </div>
       ) : (
         <p className="text-sm text-white/50">

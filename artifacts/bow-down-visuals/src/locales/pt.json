@@ -15377,7 +15377,9 @@
     "outOfCredits": "Visual Bucs insuficientes para a conversão em voz cantada (800).",
     "startFailed": "Não foi possível iniciar a conversão.",
     "failedRefunded": "A conversão falhou — créditos reembolsados.",
-    "notConfiguredError": "A conversão para voz cantada ainda não está conectada."
+    "notConfiguredError": "A conversão para voz cantada ainda não está conectada.",
+    "pollFailed": "Couldn't check the conversion — please try again.",
+    "doneNoResult": "The conversion finished without a result — please try again."
   },
   "bgReplace": {
     "ai": {

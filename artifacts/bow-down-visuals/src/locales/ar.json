@@ -15808,7 +15808,9 @@
     "outOfCredits": "Visual Bucs غير كافية لتحويل صوت الغناء (800).",
     "startFailed": "تعذّر بدء التحويل.",
     "failedRefunded": "فشل التحويل — استُردت الأرصدة.",
-    "notConfiguredError": "تحويل صوت الغناء غير متصل بعد."
+    "notConfiguredError": "تحويل صوت الغناء غير متصل بعد.",
+    "pollFailed": "Couldn't check the conversion — please try again.",
+    "doneNoResult": "The conversion finished without a result — please try again."
   },
   "bgReplace": {
     "ai": {

@@ -15661,7 +15661,9 @@
     "outOfCredits": "Nicht genug Visual Bucs für die Singstimmen-Konvertierung (800).",
     "startFailed": "Die Konvertierung konnte nicht gestartet werden.",
     "failedRefunded": "Konvertierung fehlgeschlagen — Credits erstattet.",
-    "notConfiguredError": "Die Singstimmen-Konvertierung ist noch nicht angebunden."
+    "notConfiguredError": "Die Singstimmen-Konvertierung ist noch nicht angebunden.",
+    "pollFailed": "Couldn't check the conversion — please try again.",
+    "doneNoResult": "The conversion finished without a result — please try again."
   },
   "bgReplace": {
     "ai": {

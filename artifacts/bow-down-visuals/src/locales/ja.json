@@ -15239,7 +15239,9 @@
     "outOfCredits": "歌声変換にはVisual Bucsが不足しています（800）。",
     "startFailed": "変換を開始できませんでした。",
     "failedRefunded": "変換に失敗しました — クレジットは返金されました。",
-    "notConfiguredError": "歌声変換はまだ接続されていません。"
+    "notConfiguredError": "歌声変換はまだ接続されていません。",
+    "pollFailed": "Couldn't check the conversion — please try again.",
+    "doneNoResult": "The conversion finished without a result — please try again."
   },
   "bgReplace": {
     "ai": {
