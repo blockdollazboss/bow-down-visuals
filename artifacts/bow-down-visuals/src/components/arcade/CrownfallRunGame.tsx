@@ -1622,10 +1622,22 @@ function mpEndRun(g: G) {
   if (g.phase === "dead" || g.phase === "start") return;
   g.phase = "dead";
   g.deathAt = g.timeNow;
-  const sc = scoreOf(g);
+  /* Close the run out exactly the way die() closes a solo one (v2):
+     the leftover purse converts now — and only now — and the run
+     folds into the lifetime meta, achievements riding along: a
+     party run is a real run. (The score of record for a party run
+     is the server's receipt; this summary is the same presentation
+     a solo death shows.) */
+  const sc = finalScoreOf(g);
   const isSessionBest = sc > g.sessionBest.score;
   if (isSessionBest) g.sessionBest.score = sc;
   g.sessionBest.depth = Math.max(g.sessionBest.depth, g.depth);
+  const before = g.meta;
+  const recorded = recordRunInMeta(before, { kills: g.kills, depth: g.depth, bossKills: g.bossKills });
+  const newly = recorded.achievements.filter((a) => !before.achievements.includes(a));
+  g.meta = recorded;
+  saveCrownfallMeta(recorded);
+  if (g.bossKills > 0) g.fountainT = 1.8; /* the win flourish, same as solo */
   sfx.sting();
   g.ui.phase("dead");
   g.ui.death({
@@ -1633,6 +1645,13 @@ function mpEndRun(g: G) {
     bestCombo: g.bestCombo, timeSec: g.runTime,
     bossDeath: g.boss !== null || g.depth % 5 === 0,
     isSessionBest,
+    coinScore: g.crowns * CROWNFALL.coinPoints,
+    armory: g.P.guns.map((id) => crownfallGun(id).name),
+    bossKills: g.bossKills,
+    prestigeTier: recorded.tier,
+    canPrestige: g.bossKills > 0 && recorded.tier < PRESTIGE_TIER_CAP,
+    achievementsNew: newly,
+    achievementsAll: recorded.achievements,
   });
 }
 
