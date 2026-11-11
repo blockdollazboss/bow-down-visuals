@@ -60,6 +60,28 @@ const SKEET_MAX_HIT_POINTS = 150;
    20-minute ceiling (a deep descent is the whole point), so this
    game carries its own 60-minute duration cap. */
 const CROWNFALL_MIN_FLOOR_MS = 4_000;
+/* Multiplayer (online co-op rooms, lib/crownfall-rooms.ts): the party
+   SHARES one floor roster, so the per-floor foe and coin bounds above
+   do NOT scale with player count — a player can still earn at most
+   11 kills and 27 coins from a floor, whoever they play with. Only
+   the clear SPEED scales: the 4,000 ms solo bound decomposes into
+   ≈2,300 ms of pure entrance→door crossing (every King physically
+   walks it; it never shrinks) plus ≈1,700 ms of killing, which P
+   Kings do in parallel. So minFloorMs(P) = 2300 + ⌈1700 / P⌉, and
+   P = 1 reproduces the solo bound exactly. The party size is never
+   taken from the client: the score route reads it from the room
+   manager's run receipt (routes/arcade.ts) and validates at P = 1
+   when no receipt vouches for the run. */
+const CROWNFALL_CROSSING_MS = 2_300;
+const CROWNFALL_KILL_MS = CROWNFALL_MIN_FLOOR_MS - CROWNFALL_CROSSING_MS;
+
+/** Fastest one floor can honestly end for a party of `players`
+ *  (1–4). Solo (players = 1) is exactly the single-player bound. */
+export function crownfallMinFloorMs(players: number): number {
+  const p = Math.min(4, Math.max(1, Math.floor(players) || 1));
+  return CROWNFALL_CROSSING_MS + Math.ceil(CROWNFALL_KILL_MS / p);
+}
+
 const CROWNFALL_MAX_FOES_PER_FLOOR = 11;
 const CROWNFALL_MAX_COINS_PER_FLOOR = 5 + 2 * CROWNFALL_MAX_FOES_PER_FLOOR;
 const CROWNFALL_DEPTH_POINTS = 100;
@@ -73,8 +95,10 @@ const CROWNFALL_MAX_DURATION_MS = 60 * 60_000;
 const ARCADE_MIN_DURATION_MS = 2_000;
 const ARCADE_MAX_DURATION_MS = 20 * 60_000;
 
-/** Highest score a real run of `durationMs` could possibly reach. */
-export function maxPlausibleScore(game: ArcadeGame, durationMs: number): number {
+/** Highest score a real run of `durationMs` could possibly reach.
+ *  `players` (Crownfall only) is the receipt-verified party size for
+ *  an online co-op run; it defaults to 1 = the solo bounds. */
+export function maxPlausibleScore(game: ArcadeGame, durationMs: number, players = 1): number {
   const seconds = durationMs / 1000;
   if (game === "runner") {
     const distancePoints = Math.ceil((seconds * RUNNER_MAX_SPEED_PX_S) / RUNNER_PX_PER_POINT);
@@ -82,7 +106,7 @@ export function maxPlausibleScore(game: ArcadeGame, durationMs: number): number 
     return distancePoints + maxCoins * RUNNER_COIN_POINTS;
   }
   if (game === "crownfall") {
-    const maxDepth = Math.floor(durationMs / CROWNFALL_MIN_FLOOR_MS) + 1;
+    const maxDepth = Math.floor(durationMs / crownfallMinFloorMs(players)) + 1;
     const maxKills = maxDepth * CROWNFALL_MAX_FOES_PER_FLOOR;
     const maxCoins = maxDepth * CROWNFALL_MAX_COINS_PER_FLOOR;
     const maxComboBonus = (maxKills * (maxKills - 1)) / 2;
@@ -101,15 +125,27 @@ type ScoreVerdict =
   | { ok: true }
   | { ok: false; reason: string };
 
-/** Validate one score submission. Pure — no I/O. */
+/** Validate one score submission. Pure — no I/O. `players`, when
+ *  present, must be a whole party size (1–4); it only widens the
+ *  Crownfall pacing bound, and the caller is responsible for sourcing
+ *  it from server-side truth (the Crownfall run receipt), never from
+ *  an unverified client claim. */
 export function validateArcadeScore(input: {
   game: unknown;
   score: unknown;
   durationMs: unknown;
+  players?: unknown;
 }): ScoreVerdict {
   if (!isArcadeGame(input.game)) {
     return { ok: false, reason: "Unknown game" };
   }
+  if (
+    input.players !== undefined &&
+    (typeof input.players !== "number" || !Number.isInteger(input.players) || input.players < 1 || input.players > 4)
+  ) {
+    return { ok: false, reason: "Party size out of range" };
+  }
+  const players = typeof input.players === "number" ? input.players : 1;
   const { score, durationMs } = input;
   if (typeof score !== "number" || !Number.isInteger(score) || score < 0) {
     return { ok: false, reason: "Score must be a non-negative integer" };
@@ -128,7 +164,7 @@ export function validateArcadeScore(input: {
   if (input.game === "skeet" && durationMs > SKEET_ROUND_MS + 5_000) {
     return { ok: false, reason: "Skeet rounds last 45 seconds" };
   }
-  if (score > maxPlausibleScore(input.game, durationMs)) {
+  if (score > maxPlausibleScore(input.game, durationMs, players)) {
     return { ok: false, reason: "Score is not possible for a run of that length" };
   }
   return { ok: true };

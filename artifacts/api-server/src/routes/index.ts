@@ -428,6 +428,7 @@ import aiPageDesignerRouter from "./ai-page-designer";
 import publicStatsRouter from "./public-stats";
 import retentionDropsRouter from "./retention-drops";
 import arcadeRouter from "./arcade";
+import crownfallRouter from "./crownfall";
 import partyRouter from "./party";
 import upgFansRouter from "./upg-fans";
 import emailTrackingRouter from "./email-tracking";
@@ -866,6 +867,7 @@ router.use(lyricStoriesRouter);        // /api/lyric-stories/*
 router.use(coverInMotionRouter);       // /api/cover-in-motion/*
 router.use(retentionDropsRouter);      // /api/retention/daily-drop (+ /catalog, /archive, /unarchive), /api/retention/away-digest
 router.use(arcadeRouter);              // /api/arcade/scores, /api/arcade/leaderboard, /api/arcade/me
+router.use(crownfallRouter);           // /api/arcade/crownfall/rooms (online co-op lobbies)
 router.use(partyRouter);               // /api/party/rooms, /api/party/leaderboard, /api/party/me
 router.use(upgFansRouter);             // /api/collab-match, /api/fan-links, /api/audience-room (upg-fans deltas #175/N16/N17)
 
