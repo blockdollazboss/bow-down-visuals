@@ -4,7 +4,8 @@ import {
   db as defaultDb,
   type TempBucsExpiryWarning,
 } from "@workspace/db";
-import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, EMAIL_COLORS } from "./email";
+import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, type EmailTheme, EMAIL_COLORS } from "./email";
+import { resolveEmailThemeForRecipient } from "./email-theme-rotation";
 import { creditBalanceComposition } from "./credits";
 import { getSupabaseAdmin } from "./supabase-admin";
 import { getUserEmail } from "./stripe-connect";
@@ -288,7 +289,7 @@ interface TempBucsWarningDeps {
   store?: TempBucsExpiryWarningStore;
   listPools?: (now: Date, windowMs: number) => Promise<TempBucsPoolCandidate[]>;
   getEmail?: (userId: string) => Promise<string | null>;
-  send?: (opts: { to: string; subject: string; html: string; text?: string }) => Promise<SendEmailResult>;
+  send?: (opts: { to: string; subject: string; html: string; text?: string; theme?: EmailTheme; themeRecipient?: string }) => Promise<SendEmailResult>;
   now?: Date;
   windowMs?: number;
   maxAttempts?: number;
@@ -349,7 +350,8 @@ export function buildTempBucsExpiryEmail(input: {
   email: string;
   amount: number;
   expiresAt: string;
-}): { to: string; subject: string; html: string; text: string } {
+  theme?: EmailTheme;
+}): { to: string; subject: string; html: string; text: string; theme?: EmailTheme; themeRecipient?: string } {
   const amount = formatAmount(input.amount);
   const when = formatTempBucsExpiryDate(input.expiresAt);
   const siteUrl = baseUrlForEmail();
@@ -359,6 +361,7 @@ export function buildTempBucsExpiryEmail(input: {
 <p>Good news: Temporary Bucs are spent first. Anything you create or unlock on Bow Down Visuals draws from this pool before your permanent Bucs, so putting them to work is as simple as making something.</p>
 ${emailButton(escapeHtml(siteUrl), "Use your Temporary Bucs")}
 <p style="color:${EMAIL_COLORS.muted};font-size:13px;">You got this email because your Bow Down Visuals account holds Temporary Visual Bucs with an expiry coming up. One warning per pool — no spam, ever.</p>`,
+    { theme: input.theme },
   );
   const text = [
     `You have ${amount} Temporary Visual Bucs that expire on ${when}. After that moment they are gone — they do not turn into permanent Bucs.`,
@@ -371,6 +374,8 @@ ${emailButton(escapeHtml(siteUrl), "Use your Temporary Bucs")}
     subject: `${amount} Temporary Visual Bucs expire ${formatShortExpiryDate(input.expiresAt)} — use them before they're gone`,
     html,
     text,
+    theme: input.theme,
+    themeRecipient: input.email,
   };
 }
 
@@ -470,8 +475,9 @@ export async function sweepTempBucsExpiryWarnings(
         continue;
       }
 
+      const theme = await resolveEmailThemeForRecipient(email);
       const sendResult = await d.send(
-        buildTempBucsExpiryEmail({ email, amount: target.amount, expiresAt: target.expiresAt }),
+        buildTempBucsExpiryEmail({ email, amount: target.amount, expiresAt: target.expiresAt, theme }),
       );
       if (sendResult.sent) {
         await d.store.markSent(row.id, sendResult.id ?? null, d.now);

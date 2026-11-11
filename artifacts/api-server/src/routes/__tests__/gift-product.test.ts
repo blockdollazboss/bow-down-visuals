@@ -57,6 +57,7 @@ vi.mock("../../lib/logger", () => ({
 vi.mock("../../lib/email", () => ({
   sendEmail: async (args: { to?: unknown; subject?: unknown }) => { h.emails.push(args); return { ok: true }; },
   emailShell: (_title: string, html: string) => html,
+  emailShellForRecipient: async (_to: string, _title: string, html: string) => ({ html, theme: "dark" as const }),
   emailButton: (href: string, label: string) => `<a href="${href}">${label}</a>`,
   money: (cents: number) => `$${(cents / 100).toFixed(2)}`,
   escapeHtml: (s: string) => s,

@@ -4,7 +4,8 @@ import {
   db as defaultDb,
   type PresaveReleaseDelivery,
 } from "@workspace/db";
-import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, EMAIL_COLORS } from "./email";
+import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, type EmailTheme, EMAIL_COLORS } from "./email";
+import { resolveEmailThemeForRecipient } from "./email-theme-rotation";
 import { logger } from "./logger";
 
 /* ── Release-day presave fan notifications (wave 3 #15; migration 0186) ──
@@ -273,7 +274,7 @@ export function createDrizzlePresaveNotifyStore(db: Db = defaultDb): PresaveNoti
 
 interface PresaveNotifyDeps {
   store?: PresaveNotifyStore;
-  send?: (opts: { to: string; subject: string; html: string; text?: string }) => Promise<SendEmailResult>;
+  send?: (opts: { to: string; subject: string; html: string; text?: string; theme?: EmailTheme; themeRecipient?: string }) => Promise<SendEmailResult>;
   now?: Date;
   maxAttempts?: number;
   followGraceMs?: number;
@@ -297,7 +298,8 @@ function deps(depsIn: PresaveNotifyDeps): Required<PresaveNotifyDeps> {
 export function buildPresaveReleaseEmail(
   release: DuePresaveRelease,
   follow: Pick<EligibleFollow, "email" | "name">,
-): { to: string; subject: string; html: string; text: string } {
+  theme?: EmailTheme,
+): { to: string; subject: string; html: string; text: string; theme?: EmailTheme; themeRecipient?: string } {
   const listenUrl = `${baseUrlForEmail()}/presave/${release.presaveSlug}`;
   const title = escapeHtml(release.title);
   const artist = escapeHtml(release.artistName);
@@ -318,6 +320,7 @@ export function buildPresaveReleaseEmail(
 ${emailButton(escapeHtml(listenUrl), "Listen now")}
 ${links}
 <p style="color:${EMAIL_COLORS.muted};font-size:13px;">You got this email because you pre-saved this release on Bow Down Visuals. One email per release, as promised — no spam, ever.</p>`,
+    { theme },
   );
   const text = [
     `${release.title} by ${release.artistName} is out now.`,
@@ -329,6 +332,8 @@ ${links}
     subject: `Out now: ${release.title} — ${release.artistName}`,
     html,
     text,
+    theme,
+    themeRecipient: follow.email,
   };
 }
 
@@ -389,7 +394,8 @@ export async function notifyPresaveFansForRelease(
       }
       result.claimed++;
 
-      const sendResult = await d.send(buildPresaveReleaseEmail(release, follow));
+      const theme = await resolveEmailThemeForRecipient(follow.email);
+      const sendResult = await d.send(buildPresaveReleaseEmail(release, follow, theme));
       if (sendResult.sent) {
         await d.store.markSent(row.id, sendResult.id ?? null, d.now);
         result.sent++;

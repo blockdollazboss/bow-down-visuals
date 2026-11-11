@@ -3,7 +3,8 @@ import { sql } from "drizzle-orm";
 import {
   db as defaultDb,
 } from "@workspace/db";
-import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, EMAIL_COLORS } from "./email";
+import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, type EmailTheme, EMAIL_COLORS } from "./email";
+import { resolveEmailThemeForRecipient } from "./email-theme-rotation";
 import { logger } from "./logger";
 import { isUndefinedTable, pgErrorText } from "./pg-errors";
 
@@ -260,7 +261,7 @@ function createDrizzleStockAlertStore(db: Db = defaultDb): StockAlertStore {
 
 interface StockAlertDeps {
   store?: StockAlertStore;
-  send?: (opts: { to: string; subject: string; html: string; text?: string }) => Promise<SendEmailResult>;
+  send?: (opts: { to: string; subject: string; html: string; text?: string; theme?: EmailTheme; themeRecipient?: string }) => Promise<SendEmailResult>;
   now?: Date;
 }
 
@@ -358,6 +359,7 @@ export async function countWaitingStockAlertsForProducts(
 
 export function buildRestockEmail(
   product: StockAlertProduct,
+  theme?: EmailTheme,
 ): { subject: string; html: string; text: string } {
   const productUrl = `${baseUrlForEmail()}/storefront/product/${product.id}`;
   const title = escapeHtml(product.title);
@@ -367,6 +369,7 @@ export function buildRestockEmail(
     `<p><strong>${title}</strong> by ${creator} sold out — and you asked to be told when it came back. It's back.</p>
 ${emailButton(productUrl, "Get it while it lasts")}
 <p style="color:${EMAIL_COLORS.muted};font-size:13px;">Stock is limited, and this alert went to everyone who was waiting — when it's gone, it's gone. You got this email because you're on ${creator}'s email list and tapped "tell me when it's back" on Bow Down Visuals.</p>`,
+    { theme },
   );
   const text = [
     `${product.title} by ${product.creatorName} is back in stock.`,
@@ -441,8 +444,8 @@ export async function fireRestockAlerts(
     logger.error({ err, productId, fans: claimed.length }, "[stock-alerts] notification insert failed after claim");
   }
 
-  /* The email leg: existing subscribers of the seller's list only. */
-  const mail = buildRestockEmail(product);
+  /* The email leg: existing subscribers of the seller's list only.
+     The mail is built per fan so each carries their own rotation theme. */
   for (const userId of claimed) {
     try {
       const email = await d.store.getUserEmail(userId);
@@ -451,7 +454,9 @@ export async function fireRestockAlerts(
         result.emailSkipped++;
         continue;
       }
-      const sent = await d.send({ to: email, ...mail });
+      const theme = await resolveEmailThemeForRecipient(email);
+      const mail = buildRestockEmail(product, theme);
+      const sent = await d.send({ to: email, ...mail, theme, themeRecipient: email });
       if (sent.sent) result.emailed++;
       else result.emailSkipped++;
     } catch (err) {

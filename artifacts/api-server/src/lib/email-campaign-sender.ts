@@ -79,8 +79,10 @@ import {
   escapeHtml,
   baseUrlForEmail,
   type SendEmailResult,
+  type EmailTheme,
   EMAIL_COLORS,
 } from "./email";
+import { resolveEmailThemeForRecipient } from "./email-theme-rotation";
 import { logger } from "./logger";
 
 /* ─── Dependency-injection seams (tests stub these; mirrors the
@@ -126,6 +128,9 @@ export interface EmailSenderDeps {
     html: string;
     text?: string;
     headers?: Record<string, string>;
+    /** Theme-rotation bookkeeping, forwarded to the real sendEmail. */
+    theme?: EmailTheme;
+    themeRecipient?: string;
   }) => Promise<SendEmailResult>;
   isConfigured?: () => boolean;
   now?: () => Date;
@@ -190,8 +195,9 @@ export function listUnsubscribeHeaders(unsubscribeUrl: string): Record<string, s
   };
 }
 
-/** Plain-text body → branded HTML: escaped paragraphs + unsubscribe footer. */
-export function buildEmailHtml(subject: string, bodyText: string, unsubscribeUrl: string): string {
+/** Plain-text body → branded HTML: escaped paragraphs + unsubscribe footer.
+ *  `theme` is the recipient's rotation theme (company-theme pair). */
+export function buildEmailHtml(subject: string, bodyText: string, unsubscribeUrl: string, theme?: EmailTheme): string {
   const paragraphs = bodyText
     .split(/\n\s*\n/)
     .map((p) => p.trim())
@@ -205,7 +211,7 @@ export function buildEmailHtml(subject: string, bodyText: string, unsubscribeUrl
     `<p style="margin:20px 0 0;font-size:12px;color:${EMAIL_COLORS.muted};">` +
     `Don't want these emails? <a href="${unsubscribeUrl}" style="color:${EMAIL_COLORS.goldDeep};">Unsubscribe</a>` +
     `</p>`;
-  return emailShell(subject, paragraphs + footer);
+  return emailShell(subject, paragraphs + footer, { theme });
 }
 
 /** The stored template for one sequence step, or null if unconfigured. */
@@ -462,12 +468,17 @@ async function sendToRecipient(
   },
 ): Promise<boolean> {
   const url = unsubscribeUrlFor(d.baseUrl(), ensureUnsubscribeToken(args.subscriber));
+  /* Company-theme rotation: this customer's theme for this send;
+     sendEmail records the flip only when the send is verified sent. */
+  const theme = await resolveEmailThemeForRecipient(args.subscriber.email);
   const result = await d.send({
     to: args.subscriber.email,
     subject: args.subject,
-    html: buildEmailHtml(args.subject, args.bodyText, url),
+    html: buildEmailHtml(args.subject, args.bodyText, url, theme),
     text: `${args.bodyText}\n\nUnsubscribe: ${url}`,
     headers: listUnsubscribeHeaders(url),
+    theme,
+    themeRecipient: args.subscriber.email,
   });
   await d.recordSend({
     campaignId: args.campaignId ?? null,

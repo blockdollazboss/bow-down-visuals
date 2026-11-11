@@ -32,7 +32,7 @@ import {
   emailEngagementEventsTable,
   emailSubscribersTable,
 } from "@workspace/db";
-import { baseUrlForEmail, emailShell, EMAIL_COLORS, escapeHtml } from "./email";
+import { baseUrlForEmail, emailShell, EMAIL_COLORS, escapeHtml, type EmailTheme } from "./email";
 import { logger } from "./logger";
 
 type EngagementKind = "open" | "click" | "bounce" | "complaint";
@@ -134,15 +134,19 @@ interface TrackedHtmlOpts {
   baseUrl?: string;
   /** Headline for the branded shell (the campaign's subject). */
   title?: string;
+  /** The recipient's rotation theme (company-theme pair). Defaults
+      to the shell's light default when unresolved. */
+  theme?: EmailTheme;
 }
 
 /**
  * Render a campaign body (plain text) to the HTML that actually sends:
  * paragraphs preserved, links wrapped, tracking pixel + an honest
  * footer (one-click unsubscribe + tracking disclosure) appended — all
- * inside the house emailShell, so the mail carries the lockup and reads
- * on the golden-marble card in BOTH inbox themes. (The pre-shell
- * renderer set #eee text on NO background: invisible in a light inbox.)
+ * inside the house emailShell, so the mail carries the company-theme
+ * design (marble splash, themed lockup + signature) in the recipient's
+ * rotation theme. (The pre-shell renderer set #eee text on NO
+ * background: invisible in a light inbox.)
  */
 export function renderTrackedCampaignHtml(opts: TrackedHtmlOpts): string {
   const base = (opts.baseUrl ?? baseUrlForEmail()).replace(/\/$/, "");
@@ -171,7 +175,9 @@ export function renderTrackedCampaignHtml(opts: TrackedHtmlOpts): string {
   const pixel = `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`;
   /* Same shell treatment as the sender path's buildEmailHtml — a
      campaign must look identical whichever dispatch carries it. */
-  const html = emailShell(opts.title ?? "Bow Down Visuals", paragraphs + footer);
+  const html = emailShell(opts.title ?? "Bow Down Visuals", paragraphs + footer, {
+    theme: opts.theme,
+  });
   /* The pixel rides at the very bottom of the document, outside the card. */
   return html.replace("</body></html>", `${pixel}</body></html>`);
 }

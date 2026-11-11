@@ -57,7 +57,8 @@ import {
   type GroupDigestFrequency,
 } from "@workspace/db";
 import { logger } from "./logger";
-import { emailButton, emailShell, EMAIL_COLORS, isEmailConfigured, sendEmail, type SendEmailResult } from "./email";
+import { emailButton, emailShell, EMAIL_COLORS, isEmailConfigured, sendEmail, type SendEmailResult, type EmailTheme } from "./email";
+import { resolveEmailThemeForRecipient } from "./email-theme-rotation";
 import { getSupabaseAdmin } from "./supabase-admin";
 
 const GROUP_DIGEST_KIND = "group_digest";
@@ -433,16 +434,17 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-export function buildDigestEmailHtml(title: string, body: string, link: string): string {
+export function buildDigestEmailHtml(title: string, body: string, link: string, theme?: EmailTheme): string {
   const base = (process.env["PUBLIC_SITE_URL"] ?? "https://bowdownvisuals.com").replace(/\/$/, "");
   /* House shell, like every other family: the pre-shell digest set
      #1a1a1a text on NO background — 1.21:1 in a dark inbox (invisible) —
-     and carried no lockup. */
+     and carried no lockup. `theme` is the recipient's rotation theme. */
   return emailShell(
     escapeHtml(title),
     `<p style="margin:0 0 16px;">${escapeHtml(body)}</p>
 ${emailButton(`${base}${escapeHtml(link)}`, "Open the group")}
 <p style="color:${EMAIL_COLORS.muted};font-size:12px;margin-top:20px;">You get this because group digest emails are on in your Bow Down Visuals settings. Turn them off any time in Settings → Group digests.</p>`,
+    { theme },
   );
 }
 
@@ -458,6 +460,9 @@ interface GroupDigestDeps {
     subject: string;
     html: string;
     text?: string;
+    /** Theme-rotation bookkeeping, forwarded to the real sendEmail. */
+    theme?: EmailTheme;
+    themeRecipient?: string;
   }) => Promise<SendEmailResult>;
   emailConfigured?: () => boolean;
 }
@@ -550,11 +555,15 @@ export async function runGroupDigestSweep(
       if (prefs.email_enabled && emailConfigured()) {
         const address = await resolveEmail(m.userId).catch(() => null);
         if (address) {
+          /* Company-theme rotation for this recipient. */
+          const theme = await resolveEmailThemeForRecipient(address);
           const result = await sendEmailFn({
             to: address,
             subject: content.title,
             text: `${content.body}\n\nOpen the group: ${link}`,
-            html: buildDigestEmailHtml(content.title, content.body, link),
+            html: buildDigestEmailHtml(content.title, content.body, link, theme),
+            theme,
+            themeRecipient: address,
           }).catch(() => ({ sent: false }) as SendEmailResult);
           if (result.sent) {
             summary.emailed++;

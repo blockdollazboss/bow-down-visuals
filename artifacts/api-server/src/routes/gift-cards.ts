@@ -41,7 +41,7 @@ import { logger } from "../lib/logger";
 import { formatUsd } from "../lib/platform-fees";
 import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerprintStripeRequestParams } from "../lib/stripe-client";
 import { isEmbeddedCheckoutEnabled } from "../lib/embedded-checkout";
-import { sendEmail, emailShell, emailButton, money as emailMoney, escapeHtml, baseUrlForEmail, EMAIL_COLORS } from "../lib/email";
+import { sendEmail, emailShellForRecipient, emailButton, money as emailMoney, escapeHtml, baseUrlForEmail, EMAIL_COLORS } from "../lib/email";
 import {
   GiftCardsUnavailable,
   generateGiftCardCode,
@@ -373,7 +373,8 @@ export async function settleGiftCardBySession(
        until it lands. Best-effort, fail-open (store.ts receipt
        pattern): the issuing verify response also carries the code
        exactly this once. */
-    const html = emailShell(
+    const { html, theme } = await emailShellForRecipient(
+      String(card.recipient_email),
       `You've got a ${emailMoney(amountCents)} gift card`,
       `<p style="margin:0 0 12px;">${escapeHtml(meta["recipient_name"] || "You")} — someone sent you stored value for <strong>${escapeHtml(storeName)}</strong>'s store on Bow Down Visuals.</p>
 ${meta["gift_message"] ? `<p style="margin:0 0 12px;">“${escapeHtml(meta["gift_message"])}”</p>` : ""}
@@ -389,6 +390,8 @@ ${emailButton(storeEmailUrl, `Shop ${escapeHtml(storeName)}'s store`)}`
       to: String(card.recipient_email),
       subject: `Your ${emailMoney(amountCents)} gift card for ${storeName}`,
       html,
+      theme,
+      themeRecipient: String(card.recipient_email),
     }).catch(() => undefined);
   }
 
