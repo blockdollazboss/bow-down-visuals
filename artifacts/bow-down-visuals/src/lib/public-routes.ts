@@ -43,6 +43,7 @@ export const PUBLIC_ROUTES: readonly string[] = [
   "/terms",
   "/privacy",
   "/refund-policy",
+  "/moderation",
   "/review/:token",
   "/sync-one-sheet/:token",
   // Stream overlays (stack900 C2 + D3) — chromeless browser sources
@@ -242,6 +243,7 @@ export const ROUTE_MATRIX: readonly RouteMatrixEntry[] = [
   { path: "/terms", disposition: "public" },
   { path: "/privacy", disposition: "public" },
   { path: "/refund-policy", disposition: "public" },
+  { path: "/moderation", disposition: "public" },
   { path: "/randomizer", disposition: "redirect", redirectTo: "/hooks?tab=dice", targetDisposition: "locked" },
   { path: "/hooks", disposition: "locked" },
   { path: "/sounds", disposition: "redirect", redirectTo: "/audio-studio?tab=sounds", targetDisposition: "locked" },

@@ -127,6 +127,7 @@ const Admin         = lazyWithRetry(() => import("@/pages/admin"));
 const Terms         = lazyWithRetry(() => import("@/pages/terms"));
 const Privacy       = lazyWithRetry(() => import("@/pages/privacy"));
 const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
+const ModerationPolicy = lazyWithRetry(() => import("@/pages/moderation"));
 const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const ShortsFeed      = lazyWithRetry(() => import("@/pages/shorts"));
 const SoundDetailPage = lazyWithRetry(() => import("@/pages/sound"));
@@ -685,6 +686,7 @@ function AppShell() {
           <Route path="/terms"><Terms /></Route>
           <Route path="/privacy"><Privacy /></Route>
           <Route path="/refund-policy"><RefundPolicy /></Route>
+          <Route path="/moderation"><ModerationPolicy /></Route>
           <Route path="/randomizer"><Redirect to="/hooks?tab=dice" /></Route>
           <Route path="/sounds"><Redirect to="/audio-studio?tab=sounds" /></Route>
           <Route path="/sound-library"><Redirect to="/audio-studio?tab=sounds" /></Route>
