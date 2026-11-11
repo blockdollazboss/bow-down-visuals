@@ -44,11 +44,13 @@ function fmtClock(sec: number | null): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function SummaryRows({ title, icon, rows, empty, isLight }: {
+function SummaryRows({ title, icon, rows, empty, failed, onRetry, isLight }: {
   title: string;
   icon: React.ReactNode;
   rows: PortraitSummaryRow[] | null;
   empty: string;
+  failed: boolean;
+  onRetry: () => void;
   isLight: boolean;
 }) {
   const { t } = useTranslation();
@@ -58,7 +60,18 @@ function SummaryRows({ title, icon, rows, empty, isLight }: {
       <p className={`mb-1 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em] ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
         {icon} {title}
       </p>
-      {rows === null ? (
+      {failed ? (
+        <p className={`inline-flex items-center gap-2 text-xs ${muted}`}>
+          {t("worldIdentityMisc.porSummaryLoadFailed")}
+          <button
+            type="button"
+            onClick={onRetry}
+            className="font-bold text-[#d4af37] underline underline-offset-2 bdv-touch-target"
+          >
+            {t("common.retry")}
+          </button>
+        </p>
+      ) : rows === null ? (
         <p className={`inline-flex items-center gap-2 text-xs ${muted}`}>
           <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" /> {t("worldIdentityMisc.checking")}
         </p>
@@ -100,6 +113,9 @@ export function PortraitCard({
   const [playedId, setPlayedId] = useState<string | null>(null);
   const [memberships, setMemberships] = useState<PortraitSummaryRow[] | null>(null);
   const [shop, setShop] = useState<PortraitSummaryRow[] | null>(null);
+  const [membershipsFailed, setMembershipsFailed] = useState(false);
+  const [shopFailed, setShopFailed] = useState(false);
+  const [summaryTick, setSummaryTick] = useState(0);
   const muted = isLight ? "text-[#6B5B36]" : "text-white/50";
 
   useEffect(() => {
@@ -139,23 +155,29 @@ export function PortraitCard({
     }
     if (card.userId) {
       fetch(portraitMembershipsPath(card.userId))
-        .then(async (r) => (r.ok ? membershipSummaryRows(await r.json(), {
-          membershipFallback: t("worldIdentityMisc.porMembershipFallback"),
-          freeLabel: t("worldIdentityMisc.porFreeLabel"),
-          perMonthSuffix: t("worldIdentityMisc.porPerMonthSuffix"),
-        }) : []))
-        .then((rows) => { if (!cancelled) setMemberships(rows); })
-        .catch(() => { if (!cancelled) setMemberships([]); });
+        .then(async (r) => {
+          if (!r.ok) throw new Error("memberships summary failed");
+          return membershipSummaryRows(await r.json(), {
+            membershipFallback: t("worldIdentityMisc.porMembershipFallback"),
+            freeLabel: t("worldIdentityMisc.porFreeLabel"),
+            perMonthSuffix: t("worldIdentityMisc.porPerMonthSuffix"),
+          });
+        })
+        .then((rows) => { if (!cancelled) { setMemberships(rows); setMembershipsFailed(false); } })
+        .catch(() => { if (!cancelled) setMembershipsFailed(true); });
     } else {
       setMemberships([]);
     }
     fetch(portraitStoreCatalogPath(card.slug))
-      .then(async (r) => (r.ok ? shopSummaryRows(await r.json()) : []))
-      .then((rows) => { if (!cancelled) setShop(rows); })
-      .catch(() => { if (!cancelled) setShop([]); });
+      .then(async (r) => {
+        if (!r.ok) throw new Error("shop summary failed");
+        return shopSummaryRows(await r.json());
+      })
+      .then((rows) => { if (!cancelled) { setShop(rows); setShopFailed(false); } })
+      .catch(() => { if (!cancelled) setShopFailed(true); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card, user]);
+  }, [card, user, summaryTick]);
 
   async function toggleFollow() {
     if (!card || followBusy || following === null) return;
@@ -321,6 +343,8 @@ export function PortraitCard({
               icon={<Ticket className="h-3.5 w-3.5" />}
               rows={memberships}
               empty={t("worldIdentityMisc.porMembershipsEmpty")}
+              failed={membershipsFailed}
+              onRetry={() => setSummaryTick((n) => n + 1)}
               isLight={isLight}
             />
             <SummaryRows
@@ -328,6 +352,8 @@ export function PortraitCard({
               icon={<ShoppingBag className="h-3.5 w-3.5" />}
               rows={shop}
               empty={t("worldIdentityMisc.porShopEmpty")}
+              failed={shopFailed}
+              onRetry={() => setSummaryTick((n) => n + 1)}
               isLight={isLight}
             />
           </div>
