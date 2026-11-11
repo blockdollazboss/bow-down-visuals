@@ -8,10 +8,15 @@ import {
   liveViewerSamplesTable,
   creatorProfilesTable,
   generatedClipsTable,
+  liveShopProductsTable,
+  liveShopStreamsTable,
+  LIVE_SHOPPING_FEE_BPS,
   type LiveStream,
   type CreatorProfile,
   type LiveIngestKey,
 } from "@workspace/db";
+import { serializeProduct } from "./live-shopping";
+import { isCheckoutTestMode } from "../lib/stripe-checkout";
 import { requireAuth } from "../middlewares/require-auth";
 import { verifyAccessToken } from "../lib/live-ws";
 import {
@@ -1730,6 +1735,85 @@ router.get("/live-streams/profile/:slug", async (req: Request, res: Response) =>
   } catch (err) {
     logger.error({ err }, "live-streams/profile failed");
     res.status(500).json({ error: "Could not check if this creator is live." });
+  }
+});
+
+/* ── Live Shopping viewer read (join20) ───────────────────────────────
+   The buyer-side read the live-shopping rail always lacked: every
+   read on routes/live-shopping.ts is owner-scoped, so a viewer
+   watching a broadcast could never see — let alone buy — the items
+   pinned in it. This read walks the watch page's own chain: the
+   broadcast stream → its creator profile → that creator's selling
+   session (the live one when there is one, otherwise the most recent,
+   so an ended show still names what was pinned) → the pinned product
+   plus the seller's active catalog, serialized by the seller rail's
+   own serializer so the prices are the server's, verbatim.
+   Public-browse, like the stream read above it (shops are
+   public-browse / member-act): the bearer, when present, only decides
+   viewer_is_seller. Buying still rides POST /live-shopping/checkout,
+   which re-validates everything server-side (seller match, live
+   session, self-buy refusal, STREAM_NOT_LIVE) — this read changes no
+   money behavior. */
+router.get("/live-streams/:id/shop", publicApiLimiter, async (req: Request, res: Response) => {
+  try {
+    let row = await getStreamById(String(req.params.id));
+    if (!row) {
+      res.status(404).json({ error: "That stream doesn't exist." });
+      return;
+    }
+    row = await reconcileStale(row);
+    const profile = await getProfileById(row.profile_id);
+    const sellerUserId = profile?.userId ?? null;
+    if (!sellerUserId) {
+      res.json({ shop: null });
+      return;
+    }
+    const sessions = await db
+      .select()
+      .from(liveShopStreamsTable)
+      .where(eq(liveShopStreamsTable.user_id, sellerUserId))
+      .orderBy(desc(liveShopStreamsTable.created_at))
+      .limit(10);
+    const session = sessions.find((s) => s.status === "live") ?? sessions[0] ?? null;
+    if (!session) {
+      res.json({ shop: null });
+      return;
+    }
+    const productRows = await db
+      .select()
+      .from(liveShopProductsTable)
+      .where(eq(liveShopProductsTable.user_id, sellerUserId))
+      .orderBy(desc(liveShopProductsTable.created_at));
+    const active = productRows.filter((p) => p.is_active);
+    /* A pinned product that has since been deactivated is not
+       buyable (checkout 404s it) — never offer it as the pin. */
+    const pinnedRow = session.pinned_product_id
+      ? active.find((p) => p.id === session.pinned_product_id) ?? null
+      : null;
+    const viewerId = await optionalViewerId(req);
+    res.json({
+      shop: {
+        session: {
+          id: session.id,
+          title: session.title,
+          status: session.status,
+          pinned_product_id: session.pinned_product_id,
+        },
+        pinned_product: pinnedRow ? await serializeProduct(pinnedRow) : null,
+        products: await Promise.all(active.map(serializeProduct)),
+        seller: {
+          profile_id: profile!.id,
+          slug: profile!.slug,
+          display_name: profile!.displayName,
+        },
+        viewer_is_seller: viewerId !== null && viewerId === sellerUserId,
+        fee_bps: LIVE_SHOPPING_FEE_BPS,
+        testMode: isCheckoutTestMode(),
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, "live-streams shop read failed");
+    res.status(500).json({ error: "Could not load this stream's shop." });
   }
 });
 

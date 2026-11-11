@@ -16,6 +16,7 @@ import { WhepPlayer } from "@/lib/stream-kit/transport";
 import { replayStateFor } from "@/lib/live-replay";
 import PartyTableSection from "@/components/artist/PartyTableSection";
 import { SongRequestPanel } from "@/components/live/SongRequests";
+import LiveShopPanel from "@/components/live/LiveShopPanel";
 import { publicOnStageGuests } from "@/lib/go-live/guest-api";
 import { SectionBoundary } from "@/components/SectionBoundary";
 
@@ -614,6 +615,14 @@ export default function LiveWatch() {
             Renders the crown strip alone when no battle rides here. */}
         <SectionBoundary name="live-watch-battles">
           <LiveBattlesPanel streamId={stream.id} />
+        </SectionBoundary>
+        {/* Live Shopping (join20) docked on the watch surface: the
+            items pinned in THIS stream, at the server's prices,
+            buyable on the live-shopping rail without leaving the
+            watch page. Renders nothing when the creator runs no
+            selling session. */}
+        <SectionBoundary name="live-watch-shop">
+          <LiveShopPanel streamId={stream.id} broadcastLive={!!isLive} />
         </SectionBoundary>
           </div>
           <SectionBoundary name="live-watch-chat">

@@ -166,7 +166,10 @@ export function formatPrice(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-async function serializeProduct(row: typeof liveShopProductsTable.$inferSelect) {
+/* Exported for the viewer-side shop read on the broadcast rail
+   (routes/live-streams.ts GET /live-streams/:id/shop) — one serializer,
+   so the prices a viewer sees are the seller rail's own, verbatim. */
+export async function serializeProduct(row: typeof liveShopProductsTable.$inferSelect) {
   return {
     id: row.id,
     name: row.name,
