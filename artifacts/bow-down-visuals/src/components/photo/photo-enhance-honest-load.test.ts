@@ -42,3 +42,25 @@ describe("the download falls back to the proven url instead of faking a save", (
     expect(src).toContain('window.open(result.url, "_blank", "noopener");');
   });
 });
+
+describe("the upload state's errors are actually VISIBLE (Nov 11 probe defect)", () => {
+  /* The pins above proved a failed upload SETS the error line. The
+     probe proved nobody could SEE it: the only error render lived in
+     the post-upload controls column, so in the pre-upload state a
+     failed upload looked exactly like nothing had happened. These
+     pins close that gap. */
+  it("the pre-upload branch renders the error line too — two renders, one per state", () => {
+    const uploadBranchStart = src.indexOf("{!originalUrl && (");
+    const controlsStart = src.indexOf("{originalUrl && (");
+    expect(uploadBranchStart).toBeGreaterThan(-1);
+    expect(controlsStart).toBeGreaterThan(uploadBranchStart);
+    const uploadBranch = src.slice(uploadBranchStart, controlsStart);
+    expect(uploadBranch).toContain("{error && (");
+    expect(src.split("{error && (").length - 1).toBe(2);
+  });
+
+  it("an upload that returns no URL is a failure, never a falsy original", () => {
+    expect(src).toContain("if (!publicUrl) {");
+    expect(src).toContain("setOriginalUrl(publicUrl);");
+  });
+});

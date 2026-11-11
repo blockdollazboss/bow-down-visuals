@@ -5,10 +5,10 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
 import {
   chargeCredits,
-  refundCredits,
+  refundCreditsGuaranteed,
+  findChargeAmountByKey,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
-  voidChargeIdempotencyKey,
 } from "../../lib/credits";
 import {
   findStoredGenerationResult,
@@ -73,6 +73,13 @@ const backdropSchema = z.object({
   prompt: z.string().trim().min(1, "prompt is required").max(2000),
   provider: z.enum(PROVIDERS).optional().default("nano-banana-2.1"),
   ratio: z.enum(["1080:1920", "1080:1080", "1920:1080"]).optional().default("1080:1080"),
+  /** The idempotency key of the Background Removal charge that made
+      the cutout this backdrop composes onto (the removal route returns
+      it as prepChargeKey). When the composed job fails, that prep
+      charge is unwound in the same failure path. Deliberately NOT
+      part of the backdrop's own idempotency intent: a retry carrying
+      a fresh prep key must still dedup against this job's own key. */
+  prepChargeKey: z.string().trim().min(1).max(300).optional(),
 });
 
 interface GeminiPart { inlineData?: { data?: string }; text?: string }
@@ -166,8 +173,10 @@ router.get("/photo-backdrop/status", requireAuth, async (_req, res) => {
    - 402 out of credits
    - 503 chosen provider not connected (no charge)
    - 200 { status, url, path, creditCost, model }
-   Credits are charged upfront and REFUNDED on failure (mirrors
-   background-removal.ts).
+   Credits are charged upfront and refunded on failure through the
+   guaranteed path (refundCreditsGuaranteed — one loud retry, key
+   voided only when the refund landed). A failed composed job also
+   unwinds the Background Removal prep charge named by prepChargeKey.
 ───────────────────────────────────────────────────────────────────────────── */
 router.post("/photo-backdrop", requireAuth, generationLimiter, async (req, res) => {
   const parsed = backdropSchema.safeParse(req.body ?? {});
@@ -254,15 +263,44 @@ router.post("/photo-backdrop", requireAuth, generationLimiter, async (req, res) 
   } catch (err) {
     const message = err instanceof Error ? err.message : "AI backdrop generation failed.";
     req.log.error({ err: message }, "[photo-backdrop] failed");
-    const refunded = await refundCredits(req.userId!, BACKDROP_COST, {
+    /* Own charge — GUARANTEED refund: retried exactly once on failure,
+       logged loudly, and this key is voided only when the refund
+       landed (a refunded retry charges fresh; an unrefunded key stays
+       landed, so the retry re-runs against the standing charge). */
+    const refunded = await refundCreditsGuaranteed(req.userId!, BACKDROP_COST, {
       action: "Photo AI Backdrop — Refund",
-    }).then(() => true).catch(() => false);
-    /* Void only when the refund landed — a refunded retry charges
-       fresh; an unrefunded key stays landed. */
-    if (refunded) {
-      await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
+    }, { idempotencyKey });
+    /* Composition unwind: this job's input was a cutout the member
+       paid Background Removal to make. When the composed job fails,
+       that prep charge is reversed in the same failure path — the
+       Nov 11 probe stranded exactly that 200 VB when this leg's
+       provider refused. Exactly-once by construction: the unwind
+       refunds the amount the ledger says the prep key charged and
+       voids the prep key as it lands, so a repeat failure finds no
+       landed charge under the key and skips. The key must name THIS
+       member's background-removal scope — anything else is ignored. */
+    let prepRefunded = false;
+    const prepKey = parsed.data.prepChargeKey;
+    if (prepKey && prepKey.startsWith(`background-removal:${req.userId!}:`)) {
+      const prepCharge = await findChargeAmountByKey(prepKey);
+      if (prepCharge && prepCharge.creditsUsed > 0) {
+        prepRefunded = await refundCreditsGuaranteed(req.userId!, prepCharge.creditsUsed, {
+          action: "Background Removal — Refund",
+        }, { idempotencyKey: prepKey });
+        if (!prepRefunded) {
+          req.log.error(
+            { userId: req.userId, prepKey },
+            "[photo-backdrop] CRITICAL: prep-charge unwind could not be landed after retry — prep charge stands, flagged for reconciliation",
+          );
+        }
+      } else {
+        req.log.info(
+          { userId: req.userId },
+          "[photo-backdrop] prep unwind skipped — no landed prep charge under that key (already unwound or never charged)",
+        );
+      }
     }
-    res.status(500).json({ error: message });
+    res.status(500).json({ error: message, creditsRefunded: refunded, prepCreditsRefunded: prepRefunded });
   }
 });
 

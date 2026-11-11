@@ -136,6 +136,12 @@ export function BgStudio() {
   const [removing, setRemoving] = useState(false);
   const [cutoutUrl, setCutoutUrl] = useState<string | null>(null);
   const [detectedColor, setDetectedColor] = useState<string | null>(null);
+  /* The PAID server removal behind the current cutout, when there is
+     one: its charge key lets a failed AI backdrop unwind the prep
+     charge server-side (photo-backdrop's prepChargeKey). Set only by
+     the paid removal path — the free pro matte / basic key never set
+     it — and cleared whenever the cutout stops being that output. */
+  const [paidCutout, setPaidCutout] = useState<{ url: string; prepChargeKey: string } | null>(null);
 
   /* replacement */
   const [replaceKind, setReplaceKind] = useState<ReplaceKind>("color");
@@ -205,7 +211,7 @@ export function BgStudio() {
       const img = await loadImage(url);
       setPhotoDims({ w: img.naturalWidth, h: img.naturalHeight });
       /* reset downstream state for the new photo */
-      setCutoutUrl(null); setDetectedColor(null); setBackdropUrl(null); setResultUrl(null);
+      setCutoutUrl(null); setDetectedColor(null); setBackdropUrl(null); setResultUrl(null); setPaidCutout(null);
       toast({ title: t("bgStudio.uploadedTitle", { defaultValue: "Photo uploaded" }), description: t("bgStudio.uploadedDesc", { defaultValue: "Now remove the background." }) });
     } catch (e) {
       setError(plainErrorText(e, t("bgStudio.uploadFailed", { defaultValue: "Upload failed. Try again." })));
@@ -236,6 +242,13 @@ export function BgStudio() {
       setCutoutTier("basic"); // server path is the corner-sampling color-key
       setCutoutUrl(data.url as string);
       setDetectedColor((data.backgroundColor as string | undefined) ?? null);
+      /* This cutout is the PAID removal's output — remember its charge
+         key so the backdrop step can unwind it if the composed job fails. */
+      setPaidCutout(
+        typeof data.prepChargeKey === "string" && data.prepChargeKey
+          ? { url: data.url as string, prepChargeKey: data.prepChargeKey }
+          : null,
+      );
     } catch (e) {
       setError(plainErrorText(e, t("bgStudio.removeFailed", { defaultValue: "Background removal failed." })));
     } finally {
@@ -253,6 +266,7 @@ export function BgStudio() {
       const matte = await stillEngineRef.current.processStill(img);
       setCutoutTier("pro");
       setCutoutUrl(cutoutDataUrl(img, matte));
+      setPaidCutout(null); // the current cutout is now the free matte, not the paid removal
     } catch (e) {
       // Honest failure + a labeled Basic fallback — never a silent swap.
       setMatteError(plainErrorText(e, t("bgStudio.matteFailed", { defaultValue: "Pro matting could not run on this device." })));
@@ -276,6 +290,7 @@ export function BgStudio() {
       const alpha = chromaKeyAlpha(data.data, canvas.width, canvas.height, aggressiveness);
       setCutoutTier("basic");
       setCutoutUrl(cutoutDataUrl(img, { alpha, width: canvas.width, height: canvas.height }));
+      setPaidCutout(null); // the current cutout is now the free client key, not the paid removal
     } catch (e) {
       setError(plainErrorText(e, t("bgStudio.removeFailed", { defaultValue: "Background removal failed." })));
     }
@@ -296,7 +311,15 @@ export function BgStudio() {
       const res = await confirmedFetch("/api/photo-backdrop", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, provider, ratio }),
+        body: JSON.stringify({
+          prompt, provider, ratio,
+          /* When the current cutout is the paid removal's output, name
+             its charge: if this composed job fails, the server unwinds
+             the prep charge in the same failure path. */
+          ...(paidCutout && cutoutUrl === paidCutout.url
+            ? { prepChargeKey: paidCutout.prepChargeKey }
+            : {}),
+        }),
         overrideCost: BACKDROP_COST,
         overrideFeature: "Photo Backdrop",
       });
@@ -359,7 +382,7 @@ export function BgStudio() {
 
   function resetAll() {
     setPhotoUrl(null); setPhotoDims(null); setCutoutUrl(null); setDetectedColor(null);
-    setBackdropUrl(null); setResultUrl(null); setAiPrompt(""); setError(null);
+    setBackdropUrl(null); setResultUrl(null); setAiPrompt(""); setError(null); setPaidCutout(null);
   }
 
   const aiEnabled = !!backdropStatus?.configured && !statusLoading;

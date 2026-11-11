@@ -96,6 +96,12 @@ export function PhotoEnhance() {
       const token = await getAccessToken().catch(() => null);
       const key = `photo-enhance/${user?.id ?? "anon"}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
       const publicUrl = await r2UploadFile(key, file, file.type, token);
+      /* An upload that "succeeds" without a URL is a failure — never
+         set a falsy original (the tab would sit on the upload prompt
+         forever with no photo and no explanation). */
+      if (!publicUrl) {
+        throw new Error(t("photoEnhance.errorUpload", { defaultValue: "Upload failed. Try again." }));
+      }
       setOriginalUrl(publicUrl);
     } catch (e) {
       setError(plainErrorText(e, t("photoEnhance.errorUpload", { defaultValue: "Upload failed. Try again." })));
@@ -212,7 +218,21 @@ export function PhotoEnhance() {
 
       {/* ── Step 1: upload ── */}
       {!originalUrl && (
-        <button
+        <>
+          {/* The error line MUST render in this state too: before this
+              fix the only error render lived in the post-upload
+              controls column, so a failed upload (or a rejected file)
+              set an error nobody could ever see — the tab just kept
+              showing the upload prompt, exactly as the Nov 11 probe
+              found. A failed load must never dress up as "nothing
+              happened." */}
+          {error && (
+            <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+          <button
           onClick={pickFile}
           disabled={busy}
           className="flex w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.03] px-6 py-16 transition hover:border-[#fbbf24]/60 hover:bg-white/[0.05] disabled:opacity-50"
@@ -232,7 +252,8 @@ export function PhotoEnhance() {
               {t("photoEnhance.uploadHint", { defaultValue: "JPG or PNG, up to 12 MB. Old, noisy, or black-and-white photos welcome." })}
             </div>
           </div>
-        </button>
+          </button>
+        </>
       )}
 
       {/* ── Steps 2–4: operations + preview ── */}
