@@ -34,6 +34,7 @@ import { creatorSlugFromRoomId } from "@/lib/world/palace-layout";
 import type { PalaceDirectoryEntry, WorldJukeboxState } from "@/lib/world/world-client";
 import { fetchPublicCourt, type CourtMember } from "@/lib/royal-court";
 import { GUEST_SIGN_IN_HREF } from "@/lib/world/guest-honest";
+import { presenceCountText } from "@/lib/world/presence-label";
 
 /* ─── StationPanel — the palace's doors, opened ──────────────────────
    A door-station's panel under registry v2 (NATIVE-PLAN §3.0): a
@@ -423,7 +424,7 @@ function KingdomBoard({
               ? "border-[#C9A84C]/40 bg-white/50"
               : "border-white/10 bg-white/5"
         }`;
-        const rowLabel = `${r.name}, ${r.count} ${r.count === 1 ? "person" : "people"}${r.live ? ", live now" : ""}${here ? ", you're here" : ""}`;
+        const rowLabel = `${r.name}, ${presenceCountText(r.count, r.guestConnections)}${r.live ? ", live now" : ""}${here ? ", you're here" : ""}`;
         const rowInner = (
           <>
             <span className={`text-sm font-bold ${isLight ? "text-[#2a1e07]" : "text-white"}`}>{r.name}</span>
@@ -434,7 +435,7 @@ function KingdomBoard({
             )}
             <span className={`inline-flex items-center gap-1 text-xs font-semibold ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>
               <Users className="h-3.5 w-3.5 text-[#d4af37]" />
-              {r.count} {r.count === 1 ? "person" : "people"}
+              {presenceCountText(r.count, r.guestConnections)}
             </span>
             {here ? (
               <span className="text-[11px] font-black uppercase tracking-wide text-[#e8c86a]">You&rsquo;re here</span>
