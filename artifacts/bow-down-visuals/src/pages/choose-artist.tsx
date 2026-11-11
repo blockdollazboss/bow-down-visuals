@@ -4,7 +4,6 @@ import { Loader2, Plus, ArrowRight, CheckCircle2, User, Palette, Music2, Sparkle
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
-import { fetchMyProfile } from "@/lib/artist-profiles";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { SUBJECT_TYPE_META, normalizeSubjectType } from "@/components/ArtistVaultSelector";
 import { getCharacterTheme, themeAlpha } from "@/lib/character-themes";
@@ -17,7 +16,7 @@ export default function ChooseArtist() {
   const { t } = useTranslation();
   usePageTitle(t("chooseArtist.pageTitle"), t("chooseArtist.pageDescription"));
   const { getAccessToken } = useAuth();
-  const { activeArtist, setActiveArtist } = useActiveArtist();
+  const { activeArtist, setActiveArtist, skipArtistChoice } = useActiveArtist();
   const [, setLocation] = useLocation();
   // Reactive: MutationObserver on <html> class flips this the instant the
   // theme toggle fires — placeholder + treatments swap with no reload.
@@ -144,16 +143,23 @@ export default function ChooseArtist() {
     setLocation("/dashboard");
   }
 
-  async function handleContinueWithout() {
+  function handleContinueWithout() {
+    /* Skip answers the pick with "not now" and lands on the dashboard —
+       the same destination choosing an artist uses. The navigation is
+       SYNCHRONOUS, like handleUseArtist: the previous shape waited on
+       an unauthenticated profile request first (that request sends no
+       token, so it took a 401 and could only complete through the
+       session guard's refresh-and-retry detour), which made the click
+       do nothing visible for as long as that chain took — a dead
+       button on a slow connection (proven live, Nov 10, 2026). A
+       click must never be hostage to the network. The skip is
+       recorded for the visit so the homepage's redirect to this page
+       respects it instead of bouncing the user straight back; a
+       creator with no public page yet still meets the 60-second
+       setup from the dashboard's own next steps. */
     setActiveArtist(null);
-    /* Lightning onboarding: users with no public profile go straight to the
-       60-second setup instead of landing on the dashboard with no next step. */
-    try {
-      const p = await fetchMyProfile();
-      setLocation(p ? "/dashboard" : "/artist-setup");
-    } catch {
-      setLocation("/dashboard");
-    }
+    skipArtistChoice();
+    setLocation("/dashboard");
   }
 
   /* Spotlight slots: user's drag-and-drop order wins (spotlight_order asc),
