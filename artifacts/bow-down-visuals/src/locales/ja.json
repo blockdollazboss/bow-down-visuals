@@ -22701,6 +22701,8 @@
     "dirHasContent": "その人の音楽と注目の作品が壁にあります。",
     "dirNoContent": "静かな部屋 — ホストはまだ引っ越し中です。",
     "dirOccupants": "{{count}}人中",
+    "dirConnectionsOne": "{{count}} connection",
+    "dirConnectionsMany": "{{count}} connections",
     "dirFooter": "すべての部屋はそのクリエイターの場所です — その人のスクリーン、音楽レール、Front Row、ストアのドア。一つ選べば、宮殿がアーチを通って案内します。",
     "officeMarkerHeadline": "オフィスアワー — {{host}}",
     "officeMarkerNotePrefix": " — {{note}}",

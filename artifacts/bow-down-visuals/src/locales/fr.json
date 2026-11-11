@@ -22734,6 +22734,8 @@
     "dirHasContent": "Leur musique et leurs œuvres mises en avant sont sur les murs.",
     "dirNoContent": "Une salle calme — son hôte est encore en train de s'installer.",
     "dirOccupants": "{{count}} dedans",
+    "dirConnectionsOne": "{{count}} connection",
+    "dirConnectionsMany": "{{count}} connections",
     "dirFooter": "Chaque salle est la place de son créateur — son écran, son rail de musique, son Front Row, la porte de sa boutique. Choisissez-en une et le palais vous fait passer sous l'arche.",
     "officeMarkerHeadline": "Heures de bureau — {{host}}",
     "officeMarkerNotePrefix": " — {{note}}",

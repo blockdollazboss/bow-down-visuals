@@ -22821,6 +22821,8 @@
     "dirHasContent": "موسيقاهم وأعمالهم المميزة على الجدران.",
     "dirNoContent": "غرفة هادئة — مضيفها ما زال يستقر فيها.",
     "dirOccupants": "{{count}} بالداخل",
+    "dirConnectionsOne": "{{count}} connection",
+    "dirConnectionsMany": "{{count}} connections",
     "dirFooter": "كل غرفة هي مكان صانعها — شاشته وسكة موسيقاه وFront Row وباب متجره. اختر واحدة فيمشي بك القصر عبر القوس.",
     "officeMarkerHeadline": "ساعات المكتب — {{host}}",
     "officeMarkerNotePrefix": " — {{note}}",

@@ -139,6 +139,13 @@ export interface CreatorRoomSummary {
   theme: CreatorRoomTheme;
   hasContent: boolean;
   occupantCount: number;
+  /** Of occupantCount, how many are GUEST connections (B-25,
+   *  owner ruling Nov 11, 2026) — the directory pill labels
+   *  this part "connections," never people; occupantCount −
+   *  guestConnections is the people part. Parsed with a 0
+   *  default: a payload from a server that predates the
+   *  breakdown reads as no guest connections broken out. */
+  guestConnections: number;
   evolution: CreatorRoomEvolution | null;
 }
 
@@ -181,6 +188,9 @@ export interface CreatorRoomDetail {
   theme: CreatorRoomTheme;
   followerCount: number;
   occupantCount: number;
+  /** Of occupantCount, how many are GUEST connections (B-25 —
+   *  see CreatorRoomSummary.guestConnections). */
+  guestConnections: number;
   featuredVideo: CreatorRoomVideo | null;
   featuredTrack: CreatorRoomTrack | null;
   tracks: CreatorRoomTrack[];
@@ -302,6 +312,7 @@ function parseSummary(
     theme: parseTheme(raw["theme"]),
     hasContent: raw["hasContent"] === true,
     occupantCount: num(raw["occupantCount"]),
+    guestConnections: num(raw["guestConnections"]),
     evolution: parseCreatorRoomEvolution(raw["evolution"]),
   };
 }
@@ -398,6 +409,7 @@ export function parseCreatorRoomDetail(
     theme: parseTheme(raw["theme"]),
     followerCount: num(raw["followerCount"]),
     occupantCount: num(raw["occupantCount"]),
+    guestConnections: num(raw["guestConnections"]),
     featuredVideo: parseVideo(raw["featuredVideo"], strings),
     featuredTrack: parseTrack(raw["featuredTrack"], strings),
     tracks: Array.isArray(raw["tracks"])

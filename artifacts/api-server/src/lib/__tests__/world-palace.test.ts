@@ -887,6 +887,26 @@ describe("presence truth — rejoins replace, ghosts get reaped", () => {
     expect(palace.plazaRoom.size()).toBe(4);
   });
 
+  it("the directory breaks out guest connections (B-25): one guest in two tabs is two connections; a member is a person", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const alpha = fakeSocket();
+    enter(palace, alpha, "Alpha");
+    /* The same guest in a second tab: a distinct per-tab session
+     * id, so BOTH tabs stand — that is exactly why the guest part
+     * of a presence count is connections, not people. */
+    const tabA = fakeSocket();
+    const tabB = fakeSocket();
+    expect(palace.enterHall(tabA, guestTab("tab-session-a"))).toBe(true);
+    expect(palace.enterHall(tabB, guestTab("tab-session-b"))).toBe(true);
+
+    const plaza = palace.directory().find((r) => r.id === palace.plazaRoom.roomId);
+    expect(plaza?.count).toBe(3);
+    expect(plaza?.guestConnections).toBe(2);
+    /* And the count itself is unchanged by the breakdown: the two
+     * numbers are a split of the same present set. */
+    expect((plaza?.count ?? 0) - (plaza?.guestConnections ?? 0)).toBe(1);
+  });
+
   it("join/leave storm: twelve enter, seven die silent — one sweep leaves the true five", () => {
     const palace = new WorldPalace(new RoomHub());
     const sockets: FakeSocket[] = [];

@@ -119,7 +119,7 @@ describe("Creator Rooms occupantCount — present peers, never ghosts", () => {
      * sweep — but the occupant count the reads report must not
      * include it. (The room-level judge is what the palace's own
      * directory and totalPopulation do with the same value —
-     * presentPeers(now).length at lines 714/739/756 of
+     * presentPeers(now).length at lines 723/748/766 of
      * world-palace.ts.) */
     const T2 = T0 + WORLD_PEER_STALE_MS + 1;
     frame(palace, host, { type: "ping" }, T2);
@@ -158,5 +158,37 @@ describe("routes/world.ts — both occupantCount reads keep the present form (B-
   it("the one-room data read derives from presentPeers().length", () => {
     expect(src).toContain("occupantCount: room?.presentPeers().length ?? 0");
     expect(src).not.toContain("occupantCount: room?.size()");
+  });
+});
+
+describe("guest-connection breakdown — the B-25 label's data (owner ruling, Nov 11, 2026)", () => {
+  it("the palace directory splits a creator room's count into people + guest connections", () => {
+    const palace = new WorldPalace(new RoomHub());
+    const room = palace.noteCreatorRoom("nova-reyes", "Nova Reyes");
+    /* The host (a member = a person) and ONE guest standing in
+     * the room from TWO tabs — two per-tab sessions, two guest
+     * peers. The count is 3; the honest label is 1 person +
+     * 2 connections. */
+    room.attach(fakeSocket(), member("Nova"));
+    room.attach(fakeSocket(), guest("tab-1"));
+    room.attach(fakeSocket(), guest("tab-2"));
+    const stamps = (
+      room as unknown as { peers: Map<unknown, { lastSeenAt: number }> }
+    ).peers;
+    const T0 = Math.max(...[...stamps.values()].map((p) => p.lastSeenAt));
+
+    const entry = palace.directory(T0).find((e) => e.id === "creator:nova-reyes");
+    expect(entry?.count).toBe(3);
+    expect(entry?.guestConnections).toBe(2);
+  });
+
+  it("both Creator Rooms reads break out guest connections from the same present peers", () => {
+    const src = readFileSync(join(__dirname, "../../routes/world.ts"), "utf8");
+    expect(src).toContain(
+      "guestConnections: activePalace?.creatorRoom(p.slug)?.presentPeers().filter((p) => p.guest).length ?? 0",
+    );
+    expect(src).toContain(
+      "guestConnections: room?.presentPeers().filter((p) => p.guest).length ?? 0",
+    );
   });
 });

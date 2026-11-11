@@ -22705,6 +22705,8 @@
     "dirHasContent": "Ihre Musik und ihre vorgestellten Werke hängen an den Wänden.",
     "dirNoContent": "Ein ruhiger Raum — sein Gastgeber zieht noch ein.",
     "dirOccupants": "{{count}} drin",
+    "dirConnectionsOne": "{{count}} connection",
+    "dirConnectionsMany": "{{count}} connections",
     "dirFooter": "Jeder Raum ist der Platz seines Creators — ihr Bildschirm, ihre Musikschiene, ihre Front Row, ihre Shop-Tür. Wähle einen, und der Palast führt dich durch den Bogen.",
     "officeMarkerHeadline": "Sprechzeiten — {{host}}",
     "officeMarkerNotePrefix": " — {{note}}",
