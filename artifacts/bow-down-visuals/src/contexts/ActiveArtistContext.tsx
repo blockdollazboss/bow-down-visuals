@@ -10,9 +10,11 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import {
+  readArtistChoiceSkipped,
   readLegacyActiveArtistSnapshot,
   readStoredActiveArtistId,
   resolveActiveArtist,
+  writeArtistChoiceSkipped,
   writeStoredActiveArtistId,
 } from "@/lib/active-artist";
 
@@ -20,6 +22,13 @@ interface ActiveArtistContextValue {
   activeArtist: ArtistVault | null;
   setActiveArtist: (artist: ArtistVault | null) => void;
   clearActiveArtist: () => void;
+  /** True once the user has answered the artist pick with "not now"
+   *  this visit. Gates that would send a signed-in user to
+   *  /choose-artist (the homepage redirect) respect it, so skipping
+   *  never bounces the user straight back to the picker. */
+  artistChoiceSkipped: boolean;
+  /** Record the "not now" answer for this visit. */
+  skipArtistChoice: () => void;
   /** Re-read the vault and re-resolve the active artist from its id,
    *  so edits made anywhere land on every creation surface. */
   refreshActiveArtist: () => Promise<void>;
@@ -32,6 +41,8 @@ const ActiveArtistContext = createContext<ActiveArtistContextValue>({
   activeArtist: null,
   setActiveArtist: () => {},
   clearActiveArtist: () => {},
+  artistChoiceSkipped: false,
+  skipArtistChoice: () => {},
   refreshActiveArtist: async () => {},
   consistencyPrompt: null,
   setConsistencyPrompt: () => {},
@@ -58,6 +69,9 @@ export function ActiveArtistProvider({ children }: { children: ReactNode }) {
     () => readLegacyActiveArtistSnapshot(),
   );
   const [consistencyPrompt, setConsistencyPromptState] = useState<string | null>(loadStoredConsistency);
+  const [artistChoiceSkipped, setArtistChoiceSkippedState] = useState<boolean>(
+    () => readArtistChoiceSkipped(),
+  );
   const activeIdRef = useRef<string | null>(readStoredActiveArtistId());
 
   const fetchVaultRows = useCallback(async (): Promise<ArtistVault[]> => {
@@ -105,10 +119,23 @@ export function ActiveArtistProvider({ children }: { children: ReactNode }) {
     activeIdRef.current = artist?.id ?? null;
     writeStoredActiveArtistId(activeIdRef.current);
     setActiveArtistState(artist);
+    /* Picking an artist answers the question the skip deferred —
+       the "not now" flag clears so nothing treats the visit as
+       unanswered afterwards. Clearing the pick (sign-out paths) is
+       not an answer either way, so it leaves the flag untouched. */
+    if (artist) {
+      writeArtistChoiceSkipped(false);
+      setArtistChoiceSkippedState(false);
+    }
   }
 
   function clearActiveArtist() {
     setActiveArtist(null);
+  }
+
+  function skipArtistChoice() {
+    writeArtistChoiceSkipped(true);
+    setArtistChoiceSkippedState(true);
   }
 
   function setConsistencyPrompt(prompt: string | null) {
@@ -128,6 +155,7 @@ export function ActiveArtistProvider({ children }: { children: ReactNode }) {
     <ActiveArtistContext.Provider
       value={{
         activeArtist, setActiveArtist, clearActiveArtist, refreshActiveArtist,
+        artistChoiceSkipped, skipArtistChoice,
         consistencyPrompt, setConsistencyPrompt, clearConsistencyPrompt,
       }}
     >

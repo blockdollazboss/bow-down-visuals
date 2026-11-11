@@ -1729,7 +1729,7 @@ export default function Home() {
   );
   const waitlistRef = useRef<HTMLElement>(null);
   const { user, loading: authLoading } = useAuth();
-  const { activeArtist } = useActiveArtist();
+  const { activeArtist, artistChoiceSkipped } = useActiveArtist();
   const [, setLocation] = useLocation();
 
   /* Theme state — homepage owns its light/dark toggle. Synced with
@@ -1765,15 +1765,18 @@ export default function Home() {
 
   /* Signed-in users without an artist go to selection — but if they've
      already picked one, let them see the homepage. Fixes the endless
-     choose-artist loop. */
+     choose-artist loop. A user who SKIPPED the pick this visit
+     ("Skip for now" on /choose-artist) has answered the question too:
+     sending them back would re-trap them on the picker they just
+     left, so the skip stands for the rest of the visit. */
   useEffect(() => {
-    if (!authLoading && user && !activeArtist) {
+    if (!authLoading && user && !activeArtist && !artistChoiceSkipped) {
       setLocation("/choose-artist");
     }
-  }, [authLoading, user, activeArtist, setLocation]);
+  }, [authLoading, user, activeArtist, artistChoiceSkipped, setLocation]);
 
   /* Don't flash the marketing page while the redirect fires. */
-  if (authLoading || (user && !activeArtist)) return null;
+  if (authLoading || (user && !activeArtist && !artistChoiceSkipped)) return null;
 
   return (
     <>

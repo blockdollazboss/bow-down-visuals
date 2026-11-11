@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   ACTIVE_ARTIST_STORAGE_KEY,
+  ARTIST_CHOICE_SKIPPED_KEY,
+  readArtistChoiceSkipped,
   readLegacyActiveArtistSnapshot,
   readStoredActiveArtistId,
   resolveActiveArtist,
+  writeArtistChoiceSkipped,
   writeStoredActiveArtistId,
 } from "./active-artist";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
@@ -152,5 +155,49 @@ describe("resolveActiveArtist", () => {
     const rows = [vaultRow({ id: "someone-else" })];
     expect(resolveActiveArtist(rows, "vault-deleted")).toBeNull();
     expect(resolveActiveArtist([], "vault-deleted")).toBeNull();
+  });
+});
+
+describe("artist choice skipped (the /choose-artist 'not now')", () => {
+  it("defaults to not skipped when nothing is stored", () => {
+    expect(readArtistChoiceSkipped(mockStorage())).toBe(false);
+  });
+
+  it("round-trips: a recorded skip reads back, and clearing removes it", () => {
+    const storage = mockStorage();
+    writeArtistChoiceSkipped(true, storage);
+    expect(storage.getItem(ARTIST_CHOICE_SKIPPED_KEY)).toBe("1");
+    expect(readArtistChoiceSkipped(storage)).toBe(true);
+    writeArtistChoiceSkipped(false, storage);
+    expect(storage.getItem(ARTIST_CHOICE_SKIPPED_KEY)).toBeNull();
+    expect(readArtistChoiceSkipped(storage)).toBe(false);
+  });
+
+  it("only the exact marker counts — any other stored value is not a skip", () => {
+    const storage = mockStorage();
+    storage.setItem(ARTIST_CHOICE_SKIPPED_KEY, "yes");
+    expect(readArtistChoiceSkipped(storage)).toBe(false);
+  });
+
+  it("no storage at all reads as not skipped and writes are a no-op", () => {
+    expect(readArtistChoiceSkipped(null)).toBe(false);
+    expect(() => writeArtistChoiceSkipped(true, null)).not.toThrow();
+  });
+
+  it("a throwing storage reads as not skipped and never breaks the writer", () => {
+    const hostile = {
+      getItem: () => {
+        throw new Error("storage denied");
+      },
+      setItem: () => {
+        throw new Error("storage denied");
+      },
+      removeItem: () => {
+        throw new Error("storage denied");
+      },
+    };
+    expect(readArtistChoiceSkipped(hostile)).toBe(false);
+    expect(() => writeArtistChoiceSkipped(true, hostile)).not.toThrow();
+    expect(() => writeArtistChoiceSkipped(false, hostile)).not.toThrow();
   });
 });

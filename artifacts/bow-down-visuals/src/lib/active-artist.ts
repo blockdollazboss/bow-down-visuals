@@ -104,6 +104,47 @@ export function writeStoredActiveArtistId(
   }
 }
 
+export const ARTIST_CHOICE_SKIPPED_KEY = "bdv_artist_choice_skipped";
+
+/* The "not now" answer to the artist pick lives in SESSION storage:
+   it is a per-visit word ("Skip for now — I'll choose an artist
+   later"), not a permanent preference. It survives in-tab navigation
+   and reloads so gates can respect it for the whole visit, and it is
+   gone on the next visit, when the pick is offered again at sign-in. */
+function defaultSessionStorage(): StorageLike | null {
+  try {
+    return typeof window !== "undefined" ? window.sessionStorage : null;
+  } catch {
+    return null;
+  }
+}
+
+/** True when the user has skipped the artist pick this visit. */
+export function readArtistChoiceSkipped(
+  storage: StorageLike | null = defaultSessionStorage(),
+): boolean {
+  if (!storage) return false;
+  try {
+    return storage.getItem(ARTIST_CHOICE_SKIPPED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Record (or clear) this visit's skip of the artist pick. */
+export function writeArtistChoiceSkipped(
+  skipped: boolean,
+  storage: StorageLike | null = defaultSessionStorage(),
+): void {
+  if (!storage) return;
+  try {
+    if (skipped) storage.setItem(ARTIST_CHOICE_SKIPPED_KEY, "1");
+    else storage.removeItem(ARTIST_CHOICE_SKIPPED_KEY);
+  } catch {
+    /* private mode etc. — the skip still applies in memory this visit */
+  }
+}
+
 /**
  * Resolve the remembered id against a freshly fetched vault list.
  * The row returned is the list's own object, so whatever the row
