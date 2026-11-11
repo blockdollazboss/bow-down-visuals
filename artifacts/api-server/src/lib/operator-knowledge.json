@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "f774453dd1ed1ec8da44f10964a3803f4efafbed",
+  "baseCommit": "8386a784e9272fe1ac7657407c68651e80b1aefc",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -14,7 +14,7 @@
     "features": 254,
     "excludedRoutes": 76,
     "excludedPageFiles": 24,
-    "pricedActions": 259,
+    "pricedActions": 260,
     "routeFileEndpoints": 17,
     "guides": 11,
     "desks": 5,
