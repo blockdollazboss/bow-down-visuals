@@ -152,10 +152,14 @@ describe("arcade score validation", () => {
 
 describe("crownfall score validation", () => {
   it("cap is derived from construction: 120s → 31 floors of headroom", () => {
-    // depthMax = floor(120000/4000)+1 = 31; kills ≤ 31×11 = 341;
-    // coins ≤ 31×27 = 837; combo ≤ 341×340/2 (one unbroken chain).
+    // v2 derivation (arcade-rules.ts): depthMax = floor(120000/4000)+1
+    // = 31; kills ≤ 31×24 = 744 (ambush ceiling, boss summons incl.);
+    // coins ≤ 31×110 = 3410 (leftover purse ≤ total supply: 14 placed
+    // in a JACKPOT VAULT + doubled elite drops); combo ≤ 744×40
+    // (the ×5 multiplier pays at most 40 bonus per kill). Prestige
+    // scrip never converts, so prestige moves this ceiling not at all.
     expect(maxPlausibleScore("crownfall", 120_000)).toBe(
-      31 * 100 + 837 * 25 + 341 * 10 + (341 * 340) / 2,
+      31 * 100 + 3410 * 25 + 744 * 10 + 744 * 40,
     );
     expect(maxPlausibleScore("crownfall", 60_000)).toBeLessThan(
       maxPlausibleScore("crownfall", 120_000),
