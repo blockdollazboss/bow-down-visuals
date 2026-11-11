@@ -31,7 +31,7 @@ import { getCreditCost } from "@/lib/credit-costs";
    x100-off-registry bug family dies here — pinned by
    price-registry-single-source.test.ts (Stack 400 A-07). */
 const PACKSHOT_CREDITS = getCreditCost("/api/generate-product-photo")?.cost ?? 100;
-const LIFESTYLE_CREDITS = 150;
+const LIFESTYLE_CREDITS = getCreditCost("/api/generate-product-photo?shotType=lifestyle")?.cost ?? 150;
 
 type ShotType = "packshot" | "lifestyle";
 type StyleMode = "autopilot" | "presets" | "custom";
