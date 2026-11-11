@@ -76,14 +76,21 @@ export default function CrownfallLobby({ light }: { light: boolean }) {
   }, [getAccessToken]);
 
   const loadRooms = useCallback(async () => {
+    /* Error truth (house rule): the member sees composed copy, never
+       a raw server error body — failure and catch land on the same
+       honest line. */
+    const LOAD_FAILED = "Could not load the rooms — check your connection and try again.";
     try {
       const headers = await authHeaders();
       const res = await fetch("/api/arcade/crownfall/rooms", { headers });
       const data = (await res.json().catch(() => ({}))) as {
         rooms?: CrownfallRoomSummary[];
-        error?: string;
       };
-      if (!res.ok) throw new Error(data.error ?? "Could not load the rooms");
+      if (!res.ok) {
+        setRooms([]);
+        setListError(LOAD_FAILED);
+        return;
+      }
       setRooms(
         (data.rooms ?? []).map((r) => ({
           ...r,
@@ -91,9 +98,9 @@ export default function CrownfallLobby({ light }: { light: boolean }) {
         })),
       );
       setListError(null);
-    } catch (err) {
+    } catch {
       setRooms([]);
-      setListError(err instanceof Error ? err.message : "Could not load the rooms");
+      setListError(LOAD_FAILED);
     }
   }, [authHeaders]);
 
@@ -154,13 +161,21 @@ export default function CrownfallLobby({ light }: { light: boolean }) {
       });
       const data = (await res.json().catch(() => ({}))) as {
         room?: CrownfallRoomSummary;
-        error?: string;
       };
-      if (!res.ok || !data.room) throw new Error(data.error ?? "Could not open the room");
+      if (!res.ok || !data.room) {
+        /* The one refusal worth naming is the room cap (429) — its
+           copy is composed HERE, not read off the response body. */
+        setActionError(
+          res.status === 429
+            ? "All 30 Crownfall rooms are full right now — join one from the list, or try again in a bit."
+            : "Could not open the room — try again.",
+        );
+        return;
+      }
       setRoomName("");
       enterRoom(data.room.code);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not open the room");
+    } catch {
+      setActionError("Could not open the room — try again.");
     } finally {
       setBusy(false);
     }
@@ -177,8 +192,10 @@ export default function CrownfallLobby({ light }: { light: boolean }) {
           headers: { "Content-Type": "application/json", ...headers },
           body: JSON.stringify({ ...result, roomId: c.code, partySize: c.players.length }),
         });
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        if (!res.ok) throw new Error(data.error ?? "save failed");
+        if (!res.ok) {
+          setScoreLine("That party score didn't save — the run still counted here.");
+          return;
+        }
         setScoreLine("Party score saved to the Crownfall board.");
       } catch {
         setScoreLine("That party score didn't save — the run still counted here.");
@@ -220,8 +237,9 @@ export default function CrownfallLobby({ light }: { light: boolean }) {
         <>
           <div className="flex flex-wrap items-end gap-2">
             <div className="min-w-52 flex-1">
-              <label className={`mb-1 block text-xs font-bold ${muted}`}>Open a room</label>
+              <label htmlFor="crownfall-room-name" className={`mb-1 block text-xs font-bold ${muted}`}>Open a room</label>
               <input
+                id="crownfall-room-name"
                 className={inputCls}
                 value={roomName}
                 onChange={(e) => setRoomName(e.target.value)}
@@ -233,8 +251,9 @@ export default function CrownfallLobby({ light }: { light: boolean }) {
               <Plus className="h-4 w-4" /> Create Room
             </button>
             <div className="min-w-40">
-              <label className={`mb-1 block text-xs font-bold ${muted}`}>Join by code</label>
+              <label htmlFor="crownfall-join-code" className={`mb-1 block text-xs font-bold ${muted}`}>Join by code</label>
               <input
+                id="crownfall-join-code"
                 className={inputCls}
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
