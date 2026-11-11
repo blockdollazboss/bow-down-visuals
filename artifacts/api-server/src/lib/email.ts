@@ -305,7 +305,11 @@ export const EMAIL_THEME_COLORS = {
     goldText: "#7c5c0a",
     frame: "#e7d9b4",
     sigBg: "#faf5ea",
-    sigName: "#97700d",
+    /* The design export's #97700d reads 4.16:1 on this plate — the
+       signature name is set in the house AA-proven goldDeep instead
+       (the Oct 30, 2026 token-darkening precedent; pinned in
+       email-theme-truth.test.ts). */
+    sigName: "#856010",
     sigInk: "#241f12",
     sigSub: "#5d543c",
   },

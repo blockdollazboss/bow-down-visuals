@@ -23,6 +23,7 @@ import {
   emailButton,
   emailDetailBox,
   EMAIL_LOGO_URL,
+  EMAIL_LOGO_LIGHT_URL,
 } from "../email";
 import { AUTH_EMAIL_TEMPLATES } from "../email-templates";
 
@@ -33,18 +34,22 @@ const EMOJI =
   /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
 
 function expectBranded(html: string) {
-  expect(html).toContain(`<img src="${EMAIL_LOGO_URL}"`);
+  /* Company-theme design (Nov 11, 2026): the shell's default render
+     and the static auth family are the pair's LIGHT member, so the
+     crest + signature carry the LIGHT lockup; the dark lockup
+     constant keeps its own pin in email-branding.test.ts. */
+  expect(html).toContain(`<img src="${EMAIL_LOGO_LIGHT_URL}"`);
   expect(EMAIL_LOGO_URL).toContain("logo-email.png");
   expect(html).not.toMatch(/icon-\d+\.png/);
   expect(html).toContain("The Content Creator's Cheat Code");
   expect(html).toContain("BOW DOWN VISUALS");
-  expect(html).toContain("#faf7f0"); // golden-marble card
-  expect(html).toContain("#d4af37"); // house gold
+  expect(html).toContain("#faf7f0"); // golden-marble ivory panel
+  expect(html).toContain("#c9a227"); // approved design gold (hairline + CTA)
   expect(html).not.toMatch(EMOJI);
 }
 
 describe("emailShell (Resend family)", () => {
-  it("renders the branded system: lockup band, ivory card, brand line, King sign-off", () => {
+  it("renders the branded system: marble band, ivory panel, brand line, King sign-off", () => {
     const html = emailShell("Your receipt", "<p>Body copy</p>");
     expectBranded(html);
     expect(html).toContain("THY CHEAT CODE");
@@ -57,12 +62,12 @@ describe("emailShell (Resend family)", () => {
     expect(html).not.toContain("Your host at Bow Down Visuals");
   });
 
-  it("emailButton carries the href verbatim in a gold pill", () => {
+  it("emailButton carries the href verbatim in the gold CTA", () => {
     const href = "https://bowdownvisuals.com/splits/0123abcdef";
     const btn = emailButton(href, "Review my split");
     expect(btn).toContain(`href="${href}"`);
     expect(btn).toContain("Review my split");
-    expect(btn).toContain("#d4af37");
+    expect(btn).toContain("#c9a227");
   });
 
   it("emailDetailBox renders its contents inside the gold-bordered box", () => {
@@ -89,7 +94,7 @@ describe("Supabase auth templates", () => {
       expect(t.html).toContain("{{ .ConfirmationURL }}");
       // the action rides a real button, not a naked link
       expect(t.html).toMatch(
-        /<a href="\{\{ \.ConfirmationURL \}\}" style="display:inline-block;padding:13px 32px/,
+        /<a href="\{\{ \.ConfirmationURL \}\}" style="display:inline-block;padding:16px 38px/,
       );
       expect(t.subject.length).toBeGreaterThan(0);
       expect(t.subject).not.toMatch(EMOJI);
