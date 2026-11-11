@@ -15383,6 +15383,7 @@
     "sendToMixMaster": "ミックス＆マスターへ送る",
     "newPolish": "新しいポリッシュ",
     "errorStartFailed": "ボーカルポリッシュを開始できませんでした。",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "ボーカルポリッシュに失敗しました — あなたの{{cost}} Visual Bucsは返金されました。",
     "errorJobNotFound": "ジョブが見つかりません",
     "errorNetwork": "ネットワークエラー — もう一度お試しください。",

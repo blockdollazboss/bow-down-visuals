@@ -15600,6 +15600,7 @@
     "sendToMixMaster": "Envoyer à Mix & Master",
     "newPolish": "Nouveau polish",
     "errorStartFailed": "Impossible de démarrer le polish vocal.",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "Le polish vocal a échoué — vos {{cost}} Visual Bucs ont été remboursés.",
     "errorJobNotFound": "Ce travail de polish est introuvable — il a peut-être expiré.",
     "errorNetwork": "Erreur réseau — veuillez réessayer.",

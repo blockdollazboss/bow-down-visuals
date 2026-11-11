@@ -15238,6 +15238,7 @@
     "sendToMixMaster": "मिक्स और मास्टर को भेजें",
     "newPolish": "नई पॉलिश",
     "errorStartFailed": "वोकल पॉलिश शुरू नहीं हो सका।",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "वोकल पॉलिश विफल रहा — आपके {{cost}} Visual Bucs रिफ़ंड हुए।",
     "errorJobNotFound": "जॉब नहीं मिला",
     "errorNetwork": "नेटवर्क त्रुटि — कृपया फिर से प्रयास करें।",

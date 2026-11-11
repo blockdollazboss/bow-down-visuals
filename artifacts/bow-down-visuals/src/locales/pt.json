@@ -15211,6 +15211,7 @@
     "sendToMixMaster": "Enviar para Mix & Master",
     "newPolish": "Novo polimento",
     "errorStartFailed": "Não foi possível iniciar o polimento vocal.",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "O polimento vocal falhou — seus {{cost}} Visual Bucs foram reembolsados.",
     "errorJobNotFound": "Trabalho não encontrado",
     "errorNetwork": "Erro de rede — tente de novo.",

@@ -15669,6 +15669,7 @@
     "sendToMixMaster": "إرسال إلى المزج والماستر",
     "newPolish": "تلميع جديد",
     "errorStartFailed": "تعذّر بدء تلميع الصوت.",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "فشل تلميع الصوت — استُردت {{cost}} Visual Bucs الخاصة بك.",
     "errorJobNotFound": "المهمة غير موجودة",
     "errorNetwork": "خطأ في الشبكة — حاول مجدداً.",

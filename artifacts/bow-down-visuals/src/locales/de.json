@@ -15443,6 +15443,7 @@
     "sendToMixMaster": "An Mix & Master senden",
     "newPolish": "Neuer Feinschliff",
     "errorStartFailed": "Der Vocal-Polish konnte nicht gestartet werden.",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "Vocal-Polish fehlgeschlagen — Ihre {{cost}} Visual Bucs wurden erstattet.",
     "errorJobNotFound": "Job nicht gefunden",
     "errorNetwork": "Netzwerkfehler — bitte erneut versuchen.",

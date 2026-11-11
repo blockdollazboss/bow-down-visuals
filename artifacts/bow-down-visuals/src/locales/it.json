@@ -15100,6 +15100,7 @@
     "sendToMixMaster": "Invia a Mix & Master",
     "newPolish": "Nuova lucidatura",
     "errorStartFailed": "Impossibile avviare la lucidatura vocale.",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "Lucidatura vocale fallita — i tuoi {{cost}} Visual Bucs sono stati rimborsati.",
     "errorJobNotFound": "Lavoro non trovato",
     "errorNetwork": "Errore di rete — riprova.",

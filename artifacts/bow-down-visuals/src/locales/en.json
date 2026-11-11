@@ -2021,6 +2021,7 @@
     "sendToMixMaster": "Send to Mix & Master",
     "newPolish": "New polish",
     "errorStartFailed": "Could not start the vocal polish.",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "Vocal polish failed — your {{cost}} Visual Bucs were refunded.",
     "errorJobNotFound": "Job not found",
     "errorNetwork": "Network error — please try again.",

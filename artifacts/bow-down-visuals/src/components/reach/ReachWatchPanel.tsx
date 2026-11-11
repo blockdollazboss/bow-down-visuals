@@ -62,6 +62,7 @@ export default function ReachWatchPanel({
   }
   const carriedRef = useRef<string | null>(null);
   const [raidTargets, setRaidTargets] = useState<Array<{ id: string; title: string; creatorName: string }>>([]);
+  const [raidTargetsFailed, setRaidTargetsFailed] = useState(false);
   const [raidTarget, setRaidTarget] = useState("");
   const [raidNote, setRaidNote] = useState<string | null>(null);
 
@@ -72,12 +73,13 @@ export default function ReachWatchPanel({
     (async () => {
       try {
         const res = await fetch("/api/live-streams/live");
-        if (!res.ok) return;
+        if (!res.ok) { setRaidTargetsFailed(true); return; }
         const d = (await res.json()) as { streams: Array<{ id: string; title: string; creator: { display_name: string } | null }> };
         setRaidTargets(
           (d.streams ?? []).filter((x) => x.id !== streamId).map((x) => ({ id: x.id, title: x.title, creatorName: x.creator?.display_name ?? "Creator" })),
         );
-      } catch { /* the select just stays empty */ }
+        setRaidTargetsFailed(false);
+      } catch { /* a failed load is not "nobody is live" — the line below says so */ setRaidTargetsFailed(true); }
     })();
   }, [isOwner, isLive, streamId]);
 
@@ -217,7 +219,9 @@ export default function ReachWatchPanel({
               Raid now
             </button>
           </div>
-          {raidTargets.length === 0 && <p className="mt-2 text-xs text-white/40">Nobody else is live right now — a raid needs a live target.</p>}
+          {raidTargets.length === 0 && (raidTargetsFailed
+            ? <p className="mt-2 text-xs text-white/40">Couldn&apos;t load who&apos;s live right now — reopen this panel in a moment to try again.</p>
+            : <p className="mt-2 text-xs text-white/40">Nobody else is live right now — a raid needs a live target.</p>)}
           {raidNote && <p className="mt-2 text-xs text-white/60">{raidNote}</p>}
         </div>
       )}
