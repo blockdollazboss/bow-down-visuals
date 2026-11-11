@@ -13,12 +13,29 @@
  * Invoice is Pattern C: the stored result carries the created
  * invoice row — a replay must return it WITHOUT inserting a second
  * invoice (asserted against the fake invoice table).
+ *
+ * Limiter isolation (join18 Gate-3 fix): seven of the ten routers
+ * mounted here carry the shared publicApiLimiter (30 req/min/IP,
+ * in-process store). This file's 23 tests fire far more than 30
+ * requests from one IP inside one process, so the shared bucket
+ * intermittently — and, once the invoice lane's +2 tests shifted
+ * the timing, deterministically — 429'd mid-file and masqueraded
+ * as replay failures. The fixture identity therefore rides the
+ * house admin skip (skipIfAdmin, the skip every session limiter
+ * carries): the requireAuth mock sets userEmail exactly as the
+ * real middleware does, and beforeAll allowlists that fixture
+ * email via ADMIN_EMAILS (restored in afterAll). The limiter's
+ * own behavior is untouched and stays pinned by its own suites
+ * (chat-voice: members 429, admins skip; rate-limit-world-assets).
  */
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import express from "express";
 import type { AddressInfo } from "node:net";
 
 const USER = "user-1";
+/** The fixture identity's email — allowlisted via ADMIN_EMAILS in
+    beforeAll so the mounted limiters skip this suite (see header). */
+const FIXTURE_EMAIL = "ca3-fixture@example.test";
 
 const h = vi.hoisted(() => ({
   balance: 100_000,
@@ -64,6 +81,7 @@ function keyFromCondition(cond: unknown): string | null {
 vi.mock("../../middlewares/require-auth", () => ({
   requireAuth: (req: any, _res: any, next: any) => {
     req.userId = USER;
+    req.userEmail = FIXTURE_EMAIL;
     req.userCredits = h.balance;
     req.log = { info() {}, error() {}, warn() {} };
     next();
@@ -265,9 +283,12 @@ import lyricVideoRouter, {
 let base = "";
 let server: ReturnType<express.Express["listen"]>;
 const realFetch = globalThis.fetch;
+let prevAdminEmails: string | undefined;
 
 beforeAll(async () => {
   process.env["OPENAI_API_KEY"] = "test-key-not-real";
+  prevAdminEmails = process.env["ADMIN_EMAILS"];
+  process.env["ADMIN_EMAILS"] = FIXTURE_EMAIL;
   const app = express();
   app.use(express.json());
   app.use(lyricsRouter);
@@ -285,6 +306,8 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   delete process.env["OPENAI_API_KEY"];
+  if (prevAdminEmails === undefined) delete process.env["ADMIN_EMAILS"];
+  else process.env["ADMIN_EMAILS"] = prevAdminEmails;
   vi.unstubAllGlobals();
   await new Promise((r) => server.close(r));
 });
