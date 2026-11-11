@@ -13,12 +13,16 @@ import {
   type ReportTargetType,
 } from "@/lib/reports";
 
-/* ─── ReportButton — the member report action (Stack-4 #3) ───────────
+/* ─── ReportButton — the report action (Stack-4 #3; guest filing
+   added under the owner-approved Moderation and Takedown Rules,
+   Nov 11, 2026) ────────────────────────────────────────────────────
    One shared button + dialog, docked where posts, comments, and
    profiles already carry their actions (PostCard's action row, the
    media comment rows, the Shout Wall, the profile action row) —
-   never a standalone page. Signed-in members only: with no user it
-   renders nothing (the rail is auth-only server-side too).
+   never a standalone page. Anyone can report, including guests:
+   the button renders signed-out too, and the rail files a guest's
+   report with no reporter named (the person reported is never told
+   who reported them, member or guest).
 
    Honesty rules baked into the phases: the form can only claim
    success after the server answers ok; a failure lands in the
@@ -55,8 +59,6 @@ export function ReportButton({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState(false);
   const dialogRef = useModalA11y<HTMLDivElement>(open, close);
-
-  if (!user) return null;
 
   const noun = TARGET_NOUN[targetType];
 
@@ -170,6 +172,11 @@ export function ReportButton({
                 <p className="mt-1 text-sm text-white/55">
                   What's wrong with this {noun}? Every report is reviewed by a person — filing one never hides or bans anything by itself.
                 </p>
+                {!user && (
+                  <p className="mt-1 text-sm text-white/55">
+                    You're not signed in — you can still report this. The person reported is never told who reported them.
+                  </p>
+                )}
 
                 <div className="mt-3 space-y-1.5" role="radiogroup" aria-label="Reason">
                   {REPORT_REASONS.map((r) => (

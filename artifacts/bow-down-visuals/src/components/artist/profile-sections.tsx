@@ -824,7 +824,7 @@ export function ShoutWallSection({ title, slug, preview }: { title: string; slug
                     Hidden
                   </span>
                 )}
-                {user && (
+                {c.author_user_id !== user?.id && (
                   <span className="ml-auto">
                     <ReportButton
                       targetType="comment"
@@ -1016,10 +1016,12 @@ export function ProfileActions({ profile }: { profile: CreatorProfile }) {
       >
         {shared ? <Check className="h-4 w-4 text-emerald-400" /> : <Share2 className="h-4 w-4" />}
       </button>
-      {/* Report docks in the same action row (Stack-4 #3): members only,
-          and never on your own profile — the rail refuses self-reports
-          server-side too, this just keeps the dead end off the page. */}
-      {user && profile.user_id !== user.id && (
+      {/* Report docks in the same action row (Stack-4 #3): anyone can
+          report, guests included (owner-approved Moderation and
+          Takedown Rules, Nov 11, 2026), and never on your own
+          profile — the rail refuses self-reports server-side too,
+          this just keeps the dead end off the page. */}
+      {profile.user_id !== user?.id && (
         <ReportButton
           targetType="profile"
           targetId={profile.id}

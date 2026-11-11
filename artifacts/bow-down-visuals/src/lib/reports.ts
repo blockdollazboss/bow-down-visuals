@@ -1,6 +1,8 @@
 import { apiErrorMessage } from "./api-error";
 /**
- * lib/reports.ts — member content reports (Stack-4 #3).
+ * lib/reports.ts — content reports (Stack-4 #3; guest filing added
+ * under the owner-approved Moderation and Takedown Rules, Nov 11,
+ * 2026).
  *
  * The client half of POST /api/reports. Until this seam existed a
  * member had NO way to report a post, a comment, or a profile — no
@@ -8,6 +10,11 @@ import { apiErrorMessage } from "./api-error";
  * legal intake, not a member report button). Filing a report only
  * queues the target for a human admin; nothing is auto-hidden or
  * auto-banned, and the dialog says so.
+ *
+ * Anyone can file, guests included (the approved rules' exact
+ * terms): submitReport already rides apiFetch, which simply omits
+ * the Authorization header when getAccessToken returns null, and
+ * the server files the report with a NULL reporter.
  *
  * REPORT_REASONS mirrors the server's fixed vocabulary
  * (CONTENT_REPORT_REASONS in lib/db/src/schema/content-reports.ts,
@@ -46,7 +53,8 @@ export type ReportTargetType = "post" | "comment" | "profile" | "fan_art";
 
 interface FiledReport {
   id: string;
-  reporterUserId: string;
+  /** NULL when a guest filed the report (no account to name). */
+  reporterUserId: string | null;
   targetType: string;
   targetId: string;
   targetOwnerUserId: string | null;
