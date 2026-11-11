@@ -25,7 +25,8 @@
    Kit wallpapers are CLEAN — no logo is ever baked or composited
    onto them; the whole logo ships as its own file. Asset roots can
    be overridden with THEME_KIT_ASSET_DIR (used by tests with
-   fixtures). */
+   fixtures; when set it is the ONLY root, so a fixture tree is
+   hermetic). */
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -314,14 +315,21 @@ export function resolveKitArtId(
 /* ─── Asset resolution (approved library on disk) ───────────────────── */
 
 function assetRoots(): string[] {
-  const roots: string[] = [];
-  if (process.env["THEME_KIT_ASSET_DIR"]) roots.push(process.env["THEME_KIT_ASSET_DIR"]);
+  // THEME_KIT_ASSET_DIR, when set, is THE root — an override, not a
+  // prepend. Test fixtures pin hermetic asset trees through it: once
+  // every designed set was raised in the real tree, a prepend-only
+  // seam let a fixture's deliberately unraised pack resolve its icons
+  // from the real public dir and report complete, so the bundle
+  // paperwork honesty pins could not bite (join18 Gate-3 fix). Unset
+  // — every real deploy — the fallback chain below applies unchanged.
+  if (process.env["THEME_KIT_ASSET_DIR"]) return [process.env["THEME_KIT_ASSET_DIR"]];
   // Monorepo layouts (dev worktrees + the Docker image's FE dist tree).
-  roots.push(join(process.cwd(), "artifacts/bow-down-visuals/public"));
-  roots.push(join(process.cwd(), "../bow-down-visuals/public"));
-  roots.push(join(process.cwd(), "../../artifacts/bow-down-visuals/public"));
-  roots.push("/home/hatch/workspace/bow-down-visuals/artifacts/bow-down-visuals/public");
-  return roots;
+  return [
+    join(process.cwd(), "artifacts/bow-down-visuals/public"),
+    join(process.cwd(), "../bow-down-visuals/public"),
+    join(process.cwd(), "../../artifacts/bow-down-visuals/public"),
+    "/home/hatch/workspace/bow-down-visuals/artifacts/bow-down-visuals/public",
+  ];
 }
 
 /** Resolve a site-relative asset path ("/wallpapers/…", "/sounds/…",

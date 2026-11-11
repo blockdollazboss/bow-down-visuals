@@ -376,15 +376,18 @@ describe("creator pack mix → buyer bundle", () => {
 });
 
 describe("bundle paperwork honesty — unraised designed sets (Stack-300 A4)", () => {
-  /* The fixture tree carries designed files for the six raised packs
-  /* The fixture tree carries designed files for the seven raised packs
-     in PACK_IDS (all eight real sets are raised; the fixture omits
-     sapphire-marble's files). sapphire-marble's set is NOT in the
-     fixture: its bundle must say so in its own paperwork (README,
-     kit.json, install texts) instead of claiming all 50 icons, and
-     the manifests endpoint must carry the missing list. Raised packs
-     (golden-marble, crimson-marble, emerald-marble) are the controls:
-     complete, missing []. */
+  /* The fixture tree is hermetic: THEME_KIT_ASSET_DIR is the ONLY
+     asset root while it is set (lib/theme-kit-build assetRoots), so
+     what the fixture omits does not exist for this suite. PACK_IDS
+     carries designed files for seven packs; sapphire-marble is
+     deliberately NOT among them, so within this suite its designed
+     set is unraised: its bundle must say so in its own paperwork
+     (README, kit.json, install texts) instead of claiming all 50
+     icons, and the manifests endpoint must carry the missing list.
+     Raised packs (golden-marble, crimson-marble, emerald-marble)
+     are the controls: complete, missing []. (In the real tree all
+     eight sets ARE raised; this suite pins the honesty machinery
+     itself, which must tell the truth in both directions.) */
   async function buyPack(packId: string): Promise<void> {
     await h.db.execute(
       sql`INSERT INTO theme_pack_purchases (user_id, pack_id, price_vb) VALUES (${BUYER}, ${packId}, 1000)`,
