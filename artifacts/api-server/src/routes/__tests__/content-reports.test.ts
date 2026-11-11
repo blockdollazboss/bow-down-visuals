@@ -1,11 +1,18 @@
 /**
- * Route tests for member content reports (Stack-4 #3):
- *   POST  /api/reports              file a report (members only)
+ * Route tests for content reports (Stack-4 #3; guest filing added
+ * under the owner-approved Moderation and Takedown Rules, Nov 11,
+ * 2026):
+ *   POST  /api/reports              file a report (anyone — the
+ *                                   approved rules let guests report
+ *                                   too; a guest row carries a NULL
+ *                                   reporter)
  *   GET   /api/admin/reports        the admin queue (DMCA-bench twin)
  *   PATCH /api/admin/reports/:id    move a report through its workflow
  *
  * THE CONTRACT PINNED HERE:
- * - Members only: guests 401 at POST; the admin rails repeat the
+ * - Anyone can file at POST: a valid Bearer token names the reporter;
+ *   no token (or one that does not verify) files as a guest with
+ *   reporter_user_id NULL and NEVER 401s. The admin rails keep the
  *   DMCA gate exactly (guest 401, member-not-admin 403, allowlist
  *   unset = fail-closed 403 for everyone).
  * - The target must EXIST and match its claimed type. "comment"
@@ -65,6 +72,15 @@ vi.mock("../../middlewares/require-auth", () => ({
     req.userEmail = req.headers["x-test-email"] ? String(req.headers["x-test-email"]) : undefined;
     next();
   },
+}));
+
+/* The report rail's optional auth verifies the Bearer token through
+   lib/live-ws (the social.ts pattern). In this suite the token IS
+   the test user id the req() helper sends; anything else — including
+   the literal "bogus-token" — does not verify and files as a guest. */
+vi.mock("../../lib/live-ws", () => ({
+  verifyAccessToken: async (token: string) =>
+    token && token !== "bogus-token" ? { userId: token, email: null } : null,
 }));
 
 vi.mock("../../lib/supabase-admin", () => ({
@@ -142,6 +158,10 @@ async function req(method: string, path: string, who: Who, body?: unknown) {
   if (who) {
     headers["x-test-user"] = who.id;
     headers["x-test-email"] = who.email;
+    /* The report rail reads the Bearer token (optional auth); the
+       admin rails read x-test-user via the requireAuth mock. Members
+       send both so each rail sees its own credential. */
+    headers["authorization"] = `Bearer ${who.id}`;
   }
   const r = await fetch(`${base}${path}`, {
     method,
@@ -179,9 +199,29 @@ beforeEach(() => {
 });
 
 describe("POST /api/reports — filing", () => {
-  it("401s a guest and stores nothing", async () => {
+  it("files a GUEST report: 201, reporter stored NULL (approved rules: anyone can report, including guests)", async () => {
     const res = await req("POST", "/api/reports", null, { target_type: "post", target_id: POST_ID, reason: "spam" });
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(201);
+    expect(res.json.report.reporterUserId).toBeNull();
+    expect(reportRows()).toHaveLength(1);
+    expect(reportRows()[0].reporterUserId).toBeNull();
+    expect(reportRows()[0].targetOwnerUserId).toBe(OWNER_ID);
+  });
+
+  it("a token that does not verify files as a guest too — never a 401", async () => {
+    const r = await fetch(`${base}/api/reports`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", authorization: "Bearer bogus-token" },
+      body: JSON.stringify({ target_type: "profile", target_id: PROFILE_ID, reason: "scam" }),
+    });
+    expect(r.status).toBe(201);
+    const json = (await r.json()) as any;
+    expect(json.report.reporterUserId).toBeNull();
+  });
+
+  it("a guest 404s on a missing target and stores nothing", async () => {
+    const res = await req("POST", "/api/reports", null, { target_type: "post", target_id: MISSING_ID, reason: "spam" });
+    expect(res.status).toBe(404);
     expect(reportRows()).toHaveLength(0);
   });
 

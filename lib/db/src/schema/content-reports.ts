@@ -12,6 +12,20 @@ import { z } from "zod/v4";
  * DMCA bench). Before this table, NO member report path existed at
  * all — no store, no endpoint, no UI.
  *
+ * GUEST REPORTS (owner-approved Moderation and Takedown Rules,
+ * Nov 11, 2026): the approved rules say anyone can report, including
+ * guests, from the page where they saw the problem. reporter_user_id
+ * is therefore NULLABLE: a member's report names its reporter (so the
+ * queue can weigh repeat filers); a guest's report carries NULL.
+ * Postgres treats NULLs as distinct in the partial unique index, so
+ * guest reports never dedupe against each other — the route's
+ * one-open-report rule applies to identified reporters only, and the
+ * per-IP rate limiter is the guest rail's abuse brake.
+ * ⚠️ TRAILING STEP: migration 0174 created reporter_user_id NOT NULL.
+ * Dropping that constraint needs a join-assigned migration number —
+ * until it lands, guest inserts fail at the database and the route
+ * answers an honest 500; member reports are unaffected.
+ *
  * "fan_art" joined the vocabulary with the Fan Art Wall (Stack-200
  * #157, provisional migration 9999 widens the DB check): a report on
  * a fan-art piece resolves to the piece's ARTIST as target owner —
@@ -54,7 +68,7 @@ export const CONTENT_REPORT_OPEN_STATUSES = ["new", "reviewing"] as const;
 
 export const contentReportsTable = pgTable("content_reports", {
   id:                uuid("id").primaryKey().defaultRandom(),
-  reporterUserId:    uuid("reporter_user_id").notNull(),
+  reporterUserId:    uuid("reporter_user_id"),
   targetType:        text("target_type").notNull(),
   targetId:          uuid("target_id").notNull(),
   targetOwnerUserId: uuid("target_owner_user_id"),
