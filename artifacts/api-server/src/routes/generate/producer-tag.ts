@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -396,9 +397,9 @@ router.post("/producer-tag", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Producer tag generation failed.";
     req.log.error({ err: message }, "[producer-tag] failed");
-    const refunded = await refundCredits(req.userId!, PRODUCER_TAG_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, PRODUCER_TAG_COST, {
       action: "Producer Tag — Refund",
-    }).then(() => true).catch(() => false);
+    });
     /* Void only when the refund landed — a refunded retry charges
        fresh; an unrefunded key stays landed. */
     if (refunded) {

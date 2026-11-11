@@ -7,6 +7,7 @@ import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   LedgerWriteError,
   buildChargeIdempotencyKey,
@@ -204,9 +205,7 @@ router.post("/generate-song-video", requireAuth, async (req, res) => {
     if (!chargeLive) return;
     chargeLive = false;
     /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    const refunded = await refundCredits(req.userId!, CREDIT_COST, { action: "Make Song + Video — Refund" })
-      .then(() => true)
-      .catch(() => false);
+    const refunded = await refundCreditsGuaranteed(req.userId!, CREDIT_COST, { action: "Make Song + Video — Refund" });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

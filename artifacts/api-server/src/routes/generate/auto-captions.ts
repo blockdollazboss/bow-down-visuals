@@ -11,6 +11,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -232,9 +233,7 @@ router.post("/auto-captions", requireAuth, async (req, res) => {
 
   /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
   const refund = () =>
-    refundCredits(req.userId!, AUTO_CAPTIONS_COST, { action: "AI Auto-Captions — Refund" })
-      .then(() => voidChargeIdempotencyKey(idempotencyKey))
-      .catch(() => {});
+    refundCreditsGuaranteed(req.userId!, AUTO_CAPTIONS_COST, { action: "AI Auto-Captions — Refund" }, { idempotencyKey: idempotencyKey });
 
   try {
     // 1. Download the video.

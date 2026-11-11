@@ -5,6 +5,7 @@ import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   LedgerWriteError,
   buildChargeIdempotencyKey,
@@ -158,9 +159,7 @@ router.post("/beat/generate", requireAuth, async (req, res) => {
     if (!chargeLive) return;
     chargeLive = false;
     /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
-    await refundCredits(req.userId!, CREDIT_COST, { action: "Generate Beat — Refund" })
-      .then(() => voidChargeIdempotencyKey(idempotencyKey))
-      .catch(() => {});
+    await refundCreditsGuaranteed(req.userId!, CREDIT_COST, { action: "Generate Beat — Refund" }, { idempotencyKey: idempotencyKey });
   };
 
   const prompt = buildBeatPrompt({

@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import { getTextModel } from "../../lib/ai-clients";
 
@@ -195,9 +196,9 @@ router.post("/test-descriptions", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Description A/B test failed.";
     req.log.error({ err: message }, "[desc-ab-test] failed");
-    await refundCredits(req.userId!, DESC_AB_TEST_COST, {
+    await refundCreditsGuaranteed(req.userId!, DESC_AB_TEST_COST, {
       action: "Description A/B Test — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   }
 });

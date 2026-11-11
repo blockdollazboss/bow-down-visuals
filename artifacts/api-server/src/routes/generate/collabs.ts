@@ -8,7 +8,8 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
-  chargeCredits, refundCredits, OutOfCreditsError,
+  chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError,
   buildChargeIdempotencyKey, voidChargeIdempotencyKey,
 } from "../../lib/credits";
 import {
@@ -407,9 +408,9 @@ router.post("/collabs/match", requireAuth, publicApiLimiter, async (req, res) =>
   } catch (err) {
     /* Refund landed → void the charge key so a retry charges fresh
        instead of being suppressed as a replay and running free. */
-    await refundCredits(req.userId!, COLLAB_MATCH_CREDITS, {
+    await refundCreditsGuaranteed(req.userId!, COLLAB_MATCH_CREDITS, {
       action: "Collab Finder match report (provider failure refund)",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     const status = (err as { status?: number }).status;
     if (status === 400) {
       res.status(400).json({ error: "Set up your collab profile first — it takes 30 seconds. (Visual Buc refunded.)" });

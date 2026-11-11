@@ -8,6 +8,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -169,9 +170,7 @@ async function refundOnFailure(
      the refunded attempt's key still reads as "already charged", so a
      retry would be suppressed as a replay and run FREE. The void only
      fires when the refund actually landed. */
-  await refundCredits(userId, cost, { action })
-    .then(() => voidChargeIdempotencyKey(idempotencyKey))
-    .catch(() => {});
+  await refundCreditsGuaranteed(userId, cost, { action }, { idempotencyKey: idempotencyKey });
 }
 
 /* ─── CA-2 replay plumbing ───────────────────────────────────────────────

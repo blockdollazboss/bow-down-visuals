@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -276,9 +277,9 @@ router.post("/script-to-video", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Script to video failed.";
     req.log.error({ err: message }, "[script-to-video] failed");
     /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    const refunded = await refundCredits(req.userId!, SCRIPT_VIDEO_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, SCRIPT_VIDEO_COST, {
       action: "Script to Video — Refund",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

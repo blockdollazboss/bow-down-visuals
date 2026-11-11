@@ -8,7 +8,8 @@ import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
-  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
 } from "../../lib/credits";
 import {
@@ -386,11 +387,9 @@ router.post("/cinematic-fx", requireAuth, async (req, res) => {
     req.log.error({ err: message }, "[cinematic-fx] failed");
     /* Refund, then VOID the charge's idempotency key so the retry
        charges fresh instead of being suppressed as a free replay. */
-    await refundCredits(req.userId!, CINEMATIC_FX_COST, {
+    await refundCreditsGuaranteed(req.userId!, CINEMATIC_FX_COST, {
       action: "Cinematic FX Render — Refund",
-    })
-      .then(() => voidChargeIdempotencyKey(idempotencyKey))
-      .catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});

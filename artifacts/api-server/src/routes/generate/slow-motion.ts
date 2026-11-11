@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -191,9 +192,9 @@ router.post("/slow-motion", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Slow motion render failed.";
     req.log.error({ err: message }, "[slow-motion] failed");
     /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    const refunded = await refundCredits(req.userId!, SLOW_MOTION_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, SLOW_MOTION_COST, {
       action: "AI Slow Motion — Refund",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

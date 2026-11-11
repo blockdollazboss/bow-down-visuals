@@ -2,7 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
-  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
 } from "../../lib/credits";
 import {
@@ -152,9 +153,9 @@ router.post("/hashtags", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Hashtag generation failed.";
     req.log.error({ err: message }, "[hashtags] failed");
     /* Refund, then VOID the key so a genuine retry can re-charge. */
-    await refundCredits(req.userId!, HASHTAG_COST, {
+    await refundCreditsGuaranteed(req.userId!, HASHTAG_COST, {
       action: "Hashtag Generator — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   }
 });

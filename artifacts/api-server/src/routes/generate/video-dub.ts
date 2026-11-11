@@ -12,6 +12,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -250,9 +251,7 @@ router.post("/dub-video", requireAuth, async (req, res) => {
   }
 
   const fail = async (status: number, message: string) => {
-    const refunded = await refundCredits(req.userId!, DUB_COST, { action: "Video Dubbing — Refund" })
-      .then(() => true)
-      .catch(() => false);
+    const refunded = await refundCreditsGuaranteed(req.userId!, DUB_COST, { action: "Video Dubbing — Refund" });
     /* CA-6: a landed refund voids the key, so the retry re-charges. */
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);

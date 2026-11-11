@@ -7,6 +7,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -425,9 +426,9 @@ const generateBrandKitHandler = async (req: Request, res: Response) => {
     const message = err instanceof Error ? err.message : "Brand kit generation failed.";
     req.log.error({ err: message }, "[brand-kit] failed");
     /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
-    await refundCredits(req.userId!, BRAND_KIT_COST, {
+    await refundCreditsGuaranteed(req.userId!, BRAND_KIT_COST, {
       action: "Brand Kit Generator — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   }
 };

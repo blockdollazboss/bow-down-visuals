@@ -9,6 +9,7 @@ import { LOOK_RAIL_KEYS, normalizeLookPicks } from "../../lib/scene-look";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   LedgerWriteError,
   buildChargeIdempotencyKey,
@@ -230,8 +231,7 @@ router.post("/pre-production/bible", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    const refunded = await refundCredits(req.userId!, TEXT_CREDIT_COST, { action: "Production Bible — Refund" })
-      .then(() => true).catch(() => false);
+    const refunded = await refundCreditsGuaranteed(req.userId!, TEXT_CREDIT_COST, { action: "Production Bible — Refund" });
     /* Void only when the refund landed — a refunded retry charges
        fresh; an unrefunded key stays landed. */
     if (refunded) {
@@ -326,8 +326,7 @@ router.post("/pre-production/storyboard", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    const refunded = await refundCredits(req.userId!, TEXT_CREDIT_COST, { action: "Storyboard — Refund" })
-      .then(() => true).catch(() => false);
+    const refunded = await refundCreditsGuaranteed(req.userId!, TEXT_CREDIT_COST, { action: "Storyboard — Refund" });
     /* Void only when the refund landed — a refunded retry charges
        fresh; an unrefunded key stays landed. */
     if (refunded) {
@@ -421,8 +420,7 @@ router.post("/pre-production/image", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    const refunded = await refundCredits(req.userId!, IMAGE_CREDIT_COST, { action: "Pre-production Image — Refund" })
-      .then(() => true).catch(() => false);
+    const refunded = await refundCreditsGuaranteed(req.userId!, IMAGE_CREDIT_COST, { action: "Pre-production Image — Refund" });
     /* Void only when the refund landed — a refunded retry charges
        fresh; an unrefunded key stays landed. */
     if (refunded) {
@@ -580,8 +578,7 @@ router.post("/pre-production/pack", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    const refunded = await refundCredits(req.userId!, PACK_TEXT_CREDIT_COST, { action: "Pre-production Pack — Refund" })
-      .then(() => true).catch(() => false);
+    const refunded = await refundCreditsGuaranteed(req.userId!, PACK_TEXT_CREDIT_COST, { action: "Pre-production Pack — Refund" });
     /* Void only when the refund landed — a refunded retry charges
        fresh; an unrefunded key stays landed. */
     if (refunded) {

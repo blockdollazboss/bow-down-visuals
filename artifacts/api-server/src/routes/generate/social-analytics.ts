@@ -4,6 +4,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -192,9 +193,9 @@ router.post("/analyze-post", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Post analysis failed.";
     req.log.error({ err: message }, "[analyze-post] failed");
     /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    const refunded = await refundCredits(req.userId!, ANALYZE_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, ANALYZE_COST, {
       action: "Social Post Analysis — Refund",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

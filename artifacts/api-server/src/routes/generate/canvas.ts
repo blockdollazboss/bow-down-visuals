@@ -8,7 +8,8 @@ import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
-  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
 } from "../../lib/credits";
 import {
@@ -417,11 +418,9 @@ router.post("/canvas/generate", requireAuth, async (req, res) => {
     /* Refund, then VOID the charge's idempotency key — without the void
        the refunded attempt's key still reads as "already charged", so
        the retry would be suppressed as a replay and render FREE. */
-    await refundCredits(req.userId!, CANVAS_COST, {
+    await refundCreditsGuaranteed(req.userId!, CANVAS_COST, {
       action: "Spotify Canvas — Refund",
-    })
-      .then(() => voidChargeIdempotencyKey(idempotencyKey))
-      .catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   } finally {
     const { rm } = await import("fs/promises");

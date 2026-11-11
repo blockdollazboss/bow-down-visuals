@@ -6,7 +6,8 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
-  chargeCredits, refundCredits, OutOfCreditsError,
+  chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError,
   buildChargeIdempotencyKey, voidChargeIdempotencyKey,
 } from "../../lib/credits";
 import {
@@ -233,9 +234,9 @@ router.post("/copyright/draft", requireAuth, publicApiLimiter, async (req, res) 
     res.json(body);
   } catch (err) {
     /* Refund landed → void the charge key so a retry charges fresh. */
-    await refundCredits(req.userId!, COPYRIGHT_DRAFT_CREDITS, {
+    await refundCreditsGuaranteed(req.userId!, COPYRIGHT_DRAFT_CREDITS, {
       action: "Copyright Assistant Draft (provider failure refund)",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[copyright] OpenAI rate limit / quota");
       res.status(503).json({ error: "The assistant is catching its breath — try again in a moment. (Visual Buc refunded.)" });
@@ -297,9 +298,9 @@ router.post("/copyright/ask", requireAuth, publicApiLimiter, async (req, res) =>
     res.json(body);
   } catch (err) {
     /* Refund landed → void the charge key so a retry charges fresh. */
-    await refundCredits(req.userId!, COPYRIGHT_ASK_CREDITS, {
+    await refundCreditsGuaranteed(req.userId!, COPYRIGHT_ASK_CREDITS, {
       action: "Copyright Assistant Ask (provider failure refund)",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[copyright] OpenAI rate limit / quota");
       res.status(503).json({ error: "The assistant is catching its breath — try again in a moment. (Visual Buc refunded.)" });

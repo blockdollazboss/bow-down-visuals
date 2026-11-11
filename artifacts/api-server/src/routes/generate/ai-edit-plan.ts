@@ -7,6 +7,7 @@ import { getTextModel } from "../../lib/ai-clients";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   LedgerWriteError,
   buildChargeIdempotencyKey,
@@ -190,9 +191,9 @@ router.post("/generate/ai-edit-plan", requireAuth, freeAiLimiter, async (req, re
   /* Any outcome that serves the free fallback instead of the AI plan
      refunds the charge with a ledger trace. */
   const refundCharge = () =>
-    refundCredits(req.userId!, AI_EDIT_PLAN_CREDIT_COST, {
+    refundCreditsGuaranteed(req.userId!, AI_EDIT_PLAN_CREDIT_COST, {
       action: "AI Edit Plan — Refund (fallback served)",
-    }).catch(() => {});
+    });
 
   const sceneList = input.sceneDescriptions.slice(0, 20).map((d, i) => `  ${i}: ${d}`).join("\n") || "  (no scene descriptions)";
   const userPrompt = [

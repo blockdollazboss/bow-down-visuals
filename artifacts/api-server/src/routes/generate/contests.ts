@@ -5,7 +5,8 @@ import { eq, and, asc, desc, sql, isNull } from "drizzle-orm";
 import { db, contestsTable, contestEntriesTable } from "@workspace/db";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
-  chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError,
+  chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, LedgerWriteError,
   buildChargeIdempotencyKey, voidChargeIdempotencyKey,
 } from "../../lib/credits";
 import {
@@ -550,11 +551,9 @@ async function runContestAnnounce(args: {
   const refundCharge = async (action: string) => {
     if (!chargeLive) return;
     chargeLive = false;
-    const refunded = await refundCredits(userId, CONTEST_ANNOUNCE_CREDIT_COST, {
+    const refunded = await refundCreditsGuaranteed(userId, CONTEST_ANNOUNCE_CREDIT_COST, {
       action,
-    })
-      .then(() => true)
-      .catch(() => false);
+    });
     /* Void the refunded attempt's key: without the void, the key
        still reads as "already charged", so the retry is suppressed
        as a replay and generates FREE (Lane V3 F1 leak). */

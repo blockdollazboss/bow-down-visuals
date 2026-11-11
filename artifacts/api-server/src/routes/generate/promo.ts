@@ -7,6 +7,7 @@ import { recordCreditUsage } from "../../lib/payment-record";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   LedgerWriteError,
   buildChargeIdempotencyKey,
@@ -165,8 +166,7 @@ router.post("/generate-promo-clips", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    const refunded = await refundCredits(req.userId!, CREDIT_COST, { action: "Promo Clips — Refund" })
-      .then(() => true).catch(() => false);
+    const refunded = await refundCreditsGuaranteed(req.userId!, CREDIT_COST, { action: "Promo Clips — Refund" });
     /* Void only when the refund landed — a refunded retry charges
        fresh; an unrefunded key stays landed. */
     if (refunded) {

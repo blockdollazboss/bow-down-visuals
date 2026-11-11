@@ -5,7 +5,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { transcribeAudioTimed } from "../../lib/transcription";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError } from "../../lib/credits";
 import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clients";
 
 const router = Router();
@@ -182,9 +183,9 @@ router.post("/find-quotes", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Quote finding failed.";
     req.log.error({ err: message }, "[quote-finder] failed");
-    await refundCredits(req.userId!, QUOTE_FINDER_COST, {
+    await refundCreditsGuaranteed(req.userId!, QUOTE_FINDER_COST, {
       action: "Quotable Moments — Refund",
-    }).catch(() => {});
+    });
     res.status(500).json({ error: message });
   }
 });

@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -300,9 +301,9 @@ router.post("/apply-speed", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Speed change failed.";
     req.log.error({ err: message }, "[apply-speed] failed");
     /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    const refunded = await refundCredits(req.userId!, SPEED_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, SPEED_COST, {
       action: "Speed — Refund",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

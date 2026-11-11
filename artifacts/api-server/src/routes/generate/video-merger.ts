@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -249,9 +250,9 @@ router.post("/merge-videos", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Video merge failed.";
     req.log.error({ err: message }, "[video-merger] failed");
-    const refunded = await refundCredits(req.userId!, MERGE_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, MERGE_COST, {
       action: "Video Merger — Refund",
-    }).then(() => true).catch(() => false);
+    });
     /* CA-6: a landed refund voids the key, so the retry re-charges. */
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);

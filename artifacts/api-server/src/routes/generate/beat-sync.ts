@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -362,9 +363,9 @@ router.post("/beat-sync", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Beat sync failed.";
     req.log.error({ err: message }, "[beat-sync] failed");
     /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
-    await refundCredits(req.userId!, BEAT_SYNC_COST, {
+    await refundCreditsGuaranteed(req.userId!, BEAT_SYNC_COST, {
       action: "Beat Sync Editor — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   } finally {
     await unlink(videoPath).catch(() => {});

@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -178,9 +179,9 @@ router.post("/voice-effect", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Voice effect failed.";
     req.log.error({ err: message }, "[voice-effect] failed");
-    const refunded = await refundCredits(req.userId!, VOICE_FX_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, VOICE_FX_COST, {
       action: "Voice Effect — Refund",
-    }).then(() => true).catch(() => false);
+    });
     /* CA-6: a landed refund voids the key, so the retry re-charges. */
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);

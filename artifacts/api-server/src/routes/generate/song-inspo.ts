@@ -8,6 +8,7 @@ import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   LedgerWriteError,
   buildChargeIdempotencyKey,
@@ -339,9 +340,9 @@ router.post("/song-inspo/generate", requireAuth, async (req, res) => {
   } catch (err) {
     // Auto-refund: generation failed after charging — give the Visual Bucs back.
     /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    const refunded = await refundCredits(req.userId!, INSPO_GENERATE_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, INSPO_GENERATE_COST, {
       action: "Inspo Mode Song — auto-refund (generation failed)",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

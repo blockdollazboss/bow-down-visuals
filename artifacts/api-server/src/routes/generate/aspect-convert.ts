@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -158,9 +159,9 @@ router.post("/convert-aspect", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Aspect conversion failed.";
     req.log.error({ err: message }, "[aspect-convert] failed");
     /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
-    await refundCredits(req.userId!, CONVERT_COST, {
+    await refundCreditsGuaranteed(req.userId!, CONVERT_COST, {
       action: "Aspect Ratio Convert — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   } finally {
     await unlink(inputPath).catch(() => {});

@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -171,9 +172,9 @@ router.post("/add-watermark", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Watermark failed.";
     req.log.error({ err: message }, "[add-watermark] failed");
-    const refunded = await refundCredits(req.userId!, WATERMARK_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, WATERMARK_COST, {
       action: "Watermark — Refund",
-    }).then(() => true).catch(() => false);
+    });
     /* CA-6: a landed refund voids the key, so the retry re-charges. */
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);

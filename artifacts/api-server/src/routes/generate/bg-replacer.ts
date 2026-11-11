@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -266,9 +267,9 @@ router.post("/replace-video-bg", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Video background replacement failed.";
     req.log.error({ err: message }, "[replace-video-bg] failed");
     /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
-    await refundCredits(req.userId!, BG_REPLACER_COST, {
+    await refundCreditsGuaranteed(req.userId!, BG_REPLACER_COST, {
       action: "Video Background Replace — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   } finally {
     const { rm } = await import("fs/promises");

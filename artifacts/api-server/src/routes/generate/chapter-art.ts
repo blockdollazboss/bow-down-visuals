@@ -5,7 +5,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import { getOpenAI } from "../../lib/ai-clients";
 import {
@@ -162,9 +163,9 @@ router.post("/chapter-art", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Chapter art generation failed.";
     req.log.error({ err: message }, "[chapter-art] failed");
-    await refundCredits(req.userId!, CHAPTER_ART_COST, {
+    await refundCreditsGuaranteed(req.userId!, CHAPTER_ART_COST, {
       action: "Chapter Art — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   } finally {
     const { rm } = await import("fs/promises");

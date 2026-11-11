@@ -4,6 +4,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -138,9 +139,9 @@ router.post("/bg-music", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Background music generation failed.";
     req.log.error({ err: message }, "[bg-music] failed");
     /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
-    await refundCredits(req.userId!, BG_MUSIC_COST, {
+    await refundCreditsGuaranteed(req.userId!, BG_MUSIC_COST, {
       action: "Background Music — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   }
 });

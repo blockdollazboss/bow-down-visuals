@@ -11,6 +11,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -434,9 +435,9 @@ async function runTrackJob(job: TrackJob) {
        refund already landed never refunds twice. */
     const claimed = await jobStore.claimRefund(job);
     if (claimed) {
-      const refunded = await refundCredits(job.userId, MOTION_TRACK_COST, {
+      const refunded = await refundCreditsGuaranteed(job.userId, MOTION_TRACK_COST, {
         action: "Motion Tracking — Refund",
-      }).then(() => true).catch(() => false);
+      });
       /* Void the charge's key only when the refund landed (CA-4). */
       if (refunded) {
         await voidChargeIdempotencyKey(job.chargeKey).catch(() => {});
@@ -793,9 +794,9 @@ router.post("/motion-track/apply", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Motion track burn-in failed.";
     if (charged) {
-      const refunded = await refundCredits(req.userId!, MOTION_TRACK_COST, {
+      const refunded = await refundCreditsGuaranteed(req.userId!, MOTION_TRACK_COST, {
         action: "Motion Track Burn-in — Refund",
-      }).then(() => true).catch(() => false);
+      });
       /* Void only when the refund landed (CA-4) — a refunded retry
          charges fresh, never replays free. */
       if (refunded) {

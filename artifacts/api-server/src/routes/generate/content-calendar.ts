@@ -6,7 +6,8 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
-  chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey,
+  chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
 } from "../../lib/credits";
 import {
@@ -189,9 +190,9 @@ router.post("/content-calendar", requireAuth, publicApiLimiter, async (req, res)
   }
 
   async function refund() {
-    const refunded = await refundCredits(req.userId!, CALENDAR_CREDIT_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, CALENDAR_CREDIT_COST, {
       action: "AI Content Calendar — Refund (generation failed)",
-    }).then(() => true).catch(() => false);
+    });
     /* Void the refunded attempt's key so a genuine retry can
        re-charge instead of being suppressed as a replay. */
     if (refunded) {

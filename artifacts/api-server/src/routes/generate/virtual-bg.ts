@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -268,9 +269,9 @@ router.post("/virtual-bg", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Virtual background failed.";
     req.log.error({ err: message }, "[virtual-bg] failed");
-    const refunded = await refundCredits(req.userId!, VIRTUAL_BG_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, VIRTUAL_BG_COST, {
       action: "Virtual Background — Refund",
-    }).then(() => true).catch(() => false);
+    });
     /* CA-6: a landed refund voids the key, so the retry re-charges. */
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);

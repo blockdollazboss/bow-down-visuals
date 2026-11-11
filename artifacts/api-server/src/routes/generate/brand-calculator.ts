@@ -8,6 +8,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -300,9 +301,9 @@ router.post(
       res.json(resultBody);
     } catch (err) {
       /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
-      await refundCredits(req.userId!, BRAND_CALC_CREDIT_COST, {
+      await refundCreditsGuaranteed(req.userId!, BRAND_CALC_CREDIT_COST, {
         action: "Brand Deal Calculator (provider failure refund)",
-      }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+      }, { idempotencyKey: idempotencyKey });
       if (
         err instanceof OpenAI.APIError &&
         (err.status === 429 || err.code === "insufficient_quota")

@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import { getTextModel } from "../../lib/ai-clients";
 import {
   findStoredGenerationResult,
@@ -225,9 +226,9 @@ router.post("/seo-score", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "SEO score failed.";
     req.log.error({ err: message }, "[seo-score] failed");
     /* CA-5: a landed refund also VOIDS the charge key. */
-    const refunded = await refundCredits(req.userId!, SEO_SCORE_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, SEO_SCORE_COST, {
       action: "Video SEO Score — Refund",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

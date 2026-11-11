@@ -8,6 +8,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -359,9 +360,9 @@ router.post("/auto-chapters", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Auto chapter generation failed.";
     req.log.error({ err: message }, "[auto-chapters] failed");
     /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
-    await refundCredits(req.userId!, AUTO_CHAPTERS_COST, {
+    await refundCreditsGuaranteed(req.userId!, AUTO_CHAPTERS_COST, {
       action: "Auto Chapters — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   }
 });

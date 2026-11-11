@@ -11,6 +11,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -483,9 +484,9 @@ router.post("/analyze-niche", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Niche analysis failed.";
     req.log.error({ err: message }, "[niche-analyzer] failed");
-    const refunded = await refundCredits(req.userId!, NICHE_ANALYZER_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, NICHE_ANALYZER_COST, {
       action: "Niche Analyzer — Refund",
-    }).then(() => true).catch(() => false);
+    });
     /* Void only when the refund landed — a refunded retry charges
        fresh; an unrefunded key stays landed. */
     if (refunded) {

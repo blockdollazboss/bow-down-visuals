@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -280,9 +281,9 @@ router.post("/social-kit", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Social kit generation failed.";
     req.log.error({ err: message }, "[social-kit] failed");
     /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    const refunded = await refundCredits(req.userId!, SOCIAL_KIT_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, SOCIAL_KIT_COST, {
       action: "Social Media Kit — Refund",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

@@ -30,6 +30,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -695,9 +696,9 @@ router.post("/royalties/insights", requireAuth, publicApiLimiter, async (req, re
     res.json(body);
   } catch (err) {
     /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    const refunded = await refundCredits(req.userId!, ROYALTY_INSIGHTS_CREDITS, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, ROYALTY_INSIGHTS_CREDITS, {
       action: "Royalty AI Insights (provider failure refund)",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

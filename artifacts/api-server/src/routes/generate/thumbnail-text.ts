@@ -4,6 +4,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -168,9 +169,9 @@ router.post("/thumbnail-text", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Thumbnail text generation failed.";
     req.log.error({ err: message }, "[thumbnail-text] failed");
-    const refunded = await refundCredits(req.userId!, TEXT_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, TEXT_COST, {
       action: "Thumbnail Text Optimizer — Refund",
-    }).then(() => true).catch(() => false);
+    });
     /* CA-6: a landed refund voids the key, so the retry re-charges. */
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);

@@ -14,6 +14,7 @@ import { and, desc, eq } from "drizzle-orm";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -798,9 +799,9 @@ router.post("/promo-cards", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Promo card generation failed.";
     req.log.error({ err: message }, "[promo-cards] failed");
-    const refunded = await refundCredits(req.userId!, PROMO_CARDS_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, PROMO_CARDS_COST, {
       action: "Release Promo Cards — Refund",
-    }).then(() => true).catch(() => false);
+    });
     /* Void only when the refund landed — a refunded retry charges
        fresh; an unrefunded key stays landed. */
     if (refunded) {

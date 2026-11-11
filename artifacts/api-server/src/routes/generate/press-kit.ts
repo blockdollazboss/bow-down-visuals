@@ -7,6 +7,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   LedgerWriteError,
   buildChargeIdempotencyKey,
@@ -333,9 +334,9 @@ router.post("/press-kit/generate", requireAuth, publicApiLimiter, async (req, re
     // charge are free because nothing was taken.
     await releaseClaim();
     if (chargeLanded) {
-      await refundCredits(req.userId!, PRESS_KIT_GENERATE_CREDITS, {
+      await refundCreditsGuaranteed(req.userId!, PRESS_KIT_GENERATE_CREDITS, {
         action: "Press Kit Generation — Refund (generation failed)",
-      }).catch(() => {});
+      });
     }
     if (err instanceof LedgerWriteError) throw err;
     res.status(502).json({
@@ -438,9 +439,9 @@ router.post("/press-kit/:id/regenerate-bio", requireAuth, publicApiLimiter, asyn
     await storeGenerationResult("press-kit-bio-refresh", idempotencyKey, req.userId!, { ...body });
     res.json(body);
   } catch (err) {
-    const refunded = await refundCredits(req.userId!, PRESS_KIT_BIO_REFRESH_CREDITS, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, PRESS_KIT_BIO_REFRESH_CREDITS, {
       action: "Press Kit Bio Refresh — Refund (generation failed)",
-    }).then(() => true).catch(() => false);
+    });
     /* Void only when the refund landed — a refunded retry charges
        fresh; an unrefunded key stays landed. */
     if (refunded) {

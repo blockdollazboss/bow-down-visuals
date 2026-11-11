@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   LedgerWriteError,
   buildChargeIdempotencyKey,
@@ -227,8 +228,7 @@ router.post("/mix-plan", requireAuth, async (req, res) => {
   const refundCharge = async () => {
     if (!chargeLive) return;
     chargeLive = false;
-    const refunded = await refundCredits(req.userId!, CREDIT_COST, { action: "Music Mixer AI Mix Plan — Refund" })
-      .then(() => true).catch(() => false);
+    const refunded = await refundCreditsGuaranteed(req.userId!, CREDIT_COST, { action: "Music Mixer AI Mix Plan — Refund" });
     /* Void only when the refund landed — a refunded retry charges
        fresh; an unrefunded key stays landed. */
     if (refunded) {

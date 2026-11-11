@@ -29,7 +29,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError } from "../../lib/credits";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -369,7 +370,7 @@ router.post("/producer-tag/approve", requireAuth, async (req, res) => {
   } catch (err) {
     await rollbackClaim();
     if (price > 0) {
-      await refundCredits(req.userId!, price, { action: "Your Own Tag — Refund" }).catch(() => {});
+      await refundCreditsGuaranteed(req.userId!, price, { action: "Your Own Tag — Refund" });
     }
     const message = err instanceof Error ? err.message : "Could not approve the tag.";
     req.log.error({ err: message }, "[producer-tag] approve failed");

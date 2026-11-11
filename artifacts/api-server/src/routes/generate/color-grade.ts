@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
@@ -177,9 +178,9 @@ router.post("/color-grade", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Color grading failed.";
     req.log.error({ err: message }, "[color-grade] failed");
-    await refundCredits(req.userId!, GRADE_COST, {
+    await refundCreditsGuaranteed(req.userId!, GRADE_COST, {
       action: "Color grade — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   } finally {
     await unlink(inputPath).catch(() => {});

@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -173,9 +174,7 @@ router.post("/clone-voice", requireAuth, async (req, res) => {
   }
 
   const fail = async (status: number, message: string): Promise<never> => {
-    const refunded = await refundCredits(req.userId!, CLONE_COST, { action: "Voice Clone — Refund" })
-      .then(() => true)
-      .catch(() => false);
+    const refunded = await refundCreditsGuaranteed(req.userId!, CLONE_COST, { action: "Voice Clone — Refund" });
     /* CA-6: a landed refund voids the key, so the retry re-charges. */
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
@@ -337,9 +336,7 @@ router.post("/speak-as", requireAuth, async (req, res) => {
   }
 
   const fail = async (status: number, message: string): Promise<never> => {
-    const refunded = await refundCredits(req.userId!, SPEAK_COST, { action: "Speak As — Refund" })
-      .then(() => true)
-      .catch(() => false);
+    const refunded = await refundCreditsGuaranteed(req.userId!, SPEAK_COST, { action: "Speak As — Refund" });
     /* CA-6: a landed refund voids the key, so the retry re-charges. */
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);

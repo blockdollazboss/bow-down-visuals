@@ -44,6 +44,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -1826,9 +1827,9 @@ router.post("/memberships/ai-perks", requireAuth, publicApiLimiter, async (req, 
     res.json(body);
   } catch (err) {
     /* Provider failure after charging → refund, then report. */
-    const refunded = await refundCredits(req.userId!, MEMBERSHIPS_AI_CREDITS, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, MEMBERSHIPS_AI_CREDITS, {
       action: "Fan Memberships AI Perks — Refund (provider failed)",
-    }).then(() => true).catch(() => false);
+    });
     /* Void only when the refund landed — a refunded retry charges
        fresh; an unrefunded key stays landed. */
     if (refunded) {

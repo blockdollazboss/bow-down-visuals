@@ -7,7 +7,8 @@ import { getOpenAI, getTextModel, LOW_REASONING_PARAMS } from "../../lib/ai-clie
 import { requireAuth } from "../../middlewares/require-auth";
 import { generationLimiter } from "../../lib/rate-limit";
 import { shouldCountView, viewKey } from "../../lib/view-counting";
-import { chargeCredits as chargeCreditsAtomic, refundCredits } from "../../lib/credits";
+import { chargeCredits as chargeCreditsAtomic, refundCredits,
+  refundCreditsGuaranteed } from "../../lib/credits";
 import {
   BEAT_LICENSE_FORMATS,
   beatFiltersSchema,
@@ -737,7 +738,7 @@ router.post("/beats/:id/ai-tags", requireAuth, async (req, res) => {
 
     res.json({ genre, moodTags, creditsRemaining: creditsAfter, creditCost: cost });
   } catch (err: unknown) {
-    await refundCredits(req.userId!, cost, { action: "Beat AI Tag Suggester — Refund (provider failure)" }).catch(() => {});
+    await refundCreditsGuaranteed(req.userId!, cost, { action: "Beat AI Tag Suggester — Refund (provider failure)" });
     const msg = err instanceof Error ? err.message : "AI tag suggester failed";
     res.status(500).json({ error: `${msg} — Visual Bucs refunded.` });
   }

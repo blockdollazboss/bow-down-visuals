@@ -12,6 +12,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -994,9 +995,9 @@ router.post("/shoutouts/ai-message", requireAuth, publicApiLimiter, async (req, 
   } catch (err) {
     /* Provider failure after charging → refund, then report.
        CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    const refunded = await refundCredits(req.userId!, SHOUTOUT_AI_CREDITS, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, SHOUTOUT_AI_CREDITS, {
       action: "Fan Shoutouts AI Message — Refund (provider failed)",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

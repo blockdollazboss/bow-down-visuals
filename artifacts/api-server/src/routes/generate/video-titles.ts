@@ -4,6 +4,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -168,9 +169,9 @@ router.post("/video-titles", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Title generation failed.";
     req.log.error({ err: message }, "[video-titles] failed");
-    const refunded = await refundCredits(req.userId!, TITLES_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, TITLES_COST, {
       action: "Video Title Generator — Refund",
-    }).then(() => true).catch(() => false);
+    });
     /* CA-6: a landed refund voids the key, so the retry re-charges. */
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);

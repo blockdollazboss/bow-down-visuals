@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -620,9 +621,9 @@ router.post("/smart-clips", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Smart clips failed.";
     req.log.error({ err: message }, "[smart-clips] failed");
     if (charged) {
-      const refunded = await refundCredits(req.userId!, totalCost, {
+      const refunded = await refundCreditsGuaranteed(req.userId!, totalCost, {
         action: "Smart Clips — Refund",
-      }).then(() => true).catch(() => false);
+      });
       /* CA-6: a landed refund voids the key, so the retry re-charges. */
       if (refunded && currentKey) {
         await voidChargeIdempotencyKey(currentKey).catch(() => false);

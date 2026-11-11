@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -119,9 +120,9 @@ router.post("/podcast-intro", requireAuth, async (req, res) => {
   }
 
   const fail = async (message: string, status = 500) => {
-    const refunded = await refundCredits(req.userId!, PODCAST_INTRO_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, PODCAST_INTRO_COST, {
       action: "Podcast Intro — Refund",
-    }).then(() => true).catch(() => false);
+    });
     /* Void only when the refund landed — a refunded retry charges
        fresh; an unrefunded key stays landed. */
     if (refunded) {

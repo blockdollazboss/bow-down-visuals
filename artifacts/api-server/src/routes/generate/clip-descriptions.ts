@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import { getTextModel } from "../../lib/ai-clients";
 
@@ -224,9 +225,9 @@ router.post("/clip-description", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Description generation failed.";
     req.log.error({ err: message }, "[clip-descriptions] failed");
-    await refundCredits(req.userId!, DESCRIPTIONS_COST, {
+    await refundCreditsGuaranteed(req.userId!, DESCRIPTIONS_COST, {
       action: "Clip Description Generator — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   }
 });

@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -180,9 +181,9 @@ router.post("/video-style", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Video styling failed.";
     req.log.error({ err: message }, "[video-style] failed");
-    const refunded = await refundCredits(req.userId!, STYLE_FX_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, STYLE_FX_COST, {
       action: "Video Style — Refund",
-    }).then(() => true).catch(() => false);
+    });
     /* CA-6: a landed refund voids the key, so the retry re-charges. */
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);

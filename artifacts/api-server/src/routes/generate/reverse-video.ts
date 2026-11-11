@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import {
   findStoredGenerationResult,
   storeGenerationResult,
@@ -155,9 +156,9 @@ router.post("/reverse-video", requireAuth, async (req, res) => {
     /* CA-5: a landed refund also VOIDS the charge key (the historical
        action label is kept; the refund still pairs with the charge —
        both charge labels resolve to it). */
-    const refunded = await refundCredits(req.userId!, REVERSE_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, REVERSE_COST, {
       action: "Video reverse — Refund",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

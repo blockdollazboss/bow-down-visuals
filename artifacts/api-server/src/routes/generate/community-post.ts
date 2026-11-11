@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import { getTextModel } from "../../lib/ai-clients";
 
@@ -203,9 +204,9 @@ router.post("/generate-community-post", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Community post generation failed.";
     req.log.error({ err: message }, "[community-post] failed");
-    await refundCredits(req.userId!, COMMUNITY_POST_COST, {
+    await refundCreditsGuaranteed(req.userId!, COMMUNITY_POST_COST, {
       action: "Community Post Generator — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   }
 });

@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 import {
   uploadMediaToSupabaseStorage,
@@ -143,9 +144,9 @@ router.post("/video-to-gif", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "GIF conversion failed.";
     req.log.error({ err: message }, "[gif-converter] failed");
-    await refundCredits(req.userId!, GIF_COST, {
+    await refundCreditsGuaranteed(req.userId!, GIF_COST, {
       action: "Video to GIF — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   } finally {
     await unlink(inputPath).catch(() => {});

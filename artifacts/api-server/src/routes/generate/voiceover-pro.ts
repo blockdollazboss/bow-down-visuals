@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -258,9 +259,9 @@ router.post("/voiceover-pro", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Voiceover generation failed.";
     req.log.error({ err: message }, "[voiceover-pro] failed");
-    const refunded = await refundCredits(req.userId!, VOICEOVER_PRO_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, VOICEOVER_PRO_COST, {
       action: "Voiceover Pro — Refund",
-    }).then(() => true).catch(() => false);
+    });
     /* CA-6: a landed refund voids the key, so the retry re-charges. */
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);

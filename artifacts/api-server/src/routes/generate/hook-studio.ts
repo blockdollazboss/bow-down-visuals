@@ -6,7 +6,8 @@ import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
-  chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError,
+  chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, LedgerWriteError,
   buildChargeIdempotencyKey, voidChargeIdempotencyKey,
 } from "../../lib/credits";
 import {
@@ -72,9 +73,9 @@ const hookStudioSchema = z.discriminatedUnion("mode", [hooksSchema, preflightSch
    the exact charged amount (D5 sweep G10 — the refundOnFailure pattern
    from academy.ts). One charge covers all three modes. */
 async function refundOnFailure(userId: string, action: string, idempotencyKey: string): Promise<void> {
-  const refunded = await refundCredits(userId, HOOK_STUDIO_CREDITS, {
+  const refunded = await refundCreditsGuaranteed(userId, HOOK_STUDIO_CREDITS, {
     action: `${action} — Refund (generation failed)`,
-  }).then(() => true).catch(() => false);
+  });
   /* Void the refunded attempt's key so a genuine retry can re-charge
      instead of being suppressed as a replay. */
   if (refunded) {

@@ -17,6 +17,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   LedgerWriteError,
   buildChargeIdempotencyKey,
@@ -1088,9 +1089,9 @@ router.post("/repurpose/reroll", requireAuth, publicApiLimiter, async (req: Requ
     const out = parseReroll(raw, kind, durationSec);
     if (out === null) {
       /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-      const refunded = await refundCredits(req.userId!, REPURPOSE_REROLL_CREDITS, {
+      const refunded = await refundCreditsGuaranteed(req.userId!, REPURPOSE_REROLL_CREDITS, {
         action: "Content Repurposer — Refund (re-roll failed)",
-      }).then(() => true).catch(() => false);
+      });
       if (refunded) {
         await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
       }
@@ -1104,9 +1105,9 @@ router.post("/repurpose/reroll", requireAuth, publicApiLimiter, async (req: Requ
   } catch (err) {
     logger.error({ err }, "[repurpose] re-roll failed");
     /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    const refunded = await refundCredits(req.userId!, REPURPOSE_REROLL_CREDITS, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, REPURPOSE_REROLL_CREDITS, {
       action: "Content Repurposer — Refund (re-roll failed)",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }
@@ -1189,9 +1190,9 @@ router.post("/repurpose/reroll-thumbnail", requireAuth, publicApiLimiter, async 
   } catch (err) {
     logger.error({ err }, "[repurpose] thumbnail re-roll failed");
     /* CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    const refunded = await refundCredits(req.userId!, REPURPOSE_REROLL_CREDITS, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, REPURPOSE_REROLL_CREDITS, {
       action: "Content Repurposer — Refund (thumbnail re-roll failed)",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

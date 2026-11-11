@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import {
   findStoredGenerationResult,
   storeGenerationResult,
@@ -125,9 +126,9 @@ router.post("/remove-silence", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Silence removal failed.";
     req.log.error({ err: message }, "[remove-silence] failed");
     /* CA-5: a landed refund also VOIDS the charge key. */
-    const refunded = await refundCredits(req.userId!, SILENCE_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, SILENCE_COST, {
       action: "Silence Removal — Refund",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }

@@ -7,6 +7,7 @@ import { buildCoStarContext } from "../../lib/co-stars";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   LedgerWriteError,
   buildChargeIdempotencyKey,
@@ -247,9 +248,7 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
     if (!chargeLive) return;
     chargeLive = false;
     /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
-    await refundCredits(req.userId!, CREDIT_COST, { action: "Auto Director Plan — Refund" })
-      .then(() => voidChargeIdempotencyKey(idempotencyKey))
-      .catch(() => {});
+    await refundCreditsGuaranteed(req.userId!, CREDIT_COST, { action: "Auto Director Plan — Refund" }, { idempotencyKey: idempotencyKey });
   };
 
   /* ── Build the song brief ── */

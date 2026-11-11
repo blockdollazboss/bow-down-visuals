@@ -4,6 +4,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -140,9 +141,9 @@ router.post("/broll-suggest", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "B-roll suggestion failed.";
     req.log.error({ err: message }, "[broll-suggest] failed");
     /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
-    await refundCredits(req.userId!, BROLL_COST, {
+    await refundCreditsGuaranteed(req.userId!, BROLL_COST, {
       action: "B-roll Suggestions — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   }
 });

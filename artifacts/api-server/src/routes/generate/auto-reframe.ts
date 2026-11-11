@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -203,9 +204,9 @@ router.post("/auto-reframe", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Auto-reframe failed.";
     req.log.error({ err: message }, "[auto-reframe] failed");
     /* CA-1: a landed refund VOIDS the key so the retry charges fresh. */
-    await refundCredits(req.userId!, REFRAME_COST, {
+    await refundCreditsGuaranteed(req.userId!, REFRAME_COST, {
       action: "Auto Reframe — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     res.status(500).json({ error: message });
   } finally {
     await unlink(inputPath).catch(() => {});

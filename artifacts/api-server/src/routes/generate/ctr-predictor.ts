@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import { findStoredGenerationResult, storeGenerationResult } from "../../lib/generation-stored-results";
 
 const router = Router();
@@ -173,9 +174,9 @@ router.post("/predict-ctr", requireAuth, async (req, res) => {
     await storeGenerationResult("ctr-predictor", idempotencyKey, req.userId!, body as Record<string, unknown>);
     res.json(body);
   } catch (err) {
-    await refundCredits(req.userId!, CTR_PREDICTOR_COST, {
+    await refundCreditsGuaranteed(req.userId!, CTR_PREDICTOR_COST, {
       action: "Thumbnail CTR Predictor (failure refund)",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
+    }, { idempotencyKey: idempotencyKey });
     const status = (err as { status?: number })?.status === 429 ? 503 : 500;
     const message = err instanceof Error ? err.message : "CTR prediction failed.";
     res.status(status).json({ error: status === 503 ? "provider_rate_limited" : "ctr_prediction_failed", message });

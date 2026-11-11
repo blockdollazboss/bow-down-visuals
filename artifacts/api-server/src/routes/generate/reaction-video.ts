@@ -7,7 +7,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
 import {
   findStoredGenerationResult,
   storeGenerationResult,
@@ -219,9 +220,9 @@ router.post("/reaction-video", requireAuth, async (req, res) => {
     const message = err instanceof Error ? err.message : "Reaction video creation failed.";
     req.log.error({ err: message }, "[reaction-video] failed");
     /* CA-5: a landed refund also VOIDS the charge key. */
-    const refunded = await refundCredits(req.userId!, REACTION_VIDEO_COST, {
+    const refunded = await refundCreditsGuaranteed(req.userId!, REACTION_VIDEO_COST, {
       action: "Reaction Video — Refund",
-    }).then(() => true).catch(() => false);
+    });
     if (refunded) {
       await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
     }
