@@ -54,6 +54,11 @@ export function JewelryOrdersAdmin({ authHeaders }: { authHeaders: () => Promise
 
   const downloadCsv = async () => {
     const res = await fetch("/api/jewelry/admin/orders.csv", { headers: await authHeaders() });
+    if (!res.ok) {
+      /* An unchecked error body used to be saved as the CSV itself. */
+      setError("Couldn't download the CSV — try again.");
+      return;
+    }
     const blob = await res.blob();
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
