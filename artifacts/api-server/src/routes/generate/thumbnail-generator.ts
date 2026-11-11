@@ -5,8 +5,7 @@ import { randomUUID, createHash } from "crypto";
 import { toFile } from "openai";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { getSupabaseAdmin, addCreditsToProfile } from "../../lib/supabase-admin";
-import { chargeCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";
+import { chargeCredits, buildChargeIdempotencyKey, refundCreditsGuaranteed } from "../../lib/credits";
 import {
   findStoredGenerationResult,
   storeGenerationResult,
@@ -119,15 +118,13 @@ function buildVariationPrompt(
   return parts.join("\n").slice(0, 4000);
 }
 
-async function refundCredits(userId: string, amount: number): Promise<boolean> {
-  try {
-    await addCreditsToProfile(userId, amount);
-    return true;
-  } catch {
-    /* Refund failure is logged by the caller — never throw from here. */
-    return false;
-  }
-}
+/* Failure refunds go through lib/credits' refundCreditsGuaranteed:
+   the ledger-traced refund (balance restored AND the paired negative
+   ledger row written), one loud retry, and the charge's key voided
+   only when the refund landed. The local helper this replaces
+   credited the profile directly via addCreditsToProfile with NO
+   ledger row — the charge stood unpaired in the member's credit
+   history while the failure response claimed the refund happened. */
 
 /* ── CA-KEY replay layer ──────────────────────────────────────────────
    Every charge on this rail now carries a REAL idempotency key the
@@ -195,6 +192,22 @@ router.post(
        the charge), so it is read before any funding decision. The
        upload itself was already buffered by multer above. */
     const facePhotoBuffer = req.file?.buffer ?? null;
+
+    /* Pre-flight provider gate: a missing OPENAI_API_KEY refuses
+       BEFORE any charge. getOpenAI() throws the refusal synchronously
+       when the key is absent; before this gate existed, that throw
+       surfaced inside the generation loop — after the 200 VB charge —
+       which is exactly the path the Nov 11 $0 probe's thumbnail
+       charge took. Sibling gates (headshot-studio, photo-backdrop)
+       refuse the same way, ahead of every funding decision. */
+    try {
+      getOpenAI();
+    } catch {
+      res.status(503).json({
+        error: "OPENAI_API_KEY is not configured — this AI feature is unavailable.",
+      });
+      return;
+    }
 
     /* Idempotency: every call carries a real server-derived key. A
        sane client per-attempt key is honored; otherwise the key is
@@ -401,23 +414,36 @@ async function runThumbnailBatch(
         );
       }
     } catch (err: unknown) {
-      /* Auto-refund: the batch failed before completing — give credits
-         back, then VOID the charge's idempotency key. The void was
-         MISSING on this rail (CA-KEY): without it the refunded key
-         still read as "already charged", so the retry was suppressed
-         as a replay and generated FREE. */
-      const refunded = await refundCredits(req.userId!, BATCH_CREDIT_COST);
-      if (refunded) {
-        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);      }
-      const message = err instanceof Error ? err.message : "Thumbnail generation failed";
-      req.log.error(
-        { userId: req.userId, err: message, completedVariations: images.length },
-        "[thumbnail-generator] batch failed — Visual Bucs refunded",
+      /* Auto-refund, GUARANTEED: the ledger-traced refund, retried
+         exactly once on failure, with the charge's idempotency key
+         voided only when the refund landed. (CA-KEY: without the
+         void the refunded key still read as "already charged", so
+         the retry was suppressed as a replay and generated FREE;
+         voiding on an UNLANDED refund would double-charge instead.)
+         The response reports the refund's REAL outcome — it claimed
+         creditsRefunded: true unconditionally before this fix. */
+      const refunded = await refundCreditsGuaranteed(
+        req.userId!,
+        BATCH_CREDIT_COST,
+        { action: "thumbnail_batch_generate — Refund" },
+        { idempotencyKey },
       );
+      const message = err instanceof Error ? err.message : "Thumbnail generation failed";
+      if (refunded) {
+        req.log.error(
+          { userId: req.userId, err: message, completedVariations: images.length },
+          "[thumbnail-generator] batch failed — Visual Bucs refunded",
+        );
+      } else {
+        req.log.error(
+          { userId: req.userId, err: message, completedVariations: images.length },
+          "[thumbnail-generator] CRITICAL: batch failed AND the refund could not be landed after retry — charge stands, flagged for reconciliation",
+        );
+      }
       return {
         __status: 500,
         error: message,
-        creditsRefunded: true,
+        creditsRefunded: refunded,
         partialImages: images,
       };
     }

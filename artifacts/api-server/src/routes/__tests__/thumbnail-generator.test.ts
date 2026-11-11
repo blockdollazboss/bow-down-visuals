@@ -3,8 +3,10 @@
  *
  * The AI Thumbnail Generator creates 4 thumbnail variations in one batch
  * for 2 credits (GPT Image 2.5). Pricing rules enforced:
+ * - a not-configured provider refuses 503 BEFORE any charge
  * - charge-before-generate (402 when short on credits)
- * - auto-refund via addCreditsToProfile when the batch fails
+ * - auto-refund via the ledger (refundCreditsGuaranteed) when the
+ *   batch fails — never a profile-only credit with no ledger row
  * - max_completion_tokens is never used here (image-only route — asserts
  *   no max_tokens either, since image calls take no token params)
  *
@@ -27,6 +29,9 @@ const mockState = vi.hoisted(() => ({
   chargedKeys: new Set<string>(),
   chargeKeys: [] as (string | null)[],
   voids: [] as string[],
+  providerNotConfigured: false,
+  refundAttempts: 0,
+  refundFailuresRemaining: 0,
 }));
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -43,7 +48,11 @@ vi.mock("../../middlewares/require-auth", () => ({
 }));
 
 vi.mock("../../lib/ai-clients", () => ({
-  getOpenAI: () => ({
+  getOpenAI: () => {
+    if (mockState.providerNotConfigured) {
+      throw new Error("OPENAI_API_KEY is not configured — this AI feature is unavailable.");
+    }
+    return {
     images: {
       generate: vi.fn(async () => {
         mockState.imageGenerateCalls++;
@@ -60,7 +69,8 @@ vi.mock("../../lib/ai-clients", () => ({
         return { data: [{ b64_json: "aW1hZ2UtYnl0ZXM=" }] };
       }),
     },
-  }),
+    };
+  },
   LOW_REASONING_PARAMS: { reasoning_effort: "low" },
 
 }));
@@ -98,13 +108,31 @@ vi.mock("../../lib/payment-record", () => ({
   recordThumbnailHistory: vi.fn(async () => undefined),
 }));
 
-vi.mock("../../lib/credits", () => ({
+vi.mock("../../lib/credits", () => {
   /* P0-23: the route charges up front via chargeCredits (strict ledger),
      not the old Supabase profile update. Simulate the deduction against
      mockState so the balance assertions below keep their meaning.
      CA-KEY: the mock now mirrors the real ledger's idempotency —
      a charge carrying an already-seen key is a replay (no second
-     deduction), and voiding a key makes its retry charge fresh. */
+     deduction), and voiding a key makes its retry charge fresh.
+     Charge-on-failure lane: refundCreditsGuaranteed mirrors the real
+     helper — a refund attempt can be made to fail
+     (refundFailuresRemaining), the helper retries exactly once, and
+     the key is voided ONLY when a refund landed. */
+  const attemptRefund = async (_userId: string, amount: number) => {
+    mockState.refundAttempts++;
+    if (mockState.refundFailuresRemaining > 0) {
+      mockState.refundFailuresRemaining--;
+      throw new Error("simulated refund failure");
+    }
+    mockState.refundedCredits += amount;
+    mockState.userCredits += amount;
+  };
+  const voidKey = async (key: string) => {
+    mockState.voids.push(key);
+    return mockState.chargedKeys.delete(key);
+  };
+  return {
   chargeCredits: vi.fn(async (_userId: string, amount: number, _rec?: unknown, opts?: { idempotencyKey?: string | null }) => {
     const key = opts?.idempotencyKey ?? null;
     mockState.chargeKeys.push(key);
@@ -118,14 +146,22 @@ vi.mock("../../lib/credits", () => ({
     typeof clientKey === "string" && clientKey.trim().length >= 8
       ? `${scope}:${userId}:client:${clientKey.trim()}`
       : `${scope}:${userId}:${JSON.stringify(intent)}`,
-  voidChargeIdempotencyKey: vi.fn(async (key: string) => {
-    mockState.voids.push(key);
-    return mockState.chargedKeys.delete(key);
+  voidChargeIdempotencyKey: vi.fn(voidKey),
+  refundCredits: vi.fn(attemptRefund),
+  refundCreditsGuaranteed: vi.fn(async (userId: string, amount: number, _rec?: unknown, opts?: { idempotencyKey?: string | null }) => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await attemptRefund(userId, amount);
+        if (opts?.idempotencyKey) await voidKey(opts.idempotencyKey);
+        return true;
+      } catch { /* the real helper retries exactly once, loudly */ }
+    }
+    return false;
   }),
-  refundCredits: vi.fn(async () => undefined),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
-}));
+  };
+});
 
 import router, { __resetThumbnailReplayCache } from "../generate/thumbnail-generator";
 
@@ -157,6 +193,9 @@ beforeEach(() => {
   mockState.chargedKeys = new Set();
   mockState.chargeKeys = [];
   mockState.voids = [];
+  mockState.providerNotConfigured = false;
+  mockState.refundAttempts = 0;
+  mockState.refundFailuresRemaining = 0;
   __resetThumbnailReplayCache();
 });
 
@@ -329,5 +368,50 @@ describe("POST /api/thumbnail-generator — CA-KEY idempotency", () => {
     expect(retry.status).toBe(200);
     expect(retry.json.replayed).toBeUndefined();
     expect(mockState.userCredits).toBe(800); // the retry paid again
+  });
+});
+
+describe("POST /api/thumbnail-generator — charge-on-failure pins", () => {
+  it("a not-configured provider refuses 503 BEFORE any charge (the Nov 11 probe path)", async () => {
+    mockState.providerNotConfigured = true;
+    const { status, json } = await postBatch({ prompt: "Something cool" });
+    expect(status).toBe(503);
+    expect(json.error).toMatch(/OPENAI_API_KEY is not configured/);
+    expect(mockState.deductedCredits).toBeNull();
+    expect(mockState.chargeKeys).toHaveLength(0);
+    expect(mockState.imageGenerateCalls).toBe(0);
+    expect(mockState.userCredits).toBe(1000);
+  });
+
+  it("a refund that fails once still zeroes the charge via the guaranteed retry", async () => {
+    mockState.failOnVariation = 2;
+    mockState.refundFailuresRemaining = 1; // the first refund attempt throws
+    const { status, json } = await postBatch({ prompt: "Something cool" });
+    expect(status).toBe(500);
+    expect(json.creditsRefunded).toBe(true);
+    expect(mockState.refundAttempts).toBe(2); // retried exactly once
+    expect(mockState.refundedCredits).toBe(200);
+    expect(mockState.userCredits).toBe(1000); // zero net charge
+    expect(mockState.voids).toHaveLength(1); // voided because the refund landed
+  });
+
+  it("a refund that cannot land is reported honestly, the key stays landed, and the retry re-runs against the standing charge", async () => {
+    mockState.failOnVariation = 2;
+    mockState.refundFailuresRemaining = 99; // every refund attempt throws
+    const failed = await postBatch({ prompt: "Something cool" });
+    expect(failed.status).toBe(500);
+    expect(failed.json.creditsRefunded).toBe(false); // no false claim
+    expect(mockState.userCredits).toBe(800); // the charge honestly stands
+    expect(mockState.voids).toHaveLength(0); // never void an unrefunded key
+
+    mockState.refundFailuresRemaining = 0;
+    mockState.failOnVariation = -1;
+    const retry = await postBatch({ prompt: "Something cool" });
+    expect(retry.status).toBe(200);
+    expect(retry.json.replayed).toBeUndefined();
+    /* No second deduction: the retry ran against the standing charge. */
+    expect(mockState.userCredits).toBe(800);
+    expect(mockState.chargeKeys).toHaveLength(2);
+    expect(mockState.chargeKeys[0]).toBe(mockState.chargeKeys[1]);
   });
 });
