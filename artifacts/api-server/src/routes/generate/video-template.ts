@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -277,15 +278,14 @@ async function renderTemplateVideo(job: TemplateJob, input: ApplyInput): Promise
     job.error = message;
     setProgress(job, "failed", 100);
     /* Auto-refund: the user paid for a video they didn't get. */
-    const refunded = await refundCredits(job.userId, TEMPLATE_COST, {
+    /* Guaranteed refund (charge-on-failure lane): retried once on
+       failure, logged loudly, and the key voids inside the helper
+       only when the refund landed (CA-6). */
+    const refunded = await refundCreditsGuaranteed(job.userId, TEMPLATE_COST, {
       action: "Video Template — Refund",
-    }).then(() => true).catch((refundErr) => {
-      logger.error({ err: refundErr instanceof Error ? refundErr.message : refundErr }, "[video-template] refund failed");
-      return false;
-    });
+    }, { idempotencyKey: job.idempotencyKey });
     /* CA-6: a landed refund voids the key, so the retry re-charges. */
     if (refunded && job.idempotencyKey) {
-      await voidChargeIdempotencyKey(job.idempotencyKey).catch(() => false);
       await storeCompletedJobResult("video-template", job.idempotencyKey, job.userId, null);
     }
   } finally {

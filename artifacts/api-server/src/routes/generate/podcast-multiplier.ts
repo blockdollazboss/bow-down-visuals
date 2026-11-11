@@ -43,6 +43,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -459,17 +460,13 @@ router.post(
     }
 
     const failWithRefund = async (message: string): Promise<void> => {
-      const refunded = await refundCredits(req.userId!, PODCAST_MULTIPLIER_CREDITS, {
+      /* Guaranteed refund (charge-on-failure lane): retried once on
+         failure, logged loudly, and the key voids inside the helper
+         only when the refund landed — a refunded retry charges fresh;
+         an unrefunded key stays landed. */
+      await refundCreditsGuaranteed(req.userId!, PODCAST_MULTIPLIER_CREDITS, {
         action: "Podcast Multiplier — Refund (kit failed)",
-      }).then(() => true).catch((refundErr) => {
-        logger.error({ refundErr }, "podcast-multiplier: refund failed");
-        return false;
-      });
-      /* Void only when the refund landed — a refunded retry charges
-         fresh; an unrefunded key stays landed. */
-      if (refunded) {
-        await voidChargeIdempotencyKey(idempotencyKey).catch(() => {});
-      }
+      }, { idempotencyKey });
       await cleanup();
       res.status(502).json({ error: message });
     };

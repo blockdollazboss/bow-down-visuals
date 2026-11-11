@@ -8,6 +8,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -184,14 +185,13 @@ router.post("/thumb-background", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Thumbnail background generation failed.";
     req.log.error({ err: message }, "[thumb-background] failed");
-    let refunded = true;
-    await refundCredits(req.userId!, THUMB_BG_COST, {
+    /* Guaranteed refund (charge-on-failure lane): retried once on
+       failure, logged loudly, and the key voids inside the helper
+       only when the refund landed (CA-6) — the flag-and-catch form
+       this replaces gave a failed refund no retry and no trace. */
+    await refundCreditsGuaranteed(req.userId!, THUMB_BG_COST, {
       action: "Thumbnail Backgrounds — Refund",
-    }).catch(() => { refunded = false; });
-    /* CA-6: a landed refund voids the key, so the retry re-charges. */
-    if (refunded) {
-      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
-    }
+    }, { idempotencyKey });
     throw err;
   } finally {
     const { rm } = await import("fs/promises");

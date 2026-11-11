@@ -34,6 +34,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   LedgerWriteError,
   buildChargeIdempotencyKey,
@@ -537,9 +538,13 @@ export async function runTranslateJob(
       const perLang = Math.round(job.creditsCharged / job.outputs.length);
       const refundAmount = Math.min(job.creditsCharged, perLang * failedCount);
       if (refundAmount > 0) {
-        await refundCredits(job.userId, refundAmount, {
+        /* Guaranteed refund (charge-on-failure lane): retried once
+           on failure and logged at CRITICAL if it cannot land — the
+           log-only catch this replaces left a failed partial refund
+           with no second attempt. */
+        await refundCreditsGuaranteed(job.userId, refundAmount, {
           action: `AI Video Translator — Partial refund (${failedCount} language(s) failed)`,
-        }).catch((e) => logger.error({ e }, "video-translator: partial refund failed"));
+        });
       }
     }
   } catch (err) {

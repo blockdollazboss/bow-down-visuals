@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -432,18 +433,12 @@ async function renderSplitScreen(job: SplitScreenJob, input: ApplyInput): Promis
     setProgress(job, "failed", 100);
     /* Auto-refund: the user paid for a video they didn't get.
        CA-5: a landed refund also VOIDS the charge's idempotency key. */
-    const refunded = await refundCredits(job.userId, SPLIT_SCREEN_COST, {
+    /* Guaranteed refund (charge-on-failure lane): retried once on
+       failure, logged loudly, and the key voids inside the helper
+       only when the refund landed (CA-5). */
+    await refundCreditsGuaranteed(job.userId, SPLIT_SCREEN_COST, {
       action: "Split-Screen Grid — Refund",
-    }).then(() => true).catch((refundErr) => {
-      logger.error(
-        { err: refundErr instanceof Error ? refundErr.message : refundErr },
-        "[split-screen] refund failed",
-      );
-      return false;
-    });
-    if (refunded && job.chargeKey) {
-      await voidChargeIdempotencyKey(job.chargeKey).catch(() => false);
-    }
+    }, { idempotencyKey: job.chargeKey });
   } finally {
     await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }

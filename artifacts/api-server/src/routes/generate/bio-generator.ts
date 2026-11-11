@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";import { getTextModel } from "../../lib/ai-clients";
+import { chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError, buildChargeIdempotencyKey, voidChargeIdempotencyKey } from "../../lib/credits";import { getTextModel } from "../../lib/ai-clients";
 import {
   findStoredGenerationResult,
   storeGenerationResult,
@@ -277,12 +278,13 @@ async function runBioGeneration(
     // VOID the charge's idempotency key too — the void was missing here,
     // so a refunded attempt's retry was suppressed as a replay and the
     // regeneration ran FREE.
-    let refunded = true;
-    await refundCredits(userId, BIO_COST, {
+    /* Guaranteed refund (charge-on-failure lane): retried once on
+       failure, logged loudly, key voided inside the helper only when
+       the refund landed — the flag-and-catch form this replaces gave
+       a failed refund no retry and no trace. */
+    await refundCreditsGuaranteed(userId, BIO_COST, {
       action: `${opts.action} \u2014 Refund`,
-    }).catch(() => { refunded = false; });
-    if (refunded) {
-      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);    }
+    }, { idempotencyKey });
     throw err;
   }
 }

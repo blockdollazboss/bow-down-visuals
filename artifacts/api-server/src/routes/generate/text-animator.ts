@@ -10,6 +10,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
   voidChargeIdempotencyKey,
@@ -266,14 +267,13 @@ router.post("/animated-text", requireAuth, async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Animated text creation failed.";
     req.log.error({ err: message }, "[text-animator] failed");
-    let refunded = true;
-    await refundCredits(req.userId!, TEXT_ANIMATOR_COST, {
+    /* Guaranteed refund (charge-on-failure lane): retried once on
+       failure, logged loudly, and the key voids inside the helper
+       only when the refund landed (CA-6) — the flag-and-catch form
+       this replaces gave a failed refund no retry and no trace. */
+    await refundCreditsGuaranteed(req.userId!, TEXT_ANIMATOR_COST, {
       action: "Animated Text — Refund",
-    }).catch(() => { refunded = false; });
-    /* CA-6: a landed refund voids the key, so the retry re-charges. */
-    if (refunded) {
-      await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
-    }
+    }, { idempotencyKey });
     throw err;
   } finally {
     await unlink(outputPath).catch(() => {});

@@ -8,7 +8,8 @@ import { join } from "path";
 import { createHash, randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
-  chargeCredits, refundCredits, OutOfCreditsError,
+  chargeCredits, refundCredits,
+  refundCreditsGuaranteed, OutOfCreditsError,
   buildChargeIdempotencyKey, voidChargeIdempotencyKey,
 } from "../../lib/credits";
 import {
@@ -420,14 +421,14 @@ async function runJob(job: FreezeMaskJob, params: Record<string, unknown>, log: 
        refund already landed never refunds twice. */
     const claimed = await jobStore.claimRefund(job);
     if (claimed) {
-      /* Refund landed → VOID the charge's idempotency key (fire-and-forget
-         chain, response behavior unchanged): without the void a retry
-         would be suppressed as a replay and render free. */
-      await refundCredits(job.userId, job.cost, {
+      /* Guaranteed refund (charge-on-failure lane): retried once on
+         failure, logged loudly, and VOID the charge's idempotency key
+         inside the helper when the refund lands — without the void a
+         retry would be suppressed as a replay and render free. The
+         swallowed chain this replaces could lose both silently. */
+      await refundCreditsGuaranteed(job.userId, job.cost, {
         action: `${job.kind === "freeze-frame" ? "Freeze frame" : "Mask effect"} — Refund`,
-      })
-        .then(() => (job.chargeKey ? voidChargeIdempotencyKey(job.chargeKey) : undefined))
-        .catch(() => {});
+      }, { idempotencyKey: job.chargeKey });
     }
     job.status = "failed";
     job.error = message;

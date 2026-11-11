@@ -20,6 +20,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
   refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   LedgerWriteError,
   buildChargeIdempotencyKey,
@@ -261,16 +262,12 @@ router.post(
         throw new Error("ElevenLabs returned empty audio");
       }
     } catch (err) {
-      const refunded = await refundCredits(req.userId!, estimate.credits, {
+      /* Guaranteed refund (charge-on-failure lane): retried once on
+         failure, logged loudly, and the key voids inside the helper
+         only when the refund landed (CA-6). */
+      await refundCreditsGuaranteed(req.userId!, estimate.credits, {
         action: `${actionName} — Refund (provider failed)`,
-      }).then(() => true).catch((refundErr) => {
-        logger.error({ refundErr }, "voiceover: refund after provider failure failed");
-        return false;
-      });
-      /* CA-6: a landed refund voids the key, so the retry re-charges. */
-      if (refunded) {
-        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
-      }
+      }, { idempotencyKey });
       throw new ReplayShortCircuit(502, {
         error: "Voice generation failed — your Visual Bucs were refunded. Please try again.",
       });
@@ -282,16 +279,12 @@ router.post(
       upload = await uploadVoiceover(req.userId!, audioBytes, format);
     } catch (err) {
       logger.error({ err }, "voiceover: upload failed");
-      const refunded = await refundCredits(req.userId!, estimate.credits, {
+      /* Guaranteed refund (charge-on-failure lane): retried once on
+         failure, logged loudly, and the key voids inside the helper
+         only when the refund landed (CA-6). */
+      await refundCreditsGuaranteed(req.userId!, estimate.credits, {
         action: `${actionName} — Refund (upload failed)`,
-      }).then(() => true).catch((refundErr) => {
-        logger.error({ refundErr }, "voiceover: refund after upload failure failed");
-        return false;
-      });
-      /* CA-6: a landed refund voids the key, so the retry re-charges. */
-      if (refunded) {
-        await voidChargeIdempotencyKey(idempotencyKey).catch(() => false);
-      }
+      }, { idempotencyKey });
       throw new ReplayShortCircuit(502, {
         error: "Voice generated but upload failed — your Visual Bucs were refunded. Please try again.",
       });
