@@ -184,10 +184,11 @@ describe("crownfall: multiplayer score caps", () => {
     const duo = maxPlausibleScore("crownfall", 20_000, 2);
     expect(duo).toBeGreaterThan(solo);
     // The gap is exactly one extra floor's worth of the SHARED roster
-    // (100 depth + 27 coins × 25 + 11 kills × 10 + the combo growth
-    // from 66 → 77 max kills), not a doubling of the economy.
-    const combo = (k: number) => (k * (k - 1)) / 2;
-    expect(duo - solo).toBe(100 + 27 * 25 + 11 * 10 + (combo(77) - combo(66)));
+    // (100 depth + 110 coins × 25 + 24 kills × 10 + the combo bonus
+    // on 24 more kills at the ×5-capped 40 per kill), not a doubling
+    // of the economy. (join19: the shared roster is the v2 roster —
+    // 24 foes and up to 110 coins a floor.)
+    expect(duo - solo).toBe(100 + 110 * 25 + 24 * 10 + 24 * 40);
     expect(maxPlausibleScore("crownfall", 20_000, 1)).toBe(solo);
   });
 
@@ -197,8 +198,10 @@ describe("crownfall: multiplayer score caps", () => {
     expect(validateArcadeScore({ game: "crownfall", score: 10, durationMs: 5_000, players: 2.5 }).ok).toBe(false);
     expect(validateArcadeScore({ game: "runner", score: 10, durationMs: 5_000, players: 4 }).ok).toBe(true);
     // Solo submissions (no players field) validate exactly as before.
-    expect(validateArcadeScore({ game: "crownfall", score: 8_000, durationMs: 20_000 }).ok).toBe(false);
-    expect(validateArcadeScore({ game: "crownfall", score: 8_000, durationMs: 20_000, players: 2 }).ok).toBe(true);
+    // (join19 caps: at 20 s the solo cap is 24,300 and the duo cap is
+    // 28,350, so 26,000 is reachable only with party pacing.)
+    expect(validateArcadeScore({ game: "crownfall", score: 26_000, durationMs: 20_000 }).ok).toBe(false);
+    expect(validateArcadeScore({ game: "crownfall", score: 26_000, durationMs: 20_000, players: 2 }).ok).toBe(true);
   });
 
   it("the roster sanity cap matches the client's own foe construction", () => {
@@ -354,7 +357,8 @@ describe("crownfall rooms: floor sync", () => {
 
   it("rejects a forged roster (too many foes / impossible HP) and accepts the next honest one", () => {
     const { rooms, a, b } = startedRun();
-    const tooMany = Array.from({ length: 12 }, (_, i) => ({ id: i, type: "chaser", elite: false, maxHp: 26 }));
+    // join19: the v2 construction ceiling is 24 foes a floor — 25 is forged.
+    const tooMany = Array.from({ length: 25 }, (_, i) => ({ id: i, type: "chaser", elite: false, maxHp: 26 }));
     send(rooms, a, rosterFrame(tooMany));
     send(rooms, a, { type: "foe.hit", foeId: 0, dmg: 5, x: 0, y: 0 });
     expect(b.frames("foe.hp")).toHaveLength(0);
@@ -589,16 +593,17 @@ describe("crownfall scores: the receipt is the only party-size truth", () => {
 
   it("a party score validates only with the receipt — claims are ignored", async () => {
     const code = refereedDuoRun();
-    // 8,000 at 20 s is impossible solo (cap 7,455) but honest for a
-    // duo (cap 9,121) — see the caps tests above.
+    // 26,000 at 20 s is impossible solo (cap 24,300) but honest for a
+    // duo (cap 28,350) — see the caps tests above. (join19: caps
+    // recomputed on the v2 roster.)
     const withReceipt = await post("/arcade/scores", {
-      game: "crownfall", score: 8_000, durationMs: 20_000, roomId: code,
+      game: "crownfall", score: 26_000, durationMs: 20_000, roomId: code,
     });
     expect(withReceipt.status).toBe(200);
     expect(withReceipt.body.ok).toBe(true);
 
     const noReceipt = await post("/arcade/scores", {
-      game: "crownfall", score: 8_000, durationMs: 20_000,
+      game: "crownfall", score: 26_000, durationMs: 20_000,
     });
     expect(noReceipt.status).toBe(400);
     expect(noReceipt.body.error).toContain("not possible");
@@ -606,15 +611,15 @@ describe("crownfall scores: the receipt is the only party-size truth", () => {
     // A stranger with the room code has no receipt: solo caps apply.
     h.userId = THIRD;
     const stranger = await post("/arcade/scores", {
-      game: "crownfall", score: 8_000, durationMs: 20_000, roomId: code,
+      game: "crownfall", score: 26_000, durationMs: 20_000, roomId: code,
     });
     expect(stranger.status).toBe(400);
     h.userId = ME;
 
     // Claiming a party of 4 does not widen past the receipt's 2:
-    // 9,500 fits a 4-player cap (10,908) but not the duo cap (9,121).
+    // 30,000 fits a 4-player cap (32,400) but not the duo cap (28,350).
     const inflated = await post("/arcade/scores", {
-      game: "crownfall", score: 9_500, durationMs: 20_000, roomId: code, partySize: 4,
+      game: "crownfall", score: 30_000, durationMs: 20_000, roomId: code, partySize: 4,
     });
     expect(inflated.status).toBe(400);
   });

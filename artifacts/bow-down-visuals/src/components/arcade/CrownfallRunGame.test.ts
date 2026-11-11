@@ -397,9 +397,12 @@ describe("crownfall v2: difficulty ramp + new threats", () => {
   it("the boss gains a pattern per cycle: summons (2+), spread (3+)", () => {
     const boss = slice('} else if (e.type === "boss") {', "/* gentle separation");
     expect(boss).toContain("crownfallBossCycle(g.depth)");
-    expect(boss).toContain("if (cycle >= 2 && e.summons < 2)");
+    /* join19: summons are solo-only (the MP referee has no summon
+       registration), so the cycle gate carries the g.mp guard */
+    expect(boss).toContain("if (!g.mp && cycle >= 2 && e.summons < 2)");
     expect(boss).toContain("g.spawnQueue.push(\"chaser\")");
-    expect(boss).toContain("if (cycle >= 3) { enemyShoot(g, e, 285, 12, 0.3);");
+    /* join19: boss bolts aim at the party target (T.x, T.y) */
+    expect(boss).toContain("if (cycle >= 3) { enemyShoot(g, e, 285, 12, 0.3, T.x, T.y);");
     /* summons are capped: two waves, at most 3 per wave (cycle 4+) */
     expect(boss).toContain("const perWave = cycle >= 4 ? 3 : 2;");
   });
