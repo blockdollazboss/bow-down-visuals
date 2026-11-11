@@ -4777,6 +4777,11 @@
     "title": "인트로 & 아웃트로"
   },
   "jewelry": {
+    "catalogLoadFailed": "The studio catalog couldn’t load — the design options and prices below aren’t live yet.",
+    "catalogLoading": "Loading the studio catalog…",
+    "catalogLoadingNote": "The pieces, metals, stones and prices ride this catalog — they appear the moment it lands.",
+    "catalogRetry": "Try again",
+    "hubLogoFailed": "That logo couldn’t be loaded. Upload the file instead — it lands in the same place.",
     "aiPreview": "AI 미리보기",
     "apparel": "의류",
     "apparelBlurb": "티셔츠, 후드티, 모자…",

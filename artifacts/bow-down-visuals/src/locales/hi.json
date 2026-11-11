@@ -4777,6 +4777,11 @@
     "title": "परिचय और आउटरो"
   },
   "jewelry": {
+    "catalogLoadFailed": "The studio catalog couldn’t load — the design options and prices below aren’t live yet.",
+    "catalogLoading": "Loading the studio catalog…",
+    "catalogLoadingNote": "The pieces, metals, stones and prices ride this catalog — they appear the moment it lands.",
+    "catalogRetry": "Try again",
+    "hubLogoFailed": "That logo couldn’t be loaded. Upload the file instead — it lands in the same place.",
     "aiPreview": "AI प्रीव्यू",
     "apparel": "परिधान",
     "apparelBlurb": "टी-शर्ट, हुडी, कैप…",
