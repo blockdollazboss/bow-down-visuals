@@ -213,10 +213,11 @@ export default function InspoTab({
 
   async function deletePreset(id: string) {
     try {
-      await fetch(`/api/song-inspo/presets/${id}`, { method: "DELETE", headers: await authHeaders() });
+      const res = await fetch(`/api/song-inspo/presets/${id}`, { method: "DELETE", headers: await authHeaders() });
+      if (!res.ok) throw new Error("delete preset failed");
       setPresets((p) => p.filter((x) => x.id !== id));
     } catch {
-      /* best-effort */
+      toast({ title: "Delete failed", description: "That vibe is still in My Vibes — try again.", variant: "destructive" });
     }
   }
 
