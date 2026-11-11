@@ -17861,6 +17861,8 @@
     "mashupFailed": "Mashup fehlgeschlagen.",
     "mashupNeedsTwo": "Ein Mashup braucht zwei Songs in deiner Bibliothek — erstelle oder lade zuerst Songs hoch und blende sie dann hier.",
     "mashupNoAudio": "Das Mashup kam ohne Audio zurück — nichts zum Abspielen.",
+    "mashupLoadFailed": "Your song library couldn’t load — your songs are safe, the mashup just can’t reach them. Try reopening the bench.",
+    "mashupRetry": "Try again",
     "mashupRun": "Sie blenden · {{cost}} Visual Bucs",
     "mashupTitleLabel": "Mashup-Titel",
     "maxBpmAria": "Max BPM",

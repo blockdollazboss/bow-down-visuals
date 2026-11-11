@@ -222,6 +222,8 @@ export function SongMashupBench({ isLight }: { isLight: boolean }) {
   const authHeaders = useDeskAuthHeaders();
   const quest = useQuestProgressChip();
   const [songs, setSongs] = useState<LibrarySong[] | null>(null);
+  const [songsFailed, setSongsFailed] = useState(false);
+  const [songTick, setSongTick] = useState(0);
   const [songA, setSongA] = useState("");
   const [songB, setSongB] = useState("");
   const [style, setStyle] = useState("blend");
@@ -237,16 +239,24 @@ export function SongMashupBench({ isLight }: { isLight: boolean }) {
     (async () => {
       try {
         const list = await fetchLibrarySongs(getAccessToken);
-        if (!cancelled) setSongs(list);
+        if (!cancelled) {
+          setSongs(list);
+          setSongsFailed(false);
+        }
       } catch {
-        if (!cancelled) setSongs([]);
+        /* The seam throws on failure BY DESIGN ("callers show an
+           honest error state, never a fake empty library") — a
+           failed read is NOT "fewer than two songs": flag it so the
+           bench renders the failure line + retry, not the
+           make-songs-first copy. */
+        if (!cancelled) setSongsFailed(true);
       }
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [songTick]);
 
   const run = async () => {
     if (busy || !songA || !songB || songA === songB) return;
@@ -278,6 +288,13 @@ export function SongMashupBench({ isLight }: { isLight: boolean }) {
     <div data-testid="world-song-mashup-bench" className="space-y-3">
       {songs === null ? (
         <p className={`inline-flex items-center gap-2 text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("worldAudioDesk.openingSongLibrary")}</p>
+      ) : songsFailed ? (
+        <p className={`flex flex-wrap items-center gap-2 text-xs font-semibold ${isLight ? "text-[#92600a]" : "text-amber-300"}`} data-testid="world-song-mashup-load-error">
+          {t("worldAudioDesk.mashupLoadFailed")}
+          <button type="button" onClick={() => { setSongs(null); setSongTick((n) => n + 1); }} className={tabBtn(isLight, false)}>
+            {t("worldAudioDesk.mashupRetry")}
+          </button>
+        </p>
       ) : songs.length < 2 ? (
         <p className={`text-xs ${isLight ? "text-[#6B5B36]" : "text-white/50"}`}>{t("worldAudioDesk.mashupNeedsTwo")}</p>
       ) : (

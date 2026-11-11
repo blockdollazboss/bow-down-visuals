@@ -17861,6 +17861,8 @@
     "mashupFailed": "매시업에 실패했어요.",
     "mashupNeedsTwo": "매시업에는 라이브러리에 곡 두 개가 필요해요 — 먼저 곡을 만들거나 올린 뒤 여기서 블렌드해 보세요.",
     "mashupNoAudio": "매시업이 오디오 없이 돌아왔어요 — 재생할 게 없어요.",
+    "mashupLoadFailed": "Your song library couldn’t load — your songs are safe, the mashup just can’t reach them. Try reopening the bench.",
+    "mashupRetry": "Try again",
     "mashupRun": "블렌드하기 · {{cost}} Visual Bucs",
     "mashupTitleLabel": "매시업 제목",
     "maxBpmAria": "최대 BPM",

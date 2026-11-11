@@ -17857,6 +17857,8 @@
     "mashupFailed": "マッシュアップに失敗しました。",
     "mashupNeedsTwo": "マッシュアップにはライブラリに二曲必要です — まず曲を作るかアップロードして、ここでブレンドしてください。",
     "mashupNoAudio": "マッシュアップがオーディオなしで返ってきました — 再生するものがありません。",
+    "mashupLoadFailed": "Your song library couldn’t load — your songs are safe, the mashup just can’t reach them. Try reopening the bench.",
+    "mashupRetry": "Try again",
     "mashupRun": "ブレンドする · {{cost}} Visual Bucs",
     "mashupTitleLabel": "マッシュアップタイトル",
     "maxBpmAria": "最大BPM",

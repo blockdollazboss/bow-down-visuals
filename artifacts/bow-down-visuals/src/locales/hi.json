@@ -17861,6 +17861,8 @@
     "mashupFailed": "मैशअप विफल रहा।",
     "mashupNeedsTwo": "मैशअप के लिए आपकी लाइब्रेरी में दो गाने चाहिए — पहले गाने बनाएँ या अपलोड करें, फिर यहाँ ब्लेंड करें।",
     "mashupNoAudio": "मैशअप बिना ऑडियो लौटा — बजाने को कुछ नहीं।",
+    "mashupLoadFailed": "Your song library couldn’t load — your songs are safe, the mashup just can’t reach them. Try reopening the bench.",
+    "mashupRetry": "Try again",
     "mashupRun": "उन्हें ब्लेंड करें · {{cost}} Visual Bucs",
     "mashupTitleLabel": "मैशअप शीर्षक",
     "maxBpmAria": "अधिकतम BPM",

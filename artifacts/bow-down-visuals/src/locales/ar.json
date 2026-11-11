@@ -17953,6 +17953,8 @@
     "mashupFailed": "فشل الماش أب.",
     "mashupNeedsTwo": "يحتاج الماش أب إلى أغنيتين في مكتبتك — اصنع أو ارفع أغاني أولاً، ثم امزجهما هنا.",
     "mashupNoAudio": "عاد الماش أب دون صوت — لا شيء للتشغيل.",
+    "mashupLoadFailed": "Your song library couldn’t load — your songs are safe, the mashup just can’t reach them. Try reopening the bench.",
+    "mashupRetry": "Try again",
     "mashupRun": "امزجهما · {{cost}} Visual Bucs",
     "mashupTitleLabel": "عنوان الماش أب",
     "maxBpmAria": "الحد الأقصى BPM",

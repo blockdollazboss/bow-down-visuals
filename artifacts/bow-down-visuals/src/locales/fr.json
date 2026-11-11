@@ -17884,6 +17884,8 @@
     "mashupFailed": "Le mashup a échoué.",
     "mashupNeedsTwo": "Un mashup a besoin de deux chansons dans ta bibliothèque — crée ou téléverse des chansons d’abord, puis fonds-les ici.",
     "mashupNoAudio": "Le mashup est revenu sans audio — rien à jouer.",
+    "mashupLoadFailed": "Your song library couldn’t load — your songs are safe, the mashup just can’t reach them. Try reopening the bench.",
+    "mashupRetry": "Try again",
     "mashupRun": "Les fondre · {{cost}} Visual Bucs",
     "mashupTitleLabel": "Titre du mashup",
     "maxBpmAria": "BPM max",

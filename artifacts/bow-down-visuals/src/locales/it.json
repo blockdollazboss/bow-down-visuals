@@ -17884,6 +17884,8 @@
     "mashupFailed": "Mashup fallito.",
     "mashupNeedsTwo": "Un mashup ha bisogno di due brani nella tua libreria — prima crea o carica brani, poi fondili qui.",
     "mashupNoAudio": "Il mashup è tornato senza audio — niente da riprodurre.",
+    "mashupLoadFailed": "Your song library couldn’t load — your songs are safe, the mashup just can’t reach them. Try reopening the bench.",
+    "mashupRetry": "Try again",
     "mashupRun": "Fondili · {{cost}} Visual Bucs",
     "mashupTitleLabel": "Titolo del mashup",
     "maxBpmAria": "BPM max",
