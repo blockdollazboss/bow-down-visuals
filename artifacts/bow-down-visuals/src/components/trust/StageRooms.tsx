@@ -29,6 +29,10 @@ export function StageRooms() {
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/stage-rooms");
+      /* An error body used to parse as "no rooms" — the house error
+         shape is JSON, so a failed load landed on the empty list
+         ("No rooms are open right now") instead of the error line. */
+      if (!res.ok) throw new Error("rooms load failed");
       const j = await res.json();
       setRooms(j.rooms ?? []);
     } catch { setErr("Could not load rooms."); }

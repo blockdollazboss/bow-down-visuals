@@ -75,6 +75,11 @@ export default function JewelryStudio() {
      user never has to download and re-upload their own logo. */
   const hubLogos = (project.assets ?? []).filter((a) => a.kind === "image" && a.meta?.logo === "true");
   const [catalog, setCatalog] = useState<Catalog | null>(null);
+  /* The design step + every price line ride the catalog. A failed
+     catalog load must never dress up as a studio standing on made-up
+     defaults, so the failure gets its own state + line + retry. */
+  const [catalogFailed, setCatalogFailed] = useState(false);
+  const [catalogTick, setCatalogTick] = useState(0);
   const [step, setStep] = useState(0);
   const [category, setCategory] = useState<"jewelry" | "apparel">("jewelry");
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -108,15 +113,29 @@ export default function JewelryStudio() {
 
   /* Load public catalog + guide once. */
   useEffect(() => {
-    fetch("/api/jewelry/status").then((r) => r.json()).then((d) => {
-      setCatalog(d);
-      if (d.defaults) {
-        setJOpts(d.defaults.jewelry);
-        setAOpts(d.defaults.apparel);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/jewelry/status");
+        if (!res.ok) throw new Error("catalog load failed");
+        const d = (await res.json()) as Catalog;
+        if (!d || typeof d !== "object" || !d.pieces) throw new Error("catalog load failed");
+        if (cancelled) return;
+        setCatalog(d);
+        setCatalogFailed(false);
+        if (d.defaults) {
+          setJOpts(d.defaults.jewelry);
+          setAOpts(d.defaults.apparel);
+        }
+      } catch {
+        if (!cancelled) setCatalogFailed(true);
       }
-    }).catch(() => {});
+    })();
     fetch("/api/jewelry/guide").then((r) => r.json()).then((d) => setGuide(d.sections ?? [])).catch(() => {});
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [catalogTick]);
 
   useEffect(() => {
     consultEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -341,6 +360,15 @@ export default function JewelryStudio() {
             <span>{error}</span>
           </div>
         )}
+        {catalogFailed && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-red-500/40 bg-red-950/40 p-4 text-sm text-red-200" data-testid="jewelry-catalog-failed">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>{t("jewelry.catalogLoadFailed")}</span>
+            <button type="button" className="font-bold underline underline-offset-2" onClick={() => setCatalogTick((n) => n + 1)}>
+              {t("jewelry.catalogRetry")}
+            </button>
+          </div>
+        )}
         {outOfCredits && (
           <div className="mb-4"><OutOfCredits onClose={() => setOutOfCredits(false)} /></div>
         )}
@@ -389,10 +417,15 @@ export default function JewelryStudio() {
                       onClick={async () => {
                         try {
                           const res = await fetch(l.url);
+                          if (!res.ok) throw new Error("logo fetch failed");
                           const blob = await res.blob();
                           const f = new File([blob], "logo.png", { type: blob.type || "image/png" });
                           onLogoPicked(f);
-                        } catch { /* fetch failed — user can upload manually */ }
+                        } catch {
+                          /* A failed hub-logo pick must SAY so — silence
+                             here reads as a dead button. */
+                          setError(t("jewelry.hubLogoFailed"));
+                        }
                       }}
                       className="h-16 w-16 overflow-hidden rounded-xl border border-[#C9A84C]/30 hover:border-[#DDBB62] transition"
                       title={l.label}
@@ -420,7 +453,19 @@ export default function JewelryStudio() {
           </div>
         )}
 
-        {/* ── STEP 2: DESIGN ── */}
+        {/* ── STEP 2: DESIGN — gated on the catalog: while it is still
+            loading (or failed) the step says so; the option grids only
+            ever render from a real loaded catalog. */}
+        {step === 1 && !catalog && (
+          <div className={`${card} mx-auto max-w-2xl text-center`}>
+            <div className="flex items-center justify-center gap-2 text-[#E8CE7A]">
+              <Loader2 className="h-5 w-5 animate-spin" /> {t("jewelry.catalogLoading")}
+            </div>
+            <p className={`${isLight ? "mt-2 text-sm text-[#6B5B36]" : "mt-2 text-sm text-zinc-400"}`}>
+              {t("jewelry.catalogLoadingNote")}
+            </p>
+          </div>
+        )}
         {step === 1 && catalog && (
           <div className={card}>
             <h2 className={`${isLight ? "text-xl font-bold text-[#7A5A12]" : "text-xl font-bold text-[#E3C566]"}`}>

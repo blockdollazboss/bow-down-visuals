@@ -73,22 +73,27 @@ export default function MerchDropPlanner() {
 
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
   const [loadingSaved, setLoadingSaved] = useState(true);
+  const [savedFailed, setSavedFailed] = useState(false);
+  const [savedTick, setSavedTick] = useState(0);
 
   useEffect(() => {
     (async () => {
+      setLoadingSaved(true);
       try {
         const res = await fetch("/api/wave8/merch-drop/plans", { credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          setSavedPlans(data.plans ?? []);
-        }
+        if (!res.ok) throw new Error("saved plans failed");
+        const data = await res.json();
+        setSavedPlans(data.plans ?? []);
+        setSavedFailed(false);
       } catch {
-        /* non-fatal */
+        /* A failed load must never read as "no saved plans" — the member
+         * may well have some; say it failed and offer the retry instead. */
+        setSavedFailed(true);
       } finally {
         setLoadingSaved(false);
       }
     })();
-  }, []);
+  }, [savedTick]);
 
   async function handlePlan() {
     setError(null);
@@ -372,6 +377,17 @@ export default function MerchDropPlanner() {
             <div className="flex items-center gap-2 text-sm text-white/40">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
+          ) : savedFailed ? (
+            <p className="flex items-center gap-2 text-sm text-red-300">
+              {t("wave8.merchDrop.errors.loadFailed")}
+              <button
+                type="button"
+                onClick={() => setSavedTick((n) => n + 1)}
+                className="font-bold underline underline-offset-2 hover:text-red-200 transition"
+              >
+                {t("common.retry")}
+              </button>
+            </p>
           ) : savedPlans.length === 0 ? (
             <p className="text-sm text-white/35">{t("wave8.merchDrop.savedEmpty")}</p>
           ) : (

@@ -27,6 +27,8 @@ export function DiscordAnnounceModal({ open, onClose, videoUrl, videoTitle }: Pr
   const [title, setTitle] = useState(videoTitle || "Fresh heat just dropped 🔥");
   const [mentionEveryone, setMentionEveryone] = useState(false);
   const [configured, setConfigured] = useState<boolean | null>(null);
+  const [statusFailed, setStatusFailed] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,19 +39,27 @@ export function DiscordAnnounceModal({ open, onClose, videoUrl, videoTitle }: Pr
     setSent(false);
     setError(null);
     (async () => {
-      const token = await getAccessToken();
-      const res = await fetch("/api/discord/status", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (res.ok) {
-        const s = await res.json();
-        setConfigured(s.configured);
-        setMentionEveryone(s.mention_everyone);
-      } else {
-        setConfigured(false);
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/discord/status", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const s = await res.json();
+          setConfigured(s.configured);
+          setMentionEveryone(s.mention_everyone);
+          setStatusFailed(false);
+        } else {
+          /* A failed check is NOT "no webhook connected" — the modal
+             used to assert exactly that and hide the form. It lands
+             on the statusFailed branch below instead. */
+          setStatusFailed(true);
+        }
+      } catch {
+        setStatusFailed(true);
       }
     })();
-  }, [open, videoTitle, getAccessToken]);
+  }, [open, videoTitle, getAccessToken, retryNonce]);
 
   if (!open) return null;
 
@@ -93,7 +103,19 @@ export function DiscordAnnounceModal({ open, onClose, videoUrl, videoTitle }: Pr
           </button>
         </div>
 
-        {configured === false && (
+        {statusFailed && (
+          <div className="rounded-xl border border-red-400/30 bg-red-400/[0.06] p-3.5 flex items-start gap-2.5 text-sm">
+            <AlertTriangle className="h-4.5 w-4.5 text-red-300 shrink-0 mt-0.5" />
+            <p className="text-white/60">
+              Couldn&apos;t check your Discord connection — your webhook may already be connected, this just couldn&apos;t reach it.{" "}
+              <button type="button" onClick={() => setRetryNonce((n) => n + 1)} className="text-amber-300 underline underline-offset-2">
+                Try again
+              </button>
+            </p>
+          </div>
+        )}
+
+        {!statusFailed && configured === false && (
           <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-3.5 flex items-start gap-2.5 text-sm">
             <AlertTriangle className="h-4.5 w-4.5 text-amber-300 shrink-0 mt-0.5" />
             <p className="text-white/60">
@@ -104,7 +126,7 @@ export function DiscordAnnounceModal({ open, onClose, videoUrl, videoTitle }: Pr
           </div>
         )}
 
-        {configured !== false && (
+        {!statusFailed && configured !== false && (
           <>
             <label className="block">
               <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Announcement title</span>

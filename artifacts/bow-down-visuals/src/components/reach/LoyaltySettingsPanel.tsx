@@ -22,6 +22,7 @@ export default function LoyaltySettingsPanel() {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [state, setState] = useState<LoyaltyState | null>(null);
   const [queue, setQueue] = useState<Array<{ id: string; perkLabel: string; pointsCost: number; status: string }>>([]);
+  const [queueFailed, setQueueFailed] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [form, setForm] = useState({ enabled: true, watch: 10, chat: 2, tip: 5, customLabel: "", customCost: 1000 });
   /* Stack-28 #32 / A3-F11: the panel now carries loading + error
@@ -40,8 +41,12 @@ export default function LoyaltySettingsPanel() {
       setLoyaltyLoading(true);
       setLoadError(null);
       /* The queue settles on its own first: a loyalty failure must
-         leave the redemption queue working (per-section law). */
-      const q = await reachApi.redemptionQueue(getAccessToken, pid).catch((): { redemptions: Array<{ id: string; userId: string; perkLabel: string; pointsCost: number; status: string; createdAt: string | null }> } => ({ redemptions: [] }));
+         leave the redemption queue working (per-section law). A
+         QUEUE failure marks its own section failed — it used to
+         fall back to an empty list, so the render asserted
+         "Nothing waiting" over redemptions it never loaded. */
+      setQueueFailed(false);
+      const q = await reachApi.redemptionQueue(getAccessToken, pid).catch((): { redemptions: Array<{ id: string; userId: string; perkLabel: string; pointsCost: number; status: string; createdAt: string | null }> } => { setQueueFailed(true); return { redemptions: [] }; });
       /* Guard (DTO batch #2): a success payload missing the list is the
          honest empty queue — the raw .filter used to throw inside load(). */
       setQueue(pendingRedemptionsFromPayload(q));
@@ -205,7 +210,9 @@ export default function LoyaltySettingsPanel() {
         {state && <p className="mt-2 text-xs text-white/40">Perks on your menu: {state.perks.map((p) => `${p.label} (${p.cost})`).join(" · ")}</p>}
 
         <h3 className="mt-6 text-sm font-black uppercase tracking-wider text-white/70">Redemption queue</h3>
-        {queue.length === 0 ? (
+        {queueFailed ? (
+          <p className="mt-2 text-sm text-red-300">The redemption queue couldn&apos;t load — redemptions may be waiting. Reopen this panel in a moment to try again.</p>
+        ) : queue.length === 0 ? (
           <p className="mt-2 text-sm text-white/40">Nothing waiting. When a fan redeems a perk it lands here.</p>
         ) : (
           <ul className="mt-2 space-y-2">

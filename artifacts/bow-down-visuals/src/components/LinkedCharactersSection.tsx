@@ -42,6 +42,7 @@ export function LinkedCharactersSection({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [linkError, setLinkError] = useState(false);
   const [selectedId, setSelectedId] = useState("");
   const [selectedRole, setSelectedRole] = useState("collaborator");
 
@@ -78,6 +79,7 @@ export function LinkedCharactersSection({
   async function handleLink() {
     if (!selectedId || linking) return;
     setLinking(true);
+    setLinkError(false);
     try {
       const token = await getAccessToken();
       const res = await fetch(`/api/artist-vaults/${vault.id}/links`, {
@@ -91,7 +93,14 @@ export function LinkedCharactersSection({
       if (res.ok) {
         setSelectedId("");
         await load();
+      } else {
+        /* A failed link used to say nothing at all — the spinner just
+           stopped and the cast looked unchanged by choice. The pick
+           stays put and the failure line below says it didn't land. */
+        setLinkError(true);
       }
+    } catch {
+      setLinkError(true);
     } finally {
       setLinking(false);
     }
@@ -226,6 +235,12 @@ export function LinkedCharactersSection({
             Link
           </button>
         </div>
+      )}
+
+      {linkError && (
+        <p className="mt-2 text-xs text-red-300" data-testid="link-error">
+          Couldn&apos;t link that character — they&apos;re not in the cast yet. Try again.
+        </p>
       )}
     </div>
   );

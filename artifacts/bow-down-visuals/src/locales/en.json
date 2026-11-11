@@ -2021,6 +2021,7 @@
     "sendToMixMaster": "Send to Mix & Master",
     "newPolish": "New polish",
     "errorStartFailed": "Could not start the vocal polish.",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "Vocal polish failed — your {{cost}} Visual Bucs were refunded.",
     "errorJobNotFound": "Job not found",
     "errorNetwork": "Network error — please try again.",
@@ -5038,6 +5039,11 @@
     "title": "Intros & Outros"
   },
   "jewelry": {
+    "catalogLoadFailed": "The studio catalog couldn’t load — the design options and prices below aren’t live yet.",
+    "catalogLoading": "Loading the studio catalog…",
+    "catalogLoadingNote": "The pieces, metals, stones and prices ride this catalog — they appear the moment it lands.",
+    "catalogRetry": "Try again",
+    "hubLogoFailed": "That logo couldn’t be loaded. Upload the file instead — it lands in the same place.",
     "aiPreview": "Preview",
     "apparel": "Apparel",
     "apparelBlurb": "Tees, hoodies, caps…",
@@ -9225,7 +9231,9 @@
     "voiceRequiredError": "Pick a voice first.",
     "voiceTitle": "Voice",
     "voiceoverFallback": "Voiceover",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "Couldn't load voices — check your connection and refresh.",
+    "voicesRetry": "Try again",
     "wavNote": "WAV is lossless — better for mixing under video.",
     "wordCount": "{{count}} words"
   },
@@ -9553,6 +9561,9 @@
       "planFailed": "Release plan failed — try again."
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "Copy",
     "copied": "Copied",
@@ -9670,6 +9681,7 @@
       "mailBody": "Hi {{brand}},\n\nPlease find attached invoice {{number}} for {{total}}, due {{due}}.\n\nPayment details: {{payment}}\n\nThanks,\n{{creator}}",
       "listTitle": "Your invoices",
       "listEmpty": "No invoices yet — generate your first one above.",
+      "listFailed": "Your invoices couldn't load just now.",
       "markPaid": "Mark paid",
       "markUnpaid": "Mark unpaid",
       "paid": "Paid",
@@ -10733,6 +10745,7 @@
     },
     "voicePicker": {
       "error": "Couldn't load voices — check your connection and refresh.",
+      "empty": "No voices are available right now.",
       "loading": "Loading voices…",
       "previewAria": "Preview {{name}}"
     },
@@ -13686,6 +13699,7 @@
       "lyricsPlaceholder": "Paste your lyrics so the AI can map them to sections…",
       "namePlaceholder": "Name this structure…",
       "noSaved": "No saved structures yet.",
+      "loadError": "Couldn't load your saved structures — they may still be there.",
       "remove": "Remove section",
       "save": "Save",
       "saveError": "Could not save this structure.",
@@ -14606,7 +14620,9 @@
     "outOfCredits": "Not enough Visual Bucs for singing-voice conversion (800).",
     "startFailed": "Could not start conversion.",
     "failedRefunded": "Conversion failed — credits refunded.",
-    "notConfiguredError": "Singing-voice conversion isn't connected yet."
+    "notConfiguredError": "Singing-voice conversion isn't connected yet.",
+    "pollFailed": "Couldn't check the conversion — please try again.",
+    "doneNoResult": "The conversion finished without a result — please try again."
   },
   "headshotStudio": {
     "eyebrow": "Profile pics",
@@ -15066,6 +15082,7 @@
     "errorNetwork": "Network error — please try again.",
     "errorStartFailed": "Couldn't start tuning. Please try again.",
     "errorTuneFailed": "Tuning failed — your Visual Bucs were refunded.",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} MB — tap to change",
     "hardtuneFallbackNote": "Note-level tracking couldn't lock onto this audio, so we applied a gentle global tune instead — no charge difference, and your Bucs were still only spent once.",
     "honestIntro": "Real pitch DSP, no AI guessing. Works best on isolated vocals — on a full mix it follows the strongest pitched sound. It can't fix a wrong melody, only pull sung notes toward the right pitch.",
@@ -17835,6 +17852,8 @@
     "mashupFailed": "Mashup failed.",
     "mashupNeedsTwo": "A mashup needs two songs in your library — make or upload songs first, then blend them here.",
     "mashupNoAudio": "The mashup came back without audio — nothing to play.",
+    "mashupLoadFailed": "Your song library couldn’t load — your songs are safe, the mashup just can’t reach them. Try reopening the bench.",
+    "mashupRetry": "Try again",
     "mashupRun": "Blend them · {{cost}} Visual Bucs",
     "mashupTitleLabel": "Mashup title",
     "maxBpmAria": "Max BPM",
@@ -18124,6 +18143,7 @@
     "voiceLabel": "Voice",
     "voiceoverScriptLabel": "Voiceover script",
     "voicesLoading": "Voices loading…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "The full workbench — mix & master, stems, arrangement and the voice benches — is docked right below.",
     "workingBtn": "Working…",
     "workingLabel": "Working…",
@@ -21208,6 +21228,8 @@
     "schedUpdatedNote": "Stream updated — the new plan is below and the old one is cancelled.",
     "schedCreatedNote": "Scheduled — it shows in your upcoming streams here and on the website's Go Live page.",
     "schedSaveFailed": "That stream couldn't be scheduled.",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "\"{{title}}\" is cancelled.",
     "schedLoadFailed": "Your streams couldn't load.",
     "schedLoading": "Loading your streams…",
@@ -23128,6 +23150,7 @@
     "porMembershipFallback": "Membership",
     "porMemberships": "Memberships",
     "porMembershipsEmpty": "No memberships on offer right now.",
+    "porSummaryLoadFailed": "Couldn't load this list — the creator's page is fine, this part just didn't come through.",
     "porOnJukebox": "On the jukebox",
     "porPerMonthSuffix": " / month",
     "porPlay": "Play",
@@ -24596,6 +24619,7 @@
     "copStreamDesk": "Stream desk",
     "copStreamTitleLabel": "Stream title *",
     "copStreamsLoadFailed": "Couldn't load your streams",
+    "copDeskLoadFailed": "This stream's desk couldn't load.",
     "copTabClips": "Post-Stream Clips",
     "copTabPrep": "Pre-Stream Prep",
     "copTalkingPoints": "Talking points",

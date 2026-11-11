@@ -46,6 +46,8 @@ export default function VaultDripSection() {
 
   const [songs, setSongs] = useState<SongRecord[]>([]);
   const [loadingSongs, setLoadingSongs] = useState(true);
+  const [songsFailed, setSongsFailed] = useState(false);
+  const [songsRetry, setSongsRetry] = useState(0);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [cadenceDays, setCadenceDays] = useState("3");
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -56,20 +58,26 @@ export default function VaultDripSection() {
 
   useEffect(() => {
     (async () => {
+      setSongsFailed(false);
       try {
         const token = await getAccessToken();
         const res = await fetch("/api/songs", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
+        if (!res.ok) throw new Error("songs load failed");
         const data = (await res.json().catch(() => ({}))) as { songs?: SongRecord[] };
         setSongs(data.songs ?? []);
       } catch {
-        /* empty state */
+        /* A failed load used to fall into the empty-vault state —
+           "No songs in your vault yet" asserted as fact. It now
+           lands on the failed branch: the songs are not claimed
+           absent, and the retry re-runs the real load. */
+        setSongsFailed(true);
       } finally {
         setLoadingSongs(false);
       }
     })();
-  }, [getAccessToken]);
+  }, [getAccessToken, songsRetry]);
 
   function togglePick(id: string) {
     setPicked((prev) => {
@@ -156,6 +164,19 @@ export default function VaultDripSection() {
         {loadingSongs ? (
           <div className="flex items-center gap-2 text-white/40 text-sm py-8">
             <Loader2 className="h-4 w-4 animate-spin" /> {t("vaultDrip.loading", { defaultValue: "Loading your vault…" })}
+          </div>
+        ) : songsFailed ? (
+          <div className="py-8 text-center">
+            <p className="text-sm text-red-300">
+              {t("vaultDrip.loadFailed", { defaultValue: "Your vault couldn't load just now — your songs are safe, this page just couldn't reach them." })}
+            </p>
+            <button
+              type="button"
+              onClick={() => { setLoadingSongs(true); setSongsRetry((n) => n + 1); }}
+              className="mt-3 rounded-full border border-white/15 px-4 py-1.5 text-xs font-semibold text-white/80 hover:border-white/35"
+            >
+              {t("vaultDrip.retry", { defaultValue: "Try again" })}
+            </button>
           </div>
         ) : songs.length === 0 ? (
           <p className="text-sm text-white/45 py-8 text-center">

@@ -135,6 +135,10 @@ export default function LightningSetup({
     debounceRef.current = window.setTimeout(async () => {
       try {
         const res = await fetch(`/api/creator-profiles/check-slug?slug=${encodeURIComponent(slug)}`);
+        /* A failed check proves nothing about the slug: fall back
+           to idle (Continue stays blocked) — never let an error
+           body fall through to the "taken" verdict below. */
+        if (!res.ok) { setSlugState("idle"); return; }
         const data = await res.json();
         /* valid:false means the slug itself can't be used (too short,
            bad edges) — the server sends the real reason; show it instead

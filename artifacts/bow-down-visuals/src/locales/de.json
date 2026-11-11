@@ -4777,6 +4777,11 @@
     "title": "Intros & Outros"
   },
   "jewelry": {
+    "catalogLoadFailed": "The studio catalog couldn’t load — the design options and prices below aren’t live yet.",
+    "catalogLoading": "Loading the studio catalog…",
+    "catalogLoadingNote": "The pieces, metals, stones and prices ride this catalog — they appear the moment it lands.",
+    "catalogRetry": "Try again",
+    "hubLogoFailed": "That logo couldn’t be loaded. Upload the file instead — it lands in the same place.",
     "aiPreview": "KI-Vorschau",
     "apparel": "Kleidung",
     "apparelBlurb": "Tees, Hoodies, Caps…",
@@ -8732,7 +8737,9 @@
     "voiceRequiredError": "Wähl zuerst eine Stimme.",
     "voiceTitle": "Stimme",
     "voiceoverFallback": "Voiceover",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "Stimmen konnten nicht geladen werden — prüf deine Verbindung und lade neu.",
+    "voicesRetry": "Try again",
     "wavNote": "WAV ist verlustfrei — besser zum Mischen unter Video.",
     "wordCount": "{{count}} Wörter"
   },
@@ -9060,6 +9067,9 @@
       "planFailed": "Release-Plan fehlgeschlagen — versuche es erneut."
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "Kopieren",
     "copied": "Kopiert",
@@ -9177,6 +9187,7 @@
       "mailBody": "Hi {{brand}},\n\nanbei findest du Rechnung {{number}} über {{total}}, fällig am {{due}}.\n\nZahlungsdetails: {{payment}}\n\nDanke,\n{{creator}}",
       "listTitle": "Deine Rechnungen",
       "listEmpty": "Noch keine Rechnungen — erstelle oben deine erste.",
+      "listFailed": "Deine Rechnungen konnten gerade nicht geladen werden.",
       "markPaid": "Als bezahlt markieren",
       "markUnpaid": "Als unbezahlt markieren",
       "paid": "Bezahlt",
@@ -10240,6 +10251,7 @@
     },
     "voicePicker": {
       "error": "Stimmen konnten nicht geladen werden — prüfe deine Verbindung und lade die Seite neu.",
+      "empty": "No voices are available right now.",
       "loading": "Stimmen werden geladen…",
       "previewAria": "{{name}} anhören"
     },
@@ -12505,6 +12517,7 @@
       "lyricsPlaceholder": "Füge deine Songtexte ein, damit die KI sie den Abschnitten zuordnen kann…",
       "namePlaceholder": "Diese Struktur benennen…",
       "noSaved": "Noch keine gespeicherten Strukturen.",
+      "loadError": "Couldn't load your saved structures — they may still be there.",
       "remove": "Abschnitt entfernen",
       "save": "Speichern",
       "saveError": "Diese Struktur konnte nicht gespeichert werden.",
@@ -15430,6 +15443,7 @@
     "sendToMixMaster": "An Mix & Master senden",
     "newPolish": "Neuer Feinschliff",
     "errorStartFailed": "Der Vocal-Polish konnte nicht gestartet werden.",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "Vocal-Polish fehlgeschlagen — Ihre {{cost}} Visual Bucs wurden erstattet.",
     "errorJobNotFound": "Job nicht gefunden",
     "errorNetwork": "Netzwerkfehler — bitte erneut versuchen.",
@@ -15656,7 +15670,9 @@
     "outOfCredits": "Nicht genug Visual Bucs für die Singstimmen-Konvertierung (800).",
     "startFailed": "Die Konvertierung konnte nicht gestartet werden.",
     "failedRefunded": "Konvertierung fehlgeschlagen — Credits erstattet.",
-    "notConfiguredError": "Die Singstimmen-Konvertierung ist noch nicht angebunden."
+    "notConfiguredError": "Die Singstimmen-Konvertierung ist noch nicht angebunden.",
+    "pollFailed": "Couldn't check the conversion — please try again.",
+    "doneNoResult": "The conversion finished without a result — please try again."
   },
   "bgReplace": {
     "ai": {
@@ -15697,6 +15713,7 @@
     "errorNetwork": "Netzwerkfehler — bitte erneut versuchen.",
     "errorStartFailed": "Die Stimmung konnte nicht gestartet werden. Bitte erneut versuchen.",
     "errorTuneFailed": "Stimmung fehlgeschlagen — Ihre Visual Bucs wurden erstattet.",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} MB — tippen zum Ändern",
     "hardtuneFallbackNote": "Die Noten-Verfolgung konnte sich auf diesem Audio nicht festsetzen, daher haben wir stattdessen eine sanfte globale Stimmung angewendet — kein Preisunterschied, und Ihre Bucs wurden trotzdem nur einmal ausgegeben.",
     "honestIntro": "Echtes Pitch-DSP, kein KI-Raten. Funktioniert am besten auf isolierten Vocals — auf einem vollen Mix folgt es dem stärksten gestimmten Klang. Es kann keine falsche Melodie reparieren, nur gesungene Noten zur richtigen Tonhöhe ziehen.",
@@ -17856,6 +17873,8 @@
     "mashupFailed": "Mashup fehlgeschlagen.",
     "mashupNeedsTwo": "Ein Mashup braucht zwei Songs in deiner Bibliothek — erstelle oder lade zuerst Songs hoch und blende sie dann hier.",
     "mashupNoAudio": "Das Mashup kam ohne Audio zurück — nichts zum Abspielen.",
+    "mashupLoadFailed": "Your song library couldn’t load — your songs are safe, the mashup just can’t reach them. Try reopening the bench.",
+    "mashupRetry": "Try again",
     "mashupRun": "Sie blenden · {{cost}} Visual Bucs",
     "mashupTitleLabel": "Mashup-Titel",
     "maxBpmAria": "Max BPM",
@@ -18145,6 +18164,7 @@
     "voiceLabel": "Stimme",
     "voiceoverScriptLabel": "Voiceover-Skript",
     "voicesLoading": "Stimmen werden geladen…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "Die komplette Werkbank — Mix & Master, Stems, Arrangement und die Stimm-Werkbänke — ist direkt unten angedockt.",
     "workingBtn": "Wird gearbeitet…",
     "workingLabel": "Wird gearbeitet…",
@@ -21229,6 +21249,8 @@
     "schedUpdatedNote": "Stream aktualisiert — der neue Plan steht unten, und der alte ist abgebrochen.",
     "schedCreatedNote": "Geplant — er erscheint hier in deinen kommenden Streams und auf der Live-gehen-Seite der Website.",
     "schedSaveFailed": "Dieser Stream konnte nicht geplant werden.",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "\"{{title}}\" ist abgebrochen.",
     "schedLoadFailed": "Deine Streams konnten nicht geladen werden.",
     "schedLoading": "Deine Streams werden geladen…",
@@ -23149,6 +23171,7 @@
     "porMembershipFallback": "Mitgliedschaft",
     "porMemberships": "Mitgliedschaften",
     "porMembershipsEmpty": "Derzeit keine Mitgliedschaften im Angebot.",
+    "porSummaryLoadFailed": "Couldn't load this list — the creator's page is fine, this part just didn't come through.",
     "porOnJukebox": "Auf der Jukebox",
     "porPerMonthSuffix": " / month",
     "porPlay": "Abspielen",
@@ -24617,6 +24640,7 @@
     "copStreamDesk": "Stream-Schreibtisch",
     "copStreamTitleLabel": "Streamtitel *",
     "copStreamsLoadFailed": "Deine Streams konnten nicht geladen werden",
+    "copDeskLoadFailed": "This stream's desk couldn't load.",
     "copTabClips": "Clips nach dem Stream",
     "copTabPrep": "Vorbereitung vor dem Stream",
     "copTalkingPoints": "Gesprächspunkte",

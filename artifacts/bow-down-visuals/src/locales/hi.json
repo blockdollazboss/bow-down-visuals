@@ -4777,6 +4777,11 @@
     "title": "परिचय और आउटरो"
   },
   "jewelry": {
+    "catalogLoadFailed": "The studio catalog couldn’t load — the design options and prices below aren’t live yet.",
+    "catalogLoading": "Loading the studio catalog…",
+    "catalogLoadingNote": "The pieces, metals, stones and prices ride this catalog — they appear the moment it lands.",
+    "catalogRetry": "Try again",
+    "hubLogoFailed": "That logo couldn’t be loaded. Upload the file instead — it lands in the same place.",
     "aiPreview": "AI प्रीव्यू",
     "apparel": "परिधान",
     "apparelBlurb": "टी-शर्ट, हुडी, कैप…",
@@ -8732,7 +8737,9 @@
     "voiceRequiredError": "पहले एक वॉयस चुनें।",
     "voiceTitle": "वॉयस",
     "voiceoverFallback": "वॉयसओवर",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "वॉयस लोड नहीं हो सकीं — अपना कनेक्शन जांचें और रिफ्रेश करें।",
+    "voicesRetry": "Try again",
     "wavNote": "WAV लॉसलेस है — वीडियो के नीचे मिक्सिंग के लिए बेहतर।",
     "wordCount": "{{count}} शब्द"
   },
@@ -9001,6 +9008,9 @@
       "planFailed": "रिलीज़ योजना विफल — फिर से कोशिश करें।"
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "कॉपी करें",
     "copied": "कॉपी हो गया",
@@ -9118,6 +9128,7 @@
       "mailBody": "नमस्ते {{brand}},\n\nकृपया संलग्न इनवॉइस {{number}} देखें, राशि {{total}}, देय तिथि {{due}}।\n\nभुगतान विवरण: {{payment}}\n\nधन्यवाद,\n{{creator}}",
       "listTitle": "आपकी इनवॉइस",
       "listEmpty": "अभी तक कोई इनवॉइस नहीं — ऊपर अपनी पहली इनवॉइस बनाएँ।",
+      "listFailed": "आपके इनवॉइस अभी लोड नहीं हो सके।",
       "markPaid": "भुगतान किया हुआ चिह्नित करें",
       "markUnpaid": "भुगतान बाकी चिह्नित करें",
       "paid": "भुगतान हो गया",
@@ -9986,6 +9997,7 @@
     },
     "voicePicker": {
       "error": "आवाज़ें लोड नहीं हो सकीं — अपना कनेक्शन जांचें और रीफ़्रेश करें।",
+      "empty": "No voices are available right now.",
       "loading": "आवाज़ें लोड हो रही हैं…",
       "previewAria": "{{name}} की झलक सुनें"
     },
@@ -11593,6 +11605,7 @@
       "lyricsPlaceholder": "अपने बोल चिपकाएँ ताकि AI उन्हें खंडों से मैप कर सके…",
       "namePlaceholder": "इस संरचना का नाम दें…",
       "noSaved": "अभी कोई सहेजी संरचना नहीं।",
+      "loadError": "Couldn't load your saved structures — they may still be there.",
       "remove": "खंड हटाएँ",
       "save": "सहेजें",
       "saveError": "यह संरचना सहेजी नहीं जा सकी।",
@@ -15225,6 +15238,7 @@
     "sendToMixMaster": "मिक्स और मास्टर को भेजें",
     "newPolish": "नई पॉलिश",
     "errorStartFailed": "वोकल पॉलिश शुरू नहीं हो सका।",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "वोकल पॉलिश विफल रहा — आपके {{cost}} Visual Bucs रिफ़ंड हुए।",
     "errorJobNotFound": "जॉब नहीं मिला",
     "errorNetwork": "नेटवर्क त्रुटि — कृपया फिर से प्रयास करें।",
@@ -15244,6 +15258,7 @@
     "errorNetwork": "नेटवर्क त्रुटि — कृपया फिर से प्रयास करें।",
     "errorStartFailed": "ट्यूनिंग शुरू नहीं हो सकी। कृपया फिर से प्रयास करें।",
     "errorTuneFailed": "ट्यूनिंग विफल रही — आपके Visual Bucs रिफ़ंड हुए।",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} MB — बदलने के लिए टैप करें",
     "hardtuneFallbackNote": "नोट-स्तर ट्रैकिंग इस ऑडियो पर लॉक नहीं हो सकी, इसलिए हमने इसके बजाय एक सौम्य वैश्विक ट्यून लागू किया — कोई शुल्क अंतर नहीं, और आपके Bucs फिर भी केवल एक बार खर्च हुए।",
     "honestIntro": "असली पिच DSP, कोई AI अनुमान नहीं। अलग वोकल पर सबसे अच्छा काम करता है — पूरे मिक्स पर यह सबसे मज़बूत पिच वाली ध्वनि का अनुसरण करता है। यह ग़लत धुन ठीक नहीं कर सकता, केवल गाए गए नोटों को सही पिच की ओर खींच सकता है।",
@@ -15372,7 +15387,9 @@
     "outOfCredits": "गायन-आवाज़ रूपांतरण के लिए पर्याप्त Visual Bucs नहीं हैं (800)।",
     "startFailed": "रूपांतरण शुरू नहीं हो सका।",
     "failedRefunded": "रूपांतरण विफल रहा — क्रेडिट रिफ़ंड हुए।",
-    "notConfiguredError": "गायन-आवाज़ रूपांतरण अभी कनेक्ट नहीं है।"
+    "notConfiguredError": "गायन-आवाज़ रूपांतरण अभी कनेक्ट नहीं है।",
+    "pollFailed": "Couldn't check the conversion — please try again.",
+    "doneNoResult": "The conversion finished without a result — please try again."
   },
   "bgReplace": {
     "ai": {
@@ -17856,6 +17873,8 @@
     "mashupFailed": "मैशअप विफल रहा।",
     "mashupNeedsTwo": "मैशअप के लिए आपकी लाइब्रेरी में दो गाने चाहिए — पहले गाने बनाएँ या अपलोड करें, फिर यहाँ ब्लेंड करें।",
     "mashupNoAudio": "मैशअप बिना ऑडियो लौटा — बजाने को कुछ नहीं।",
+    "mashupLoadFailed": "Your song library couldn’t load — your songs are safe, the mashup just can’t reach them. Try reopening the bench.",
+    "mashupRetry": "Try again",
     "mashupRun": "उन्हें ब्लेंड करें · {{cost}} Visual Bucs",
     "mashupTitleLabel": "मैशअप शीर्षक",
     "maxBpmAria": "अधिकतम BPM",
@@ -18145,6 +18164,7 @@
     "voiceLabel": "आवाज़",
     "voiceoverScriptLabel": "वॉइसओवर स्क्रिप्ट",
     "voicesLoading": "आवाज़ें लोड हो रही हैं…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "पूरा वर्कबेंच — मिक्स और मास्टर, स्टेम, अरेंजमेंट और वॉइस बेंच — ठीक नीचे डॉक किया गया है।",
     "workingBtn": "काम हो रहा है…",
     "workingLabel": "काम हो रहा है…",
@@ -21229,6 +21249,8 @@
     "schedUpdatedNote": "स्ट्रीम अपडेट हो गई — नई योजना नीचे है और पुरानी रद्द है।",
     "schedCreatedNote": "शेड्यूल हो गई — यह यहां आपकी आगामी स्ट्रीम में और वेबसाइट के Go Live पेज पर दिखती है।",
     "schedSaveFailed": "वह स्ट्रीम शेड्यूल नहीं हो सकी।",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "“{{title}}” रद्द है।",
     "schedLoadFailed": "आपकी स्ट्रीम लोड नहीं हो सकीं।",
     "schedLoading": "आपकी स्ट्रीम लोड हो रही हैं…",
@@ -23149,6 +23171,7 @@
     "porMembershipFallback": "सदस्यता",
     "porMemberships": "सदस्यताएँ",
     "porMembershipsEmpty": "अभी कोई सदस्यता उपलब्ध नहीं है।",
+    "porSummaryLoadFailed": "Couldn't load this list — the creator's page is fine, this part just didn't come through.",
     "porOnJukebox": "ज्यूकबॉक्स पर",
     "porPerMonthSuffix": " / month",
     "porPlay": "चलाएँ",
@@ -24617,6 +24640,7 @@
     "copStreamDesk": "स्ट्रीम डेस्क",
     "copStreamTitleLabel": "स्ट्रीम शीर्षक *",
     "copStreamsLoadFailed": "आपकी स्ट्रीम लोड नहीं हो सकीं",
+    "copDeskLoadFailed": "This stream's desk couldn't load.",
     "copTabClips": "पोस्ट-स्ट्रीम क्लिप",
     "copTabPrep": "प्री-स्ट्रीम तैयारी",
     "copTalkingPoints": "बात के बिंदु",

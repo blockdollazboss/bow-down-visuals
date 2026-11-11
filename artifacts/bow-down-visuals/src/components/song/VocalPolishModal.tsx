@@ -181,6 +181,14 @@ export function VocalPolishModal({ open, onClose, source, onPolished }: VocalPol
         stopPolling();
         setPhase("form");
         setError(apiErrorMessage(data, t("vocalPolish.errorJobFailed", { cost: CREDIT_COST })));
+      } else if (data.status !== "processing") {
+        /* Terminal honesty: a done-without-outputUrl or a status this
+           client doesn't know must not poll forever — the generating
+           phase disables the close button, so falling through here
+           would trap the member in this modal. */
+        stopPolling();
+        setPhase("form");
+        setError(t("vocalPolish.errorDoneNoResult"));
       }
     } catch {
       /* keep polling on transient network errors */

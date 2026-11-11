@@ -249,6 +249,7 @@ export function PasskeyManager() {
   /* A failed load is NOT "no passkeys yet" — it gets its own error state
      with a retry; the empty text renders only after a successful load. */
   const [loadError, setLoadError] = useState(false);
+  const [deleteError, setDeleteError] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
 
@@ -288,10 +289,11 @@ export function PasskeyManager() {
 
   const remove = async (credentialId: string) => {
     setDeleting(credentialId);
+    setDeleteError(false);
     try {
       const token = await getAccessToken();
-      if (!token) return;
-      await fetch("/api/auth/webauthn/credentials", {
+      if (!token) throw new Error("missing token");
+      const res = await fetch("/api/auth/webauthn/credentials", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -299,7 +301,12 @@ export function PasskeyManager() {
         },
         body: JSON.stringify({ credentialId }),
       });
+      if (!res.ok) throw new Error("delete failed");
       setRefreshNonce((n) => n + 1);
+    } catch {
+      /* A failed delete is NOT a removed passkey — the reload alone
+         would silently keep the key in the list; say so instead. */
+      setDeleteError(true);
     } finally {
       setDeleting(null);
     }
@@ -323,6 +330,11 @@ export function PasskeyManager() {
       </div>
 
       <div className="mt-4 space-y-2">
+        {deleteError && (
+          <p className="rounded-xl border border-red-500/30 bg-red-500/[0.06] px-4 py-3 text-sm text-red-200/80">
+            That passkey couldn&rsquo;t be removed — it&rsquo;s still active. Try again.
+          </p>
+        )}
         {loading ? (
           <p className="text-white/40 text-sm flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading passkeys...

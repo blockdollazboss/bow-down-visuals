@@ -5,9 +5,11 @@
  * SongDeskTabs, BeatsDesk, DjDesk, ListeningBooth, JukeboxPanel —
  * rendered hard-coded English inside a 10-locale product (zero
  * useTranslation at base 23a636903). Its own copy now lives in the
- * locale catalogs under worldAudioDesk.* (617 keys — 573 at the
+ * locale catalogs under worldAudioDesk.* (620 keys — 573 at the
  * Stack-100 unit-39 extraction, +44 for Stack-400's B-07 voice
- * clone bench and B-21 media-utility benches), plus a set of
+ * clone bench and B-21 media-utility benches, +1 banked by a later
+ * desk fix without its count pin being bumped, +2 for the deep-pins
+ * tranche-3 SongMashupBench failed-load state), plus a set of
  * beats.* keys the 2D beats page already carried whose en values
  * are byte-identical to the desk's (the commission line, the
  * payment note, tier names/blurbs, license-row template). These
@@ -107,8 +109,8 @@ describe("Audio family extraction (unit 39)", () => {
     }
   });
 
-  it("the namespace carries exactly 617 keys", () => {
-    expect(enKeys.length).toBe(617);
+  it("the namespace carries exactly 620 keys", () => {
+    expect(enKeys.length).toBe(620);
   });
 
   it("every catalog key is referenced by the family (no orphans)", () => {

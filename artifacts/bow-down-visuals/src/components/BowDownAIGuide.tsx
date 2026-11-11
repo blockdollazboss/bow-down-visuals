@@ -162,6 +162,7 @@ function PlaylistTracks() {
   const { playing: themePlaying, togglePlay: toggleThemePlay } = useThemePlayer();
   const [tracks, setTracks] = useState<PlaylistTrack[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentName, setCurrentName] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -187,12 +188,14 @@ function PlaylistTracks() {
   const refresh = useCallback(async () => {
     try {
       const res = await fetch("/api/playlist");
-      if (res.ok) {
-        const data = await res.json();
-        setTracks(Array.isArray(data.tracks) ? data.tracks : []);
-      }
+      if (!res.ok) throw new Error("playlist load failed");
+      const data = await res.json();
+      setTracks(Array.isArray(data.tracks) ? data.tracks : []);
+      setLoadError(false);
     } catch {
-      /* keep the previous list */
+      /* Keep the previous list — but a failed load is NOT an empty
+         playlist: the "No tracks yet" copy is gated on this flag. */
+      setLoadError(true);
     } finally {
       setLoaded(true);
     }
@@ -377,6 +380,18 @@ function PlaylistTracks() {
         <div className="flex items-center justify-center py-6 text-white/30">
           <Loader2 className="h-4 w-4 animate-spin" />
         </div>
+      ) : tracks.length === 0 && loadError ? (
+        <p className="text-[11px] leading-relaxed text-white/40 py-1">
+          Couldn&rsquo;t load the playlist.{" "}
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="font-semibold text-yellow-400/80 hover:underline"
+            data-testid="btn-retry-playlist"
+          >
+            Try again
+          </button>
+        </p>
       ) : tracks.length === 0 ? (
         <p className="text-[11px] leading-relaxed text-white/40 py-1">
           No tracks yet — the owner can upload songs here.

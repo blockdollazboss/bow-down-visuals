@@ -185,6 +185,7 @@ export function JewelryBench({ isLight, isGuest }: { isLight: boolean; isGuest: 
   const pickHubLogo = async (url: string) => {
     try {
       const res = await fetch(url);
+      if (!res.ok) throw new Error("logo");
       const blob = await res.blob();
       onLogoPicked(new File([blob], "logo.png", { type: blob.type || "image/png" }));
     } catch {

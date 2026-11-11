@@ -128,6 +128,7 @@ export default function InvoiceGeneratorPanel({ prefillBrand, prefillCreator }: 
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
@@ -181,12 +182,20 @@ export default function InvoiceGeneratorPanel({ prefillBrand, prefillCreator }: 
   async function loadInvoices() {
     if (!user) return;
     setListLoading(true);
+    setListError(false);
     try {
       const res = await authed("/api/invoices");
       const data = (await res.json().catch(() => ({}))) as { invoices?: InvoiceRecord[] };
-      if (res.ok && Array.isArray(data.invoices)) setInvoices(data.invoices);
+      if (res.ok && Array.isArray(data.invoices)) {
+        setInvoices(data.invoices);
+      } else {
+        /* A failed list load is NOT "no invoices yet": it gets
+           its own state + retry below (the form above still works
+           either way). */
+        setListError(true);
+      }
     } catch {
-      /* list is a convenience — form still works if it fails */
+      setListError(true);
     } finally {
       setListLoading(false);
     }
@@ -553,6 +562,17 @@ export default function InvoiceGeneratorPanel({ prefillBrand, prefillCreator }: 
         {listLoading ? (
           <p className="mt-4 flex items-center gap-2 text-sm text-white/40">
             <Loader2 className="h-4 w-4 animate-spin" /> …
+          </p>
+        ) : listError ? (
+          <p className="mt-4 text-sm text-red-400">
+            {t("outreach.invoice.listFailed")}{" "}
+            <button
+              type="button"
+              onClick={() => void loadInvoices()}
+              className="font-bold text-primary underline underline-offset-2"
+            >
+              {t("common.retry")}
+            </button>
           </p>
         ) : invoices.length === 0 ? (
           <p className="mt-4 text-sm text-white/40">{t("outreach.invoice.listEmpty")}</p>

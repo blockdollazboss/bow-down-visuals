@@ -4813,6 +4813,11 @@
     "title": "المقدمات والخواتم"
   },
   "jewelry": {
+    "catalogLoadFailed": "The studio catalog couldn’t load — the design options and prices below aren’t live yet.",
+    "catalogLoading": "Loading the studio catalog…",
+    "catalogLoadingNote": "The pieces, metals, stones and prices ride this catalog — they appear the moment it lands.",
+    "catalogRetry": "Try again",
+    "hubLogoFailed": "That logo couldn’t be loaded. Upload the file instead — it lands in the same place.",
     "aiPreview": "معاينة بالذكاء الاصطناعي",
     "apparel": "ملابس",
     "apparelBlurb": "تيشيرتات، هوديز، قبعات…",
@@ -8784,7 +8789,9 @@
     "voiceRequiredError": "اختر صوتاً أولاً.",
     "voiceTitle": "الصوت",
     "voiceoverFallback": "تعليق صوتي",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "تعذّر تحميل الأصوات — تحقق من اتصالك وحدّث الصفحة.",
+    "voicesRetry": "Try again",
     "wavNote": "WAV بلا ضياع — أفضل للمزج تحت الفيديو.",
     "wordCount": "{{count}} كلمة"
   },
@@ -9112,6 +9119,9 @@
       "planFailed": "فشلت خطة الإصدار — حاول مرة أخرى."
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "نسخ",
     "copied": "تم النسخ",
@@ -9229,6 +9239,7 @@
       "mailBody": "مرحبًا {{brand}}،\n\nتجد مرفقة الفاتورة {{number}} بمبلغ {{total}}، المستحقة في {{due}}.\n\nتفاصيل الدفع: {{payment}}\n\nشكرًا،\n{{creator}}",
       "listTitle": "فواتيرك",
       "listEmpty": "لا توجد فواتير بعد — أنشئ أول فاتورة أعلاه.",
+      "listFailed": "تعذّر تحميل فواتيرك الآن.",
       "markPaid": "وضع علامة مدفوعة",
       "markUnpaid": "وضع علامة غير مدفوعة",
       "paid": "مدفوعة",
@@ -10304,6 +10315,7 @@
     },
     "voicePicker": {
       "error": "تعذّر تحميل الأصوات — تحقق من اتصالك وحدّث الصفحة.",
+      "empty": "No voices are available right now.",
       "loading": "جارٍ تحميل الأصوات…",
       "previewAria": "معاينة {{name}}"
     },
@@ -12597,6 +12609,7 @@
       "lyricsPlaceholder": "الصق كلمات أغنيتك ليربطها الذكاء الاصطناعي بالأقسام…",
       "namePlaceholder": "سمِّ هذه البنية…",
       "noSaved": "لا توجد بنى محفوظة بعد.",
+      "loadError": "Couldn't load your saved structures — they may still be there.",
       "remove": "إزالة القسم",
       "save": "حفظ",
       "saveError": "تعذر حفظ هذه البنية.",
@@ -15656,6 +15669,7 @@
     "sendToMixMaster": "إرسال إلى المزج والماستر",
     "newPolish": "تلميع جديد",
     "errorStartFailed": "تعذّر بدء تلميع الصوت.",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "فشل تلميع الصوت — استُردت {{cost}} Visual Bucs الخاصة بك.",
     "errorJobNotFound": "المهمة غير موجودة",
     "errorNetwork": "خطأ في الشبكة — حاول مجدداً.",
@@ -15675,6 +15689,7 @@
     "errorNetwork": "خطأ في الشبكة — حاول مجدداً.",
     "errorStartFailed": "تعذّر بدء الضبط. حاول مجدداً.",
     "errorTuneFailed": "فشل الضبط — استُردت Visual Bucs الخاصة بك.",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} MB — اضغط للتغيير",
     "hardtuneFallbackNote": "تتبع مستوى النغمة لم يتمكن من القفل على هذا الصوت، فطبّقنا ضبطاً عاماً لطيفاً بدلاً من ذلك — بدون فرق رسوم، وما زالت Bucs الخاصة بك أُنفقت مرة واحدة فقط.",
     "honestIntro": "DSP نغمة حقيقي، بدون تخمين ذكاء اصطناعي. يعمل بأفضل شكل على أصوات معزولة — على مزيج كامل يتبع أقوى صوت منغّم. لا يمكنه إصلاح لحن خاطئ، فقط سحب النغمات المغناة نحو النغمة الصحيحة.",
@@ -15803,7 +15818,9 @@
     "outOfCredits": "Visual Bucs غير كافية لتحويل صوت الغناء (800).",
     "startFailed": "تعذّر بدء التحويل.",
     "failedRefunded": "فشل التحويل — استُردت الأرصدة.",
-    "notConfiguredError": "تحويل صوت الغناء غير متصل بعد."
+    "notConfiguredError": "تحويل صوت الغناء غير متصل بعد.",
+    "pollFailed": "Couldn't check the conversion — please try again.",
+    "doneNoResult": "The conversion finished without a result — please try again."
   },
   "bgReplace": {
     "ai": {
@@ -17948,6 +17965,8 @@
     "mashupFailed": "فشل الماش أب.",
     "mashupNeedsTwo": "يحتاج الماش أب إلى أغنيتين في مكتبتك — اصنع أو ارفع أغاني أولاً، ثم امزجهما هنا.",
     "mashupNoAudio": "عاد الماش أب دون صوت — لا شيء للتشغيل.",
+    "mashupLoadFailed": "Your song library couldn’t load — your songs are safe, the mashup just can’t reach them. Try reopening the bench.",
+    "mashupRetry": "Try again",
     "mashupRun": "امزجهما · {{cost}} Visual Bucs",
     "mashupTitleLabel": "عنوان الماش أب",
     "maxBpmAria": "الحد الأقصى BPM",
@@ -18261,6 +18280,7 @@
     "voiceLabel": "الصوت",
     "voiceoverScriptLabel": "نص التعليق الصوتي",
     "voicesLoading": "جارٍ تحميل الأصوات…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "منضدة العمل الكاملة — المزج والماسترينغ والستيمات والتوزيع ومنضدات الصوت — مثبتة أسفله تمامًا.",
     "workingBtn": "جارٍ العمل…",
     "workingLabel": "جارٍ العمل…",
@@ -21345,6 +21365,8 @@
     "schedUpdatedNote": "تم تحديث البث — الخطة الجديدة أدناه والقديمة ملغاة.",
     "schedCreatedNote": "تمت الجدولة — يظهر في بثوثك القادمة هنا وعلى صفحة بدء البث في الموقع.",
     "schedSaveFailed": "تعذّرت جدولة ذلك البث.",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "“{{title}}” ملغي.",
     "schedLoadFailed": "تعذّرت بثوثك عن التحميل.",
     "schedLoading": "جارٍ تحميل بثوثك…",
@@ -23265,6 +23287,7 @@
     "porMembershipFallback": "عضوية",
     "porMemberships": "العضويات",
     "porMembershipsEmpty": "لا عضويات معروضة الآن.",
+    "porSummaryLoadFailed": "Couldn't load this list — the creator's page is fine, this part just didn't come through.",
     "porOnJukebox": "على صندوق الأغاني",
     "porPerMonthSuffix": " / month",
     "porPlay": "تشغيل",
@@ -24733,6 +24756,7 @@
     "copStreamDesk": "مكتب البث",
     "copStreamTitleLabel": "عنوان البث *",
     "copStreamsLoadFailed": "تعذر تحميل بثوثك",
+    "copDeskLoadFailed": "This stream's desk couldn't load.",
     "copTabClips": "مقاطع ما بعد البث",
     "copTabPrep": "إعداد ما قبل البث",
     "copTalkingPoints": "نقاط الحديث",

@@ -93,12 +93,14 @@ const MODES: { key: PodcastMode; labelKey: string; icon: typeof PenLine; blurbKe
 function VoicePicker({
   voices,
   loading,
+  loadFailed,
   value,
   onChange,
   label,
 }: {
   voices: Voice[];
   loading: boolean;
+  loadFailed: boolean;
   value: string;
   onChange: (id: string) => void;
   label: string;
@@ -130,8 +132,10 @@ function VoicePicker({
         <div className="flex items-center gap-2 text-sm text-white/40">
           <Loader2 className="h-4 w-4 animate-spin" /> {t("podcast.voicePicker.loading")}
         </div>
+      ) : voices.length === 0 && loadFailed ? (
+        <p className="text-sm text-red-300">{t("podcast.voicePicker.error")}</p>
       ) : voices.length === 0 ? (
-        <p className="text-sm text-white/40">{t("podcast.voicePicker.error")}</p>
+        <p className="text-sm text-white/40">{t("podcast.voicePicker.empty")}</p>
       ) : (
         <div className="grid max-h-56 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
           {voices.map((v) => (
@@ -171,6 +175,7 @@ export default function PodcastStudio() {
 
   const [voices, setVoices] = useState<Voice[]>([]);
   const [voicesLoading, setVoicesLoading] = useState(true);
+  const [voicesError, setVoicesError] = useState(false);
 
   const [mode, setMode] = useState<PodcastMode>("script");
   const [title, setTitle] = useState("");
@@ -321,16 +326,24 @@ export default function PodcastStudio() {
         const res = await fetch("/api/voices", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
+        if (!res.ok) throw new Error("voices failed to load");
         const data = (await res.json().catch(() => ({}))) as { voices?: Voice[] };
         if (cancelled) return;
         const list = Array.isArray(data.voices) ? data.voices : [];
         setVoices(list);
+        setVoicesError(false);
         if (list.length > 0) {
           if (!hostVoiceId) setHostVoiceId(list[0]!.voice_id);
           if (!coHostVoiceId && list.length > 1) setCoHostVoiceId(list[1]!.voice_id);
         }
       } catch {
-        if (!cancelled) setVoices([]);
+        /* A failed voices load is NOT an empty voice list: the
+           pickers show the failure copy only when this flag is
+           set, and an honest "no voices" line otherwise. */
+        if (!cancelled) {
+          setVoices([]);
+          setVoicesError(true);
+        }
       } finally {
         if (!cancelled) setVoicesLoading(false);
       }
@@ -769,6 +782,7 @@ export default function PodcastStudio() {
                     <VoicePicker
                       voices={voices}
                       loading={voicesLoading}
+                      loadFailed={voicesError}
                       value={hostVoiceId}
                       onChange={setHostVoiceId}
                       label={t("podcast.hosts.hostVoiceLabel")}
@@ -778,6 +792,7 @@ export default function PodcastStudio() {
                         <VoicePicker
                           voices={voices}
                           loading={voicesLoading}
+                      loadFailed={voicesError}
                           value={coHostVoiceId}
                           onChange={setCoHostVoiceId}
                           label={t("podcast.hosts.coHostVoiceLabel")}
@@ -813,6 +828,7 @@ export default function PodcastStudio() {
                         key={name}
                         voices={voices}
                         loading={voicesLoading}
+                      loadFailed={voicesError}
                         value={dialogueVoices[name] ?? ""}
                         onChange={(id) => setDialogueVoices((p) => ({ ...p, [name]: id }))}
                         label={name}

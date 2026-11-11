@@ -76,6 +76,7 @@ export function SongStructureBuilder({ lyrics, songTitle, songId }: SongStructur
   const [savedName, setSavedName] = useState("");
   const [saved, setSaved] = useState<SavedStructure[]>([]);
   const [savedLoading, setSavedLoading] = useState(false);
+  const [savedLoadError, setSavedLoadError] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [handoffSent, setHandoffSent] = useState(false);
 
@@ -91,12 +92,19 @@ export function SongStructureBuilder({ lyrics, songTitle, songId }: SongStructur
 
   async function loadSaved() {
     setSavedLoading(true);
+    setSavedLoadError(false);
     try {
       const res = await fetch("/api/wave9a/structures", { headers: await authHeaders() });
       const data = (await res.json()) as { structures?: SavedStructure[] };
-      if (res.ok) setSaved(data.structures ?? []);
+      if (res.ok) {
+        setSaved(data.structures ?? []);
+      } else {
+        /* A failed load must never read as "no saved structures" — the
+         * member may well have some; say it failed and offer the retry. */
+        setSavedLoadError(true);
+      }
     } catch {
-      /* empty state */
+      setSavedLoadError(true);
     } finally {
       setSavedLoading(false);
     }
@@ -419,6 +427,17 @@ export function SongStructureBuilder({ lyrics, songTitle, songId }: SongStructur
             {savedLoading ? (
               <p className="text-xs text-white/40 flex items-center gap-2">
                 <Loader2 className="h-3 w-3 animate-spin" /> {t("wave9.structure.loading")}
+              </p>
+            ) : savedLoadError ? (
+              <p className="text-xs text-red-300 flex items-center gap-2">
+                {t("wave9.structure.loadError")}
+                <button
+                  type="button"
+                  onClick={() => void loadSaved()}
+                  className="font-bold underline underline-offset-2 hover:text-red-200 transition"
+                >
+                  {t("common.retry")}
+                </button>
               </p>
             ) : saved.length > 0 ? (
               <div className="space-y-1.5">

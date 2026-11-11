@@ -4777,6 +4777,11 @@
     "title": "イントロ & アウトロ"
   },
   "jewelry": {
+    "catalogLoadFailed": "The studio catalog couldn’t load — the design options and prices below aren’t live yet.",
+    "catalogLoading": "Loading the studio catalog…",
+    "catalogLoadingNote": "The pieces, metals, stones and prices ride this catalog — they appear the moment it lands.",
+    "catalogRetry": "Try again",
+    "hubLogoFailed": "That logo couldn’t be loaded. Upload the file instead — it lands in the same place.",
     "aiPreview": "AIプレビュー",
     "apparel": "アパレル",
     "apparelBlurb": "Tシャツ、パーカー、キャップ…",
@@ -8731,7 +8736,9 @@
     "voiceRequiredError": "先に音声を選んでください。",
     "voiceTitle": "音声",
     "voiceoverFallback": "ナレーション",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "音声を読み込めませんでした — 接続を確認して更新してください。",
+    "voicesRetry": "Try again",
     "wavNote": "WAVはロスレス — 動画へのミックスに最適です。",
     "wordCount": "{{count}}語"
   },
@@ -9000,6 +9007,9 @@
       "planFailed": "リリース計画に失敗しました — もう一度お試しください。"
     }
   },
+  "loopExchange": {
+    "listFailed": "The open loops couldn't load just now."
+  },
   "outreach": {
     "copy": "コピー",
     "copied": "コピーしました",
@@ -9117,6 +9127,7 @@
       "mailBody": "{{brand}} 様\n\n請求書 {{number}}（金額：{{total}}、期日：{{due}}）を添付いたします。\n\nお支払い情報：{{payment}}\n\nよろしくお願いいたします。\n{{creator}}",
       "listTitle": "あなたの請求書",
       "listEmpty": "まだ請求書がありません — 上で最初の1枚を生成しましょう。",
+      "listFailed": "請求書を読み込めませんでした。",
       "markPaid": "支払い済みにする",
       "markUnpaid": "未払いに戻す",
       "paid": "支払い済み",
@@ -9985,6 +9996,7 @@
     },
     "voicePicker": {
       "error": "ボイスを読み込めませんでした — 接続を確認して再読み込みしてください。",
+      "empty": "No voices are available right now.",
       "loading": "ボイスを読み込み中…",
       "previewAria": "{{name}}をプレビュー"
     },
@@ -11590,6 +11602,7 @@
       "lyricsPlaceholder": "歌詞を貼り付けてください。AIがセクションに対応付けます…",
       "namePlaceholder": "この構成に名前を付けてください…",
       "noSaved": "保存された構成はまだありません。",
+      "loadError": "Couldn't load your saved structures — they may still be there.",
       "remove": "セクションを削除",
       "save": "保存",
       "saveError": "この構成を保存できませんでした。",
@@ -15234,7 +15247,9 @@
     "outOfCredits": "歌声変換にはVisual Bucsが不足しています（800）。",
     "startFailed": "変換を開始できませんでした。",
     "failedRefunded": "変換に失敗しました — クレジットは返金されました。",
-    "notConfiguredError": "歌声変換はまだ接続されていません。"
+    "notConfiguredError": "歌声変換はまだ接続されていません。",
+    "pollFailed": "Couldn't check the conversion — please try again.",
+    "doneNoResult": "The conversion finished without a result — please try again."
   },
   "bgReplace": {
     "ai": {
@@ -15368,6 +15383,7 @@
     "sendToMixMaster": "ミックス＆マスターへ送る",
     "newPolish": "新しいポリッシュ",
     "errorStartFailed": "ボーカルポリッシュを開始できませんでした。",
+    "errorDoneNoResult": "Vocal polish finished but returned no audio — please try again.",
     "errorJobFailed": "ボーカルポリッシュに失敗しました — あなたの{{cost}} Visual Bucsは返金されました。",
     "errorJobNotFound": "ジョブが見つかりません",
     "errorNetwork": "ネットワークエラー — もう一度お試しください。",
@@ -15387,6 +15403,7 @@
     "errorNetwork": "ネットワークエラー — もう一度お試しください。",
     "errorStartFailed": "チューニングを開始できませんでした。もう一度お試しください。",
     "errorTuneFailed": "チューニングに失敗しました — あなたのVisual Bucsは返金されました。",
+    "errorDoneNoResult": "Tuning finished without a result — your Visual Bucs were refunded.",
     "fileSizeChange": "{size} MB — タップして変更",
     "hardtuneFallbackNote": "音レベルのトラッキングがこの音声に固定できなかったため、代わりに穏やかな全体チューニングを適用しました — 料金の差はなく、あなたのBucsが使われたのは一度だけです。",
     "honestIntro": "本物のピッチDSP、AIの推測なし。分離されたボーカルで最もよく働きます — フルミックスでは最も強いピッチ音を追います。間違ったメロディを直すことはできません。歌われた音を正しいピッチへ引き寄せるだけです。",
@@ -17852,6 +17869,8 @@
     "mashupFailed": "マッシュアップに失敗しました。",
     "mashupNeedsTwo": "マッシュアップにはライブラリに二曲必要です — まず曲を作るかアップロードして、ここでブレンドしてください。",
     "mashupNoAudio": "マッシュアップがオーディオなしで返ってきました — 再生するものがありません。",
+    "mashupLoadFailed": "Your song library couldn’t load — your songs are safe, the mashup just can’t reach them. Try reopening the bench.",
+    "mashupRetry": "Try again",
     "mashupRun": "ブレンドする · {{cost}} Visual Bucs",
     "mashupTitleLabel": "マッシュアップタイトル",
     "maxBpmAria": "最大BPM",
@@ -18141,6 +18160,7 @@
     "voiceLabel": "ボイス",
     "voiceoverScriptLabel": "ボイスオーバー台本",
     "voicesLoading": "ボイスを読み込み中…",
+    "voicesFailed": "Couldn't load voices.",
     "workbenchDockedNote": "フルワークベンチ — ミックス＆マスター、ステム、アレンジメント、ボイスベンチ — はすぐ下にドッキングされています。",
     "workingBtn": "処理中…",
     "workingLabel": "処理中…",
@@ -21225,6 +21245,8 @@
     "schedUpdatedNote": "配信を更新しました — 新しい計画は下にあり、古いものはキャンセルされました。",
     "schedCreatedNote": "スケジュールしました — 予定の配信にここでも、ウェブサイトのライブ配信ページでも表示されます。",
     "schedSaveFailed": "その配信をスケジュールできませんでした。",
+    "schedCancelFailed": "That stream couldn't be cancelled — it's still on the schedule below.",
+    "schedOldStillThere": "The new plan is saved below — but the old one couldn't be cancelled, so both are still on the schedule.",
     "streamCancelledNote": "「{{title}}」はキャンセルされました。",
     "schedLoadFailed": "配信を読み込めませんでした。",
     "schedLoading": "配信を読み込み中…",
@@ -23145,6 +23167,7 @@
     "porMembershipFallback": "メンバーシップ",
     "porMemberships": "メンバーシップ",
     "porMembershipsEmpty": "現在提供中のメンバーシップはありません。",
+    "porSummaryLoadFailed": "Couldn't load this list — the creator's page is fine, this part just didn't come through.",
     "porOnJukebox": "ジュークボックスで再生中",
     "porPerMonthSuffix": " / month",
     "porPlay": "再生",
@@ -24613,6 +24636,7 @@
     "copStreamDesk": "配信デスク",
     "copStreamTitleLabel": "配信タイトル *",
     "copStreamsLoadFailed": "配信を読み込めませんでした",
+    "copDeskLoadFailed": "This stream's desk couldn't load.",
     "copTabClips": "配信後のクリップ",
     "copTabPrep": "配信前の準備",
     "copTalkingPoints": "トークポイント",

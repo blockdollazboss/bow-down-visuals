@@ -93,6 +93,7 @@ export function PostCard({
 
   async function react(next: string) {
     const prev = emoji;
+    const prevCounts = counts;
     const removing = prev === next;
     setEmoji(removing ? null : next);
     setCounts((c) => {
@@ -103,10 +104,14 @@ export function PostCard({
     });
     try {
       if (removing) {
-        await apiFetch(getAccessToken, `/api/react?target_kind=post&target_id=${post.id}`, {
+        const res = await apiFetch(getAccessToken, `/api/react?target_kind=post&target_id=${post.id}`, {
           method: "DELETE",
           headers: await authed(getAccessToken),
         });
+        /* apiFetch does not throw on a rejection — without this check
+           a refused un-react was never even detected, and the counts
+           below stayed at their optimistic (wrong) values. */
+        if (!res.ok) throw new Error("react rejected");
       } else {
         await apiJson(getAccessToken, "/api/react", {
           method: "POST",
@@ -115,6 +120,7 @@ export function PostCard({
       }
     } catch {
       setEmoji(prev);
+      setCounts(prevCounts);
     }
   }
 
@@ -128,10 +134,13 @@ export function PostCard({
           body: JSON.stringify({ kind: "post", target_id: post.id }),
         });
       } else {
-        await apiFetch(getAccessToken, `/api/saves/post/${post.id}`, {
+        const res = await apiFetch(getAccessToken, `/api/saves/post/${post.id}`, {
           method: "DELETE",
           headers: await authed(getAccessToken),
         });
+        /* Same unchecked-DELETE trap as react(): a refused unsave
+           must roll the bookmark back, not silently keep it off. */
+        if (!res.ok) throw new Error("unsave rejected");
       }
     } catch {
       setSaved(!next);

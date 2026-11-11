@@ -72,6 +72,8 @@ export default function VoiceoverStudio() {
   /* voices */
   const [voices, setVoices] = useState<Voice[]>([]);
   const [voicesLoading, setVoicesLoading] = useState(true);
+  const [voicesFailed, setVoicesFailed] = useState(false);
+  const [voicesRetry, setVoicesRetry] = useState(0);
   const [voiceId, setVoiceId] = useState("");
   const [previewing, setPreviewing] = useState<string | null>(null);
 
@@ -123,10 +125,14 @@ export default function VoiceoverStudio() {
         const res = await fetch("/api/voices", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
+        /* A failed load is NOT an empty library — it lands on the
+           voicesFailed state below, never on the proven-empty line. */
+        if (!res.ok) throw new Error("voices load failed");
         const data = (await res.json().catch(() => ({}))) as { voices?: Voice[] };
         if (cancelled) return;
         const list = Array.isArray(data.voices) ? data.voices : [];
         setVoices(list);
+        setVoicesFailed(false);
         /* Prefer the vault's cloned voice — the user cloned it for exactly this. */
         const vaultVoice = activeArtist?.voice_id;
         if (!voiceId) {
@@ -134,7 +140,10 @@ export default function VoiceoverStudio() {
           else if (list.length > 0) setVoiceId(list[0]!.voice_id);
         }
       } catch {
-        if (!cancelled) setVoices([]);
+        if (!cancelled) {
+          setVoices([]);
+          setVoicesFailed(true);
+        }
       } finally {
         if (!cancelled) setVoicesLoading(false);
       }
@@ -145,7 +154,7 @@ export default function VoiceoverStudio() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, voicesRetry]);
 
   function togglePreview(v: Voice) {
     if (!v.preview_url) return;
@@ -323,12 +332,24 @@ export default function VoiceoverStudio() {
                 <div className="flex items-center gap-2 text-sm text-white/40">
                   <Loader2 className="h-4 w-4 animate-spin" /> {t("voiceover.loadingVoices")}
                 </div>
+              ) : voicesFailed ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-sm text-white/40">{t("voiceover.voicesLoadFailed")}</p>
+                  <button
+                    type="button"
+                    onClick={() => setVoicesRetry((n) => n + 1)}
+                    className="text-xs font-semibold text-primary hover:underline"
+                    data-testid="btn-retry-voices"
+                  >
+                    {t("voiceover.voicesRetry")}
+                  </button>
+                </div>
               ) : voices.length === 0 ? (
                 <p className="text-sm text-white/40">
                   {user
-                    ? t("voiceover.voicesLoadFailed")
+                    ? t("voiceover.voicesEmpty")
                     : <Link href="/login" className="text-primary underline">{t("voiceover.signIn")}</Link>}
-                  {" "}{t("voiceover.signInBrowseVoices")}
+                  {!user && <>{" "}{t("voiceover.signInBrowseVoices")}</>}
                 </p>
               ) : (
                 <div className="grid gap-2 sm:grid-cols-2">

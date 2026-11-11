@@ -249,6 +249,14 @@ export function MaskCard({
             if (pollTimer.current) window.clearInterval(pollTimer.current);
             setBusy(false);
             throw new Error(apiErrorMessage(jb, t("videoEditor.mask.applyFailed")));
+          } else if (jb.status !== "processing") {
+            /* Any other answer — a 404 "Job not found." body, a
+               done-without-url, a status this client doesn't know —
+               is terminal too. Falling through here used to poll a
+               dead job every 2s forever with the card stuck busy. */
+            if (pollTimer.current) window.clearInterval(pollTimer.current);
+            setBusy(false);
+            throw new Error(apiErrorMessage(jb, t("videoEditor.mask.applyFailed")));
           }
         } catch (err) {
           if (pollTimer.current) window.clearInterval(pollTimer.current);
