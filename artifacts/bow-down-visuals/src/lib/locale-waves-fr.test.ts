@@ -168,6 +168,12 @@ const W1_LEGIT: ReadonlySet<string> = new Set([
   "royalties.loadSummaryFallback",
   "royalties.loadPlatformsFallback",
   "royalties.loadPayoutsFallback", "contracts.mode_label", "contracts.mode_analyze", "contracts.mode_generate", "contracts.gen_intro", "contracts.gen_creator_name", "contracts.gen_creator_placeholder", "contracts.gen_counterparty_name", "contracts.gen_counterparty_placeholder", "contracts.gen_payment_label", "contracts.gen_payment_placeholder", "contracts.gen_term_label", "contracts.gen_term_placeholder", "contracts.gen_territory_label", "contracts.gen_territory_placeholder", "contracts.gen_exclusivity_label", "contracts.gen_exclusivity_placeholder", "contracts.gen_rights_label", "contracts.gen_rights_placeholder", "contracts.gen_termination_label", "contracts.gen_termination_placeholder", "contracts.gen_context_label", "contracts.gen_context_placeholder", "contracts.gen_generating", "contracts.gen_generate_button", "contracts.gen_sign_in", "contracts.gen_out_of_credits", "contracts.gen_error_failed", "contracts.gen_error_shape", "contracts.gen_result_fallback_title", "contracts.gen_copy_draft", "contracts.gen_download_draft", "contracts.gen_analyze_draft", "contracts.gen_draft_loaded", "contracts.gen_generate_another",
+  /* join19 — deep-pins honest-load copy: English verbatim (UNREVIEWED) */
+  "jewelry.catalogLoadFailed",
+  "jewelry.catalogLoading",
+  "jewelry.catalogLoadingNote",
+  "jewelry.catalogRetry",
+  "jewelry.hubLogoFailed",
 ]);
 
 const W2_NAMESPACES = ["academy", "auth", "betaAccess", "brandCalculator", "carouselMaker", "common", "delight", "features", "fomoFeed", "guides", "home", "invite", "motionGraphics", "movies", "planPublic", "playlistPitch", "productPhotoStudio", "promo-clip", "retentionDelight", "retentionDoctor", "splitScreen", "sponsorDashboard", "sponsorDealDetail", "sponsors", "sponsorsPost", "videoTemplates", "waitlist"] as const;
@@ -741,6 +747,13 @@ const W4_LEGIT: ReadonlySet<string> = new Set([
   "voiceover.creditsEstimate",
   "voiceover.directionTitle",
   "voiceover.scriptFallback",
+  /* join19 — deep-pins honest-load copy: English verbatim (UNREVIEWED) */
+  "singingVoice.doneNoResult",
+  "singingVoice.pollFailed",
+  "vocalPolish.errorDoneNoResult",
+  "vocalTune.errorDoneNoResult",
+  "voiceover.voicesEmpty",
+  "voiceover.voicesRetry",
 ]);
 describe("fr W4 (Stack-28 appendix) — namespaces closed whole", () => {
   const keys = Object.keys(EN).filter((k) => W4_NAMESPACES.some((ns) => k === ns || k.startsWith(`${ns}.`)));
@@ -1224,6 +1237,9 @@ const W6_LEGIT = new Set([
   // headline rides English verbatim (never agent-translated)
   // until a reviewed translation lands.
   "podcast.dialogue.disabledTitle", "streamPack.theme.rose-velvet.name", "streamPack.theme.rose-velvet.blurb", "streamPack.theme.obsidian-chrome.name", "streamPack.theme.obsidian-chrome.blurb", "streamPack.catalogError", "linkInBio.theme.violetReign", "linkInBio.theme.violetReignBlurb", "linkInBio.theme.skyAtrium", "linkInBio.theme.skyAtriumBlurb",
+  /* join19 — deep-pins honest-load copy: English verbatim (UNREVIEWED) */
+  "podcast.voicePicker.empty",
+  "wave9.structure.loadError",
 ]);
 
 describe("fr W6 namespaces (Stack-28 appendix)", () => {

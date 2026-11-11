@@ -190,6 +190,12 @@ const W1_LEGIT_IDENTICAL = new Set([
   "royalties.loadSummaryFallback",
   "royalties.loadPlatformsFallback",
   "royalties.loadPayoutsFallback", "contracts.mode_label", "contracts.mode_analyze", "contracts.mode_generate", "contracts.gen_intro", "contracts.gen_creator_name", "contracts.gen_creator_placeholder", "contracts.gen_counterparty_name", "contracts.gen_counterparty_placeholder", "contracts.gen_payment_label", "contracts.gen_payment_placeholder", "contracts.gen_term_label", "contracts.gen_term_placeholder", "contracts.gen_territory_label", "contracts.gen_territory_placeholder", "contracts.gen_exclusivity_label", "contracts.gen_exclusivity_placeholder", "contracts.gen_rights_label", "contracts.gen_rights_placeholder", "contracts.gen_termination_label", "contracts.gen_termination_placeholder", "contracts.gen_context_label", "contracts.gen_context_placeholder", "contracts.gen_generating", "contracts.gen_generate_button", "contracts.gen_sign_in", "contracts.gen_out_of_credits", "contracts.gen_error_failed", "contracts.gen_error_shape", "contracts.gen_result_fallback_title", "contracts.gen_copy_draft", "contracts.gen_download_draft", "contracts.gen_analyze_draft", "contracts.gen_draft_loaded", "contracts.gen_generate_another",
+  /* join19 — deep-pins honest-load copy: English verbatim (UNREVIEWED) */
+  "jewelry.catalogLoadFailed",
+  "jewelry.catalogLoading",
+  "jewelry.catalogLoadingNote",
+  "jewelry.catalogRetry",
+  "jewelry.hubLogoFailed",
 ]);
 describe("de locale wave W1 (Stack-28)", () => {
   it("every en key exists non-empty in de and no untranslated residue remains", () => checkWave(W1_NAMESPACES, W1_LEGIT_IDENTICAL));
@@ -875,6 +881,13 @@ const W4_LEGIT_IDENTICAL = new Set([
   "voiceover.assetLabel",
   "voiceover.creditsEstimate",
   "voiceover.voiceoverFallback",
+  /* join19 — deep-pins honest-load copy: English verbatim (UNREVIEWED) */
+  "singingVoice.doneNoResult",
+  "singingVoice.pollFailed",
+  "vocalPolish.errorDoneNoResult",
+  "vocalTune.errorDoneNoResult",
+  "voiceover.voicesEmpty",
+  "voiceover.voicesRetry",
 ]);
 describe("de locale wave W4 (Stack-28 appendix)", () => {
   it("every en key exists non-empty in de and no untranslated residue remains", () => checkWave(W4_NAMESPACES, W4_LEGIT_IDENTICAL));
@@ -1529,6 +1542,9 @@ const W7_LEGIT_IDENTICAL = new Set([
   // headline rides English verbatim (never agent-translated)
   // until a reviewed translation lands.
   "podcast.dialogue.disabledTitle", "streamPack.theme.rose-velvet.name", "streamPack.theme.rose-velvet.blurb", "streamPack.theme.obsidian-chrome.name", "streamPack.theme.obsidian-chrome.blurb", "streamPack.catalogError",
+  /* join19 — deep-pins honest-load copy: English verbatim (UNREVIEWED) */
+  "podcast.voicePicker.empty",
+  "wave9.structure.loadError",
 ]);
 describe("de W7 namespaces (Stack-28 appendix)", () => {
   it("every en key exists non-empty in de and no untranslated residue remains", () => checkWave(W7_NAMESPACES, W7_LEGIT_IDENTICAL));

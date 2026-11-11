@@ -180,8 +180,10 @@ describe("Live/Promo extraction (unit 44)", () => {
 
   it("the namespace holds the family's full extracted key set", () => {
     /* 549 at unit 44; +12 from Stack-200 D6 (items 44–45) — the
-       ugc-ads status labels and briefs money notes. */
-    expect(enKeys.length).toBe(561);
+       ugc-ads status labels and briefs money notes; +2 from join19's
+       deep-pins honest-load keys (schedCancelFailed,
+       schedOldStillThere). */
+    expect(enKeys.length).toBe(563);
   });
 
   it("every catalog key is referenced by a component or seam (no orphans, no remainder)", () => {
