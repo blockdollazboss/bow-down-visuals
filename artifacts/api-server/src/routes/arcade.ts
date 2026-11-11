@@ -12,6 +12,8 @@ import {
   validateArcadeScore,
   type ArcadeGame,
 } from "../lib/arcade-rules";
+import { CROWNFALL_MAX_PLAYERS } from "../lib/crownfall-rooms";
+import { crownfallRooms } from "./crownfall";
 
 const router = Router();
 
@@ -30,6 +32,12 @@ const submitSchema = z.object({
   game: z.string(),
   score: z.number(),
   durationMs: z.number(),
+  /* Online Crownfall only: the room a party run was played in. The
+     party size itself is NEVER read from the client — it comes from
+     the room manager's run receipt for (user, room). partySize is
+     accepted for client convenience and ignored. */
+  roomId: z.string().max(32).optional(),
+  partySize: z.number().optional(),
 });
 
 interface RankedRow {
@@ -96,13 +104,32 @@ router.post("/arcade/scores", requireAuth, publicApiLimiter, async (req: Request
     res.status(400).json({ error: "Invalid request" });
     return;
   }
-  const verdict = validateArcadeScore(parsed.data);
+  const userId = req.userId!;
+  /* Crownfall online: a party run validates against the party-scaled
+     caps ONLY when the room manager's receipt vouches for it — the
+     receipt's player count (never the client's claim) and a duration
+     clamped to the server's own elapsed time for the run (+30s of
+     slack for the submit round-trip). No receipt → solo caps. */
+  let players = 1;
+  let effectiveDurationMs = parsed.data.durationMs;
+  if (parsed.data.game === "crownfall" && parsed.data.roomId) {
+    const receipt = crownfallRooms.getReceipt(userId, parsed.data.roomId);
+    if (receipt && receipt.playerCount > 1) {
+      players = Math.min(receipt.playerCount, CROWNFALL_MAX_PLAYERS);
+      effectiveDurationMs = Math.min(effectiveDurationMs, receipt.elapsedMs + 30_000);
+    }
+  }
+  const verdict = validateArcadeScore({
+    game: parsed.data.game,
+    score: parsed.data.score,
+    durationMs: effectiveDurationMs,
+    players,
+  });
   if (!verdict.ok) {
     res.status(400).json({ error: verdict.reason });
     return;
   }
   const game = parsed.data.game as ArcadeGame;
-  const userId = req.userId!;
   try {
     await db.insert(arcadeScoresTable).values({
       userId,

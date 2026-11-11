@@ -91,7 +91,11 @@ export function skeetAccuracy(hits: number, shots: number): number {
    cannot be cleared in under 4s of play (weakest foe 20 HP vs 3.1
    bolts/s at 10 damage, plus a ~555px entrance-to-door walk at
    238 px/s), a floor holds at most 11 foes, and a floor yields at
-   most 5 placed coins + 2 dropped per foe. */
+   most 5 placed coins + 2 dropped per foe. Online co-op (rooms of
+   up to 4) shares one floor roster, so the foe/coin bounds are the
+   same there — only the 4s pacing bound divides its ~1.7s killing
+   portion across the party (2,300ms of walking never shrinks), and
+   only for runs the server's own receipt vouches for. */
 export const CROWNFALL = {
   width: 720,
   height: 720,

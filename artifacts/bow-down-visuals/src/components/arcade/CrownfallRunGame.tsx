@@ -7,6 +7,10 @@ import {
   crownfallScore,
   type ArcadeRunResult,
 } from "@/lib/arcade-games";
+/* Online multiplayer (CrownfallClient, lib/crownfall-net.ts) rides
+   this game through a thin seam: the engine runs unchanged solo, and
+   every `g.mp` guard below is inert when no party is connected. */
+import type { CrownfallClient } from "@/lib/crownfall-net";
 
 /* ─── Crownfall Run ───────────────────────────────────────────────────────
    Top-down arena roguelike, ported whole from the owner-approved
@@ -161,6 +165,9 @@ interface Player {
   spread: boolean; pierce: boolean; magnet: number; moveMag: number;
 }
 interface Enemy {
+  /* MP: the foe's index within its floor — its party-wide identity
+     (the floor is deterministic, so every client agrees). */
+  id: number;
   type: EnemyType; x: number; y: number; vx: number; vy: number; kx: number; ky: number;
   state: string; t: number; fireT: number;
   lockX: number; lockY: number; wob: number; flash: number; elite: boolean;
@@ -168,7 +175,12 @@ interface Enemy {
 }
 interface Bolt { x: number; y: number; vx: number; vy: number; r: number; dmg: number; pierceLeft: number; hit: Enemy[] }
 interface EBolt { x: number; y: number; vx: number; vy: number; r: number; dmg: number }
-interface Pickup { x: number; y: number; r: number; kind: "crown" | "heart"; bob: number }
+interface Pickup {
+  x: number; y: number; r: number; kind: "crown" | "heart"; bob: number;
+  /* MP: the server's coin id (`f<depth>:p<i>` placed, `f<depth>:d<n>`
+     dropped) — claims and removals are arbitrated by it. Solo: null. */
+  mpId: string | null;
+}
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number }
 interface Floater { x: number; y: number; life: number; text: string; color: string }
 interface Obstacle { x: number; y: number; w: number; h: number; skin?: string }
@@ -255,6 +267,16 @@ interface G {
   overFired: boolean;
   deathAt: number;
   ui: UiBridge;
+  /* ── online multiplayer seam (all inert when mp is null) ── */
+  mp: CrownfallClient | null;
+  /** MP: the local King has fallen — spectate until the party's next
+   *  floor revives him at half health. */
+  mpDown: boolean;
+  /** MP: revive is owed when the next floor begins (applied by the
+   *  tick once the passage completes). */
+  mpRevive: boolean;
+  /** MP: placed crowns on the current floor (for the roster frame). */
+  mpPlacedCount: number;
 }
 
 function newPlayer(): Player {
@@ -342,8 +364,9 @@ function genFloor(g: G, d: number, bg: HTMLCanvasElement | null) {
     const px = WALL + 40 + rng() * (LW - 2 * WALL - 80);
     const py = WALL + 40 + rng() * (LH - 2 * WALL - 80);
     if (pointInRects(g, px, py, 22)) continue;
-    g.pickups.push({ x: px, y: py, r: 11, kind: "crown", bob: rng() * 6.28 });
+    g.pickups.push({ x: px, y: py, r: 11, kind: "crown", bob: rng() * 6.28, mpId: "f" + d + ":p" + g.pickups.length });
   }
+  g.mpPlacedCount = g.pickups.length;
 
   /* player back to the entrance */
   const P = g.P;
@@ -366,6 +389,7 @@ function genFloor(g: G, d: number, bg: HTMLCanvasElement | null) {
   function addEnemy(type: EnemyType) {
     const s = spawnPos();
     const e: Enemy = {
+      id: g.enemies.length,
       type, x: s.x, y: s.y, vx: 0, vy: 0, kx: 0, ky: 0,
       state: "stalk", t: 0, fireT: 1 + rng() * 1.2,
       lockX: 0, lockY: 0, wob: rng() * 6.28, flash: 0, elite: false,
@@ -633,17 +657,22 @@ function killEnemy(g: G, e: Enemy) {
   if (e.type === "boss") g.shake = Math.max(g.shake, 14);
   burst(g, e.x, e.y, "#f0c94f", e.type === "boss" ? 42 : 16, 190);
   burst(g, e.x, e.y, "#e5484d", 8, 130);
-  if (e.type === "boss" || e.elite) {
-    g.pickups.push({ x: e.x, y: e.y, r: 11, kind: "crown", bob: Math.random() * 6.28 });
-    g.pickups.push({ x: e.x + 18, y: e.y + 8, r: 11, kind: "crown", bob: Math.random() * 6.28 });
-  } else if (Math.random() < 0.3) {
-    g.pickups.push({ x: e.x, y: e.y, r: 11, kind: "crown", bob: Math.random() * 6.28 });
-  }
-  if (Math.random() < 0.12 && g.P.hp < g.P.maxhp) {
-    g.pickups.push({ x: e.x + 14, y: e.y - 10, r: 10, kind: "heart", bob: 0 });
+  /* MP: drops are rolled by the server and arrive as coin.spawn
+     events — the local Math.random drop table is solo-only. */
+  if (!g.mp) {
+    if (e.type === "boss" || e.elite) {
+      g.pickups.push({ x: e.x, y: e.y, r: 11, kind: "crown", bob: Math.random() * 6.28, mpId: null });
+      g.pickups.push({ x: e.x + 18, y: e.y + 8, r: 11, kind: "crown", bob: Math.random() * 6.28, mpId: null });
+    } else if (Math.random() < 0.3) {
+      g.pickups.push({ x: e.x, y: e.y, r: 11, kind: "crown", bob: Math.random() * 6.28, mpId: null });
+    }
+    if (Math.random() < 0.12 && g.P.hp < g.P.maxhp) {
+      g.pickups.push({ x: e.x + 14, y: e.y - 10, r: 10, kind: "heart", bob: 0, mpId: null });
+    }
   }
   if (e === g.boss) g.boss = null;
-  if (g.enemies.length === 0 && g.phase === "playing") {
+  /* MP: the door opens on the server's floor.cleared, never locally. */
+  if (!g.mp && g.enemies.length === 0 && g.phase === "playing") {
     g.doorOpen = true; sfx.door();
     g.ui.msg("Room cleared — the golden door is open!");
   }
@@ -687,9 +716,29 @@ function fireBolts(g: G) {
     g.bolts.push({ x: P.x + Math.cos(a) * 18, y: P.y + Math.sin(a) * 18, vx: Math.cos(a) * 545, vy: Math.sin(a) * 545, r: 5, dmg: P.dmg, pierceLeft: P.pierce ? 2 : 0, hit: [] });
   }
 }
-function enemyShoot(g: G, e: Enemy, speed: number, dmg: number, spread = 0) {
-  const a = Math.atan2(g.P.y - e.y, g.P.x - e.x) + spread;
+function enemyShoot(g: G, e: Enemy, speed: number, dmg: number, spread = 0, tx = g.P.x, ty = g.P.y) {
+  const a = Math.atan2(ty - e.y, tx - e.x) + spread;
   g.ebolts.push({ x: e.x + Math.cos(a) * (e.r + 4), y: e.y + Math.sin(a) * (e.r + 4), vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, r: 5, dmg });
+}
+
+/* MP: the foe's prey — the nearest living King among the local King
+   and the party's last-known positions (down/away Kings are not
+   prey). Solo this is always the local King (updateEnemy passes P). */
+function mpTargetOf(g: G, e: Enemy): { x: number; y: number } {
+  const mp = g.mp;
+  if (!mp) return g.P;
+  let best: { x: number; y: number } | null = null;
+  let bestD = Infinity;
+  if (!g.mpDown) {
+    best = g.P;
+    bestD = dist2(e.x, e.y, g.P.x, g.P.y);
+  }
+  for (const king of mp.remoteKings.values()) {
+    if (king.down || king.away) continue;
+    const d = dist2(e.x, e.y, king.x, king.y);
+    if (d < bestD) { bestD = d; best = king; }
+  }
+  return best ?? g.P;
 }
 
 /* ─── enemy brains ────────────────────────────────────────────────────── */
@@ -698,7 +747,10 @@ function updateEnemy(g: G, e: Enemy, dt: number, bg: HTMLCanvasElement | null) {
   e.flash = Math.max(0, e.flash - dt);
   if (e.kx || e.ky) { moveCircle(g, e, e.kx * dt, e.ky * dt); e.kx *= 0.82; e.ky *= 0.82; if (Math.abs(e.kx) < 4) e.kx = 0; if (Math.abs(e.ky) < 4) e.ky = 0; }
   e.wob += dt * 3;
-  const dx = P.x - e.x, dy = P.y - e.y;
+  /* MP: foes hunt the nearest living King (see mpTargetOf); solo the
+     target is the local King and every line below is unchanged. */
+  const T = g.mp ? mpTargetOf(g, e) : P;
+  const dx = T.x - e.x, dy = T.y - e.y;
   const d = Math.sqrt(dx * dx + dy * dy) || 1;
   const ux = dx / d, uy = dy / d;
   let mx = 0, my = 0;
@@ -717,7 +769,7 @@ function updateEnemy(g: G, e: Enemy, dt: number, bg: HTMLCanvasElement | null) {
     const ml2 = Math.sqrt(mx * mx + my * my) || 1;
     moveCircle(g, e, (mx / ml2) * e.speed * dt, (my / ml2) * e.speed * dt);
     e.fireT -= dt;
-    if (e.fireT <= 0 && d < 430) { enemyShoot(g, e, 295, 8, 0); e.fireT = Math.max(1.05, 1.8 - g.depth * 0.05); }
+    if (e.fireT <= 0 && d < 430) { enemyShoot(g, e, 295, 8, 0, T.x, T.y); e.fireT = Math.max(1.05, 1.8 - g.depth * 0.05); }
   } else if (e.type === "dasher") {
     e.t -= dt;
     if (e.state === "stalk") {
@@ -740,7 +792,7 @@ function updateEnemy(g: G, e: Enemy, dt: number, bg: HTMLCanvasElement | null) {
       moveCircle(g, e, ux * e.speed * dt, uy * e.speed * dt);
       if (e.t <= 0 && d < 430) { e.state = "aim"; e.t = 0.45; e.lockX = ux; e.lockY = uy; }
       if (e.fireT <= 0) {
-        enemyShoot(g, e, 285, 12, 0); enemyShoot(g, e, 285, 12, 0.3); enemyShoot(g, e, 285, 12, -0.3);
+        enemyShoot(g, e, 285, 12, 0, T.x, T.y); enemyShoot(g, e, 285, 12, 0.3, T.x, T.y); enemyShoot(g, e, 285, 12, -0.3, T.x, T.y);
         e.fireT = 2.3;
       }
     } else if (e.state === "aim") {
@@ -761,8 +813,11 @@ function updateEnemy(g: G, e: Enemy, dt: number, bg: HTMLCanvasElement | null) {
       e.x += (sx / l) * 26 * dt; e.y += (sy / l) * 26 * dt;
     }
   }
-  /* contact damage */
-  if (d < e.r + P.r - 2) damagePlayer(g, e.dmg, bg);
+  /* contact damage — always measured against the LOCAL King: a foe
+     harms a player only on that player's own screen (in MP, d above
+     tracks the party target, which may be somebody else's King). */
+  const pd = Math.sqrt(dist2(e.x, e.y, P.x, P.y));
+  if (pd < e.r + P.r - 2) damagePlayer(g, e.dmg, bg);
 }
 
 /* ─── upgrades ────────────────────────────────────────────────────────── */
@@ -861,11 +916,18 @@ function showUpgrades(g: G) {
 
 /* ─── run flow ────────────────────────────────────────────────────────── */
 function startRun(g: G, bg: HTMLCanvasElement | null) {
+  /* MP: a run starts only on the server's word (the tick consumes a
+     start directive) — a death-screen restart inside a party room
+     must never spin up a phantom local run. */
+  if (g.mp && !g.mp.started) return;
   ensureAudio();
-  g.runSeed = (Math.random() * 1000000000) | 0;
+  /* MP: the seed is the room's — every King in the party generates
+     the identical descent from it. */
+  g.runSeed = g.mp ? g.mp.seed : ((Math.random() * 1000000000) | 0);
   g.depth = 1; g.crowns = 0; g.kills = 0;
   g.combo = 0; g.comboTimer = 0; g.bestCombo = 0; g.comboBonus = 0; g.runTime = 0;
   g.paused = false; g.afterimages = [];
+  g.mpDown = false; g.mpRevive = false;
   g.overFired = false;
   g.P = newPlayer();
   g.phase = "playing";
@@ -875,6 +937,18 @@ function startRun(g: G, bg: HTMLCanvasElement | null) {
   g.ui.hud();
 }
 function die(g: G, _bg: HTMLCanvasElement | null) {
+  /* MP: falling is not the end — the King spectates his party and
+     rises at the next floor at half health. The run itself ends only
+     on the server's word (a party wipe), via mpEndRun. */
+  if (g.mp) {
+    if (!g.mpDown) {
+      g.mpDown = true;
+      g.mp.notifyLocalDown();
+      g.ui.msg("You fell — watch the party. You rise next floor at half health.");
+      g.ui.hud();
+    }
+    return;
+  }
   g.phase = "dead";
   g.deathAt = g.timeNow;
   const sc = scoreOf(g);
@@ -891,9 +965,217 @@ function die(g: G, _bg: HTMLCanvasElement | null) {
   });
 }
 
+/* ─── online multiplayer: the tick + party rendering ───────────────────
+   Everything below is inert solo (g.mp null). The tick runs once per
+   rAF frame while a party is connected: ALL network truth enters the
+   simulation here — server events are drained and applied between
+   updates, never mid-update — and the King's state streams out at
+   ~15 Hz. The referee math (damage, drops, purses, doors, receipts)
+   lives server-side in lib/crownfall-rooms.ts; this is presentation
+   and intent only. */
+
+/** The server ended the run (a party wipe): close the local run out
+ *  exactly the way die() closes a solo one — same summary, same
+ *  onGameOver — but on the party's word, not the local King's. */
+function mpEndRun(g: G) {
+  if (g.phase === "dead" || g.phase === "start") return;
+  g.phase = "dead";
+  g.deathAt = g.timeNow;
+  const sc = scoreOf(g);
+  const isSessionBest = sc > g.sessionBest.score;
+  if (isSessionBest) g.sessionBest.score = sc;
+  g.sessionBest.depth = Math.max(g.sessionBest.depth, g.depth);
+  sfx.sting();
+  g.ui.phase("dead");
+  g.ui.death({
+    depth: g.depth, crowns: g.crowns, kills: g.kills, score: sc,
+    bestCombo: g.bestCombo, timeSec: g.runTime,
+    bossDeath: g.boss !== null || g.depth % 5 === 0,
+    isSessionBest,
+  });
+}
+
+function mpTick(g: G, bg: HTMLCanvasElement | null, bgAlt: HTMLCanvasElement | null) {
+  const mp = g.mp;
+  if (!mp) return;
+  /* A party run does not pause: the room is live whether or not this
+     screen is looking at it, so a local pause request is undone. */
+  if (g.paused) { g.paused = false; g.ui.paused(false); }
+  mp.pruneRemoteKings();
+
+  /* ── start / resync directive ── */
+  const dir = mp.takeStartDirective();
+  if (dir && (dir.resync || g.phase === "start" || g.phase === "dead")) {
+    startRun(g, bg);
+    if (dir.snapshot || dir.depth > 1) {
+      /* Reconnect: rebuild the party's current floor from the seed
+         and re-apply its server truth (dead/hurt foes, taken coins,
+         live drops). The King re-enters at the entrance — a v1
+         resync simplification, never a score event. */
+      g.depth = dir.depth;
+      genFloor(g, dir.depth, bg);
+      const snap = dir.snapshot;
+      if (snap) {
+        for (const f of snap.foes) {
+          const idx = g.enemies.findIndex((e) => e.id === f.id);
+          if (idx < 0) continue;
+          if (f.down) {
+            const [gone] = g.enemies.splice(idx, 1);
+            if (gone === g.boss) g.boss = null;
+          } else {
+            g.enemies[idx]!.hp = f.hp;
+          }
+        }
+        if (snap.coinsTaken.length) {
+          const taken = new Set(snap.coinsTaken);
+          g.pickups = g.pickups.filter((pk) => !pk.mpId || !taken.has(pk.mpId));
+        }
+        for (const c of snap.coinsLive) {
+          if (c.onlyPeerId && c.onlyPeerId !== mp.selfPeerId) continue;
+          g.pickups.push({ x: c.x, y: c.y, r: c.kind === "heart" ? 10 : 11, kind: c.kind, bob: 0, mpId: c.coinId });
+        }
+      }
+      if (mp.selfDown) g.mpDown = true;
+      g.ui.hud();
+    }
+  }
+
+  /* ── register this floor's roster (first client in wins) ── */
+  if (g.phase === "playing" && mp.needsRoster(g.depth)) {
+    mp.sendRoster(
+      g.depth,
+      g.enemies.map((e) => ({ id: e.id, type: e.type, elite: e.elite, maxHp: e.maxhp })),
+      g.mpPlacedCount,
+    );
+  }
+
+  /* ── server events ── */
+  for (const ev of mp.drainEvents()) {
+    switch (ev.kind) {
+      case "foeHp": {
+        const foe = g.enemies.find((e) => e.id === ev.foeId);
+        if (foe && ev.hp > 0) foe.hp = ev.hp;
+        break;
+      }
+      case "foeDown": {
+        const idx = g.enemies.findIndex((e) => e.id === ev.foeId);
+        if (idx < 0) break;
+        const [foe] = g.enemies.splice(idx, 1);
+        if (!foe) break;
+        if (ev.byPeerId === mp.selfPeerId) {
+          /* My kill: the full local kill path (combo, sfx, bursts) —
+             its drop/door branches are MP-guarded inside killEnemy. */
+          killEnemy(g, foe);
+        } else {
+          burst(g, foe.x, foe.y, "#f0c94f", foe.type === "boss" ? 42 : 16, 190);
+          burst(g, foe.x, foe.y, "#e5484d", 8, 130);
+          if (foe.type === "boss") g.shake = Math.max(g.shake, 14);
+          if (foe === g.boss) g.boss = null;
+          g.ui.hud();
+        }
+        break;
+      }
+      case "coinSpawn": {
+        if (ev.onlyPeerId && ev.onlyPeerId !== mp.selfPeerId) break;
+        g.pickups.push({
+          x: ev.x, y: ev.y, r: ev.coinKind === "heart" ? 10 : 11,
+          kind: ev.coinKind, bob: 0, mpId: ev.coinId,
+        });
+        break;
+      }
+      case "coinTaken": {
+        const idx = g.pickups.findIndex((pk) => pk.mpId === ev.coinId);
+        if (idx >= 0) g.pickups.splice(idx, 1);
+        break;
+      }
+      case "floorCleared": {
+        if (!g.doorOpen) {
+          g.doorOpen = true; sfx.door();
+          g.ui.msg("Room cleared — the golden door is open!");
+        }
+        break;
+      }
+      case "floorBegin": {
+        if (g.mpDown) g.mpRevive = true;
+        if (g.phase === "playing" || g.phase === "upgrade") {
+          /* beginTransit counts the floor it walks into. */
+          g.depth = ev.depth - 1;
+          beginTransit(g, bg, bgAlt ?? bg);
+        }
+        break;
+      }
+      case "playerDown":
+        break; /* the roster + state frames carry a fall */
+      case "runEnded": {
+        mpEndRun(g);
+        break;
+      }
+    }
+  }
+
+  /* ── revive at floor start: half health, on the new floor ── */
+  if (g.mpRevive && g.phase === "playing") {
+    g.mpRevive = false;
+    g.mpDown = false;
+    g.P.hp = Math.ceil(g.P.maxhp / 2);
+    g.P.invuln = Math.max(g.P.invuln, 0.6);
+    g.ui.msg("You rise again — half health. Make it count.");
+    g.ui.hud();
+  }
+
+  /* ── tallies are the server's: sync HUD/score truth every frame ── */
+  if (mp.myPurse > g.crowns) {
+    sfx.crown();
+    floater(g, g.P.x, g.P.y - 24, "+25", "#c49a22");
+  }
+  g.crowns = mp.myPurse;
+  g.kills = mp.myKills;
+
+  /* ── my King state, ~15 Hz (throttled inside the client) ── */
+  if (g.phase === "playing" || g.phase === "upgrade" || g.phase === "transit") {
+    mp.maybeSendState({
+      x: Math.round(g.P.x), y: Math.round(g.P.y),
+      faceX: g.P.faceX, faceY: g.P.faceY,
+      hp: Math.max(0, Math.ceil(g.P.hp)), maxhp: g.P.maxhp,
+      firing: g.aim.on, down: g.mpDown, away: g.phase === "upgrade",
+    });
+  }
+}
+
+/* The party's Kings, drawn with the same sprite as the local King —
+   a fallen party member ghosts, and every King wears his name. */
+function drawRemoteKings(g: G, ctx: CanvasRenderingContext2D) {
+  const mp = g.mp;
+  if (!mp) return;
+  for (const king of mp.remoteKings.values()) {
+    const alpha = king.down ? 0.3 : king.away ? 0.55 : 1;
+    drawKingSprite(g, ctx, king.x, king.y, 1.35, alpha, king.faceX, king.faceY);
+    ctx.save();
+    ctx.globalAlpha = king.down ? 0.5 : 0.95;
+    ctx.font = "700 10px Cinzel, serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f0c94f";
+    ctx.fillText(king.displayName, king.x, king.y - 34);
+    if (king.maxhp > 0 && king.hp < king.maxhp) {
+      const w = 38, pct = Math.max(0, king.hp / king.maxhp);
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(king.x - w / 2, king.y - 29, w, 4);
+      ctx.fillStyle = king.down ? "#e5484d" : "#7bc47f";
+      ctx.fillRect(king.x - w / 2, king.y - 29, w * pct, 4);
+    }
+    if (king.down) {
+      ctx.font = "700 9px sans-serif";
+      ctx.fillStyle = "#e5484d";
+      ctx.fillText("DOWN", king.x, king.y + 32);
+    }
+    ctx.restore();
+  }
+}
+
 /* ─── player actions + main update ────────────────────────────────────── */
 function tryDash(g: G) {
   const P = g.P;
+  if (g.mpDown) return; /* MP: a fallen King spectates — no dashing */
   if (g.phase !== "playing" || P.dashCd > 0) return;
   let dx = 0, dy = 0;
   if (g.joy.on && (g.joy.dx || g.joy.dy)) { dx = g.joy.dx; dy = g.joy.dy; }
@@ -939,6 +1221,17 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null, bgAlt: HTMLCanva
   g.runTime += dt;
   if (g.comboTimer > 0) { g.comboTimer -= dt; if (g.comboTimer <= 0) g.combo = 0; }
 
+  /* MP: a fallen King is a spectator — every input source is zeroed
+     before the reads below, so he cannot move, aim, or fire. (Dash
+     has its own guard in tryDash; it is triggered outside update.) */
+  if (g.mpDown) {
+    g.keys = {};
+    g.joy.on = false; g.joy.dx = 0; g.joy.dy = 0;
+    g.padVec.x = 0; g.padVec.y = 0;
+    g.padAim.on = false; g.aimJoy.on = false;
+    g.mouseAim.lastAt = -10;
+  }
+
   /* ---- player movement ---- */
   let ix = 0, iy = 0;
   if (g.keys["a"] || g.keys["arrowleft"]) ix -= 1;
@@ -982,7 +1275,17 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null, bgAlt: HTMLCanva
       const e = g.enemies[j]!;
       if (b.hit.indexOf(e) >= 0) continue;
       if (dist2(b.x, b.y, e.x, e.y) < (e.r + b.r) * (e.r + b.r)) {
-        e.hp -= b.dmg; e.flash = 0.14; sfx.hit();
+        /* MP: the hit is REPORTED, not adjudicated — the server
+           accumulates damage party-wide and broadcasts the death.
+           Locally the foe's HP is visual only and never reaches 0
+           here, so the kill branch below stays solo-only in effect. */
+        if (g.mp) {
+          g.mp.reportHit(e.id, b.dmg, e.x, e.y);
+          e.hp = Math.max(1, e.hp - b.dmg);
+        } else {
+          e.hp -= b.dmg;
+        }
+        e.flash = 0.14; sfx.hit();
         floater(g, e.x + (Math.random() * 14 - 7), e.y - e.r - 6, "" + Math.round(b.dmg), "#ffffff");
         const kb = e.type === "boss" ? 30 : 150;
         const bl = Math.sqrt(b.vx * b.vx + b.vy * b.vy) || 1;
@@ -1021,11 +1324,18 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null, bgAlt: HTMLCanva
     }
     if (pd < P.r + pk.r + 4) {
       g.pickups.splice(i, 1);
+      /* MP: touching a coin CLAIMS it — the server arbitrates the
+         race, credits the winner's purse, and the tick plays the
+         pickup fanfare for the winner only (coinTaken). The local
+         splice is just the coin leaving this screen's floor. */
+      if (g.mp && pk.mpId) g.mp.claimCoin(pk.mpId);
       if (pk.kind === "crown") {
-        g.crowns++; sfx.crown();
-        floater(g, P.x, P.y - 24, "+25", "#c49a22");
-        burst(g, pk.x, pk.y, "#f0c94f", 12, 140);
-        burst(g, pk.x, pk.y, "#fff3c4", 5, 90);
+        if (!g.mp) {
+          g.crowns++; sfx.crown();
+          floater(g, P.x, P.y - 24, "+25", "#c49a22");
+          burst(g, pk.x, pk.y, "#f0c94f", 12, 140);
+          burst(g, pk.x, pk.y, "#fff3c4", 5, 90);
+        }
       } else {
         P.hp = Math.min(P.maxhp, P.hp + 18);
         floater(g, P.x, P.y - 24, "+18 HP", "#7bc47f");
@@ -1037,7 +1347,11 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null, bgAlt: HTMLCanva
 
   /* ---- the golden door: step through and WALK into the next room ---- */
   if (g.doorOpen && P.y < WALL + 26 && Math.abs(P.x - LW / 2) < 42) {
-    beginTransit(g, bg, bgAlt ?? bg);
+    /* MP: stepping in tells the server; the passage itself begins
+       when the whole party is through (floor.begin → the tick calls
+       beginTransit). The King waits at the door meanwhile. */
+    if (g.mp) g.mp.notifyDoor(g.depth);
+    else beginTransit(g, bg, bgAlt ?? bg);
   }
 
   g.ui.hud();
@@ -1959,6 +2273,8 @@ function render(g: G, ctx: CanvasRenderingContext2D, bg: HTMLCanvasElement | nul
     drawKingSprite(g, ctx, ai.x, ai.y, 1.35, 0.32 * (1 - ai.life / 0.3), ai.faceX, ai.faceY);
   }
   drawKing(g, ctx);
+  /* MP: the party's Kings share this room (inert solo). */
+  if (g.mp) drawRemoteKings(g, ctx);
 
   /* aim indicator — visible whenever aim input exists, so the manual
      control is seen, not hidden: a gold line + chevron off the King */
@@ -2298,15 +2614,23 @@ function createG(ui: UiBridge): G {
     overFired: false,
     deathAt: -10,
     ui,
+    mp: null,
+    mpDown: false,
+    mpRevive: false,
+    mpPlacedCount: 0,
   };
 }
 
 export default function CrownfallRunGame({
   light,
   onGameOver,
+  mp,
 }: {
   light: boolean;
   onGameOver: (r: ArcadeRunResult) => void;
+  /** Online multiplayer: the party client this game plays through
+   *  (lib/crownfall-net.ts). Absent/null = the solo game, unchanged. */
+  mp?: CrownfallClient | null;
 }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -2444,6 +2768,13 @@ export default function CrownfallRunGame({
     if (g) startRun(g, bgRef.current);
   }, []);
 
+  /* MP: hand the party client to the engine state (the loop reads it
+     from G every frame; solo runs simply never set it). */
+  useEffect(() => {
+    const g = gRef.current;
+    if (g) g.mp = mp ?? null;
+  }, [mp]);
+
   /* ── boot, loop, and listeners (mount once) ── */
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -2550,6 +2881,8 @@ export default function CrownfallRunGame({
         pollGamepad(g, bgRef.current);
         if (!g.paused) update(g, dt, bgRef.current, bgAltRef.current);
         else g.timeNow += dt;
+        /* MP: network truth lands between updates (inert solo). */
+        if (g.mp) mpTick(g, bgRef.current, bgAltRef.current);
         if (g.bgSwap) {
           /* a door passage just ended: the spare backdrop (the room
              we walked into) is now the current one */

@@ -10,6 +10,7 @@ import { registerWorldWs, startWorldEventScheduler, startKingMomentScheduler, st
 import { startOperatorDuties } from "./lib/operator-duties";
 import { registerWorldContestAnnouncer } from "./lib/world-contests";
 import { registerPartyWs } from "./routes/party";
+import { registerCrownfallWs } from "./routes/crownfall";
 import { registerVideoCallWs } from "./routes/video-calls";
 import { registerStageWs } from "./routes/trust";
 import { ensureCheatCodeTables } from "./lib/ensure-cheat-code-tables";
@@ -237,6 +238,7 @@ startOperatorDuties(worldPalace);
    Winners' Circle rows are the durable record; this is the moment). */
 registerWorldContestAnnouncer((announcement) => worldPalace.announce(announcement));
 registerPartyWs(wsGateway);
+registerCrownfallWs(wsGateway);
 registerVideoCallWs(wsGateway);
 registerStageWs(wsGateway);
 wsGateway.attach(server);
