@@ -1,13 +1,13 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "44b33dcde4fc59cd7a613ac79c0815d4f2a5a759",
+  "baseCommit": "67dce74ee467b14df84ce97c36c7e2cb29f2fb40",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
     "description": "The AI studio for every creator — songs, videos, promo clips, branding, and business tools. Create, brand, promote, and get paid: pay only for what you create.",
     "source": "artifacts/bow-down-visuals/index.html (og:title / meta description)"
   },
-  "generatedAt": "2026-11-10",
+  "generatedAt": "2026-11-11",
   "counts": {
     "routesInApp": 245,
     "pageFiles": 175,
@@ -21,9 +21,9 @@
     "takeoverOffers": 2,
     "withDescriptions": 254,
     "withoutDescriptions": 0,
-    "serverRouteFiles": 432,
-    "serverEndpoints": 1751,
-    "serverEndpointsVisible": 1097,
+    "serverRouteFiles": 433,
+    "serverEndpoints": 1754,
+    "serverEndpointsVisible": 1098,
     "serverFilesClassified": 98
   },
   "packs": [
@@ -886,6 +886,7 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/arcade/crownfall/rooms",
         "/api/arcade/leaderboard",
         "/api/arcade/me",
         "/api/arcade/scores",
@@ -6185,8 +6186,6 @@
         "/api/admin/status",
         "/api/artist-vaults",
         "/api/artist-vaults/spotlight-order",
-        "/api/creator-profiles",
-        "/api/creator-profiles/me",
         "/api/credits/claim-trial",
         "/api/referrals/apply"
       ],
@@ -7973,6 +7972,10 @@
       "endpoints": [
         "/api/admin/import-artists",
         "/api/admin/status",
+        "/api/creator-hosting/checkout",
+        "/api/creator-hosting/me",
+        "/api/creator-hosting/plan",
+        "/api/creator-tiers/portal",
         "/api/credits/claim-trial",
         "/api/domains",
         "/api/domains/mine",
@@ -18711,6 +18714,15 @@
         "visible": 2,
         "unseen": [
           "/api/credits/balance"
+        ]
+      },
+      {
+        "file": "artifacts/api-server/src/routes/crownfall.ts",
+        "endpoints": 3,
+        "visible": 1,
+        "unseen": [
+          "/api/arcade/crownfall/meta",
+          "/api/arcade/crownfall/rooms/:code"
         ]
       },
       {
