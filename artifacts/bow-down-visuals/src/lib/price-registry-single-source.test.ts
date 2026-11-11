@@ -70,6 +70,8 @@ const CONVERTED: Array<[file: string, name: string, route: string, fallback: num
   ["components/photo/HeadshotStudio.tsx", "HEADSHOT_COST", "/api/generate-headshot", 100],
   ["components/photo/PhotoEnhance.tsx", "PHOTO_ENHANCE_COST", "/api/photo-enhance", 100],
   ["components/photo/ProductPhotoStudio.tsx", "PACKSHOT_CREDITS", "/api/generate-product-photo", 100],
+  ["components/photo/ProductPhotoStudio.tsx", "LIFESTYLE_CREDITS", "/api/generate-product-photo?shotType=lifestyle", 150],
+  ["lib/world/photo-desk.ts", "PRODUCT_PHOTO_LIFESTYLE_COST", "/api/generate-product-photo?shotType=lifestyle", 150],
   ["components/promote/LinkInBioBuilder.tsx", "PUBLISH_COST", "/api/bio-publish", 100],
   ["components/scheduler/TrendJackerSection.tsx", "DRAFT_CREDITS", "/api/trend-jacker/draft", 200],
   ["components/song/SingingVoiceModal.tsx", "CREDIT_COST", "/api/singing-voice", 800],
@@ -135,7 +137,7 @@ function readSource(rel: string): string {
 
 describe("price-registry single source (Stack 400 A-07)", () => {
   it("covers the full converted set", () => {
-    expect(CONVERTED.length).toBe(110);
+    expect(CONVERTED.length).toBe(112);
   });
 
   it.each(CONVERTED)("%s: %s reads the registry", (file, name, route, fallback) => {
