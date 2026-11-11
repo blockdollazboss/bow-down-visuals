@@ -490,17 +490,25 @@ function AuthedLayout({ children }: { children: ReactNode }) {
             )}
           </main>
         </div>
-        <ExpandSidebarButton
-          collapsed={sidebarCollapsed}
-          onExpand={() => {
-            /* Re-opening by hand is a manual toggle too: it cancels
-               the auto-collapse instead of fighting it (the old bare
-               setSidebarCollapsed call never marked the sidebar as
-               user-touched). */
-            noteManualToggle();
-            setSidebarCollapsed(false);
-          }}
-        />
+        {/* Homepage D2 fix (owner-approved Gate-1 preview, Nov 11,
+            2026): the sidebar is never mounted on the homepage, so
+            the expand button is gated off there exactly like
+            MobileSidebarTrigger below — on the homepage it was a
+            dead control toggling state with no visible effect. On
+            every other route it renders and works as before. */}
+        {!isHome && (
+          <ExpandSidebarButton
+            collapsed={sidebarCollapsed}
+            onExpand={() => {
+              /* Re-opening by hand is a manual toggle too: it cancels
+                 the auto-collapse instead of fighting it (the old bare
+                 setSidebarCollapsed call never marked the sidebar as
+                 user-touched). */
+              noteManualToggle();
+              setSidebarCollapsed(false);
+            }}
+          />
+        )}
         <LiveBadge />
         {!isHome && <MobileSidebarTrigger />}
         <FloatingStarLevel />
