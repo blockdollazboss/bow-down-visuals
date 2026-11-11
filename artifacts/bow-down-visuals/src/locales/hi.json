@@ -23112,7 +23112,7 @@
     "domKeep": "रखें",
     "domLoadFailed": "आपके डोमेन लोड नहीं हो सके — उनके बारे में कुछ नहीं बदला।",
     "domNoProfile": "डोमेन आपके क्रिएटर पेज से जुड़ते हैं — पहले इसे बनाएँ (Creator Rooms निर्देशिका में दरवाज़ा है), फिर यहीं अपने डोमेन का दावा करें।",
-    "domNone": "No custom domains yet — your free subdomain above is already working. Your own .com comes with the Hosting plan ($9/mo), or included free with Creator Elite.",
+    "domNone": "No custom domains yet — your free subdomain above is yours, and it goes live when the site launches. Your own .com comes with the Hosting plan ($9/mo), or included free with Creator Elite.",
     "domPlaceholderWarning": "ध्यान दें: प्लेटफ़ॉर्म CNAME लक्ष्य अभी भी प्लेसहोल्डर है — हमारी टीम असली लक्ष्य जोड़ रही है। आपका TXT रिकॉर्ड पहले से ही स्वामित्व साबित करता है।",
     "domPrimary": " · प्राथमिक",
     "domReading": "आपके डोमेन पढ़े जा रहे हैं…",
@@ -25239,7 +25239,7 @@
     "stmtBookings": "Performance bookings (escrow released)",
     "stmtShopSalesFull": "Shop sales (profile store, shops, digital)",
     "tipsBucsTitle": "Stream & stage tips (Visual Bucs)",
-    "totalEarnedNote": "Every source under this card, added up. Tip-jar money still waiting on a fan's payment isn't in here yet — it's listed on the Tips card below.",
+    "totalEarnedNote": "Every source under this card, added up. Tip-jar money still waiting on a fan's payment isn't in here yet — it's listed on the Tip jar tips card below.",
     "totalEarnedTitle": "Total earned (USD) — the sources below",
     "title": "Earnings"
   },

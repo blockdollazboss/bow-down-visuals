@@ -23228,7 +23228,7 @@
     "domKeep": "احتفظ",
     "domLoadFailed": "تعذر تحميل نطاقاتك — لم يتغير أي شيء بشأنها.",
     "domNoProfile": "ترتبط النطاقات بصفحة المنشئ الخاصة بك — أنشئها أولًا (يوجد الباب في دليل غرف المنشئين)، ثم طالب بنطاقك هنا تمامًا.",
-    "domNone": "No custom domains yet — your free subdomain above is already working. Your own .com comes with the Hosting plan ($9/mo), or included free with Creator Elite.",
+    "domNone": "No custom domains yet — your free subdomain above is yours, and it goes live when the site launches. Your own .com comes with the Hosting plan ($9/mo), or included free with Creator Elite.",
     "domPlaceholderWarning": "تنبيه: هدف CNAME الخاص بالمنصة ما زال العنصر النائب — يعمل فريقنا على توصيل الهدف الحقيقي. سجل TXT الخاص بك يثبت الملكية بالفعل.",
     "domPrimary": " · الأساسي",
     "domReading": "جارٍ قراءة نطاقاتك…",
@@ -25355,7 +25355,7 @@
     "stmtBookings": "Performance bookings (escrow released)",
     "stmtShopSalesFull": "Shop sales (profile store, shops, digital)",
     "tipsBucsTitle": "Stream & stage tips (Visual Bucs)",
-    "totalEarnedNote": "Every source under this card, added up. Tip-jar money still waiting on a fan's payment isn't in here yet — it's listed on the Tips card below.",
+    "totalEarnedNote": "Every source under this card, added up. Tip-jar money still waiting on a fan's payment isn't in here yet — it's listed on the Tip jar tips card below.",
     "totalEarnedTitle": "Total earned (USD) — the sources below",
     "title": "Earnings"
   },

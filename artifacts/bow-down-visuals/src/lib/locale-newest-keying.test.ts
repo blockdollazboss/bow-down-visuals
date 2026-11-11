@@ -259,6 +259,15 @@ describe("D6 · earnings keying (items 48–49)", () => {
     expect(EN["earnings.stmtShoutouts"]).toBe(EN["earnings.shoutoutsTitle"]);
   });
 
+  it("join19 walk fix: the total-earned note names the card by its real label", () => {
+    /* The note pointed at "the Tips card below" — no card carries
+       that name; the card is titled "Tip jar tips"
+       (earnings.tipJarTitle). The copy must use the real label. */
+    expect(EN["earnings.totalEarnedNote"]).toContain("Tip jar tips card below");
+    expect(EN["earnings.totalEarnedNote"]).toContain(EN["earnings.tipJarTitle"] as string);
+    expect(EN["earnings.totalEarnedNote"]).not.toContain("the Tips card below");
+  });
+
   it("A-04 + A-06: the VB tips card and both headlines are keyed, coverage in plain words", () => {
     expect(EN["earnings.tipsBucsTitle"]).toBe("Stream & stage tips (Visual Bucs)");
     expect(EN["earnings.totalEarnedTitle"]).toBe("Total earned (USD) — the sources below");

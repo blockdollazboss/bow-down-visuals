@@ -23141,7 +23141,7 @@
     "domKeep": "Conservar",
     "domLoadFailed": "No se pudieron cargar tus dominios: nada cambió en ellos.",
     "domNoProfile": "Los dominios se vinculan a tu página de creador: créala primero (el directorio de Creator Rooms tiene la puerta) y luego reclama tu dominio aquí mismo.",
-    "domNone": "No custom domains yet — your free subdomain above is already working. Your own .com comes with the Hosting plan ($9/mo), or included free with Creator Elite.",
+    "domNone": "No custom domains yet — your free subdomain above is yours, and it goes live when the site launches. Your own .com comes with the Hosting plan ($9/mo), or included free with Creator Elite.",
     "domPlaceholderWarning": "Atención: el destino CNAME de la plataforma sigue siendo el marcador de posición: nuestro equipo está conectando el destino real. Tu registro TXT ya demuestra la propiedad.",
     "domPrimary": " · principal",
     "domReading": "Leyendo tus dominios…",
@@ -25268,7 +25268,7 @@
     "stmtBookings": "Performance bookings (escrow released)",
     "stmtShopSalesFull": "Shop sales (profile store, shops, digital)",
     "tipsBucsTitle": "Stream & stage tips (Visual Bucs)",
-    "totalEarnedNote": "Every source under this card, added up. Tip-jar money still waiting on a fan's payment isn't in here yet — it's listed on the Tips card below.",
+    "totalEarnedNote": "Every source under this card, added up. Tip-jar money still waiting on a fan's payment isn't in here yet — it's listed on the Tip jar tips card below.",
     "totalEarnedTitle": "Total earned (USD) — the sources below",
     "title": "Earnings"
   },

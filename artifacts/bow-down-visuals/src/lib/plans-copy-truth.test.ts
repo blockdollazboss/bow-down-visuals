@@ -40,7 +40,7 @@ const CATALOGS = [en, es, pt, fr, itCatalog, de, ar, hi, ja, ko] as any[];
 
 const STOREFRONT_PLAN_NOTE = "Every creator can open a shop · 5% platform fee on sales";
 const DOM_NONE =
-  "No custom domains yet — your free subdomain above is already working. Your own .com comes with the Hosting plan ($9/mo), or included free with Creator Elite.";
+  "No custom domains yet — your free subdomain above is yours, and it goes live when the site launches. Your own .com comes with the Hosting plan ($9/mo), or included free with Creator Elite.";
 
 function plan(tier: string) {
   const p = CREATOR_PLANS.find((x) => x.tier === tier);
@@ -104,6 +104,14 @@ describe("domain empty-state copy names the real unlock", () => {
     expect(DOM_NONE).toContain("Hosting plan ($9/mo)");
     expect(DOM_NONE).toContain("Creator Elite");
     expect(DOM_NONE).not.toContain("one claim away");
+  });
+
+  it("join19 walk fix: the subdomain copy is honest while the site is unlaunched", () => {
+    /* The free subdomain serves nothing until launch — the copy must
+       not claim it is "already working", and must not promise a date. */
+    expect(DOM_NONE).not.toContain("already working");
+    expect(DOM_NONE).toContain("goes live when the site launches");
+    expect(DOM_NONE).not.toMatch(/\b(19|20)\d{2}\b/);
   });
 });
 
