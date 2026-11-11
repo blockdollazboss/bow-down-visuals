@@ -326,16 +326,24 @@ export default function PodcastStudio() {
         const res = await fetch("/api/voices", {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
+        if (!res.ok) throw new Error("voices failed to load");
         const data = (await res.json().catch(() => ({}))) as { voices?: Voice[] };
         if (cancelled) return;
         const list = Array.isArray(data.voices) ? data.voices : [];
         setVoices(list);
+        setVoicesError(false);
         if (list.length > 0) {
           if (!hostVoiceId) setHostVoiceId(list[0]!.voice_id);
           if (!coHostVoiceId && list.length > 1) setCoHostVoiceId(list[1]!.voice_id);
         }
       } catch {
-        if (!cancelled) setVoices([]);
+        /* A failed voices load is NOT an empty voice list: the
+           pickers show the failure copy only when this flag is
+           set, and an honest "no voices" line otherwise. */
+        if (!cancelled) {
+          setVoices([]);
+          setVoicesError(true);
+        }
       } finally {
         if (!cancelled) setVoicesLoading(false);
       }
