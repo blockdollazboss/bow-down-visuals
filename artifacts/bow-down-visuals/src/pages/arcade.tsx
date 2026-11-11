@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import SharkRunnerGame from "@/components/arcade/SharkRunnerGame";
 import RoyalSkeetGame from "@/components/arcade/RoyalSkeetGame";
 import CrownfallRunGame from "@/components/arcade/CrownfallRunGame";
+import CrownfallLobby from "@/components/arcade/CrownfallLobby";
 import ArcadeLeaderboard from "@/components/arcade/ArcadeLeaderboard";
 import {
   ARCADE_GAME_META,
@@ -286,6 +287,9 @@ export default function ArcadePage() {
         <CrownfallRunGame light={light} onGameOver={handleGameOver} />
         <div className="mt-3">{outcomeLine("crownfall")}</div>
       </section>
+
+      {/* Crownfall Run — Online (co-op rooms, 30 max site-wide) */}
+      <CrownfallLobby light={light} />
 
       {/* Leaderboard */}
       <div className="mt-6">
