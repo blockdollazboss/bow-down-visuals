@@ -132,8 +132,8 @@ describe("unit 49 — Identity/Misc family resolves through the catalog", () => 
     }
   });
 
-  it("the en namespace carries the full family key set (199 keys)", () => {
-    expect(Object.keys(EN)).toHaveLength(199);
+  it("the en namespace carries the full family key set (200 keys)", () => {
+    expect(Object.keys(EN)).toHaveLength(200);
   });
 
   it("referenced keys == catalog keys (zero orphans, zero missing) across components + seams", () => {
