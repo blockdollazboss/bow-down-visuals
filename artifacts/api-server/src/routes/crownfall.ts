@@ -6,6 +6,8 @@
  *   POST /api/arcade/crownfall/rooms        create a room (host = caller)
  *   GET  /api/arcade/crownfall/rooms        open lobbies (discovery)
  *   GET  /api/arcade/crownfall/rooms/:code  one room's public snapshot
+ *   GET  /api/arcade/crownfall/meta         the caller's prestige meta
+ *   PUT  /api/arcade/crownfall/meta         sync it (monotonic merge)
  *   WS   /api/arcade/crownfall/ws?token=<JWT>&code=…  join + play
  *        (engine: lib/crownfall-rooms.ts)
  *
@@ -25,7 +27,7 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { db, creatorProfilesTable } from "@workspace/db";
+import { db, creatorProfilesTable, crownfallMetaTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
@@ -43,6 +45,12 @@ import {
   normalizeCode,
   type CrownfallIdentity,
 } from "../lib/crownfall-rooms";
+import {
+  CROWNFALL_META_DEFAULTS,
+  mergeCrownfallMeta,
+  sanitizeCrownfallMeta,
+  type CrownfallMeta,
+} from "../lib/crownfall-meta";
 
 const router = Router();
 
@@ -141,6 +149,59 @@ router.get("/arcade/crownfall/rooms/:code", requireAuth, publicApiLimiter, async
     return;
   }
   res.json({ room });
+});
+
+/* ── HTTP: prestige meta (the adapter's server home, migration 0336) ── */
+
+async function loadStoredMeta(userId: string): Promise<CrownfallMeta> {
+  const [row] = await db
+    .select({
+      tier: crownfallMetaTable.tier,
+      lifetimeKills: crownfallMetaTable.lifetimeKills,
+      lifetimeBossKills: crownfallMetaTable.lifetimeBossKills,
+      bestDepth: crownfallMetaTable.bestDepth,
+      achievements: crownfallMetaTable.achievements,
+      lastBountyDay: crownfallMetaTable.lastBountyDay,
+    })
+    .from(crownfallMetaTable)
+    .where(eq(crownfallMetaTable.userId, userId))
+    .limit(1);
+  return row ? sanitizeCrownfallMeta(row) : { ...CROWNFALL_META_DEFAULTS };
+}
+
+router.get("/arcade/crownfall/meta", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  const userId = req.userId!;
+  try {
+    res.json({ meta: await loadStoredMeta(userId) });
+  } catch (err) {
+    logger.error({ err, userId }, "[crownfall] prestige meta load failed");
+    res.status(500).json({ error: "Could not load your Crownfall prestige" });
+  }
+});
+
+router.put("/arcade/crownfall/meta", requireAuth, publicApiLimiter, async (req: Request, res: Response) => {
+  const userId = req.userId!;
+  try {
+    /* The fold is monotonic: whatever the device sends, stored
+       progress can only rise to meet it — a stale device can never
+       roll a tier or a lifetime counter back. The response is the
+       merged truth, which the client folds into its device copy. */
+    const merged = mergeCrownfallMeta(
+      await loadStoredMeta(userId),
+      sanitizeCrownfallMeta(req.body ?? {}),
+    );
+    await db
+      .insert(crownfallMetaTable)
+      .values({ userId, ...merged, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: crownfallMetaTable.userId,
+        set: { ...merged, updatedAt: new Date() },
+      });
+    res.json({ meta: merged });
+  } catch (err) {
+    logger.error({ err, userId }, "[crownfall] prestige meta save failed");
+    res.status(500).json({ error: "Could not save your Crownfall prestige" });
+  }
 });
 
 /* ── WebSocket: join + play ─────────────────────────────────────────── */

@@ -26,6 +26,8 @@ import type { CrownfallClient } from "@/lib/crownfall-net";
 import {
   claimPrestigeTier,
   claimRoyalBounty,
+  configureCrownfallMetaAuth,
+  getCrownfallMetaSyncState,
   loadCrownfallMeta,
   loadCrownfallMuted,
   prestigeCoinChance,
@@ -33,10 +35,15 @@ import {
   recordRunInMeta,
   saveCrownfallMeta,
   saveCrownfallMuted,
+  subscribeCrownfallMeta,
+  subscribeCrownfallMetaSync,
+  syncCrownfallMetaFromServer,
   CROWNFALL_ACHIEVEMENTS,
   PRESTIGE_TIER_CAP,
   type CrownfallMeta,
+  type CrownfallMetaSyncState,
 } from "@/lib/crownfall-meta";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Crownfall Run ───────────────────────────────────────────────────────
    Top-down arena roguelike, ported whole from the owner-approved
@@ -91,8 +98,9 @@ import {
      boss cycles add summons (2+), a spread shot (3+), speed (4+).
    - EVENT ROOMS: JACKPOT VAULT (coin-rich, guarded) and AMBUSH
      (extra foes, better drops) roll on non-boss floors from floor 2.
-   - PRESTIGE + MORE: prestige tiers persist between runs (adapter:
-     lib/crownfall-meta.ts — see its persistence-gap note), lifetime
+   - PRESTIGE + MORE: prestige tiers persist between runs on the
+     member's account (adapter: lib/crownfall-meta.ts — join19 gave
+     it a server home, migration 0336), lifetime
      achievements, a shield pickup, a ×1–×5 combo multiplier, kill
      streak callouts, and the daily Royal Bounty (+50 scrip — scrip
      is shop-spendable but never converts to score, so prestige can
@@ -3709,6 +3717,33 @@ export default function CrownfallRunGame({
   });
   const [fsActive, setFsActive] = useState(false);
   const [metaUi, setMetaUi] = useState<CrownfallMeta>(() => loadCrownfallMeta());
+  /* PRESTIGE ACCOUNT SYNC (join19): configure the adapter with this
+     session's token getter, pull the account's truth in on mount,
+     and surface the sync state honestly — "error" means prestige is
+     living on this device only, and the screens below say so. */
+  const { getAccessToken } = useAuth();
+  const [metaSync, setMetaSync] = useState<CrownfallMetaSyncState>(() => getCrownfallMetaSyncState());
+  useEffect(() => {
+    configureCrownfallMetaAuth(getAccessToken);
+    let live = true;
+    void syncCrownfallMetaFromServer().then((merged) => {
+      if (!live) return;
+      const g = gRef.current;
+      if (g) g.meta = merged;
+      setMetaUi(merged);
+    });
+    const unsubMeta = subscribeCrownfallMeta((m) => {
+      const g = gRef.current;
+      if (g) g.meta = m;
+      setMetaUi(m);
+    });
+    const unsubSync = subscribeCrownfallMetaSync(setMetaSync);
+    return () => {
+      live = false;
+      unsubMeta();
+      unsubSync();
+    };
+  }, [getAccessToken]);
   const [prestigeClaimed, setPrestigeClaimed] = useState(false);
   const [sessionBest, setSessionBest] = useState<{ depth: number; score: number }>({ depth: 0, score: 0 });
 
@@ -4366,6 +4401,11 @@ export default function CrownfallRunGame({
                   Prestige tier {metaUi.tier} — +{metaUi.tier * 5}% bolt damage, +{metaUi.tier * 10}% coin drops, every run.
                 </p>
               )}
+              {metaSync === "error" && (
+                <p className="mb-2 max-w-[46ch] text-[13px] font-bold text-[#e5484d]">
+                  Prestige couldn't reach your account — it's saved on this device only for now, not backed up yet.
+                </p>
+              )}
               <button type="button" className={btnGold} onClick={startFromUi} data-testid="crownfall-start">
                 <Play className="h-4 w-4" /> Start the Run
               </button>
@@ -4526,6 +4566,11 @@ export default function CrownfallRunGame({
               )}
               {prestigeClaimed && (
                 <div className={`mb-3 font-black ${goldInk}`}>♛ Prestige tier {metaUi.tier} claimed — the crown remembers.</div>
+              )}
+              {metaSync === "error" && (
+                <p className="mb-3 max-w-[46ch] text-[13px] font-bold text-[#e5484d]">
+                  Prestige couldn't reach your account — it's saved on this device only for now, not backed up yet.
+                </p>
               )}
               <p className={`mb-2.5 text-[13px] ${mutedInk}`}>Score = depth × 100 + leftover purse × 25 + foes × 10 + combo bonus (chained kills multiply up to ×5).</p>
               {summary.isSessionBest && <div className={`mb-2.5 font-bold ${goldInk}`}>New best run!</div>}

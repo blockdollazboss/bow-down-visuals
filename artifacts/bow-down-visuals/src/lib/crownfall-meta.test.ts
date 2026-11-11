@@ -2,8 +2,10 @@
  * Crownfall Run — prestige/meta adapter tests (v2).
  *
  * The adapter is the single seam between the game and persistence
- * (device storage today; a server field is the join's to add — see
- * the persistence-gap note in crownfall-meta.ts). These tests pin
+ * (device storage as the cache/fallback; the account as the home
+ * since join19 — see the persistence note in crownfall-meta.ts,
+ * and the account-sync suite at the bottom of this file). These
+ * tests pin
  * the RULES that must hold wherever the data lives:
  * - prestige math per tier, hard-capped at tier 10;
  * - prestige never inflates score inputs — the coin bonus yields
@@ -13,7 +15,7 @@
  * - achievements: First Crown / Centurion / Deep Diver / Prestigious;
  * - recording a run folds kills/depth/bosses into lifetime totals.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   CROWNFALL_META_DEFAULTS,
   PRESTIGE_TIER_CAP,
@@ -125,5 +127,123 @@ describe("the adapter itself", () => {
     expect(loaded.tier).toBeGreaterThanOrEqual(0);
     expect(loaded.tier).toBeLessThanOrEqual(PRESTIGE_TIER_CAP);
     expect(Array.isArray(loaded.achievements)).toBe(true);
+  });
+});
+
+/* ─── account sync (join19 — the server home, migration 0336) ────────
+   Each test gets a FRESH adapter module (vi.resetModules) so the
+   in-memory copy, token seam and sync state start clean — a second
+   module instance is a second device. The fake server below is the
+   account: it stores what PUT sends and serves it back on GET,
+   folding monotonically like the real route. */
+describe("account sync", () => {
+  const DEFAULTS_BODY = {
+    tier: 0, lifetimeKills: 0, lifetimeBossKills: 0, bestDepth: 0,
+    achievements: [] as string[], lastBountyDay: "",
+  };
+
+  function fakeServer(initial: Record<string, unknown> | null = null) {
+    let stored: Record<string, unknown> | null = initial;
+    const fold = (a: any, b: any) => ({
+      tier: Math.max(a.tier, b.tier),
+      lifetimeKills: Math.max(a.lifetimeKills, b.lifetimeKills),
+      lifetimeBossKills: Math.max(a.lifetimeBossKills, b.lifetimeBossKills),
+      bestDepth: Math.max(a.bestDepth, b.bestDepth),
+      achievements: [...new Set([...a.achievements, ...b.achievements])],
+      lastBountyDay: a.lastBountyDay > b.lastBountyDay ? a.lastBountyDay : b.lastBountyDay,
+    });
+    const fetchMock = vi.fn(async (_url: string, init?: { method?: string; body?: string }) => {
+      if (init?.method === "PUT") {
+        stored = fold(stored ?? DEFAULTS_BODY, JSON.parse(init.body ?? "{}"));
+        return { ok: true, status: 200, json: async () => ({ meta: stored }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ meta: stored ?? DEFAULTS_BODY }) };
+    });
+    return { fetchMock, get stored() { return stored; } };
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("save → account → a fresh device reloads with the tier intact", async () => {
+    const server = fakeServer();
+    vi.stubGlobal("fetch", server.fetchMock);
+
+    vi.resetModules();
+    const deviceA = await import("./crownfall-meta");
+    deviceA.configureCrownfallMetaAuth(async () => "tok");
+    deviceA.saveCrownfallMeta({
+      tier: 2, lifetimeKills: 137, lifetimeBossKills: 1, bestDepth: 6,
+      achievements: ["first-crown"], lastBountyDay: "2026-11-10",
+    });
+    await vi.waitFor(() => expect(deviceA.getCrownfallMetaSyncState()).toBe("synced"));
+    expect(server.stored?.["tier"]).toBe(2);
+
+    /* a brand-new device: empty local copy, same account */
+    vi.resetModules();
+    const deviceB = await import("./crownfall-meta");
+    expect(deviceB.loadCrownfallMeta().tier).toBe(0);
+    deviceB.configureCrownfallMetaAuth(async () => "tok");
+    const merged = await deviceB.syncCrownfallMetaFromServer();
+    expect(merged.tier).toBe(2);
+    expect(merged.lifetimeKills).toBe(137);
+    expect(merged.achievements).toEqual(["first-crown"]);
+    expect(deviceB.loadCrownfallMeta().tier).toBe(2); /* adopted locally */
+    expect(deviceB.getCrownfallMetaSyncState()).toBe("synced");
+  });
+
+  it("a failed save surfaces as error — the device copy stands, never dressed as synced", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: { method?: string }) => {
+      if (init?.method === "PUT") return { ok: false, status: 500, json: async () => ({}) };
+      return { ok: true, status: 200, json: async () => ({ meta: DEFAULTS_BODY }) };
+    }));
+    vi.resetModules();
+    const mod = await import("./crownfall-meta");
+    mod.configureCrownfallMetaAuth(async () => "tok");
+    mod.saveCrownfallMeta({
+      tier: 1, lifetimeKills: 40, lifetimeBossKills: 0, bestDepth: 3,
+      achievements: [], lastBountyDay: "",
+    });
+    await vi.waitFor(() => expect(mod.getCrownfallMetaSyncState()).toBe("error"));
+    expect(mod.loadCrownfallMeta().tier).toBe(1); /* device copy intact */
+  });
+
+  it("signed out: no fetch, no fake sync claim — device-only stays idle", async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.resetModules();
+    const mod = await import("./crownfall-meta");
+    mod.configureCrownfallMetaAuth(async () => null);
+    mod.saveCrownfallMeta({
+      tier: 1, lifetimeKills: 5, lifetimeBossKills: 0, bestDepth: 1,
+      achievements: [], lastBountyDay: "",
+    });
+    const merged = await mod.syncCrownfallMetaFromServer();
+    expect(merged.tier).toBe(1);
+    expect(mod.getCrownfallMetaSyncState()).toBe("idle");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("two devices converge: account tier + device kills fold together and upload", async () => {
+    const server = fakeServer({
+      tier: 3, lifetimeKills: 500, lifetimeBossKills: 4, bestDepth: 9,
+      achievements: ["first-crown"], lastBountyDay: "2026-11-09",
+    });
+    vi.stubGlobal("fetch", server.fetchMock);
+    vi.resetModules();
+    const mod = await import("./crownfall-meta");
+    /* this device played offline before the seam was configured */
+    mod.saveCrownfallMeta({
+      tier: 1, lifetimeKills: 900, lifetimeBossKills: 4, bestDepth: 2,
+      achievements: ["centurion"], lastBountyDay: "",
+    });
+    mod.configureCrownfallMetaAuth(async () => "tok");
+    const merged = await mod.syncCrownfallMetaFromServer();
+    expect(merged.tier).toBe(3);
+    expect(merged.lifetimeKills).toBe(900);
+    expect(merged.bestDepth).toBe(9);
+    expect(merged.achievements).toEqual(expect.arrayContaining(["first-crown", "centurion"]));
+    expect(server.stored?.["lifetimeKills"]).toBe(900); /* the fold was uploaded */
   });
 });
