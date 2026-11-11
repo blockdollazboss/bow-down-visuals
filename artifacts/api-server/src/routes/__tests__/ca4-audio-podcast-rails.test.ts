@@ -229,6 +229,21 @@ vi.mock("../../lib/credits", () => {
       h.refunds.push(amount);
       return h.balance;
     },
+    /* Charge-on-failure lane: the podcast rails now refund through
+       the guaranteed helper — mirror its contract against this fake
+       (refund, void only on a landed refund, exactly one retry). */
+    refundCreditsGuaranteed: async (_userId: string, amount: number, _rec?: unknown, opts?: { idempotencyKey?: string | null }) => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          h.balance += amount;
+          h.refunds.push(amount);
+          const key = opts?.idempotencyKey;
+          if (key) { h.voids.push(key); h.chargedKeys.delete(key); }
+          return true;
+        } catch { /* the real helper retries exactly once */ }
+      }
+      return false;
+    },
     voidChargeIdempotencyKey: async (key: string) => {
       h.voids.push(key);
       return h.chargedKeys.delete(key);

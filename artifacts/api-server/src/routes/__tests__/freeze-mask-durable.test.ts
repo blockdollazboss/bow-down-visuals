@@ -105,6 +105,21 @@ vi.mock("../../lib/credits", () => {
       state.refunds.push({ amount, action: rec.action });
       return state.balance;
     },
+    /* Charge-on-failure lane: freeze-mask now refunds through the
+       guaranteed helper — mirror its contract against this fake
+       (refund, void only on a landed refund, exactly one retry). */
+    refundCreditsGuaranteed: async (_userId: string, amount: number, rec: { action: string }, opts?: { idempotencyKey?: string | null }) => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          state.balance += amount;
+          state.refunds.push({ amount, action: rec.action });
+          const key = opts?.idempotencyKey;
+          if (key) { state.voids.push(key); state.chargedKeys.delete(key); }
+          return true;
+        } catch { /* the real helper retries exactly once */ }
+      }
+      return false;
+    },
     voidChargeIdempotencyKey: async (key: string) => {
       state.voids.push(key);
       state.chargedKeys.delete(key);

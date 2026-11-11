@@ -142,9 +142,29 @@ vi.mock("../../lib/credits", async () => {
     h.voids.push(key);
     return h.chargedKeys.delete(key);
   }
+  /* Charge-on-failure lane: split-screen now refunds through the
+     guaranteed helper — mirror its contract against this fake
+     (refund via the fake above, void only on a landed refund,
+     exactly one retry). */
+  async function refundCreditsGuaranteed(
+    userId: string,
+    amount: number,
+    record: { action?: string } | undefined,
+    opts?: { idempotencyKey?: string | null },
+  ): Promise<boolean> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await refundCredits(userId, amount, record);
+        if (opts?.idempotencyKey) await voidChargeIdempotencyKey(opts.idempotencyKey);
+        return true;
+      } catch { /* the real helper retries exactly once */ }
+    }
+    return false;
+  }
   return {
     chargeCredits,
     refundCredits,
+    refundCreditsGuaranteed,
     voidChargeIdempotencyKey,
     buildChargeIdempotencyKey,
     getCreditBalance: async () => h.balance,
