@@ -37,72 +37,71 @@ export default function RefundPolicy() {
         <div className="prose prose-invert prose-sm max-w-none space-y-8 text-white/70 leading-relaxed">
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.whatWeSell.title")}</h2>
-            <p>
-              {t("refundPolicy.whatWeSell.p1")}
-              <strong className="text-white/90">{t("refundPolicy.whatWeSell.strong")}</strong>
-              {t("refundPolicy.whatWeSell.p2")}
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.generalPolicy.title")}</h2>
-            <p>
-              {t("refundPolicy.generalPolicy.p1")}
-              <strong className="text-white/90">{t("refundPolicy.generalPolicy.strong")}</strong>
-              {t("refundPolicy.generalPolicy.p2")}
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.whenWeRefund.title")}</h2>
-            <p>{t("refundPolicy.whenWeRefund.intro")}</p>
-            <ul className="list-disc pl-5 space-y-2 mt-3">
-              <li>
-                <strong className="text-white/90">{t("refundPolicy.whenWeRefund.technical.title")}</strong>
-                {t("refundPolicy.whenWeRefund.technical.desc")}
-              </li>
-              <li>
-                <strong className="text-white/90">{t("refundPolicy.whenWeRefund.duplicate.title")}</strong>
-                {t("refundPolicy.whenWeRefund.duplicate.desc")}
-              </li>
-              <li>
-                <strong className="text-white/90">{t("refundPolicy.whenWeRefund.unauthorized.title")}</strong>
-                {t("refundPolicy.whenWeRefund.unauthorized.desc")}
-              </li>
-              <li>
-                <strong className="text-white/90">{t("refundPolicy.whenWeRefund.firstSub.title")}</strong>
-                {t("refundPolicy.whenWeRefund.firstSub.desc")}
-              </li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.cancellations.title")}</h2>
-            <p>
-              {t("refundPolicy.cancellations.p1")}
-              <strong className="text-white/90">{t("refundPolicy.cancellations.strong")}</strong>
-            </p>
+            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.promise.title")}</h2>
+            <p>{t("refundPolicy.promise.body")}</p>
           </section>
 
           <section>
             <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.howTo.title")}</h2>
-            <p>
-              {t("refundPolicy.howTo.intro1")}
-              <strong className="text-white/90">{t("refundPolicy.howTo.strong")}</strong>
-              {t("refundPolicy.howTo.intro2")}
-            </p>
-            <ul className="list-disc pl-5 space-y-1 mt-2">
+            <p>{t("refundPolicy.howTo.body")}</p>
+          </section>
+
+          <section>
+            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.creditPacks.title")}</h2>
+            <p>{t("refundPolicy.creditPacks.delivered")}</p>
+            <ul className="list-disc pl-5 space-y-2 mt-3">
               <li>
-                {t("refundPolicy.howTo.email")}{" "}
-                
+                <strong className="text-white/90">{t("refundPolicy.creditPacks.unusedTitle")}</strong>
+                {t("refundPolicy.creditPacks.unusedDesc")}
               </li>
-              <li>{t("refundPolicy.howTo.subject1")}<em>{t("refundPolicy.howTo.subject2")}</em></li>
-              <li>{t("refundPolicy.howTo.include")}</li>
+              <li>
+                <strong className="text-white/90">{t("refundPolicy.creditPacks.spentTitle")}</strong>
+                {t("refundPolicy.creditPacks.spentDesc")}
+              </li>
+              <li>
+                <strong className="text-white/90">{t("refundPolicy.creditPacks.partSpentTitle")}</strong>
+                {t("refundPolicy.creditPacks.partSpentDesc")}
+              </li>
+              <li>
+                <strong className="text-white/90">{t("refundPolicy.creditPacks.ourFaultTitle")}</strong>
+                {t("refundPolicy.creditPacks.ourFaultDesc")}
+              </li>
             </ul>
-            <p className="mt-3">
-              {t("refundPolicy.howTo.response")}
-            </p>
+            <p className="mt-3">{t("refundPolicy.creditPacks.earned")}</p>
+          </section>
+
+          <section>
+            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.subscriptions.title")}</h2>
+            <p>{t("refundPolicy.subscriptions.cancel")}</p>
+            <p className="mt-3">{t("refundPolicy.subscriptions.keepMonth")}</p>
+            <ul className="list-disc pl-5 space-y-2 mt-3">
+              <li>
+                <strong className="text-white/90">{t("refundPolicy.subscriptions.firstMonthTitle")}</strong>
+                {t("refundPolicy.subscriptions.firstMonthDesc")}
+              </li>
+            </ul>
+            <p className="mt-3">{t("refundPolicy.subscriptions.renewals")}</p>
+            <p className="mt-3">{t("refundPolicy.subscriptions.priceChanges")}</p>
+          </section>
+
+          <section>
+            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.marketplace.title")}</h2>
+            <p>{t("refundPolicy.marketplace.intro")}</p>
+            <ul className="list-disc pl-5 space-y-2 mt-3">
+              <li>
+                <strong className="text-white/90">{t("refundPolicy.marketplace.digitalTitle")}</strong>
+                {t("refundPolicy.marketplace.digitalDesc")}
+              </li>
+              <li>
+                <strong className="text-white/90">{t("refundPolicy.marketplace.asDescribedTitle")}</strong>
+                {t("refundPolicy.marketplace.asDescribedDesc")}
+              </li>
+              <li>
+                <strong className="text-white/90">{t("refundPolicy.marketplace.neverDeliversTitle")}</strong>
+                {t("refundPolicy.marketplace.neverDeliversDesc")}
+              </li>
+            </ul>
+            <p className="mt-3">{t("refundPolicy.marketplace.originalMethod")}</p>
           </section>
 
           <section>
@@ -111,6 +110,7 @@ export default function RefundPolicy() {
               {t("refundPolicy.questions.p1")}{" "}
               <Link href="/contact" className="text-primary hover:underline">{t("refundPolicy.questions.contactLink")}</Link>{" "}
               {t("refundPolicy.questions.p2")}{" "}
+              <a href="mailto:support@bowdownvisuals.com" className="text-primary hover:underline">{t("refundPolicy.questions.email")}</a>
               .
             </p>
           </section>

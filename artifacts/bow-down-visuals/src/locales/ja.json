@@ -9479,60 +9479,54 @@
     "pageTitle": "返金ポリシー",
     "pageDescription": "Visual Bucsと購入に関する返金ポリシー。",
     "title": "返金ポリシー",
-    "lastUpdated": "最終更新：September 2026",
-    "whatWeSell": {
-      "title": "販売しているもの",
-      "p1": "Bow Down Visualsは",
-      "strong": "デジタルAIクリエイター向けVisual Bucs",
-      "p2": "を販売しています — 動画、音楽、画像、ボイスオーバー、リップシンク動画、歌詞、サムネイル、キャプションセット、プロモクリップ、その他のデジタルクリエイターコンテンツの生成に使う、事前購入式のユニットです。すべての商品はデジタルで、Visual Bucの使用時に即時納品されます。物理的な商品の販売や発送はありません。"
-    },
-    "generalPolicy": {
-      "title": "デジタル商品 — 一般ポリシー",
-      "p1": "当社の商品はデジタルで、生成時に即座に消費されるため、",
-      "strong": "すべての販売は原則として最終的なものとします",
-      "p2": "。コンテンツの生成に使用されたVisual Bucsは返金できません。紹介やプロモーションで獲得したボーナスVisual Bucsには現金価値がなく、返金対象外です。"
-    },
-    "whenWeRefund": {
-      "title": "返金を行う場合",
-      "intro": "以下の状況では、全額または一部の返金を行います：",
-      "technical": {
-        "title": "技術的な失敗：",
-        "desc": " 当社側のプラットフォームエラーにより、Visual Bucsが差し引かれたのにコンテンツが生成されなかった場合。"
-      },
-      "duplicate": {
-        "title": "二重請求：",
-        "desc": " 同じサブスクリプション期間または購入について複数回請求された場合。"
-      },
-      "unauthorized": {
-        "title": "不正な請求：",
-        "desc": " あなたの許可なくアカウントにアクセスされたと思われる場合。"
-      },
-      "firstSub": {
-        "title": "初回サブスクリプションから48時間以内：",
-        "desc": " サブスクライブし、まだVisual Bucsを一切使用していない場合は、初回支払いから48時間以内に全額返金をリクエストできます。"
-      }
-    },
-    "cancellations": {
-      "title": "サブスクリプションのキャンセル",
-      "p1": "サブスクリプションはいつでもキャンセルできます。キャンセルすると将来の請求は停止しますが、現在の請求期間の終了まで、残りのVisual Bucsとサブスクリプション特典へのアクセスは保持されます。",
-      "strong": "期間途中のキャンセルに対する月割り返金は行いません。"
+    "lastUpdated": "Last updated: November 2026",
+    "promise": {
+      "title": "The Simple Rule",
+      "body": "If we made the mistake, the customer does not pay for it."
     },
     "howTo": {
-      "title": "返金のリクエスト方法",
-      "intro1": "返金をリクエストするには、請求から",
-      "strong": "7日",
-      "intro2": "以内にご連絡ください：",
-      "email": "メール：",
-      "subject1": "件名：",
-      "subject2": "返金リクエスト — [あなたのメールアドレス]",
-      "include": "含めるもの：請求日、金額、問題の簡単な説明",
-      "response": "2営業日以内の返信を目指しています。承認された返金は、銀行により5〜10営業日以内に元の支払い方法へ戻されます。"
+      "title": "How to Ask for a Refund",
+      "body": "Email support@bowdownvisuals.com from the email on your account, with the order or receipt details."
+    },
+    "creditPacks": {
+      "title": "Credit Packs (Visual Bucs)",
+      "delivered": "Visual Bucs are the site's credits. A pack is delivered the moment the payment clears.",
+      "unusedTitle": "Unused packs:",
+      "unusedDesc": " full refund within 14 days of purchase if no Bucs from that pack were spent.",
+      "spentTitle": "Spent Bucs are used up.",
+      "spentDesc": " Bucs you already spent on creations cannot be refunded — the work was made and delivered.",
+      "partSpentTitle": "Part-spent packs:",
+      "partSpentDesc": " we refund the unspent share, within 30 days of purchase.",
+      "ourFaultTitle": "Our fault:",
+      "ourFaultDesc": " a generation fails, a charge goes through twice, or Bucs come off without the work delivered — the Bucs go back automatically, or the money is refunded if you prefer.",
+      "earned": "Bucs earned on the site (quests, rewards, referrals) are never cash and cannot be cashed out."
+    },
+    "subscriptions": {
+      "title": "Subscriptions — Creator Pro ($12/mo) and Creator Elite ($29/mo)",
+      "cancel": "Cancel any time, in one click, from your account. No email or phone call needed.",
+      "keepMonth": "Cancelling stops the next payment. You keep the plan until the end of the month you already paid for.",
+      "firstMonthTitle": "First month:",
+      "firstMonthDesc": " cancel within 7 days of your first payment, having barely used the plan — ask us, and we refund that payment.",
+      "renewals": "Renewals are not refunded for time already passed — except charges made in error (for example, after a confirmed cancellation). Those are always refunded in full.",
+      "priceChanges": "Prices never change mid-cycle. A price change applies from your next renewal, with notice first."
+    },
+    "marketplace": {
+      "title": "Marketplace Purchases",
+      "intro": "Sellers sell on Bow Down Visuals; the site takes a flat 5% fee. Sellers are paid through Stripe Connect.",
+      "digitalTitle": "Digital items (downloads, templates, packs):",
+      "digitalDesc": " if the file is broken, missing, or not what the listing promised, report it within 14 days. If it is wrong, full refund, and the seller's payout for that sale is reversed.",
+      "asDescribedTitle": "Delivered as described = sale is final.",
+      "asDescribedDesc": " Buyer's remorse alone is not a refund on digital goods.",
+      "neverDeliversTitle": "A seller who never delivers:",
+      "neverDeliversDesc": " full refund automatically if delivery never happens.",
+      "originalMethod": "Refunds go back to the original payment method, including the 5% site fee — the customer gets back everything they paid."
     },
     "questions": {
       "title": "ご質問は？",
       "p1": "当社の",
       "contactLink": "お問い合わせ / サポートページ",
-      "p2": "をご覧いただくか、メールで"
+      "p2": "をご覧いただくか、メールで",
+      "email": "support@bowdownvisuals.com"
     }
   },
   "referrals": {

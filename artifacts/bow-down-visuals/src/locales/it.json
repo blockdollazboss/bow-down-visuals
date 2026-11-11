@@ -9493,60 +9493,54 @@
     "pageTitle": "Politica di rimborso",
     "pageDescription": "La nostra politica di rimborso per Visual Bucs e acquisti.",
     "title": "Politica di rimborso",
-    "lastUpdated": "Ultimo aggiornamento: settembre 2026",
-    "whatWeSell": {
-      "title": "Cosa vendiamo",
-      "p1": "Bow Down Visuals vende ",
-      "strong": "Visual Bucs per creator digitali AI",
-      "p2": " — unità preacquistate usate per generare video, musica, immagini, voci fuori campo, video con lip sync, testi, miniature, set di didascalie, clip promozionali e altri contenuti digitali per creator. Tutti i prodotti sono digitali e consegnati istantaneamente all'uso dei Visual Bucs. Nessun bene fisico viene venduto o spedito."
-    },
-    "generalPolicy": {
-      "title": "Prodotti digitali — Politica generale",
-      "p1": "Poiché i nostri prodotti sono digitali e vengono consumati immediatamente alla generazione, ",
-      "strong": " tutte le vendite sono generalmente definitive",
-      "p2": ". Una volta che i Visual Bucs sono stati usati per generare contenuti, quei Visual Bucs non possono essere rimborsati. I Visual Bucs bonus guadagnati tramite referral o promozioni non hanno valore in denaro e non sono rimborsabili."
-    },
-    "whenWeRefund": {
-      "title": "Quando emettiamo rimborsi",
-      "intro": "Emetteremo un rimborso completo o parziale nelle seguenti situazioni:",
-      "technical": {
-        "title": "Errore tecnico:",
-        "desc": " I Visual Bucs sono stati scalati ma nessun contenuto è stato generato a causa di un errore della piattaforma da parte nostra."
-      },
-      "duplicate": {
-        "title": "Addebito duplicato:",
-        "desc": " Ti è stato addebitato più di una volta lo stesso periodo di abbonamento o acquisto."
-      },
-      "unauthorized": {
-        "title": "Addebito non autorizzato:",
-        "desc": " Ritieni che qualcuno abbia avuto accesso al tuo account senza la tua autorizzazione."
-      },
-      "firstSub": {
-        "title": "Entro 48 ore dal primo abbonamento:",
-        "desc": " Se ti sei abbonato e non hai ancora usato alcun Visual Buc, puoi richiedere un rimborso completo entro 48 ore dal primo pagamento."
-      }
-    },
-    "cancellations": {
-      "title": "Annullamenti di abbonamento",
-      "p1": "Puoi annullare il tuo abbonamento in qualsiasi momento. L'annullamento interrompe la fatturazione futura; mantieni l'accesso ai tuoi Visual Bucs rimanenti e ai vantaggi dell'abbonamento fino alla fine del periodo di fatturazione corrente. ",
-      "strong": "Non vengono emessi rimborsi parziali per annullamenti a metà ciclo."
+    "lastUpdated": "Last updated: November 2026",
+    "promise": {
+      "title": "The Simple Rule",
+      "body": "If we made the mistake, the customer does not pay for it."
     },
     "howTo": {
-      "title": "Come richiedere un rimborso",
-      "intro1": "Per richiedere un rimborso, contattaci entro ",
-      "strong": "7 giorni",
-      "intro2": " dall'addebito:",
-      "email": "Email: ",
-      "subject1": "Oggetto: ",
-      "subject2": "Richiesta di rimborso — [la tua email]",
-      "include": "Includi: data dell'addebito, importo e una breve descrizione del problema",
-      "response": "Puntiamo a rispondere entro 2 giorni lavorativi. I rimborsi approvati vengono riaccreditati sul metodo di pagamento originale entro 5–10 giorni lavorativi, a seconda della tua banca."
+      "title": "How to Ask for a Refund",
+      "body": "Email support@bowdownvisuals.com from the email on your account, with the order or receipt details."
+    },
+    "creditPacks": {
+      "title": "Credit Packs (Visual Bucs)",
+      "delivered": "Visual Bucs are the site's credits. A pack is delivered the moment the payment clears.",
+      "unusedTitle": "Unused packs:",
+      "unusedDesc": " full refund within 14 days of purchase if no Bucs from that pack were spent.",
+      "spentTitle": "Spent Bucs are used up.",
+      "spentDesc": " Bucs you already spent on creations cannot be refunded — the work was made and delivered.",
+      "partSpentTitle": "Part-spent packs:",
+      "partSpentDesc": " we refund the unspent share, within 30 days of purchase.",
+      "ourFaultTitle": "Our fault:",
+      "ourFaultDesc": " a generation fails, a charge goes through twice, or Bucs come off without the work delivered — the Bucs go back automatically, or the money is refunded if you prefer.",
+      "earned": "Bucs earned on the site (quests, rewards, referrals) are never cash and cannot be cashed out."
+    },
+    "subscriptions": {
+      "title": "Subscriptions — Creator Pro ($12/mo) and Creator Elite ($29/mo)",
+      "cancel": "Cancel any time, in one click, from your account. No email or phone call needed.",
+      "keepMonth": "Cancelling stops the next payment. You keep the plan until the end of the month you already paid for.",
+      "firstMonthTitle": "First month:",
+      "firstMonthDesc": " cancel within 7 days of your first payment, having barely used the plan — ask us, and we refund that payment.",
+      "renewals": "Renewals are not refunded for time already passed — except charges made in error (for example, after a confirmed cancellation). Those are always refunded in full.",
+      "priceChanges": "Prices never change mid-cycle. A price change applies from your next renewal, with notice first."
+    },
+    "marketplace": {
+      "title": "Marketplace Purchases",
+      "intro": "Sellers sell on Bow Down Visuals; the site takes a flat 5% fee. Sellers are paid through Stripe Connect.",
+      "digitalTitle": "Digital items (downloads, templates, packs):",
+      "digitalDesc": " if the file is broken, missing, or not what the listing promised, report it within 14 days. If it is wrong, full refund, and the seller's payout for that sale is reversed.",
+      "asDescribedTitle": "Delivered as described = sale is final.",
+      "asDescribedDesc": " Buyer's remorse alone is not a refund on digital goods.",
+      "neverDeliversTitle": "A seller who never delivers:",
+      "neverDeliversDesc": " full refund automatically if delivery never happens.",
+      "originalMethod": "Refunds go back to the original payment method, including the 5% site fee — the customer gets back everything they paid."
     },
     "questions": {
       "title": "Domande?",
       "p1": "Visita la nostra ",
       "contactLink": "Pagina Contatti / Assistenza",
-      "p2": " oppure scrivi a "
+      "p2": " oppure scrivi a ",
+      "email": "support@bowdownvisuals.com"
     }
   },
   "referrals": {
