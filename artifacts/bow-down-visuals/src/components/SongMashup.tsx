@@ -349,7 +349,11 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = (await res.json()) as { albums?: Array<{ id: string; title: string }> };
-      if (res.ok) setAlbums(data.albums ?? []);
+      /* A failed read must SAY so — falling through silently left the
+         picker standing open on an empty list, reading as "you have
+         no albums" when the read merely failed. */
+      if (!res.ok) throw new Error("albums load failed");
+      setAlbums(data.albums ?? []);
     } catch {
       toast({ title: t("mashup.albumLoadFailed"), variant: "destructive" });
     } finally {
@@ -387,10 +391,15 @@ export default function SongMashup({ preselectA, preselectB }: SongMashupProps) 
         setAlbumPick(albumId);
         setNewAlbumTitle("");
       } else {
-        const detail = await (await fetch(`/api/albums/${albumId}`, { headers })).json() as {
+        const detailRes = await fetch(`/api/albums/${albumId}`, { headers });
+        const detail = (await detailRes.json()) as {
           tracks?: Array<{ song_id: string }>;
           error?: string;
         };
+        /* The track list decides whether the PATCH below would
+           duplicate the song — a failed read must not be treated as
+           an empty album (the add would silently no-op as "added"). */
+        if (!detailRes.ok) throw new Error(apiErrorMessage(detail, "Could not add to album."));
         const existing = (detail.tracks ?? []).map((tr) => tr.song_id);
         if (!existing.includes(result.id)) {
           const res = await fetch(`/api/albums/${albumId}`, {
