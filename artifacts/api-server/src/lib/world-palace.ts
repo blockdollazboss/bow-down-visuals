@@ -359,6 +359,15 @@ export interface PalaceDirectoryEntry {
   id: string;
   name: string;
   count: number;
+  /** Of `count`, how many are GUEST connections (B-25, owner
+   *  ruling Nov 11, 2026): a guest peer is one open tab — one
+   *  guest with three tabs is three connections — while member
+   *  peers are exact people (one peer per account; a rejoin
+   *  replaces the old peer). Clients label this part of the
+   *  count "connections," never people; `count - guestConnections`
+   *  is the people part. A breakdown OF the same presentPeers()
+   *  set `count` reads — the counting itself is unchanged. */
+  guestConnections: number;
   /** Who's inside, by display name — the "your people are there"
    *  signal. Capped so a full room can't bloat every frame. */
   members: string[];
@@ -741,6 +750,7 @@ export class WorldPalace {
         id: def.roomId,
         name: def.name,
         count: present.length,
+        guestConnections: present.filter((p) => p.guest).length,
         members: present.map((p) => p.displayName).slice(0, DIRECTORY_MEMBER_NAMES),
         live: room.stageHeld(),
         locked: this.lockStore?.isDoorLocked(def.roomId) ?? false,
@@ -759,6 +769,7 @@ export class WorldPalace {
         id: entry.room.roomId,
         name: entry.room.roomName,
         count: present.length,
+        guestConnections: present.filter((p) => p.guest).length,
         members: present.map((p) => p.displayName).slice(0, DIRECTORY_MEMBER_NAMES),
         live: false,
         locked: this.lockStore?.isDoorLocked(entry.room.roomId) ?? false,
