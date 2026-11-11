@@ -34,44 +34,70 @@ const SKEET_ROUND_MS = 45_000;
 const SKEET_MIN_SPAWN_INTERVAL_MS = 500;
 const SKEET_MAX_HIT_POINTS = 150;
 
-/* Crownfall Run construction (client): a roguelike descent — each
-   floor is one 720×720 room the King must clear before the golden
-   door opens. Score = depth × 100 + coins × 25 + kills × 10 + combo
-   bonus. The reported durationMs is PLAY time only (pause and the
-   between-floor upgrade pick are not counted by the client), which
-   makes every bound below tighter, never looser.
+/* Crownfall Run construction (client, v2): a roguelike descent —
+   each floor is one 1080×1080 room (720×720 camera view) the King
+   must clear before the golden door opens. Score = depth × 100 +
+   coins × 25 + kills × 10 + combo bonus, where "coins" is the
+   LEFTOVER PURSE at run end: coins picked up feed a run-local purse,
+   the between-floor shop spends from it, and only the unspent
+   remainder converts at +25. Spending can only shrink the coin
+   term, so the v1 ceiling argument survives intact — the maximum
+   convertible coins is still bounded by the total coin supply.
+   The reported durationMs is PLAY time only (pause and the shop
+   are not counted by the client), which makes every bound below
+   tighter, never looser.
    - A floor cannot end in under 4 seconds of play: the weakest foe
      has 20 HP and the King's base weapon fires 3.1 bolts/s at 10
      damage (≥2 bolts per foe, foes spawn ≥215px away, bolts fly
      545 px/s), and after the last kill the King must still cross
-     ~555px from the entrance to the door at 238 px/s (≈2.3s of pure
-     walking, dash bursts included). Upgrades only arrive AFTER a
-     floor, so floor 1 is always fought at base stats.
-   - Foes per floor: regular floors spawn min(11, 3 + d + ⌊d/3⌋) ≤ 11;
-     boss floors spawn 1 boss (+2 adds from floor 10) — never more.
-   - Coins per floor: 3–5 are placed, and a kill drops at most 2
-     (elites and the boss drop exactly 2; regular foes at most 1) —
-     so ≤ 5 + 2 × 11 = 27 per floor.
-   - Combo bonus: a kill extends the chain only within 3s of the
-     previous kill, and the n-th chained kill adds n − 1. Over K total
-     kills the most one unbroken chain can add is K(K−1)/2 — the
-     combo rule's own arithmetic, quadratic term and all.
+     the room from the entrance to the door at 238 px/s. The v2 room
+     is BIGGER (1080×1080, camera-followed), so this bound is more
+     conservative than in v1, not less. Shop purchases only arrive
+     AFTER a floor, so floor 1 is always fought at base stats.
+   - Foes per floor: regular floors spawn min(16, 3 + d + ⌊d/2⌋)
+     ≤ 16; an AMBUSH event room multiplies that by 1.5 rounded up
+     (≤ 24); boss floors spawn 1 boss + 2 adds (floor 10+) + at
+     most 6 summoned minions across the whole fight (boss cycles)
+     = 9. The hard ceiling for any floor is therefore 24.
+   - Coins per floor: at most 14 are placed (JACKPOT VAULT rooms;
+     normal floors place ≤ 7), and a kill drops at most 2 (elites
+     and the boss drop exactly 2; regular foes at most 1) with
+     JACKPOT doubling drop counts — so ≤ 14 + 2 × 2 × 24 = 110.
+   - Combo bonus: kills chained within 3s raise a multiplier
+     ×1–×5 that multiplies the 10-point kill score, so one kill
+     adds at most (5 − 1) × 10 = 40 bonus points; over K kills the
+     bonus is at most 40K. (The v2 multiplier REPLACES the v1
+     n − 1 chain rule — the old quadratic bound no longer applies
+     because the multiplier is capped at ×5 by construction.)
+   - Guns change kill RATES, not scoring inputs: the strongest gun
+     (Crown Mortar, splash damage) can fell several foes with one
+     shell, but kills are bounded by the foe supply above and
+     floors by the 4-second bound, so no gun raises this ceiling.
+     Gun drops and shop purchases move no score at all.
+   - Prestige (+5% bolt damage, +10% coin drops per tier, ≤ tier
+     10) and the daily Royal Bounty (+50) feed a separate SCRIP
+     bucket that is spendable in the shop but NEVER converts to
+     score — the client's run-end conversion counts the regular
+     purse only. These caps therefore ignore prestige entirely,
+     and a max-prestige run's score stays under this same ceiling.
    A real Crownfall run can also legitimately outlast the shared
    20-minute ceiling (a deep descent is the whole point), so this
    game carries its own 60-minute duration cap. */
 const CROWNFALL_MIN_FLOOR_MS = 4_000;
 /* Multiplayer (online co-op rooms, lib/crownfall-rooms.ts): the party
-   SHARES one floor roster, so the per-floor foe and coin bounds above
+   SHARES one floor roster, so the per-floor foe and coin bounds below
    do NOT scale with player count — a player can still earn at most
-   11 kills and 27 coins from a floor, whoever they play with. Only
+   24 kills and 110 coins from a floor, whoever they play with. Only
    the clear SPEED scales: the 4,000 ms solo bound decomposes into
    ≈2,300 ms of pure entrance→door crossing (every King physically
    walks it; it never shrinks) plus ≈1,700 ms of killing, which P
    Kings do in parallel. So minFloorMs(P) = 2300 + ⌈1700 / P⌉, and
-   P = 1 reproduces the solo bound exactly. The party size is never
-   taken from the client: the score route reads it from the room
-   manager's run receipt (routes/arcade.ts) and validates at P = 1
-   when no receipt vouches for the run. */
+   P = 1 reproduces the solo bound exactly. (The v2 roster is larger
+   than v1's, which only makes real clears slower — the decomposition
+   stays a valid lower bound.) The party size is never taken from the
+   client: the score route reads it from the room manager's run
+   receipt (routes/arcade.ts) and validates at P = 1 when no receipt
+   vouches for the run. */
 const CROWNFALL_CROSSING_MS = 2_300;
 const CROWNFALL_KILL_MS = CROWNFALL_MIN_FLOOR_MS - CROWNFALL_CROSSING_MS;
 
@@ -82,11 +108,12 @@ export function crownfallMinFloorMs(players: number): number {
   return CROWNFALL_CROSSING_MS + Math.ceil(CROWNFALL_KILL_MS / p);
 }
 
-const CROWNFALL_MAX_FOES_PER_FLOOR = 11;
-const CROWNFALL_MAX_COINS_PER_FLOOR = 5 + 2 * CROWNFALL_MAX_FOES_PER_FLOOR;
+const CROWNFALL_MAX_FOES_PER_FLOOR = 24;
+const CROWNFALL_MAX_COINS_PER_FLOOR = 14 + 2 * 2 * CROWNFALL_MAX_FOES_PER_FLOOR;
 const CROWNFALL_DEPTH_POINTS = 100;
 const CROWNFALL_COIN_POINTS = 25;
 const CROWNFALL_KILL_POINTS = 10;
+const CROWNFALL_MAX_COMBO_BONUS_PER_KILL = 40;
 const CROWNFALL_MAX_DURATION_MS = 60 * 60_000;
 
 /* A scored run must last at least this long, and no submission may
@@ -109,7 +136,7 @@ export function maxPlausibleScore(game: ArcadeGame, durationMs: number, players 
     const maxDepth = Math.floor(durationMs / crownfallMinFloorMs(players)) + 1;
     const maxKills = maxDepth * CROWNFALL_MAX_FOES_PER_FLOOR;
     const maxCoins = maxDepth * CROWNFALL_MAX_COINS_PER_FLOOR;
-    const maxComboBonus = (maxKills * (maxKills - 1)) / 2;
+    const maxComboBonus = maxKills * CROWNFALL_MAX_COMBO_BONUS_PER_KILL;
     return (
       maxDepth * CROWNFALL_DEPTH_POINTS +
       maxCoins * CROWNFALL_COIN_POINTS +

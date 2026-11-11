@@ -1,16 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { Maximize, Minimize, Pause, Play, RotateCcw, Shield, Volume2, VolumeX } from "lucide-react";
 import { mediaUrl } from "@/lib/media-cdn";
 import {
   CROWNFALL,
+  CROWNFALL_GUNS,
+  crownfallBossCycle,
+  crownfallBossHp,
+  crownfallComboMult,
+  crownfallContactBonus,
+  crownfallEliteChance,
   crownfallFloorName,
+  crownfallFoesForFloor,
+  crownfallGun,
+  crownfallHpScale,
   crownfallScore,
+  crownfallSpeedScale,
+  crownfallUpgradePrice,
   type ArcadeRunResult,
+  type CrownfallGun,
 } from "@/lib/arcade-games";
 /* Online multiplayer (CrownfallClient, lib/crownfall-net.ts) rides
    this game through a thin seam: the engine runs unchanged solo, and
    every `g.mp` guard below is inert when no party is connected. */
 import type { CrownfallClient } from "@/lib/crownfall-net";
+import {
+  claimPrestigeTier,
+  claimRoyalBounty,
+  loadCrownfallMeta,
+  loadCrownfallMuted,
+  prestigeCoinChance,
+  prestigeDamageMult,
+  recordRunInMeta,
+  saveCrownfallMeta,
+  saveCrownfallMuted,
+  CROWNFALL_ACHIEVEMENTS,
+  PRESTIGE_TIER_CAP,
+  type CrownfallMeta,
+} from "@/lib/crownfall-meta";
 
 /* ─── Crownfall Run ───────────────────────────────────────────────────────
    Top-down arena roguelike, ported whole from the owner-approved
@@ -33,11 +59,46 @@ import type { CrownfallClient } from "@/lib/crownfall-net";
      light, not the King. Pickups are the site's real Visual Buc coin.
    Clear the room and the golden door opens to the next studio floor
    down. Glitches chase, Spam Bots shoot, Trolls telegraph and lunge;
-   THE USURPER waits every 5th floor. One upgrade card (of three)
-   between floors. Permadeath. Score = depth × 100 + Bucs coins × 25
-   + foes × 10 + combo bonus — coins are score only, never a charge
-   or a wager. Aiming changes accuracy only, never the score economy,
-   so the server caps in arcade-rules.ts stand unchanged.
+   THE USURPER waits every 5th floor, harder each cycle. Permadeath.
+
+   v2 (owner, Nov 10, 2026 — "full screen… pay for upgrades using the
+   coins we collect", "a bunch of guns, a bunch of features", "more
+   graphics, more entertaining", "bigger maps, more fancy high
+   quality premium", "each level should get harder and harder",
+   "prestige and a lot more things"):
+   - FULLSCREEN: starting a run requests fullscreen on the game
+     container; a toggle lives in the HUD. A refused request just
+     leaves the run windowed — no fake claim, no broken state, and
+     exiting fullscreen mid-run never touches the run.
+   - COIN PURSE + SHOP: coins now land in a run-local PURSE (HUD).
+     Between floors the upgrade offer is a SHOP — three priced
+     upgrade cards plus the gun rack; buy any you can afford (more
+     than one), effects apply at once, and DESCEND IS ALWAYS FREE.
+     Unaffordable cards show the price and the shortfall honestly.
+     At run end the leftover purse converts to score at +25/coin.
+     Purse coins are NOT Visual Bucs: they never touch accounts.
+   - SIX GUNS (lib/arcade-games.ts CROWNFALL_GUNS): bought in the
+     shop, dropped by elites (25%) and always by the boss, switched
+     mid-run with keys 1–6, pad LB/RB, or the touch switch control.
+     Manual aim + held fire for every gun — auto-shoot stays OFF.
+   - BIGGER MAPS: rooms are 1080×1080 world units; the 720×720
+     canvas is a camera view that follows the King (eased), with a
+     HUD minimap (King, foes, door, pickups). Static dressing is
+     pre-rendered to the per-floor offscreen backdrop, as before.
+   - DIFFICULTY RAMP: the table in lib/arcade-games.ts — more foes,
+     more HP, stepping contact damage, creeping speed, rising elite
+     share; Glitch Chargers unlock floor 3, Spam Slingers floor 4;
+     boss cycles add summons (2+), a spread shot (3+), speed (4+).
+   - EVENT ROOMS: JACKPOT VAULT (coin-rich, guarded) and AMBUSH
+     (extra foes, better drops) roll on non-boss floors from floor 2.
+   - PRESTIGE + MORE: prestige tiers persist between runs (adapter:
+     lib/crownfall-meta.ts — see its persistence-gap note), lifetime
+     achievements, a shield pickup, a ×1–×5 combo multiplier, kill
+     streak callouts, and the daily Royal Bounty (+50 scrip — scrip
+     is shop-spendable but never converts to score, so prestige can
+     never inflate a submission; the arcade-rules.ts caps stand).
+   Score = depth × 100 + leftover purse × 25 + foes × 10 + combo
+   bonus. Aiming changes accuracy only, never the score economy.
 
    Hostile-host rules carried from the preview (they were each learned
    from a real failure there):
@@ -49,15 +110,27 @@ import type { CrownfallClient } from "@/lib/crownfall-net";
      mappings (hat-axis D-pad, right stick) steer too, and any face
      button or Start/Select begins — no single index can strand a pad.
    - Every synth sound call is wrapped so an audio hiccup can't break
-     a frame; storage is never touched.
+     a frame; every fullscreen call is likewise guarded (a refusal
+     just leaves the run windowed). Storage is touched ONLY through
+     the guarded adapter in lib/crownfall-meta.ts (mute preference +
+     prestige meta) — every access is try/caught with an in-memory
+     fallback, so a hostile host can refuse it and lose nothing.
    - The arena paints one frame immediately at boot and at run start.
    The reported durationMs is PLAY time only (pause + upgrade picks
    excluded) — exactly the clock the server caps in arcade-rules.ts
    are derived against. */
 
-const LW = CROWNFALL.width;
-const LH = CROWNFALL.height;
+/* World vs view: LW/LH are the WORLD (room) size — every entity,
+   obstacle and backdrop lives in world coordinates. VW/VH are the
+   canvas view: the camera (g.cam) picks which 720×720 window of the
+   world is on screen. */
+const LW = CROWNFALL.worldWidth;
+const LH = CROWNFALL.worldHeight;
+const VW = CROWNFALL.width;
+const VH = CROWNFALL.height;
 const WALL = CROWNFALL.wall;
+/* Hard cap on live particles — juice never gets to eat the frame. */
+const PARTICLE_CAP = 240;
 
 const PAL = {
   dark: {
@@ -149,11 +222,47 @@ const sfx = {
   upgrade() { tone(740, 0, 0.1, "triangle", 0.06); tone(1108, 0, 0.16, "triangle", 0.06, 0.08); },
   boss() { tone(68, 48, 0.7, "sawtooth", 0.09); tone(102, 72, 0.7, "triangle", 0.07, 0.05); },
   sting() { tone(392, 0, 0.22, "triangle", 0.07); tone(311, 0, 0.26, "triangle", 0.07, 0.18); tone(233, 110, 0.5, "triangle", 0.08, 0.36); },
+  buy() { tone(920, 0, 0.08, "sine", 0.06); tone(1380, 0, 0.12, "sine", 0.06, 0.07); tone(1840, 0, 0.16, "sine", 0.045, 0.14); },
+  roar() { tone(58, 34, 0.9, "sawtooth", 0.13); tone(87, 51, 0.9, "sawtooth", 0.09, 0.06); noiseBurst(0.5, 0.05, 300); },
+  boom() { noiseBurst(0.28, 0.12, 500); tone(72, 36, 0.3, "sine", 0.13); },
+  slam() { noiseBurst(0.16, 0.08, 350); tone(90, 45, 0.18, "sine", 0.09); },
+  shieldPop() { tone(520, 980, 0.14, "sine", 0.07); noiseBurst(0.08, 0.04, 2400); },
+  claim() { tone(1046, 0, 0.09, "triangle", 0.06); tone(1318, 0, 0.11, "triangle", 0.06, 0.07); tone(1568, 0, 0.18, "triangle", 0.06, 0.14); },
 };
+
+/* ─── fullscreen (guarded like every host call) ───────────────────────
+   Starting a run REQUESTS fullscreen on the game container; browsers
+   may refuse (no gesture, iframe policy, a pad start has no transient
+   activation) — a refusal is swallowed and the run simply continues
+   windowed. Nothing anywhere claims fullscreen that isn't real: the
+   HUD toggle reads document.fullscreenElement, and exiting mid-run
+   is a pure view change that never touches run state. */
+function requestGameFullscreen(el: HTMLElement | null) {
+  try {
+    if (!el || typeof document === "undefined" || document.fullscreenElement) return;
+    const p = el.requestFullscreen?.();
+    if (p && typeof p.catch === "function") p.catch(() => { /* refused — windowed it is */ });
+  } catch { /* refused — windowed it is */ }
+}
+function exitGameFullscreen() {
+  try {
+    if (typeof document !== "undefined" && document.fullscreenElement) {
+      const p = document.exitFullscreen?.();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    }
+  } catch { /* nothing to exit */ }
+}
+function toggleGameFullscreen(el: HTMLElement | null) {
+  try {
+    if (typeof document !== "undefined" && document.fullscreenElement) exitGameFullscreen();
+    else requestGameFullscreen(el);
+  } catch { /* the toggle is a nicety, never a blocker */ }
+}
 
 /* ─── game state ──────────────────────────────────────────────────────── */
 type Phase = "start" | "playing" | "upgrade" | "dead" | "transit";
-type EnemyType = "chaser" | "shooter" | "dasher" | "boss";
+type EnemyType = "chaser" | "shooter" | "dasher" | "charger" | "spambot" | "boss";
+type EventKind = "none" | "jackpot" | "ambush";
 
 interface Player {
   x: number; y: number; r: number;
@@ -163,6 +272,9 @@ interface Player {
   dashCdMax: number; dashCd: number; dashT: number; dashDX: number; dashDY: number;
   invuln: number; flash: number;
   spread: boolean; pierce: boolean; magnet: number; moveMag: number;
+  /* v2: the arsenal, Thorn Sash, Second Wind, bubble shield */
+  guns: string[]; gun: string;
+  thorn: number; secondWind: boolean; shield: boolean;
 }
 interface Enemy {
   /* MP: the foe's index within its floor — its party-wide identity
@@ -172,14 +284,27 @@ interface Enemy {
   state: string; t: number; fireT: number;
   lockX: number; lockY: number; wob: number; flash: number; elite: boolean;
   r: number; hp: number; maxhp: number; speed: number; dmg: number;
+  thornT: number;      /* Thorn Sash tick cooldown (per foe) */
+  summons: number;     /* boss only: summon waves already used */
 }
-interface Bolt { x: number; y: number; vx: number; vy: number; r: number; dmg: number; pierceLeft: number; hit: Enemy[] }
+interface Bolt {
+  x: number; y: number; vx: number; vy: number; r: number; dmg: number;
+  pierceLeft: number; hit: Enemy[];
+  life: number;        /* seconds of flight left (Infinity = until a wall) */
+  splash: number;      /* blast radius on impact (0 = single target) */
+  kind: "bolt" | "shell" | "rail";
+  tint: string;
+}
 interface EBolt { x: number; y: number; vx: number; vy: number; r: number; dmg: number }
 interface Pickup {
-  x: number; y: number; r: number; kind: "crown" | "heart"; bob: number;
+  x: number; y: number; r: number;
+  kind: "crown" | "scrip" | "heart" | "shield" | "gun";
+  bob: number;
+  gunId?: string;      /* kind === "gun": the arsenal drop to claim */
   /* MP: the server's coin id (`f<depth>:p<i>` placed, `f<depth>:d<n>`
-     dropped) — claims and removals are arbitrated by it. Solo: null. */
-  mpId: string | null;
+     dropped) — claims and removals are arbitrated by it. Absent on
+     solo pickups (drops, hearts, shields, guns are local there). */
+  mpId?: string | null;
 }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number }
 interface Floater { x: number; y: number; life: number; text: string; color: string }
@@ -199,13 +324,37 @@ interface PadState {
   navCd: number;
 }
 
+/* One row of the between-floor shop: an upgrade card, a gun on the
+   rack, or the always-free Descend. Prices and shortfalls are real:
+   an unaffordable row says exactly how many coins are missing. */
+export interface ShopItemSnap {
+  key: string;
+  kind: "upgrade" | "gun" | "descend";
+  id: string;
+  name: string;
+  desc: string;
+  price: number;
+  affordable: boolean;
+  shortfall: number;
+  owned: boolean;
+  equipped: boolean;
+  tint?: string;
+}
+export interface ShopSnap {
+  purse: number;   /* score coins held */
+  scrip: number;   /* prestige/bounty scrip held (spends first) */
+  total: number;   /* purse + scrip — what the shop can spend */
+  depth: number;
+  items: ShopItemSnap[];
+}
+
 interface UiBridge {
   hud: () => void;
   phase: (p: Phase) => void;
   paused: (p: boolean) => void;
   msg: (t: string) => void;
-  intro: (depth: number) => void;
-  upgrades: (picks: UpgradeDef[]) => void;
+  intro: (depth: number, info: { name: string; event: EventKind; boss: boolean }) => void;
+  shop: (s: ShopSnap | null) => void;
   highlight: (i: number) => void;
   flash: () => void;
   death: (summary: RunSummary) => void;
@@ -215,6 +364,14 @@ interface UiBridge {
 export interface RunSummary {
   depth: number; crowns: number; kills: number; score: number;
   bestCombo: number; timeSec: number; bossDeath: boolean; isSessionBest: boolean;
+  /* v2: purse conversion, armory, prestige + achievements */
+  coinScore: number;         /* crowns × 25 — the purse's score line */
+  armory: string[];          /* gun names owned at run end */
+  bossKills: number;
+  prestigeTier: number;      /* tier held when the run ended */
+  canPrestige: boolean;      /* a boss fell this run and tier < cap */
+  achievementsNew: string[]; /* ids earned by this run */
+  achievementsAll: string[]; /* ids earned lifetime (incl. this run) */
 }
 
 /* The walk-through passage between rooms (owner ruling: no teleport).
@@ -226,11 +383,14 @@ export interface RunSummary {
 interface Transit {
   t: number;
   fromX: number; fromY: number;
-  camY: number;         /* current view slide, 0..LH */
+  camY: number;         /* current view slide, 0..VH (screen space) */
   kingX: number; kingY: number; /* King's screen-space draw position */
   done: boolean;
   snapObstacles: Obstacle[];
   snapPickups: Pickup[];
+  camFromX: number; camFromY: number; /* old room's camera at passage start */
+  camDoorX: number; camDoorY: number; /* old room's camera centred on the door */
+  viewCamX: number; viewCamY: number; /* old room's camera THIS frame (eased) */
 }
 const TRANSIT_WALK_SEC = 0.32;
 const TRANSIT_SLIDE_SEC = 0.78; /* total passage ≈ 1.1s */
@@ -241,6 +401,18 @@ interface G {
   paused: boolean;
   runSeed: number;
   depth: number; crowns: number; kills: number;
+  /* v2 run economy: purse = score coins held (converts at run end);
+     scrip = prestige/bounty coins (spendable, never converts) */
+  purse: number; scrip: number;
+  cam: { x: number; y: number };
+  event: EventKind;
+  bossKills: number;
+  callout: { text: string; t: number } | null;
+  fountainT: number;      /* run-end coin fountain timer (win flourish) */
+  spawnQueue: EnemyType[]; /* boss summons, drained outside the foe loop */
+  addEnemyAt: ((type: EnemyType, x?: number, y?: number) => void) | null;
+  meta: CrownfallMeta;
+  shopIndex: number;
   P: Player;
   enemies: Enemy[]; bolts: Bolt[]; ebolts: EBolt[]; pickups: Pickup[];
   parts: Particle[]; floats: Floater[]; obstacles: Obstacle[]; afterimages: Afterimage[];
@@ -262,7 +434,6 @@ interface G {
   padVec: { x: number; y: number };
   pad: PadState;
   upgradePicks: UpgradeDef[];
-  upgradeIndex: number;
   sessionBest: { depth: number; score: number };
   overFired: boolean;
   deathAt: number;
@@ -277,25 +448,58 @@ interface G {
   mpRevive: boolean;
   /** MP: placed crowns on the current floor (for the roster frame). */
   mpPlacedCount: number;
+  /** MP: the highest server purse tally already folded into the
+   *  local purse — the tally is a running total, so only the delta
+   *  over this mark is new money (shop spends are never refunded
+   *  by a sync). */
+  mpPurseSeen: number;
 }
 
-function newPlayer(): Player {
+function newPlayer(tier = 0): Player {
   return {
     x: LW / 2, y: LH - 110, r: 22,
     hp: CROWNFALL.baseHp, maxhp: CROWNFALL.baseHp,
-    speed: CROWNFALL.baseSpeed, dmg: CROWNFALL.baseDamage, fireRate: CROWNFALL.baseFireRate, multishot: 1,
+    speed: CROWNFALL.baseSpeed,
+    /* prestige is power, not score: +5% bolt damage per tier,
+       applied to the base stat before guns/upgrades multiply it */
+    dmg: CROWNFALL.baseDamage * prestigeDamageMult(tier),
+    fireRate: CROWNFALL.baseFireRate, multishot: 1,
     faceX: 0, faceY: -1,
     dashCdMax: CROWNFALL.dashCooldownSec, dashCd: 0, dashT: 0, dashDX: 0, dashDY: -1,
     invuln: 0, flash: 0,
     spread: false, pierce: false, magnet: CROWNFALL.baseMagnet, moveMag: 0,
+    guns: ["blaster"], gun: "blaster",
+    thorn: 0, secondWind: false, shield: false,
   };
 }
 
+/* Mid-run score: the purse has NOT converted yet, so the coin term
+   is 0 — the HUD score is depth + kills + combo, honestly pending. */
 function scoreOf(g: G) {
-  return crownfallScore(g.depth, g.crowns, g.kills, g.comboBonus);
+  return crownfallScore(g.depth, 0, g.kills, g.comboBonus);
+}
+/* Run-end score: the leftover purse converts at +25 per coin.
+   Scrip NEVER converts (prestige stays power + status only). */
+function finalScoreOf(g: G) {
+  return crownfallScore(g.depth, g.purse, g.kills, g.comboBonus);
+}
+function camSnapToPlayer(g: G) {
+  g.cam.x = clamp(g.P.x - VW / 2, 0, LW - VW);
+  g.cam.y = clamp(g.P.y - VH / 2, 0, LH - VH);
+}
+function todayLocal(): string {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return d.getFullYear() + "-" + mm + "-" + dd;
 }
 function enemyName(e: Enemy) {
-  const base = e.type === "chaser" ? "Glitch" : e.type === "shooter" ? "Spam Bot" : e.type === "dasher" ? "Troll" : "The Usurper";
+  const base = e.type === "chaser" ? "Glitch"
+    : e.type === "shooter" ? "Spam Bot"
+    : e.type === "dasher" ? "Troll"
+    : e.type === "charger" ? "Glitch Charger"
+    : e.type === "spambot" ? "Spam Slinger"
+    : "The Usurper";
   return e.elite ? "Gold-" + base : base;
 }
 
@@ -335,10 +539,21 @@ function genFloor(g: G, d: number, bg: HTMLCanvasElement | null) {
   const rng = mulberry32(g.runSeed + d * 7919);
   g.bgSeed = g.runSeed + d * 104729;
   g.obstacles = []; g.bolts = []; g.ebolts = []; g.parts = []; g.floats = []; g.pickups = [];
-  g.enemies = []; g.doorOpen = false; g.boss = null; g.fireTimer = 0.3;
+  g.enemies = []; g.doorOpen = false; g.boss = null; g.fireTimer = 0.3; g.spawnQueue = [];
 
-  /* obstacles — keep spawn (bottom centre) and door (top centre) clear */
-  const want = 3 + Math.floor(rng() * 4); /* 3..6 */
+  /* event rooms (floor 2+, never on a boss floor): the JACKPOT VAULT
+     is coin-rich and elite-guarded; an AMBUSH packs in extra foes
+     with better drops. The floor-intro banner announces the roll. */
+  g.event = "none";
+  if (d >= 2 && d % 5 !== 0) {
+    const er = rng();
+    if (er < 0.12) g.event = "jackpot";
+    else if (er < 0.24) g.event = "ambush";
+  }
+
+  /* obstacles — more of them in the bigger rooms (5..9); keep spawn
+     (bottom centre) and door (top centre) clear */
+  const want = 5 + Math.floor(rng() * 5);
   let guard = 0;
   while (g.obstacles.length < want && guard++ < 300) {
     const w = 56 + rng() * 84, h = 40 + rng() * 76;
@@ -357,8 +572,8 @@ function genFloor(g: G, d: number, bg: HTMLCanvasElement | null) {
   const skins = ROOM_SKINS[roomKind(d)];
   g.obstacles.forEach((o, i) => { o.skin = skins[i % skins.length]; });
 
-  /* crown pickups */
-  const nc = 3 + Math.floor(rng() * 3); /* 3..5 */
+  /* coin pickups: 4..7 on a normal floor, 8..14 in the JACKPOT VAULT */
+  const nc = g.event === "jackpot" ? 8 + Math.floor(rng() * 7) : 4 + Math.floor(rng() * 4);
   guard = 0;
   while (g.pickups.length < nc && guard++ < 200) {
     const px = WALL + 40 + rng() * (LW - 2 * WALL - 80);
@@ -368,14 +583,18 @@ function genFloor(g: G, d: number, bg: HTMLCanvasElement | null) {
   }
   g.mpPlacedCount = g.pickups.length;
 
-  /* player back to the entrance */
+  /* player back to the entrance; the camera snaps with him */
   const P = g.P;
   P.x = LW / 2; P.y = LH - 110; P.invuln = Math.max(P.invuln, 0.6);
   P.dashCd = 0; P.dashT = 0;
+  camSnapToPlayer(g);
 
-  /* enemies */
-  const hpScale = 1 + (d - 1) * 0.22;
-  const spScale = 1 + Math.min(0.35, (d - 1) * 0.03);
+  /* enemies — stats from the shared difficulty table
+     (lib/arcade-games.ts): HP/speed scales, contact-damage steps,
+     elite share, unlock floors. */
+  const hpScale = crownfallHpScale(d);
+  const spScale = crownfallSpeedScale(d);
+  const contactBonus = crownfallContactBonus(d);
   function spawnPos() {
     for (let t = 0; t < 200; t++) {
       const x = WALL + 50 + rng() * (LW - 2 * WALL - 100);
@@ -386,44 +605,60 @@ function genFloor(g: G, d: number, bg: HTMLCanvasElement | null) {
     }
     return { x: LW / 2, y: 150 };
   }
-  function addEnemy(type: EnemyType) {
-    const s = spawnPos();
+  function addEnemy(type: EnemyType, atX?: number, atY?: number) {
+    const s = atX !== undefined && atY !== undefined ? { x: atX, y: atY } : spawnPos();
     const e: Enemy = {
       id: g.enemies.length,
       type, x: s.x, y: s.y, vx: 0, vy: 0, kx: 0, ky: 0,
       state: "stalk", t: 0, fireT: 1 + rng() * 1.2,
       lockX: 0, lockY: 0, wob: rng() * 6.28, flash: 0, elite: false,
       r: 15, hp: 1, maxhp: 1, speed: 100, dmg: 10,
+      thornT: 0, summons: 0,
     };
-    if (type === "chaser") { e.r = 16; e.hp = e.maxhp = 26 * hpScale; e.speed = 106 * spScale; e.dmg = 12; }
-    if (type === "shooter") { e.r = 15; e.hp = e.maxhp = 20 * hpScale; e.speed = 92 * spScale; e.dmg = 10; }
-    if (type === "dasher") { e.r = 15; e.hp = e.maxhp = 22 * hpScale; e.speed = 100 * spScale; e.dmg = 14; }
-    if (type !== "boss" && d >= 3 && rng() < 0.22) {
+    if (type === "chaser") { e.r = 16; e.hp = e.maxhp = 26 * hpScale; e.speed = 106 * spScale; e.dmg = 12 + contactBonus; }
+    if (type === "shooter") { e.r = 15; e.hp = e.maxhp = 20 * hpScale; e.speed = 92 * spScale; e.dmg = 10 + contactBonus; }
+    if (type === "dasher") { e.r = 15; e.hp = e.maxhp = 22 * hpScale; e.speed = 100 * spScale; e.dmg = 14 + contactBonus; }
+    /* Glitch Charger (floor 3+): pauses, telegraphs, then charges */
+    if (type === "charger") { e.r = 16; e.hp = e.maxhp = 30 * hpScale; e.speed = 104 * spScale; e.dmg = 14 + contactBonus; }
+    /* Spam Slinger (floor 4+): keeps its distance, lobs slow bolts */
+    if (type === "spambot") { e.r = 15; e.hp = e.maxhp = 22 * hpScale; e.speed = 96 * spScale; e.dmg = 10 + contactBonus; e.fireT = 1.4 + rng(); }
+    if (type !== "boss" && rng() < crownfallEliteChance(d) + (g.event === "jackpot" ? 0.15 : 0)) {
       e.elite = true; e.hp = e.maxhp = e.hp * 1.9; e.r += 2; e.speed *= 1.06;
     }
     if (type === "boss") {
-      e.r = 36; e.hp = e.maxhp = 330 * (1 + (Math.floor(d / 5) - 1) * 0.6);
-      e.speed = 72 * spScale; e.dmg = 20; e.x = LW / 2; e.y = 170;
+      const cycle = crownfallBossCycle(d);
+      e.r = 36; e.hp = e.maxhp = crownfallBossHp(d);
+      e.speed = 72 * spScale * (cycle >= 4 ? 1.2 : 1); e.dmg = 20 + contactBonus;
+      e.x = LW / 2; e.y = 210;
       g.boss = e;
     }
     g.enemies.push(e);
   }
+  g.addEnemyAt = addEnemy;
   if (d % 5 === 0) {
     addEnemy("boss");
     if (d >= 10) { addEnemy("chaser"); addEnemy("shooter"); }
   } else {
-    const n = Math.min(CROWNFALL.maxFoesPerFloor, 3 + d + Math.floor(d / 3)); /* grows with depth */
+    const base = crownfallFoesForFloor(d);
+    const n = g.event === "ambush" ? Math.ceil(base * 1.5) : base;
     for (let k = 0; k < n; k++) {
       const roll = rng();
       let type: EnemyType = roll < 0.45 ? "chaser" : roll < 0.75 ? "shooter" : "dasher";
       if (d < 2 && k > 1) type = "chaser";
       if (d < 3 && type === "dasher") type = "shooter";
+      /* unlocks (never earlier): Chargers from floor 3, Slingers from 4 */
+      if (d >= 3 && rng() < 0.22) type = "charger";
+      if (d >= 4 && rng() < 0.22) type = "spambot";
       addEnemy(type);
     }
   }
   makeBg(g, bg);
-  g.ui.msg(d % 5 === 0 ? "Floor " + d + " — The Usurper wants the throne." : "Floor " + d + " · " + crownfallFloorName(d) + " — clear the invaders");
-  if (g.phase === "playing") { g.ui.intro(d); if (d % 5 === 0) sfx.boss(); }
+  const evLine = g.event === "jackpot" ? " — JACKPOT VAULT!" : g.event === "ambush" ? " — AMBUSH!" : " — clear the invaders";
+  g.ui.msg(d % 5 === 0 ? "Floor " + d + " — The Usurper wants the throne." : "Floor " + d + " · " + crownfallFloorName(d) + evLine);
+  if (g.phase === "playing") {
+    g.ui.intro(d, { name: crownfallFloorName(d), event: g.event, boss: d % 5 === 0 });
+    if (d % 5 === 0) { sfx.boss(); sfx.roar(); }
+  }
   g.ui.hud();
 }
 
@@ -440,8 +675,16 @@ function makeBg(g: G, bg: HTMLCanvasElement | null) {
   b.fillRect(0, 0, LW, LH);
   const rng = mulberry32(g.bgSeed);
   let i: number, x: number, y: number;
+  /* floor sheen — one soft diagonal light wash over the stone, so
+     the bigger floors read premium instead of flat */
+  const sheen = b.createLinearGradient(0, 0, LW, LH);
+  sheen.addColorStop(0, g.theme === "dark" ? "rgba(255,244,200,0.05)" : "rgba(255,255,255,0.20)");
+  sheen.addColorStop(0.5, "rgba(0,0,0,0)");
+  sheen.addColorStop(1, g.theme === "dark" ? "rgba(0,0,0,0.10)" : "rgba(120,90,20,0.06)");
+  b.fillStyle = sheen;
+  b.fillRect(0, 0, LW, LH);
   /* soft stone blotches */
-  for (i = 0; i < 9; i++) {
+  for (i = 0; i < 16; i++) {
     x = rng() * LW; y = rng() * LH;
     const gr = b.createRadialGradient(x, y, 0, x, y, 120 + rng() * 160);
     gr.addColorStop(0, pal.blotch); gr.addColorStop(1, "rgba(0,0,0,0)");
@@ -450,11 +693,11 @@ function makeBg(g: G, bg: HTMLCanvasElement | null) {
   }
   /* pale-gold marble veins carried across the whole floor — the
      centre included, fainter there so the room still reads calm */
-  for (i = 0; i < 22; i++) {
+  for (i = 0; i < 36; i++) {
     const edge = rng();
-    if (edge < 0.45) { x = rng() < 0.5 ? rng() * 90 : LW - rng() * 90; y = rng() * LH; }
-    else if (edge < 0.7) { x = rng() * LW; y = rng() < 0.5 ? rng() * 90 : LH - rng() * 90; }
-    else { x = 120 + rng() * (LW - 240); y = 120 + rng() * (LH - 240); }
+    if (edge < 0.45) { x = rng() < 0.5 ? rng() * 120 : LW - rng() * 120; y = rng() * LH; }
+    else if (edge < 0.7) { x = rng() * LW; y = rng() < 0.5 ? rng() * 120 : LH - rng() * 120; }
+    else { x = 140 + rng() * (LW - 280); y = 140 + rng() * (LH - 280); }
     b.strokeStyle = pal.vein + (0.05 + rng() * 0.10) + ")";
     b.lineWidth = 0.8 + rng() * 1.1;
     b.beginPath(); b.moveTo(x, y);
@@ -468,13 +711,13 @@ function makeBg(g: G, bg: HTMLCanvasElement | null) {
   }
   /* faint tile seams */
   b.strokeStyle = pal.grid; b.lineWidth = 1;
-  for (i = 1; i < 8; i++) {
+  for (i = 1; i < 12; i++) {
     b.beginPath(); b.moveTo(i * 90, WALL); b.lineTo(i * 90, LH - WALL); b.stroke();
     b.beginPath(); b.moveTo(WALL, i * 90); b.lineTo(LW - WALL, i * 90); b.stroke();
   }
   /* studio rug in the centre — filled, patterned, thin gold border */
   b.save();
-  const rx0 = LW / 2 - 150, ry0 = LH / 2 - 110, rw0 = 300, rh0 = 220;
+  const rx0 = LW / 2 - 190, ry0 = LH / 2 - 140, rw0 = 380, rh0 = 280;
   b.beginPath(); b.rect(rx0, ry0, rw0, rh0);
   b.fillStyle = g.theme === "dark" ? "rgba(104,30,40,0.5)" : "rgba(150,52,44,0.20)";
   b.fill();
@@ -558,7 +801,7 @@ function makeBg(g: G, bg: HTMLCanvasElement | null) {
       const a2 = (sp / 6) * 6.283;
       b.beginPath(); b.arc(LW / 2 + Math.cos(a2) * 25, WALL + 46 + Math.sin(a2) * 25, 2.6, 0, 6.283); b.fill();
     }
-    for (let cp = 0; cp < 7; cp++) {
+    for (let cp = 0; cp < 12; cp++) {
       const px2 = 70 + rng() * (LW - 140), py2 = 90 + rng() * (LH - 180);
       if (Math.abs(px2 - LW / 2) < 90 && py2 < 200) continue;
       b.fillStyle = dark ? "rgba(240,201,79,0.20)" : "rgba(180,140,40,0.22)";
@@ -569,20 +812,20 @@ function makeBg(g: G, bg: HTMLCanvasElement | null) {
   }
   if (kind === "server") {
     /* cool light pools + floor cable runs */
-    for (const [lx, ly] of [[150, 170], [570, 170], [150, 540], [570, 540]] as const) {
-      const lg = b.createRadialGradient(lx, ly, 0, lx, ly, 95);
+    for (const [lx, ly] of [[190, 210], [890, 210], [190, 870], [890, 870]] as const) {
+      const lg = b.createRadialGradient(lx, ly, 0, lx, ly, 120);
       lg.addColorStop(0, dark ? "rgba(96,165,250,0.13)" : "rgba(96,140,220,0.10)"); lg.addColorStop(1, "rgba(0,0,0,0)");
-      b.fillStyle = lg; b.fillRect(lx - 95, ly - 95, 190, 190);
+      b.fillStyle = lg; b.fillRect(lx - 120, ly - 120, 240, 240);
     }
     b.strokeStyle = dark ? "rgba(120,130,150,0.25)" : "rgba(90,100,120,0.22)"; b.lineWidth = 3;
-    for (const cx3 of [110, 610]) {
+    for (const cx3 of [150, 930]) {
       b.beginPath(); b.moveTo(cx3, WALL); b.lineTo(cx3, LH - WALL); b.stroke();
     }
   }
   if (kind === "lobby") {
     /* gold inlay diamonds in the floor corners — a lobby's welcome */
     b.strokeStyle = dark ? "rgba(212,175,55,0.35)" : "rgba(138,109,31,0.35)"; b.lineWidth = 1.6;
-    for (const [ix2, iy2] of [[120, 130], [600, 130], [120, 590], [600, 590]] as const) {
+    for (const [ix2, iy2] of [[150, 160], [930, 160], [150, 920], [930, 920]] as const) {
       b.beginPath();
       b.moveTo(ix2, iy2 - 17); b.lineTo(ix2 + 17, iy2); b.lineTo(ix2, iy2 + 17); b.lineTo(ix2 - 17, iy2);
       b.closePath(); b.stroke();
@@ -590,10 +833,43 @@ function makeBg(g: G, bg: HTMLCanvasElement | null) {
       b.beginPath(); b.arc(ix2, iy2, 2.6, 0, 6.283); b.fill();
     }
   }
-  /* vignette */
-  const vg = b.createRadialGradient(LW / 2, LH / 2, LH * 0.42, LW / 2, LH / 2, LH * 0.78);
-  vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, pal.vign);
-  b.fillStyle = vg; b.fillRect(0, 0, LW, LH);
+  /* ── clutter pass: flat floor dressing scattered through the
+     bigger rooms (all non-collision, all pre-rendered here so the
+     frame loop never pays for it) — cable runs, tape marks, scuffs,
+     gold dust. Density is the point: a 1080 room must not feel empty
+     between its collision pieces. ── */
+  for (let ci = 0; ci < 16; ci++) {
+    const cx4 = WALL + 60 + rng() * (LW - 2 * WALL - 120);
+    const cy4 = WALL + 60 + rng() * (LH - 2 * WALL - 120);
+    const pick = rng();
+    if (pick < 0.34) {
+      /* a cable run: two lazy arcs */
+      b.strokeStyle = dark ? "rgba(140,145,160,0.16)" : "rgba(90,80,55,0.16)"; b.lineWidth = 2.4;
+      b.beginPath(); b.moveTo(cx4, cy4);
+      b.quadraticCurveTo(cx4 + (rng() - 0.5) * 190, cy4 + (rng() - 0.5) * 190, cx4 + (rng() - 0.5) * 260, cy4 + (rng() - 0.5) * 260);
+      b.stroke();
+    } else if (pick < 0.62) {
+      /* gaffer-tape X marks */
+      b.strokeStyle = dark ? "rgba(240,201,79,0.20)" : "rgba(138,109,31,0.22)"; b.lineWidth = 3;
+      const s4 = 9 + rng() * 6;
+      b.beginPath();
+      b.moveTo(cx4 - s4, cy4 - s4); b.lineTo(cx4 + s4, cy4 + s4);
+      b.moveTo(cx4 + s4, cy4 - s4); b.lineTo(cx4 - s4, cy4 + s4);
+      b.stroke();
+    } else if (pick < 0.84) {
+      /* a worn scuff patch */
+      b.fillStyle = dark ? "rgba(255,255,255,0.03)" : "rgba(120,90,20,0.05)";
+      b.beginPath(); b.ellipse(cx4, cy4, 22 + rng() * 30, 9 + rng() * 12, rng() * 3, 0, 6.283); b.fill();
+    } else {
+      /* spilled gold dust */
+      b.fillStyle = dark ? "rgba(240,201,79,0.13)" : "rgba(170,130,40,0.14)";
+      for (let gd = 0; gd < 6; gd++) {
+        b.beginPath(); b.arc(cx4 + (rng() - 0.5) * 44, cy4 + (rng() - 0.5) * 26, 1.4 + rng() * 2.2, 0, 6.283); b.fill();
+      }
+    }
+  }
+  /* NOTE: no vignette in the backdrop — with a moving camera it is
+     drawn in VIEW space by render(), so it hugs the screen. */
 }
 
 /* ─── collisions ──────────────────────────────────────────────────────── */
@@ -630,6 +906,7 @@ function boltBlocked(g: G, x: number, y: number) {
 /* ─── effects ─────────────────────────────────────────────────────────── */
 function burst(g: G, x: number, y: number, color: string, n: number, spd = 130) {
   for (let i = 0; i < n; i++) {
+    if (g.parts.length >= PARTICLE_CAP) return; /* juice is capped, always */
     const a = Math.random() * 6.283, v = (0.3 + Math.random() * 0.7) * spd;
     g.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, max: 0.35 + Math.random() * 0.3, color, size: 2 + Math.random() * 2.5 });
   }
@@ -642,32 +919,96 @@ function floater(g: G, x: number, y: number, text: string, color: string) {
 function damagePlayer(g: G, dmg: number, bg: HTMLCanvasElement | null) {
   const P = g.P;
   if (P.invuln > 0 || P.dashT > 0 || g.phase !== "playing") return;
+  /* the bubble shield absorbs exactly one hit, whole */
+  if (P.shield) {
+    P.shield = false;
+    P.invuln = 0.7;
+    sfx.shieldPop();
+    floater(g, P.x, P.y - 30, "SHIELD DOWN", "#8ae2ff");
+    burst(g, P.x, P.y, "#8ae2ff", 14, 170);
+    g.ui.hud();
+    return;
+  }
   P.hp -= dmg; sfx.hurt();
   P.invuln = 0.9; P.flash = 0.25; g.shake = Math.max(g.shake, 9);
   burst(g, P.x, P.y, "#e5484d", 10, 150);
   g.ui.hud();
-  if (P.hp <= 0) { P.hp = 0; die(g, bg); }
+  if (P.hp <= 0) {
+    /* Second Wind: one revive per run at 50% HP, if bought and unused */
+    if (P.secondWind) {
+      P.secondWind = false;
+      P.hp = Math.floor(P.maxhp * 0.5);
+      P.invuln = 1.6; P.flash = 0;
+      g.shake = Math.max(g.shake, 12);
+      sfx.claim();
+      floater(g, P.x, P.y - 34, "SECOND WIND!", "#f0c94f");
+      burst(g, P.x, P.y, "#f0c94f", 30, 230);
+      burst(g, P.x, P.y, "#fff3c4", 14, 150);
+      g.ui.msg("Second Wind — the King refuses to fall!");
+      g.ui.hud();
+      return;
+    }
+    P.hp = 0; die(g, bg);
+  }
+}
+/* Coin drops: every dropped score coin also rolls the prestige
+   scrip chance — a bonus SCRIP coin (spendable, never converts). */
+function dropCoins(g: G, x: number, y: number, count: number) {
+  const scripChance = prestigeCoinChance(g.meta.tier);
+  for (let i = 0; i < count; i++) {
+    const ox = (Math.random() - 0.5) * 26, oy = (Math.random() - 0.5) * 20;
+    g.pickups.push({ x: x + ox, y: y + oy, r: 11, kind: "crown", bob: Math.random() * 6.28 });
+    if (Math.random() < scripChance) {
+      g.pickups.push({ x: x - ox, y: y - oy, r: 11, kind: "scrip", bob: Math.random() * 6.28 });
+    }
+  }
+}
+function dropGunPickup(g: G, x: number, y: number) {
+  const unowned = CROWNFALL_GUNS.filter((gun) => !g.P.guns.includes(gun.id));
+  if (!unowned.length) return;
+  const gun = unowned[(Math.random() * unowned.length) | 0]!;
+  g.pickups.push({ x, y, r: 13, kind: "gun", bob: Math.random() * 6.28, gunId: gun.id });
+  floater(g, x, y - 26, gun.name + " dropped!", gun.tint);
 }
 function killEnemy(g: G, e: Enemy) {
   g.kills++; sfx.die();
   if (g.comboTimer > 0) g.combo++; else g.combo = 1;
   g.comboTimer = CROWNFALL.comboWindowSec;
   if (g.combo > g.bestCombo) g.bestCombo = g.combo;
-  if (g.combo >= 2) { g.comboBonus += g.combo - 1; floater(g, e.x, e.y - 20, "Combo x" + g.combo, "#c49a22"); }
+  /* the combo MULTIPLIER: this kill scores 10 × mult; the excess
+     over the base 10 accrues as combo bonus (≤ 40 per kill). */
+  const mult = crownfallComboMult(g.combo);
+  if (mult > 1) g.comboBonus += (mult - 1) * CROWNFALL.killPoints;
+  if (g.combo >= 2) floater(g, e.x, e.y - 20, "Combo ×" + mult, "#c49a22");
+  /* kill-streak callouts at chain 5 / 10 / 20 */
+  if (g.combo === 5) g.callout = { text: "ON A TEAR", t: 0 };
+  else if (g.combo === 10) g.callout = { text: "RAMPAGE", t: 0 };
+  else if (g.combo === 20) g.callout = { text: "UNSTOPPABLE", t: 0 };
   if (e.type === "boss") g.shake = Math.max(g.shake, 14);
   burst(g, e.x, e.y, "#f0c94f", e.type === "boss" ? 42 : 16, 190);
   burst(g, e.x, e.y, "#e5484d", 8, 130);
+  if (e.type === "boss") g.bossKills++;
   /* MP: drops are rolled by the server and arrive as coin.spawn
-     events — the local Math.random drop table is solo-only. */
+     events — the local drop table below is solo-only. */
   if (!g.mp) {
-    if (e.type === "boss" || e.elite) {
-      g.pickups.push({ x: e.x, y: e.y, r: 11, kind: "crown", bob: Math.random() * 6.28, mpId: null });
-      g.pickups.push({ x: e.x + 18, y: e.y + 8, r: 11, kind: "crown", bob: Math.random() * 6.28, mpId: null });
-    } else if (Math.random() < 0.3) {
-      g.pickups.push({ x: e.x, y: e.y, r: 11, kind: "crown", bob: Math.random() * 6.28, mpId: null });
+    const dropMul = g.event === "jackpot" ? 2 : 1;
+    if (e.type === "boss") {
+      dropCoins(g, e.x, e.y, 2 * dropMul);
+      dropGunPickup(g, e.x, e.y + 16); /* the boss ALWAYS drops a gun (while any remain) */
+      /* a small coin fountain where the Usurper fell */
+      burst(g, e.x, e.y - 10, "#f0c94f", 22, 260);
+      burst(g, e.x, e.y - 10, "#fff3c4", 10, 190);
+    } else if (e.elite) {
+      dropCoins(g, e.x, e.y, 2 * dropMul);
+      if (Math.random() < 0.25) dropGunPickup(g, e.x, e.y);
+      if (Math.random() < 0.18 && !g.P.shield) {
+        g.pickups.push({ x: e.x - 16, y: e.y + 10, r: 11, kind: "shield", bob: Math.random() * 6.28 });
+      }
+    } else if (Math.random() < (g.event === "ambush" ? 0.45 : 0.3)) {
+      dropCoins(g, e.x, e.y, 1 * dropMul);
     }
     if (Math.random() < 0.12 && g.P.hp < g.P.maxhp) {
-      g.pickups.push({ x: e.x + 14, y: e.y - 10, r: 10, kind: "heart", bob: 0, mpId: null });
+      g.pickups.push({ x: e.x + 14, y: e.y - 10, r: 10, kind: "heart", bob: 0 });
     }
   }
   if (e === g.boss) g.boss = null;
@@ -694,26 +1035,93 @@ function resolveAim(g: G) {
   }
   const ma = g.mouseAim;
   if (ma.inside && g.timeNow - ma.lastAt < 2.5) {
-    const dx = ma.x - P.x, dy = ma.y - P.y;
+    /* the mouse lives in VIEW coordinates; the King in world ones */
+    const dx = ma.x + g.cam.x - P.x, dy = ma.y + g.cam.y - P.y;
     const m = Math.sqrt(dx * dx + dy * dy);
     if (m > 10) { g.aim.on = true; g.aim.x = dx / m; g.aim.y = dy / m; return; }
   }
   g.aim.on = false;
 }
 
+/* ─── guns: switching never touches the fire rules ──────────────────── */
+function switchGun(g: G, id: string) {
+  const P = g.P;
+  if (!P.guns.includes(id) || P.gun === id) return;
+  P.gun = id;
+  sfx.claim();
+  floater(g, P.x, P.y - 30, crownfallGun(id).name, crownfallGun(id).tint);
+  g.ui.hud();
+}
+function cycleGun(g: G, dir: number) {
+  const P = g.P;
+  if (P.guns.length < 2) return;
+  const idx = P.guns.indexOf(P.gun);
+  const next = P.guns[((idx + dir) % P.guns.length + P.guns.length) % P.guns.length]!;
+  switchGun(g, next);
+}
+
 function fireBolts(g: G) {
   const P = g.P;
   if (!g.aim.on) return; /* no aim, no shots — the player's call alone */
+  const gun = crownfallGun(P.gun);
   const base = Math.atan2(g.aim.y, g.aim.x);
   P.faceX = Math.cos(base); P.faceY = Math.sin(base);
   sfx.shoot();
-  burst(g, P.x + Math.cos(base) * 20, P.y + Math.sin(base) * 20, "#ffe98a", 2, 60);
+  burst(g, P.x + Math.cos(base) * 20, P.y + Math.sin(base) * 20, gun.tint, 2, 60);
+  /* streams: the multishot upgrade adds parallel streams of the
+     gun's own pattern; Triple Upload fans a single-stream gun */
   let shots: number[] = [];
   for (let k = 0; k < P.multishot; k++) shots.push(P.multishot === 1 ? 0 : (k - (P.multishot - 1) / 2) * 0.14);
   if (P.spread) { if (shots.length === 1) shots = [-0.22, 0, 0.22]; else shots = shots.concat([-0.24, 0.24]); }
+  const dmg = P.dmg * gun.dmgMul;
+  const life = gun.range > 0 ? gun.range / gun.boltSpeed : Infinity;
+  const kind: Bolt["kind"] = gun.splash > 0 ? "shell" : gun.id === "rail" ? "rail" : "bolt";
+  const push = (a: number, px: number, py: number) => {
+    g.bolts.push({
+      x: P.x + Math.cos(a) * 18 + px, y: P.y + Math.sin(a) * 18 + py,
+      vx: Math.cos(a) * gun.boltSpeed, vy: Math.sin(a) * gun.boltSpeed,
+      r: gun.boltR, dmg, pierceLeft: gun.pierce + (P.pierce ? 2 : 0), hit: [],
+      life, splash: gun.splash, kind, tint: gun.tint,
+    });
+  };
   for (const off of shots) {
     const a = base + off;
-    g.bolts.push({ x: P.x + Math.cos(a) * 18, y: P.y + Math.sin(a) * 18, vx: Math.cos(a) * 545, vy: Math.sin(a) * 545, r: 5, dmg: P.dmg, pierceLeft: P.pierce ? 2 : 0, hit: [] });
+    if (gun.pattern === "twin") {
+      /* two parallel bolts, offset across the aim axis */
+      const px = Math.cos(a + Math.PI / 2), py = Math.sin(a + Math.PI / 2);
+      push(a, px * 7, py * 7);
+      push(a, px * -7, py * -7);
+    } else if (gun.pattern === "scatter") {
+      for (const fan of [-0.34, -0.17, 0, 0.17, 0.34]) push(a + fan, 0, 0);
+    } else {
+      push(a, 0, 0);
+    }
+  }
+}
+
+/* Crown Mortar blast: full damage to every foe inside the radius.
+   Kills reap through the same path as bolt kills. */
+function explode(g: G, x: number, y: number, radius: number, dmg: number) {
+  sfx.boom();
+  g.shake = Math.max(g.shake, 7);
+  burst(g, x, y, "#ff9a3c", 18, 240);
+  burst(g, x, y, "#f0c94f", 10, 170);
+  for (let j = g.enemies.length - 1; j >= 0; j--) {
+    const e = g.enemies[j]!;
+    if (dist2(x, y, e.x, e.y) < (radius + e.r) * (radius + e.r)) {
+      /* MP: the blast is reported like any other hit — the server
+         adjudicates; local HP is visual only and never reaches 0
+         here, so the kill line below stays solo-only in effect. */
+      if (g.mp) {
+        g.mp.reportHit(e.id, dmg, e.x, e.y);
+        e.hp = Math.max(1, e.hp - dmg);
+      } else {
+        e.hp -= dmg;
+      }
+      e.flash = 0.16;
+      floater(g, e.x + (Math.random() * 14 - 7), e.y - e.r - 6, "" + Math.round(dmg), "#ffb08a");
+      if (e.hp <= 0) { g.enemies.splice(j, 1); killEnemy(g, e); }
+    }
   }
 }
 function enemyShoot(g: G, e: Enemy, speed: number, dmg: number, spread = 0, tx = g.P.x, ty = g.P.y) {
@@ -745,6 +1153,7 @@ function mpTargetOf(g: G, e: Enemy): { x: number; y: number } {
 function updateEnemy(g: G, e: Enemy, dt: number, bg: HTMLCanvasElement | null) {
   const P = g.P;
   e.flash = Math.max(0, e.flash - dt);
+  e.thornT = Math.max(0, e.thornT - dt);
   if (e.kx || e.ky) { moveCircle(g, e, e.kx * dt, e.ky * dt); e.kx *= 0.82; e.ky *= 0.82; if (Math.abs(e.kx) < 4) e.kx = 0; if (Math.abs(e.ky) < 4) e.ky = 0; }
   e.wob += dt * 3;
   /* MP: foes hunt the nearest living King (see mpTargetOf); solo the
@@ -785,14 +1194,66 @@ function updateEnemy(g: G, e: Enemy, dt: number, bg: HTMLCanvasElement | null) {
       moveCircle(g, e, ux * e.speed * 0.3 * dt, uy * e.speed * 0.3 * dt);
       if (e.t <= 0) e.state = "stalk";
     }
+  } else if (e.type === "charger") {
+    /* GLITCH CHARGER: stalks, PAUSES to telegraph (locking its line
+       — dodge sideways), then charges in a straight line. */
+    e.t -= dt;
+    if (e.state === "stalk") {
+      moveCircle(g, e, ux * e.speed * dt, uy * e.speed * dt);
+      if (d < 340 && e.t <= 0) { e.state = "tele"; e.t = 0.55; e.lockX = ux; e.lockY = uy; }
+    } else if (e.state === "tele") {
+      e.lockX = ux; e.lockY = uy; /* tracks while winding up, like the Troll */
+      if (e.t <= 0) { e.state = "charge"; e.t = 0.52; burst(g, e.x, e.y, "#67e8f9", 6, 120); }
+    } else if (e.state === "charge") {
+      moveCircle(g, e, e.lockX * 470 * dt, e.lockY * 470 * dt);
+      if (e.t <= 0) { e.state = "rest"; e.t = 0.8; }
+    } else { /* rest */
+      if (e.t <= 0) { e.state = "stalk"; e.t = 0.5; }
+    }
+  } else if (e.type === "spambot") {
+    /* SPAM SLINGER: holds ~300px, strafes, and lobs SLOW bolts the
+       King can dodge — or dash straight through. Player bolts and
+       enemy bolts never interact (no cancel rule, by design). */
+    const want = 300;
+    const radial = d > want + 30 ? 1 : d < want - 30 ? -1 : 0;
+    const strafe = Math.sin(e.wob * 0.5) > 0 ? 1 : -1;
+    mx = ux * radial + -uy * strafe * 0.6;
+    my = uy * radial + ux * strafe * 0.6;
+    const ml3 = Math.sqrt(mx * mx + my * my) || 1;
+    moveCircle(g, e, (mx / ml3) * e.speed * dt, (my / ml3) * e.speed * dt);
+    e.fireT -= dt;
+    if (e.fireT <= 0 && d < 520) { enemyShoot(g, e, 185, 9 + crownfallContactBonus(g.depth), 0); e.fireT = 2.3; }
   } else if (e.type === "boss") {
+    /* THE USURPER, harder every cycle (cycle = ⌊floor/5⌋): cycle 2+
+       summons minion waves at ⅔ and ⅓ HP (2 per wave, 3 per wave
+       from cycle 4 — never more than 6 extra foes); cycle 3+ fires
+       a 3-bolt spread instead of a single bolt; cycle 4+ also moves
+       20% faster (applied at spawn). */
+    const cycle = crownfallBossCycle(g.depth);
     e.t -= dt;
     e.fireT -= dt;
+    /* MP: summons stay solo-only in v1 — the referee's roster is the
+       floor's opening line-up and has no registration path for
+       mid-fight arrivals (their local ids could also collide with
+       roster ids after deaths splice the array). The party boss
+       keeps its spread-shot cycles; it just calls no court. */
+    if (!g.mp && cycle >= 2 && e.summons < 2) {
+      const frac = e.hp / e.maxhp;
+      const threshold = e.summons === 0 ? 2 / 3 : 1 / 3;
+      if (frac <= threshold) {
+        e.summons++;
+        const perWave = cycle >= 4 ? 3 : 2;
+        for (let s2 = 0; s2 < perWave; s2++) g.spawnQueue.push("chaser");
+        floater(g, e.x, e.y - e.r - 16, "The Usurper calls his court!", "#ff8a7a");
+        burst(g, e.x, e.y, "#e5484d", 14, 180);
+      }
+    }
     if (e.state === "stalk") {
       moveCircle(g, e, ux * e.speed * dt, uy * e.speed * dt);
       if (e.t <= 0 && d < 430) { e.state = "aim"; e.t = 0.45; e.lockX = ux; e.lockY = uy; }
       if (e.fireT <= 0) {
-        enemyShoot(g, e, 285, 12, 0, T.x, T.y); enemyShoot(g, e, 285, 12, 0.3, T.x, T.y); enemyShoot(g, e, 285, 12, -0.3, T.x, T.y);
+        enemyShoot(g, e, 285, 12, 0, T.x, T.y);
+        if (cycle >= 3) { enemyShoot(g, e, 285, 12, 0.3, T.x, T.y); enemyShoot(g, e, 285, 12, -0.3, T.x, T.y); }
         e.fireT = 2.3;
       }
     } else if (e.state === "aim") {
@@ -800,7 +1261,13 @@ function updateEnemy(g: G, e: Enemy, dt: number, bg: HTMLCanvasElement | null) {
       if (e.t <= 0) { e.state = "lunge"; e.t = 0.5; burst(g, e.x, e.y, "#e5484d", 8, 120); }
     } else if (e.state === "lunge") {
       moveCircle(g, e, e.lockX * 480 * dt, e.lockY * 480 * dt);
-      if (e.t <= 0) { e.state = "stalk"; e.t = 2.6 + Math.random() * 1.4; }
+      if (e.t <= 0) {
+        e.state = "stalk"; e.t = 2.6 + Math.random() * 1.4;
+        /* the slam landing: dust + a shake the room feels (no extra
+           damage — contact rules are contact rules) */
+        if (d < 230) { g.shake = Math.max(g.shake, 9); sfx.slam(); }
+        burst(g, e.x, e.y + e.r * 0.6, "#cbb98f", 10, 130);
+      }
     }
   }
 
@@ -815,12 +1282,38 @@ function updateEnemy(g: G, e: Enemy, dt: number, bg: HTMLCanvasElement | null) {
   }
   /* contact damage — always measured against the LOCAL King: a foe
      harms a player only on that player's own screen (in MP, d above
-     tracks the party target, which may be somebody else's King). */
+     tracks the party target, which may be somebody else's King).
+     The Thorn Sash hurts back on that same local contact. */
   const pd = Math.sqrt(dist2(e.x, e.y, P.x, P.y));
-  if (pd < e.r + P.r - 2) damagePlayer(g, e.dmg, bg);
+  if (pd < e.r + P.r - 2) {
+    if (P.thorn > 0 && e.thornT <= 0 && e.type !== "boss") {
+      if (g.mp) {
+        /* MP: thorn damage is reported like any other hit — the
+           server adjudicates; local HP is visual only and never
+           reaches 0 here. */
+        g.mp.reportHit(e.id, P.thorn, e.x, e.y);
+        e.hp = Math.max(1, e.hp - P.thorn);
+      } else {
+        e.hp -= P.thorn;
+      }
+      e.thornT = 0.4;
+      e.flash = Math.max(e.flash, 0.1);
+      burst(g, e.x, e.y, "#c49a22", 3, 110);
+      floater(g, e.x, e.y - e.r - 4, "" + Math.round(P.thorn), "#e8cf8e");
+      /* a thorn kill reaps in update()'s foe loop, not mid-brain */
+    }
+    damagePlayer(g, e.dmg, bg);
+  }
 }
 
-/* ─── upgrades ────────────────────────────────────────────────────────── */
+/* ─── upgrades + the between-floor SHOP ─────────────────────────────────
+   The upgrade offer is now a shop (owner, Nov 10): three priced
+   upgrade cards plus the gun rack, paid from the coin purse. Prices
+   live in lib/arcade-games.ts (upgrade prices scale +5%/floor; guns
+   are flat). Buying applies at once and the shop STAYS OPEN — buy
+   as many as you can afford; DESCEND is a separate, always-free
+   action, so a broke King is never trapped. Unaffordable items
+   stay visible with their price and the exact shortfall. */
 interface UpgradeDef {
   id: string; name: string; desc: string;
   apply: (p: Player) => void;
@@ -831,29 +1324,136 @@ const UPGRADES: UpgradeDef[] = [
   { id: "vit", name: "Royal Vitality", desc: "+25 max HP, and heal 40 right now.", apply: (p) => { p.maxhp += 25; p.hp = Math.min(p.maxhp, p.hp + 40); } },
   { id: "rapid", name: "Turbo Fire", desc: "+18% attack speed. A golden storm.", apply: (p) => { p.fireRate *= 1.18; } },
   { id: "dash", name: "Quick Dash", desc: "Dash recharges 25% faster.", apply: (p) => { p.dashCdMax *= 0.75; } },
-  { id: "twin", name: "Twin Bolts", desc: "Fire one extra bolt with every shot.", apply: (p) => { p.multishot += 1; } },
+  { id: "dash2", name: "Dash Recharge", desc: "Dash recharges 30% faster still. In, out, untouchable.", apply: (p) => { p.dashCdMax *= 0.7; } },
+  { id: "twin", name: "Twin Bolts", desc: "Fire one extra bolt stream with every shot.", apply: (p) => { p.multishot += 1; } },
   { id: "spread", name: "Triple Upload", desc: "Spread shot: bolts fan out in a triple burst.", apply: (p) => { p.spread = true; } },
-  { id: "pierce", name: "Royal Pierce", desc: "Bolts pierce through foes and keep going.", apply: (p) => { p.pierce = true; } },
-  { id: "magnet", name: "Bucs Magnet", desc: "Bucs coins pull in from much farther away.", apply: (p) => { p.magnet = 165; } },
+  { id: "pierce", name: "Royal Pierce", desc: "Bolts pierce through two extra foes.", apply: (p) => { p.pierce = true; } },
+  { id: "magnet", name: "Bucs Magnet", desc: "Coins pull in from much farther away.", apply: (p) => { p.magnet = Math.max(p.magnet, 165); } },
+  { id: "magnet2", name: "Coin Magnet+", desc: "A royal treasury pull: coins fly in from across the room.", apply: (p) => { p.magnet = Math.max(p.magnet, 235); } },
+  { id: "thorn", name: "Thorn Sash", desc: "The King's sash bites back: foes that touch him take damage.", apply: (p) => { p.thorn = 9; } },
+  { id: "secondwind", name: "Second Wind", desc: "Once per run, death itself gets refused: revive at 50% HP.", apply: (p) => { p.secondWind = true; } },
 ];
-function setUpgradeHighlight(g: G, i: number) {
-  if (!g.upgradePicks.length) return;
-  g.upgradeIndex = ((i % g.upgradePicks.length) + g.upgradePicks.length) % g.upgradePicks.length;
-  g.ui.highlight(g.upgradeIndex);
+/* One-time upgrades leave the offer pool once they are in effect —
+   the shop never sells a King a second copy of what he already has. */
+function upgradeOfferable(g: G, u: UpgradeDef): boolean {
+  const P = g.P;
+  if (u.id === "spread") return !P.spread;
+  if (u.id === "pierce") return !P.pierce;
+  if (u.id === "magnet") return P.magnet < 165;
+  if (u.id === "magnet2") return P.magnet < 235;
+  if (u.id === "thorn") return P.thorn <= 0;
+  if (u.id === "secondwind") return !P.secondWind;
+  return true;
 }
-function pickUpgrade(g: G, idx: number, _bg: HTMLCanvasElement | null) {
-  if (g.phase !== "upgrade" || !g.upgradePicks.length) return;
-  const u = g.upgradePicks[clamp(idx, 0, g.upgradePicks.length - 1)];
-  if (!u) return;
-  sfx.upgrade();
-  u.apply(g.P);
+function purseTotal(g: G) {
+  return g.purse + g.scrip;
+}
+/* Spending burns SCRIP first: score coins are spent only after the
+   never-converting bucket is gone, so shopping hurts score least. */
+function spendPurse(g: G, price: number) {
+  const fromScrip = Math.min(g.scrip, price);
+  g.scrip -= fromScrip;
+  g.purse -= price - fromScrip;
+}
+function buildShopSnap(g: G): ShopSnap {
+  const P = g.P;
+  const total = purseTotal(g);
+  const items: ShopItemSnap[] = [];
+  for (const u of g.upgradePicks) {
+    const price = crownfallUpgradePrice(u.id, g.depth);
+    items.push({
+      key: "up-" + u.id, kind: "upgrade", id: u.id, name: u.name, desc: u.desc,
+      price, affordable: total >= price, shortfall: Math.max(0, price - total),
+      owned: false, equipped: false,
+    });
+  }
+  for (const gun of CROWNFALL_GUNS) {
+    const owned = P.guns.includes(gun.id);
+    items.push({
+      key: "gun-" + gun.id, kind: "gun", id: gun.id, name: gun.name, desc: gun.desc,
+      price: gun.price,
+      affordable: owned || total >= gun.price,
+      shortfall: owned ? 0 : Math.max(0, gun.price - total),
+      owned, equipped: P.gun === gun.id, tint: gun.tint,
+    });
+  }
+  items.push({
+    key: "descend", kind: "descend", id: "descend",
+    name: "Descend to Floor " + (g.depth + 1),
+    desc: "Free — always. The deep isn't going anywhere.",
+    price: 0, affordable: true, shortfall: 0, owned: false, equipped: false,
+  });
+  return { purse: g.purse, scrip: g.scrip, total, depth: g.depth, items };
+}
+function shopItemCount(g: G) {
+  return g.upgradePicks.length + CROWNFALL_GUNS.length + 1;
+}
+function setShopHighlight(g: G, i: number) {
+  const n = shopItemCount(g);
+  if (!n) return;
+  g.shopIndex = ((i % n) + n) % n;
+  g.ui.highlight(g.shopIndex);
+}
+function refreshShop(g: G) {
+  g.shopIndex = clamp(g.shopIndex, 0, Math.max(0, shopItemCount(g) - 1));
+  g.ui.shop(buildShopSnap(g));
+  g.ui.highlight(g.shopIndex);
+  g.ui.hud();
+}
+function openShop(g: G) {
+  const pool = UPGRADES.filter((u) => upgradeOfferable(g, u));
+  g.upgradePicks = [];
+  while (g.upgradePicks.length < 3 && pool.length) {
+    g.upgradePicks.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]!);
+  }
+  g.shopIndex = 0;
+  g.ui.shop(buildShopSnap(g));
+  g.ui.highlight(0);
+}
+function descend(g: G) {
+  if (g.phase !== "upgrade") return;
   g.upgradePicks = [];
   /* The next floor was already generated and walked into during the
-     door passage — picking the card simply starts the fight there. */
+     door passage — descending simply starts the fight there. */
   g.phase = "playing";
   g.ui.phase("playing");
-  g.ui.upgrades([]);
+  g.ui.shop(null);
   g.ui.hud();
+}
+function shopActivate(g: G, idx: number, _bg: HTMLCanvasElement | null) {
+  if (g.phase !== "upgrade") return;
+  const snap = buildShopSnap(g);
+  const item = snap.items[clamp(idx, 0, snap.items.length - 1)];
+  if (!item) return;
+  g.shopIndex = clamp(idx, 0, snap.items.length - 1);
+  if (item.kind === "descend") { descend(g); return; }
+  if (item.kind === "gun") {
+    if (item.owned) { switchGun(g, item.id); refreshShop(g); return; }
+    if (!item.affordable) {
+      g.ui.msg(item.name + " costs " + item.price + " — you need " + item.shortfall + " more coins.");
+      return;
+    }
+    spendPurse(g, item.price);
+    g.P.guns.push(item.id);
+    g.P.gun = item.id; /* a bought gun equips on purchase */
+    sfx.buy();
+    g.ui.msg(item.name + " — yours. Equipped.");
+    refreshShop(g);
+    return;
+  }
+  /* upgrade card */
+  const u = g.upgradePicks.find((x) => x.id === item.id);
+  if (!u) { refreshShop(g); return; }
+  if (!item.affordable) {
+    g.ui.msg(item.name + " costs " + item.price + " — you need " + item.shortfall + " more coins. Descending is free.");
+    return;
+  }
+  spendPurse(g, item.price);
+  sfx.buy();
+  u.apply(g.P);
+  g.upgradePicks = g.upgradePicks.filter((x) => x !== u);
+  g.ui.msg(item.name + " — bought for " + item.price + " coins.");
+  refreshShop(g);
 }
 
 /* ─── the door passage (no teleport — owner ruling) ─────────────────────
@@ -866,13 +1466,17 @@ function beginTransit(g: G, _bg: HTMLCanvasElement | null, bgAlt: HTMLCanvasElem
   const snapObstacles = g.obstacles;
   const snapPickups = g.pickups;
   const fromX = g.P.x, fromY = g.P.y;
+  const camFromX = g.cam.x, camFromY = g.cam.y;
   g.depth++;
   g.phase = "transit";
   g.ui.phase("transit");
-  genFloor(g, g.depth, bgAlt);
+  genFloor(g, g.depth, bgAlt); /* also snaps g.cam to the NEW room's entrance */
   g.transit = {
-    t: 0, fromX, fromY, camY: 0, kingX: fromX, kingY: fromY,
+    t: 0, fromX, fromY, camY: 0, kingX: fromX - camFromX, kingY: fromY - camFromY,
     done: false, snapObstacles, snapPickups,
+    camFromX, camFromY,
+    camDoorX: clamp(LW / 2 - VW / 2, 0, LW - VW), camDoorY: 0,
+    viewCamX: camFromX, viewCamY: camFromY,
   };
 }
 function updateTransit(g: G, dt: number) {
@@ -883,35 +1487,37 @@ function updateTransit(g: G, dt: number) {
     const k = tr.t / TRANSIT_WALK_SEC;
     const e = 1 - (1 - k) * (1 - k); /* ease-out toward the door */
     tr.camY = 0;
-    tr.kingX = tr.fromX + (LW / 2 - tr.fromX) * e;
-    tr.kingY = tr.fromY + (WALL + 6 - tr.fromY) * e;
+    /* the old room's camera glides to centre the door while the
+       King's WORLD position walks to it; his screen position is the
+       difference — the same visible walk as v1, on a bigger stage */
+    const camX = tr.camFromX + (tr.camDoorX - tr.camFromX) * e;
+    const camY2 = tr.camFromY + (tr.camDoorY - tr.camFromY) * e;
+    tr.viewCamX = camX; tr.viewCamY = camY2;
+    const wx = tr.fromX + (LW / 2 - tr.fromX) * e;
+    const wy = tr.fromY + (WALL + 6 - tr.fromY) * e;
+    tr.kingX = wx - camX;
+    tr.kingY = wy - camY2;
     return;
   }
+  tr.viewCamX = tr.camDoorX; tr.viewCamY = tr.camDoorY;
   const k = clamp((tr.t - TRANSIT_WALK_SEC) / TRANSIT_SLIDE_SEC, 0, 1);
   const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; /* easeInOutCubic */
-  tr.camY = e * LH;
-  tr.kingX = LW / 2;
-  tr.kingY = WALL + 6 + (LH - 110 - (WALL + 6)) * e;
+  tr.camY = e * VH;
+  tr.kingX = LW / 2 - tr.camDoorX;
+  const doorScreenY = WALL + 6 - tr.camDoorY;
+  const spawnScreenY = (LH - 110) - g.cam.y;
+  tr.kingY = doorScreenY + (spawnScreenY - doorScreenY) * e;
   if (k >= 1) {
     g.transit = null;
     g.bgSwap = true; /* the component now treats the spare bg as current */
     g.P.x = LW / 2; g.P.y = LH - 110; /* genFloor's entrance, exactly */
+    camSnapToPlayer(g);
     g.phase = "upgrade";
     g.ui.phase("upgrade");
-    g.ui.intro(g.depth);
-    showUpgrades(g);
+    g.ui.intro(g.depth, { name: crownfallFloorName(g.depth), event: g.event, boss: g.depth % 5 === 0 });
+    openShop(g);
     g.ui.hud();
   }
-}
-function showUpgrades(g: G) {
-  const pool = UPGRADES.slice();
-  g.upgradePicks = [];
-  while (g.upgradePicks.length < 3 && pool.length) {
-    g.upgradePicks.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]!);
-  }
-  g.upgradeIndex = 0;
-  g.ui.upgrades(g.upgradePicks);
-  g.ui.highlight(0);
 }
 
 /* ─── run flow ────────────────────────────────────────────────────────── */
@@ -921,19 +1527,31 @@ function startRun(g: G, bg: HTMLCanvasElement | null) {
      must never spin up a phantom local run. */
   if (g.mp && !g.mp.started) return;
   ensureAudio();
+  g.meta = loadCrownfallMeta();
   /* MP: the seed is the room's — every King in the party generates
      the identical descent from it. */
   g.runSeed = g.mp ? g.mp.seed : ((Math.random() * 1000000000) | 0);
   g.depth = 1; g.crowns = 0; g.kills = 0;
+  g.purse = 0; g.scrip = 0; g.mpPurseSeen = 0;
+  g.bossKills = 0; g.callout = null; g.fountainT = 0; g.spawnQueue = [];
+  /* the Royal Bounty: the first run of the day starts +50 scrip
+     (shop money only — scrip never converts to score) */
+  const bounty = claimRoyalBounty(g.meta, todayLocal());
+  if (bounty.granted > 0) {
+    g.scrip += bounty.granted;
+    g.meta = bounty.meta;
+    saveCrownfallMeta(g.meta);
+  }
   g.combo = 0; g.comboTimer = 0; g.bestCombo = 0; g.comboBonus = 0; g.runTime = 0;
   g.paused = false; g.afterimages = [];
   g.mpDown = false; g.mpRevive = false;
   g.overFired = false;
-  g.P = newPlayer();
+  g.P = newPlayer(g.meta.tier);
   g.phase = "playing";
   g.ui.paused(false);
   g.ui.phase("playing");
   genFloor(g, 1, bg);
+  if (bounty.granted > 0) g.ui.msg("Royal Bounty: +" + bounty.granted + " purse coins for today's first run!");
   g.ui.hud();
 }
 function die(g: G, _bg: HTMLCanvasElement | null) {
@@ -951,17 +1569,32 @@ function die(g: G, _bg: HTMLCanvasElement | null) {
   }
   g.phase = "dead";
   g.deathAt = g.timeNow;
-  const sc = scoreOf(g);
+  /* the leftover purse converts NOW — and only now — at +25/coin */
+  const sc = finalScoreOf(g);
   const isSessionBest = sc > g.sessionBest.score;
   if (isSessionBest) g.sessionBest.score = sc;
   g.sessionBest.depth = Math.max(g.sessionBest.depth, g.depth);
+  /* fold the run into the lifetime meta (achievements ride along) */
+  const before = g.meta;
+  const recorded = recordRunInMeta(before, { kills: g.kills, depth: g.depth, bossKills: g.bossKills });
+  const newly = recorded.achievements.filter((a) => !before.achievements.includes(a));
+  g.meta = recorded;
+  saveCrownfallMeta(recorded);
+  if (g.bossKills > 0) g.fountainT = 1.8; /* the win flourish: a coin fountain */
   sfx.sting();
   g.ui.phase("dead");
   g.ui.death({
-    depth: g.depth, crowns: g.crowns, kills: g.kills, score: sc,
+    depth: g.depth, crowns: g.purse, kills: g.kills, score: sc,
     bestCombo: g.bestCombo, timeSec: g.runTime,
     bossDeath: g.boss !== null || g.depth % 5 === 0,
     isSessionBest,
+    coinScore: g.purse * CROWNFALL.coinPoints,
+    armory: g.P.guns.map((id) => crownfallGun(id).name),
+    bossKills: g.bossKills,
+    prestigeTier: recorded.tier,
+    canPrestige: g.bossKills > 0 && recorded.tier < PRESTIGE_TIER_CAP,
+    achievementsNew: newly,
+    achievementsAll: recorded.achievements,
   });
 }
 
@@ -1123,12 +1756,23 @@ function mpTick(g: G, bg: HTMLCanvasElement | null, bgAlt: HTMLCanvasElement | n
     g.ui.hud();
   }
 
-  /* ── tallies are the server's: sync HUD/score truth every frame ── */
-  if (mp.myPurse > g.crowns) {
-    sfx.crown();
-    floater(g, g.P.x, g.P.y - 24, "+25", "#c49a22");
+  /* ── tallies are the server's: fold new earnings into the purse ──
+     The server tally is a running total, so only the DELTA over the
+     last tally seen is new money — it lands in the same purse the
+     shop spends from, and a spend is never refunded by a sync. (A
+     resync restarts the run state locally, so the full tally folds
+     back in — the server's total is the floor the purse returns
+     to.) Kills sync outright: the server's count is the truth. */
+  if (mp.myPurse > g.mpPurseSeen) {
+    const gained = mp.myPurse - g.mpPurseSeen;
+    g.mpPurseSeen = mp.myPurse;
+    g.purse += gained;
+    if (g.phase === "playing") {
+      sfx.crown();
+      floater(g, g.P.x, g.P.y - 24, "+" + gained + (gained === 1 ? " coin" : " coins"), "#c49a22");
+    }
   }
-  g.crowns = mp.myPurse;
+  g.crowns = g.purse;
   g.kills = mp.myKills;
 
   /* ── my King state, ~15 Hz (throttled inside the client) ── */
@@ -1214,6 +1858,23 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null, bgAlt: HTMLCanva
   for (i = g.afterimages.length - 1; i >= 0; i--) {
     if ((g.afterimages[i]!.life += dt) > 0.3) g.afterimages.splice(i, 1);
   }
+  if (g.callout) {
+    g.callout.t += dt;
+    if (g.callout.t > 1.5) g.callout = null;
+  }
+  /* run-end flourish: a boss-beating run ends in a coin fountain
+     over the fallen King (particles keep drifting in "dead") */
+  if (g.phase === "dead" && g.fountainT > 0) {
+    g.fountainT -= dt;
+    if (g.parts.length < PARTICLE_CAP - 4) {
+      const a = Math.random() * 6.283, r = 12 + Math.random() * 26;
+      g.parts.push({
+        x: g.P.x + Math.cos(a) * r, y: g.P.y - 6, vx: Math.cos(a) * 30,
+        vy: -190 - Math.random() * 150, life: 0, max: 0.9 + Math.random() * 0.5,
+        color: Math.random() < 0.7 ? "#f0c94f" : "#fff3c4", size: 2.6 + Math.random() * 2.4,
+      });
+    }
+  }
   if (g.paused) return;
   if (g.phase === "transit") { updateTransit(g, dt); return; }
   if (g.phase !== "playing") return;
@@ -1255,6 +1916,24 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null, bgAlt: HTMLCanva
     g.parts.push({ x: P.x, y: P.y, vx: 0, vy: 0, life: 0, max: 0.28, color: "#d4af37", size: 7 });
   } else if (il > 0.05) {
     moveCircle(g, P, ix * P.speed * dt, iy * P.speed * dt);
+    /* the prestige gold trail: deeper tiers shed a richer aura
+       behind a moving King (power + status, made visible) */
+    if (g.meta.tier > 0 && g.parts.length < PARTICLE_CAP && Math.random() < 0.14 + g.meta.tier * 0.05) {
+      g.parts.push({
+        x: P.x + (Math.random() - 0.5) * 16, y: P.y + 12 + Math.random() * 8,
+        vx: -ix * 26, vy: 12, life: 0, max: 0.4 + g.meta.tier * 0.03,
+        color: "#f0c94f", size: 1.8 + g.meta.tier * 0.22,
+      });
+    }
+  }
+
+  /* ---- the camera: eased follow, clamped to the room ---- */
+  {
+    const tx = clamp(P.x - VW / 2, 0, LW - VW);
+    const ty = clamp(P.y - VH / 2, 0, LH - VH);
+    const ease = 1 - Math.pow(0.0001, dt); /* smooth, frame-rate independent */
+    g.cam.x += (tx - g.cam.x) * ease;
+    g.cam.y += (ty - g.cam.y) * ease;
   }
 
   /* ---- manual fire: bolts fly only while the player aims ---- */
@@ -1262,7 +1941,7 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null, bgAlt: HTMLCanva
   if (g.aim.on) { P.faceX = g.aim.x; P.faceY = g.aim.y; }
   g.fireTimer -= dt;
   if (g.fireTimer <= 0) {
-    if (g.aim.on && g.enemies.length) { fireBolts(g); g.fireTimer = 1 / P.fireRate; }
+    if (g.aim.on && g.enemies.length) { fireBolts(g); g.fireTimer = 1 / (P.fireRate * crownfallGun(P.gun).rateMul); }
     else g.fireTimer = 0; /* ready the instant aim is given */
   }
 
@@ -1270,11 +1949,30 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null, bgAlt: HTMLCanva
   for (i = g.bolts.length - 1; i >= 0; i--) {
     const b = g.bolts[i]!;
     b.x += b.vx * dt; b.y += b.vy * dt;
-    if (boltBlocked(g, b.x, b.y)) { g.bolts.splice(i, 1); continue; }
+    if (b.life !== Infinity) {
+      b.life -= dt;
+      if (b.life <= 0) {
+        if (b.splash > 0) explode(g, b.x, b.y, b.splash, b.dmg);
+        g.bolts.splice(i, 1);
+        continue;
+      }
+    }
+    if (boltBlocked(g, b.x, b.y)) {
+      if (b.splash > 0) explode(g, b.x, b.y, b.splash, b.dmg);
+      g.bolts.splice(i, 1);
+      continue;
+    }
     for (let j = 0; j < g.enemies.length; j++) {
       const e = g.enemies[j]!;
       if (b.hit.indexOf(e) >= 0) continue;
       if (dist2(b.x, b.y, e.x, e.y) < (e.r + b.r) * (e.r + b.r)) {
+        if (b.splash > 0) {
+          /* a mortar shell detonates on first contact — the blast,
+             not the shell, does the work */
+          explode(g, b.x, b.y, b.splash, b.dmg);
+          g.bolts.splice(i, 1);
+          break;
+        }
         /* MP: the hit is REPORTED, not adjudicated — the server
            accumulates damage party-wide and broadcasts the death.
            Locally the foe's HP is visual only and never reaches 0
@@ -1299,8 +1997,28 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null, bgAlt: HTMLCanva
     }
   }
 
-  /* ---- enemies ---- */
-  for (i = 0; i < g.enemies.length; i++) updateEnemy(g, g.enemies[i]!, dt, bg);
+  /* ---- enemies (backwards: the Thorn Sash reaps its kills here) ---- */
+  for (i = g.enemies.length - 1; i >= 0; i--) {
+    const e = g.enemies[i]!;
+    updateEnemy(g, e, dt, bg);
+    if (e.hp <= 0 && g.enemies.indexOf(e) >= 0) {
+      g.enemies.splice(g.enemies.indexOf(e), 1);
+      killEnemy(g, e);
+    }
+    if (g.phase !== "playing") return; /* the King fell mid-loop */
+  }
+  /* boss summons arrive outside the foe loop */
+  while (g.spawnQueue.length) {
+    const t = g.spawnQueue.shift()!;
+    if (g.boss && g.addEnemyAt) {
+      g.addEnemyAt(t, g.boss.x + (Math.random() - 0.5) * 190, g.boss.y + (Math.random() - 0.5) * 150);
+    }
+  }
+  /* the Usurper's aura: a slow burn of red sparks while he lives */
+  if (g.boss && Math.random() < 0.3) {
+    const a = Math.random() * 6.283;
+    burst(g, g.boss.x + Math.cos(a) * g.boss.r, g.boss.y + Math.sin(a) * g.boss.r, "#e5484d", 1, 40);
+  }
 
   /* ---- enemy bolts ---- */
   for (i = g.ebolts.length - 1; i >= 0; i--) {
@@ -1317,7 +2035,7 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null, bgAlt: HTMLCanva
   for (i = g.pickups.length - 1; i >= 0; i--) {
     const pk = g.pickups[i]!;
     const pd = Math.sqrt(dist2(pk.x, pk.y, P.x, P.y));
-    const magnetR = pk.kind === "crown" ? P.magnet : 74;
+    const magnetR = pk.kind === "crown" || pk.kind === "scrip" ? P.magnet : 74;
     if (pd < magnetR && pd > 1) {
       pk.x += ((P.x - pk.x) / pd) * 200 * dt;
       pk.y += ((P.y - pk.y) / pd) * 200 * dt;
@@ -1331,11 +2049,31 @@ function update(g: G, dt: number, bg: HTMLCanvasElement | null, bgAlt: HTMLCanva
       if (g.mp && pk.mpId) g.mp.claimCoin(pk.mpId);
       if (pk.kind === "crown") {
         if (!g.mp) {
-          g.crowns++; sfx.crown();
-          floater(g, P.x, P.y - 24, "+25", "#c49a22");
+          /* into the PURSE — score only when the run ends unspent.
+             (MP: the claim above is all this screen does — the server
+             credits the winner's purse and the tick folds the new
+             tally into the local purse.) */
+          g.purse++; sfx.crown();
+          floater(g, P.x, P.y - 24, "+1 coin", "#c49a22");
           burst(g, pk.x, pk.y, "#f0c94f", 12, 140);
           burst(g, pk.x, pk.y, "#fff3c4", 5, 90);
         }
+      } else if (pk.kind === "scrip") {
+        g.scrip++; sfx.crown();
+        floater(g, P.x, P.y - 24, "+1 scrip", "#7ad9c2");
+        burst(g, pk.x, pk.y, "#7ad9c2", 8, 120);
+      } else if (pk.kind === "shield") {
+        P.shield = true; sfx.shieldPop();
+        floater(g, P.x, P.y - 24, "SHIELD UP", "#8ae2ff");
+        burst(g, pk.x, pk.y, "#8ae2ff", 10, 130);
+      } else if (pk.kind === "gun" && pk.gunId) {
+        /* claim the dropped gun into the arsenal — and equip it */
+        if (!P.guns.includes(pk.gunId)) P.guns.push(pk.gunId);
+        P.gun = pk.gunId;
+        sfx.claim();
+        floater(g, P.x, P.y - 28, crownfallGun(pk.gunId).name + "!", crownfallGun(pk.gunId).tint);
+        burst(g, pk.x, pk.y, crownfallGun(pk.gunId).tint, 16, 160);
+        g.ui.msg(crownfallGun(pk.gunId).name + " claimed and equipped.");
       } else {
         P.hp = Math.min(P.maxhp, P.hp + 18);
         floater(g, P.x, P.y - 24, "+18 HP", "#7bc47f");
@@ -1436,6 +2174,15 @@ function drawKingSprite(g: G, ctx: CanvasRenderingContext2D, x: number, y: numbe
   ctx.fillStyle = "#6d1420"; ctx.fillRect(-3.4, -24, 12.5, 48);
   ctx.fillStyle = "#c49a22"; ctx.fillRect(-3.4, -24, 2.2, 48); ctx.fillRect(6.9, -24, 2.2, 48);
   ctx.restore();
+  /* the sash's loose end — a cloak tail that sways as he moves */
+  const swayTail = Math.sin(g.timeNow * (4.2 + (P.moveMag || 0) * 5)) * (1.6 + (P.moveMag || 0) * 2.6);
+  ctx.fillStyle = "#57101b";
+  ctx.beginPath();
+  ctx.moveTo(-6, 12);
+  ctx.quadraticCurveTo(-11 + swayTail * 0.4, 17, -13 + swayTail, 23);
+  ctx.quadraticCurveTo(-7 + swayTail * 0.5, 19, -1, 14.5);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "rgba(196,154,34,0.7)"; ctx.lineWidth = 0.9; ctx.stroke();
   /* shade the tail side */
   ctx.fillStyle = "rgba(30,36,44,0.18)"; ctx.fillRect(-26, -18, 13, 36);
   ctx.restore();
@@ -1530,7 +2277,31 @@ function drawKingSprite(g: G, ctx: CanvasRenderingContext2D, x: number, y: numbe
 function drawKing(g: G, ctx: CanvasRenderingContext2D, ox?: number, oy?: number) {
   const P = g.P;
   const blink = P.invuln > 0 && P.dashT <= 0 && Math.floor(g.timeNow * 14) % 2 === 0;
+  /* prestige aura: a gold ring under the King that deepens per tier */
+  if (g.meta.tier > 0 && ox === undefined) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(240,201,79," + (0.25 + g.meta.tier * 0.05) + ")";
+    ctx.lineWidth = 1.6 + g.meta.tier * 0.22;
+    ctx.beginPath(); ctx.ellipse(P.x, P.y + 39, 30 + g.meta.tier * 1.1, 9.5, 0, 0, 6.283); ctx.stroke();
+    ctx.restore();
+  }
   drawKingSprite(g, ctx, ox ?? P.x, oy ?? P.y, 1.35, blink ? 0.35 : 1);
+  /* the bubble shield, while held: one hit lives in this ring */
+  if (P.shield && ox === undefined) {
+    ctx.save();
+    const pulse = 0.75 + Math.sin(g.timeNow * 4) * 0.25;
+    const sg = ctx.createRadialGradient(P.x, P.y, P.r + 4, P.x, P.y, P.r + 16);
+    sg.addColorStop(0, "rgba(138,226,255,0)");
+    sg.addColorStop(0.8, "rgba(138,226,255," + 0.13 * pulse + ")");
+    sg.addColorStop(1, "rgba(138,226,255,0)");
+    ctx.fillStyle = sg;
+    ctx.beginPath(); ctx.arc(P.x, P.y, P.r + 16, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = "rgba(138,226,255," + 0.65 * pulse + ")"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(P.x, P.y, P.r + 9, 0, 6.283); ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.75)";
+    ctx.beginPath(); ctx.arc(P.x - 12, P.y - 16, 2.4, 0, 6.283); ctx.fill();
+    ctx.restore();
+  }
   if (P.flash > 0 && ox === undefined) {
     ctx.save();
     ctx.globalAlpha = P.flash * 2.2;
@@ -1551,6 +2322,8 @@ function drawEnemy(g: G, ctx: CanvasRenderingContext2D, e: Enemy) {
   const OL = "rgba(16,12,6,0.6)";
   ctx.save();
   ctx.translate(e.x, e.y);
+  /* walk bob — every foe but the boss moves with a little life */
+  if (e.type !== "boss") ctx.translate(0, Math.sin(g.timeNow * 9 + e.wob * 2) * 1.6);
   if (e.elite) { ctx.strokeStyle = "#f0c94f"; ctx.lineWidth = 2.4; ctx.shadowColor = "#f0c94f"; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(0, 0, e.r + 5, 0, 6.283); ctx.stroke(); ctx.shadowBlur = 0; }
   ctx.fillStyle = "rgba(0,0,0,0.28)";
   ctx.beginPath(); ctx.ellipse(0, e.r * 0.85, e.r * 0.95, e.r * 0.34, 0, 0, 6.283); ctx.fill();
@@ -1698,7 +2471,89 @@ function drawEnemy(g: G, ctx: CanvasRenderingContext2D, e: Enemy) {
       ctx.moveTo(si * r * 0.44 - 3, -r * 0.6); ctx.lineTo(si * r * 0.44, -r * 1.02); ctx.lineTo(si * r * 0.44 + 3, -r * 0.6);
       ctx.closePath(); ctx.fill();
     }
+  } else if (e.type === "charger") {
+    /* GLITCH CHARGER — a violet shard with chevron gills; its
+       telegraph paints the charge line so the dodge is fair */
+    if (e.state === "tele") {
+      ctx.save();
+      ctx.rotate(Math.atan2(e.lockY, e.lockX));
+      ctx.strokeStyle = Math.floor(g.timeNow * 12) % 2 === 0 ? "rgba(255,80,90,0.75)" : "rgba(255,190,80,0.6)";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath(); ctx.moveTo(e.r + 4, 0); ctx.lineTo(330, 0); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+      ctx.strokeStyle = "rgba(255,80,90,0.9)"; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(0, 0, e.r + 6 + Math.sin(g.timeNow * 30) * 1.6, 0, 6.283); ctx.stroke();
+    }
+    if (e.state === "charge") {
+      /* speed streaks behind the shard */
+      ctx.strokeStyle = "rgba(167,139,250,0.55)"; ctx.lineWidth = 2.4;
+      const back = Math.atan2(e.lockY, e.lockX) + Math.PI;
+      for (const off of [-7, 0, 7]) {
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(back) * e.r + Math.cos(back + Math.PI / 2) * off, Math.sin(back) * e.r + Math.sin(back + Math.PI / 2) * off);
+        ctx.lineTo(Math.cos(back) * (e.r + 22) + Math.cos(back + Math.PI / 2) * off, Math.sin(back) * (e.r + 22) + Math.sin(back + Math.PI / 2) * off);
+        ctx.stroke();
+      }
+    }
+    const shardG = ctx.createLinearGradient(0, -e.r, 0, e.r);
+    shardG.addColorStop(0, flash ? "#e9d5ff" : "#7c3aed"); shardG.addColorStop(1, flash ? "#c4b5fd" : "#3b1173");
+    ctx.fillStyle = shardG;
+    ctx.beginPath();
+    const pts = 7;
+    for (let i = 0; i < pts; i++) {
+      const a = (i / pts) * 6.283 + e.wob * 0.2;
+      const rr = e.r * (i % 2 ? 0.7 : 1.14);
+      const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = flash ? "#ffffff" : "#a78bfa"; ctx.lineWidth = 1.6; ctx.stroke();
+    /* chevron gills — it is a Glitch, but a faster breed */
+    ctx.strokeStyle = "#e9d5ff"; ctx.lineWidth = 2;
+    for (let ci = 0; ci < 2; ci++) {
+      const cxo = -3 + ci * 6;
+      ctx.beginPath(); ctx.moveTo(cxo - 3.4, -4); ctx.lineTo(cxo + 2.4, 0); ctx.lineTo(cxo - 3.4, 4); ctx.stroke();
+    }
+    ctx.fillStyle = "#ffdf6b";
+    ctx.beginPath(); ctx.arc(6, -1, 2.6, 0, 6.283); ctx.fill();
+  } else if (e.type === "spambot") {
+    /* SPAM SLINGER — rust-orange bot, twin antennae, bolt tubes */
+    const r = e.r;
+    const bodyG2 = ctx.createLinearGradient(0, -r, 0, r);
+    bodyG2.addColorStop(0, flash ? "#ffe1b8" : "#b35c17"); bodyG2.addColorStop(1, flash ? "#e8a558" : "#6e3408");
+    ctx.fillStyle = bodyG2;
+    ctx.beginPath(); ctx.roundRect(-r * 0.92, -r * 0.7, r * 1.84, r * 1.46, 5); ctx.fill();
+    ctx.strokeStyle = OL; ctx.lineWidth = 1.5; ctx.stroke();
+    for (const ax of [-r * 0.45, r * 0.45]) {
+      ctx.strokeStyle = "#9aa3ab"; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(ax, -r * 0.7); ctx.lineTo(ax * 1.25, -r * 1.2); ctx.stroke();
+      const on = Math.floor(g.timeNow * 3 + e.wob + ax) % 2 === 0;
+      ctx.fillStyle = on ? "#ffb347" : "#7a4a12";
+      ctx.beginPath(); ctx.arc(ax * 1.25, -r * 1.26, 2.8, 0, 6.283); ctx.fill();
+    }
+    /* the one big eye, tracking the King */
+    ctx.fillStyle = "#170b02";
+    ctx.beginPath(); ctx.arc(0, -r * 0.1, r * 0.44, 0, 6.283); ctx.fill();
+    const look2 = Math.atan2(P.y - e.y, P.x - e.x);
+    ctx.fillStyle = "#ffb347";
+    ctx.beginPath(); ctx.arc(Math.cos(look2) * 2.6, -r * 0.1 + Math.sin(look2) * 2.6, r * 0.19, 0, 6.283); ctx.fill();
+    /* three bolt tubes — it slings from these */
+    ctx.fillStyle = "#2b1606";
+    for (let ti = -1; ti <= 1; ti++) {
+      ctx.beginPath(); ctx.roundRect(ti * r * 0.42 - 3.2, r * 0.42, 6.4, r * 0.34, 2); ctx.fill();
+    }
+    ctx.fillStyle = "rgba(255,179,71,0.85)";
+    ctx.font = "900 6.5px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("SPAM", 0, r * 0.32);
   } else if (e.type === "boss") {
+    /* the Usurper's aura — a slow red burn around the stolen throne */
+    const aura = 0.6 + Math.sin(g.timeNow * 2.6) * 0.25;
+    const ag = ctx.createRadialGradient(0, 0, e.r * 0.7, 0, 0, e.r * 1.75);
+    ag.addColorStop(0, "rgba(229,72,77," + 0.20 * aura + ")"); ag.addColorStop(1, "rgba(229,72,77,0)");
+    ctx.fillStyle = ag;
+    ctx.beginPath(); ctx.arc(0, 0, e.r * 1.75, 0, 6.283); ctx.fill();
     ctx.fillStyle = flash ? "#ffb3b5" : "#8c1d23";
     const bossG = ctx.createRadialGradient(-e.r * 0.3, -e.r * 0.35, e.r * 0.2, 0, 0, e.r * 1.15);
     bossG.addColorStop(0, flash ? "#ffc9cb" : "#b03036"); bossG.addColorStop(1, flash ? "#e08a8e" : "#5d0f13");
@@ -1851,6 +2706,56 @@ function drawPickup(g: G, ctx: CanvasRenderingContext2D, pk: Pickup) {
     ctx.moveTo(sx - ss, sy); ctx.lineTo(sx + ss, sy);
     ctx.stroke();
     ctx.globalAlpha = 1;
+  } else if (pk.kind === "scrip") {
+    /* SCRIP coin: the same royal coin, ringed in teal — prestige's
+       shop money, visibly NOT a score coin */
+    ctx.shadowColor = "rgba(122,217,194,0.9)"; ctx.shadowBlur = 12;
+    if (coinImg && coinImg.complete && coinImg.naturalWidth > 0) {
+      ctx.beginPath(); ctx.arc(0, 0, 11, 0, 6.283); ctx.clip();
+      ctx.drawImage(coinImg, -11, -11, 22, 22);
+    } else {
+      const cg3 = ctx.createLinearGradient(0, -10, 0, 10);
+      cg3.addColorStop(0, "#ffe98a"); cg3.addColorStop(1, "#c49a22");
+      ctx.fillStyle = cg3; ctx.beginPath(); ctx.arc(0, 0, 10.5, 0, 6.283); ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#2fae8f"; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.arc(0, 0, 11.4, 0, 6.283); ctx.stroke();
+    ctx.fillStyle = "#2fae8f";
+    ctx.font = "900 8px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("S", 0, 8.5);
+  } else if (pk.kind === "shield") {
+    /* bubble shield pickup: a glass bubble with a shield heart */
+    const pulse = 0.8 + Math.sin(g.timeNow * 4 + pk.bob) * 0.2;
+    ctx.strokeStyle = "rgba(138,226,255," + 0.85 * pulse + ")"; ctx.lineWidth = 2;
+    ctx.fillStyle = "rgba(138,226,255,0.16)";
+    ctx.beginPath(); ctx.arc(0, 0, 11.5, 0, 6.283); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#bdeaff";
+    ctx.beginPath();
+    ctx.moveTo(0, -6.4); ctx.lineTo(5.4, -4.2); ctx.lineTo(5.4, 0.6);
+    ctx.quadraticCurveTo(5.4, 4.8, 0, 7); ctx.quadraticCurveTo(-5.4, 4.8, -5.4, 0.6);
+    ctx.lineTo(-5.4, -4.2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.beginPath(); ctx.arc(-4.4, -5.4, 2, 0, 6.283); ctx.fill();
+  } else if (pk.kind === "gun") {
+    /* a dropped gun: a dark case banded in the gun's own tint, its
+       name floating over it — walk over it to claim */
+    const gun = pk.gunId ? crownfallGun(pk.gunId) : null;
+    const tint = gun ? gun.tint : "#f0c94f";
+    ctx.shadowColor = tint; ctx.shadowBlur = 13;
+    ctx.fillStyle = "#17130a";
+    ctx.beginPath(); ctx.roundRect(-15, -9, 30, 18, 5); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = tint; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = tint;
+    ctx.beginPath();
+    ctx.moveTo(-6, 4.4); ctx.lineTo(1.4, -4.8); ctx.lineTo(3.4, -1.2); ctx.lineTo(7.4, -1.2); ctx.lineTo(0.6, 5.6); ctx.lineTo(-0.6, 1.2); ctx.lineTo(-4.6, 1.2);
+    ctx.closePath(); ctx.fill();
+    if (gun) {
+      ctx.font = "700 8.5px sans-serif"; ctx.textAlign = "center";
+      ctx.fillStyle = tint;
+      ctx.fillText(gun.name.toUpperCase(), 0, -15);
+    }
   } else {
     ctx.shadowColor = "rgba(123,196,127,0.9)"; ctx.shadowBlur = 10;
     ctx.fillStyle = "#7bc47f";
@@ -1961,7 +2866,7 @@ function drawObstacle(g: G, ctx: CanvasRenderingContext2D, o: Obstacle) {
       const seed = Math.floor(mx * 3 + o.y);
       for (let wi = 0; wi <= 8; wi++) {
         const wx = mx - mw / 2 + 4 + wi * ((mw - 8) / 8);
-        const wy = o.y + mh / 2 + Math.sin(wi * 1.7 + seed) * mh * 0.22;
+        const wy = o.y + mh / 2 + Math.sin(wi * 1.7 + seed + g.timeNow * 2.3) * mh * 0.22;
         if (wi === 0) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy);
       }
       ctx.stroke();
@@ -2150,13 +3055,14 @@ const NO_ENEMIES: Enemy[] = [];
 const NO_BOLTS: Bolt[] = [];
 const NO_EBOLTS: EBolt[] = [];
 
-/* Draw ONE room (backdrop, walls, door, dressing, foes) at the
-   current transform. The caller owns translate/clip — the transit
-   passage draws two of these, the live game draws one. */
-function drawRoom(g: G, ctx: CanvasRenderingContext2D, room: RoomView) {
+/* Draw ONE room (backdrop, walls, door, dressing, foes) in WORLD
+   coordinates, viewed through the camera at (camX, camY). The
+   caller owns clip — the transit passage draws two of these, the
+   live game draws one. Screen shake is the caller's translate. */
+function drawRoom(g: G, ctx: CanvasRenderingContext2D, room: RoomView, camX: number, camY: number) {
   const pal = PAL[g.theme];
   ctx.save();
-  if (g.shake > 0) ctx.translate((Math.random() - 0.5) * g.shake, (Math.random() - 0.5) * g.shake);
+  ctx.translate(-camX, -camY);
   if (room.bg) ctx.drawImage(room.bg, 0, 0, LW, LH);
 
   /* walls */
@@ -2204,70 +3110,154 @@ function drawRoom(g: G, ctx: CanvasRenderingContext2D, room: RoomView) {
 
   for (const e of room.enemies) drawEnemy(g, ctx, e);
 
-  /* boss health bar */
-  if (room.boss) {
-    const bw = 340, bx = LW / 2 - bw / 2, by = WALL + 12;
-    ctx.fillStyle = "rgba(0,0,0,0.55)";
-    ctx.fillRect(bx - 3, by - 3, bw + 6, 15);
-    ctx.fillStyle = "#5d0f13";
-    ctx.fillRect(bx, by, bw, 9);
-    ctx.fillStyle = "#e5484d";
-    ctx.fillRect(bx, by, bw * clamp(room.boss.hp / room.boss.maxhp, 0, 1), 9);
-    ctx.strokeStyle = "rgba(212,175,55,0.7)"; ctx.lineWidth = 1;
-    ctx.strokeRect(bx - 3, by - 3, bw + 6, 15);
-    ctx.fillStyle = "#f3e9d2";
-    ctx.font = "700 11px Cinzel, serif";
-    ctx.textAlign = "center";
-    ctx.fillText("THE USURPER", LW / 2, by + 24);
-  }
-
-  /* player bolts */
+  /* player bolts — each gun tints and shapes its own fire */
   for (const b of room.bolts) {
-    ctx.strokeStyle = "rgba(240,201,79,0.4)"; ctx.lineWidth = 3;
+    const trail = b.kind === "rail" ? 0.05 : 0.022;
+    ctx.strokeStyle = b.tint; ctx.globalAlpha = 0.45; ctx.lineWidth = b.kind === "shell" ? 2 : 3;
     ctx.beginPath();
-    ctx.moveTo(b.x - b.vx * 0.022, b.y - b.vy * 0.022);
+    ctx.moveTo(b.x - b.vx * trail, b.y - b.vy * trail);
     ctx.lineTo(b.x, b.y); ctx.stroke();
-    ctx.fillStyle = "#ffe98a";
-    ctx.shadowColor = "#f0c94f"; ctx.shadowBlur = 10;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = b.kind === "shell" ? "#ffb08a" : b.tint;
+    ctx.shadowColor = b.tint; ctx.shadowBlur = b.kind === "shell" ? 14 : 10;
     ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.283); ctx.fill();
     ctx.shadowBlur = 0;
+    if (b.kind === "shell") {
+      ctx.fillStyle = "#fff3c4";
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.45, 0, 6.283); ctx.fill();
+    }
   }
+  ctx.restore();
+}
+
+/* ─── view-space overlays: boss bar, minimap, vignette, callouts ────── */
+function drawBossBar(g: G, ctx: CanvasRenderingContext2D) {
+  const boss = g.boss;
+  if (!boss || g.transit) return;
+  const bw = 340, bx = VW / 2 - bw / 2, by = 14;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fillRect(bx - 3, by - 3, bw + 6, 15);
+  ctx.fillStyle = "#5d0f13";
+  ctx.fillRect(bx, by, bw, 9);
+  ctx.fillStyle = "#e5484d";
+  ctx.fillRect(bx, by, bw * clamp(boss.hp / boss.maxhp, 0, 1), 9);
+  ctx.strokeStyle = "rgba(212,175,55,0.7)"; ctx.lineWidth = 1;
+  ctx.strokeRect(bx - 3, by - 3, bw + 6, 15);
+  ctx.fillStyle = "#f3e9d2";
+  ctx.font = "700 11px Cinzel, serif";
+  ctx.textAlign = "center";
+  const cycle = crownfallBossCycle(g.depth);
+  ctx.fillText(cycle > 1 ? "THE USURPER — CYCLE " + cycle : "THE USURPER", VW / 2, by + 24);
+  ctx.restore();
+}
+
+function drawMinimap(g: G, ctx: CanvasRenderingContext2D) {
+  if (g.phase !== "playing" && g.phase !== "transit") return;
+  const mw = 128, mh = 128, mx = VW - mw - 10, my = 46;
+  const sx = mw / LW, sy = mh / LH;
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = g.theme === "dark" ? "rgba(8,8,10,0.82)" : "rgba(250,246,230,0.9)";
+  ctx.beginPath(); ctx.roundRect(mx, my, mw, mh, 6); ctx.fill();
+  ctx.strokeStyle = "rgba(212,175,55,0.65)"; ctx.lineWidth = 1.4; ctx.stroke();
+  /* the camera's window on the world */
+  ctx.strokeStyle = "rgba(240,201,79,0.35)"; ctx.lineWidth = 1;
+  ctx.strokeRect(mx + g.cam.x * sx, my + g.cam.y * sy, VW * sx, VH * sy);
+  /* the golden door (top-centre of the world) */
+  ctx.fillStyle = g.doorOpen ? "#ffe98a" : "#8a6d1f";
+  ctx.fillRect(mx + (LW / 2) * sx - 6, my + 1.5, 12, 3.4);
+  /* pickups */
+  for (const pk of g.pickups) {
+    ctx.fillStyle = pk.kind === "crown" ? "#f0c94f"
+      : pk.kind === "scrip" ? "#7ad9c2"
+      : pk.kind === "heart" ? "#ff8a9a"
+      : pk.kind === "shield" ? "#8ae2ff" : "#ffffff";
+    ctx.beginPath(); ctx.arc(mx + pk.x * sx, my + pk.y * sy, pk.kind === "gun" ? 3 : 2, 0, 6.283); ctx.fill();
+  }
+  /* foes */
+  for (const e of g.enemies) {
+    ctx.fillStyle = e.type === "boss" ? "#ff5347" : e.elite ? "#f0c94f" : "#e5484d";
+    ctx.beginPath(); ctx.arc(mx + e.x * sx, my + e.y * sy, e.type === "boss" ? 4 : 2.4, 0, 6.283); ctx.fill();
+  }
+  /* the King */
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#f0c94f"; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(mx + g.P.x * sx, my + g.P.y * sy, 3.4, 0, 6.283); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+let vignetteCache: { theme: ThemeName; grad: CanvasGradient } | null = null;
+function drawVignette(g: G, ctx: CanvasRenderingContext2D) {
+  if (!vignetteCache || vignetteCache.theme !== g.theme) {
+    const grad = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.44, VW / 2, VH / 2, VH * 0.8);
+    grad.addColorStop(0, "rgba(0,0,0,0)");
+    grad.addColorStop(1, PAL[g.theme].vign);
+    vignetteCache = { theme: g.theme, grad };
+  }
+  ctx.fillStyle = vignetteCache.grad;
+  ctx.fillRect(0, 0, VW, VH);
+}
+
+function drawCallout(g: G, ctx: CanvasRenderingContext2D) {
+  const c = g.callout;
+  if (!c) return;
+  const t = c.t / 1.5;
+  const alpha = t < 0.18 ? t / 0.18 : t > 0.7 ? Math.max(0, 1 - (t - 0.7) / 0.3) : 1;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.textAlign = "center";
+  ctx.font = "900 34px Cinzel, serif";
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = "rgba(20,12,2,0.85)";
+  const y = VH * 0.3;
+  ctx.strokeText(c.text, VW / 2, y);
+  ctx.fillStyle = "#f0c94f";
+  ctx.fillText(c.text, VW / 2, y);
   ctx.restore();
 }
 
 function render(g: G, ctx: CanvasRenderingContext2D, bg: HTMLCanvasElement | null, bgAlt: HTMLCanvasElement | null, scale: number) {
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  ctx.clearRect(0, 0, LW, LH);
+  ctx.clearRect(0, 0, VW, VH);
+  const shakeX = g.shake > 0 ? (Math.random() - 0.5) * g.shake : 0;
+  const shakeY = g.shake > 0 ? (Math.random() - 0.5) * g.shake : 0;
 
   /* ── the door passage: two rooms, one sliding view, no teleport ── */
   if (g.transit) {
     const tr = g.transit;
     ctx.save();
-    ctx.beginPath(); ctx.rect(0, tr.camY, LW, LH - tr.camY); ctx.clip();
+    ctx.beginPath(); ctx.rect(0, tr.camY, VW, VH - tr.camY); ctx.clip();
     ctx.translate(0, tr.camY);
     drawRoom(g, ctx, {
       bg, obstacles: tr.snapObstacles, pickups: tr.snapPickups, doorOpen: true,
       enemies: NO_ENEMIES, bolts: NO_BOLTS, ebolts: NO_EBOLTS, boss: null,
-    });
+    }, tr.viewCamX, tr.viewCamY);
     ctx.restore();
     ctx.save();
-    ctx.beginPath(); ctx.rect(0, 0, LW, Math.max(0.001, tr.camY)); ctx.clip();
-    ctx.translate(0, tr.camY - LH);
+    ctx.beginPath(); ctx.rect(0, 0, VW, Math.max(0.001, tr.camY)); ctx.clip();
+    ctx.translate(0, tr.camY - VH);
     drawRoom(g, ctx, {
       bg: bgAlt, obstacles: g.obstacles, pickups: g.pickups, doorOpen: g.doorOpen,
       enemies: g.enemies, bolts: NO_BOLTS, ebolts: NO_EBOLTS, boss: g.boss,
-    });
+    }, g.cam.x, g.cam.y);
     ctx.restore();
     /* the King, walking the passage in screen space */
     drawKing(g, ctx, tr.kingX, tr.kingY);
+    drawVignette(g, ctx);
+    drawMinimap(g, ctx);
     return;
   }
 
+  /* ── the live room, through the camera ── */
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
   drawRoom(g, ctx, {
     bg, obstacles: g.obstacles, pickups: g.pickups, doorOpen: g.doorOpen,
     enemies: g.enemies, bolts: g.bolts, ebolts: g.ebolts, boss: g.boss,
-  });
+  }, g.cam.x, g.cam.y);
 
+  ctx.translate(-g.cam.x, -g.cam.y);
   /* dash afterimages — ghost Kings along the dash path */
   for (const ai of g.afterimages) {
     drawKingSprite(g, ctx, ai.x, ai.y, 1.35, 0.32 * (1 - ai.life / 0.3), ai.faceX, ai.faceY);
@@ -2323,6 +3313,13 @@ function render(g: G, ctx: CanvasRenderingContext2D, bg: HTMLCanvasElement | nul
     ctx.fillText(f.text, f.x, f.y);
   }
   ctx.globalAlpha = 1;
+  ctx.restore(); /* back to view space */
+
+  /* ── view-space overlays ── */
+  drawBossBar(g, ctx);
+  drawVignette(g, ctx);
+  drawMinimap(g, ctx);
+  drawCallout(g, ctx);
 }
 
 /* ─── pause + joystick state ──────────────────────────────────────────── */
@@ -2516,6 +3513,8 @@ function pollGamepad(g: G, bg: HTMLCanvasElement | null) {
   const e8 = padEdge(g, gp, 8), e9 = padEdge(g, gp, 9);
   const menuEdge = e8 || e9;                      /* Select / Start */
   const leftEdge = padEdge(g, gp, 14), rightEdge = padEdge(g, gp, 15);
+  const upEdge = padEdge(g, gp, 12), downEdge = padEdge(g, gp, 13);
+  const lbEdge = padEdge(g, gp, 4), rbEdge = padEdge(g, gp, 5); /* LB / RB */
 
   if (g.phase === "transit") {
     /* the door passage locks input — edges are sampled above so a
@@ -2526,11 +3525,11 @@ function pollGamepad(g: G, bg: HTMLCanvasElement | null) {
   if (g.phase === "upgrade") {
     g.padVec.x = 0; g.padVec.y = 0;
     const stickDir = ax > 0.55 ? 1 : ax < -0.55 ? -1 : 0;
-    if (leftEdge || rightEdge || (stickDir !== 0 && g.pad.navCd <= 0)) {
-      const dir = leftEdge ? -1 : rightEdge ? 1 : stickDir;
-      if (dir !== 0) { setUpgradeHighlight(g, g.upgradeIndex + dir); g.pad.navCd = 0.28; }
+    if (leftEdge || rightEdge || upEdge || downEdge || (stickDir !== 0 && g.pad.navCd <= 0)) {
+      const dir = leftEdge ? -1 : rightEdge ? 1 : upEdge ? -3 : downEdge ? 3 : stickDir;
+      if (dir !== 0) { setShopHighlight(g, g.shopIndex + dir); g.pad.navCd = 0.28; }
     }
-    if (faceEdge || menuEdge) pickUpgrade(g, g.upgradeIndex, bg);
+    if (faceEdge || menuEdge) shopActivate(g, g.shopIndex, bg);
     return;
   }
   if (g.paused) {
@@ -2539,6 +3538,9 @@ function pollGamepad(g: G, bg: HTMLCanvasElement | null) {
   }
   if (g.phase === "playing") {
     if (menuEdge) { togglePause(g); return; }
+    /* LB / RB cycle the arsenal — switching never adds auto-fire */
+    if (lbEdge) cycleGun(g, -1);
+    if (rbEdge) cycleGun(g, 1);
     if (faceEdge) tryDash(g);
     return;
   }
@@ -2568,7 +3570,24 @@ function UpgradeIcon({ id }: { id: string }) {
     case "spread": return (<svg viewBox="0 0 24 24" className={cls} {...sw}><path d="M12 21V9M12 9L5 4M12 9l7-5" /><circle cx="12" cy="9" r="1.6" fill="currentColor" stroke="none" /></svg>);
     case "pierce": return (<svg viewBox="0 0 24 24" className={cls} {...sw}><path d="M3 12h16M13 5l7 7-7 7" /></svg>);
     case "magnet": return (<svg viewBox="0 0 24 24" className={cls} {...sw}><path d="M6 4v7a6 6 0 0 0 12 0V4" /><path d="M6 4h4v5H6zM14 4h4v5h-4z" /></svg>);
+    case "magnet2": return (<svg viewBox="0 0 24 24" className={cls} {...sw}><path d="M6 4v7a6 6 0 0 0 12 0V4" /><path d="M6 4h4v5H6zM14 4h4v5h-4z" /><path d="M12 15v6M9.5 18.5h5" /></svg>);
+    case "dash2": return (<svg viewBox="0 0 24 24" className={cls} {...sw}><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" /><path d="M21 3.5L17.2 7.4 13.6 5.2" /><path d="M10 9.5L8 13h3l-1.8 3.5" /></svg>);
+    case "thorn": return (<svg viewBox="0 0 24 24" className={cls} {...sw}><path d="M12 3l2 5 5-1.5L16 11l5 2-5 2 3 4.5L14 18l-2 5-2-5-5 1.5L8 15 3 13l5-2L5 6.5 10 8z" /></svg>);
+    case "secondwind": return (<svg viewBox="0 0 24 24" className={cls} {...sw}><path d="M4 14c4-1 5-6 9-6 3 0 4 2 4 4" /><path d="M17 8v4h-4" /><path d="M4 19c5-1 6-5 11-5 2.4 0 4 1.2 5 3" /></svg>);
     default: return null;
+  }
+}
+
+/* A gun's shop swatch: a bolt glyph in the gun's own tint. */
+function GunSwatch({ id, tint }: { id: string; tint: string }) {
+  const common = { fill: tint, stroke: "rgba(20,14,2,0.55)", strokeWidth: 0.8 } as const;
+  switch (id) {
+    case "twinfang": return (<svg viewBox="0 0 24 24" className="h-6 w-6"><polygon points="8,3 4,12 7,12 6,20 12,10 9,10" {...common} /><polygon points="16,5 12.5,12 15,12 14.2,19 19.5,11 16.6,11" {...common} /></svg>);
+    case "scatter": return (<svg viewBox="0 0 24 24" className="h-6 w-6"><circle cx="12" cy="15" r="2" {...common} /><circle cx="5" cy="8" r="1.8" {...common} /><circle cx="9.5" cy="5.5" r="1.8" {...common} /><circle cx="14.5" cy="5.5" r="1.8" {...common} /><circle cx="19" cy="8" r="1.8" {...common} /></svg>);
+    case "rail": return (<svg viewBox="0 0 24 24" className="h-6 w-6"><polygon points="12,1 14.5,10 21,12 14.5,14 12,23 9.5,14 3,12 9.5,10" {...common} /></svg>);
+    case "rapid": return (<svg viewBox="0 0 24 24" className="h-6 w-6"><polygon points="7,4 3.5,12 6.5,12 5.5,19 11,10 8,10" {...common} /><polygon points="13,4 9.5,12 12.5,12 11.5,19 17,10 14,10" {...common} /><polygon points="19,4 15.5,12 18.5,12 17.5,19 21,13" {...common} /></svg>);
+    case "mortar": return (<svg viewBox="0 0 24 24" className="h-6 w-6"><circle cx="12" cy="13" r="6.5" {...common} /><path d="M12 6.5c0-2 1-3.4 2.8-4.2" fill="none" stroke={tint} strokeWidth="1.8" strokeLinecap="round" /><circle cx="12" cy="13" r="2.2" fill="rgba(255,243,196,0.9)" /></svg>);
+    default: return (<svg viewBox="0 0 24 24" className="h-6 w-6"><polygon points="13,2 4.5,13.5 10.5,13.5 9,22 19.5,9.5 13.5,9.5" {...common} /></svg>);
   }
 }
 
@@ -2577,6 +3596,9 @@ interface HudSnap {
   floor: number; hp: number; maxhp: number; hpPct: number; low: boolean;
   crowns: number; score: number; kills: number; left: number;
   combo: number; time: string; dashPct: number; cooling: boolean;
+  purse: number; scrip: number;
+  gunName: string; gunTint: string; gunsOwned: number;
+  comboMult: number; shield: boolean; prestige: number;
 }
 
 function createG(ui: UiBridge): G {
@@ -2586,6 +3608,16 @@ function createG(ui: UiBridge): G {
     paused: false,
     runSeed: 1,
     depth: 1, crowns: 0, kills: 0,
+    purse: 0, scrip: 0,
+    cam: { x: 0, y: LH - VH },
+    event: "none",
+    bossKills: 0,
+    callout: null,
+    fountainT: 0,
+    spawnQueue: [],
+    addEnemyAt: null,
+    meta: loadCrownfallMeta(),
+    shopIndex: 0,
     P: newPlayer(),
     enemies: [], bolts: [], ebolts: [], pickups: [],
     parts: [], floats: [], obstacles: [], afterimages: [],
@@ -2609,7 +3641,6 @@ function createG(ui: UiBridge): G {
       everSeen: false, firstPollAt: 0, connected: false, name: "", prev: {}, navCd: 0,
     },
     upgradePicks: [],
-    upgradeIndex: 0,
     sessionBest: { depth: 0, score: 0 },
     overFired: false,
     deathAt: -10,
@@ -2618,6 +3649,7 @@ function createG(ui: UiBridge): G {
     mpDown: false,
     mpRevive: false,
     mpPlacedCount: 0,
+    mpPurseSeen: 0,
   };
 }
 
@@ -2654,20 +3686,30 @@ export default function CrownfallRunGame({
   const [hud, setHud] = useState<HudSnap>({
     floor: 1, hp: CROWNFALL.baseHp, maxhp: CROWNFALL.baseHp, hpPct: 100, low: false,
     crowns: 0, score: 0, kills: 0, left: 0, combo: 0, time: "0:00", dashPct: 100, cooling: false,
+    purse: 0, scrip: 0, gunName: "Royal Bolt Blaster", gunTint: "#f0c94f", gunsOwned: 1,
+    comboMult: 1, shield: false, prestige: 0,
   });
   const hudPrevRef = useRef("");
   const [msg, setMsg] = useState("");
   const msgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [intro, setIntro] = useState<{ depth: number; key: number } | null>(null);
+  const [intro, setIntro] = useState<{ depth: number; key: number; name: string; event: EventKind; boss: boolean } | null>(null);
   const introTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [picks, setPicks] = useState<UpgradeDef[]>([]);
+  const [shopSnap, setShopSnap] = useState<ShopSnap | null>(null);
   const [hi, setHi] = useState(0);
   const [summary, setSummary] = useState<RunSummary | null>(null);
   const [deathVisible, setDeathVisible] = useState(false);
   const deathTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [padStatus, setPadStatus] = useState<{ text: string; waiting: boolean } | null>(null);
   const [padLive, setPadLive] = useState(false);
-  const [muted, setMuted] = useState(false);
+  /* the mute preference persists (guarded adapter — see crownfall-meta) */
+  const [muted, setMuted] = useState<boolean>(() => {
+    const m = loadCrownfallMuted();
+    mutedFlag = m;
+    return m;
+  });
+  const [fsActive, setFsActive] = useState(false);
+  const [metaUi, setMetaUi] = useState<CrownfallMeta>(() => loadCrownfallMeta());
+  const [prestigeClaimed, setPrestigeClaimed] = useState(false);
   const [sessionBest, setSessionBest] = useState<{ depth: number; score: number }>({ depth: 0, score: 0 });
 
   if (!gRef.current) {
@@ -2690,6 +3732,14 @@ export default function CrownfallRunGame({
           time: fmtTime(g.runTime),
           dashPct: Math.round((1 - P.dashCd / P.dashCdMax) * 100),
           cooling: P.dashCd > 0,
+          purse: g.purse,
+          scrip: g.scrip,
+          gunName: crownfallGun(P.gun).name,
+          gunTint: crownfallGun(P.gun).tint,
+          gunsOwned: P.guns.length,
+          comboMult: crownfallComboMult(g.combo),
+          shield: P.shield,
+          prestige: g.meta.tier,
         };
         const key = JSON.stringify(snap);
         if (key !== hudPrevRef.current) {
@@ -2704,12 +3754,12 @@ export default function CrownfallRunGame({
         if (msgTimerRef.current) clearTimeout(msgTimerRef.current);
         msgTimerRef.current = setTimeout(() => setMsg((cur) => (cur === t ? "" : cur)), 3400);
       },
-      intro: (d) => {
-        setIntro({ depth: d, key: performance.now() });
+      intro: (d, info) => {
+        setIntro({ depth: d, key: performance.now(), name: info.name, event: info.event, boss: info.boss });
         if (introTimerRef.current) clearTimeout(introTimerRef.current);
-        introTimerRef.current = setTimeout(() => setIntro(null), 1500);
+        introTimerRef.current = setTimeout(() => setIntro(null), info.boss ? 2100 : 1500);
       },
-      upgrades: (p) => setPicks(p),
+      shop: (s) => setShopSnap(s),
       highlight: (i) => setHi(i),
       flash: () => {
         const fd = flashRef.current;
@@ -2726,7 +3776,11 @@ export default function CrownfallRunGame({
       death: (s) => {
         const g = gRef.current;
         setSummary(s);
-        if (g) setSessionBest({ depth: g.sessionBest.depth, score: g.sessionBest.score });
+        setPrestigeClaimed(false);
+        if (g) {
+          setSessionBest({ depth: g.sessionBest.depth, score: g.sessionBest.score });
+          setMetaUi(g.meta);
+        }
         setDeathVisible(false);
         if (deathTimerRef.current) clearTimeout(deathTimerRef.current);
         deathTimerRef.current = setTimeout(() => setDeathVisible(true), 450);
@@ -2764,6 +3818,9 @@ export default function CrownfallRunGame({
 
   const startFromUi = useCallback(() => {
     engagedRef.current = true;
+    /* starting a run asks for the full screen (owner ruling); a
+       refusal just leaves the run windowed — see the guarded helper */
+    requestGameFullscreen(rootRef.current);
     const g = gRef.current;
     if (g) startRun(g, bgRef.current);
   }, []);
@@ -2775,6 +3832,31 @@ export default function CrownfallRunGame({
     if (g) g.mp = mp ?? null;
   }, [mp]);
 
+  /* the fullscreen toggle's truth is the document's, never a guess */
+  useEffect(() => {
+    const onFsChange = () => {
+      try { setFsActive(!!document.fullscreenElement); } catch { /* view state only */ }
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    onFsChange();
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  /* PRESTIGE: bank the boss-beating run, claim the next tier. Power
+     + status only — the recorded score is never touched. */
+  const claimPrestige = useCallback(() => {
+    const g = gRef.current;
+    if (!g || prestigeClaimed) return;
+    const next = claimPrestigeTier(g.meta);
+    if (next === g.meta) return;
+    g.meta = next;
+    saveCrownfallMeta(next);
+    setMetaUi(next);
+    setPrestigeClaimed(true);
+    sfx.claim();
+    g.ui.hud();
+  }, [prestigeClaimed]);
+
   /* ── boot, loop, and listeners (mount once) ── */
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -2785,15 +3867,18 @@ export default function CrownfallRunGame({
     ctxRef.current = ctx;
     const SCALE = Math.min(window.devicePixelRatio || 1, 2);
     scaleRef.current = SCALE;
-    canvas.width = LW * SCALE;
-    canvas.height = LH * SCALE;
+    canvas.width = VW * SCALE;
+    canvas.height = VH * SCALE;
+    /* backdrops are WORLD-sized; their render scale is capped at
+       1.5× so two 1080² canvases stay memory-sane on modest GPUs */
+    const BGSCALE = Math.min(SCALE, 1.5);
     const bg = document.createElement("canvas");
-    bg.width = LW * SCALE;
-    bg.height = LH * SCALE;
+    bg.width = LW * BGSCALE;
+    bg.height = LH * BGSCALE;
     bgRef.current = bg;
     const bgAlt = document.createElement("canvas");
-    bgAlt.width = LW * SCALE;
-    bgAlt.height = LH * SCALE;
+    bgAlt.width = LW * BGSCALE;
+    bgAlt.height = LH * BGSCALE;
     bgAltRef.current = bgAlt;
 
     /* the Visual Buc coin — the site's primary balance coin art.
@@ -2817,9 +3902,17 @@ export default function CrownfallRunGame({
       const k = ev.key.toLowerCase();
       if (k === "p") { togglePause(g); return; }
       if (g.phase === "upgrade") {
-        if (k === "arrowleft" || k === "a") { setUpgradeHighlight(g, g.upgradeIndex - 1); ev.preventDefault(); return; }
-        if (k === "arrowright" || k === "d") { setUpgradeHighlight(g, g.upgradeIndex + 1); ev.preventDefault(); return; }
-        if (k === "enter") { pickUpgrade(g, g.upgradeIndex, bgRef.current); return; }
+        if (k === "arrowleft" || k === "a") { setShopHighlight(g, g.shopIndex - 1); ev.preventDefault(); return; }
+        if (k === "arrowright" || k === "d") { setShopHighlight(g, g.shopIndex + 1); ev.preventDefault(); return; }
+        if (k === "arrowup" || k === "w") { setShopHighlight(g, g.shopIndex - 3); ev.preventDefault(); return; }
+        if (k === "arrowdown" || k === "s") { setShopHighlight(g, g.shopIndex + 3); ev.preventDefault(); return; }
+        if (k === "enter") { shopActivate(g, g.shopIndex, bgRef.current); return; }
+      }
+      /* number keys 1–6 switch guns mid-run (owned only) */
+      if (g.phase === "playing" && k >= "1" && k <= "6") {
+        const gun = CROWNFALL_GUNS[Number(k) - 1];
+        if (gun) switchGun(g, gun.id);
+        return;
       }
       if (k === "enter" || k === " ") {
         if (g.paused) { togglePause(g); return; }
@@ -2829,6 +3922,7 @@ export default function CrownfallRunGame({
            the same page can't start this one from off-screen. */
         if ((g.phase === "start" || g.phase === "dead") && engagedRef.current) {
           if (g.phase === "dead" && g.timeNow - g.deathAt < 0.45) return;
+          requestGameFullscreen(rootRef.current);
           startRun(g, bgRef.current);
           ev.preventDefault();
           return;
@@ -2946,8 +4040,8 @@ export default function CrownfallRunGame({
     if (!g) return;
     const p = stagePoint(ev);
     if (p.w <= 0 || p.h <= 0) return;
-    g.mouseAim.x = (p.x / p.w) * LW;
-    g.mouseAim.y = (p.y / p.h) * LH;
+    g.mouseAim.x = (p.x / p.w) * VW;
+    g.mouseAim.y = (p.y / p.h) * VH;
     g.mouseAim.lastAt = g.timeNow;
     g.mouseAim.inside = true;
   };
@@ -2957,6 +4051,7 @@ export default function CrownfallRunGame({
     if ((ev.target as HTMLElement).closest("[data-overlay]")) return;
     if (ev.pointerType === "mouse") { trackMouseAim(ev); return; }
     if ((ev.target as HTMLElement).closest("[data-dash-btn]")) return;
+    if ((ev.target as HTMLElement).closest("[data-gun-btn]")) return;
     const p = stagePoint(ev);
     if (p.x > p.w * 0.62) {
       /* right side: the AIM stick (the dash button guards itself) */
@@ -3004,13 +4099,25 @@ export default function CrownfallRunGame({
     : "Best this session: no runs yet";
 
   return (
-    <div ref={rootRef} className="relative">
+    <div
+      ref={rootRef}
+      className={fsActive ? "flex flex-col p-3" : "relative"}
+      style={fsActive ? { height: "100dvh", width: "100dvw", background: light ? "#f3ecdc" : "#0a0a0b" } : undefined}
+    >
       {/* HUD */}
       <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-3 py-2 ${cardCls}`}>
         <span className="min-w-[3.2rem]">
           <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${mutedInk}`}>Floor</span>
           <span className={`block text-lg font-black leading-tight ${ink}`}>{hud.floor}</span>
         </span>
+        {hud.prestige > 0 && (
+          <span className="min-w-[3.4rem]">
+            <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${mutedInk}`}>Prestige</span>
+            <span className="block text-sm font-black leading-tight text-[#C9A84C]" aria-label={"Prestige tier " + hud.prestige}>
+              {"♛".repeat(Math.min(hud.prestige, 5))}{hud.prestige > 5 ? " ×" + hud.prestige : ""}
+            </span>
+          </span>
+        )}
         <span className="min-w-[6.5rem] flex-1">
           <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${mutedInk}`}>
             King&rsquo;s HP · {hud.hp}/{hud.maxhp}
@@ -3027,9 +4134,17 @@ export default function CrownfallRunGame({
             />
           </span>
         </span>
-        <span className="min-w-[3.6rem]">
-          <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${mutedInk}`}>Bucs coins</span>
-          <span className={`block text-lg font-black leading-tight ${goldInk}`}>{hud.crowns}</span>
+        <span className="min-w-[4.4rem]">
+          <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${mutedInk}`}>Coin purse</span>
+          <span className={`flex items-center gap-1.5 text-lg font-black leading-tight ${goldInk}`}>
+            <img src={mediaUrl("images/visual-bucs-icon.webp")} alt="" className="h-5 w-5 rounded-full" draggable={false} />
+            {hud.purse + hud.scrip}
+            {hud.scrip > 0 && <span className="text-[11px] font-bold text-[#2fae8f]">(+{hud.scrip} scrip)</span>}
+          </span>
+        </span>
+        <span className="min-w-[5.2rem]">
+          <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${mutedInk}`}>Gun · {hud.gunsOwned}/6</span>
+          <span className="block truncate text-[15px] font-black leading-tight" style={{ color: hud.gunTint }}>{hud.gunName}</span>
         </span>
         <span className="min-w-[3.6rem]">
           <span className={`block text-[10px] font-bold uppercase tracking-[0.14em] ${mutedInk}`}>Score</span>
@@ -3039,7 +4154,12 @@ export default function CrownfallRunGame({
       <div className={`flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1 px-1 py-1.5 text-[13px] ${mutedInk}`}>
         <span>Foes felled: <b className={ink}>{hud.kills}</b> · <b className={ink}>{hud.left} left</b></span>
         {padLive && <span className={`font-bold ${goldInk}`}>Controller live</span>}
-        {hud.combo >= 2 && <span className={`font-black ${goldInk}`}>Combo x{hud.combo}</span>}
+        {hud.combo >= 2 && <span className={`font-black ${goldInk}`}>Combo ×{hud.comboMult} · {hud.combo} chain</span>}
+        {hud.shield && (
+          <span className="inline-flex items-center gap-1 font-black text-[#58b7dd]">
+            <Shield className="h-4 w-4" /> Shield up
+          </span>
+        )}
         <span className="font-bold tabular-nums">{hud.time}</span>
         <span className="inline-flex items-center gap-1.5">
           Dash
@@ -3052,15 +4172,27 @@ export default function CrownfallRunGame({
             type="button"
             aria-label={muted ? "Unmute sound" : "Mute sound"}
             title="Sound on/off"
+            data-testid="crownfall-mute"
             onClick={() => {
               ensureAudio();
               const next = !muted;
               mutedFlag = next;
               setMuted(next);
+              saveCrownfallMuted(next); /* the preference persists */
             }}
             className={`flex h-10 w-10 items-center justify-center rounded-full border ${cardCls}`}
           >
             {muted ? <VolumeX className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
+          </button>
+          <button
+            type="button"
+            aria-label={fsActive ? "Exit fullscreen" : "Enter fullscreen"}
+            title={fsActive ? "Exit fullscreen" : "Fullscreen"}
+            data-testid="crownfall-fullscreen"
+            onClick={() => toggleGameFullscreen(rootRef.current)}
+            className={`flex h-10 w-10 items-center justify-center rounded-full border ${cardCls}`}
+          >
+            {fsActive ? <Minimize className="h-[18px] w-[18px]" /> : <Maximize className="h-[18px] w-[18px]" />}
           </button>
           <button
             type="button"
@@ -3075,10 +4207,12 @@ export default function CrownfallRunGame({
         {msg && <span className={`w-full text-right font-bold ${goldInk} sm:w-auto sm:flex-1`}>{msg}</span>}
       </div>
 
-      {/* Stage */}
+      {/* Stage — in fullscreen it grows to fill the screen height,
+          the square arena centred with the HUD still attached */}
       <div
         ref={stageRef}
-        className={`relative touch-none select-none overflow-hidden rounded-xl border ${light ? "border-[#C9A84C]/40 bg-[#f3ecdc]" : "border-[#C9A84C]/25 bg-[#0d0d0d]"}`}
+        className={`relative touch-none select-none overflow-hidden rounded-xl border ${light ? "border-[#C9A84C]/40 bg-[#f3ecdc]" : "border-[#C9A84C]/25 bg-[#0d0d0d]"} ${fsActive ? "mx-auto my-auto" : ""}`}
+        style={fsActive ? { width: "min(100%, calc(100dvh - 178px))" } : undefined}
         onPointerDown={onStagePointerDown}
         onPointerMove={onStagePointerMove}
         onPointerUp={onStagePointerEnd}
@@ -3088,8 +4222,8 @@ export default function CrownfallRunGame({
       >
         <canvas
           ref={canvasRef}
-          width={LW}
-          height={LH}
+          width={VW}
+          height={VH}
           className="block h-auto w-full touch-none select-none"
           data-testid="crownfall-canvas"
         />
@@ -3122,6 +4256,34 @@ export default function CrownfallRunGame({
           style={{ margin: "-24px 0 0 -24px", background: "radial-gradient(circle at 35% 30%, #ff8a7a, #c22e35)" }}
         />
 
+        {phase === "playing" && hud.gunsOwned > 1 && (
+          <div className="absolute bottom-3.5 left-3.5 z-[4] flex items-center gap-1.5" data-gun-btn>
+            <button
+              type="button"
+              aria-label="Previous gun"
+              data-testid="crownfall-gun-prev"
+              className={`flex h-11 w-11 items-center justify-center rounded-full border text-lg font-black ${cardCls}`}
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); const g = gRef.current; if (g) cycleGun(g, -1); }}
+              onClick={(e) => e.preventDefault()}
+            >
+              ‹
+            </button>
+            <span className={`max-w-[7.5rem] truncate rounded-full border px-2.5 py-1.5 text-[11px] font-black ${cardCls}`} style={{ color: hud.gunTint }}>
+              {hud.gunName}
+            </span>
+            <button
+              type="button"
+              aria-label="Next gun"
+              data-testid="crownfall-gun-next"
+              className={`flex h-11 w-11 items-center justify-center rounded-full border text-lg font-black ${cardCls}`}
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); const g = gRef.current; if (g) cycleGun(g, 1); }}
+              onClick={(e) => e.preventDefault()}
+            >
+              ›
+            </button>
+          </div>
+        )}
+
         {phase === "playing" && (
           <button
             type="button"
@@ -3145,10 +4307,21 @@ export default function CrownfallRunGame({
 
         {intro && (
           <div key={intro.key} className="pointer-events-none absolute inset-0 z-[7] flex items-center justify-center">
-            <div className={`rounded-xl border px-7 py-4 text-center ${cardCls}`} style={{ background: overlayBg }}>
-              <div className={`text-xs font-bold uppercase tracking-[0.12em] ${goldInk}`}>Floor {intro.depth}</div>
-              <div className={`text-2xl font-black ${ink}`}>{crownfallFloorName(intro.depth)}</div>
-            </div>
+            {intro.boss ? (
+              /* the boss title card */
+              <div className="rounded-xl border-2 border-[#e5484d]/70 px-8 py-5 text-center" style={{ background: "rgba(10,2,2,0.88)" }}>
+                <div className="text-xs font-bold uppercase tracking-[0.3em] text-[#ff8a7a]">Floor {intro.depth} · The Boss</div>
+                <div className="mt-1 text-4xl font-black tracking-wide text-[#ffd9da]">THE USURPER</div>
+                <div className="mt-1 text-[13px] font-bold text-[#ff8a7a]">He wants the throne. Take a gun off him instead.</div>
+              </div>
+            ) : (
+              <div className={`rounded-xl border px-7 py-4 text-center ${cardCls}`} style={{ background: overlayBg }}>
+                <div className={`text-xs font-bold uppercase tracking-[0.12em] ${goldInk}`}>Floor {intro.depth}</div>
+                <div className={`text-2xl font-black uppercase ${ink}`}>{intro.name}</div>
+                {intro.event === "jackpot" && <div className="mt-1 text-sm font-black text-[#C9A84C]">★ JACKPOT VAULT — coins everywhere, elites on guard ★</div>}
+                {intro.event === "ambush" && <div className="mt-1 text-sm font-black text-[#e5484d]">⚠ AMBUSH — extra invaders, better drops ⚠</div>}
+              </div>
+            )}
           </div>
         )}
 
@@ -3176,16 +4349,23 @@ export default function CrownfallRunGame({
               </h3>
               <p className={`mt-0.5 max-w-[42ch] text-[15px] ${mutedInk}`}>Defend the studio. How deep can the King go?</p>
               <p className={`mb-3 mt-2 max-w-[46ch] text-sm ${mutedInk}`}>
-                Bots and glitches are invading the Bow Down Visuals studio — clear each room, grab the gold Bucs coins (score only, +25), and take the golden door down. The Usurper waits every 5th floor.
+                Bots and glitches are invading the Bow Down Visuals studio — clear each big room, fill your coin purse, and take the golden door down. Between floors, spend purse coins in the shop on upgrades and guns. The Usurper waits every 5th floor — beat him and prestige is yours.
               </p>
               <div className={`mb-4 w-full max-w-[430px] rounded-xl border px-4 py-3 text-left text-sm ${cardCls}`}>
                 <div className="py-0.5"><b className={ink}>Move</b> — WASD or arrow keys · on touch, drag the left side of the arena</div>
                 <div className="py-0.5"><b className={ink}>Aim &amp; fire</b> — right stick / mouse / right thumb-stick aims: your shots go where you point. No aim, no shots — every bolt is yours</div>
                 <div className="py-0.5"><b className={ink}>Dash</b> — Space · or the gold DASH button — briefly untouchable</div>
-                <div className="py-0.5"><b className={ink}>Goal</b> — clear Glitches, Spam Bots and Trolls to open the golden door, then walk through it into the next room</div>
+                <div className="py-0.5"><b className={ink}>Coins</b> — pickups fill your purse. Unspent coins become score (+25 each) when the run ends — spend them or bank them</div>
+                <div className="py-0.5"><b className={ink}>Guns</b> — keys 1–6, controller LB/RB, or the on-screen switcher. Elites and the boss drop guns too</div>
+                <div className="py-0.5"><b className={ink}>Goal</b> — clear each room to open the golden door, then walk through it. The shop is between floors; descending is always free</div>
                 <div className="py-0.5"><b className={ink}>Controller</b> — Bluetooth or wired: left stick / D-pad to move · right stick aims &amp; fires · A to dash · Start or A to begin · Start pauses</div>
                 <div className="py-0.5"><b className={ink}>Pause</b> — P or the pause button</div>
               </div>
+              {metaUi.tier > 0 && (
+                <p className={`mb-2 text-[13px] font-bold ${goldInk}`}>
+                  Prestige tier {metaUi.tier} — +{metaUi.tier * 5}% bolt damage, +{metaUi.tier * 10}% coin drops, every run.
+                </p>
+              )}
               <button type="button" className={btnGold} onClick={startFromUi} data-testid="crownfall-start">
                 <Play className="h-4 w-4" /> Start the Run
               </button>
@@ -3199,30 +4379,93 @@ export default function CrownfallRunGame({
           </div>
         )}
 
-        {phase === "upgrade" && (
+        {phase === "upgrade" && shopSnap && (
           <div data-overlay className="absolute inset-0 z-[5] overflow-y-auto" style={{ background: overlayBg, touchAction: "pan-y" }}>
-            <div className="flex min-h-full w-full flex-col items-center justify-center px-4 py-4 text-center">
-              <h3 className={`text-2xl font-black ${ink}`}>Floor <span className={goldInk}>Cleared</span></h3>
-              <p className={`mt-1 text-sm ${mutedInk}`}>You walked into the next room. Choose one studio upgrade, then the fight starts.</p>
-              <div className="mt-3 grid w-full max-w-[430px] grid-cols-1 gap-2.5 min-[560px]:max-w-none min-[560px]:grid-cols-3">
-                {picks.map((u, idx) => (
+            <div className="mx-auto flex min-h-full w-full max-w-[560px] flex-col items-center px-4 py-4 text-center">
+              <h3 className={`text-2xl font-black ${ink}`}>Floor Cleared — <span className={goldInk}>The Shop</span></h3>
+              <p className={`mt-1 flex items-center gap-1.5 text-sm ${mutedInk}`}>
+                Purse:
+                <img src={mediaUrl("images/visual-bucs-icon.webp")} alt="" className="h-[18px] w-[18px] rounded-full" draggable={false} />
+                <b className={goldInk}>{shopSnap.total} coins</b>
+                {shopSnap.scrip > 0 && <span className="text-[#2fae8f]">({shopSnap.scrip} scrip — spends first)</span>}
+                <span>· buy anything you can afford, then descend — descending is free</span>
+              </p>
+
+              <div className={`mt-2 self-start text-[11px] font-bold uppercase tracking-[0.16em] ${mutedInk}`}>Upgrades</div>
+              <div className="mt-1.5 grid w-full grid-cols-1 gap-2 min-[560px]:grid-cols-3">
+                {shopSnap.items.map((item, idx) => item.kind !== "upgrade" ? null : (
                   <button
-                    key={u.id}
+                    key={item.key}
                     type="button"
-                    onClick={() => { const g = gRef.current; if (g) pickUpgrade(g, idx, bgRef.current); }}
-                    onMouseEnter={() => { const g = gRef.current; if (g) setUpgradeHighlight(g, idx); }}
-                    className={`flex min-h-16 items-start gap-3 rounded-xl border p-3.5 text-left transition min-[560px]:flex-col ${cardCls} ${idx === hi ? "shadow-[0_0_0_3px_rgba(240,201,79,0.9)]" : ""}`}
+                    data-testid={"crownfall-shop-" + item.id}
+                    onClick={() => { const g = gRef.current; if (g) shopActivate(g, idx, bgRef.current); }}
+                    onMouseEnter={() => { const g = gRef.current; if (g) setShopHighlight(g, idx); }}
+                    className={`flex min-h-16 flex-col items-start gap-1 rounded-xl border-2 p-3 text-left transition ${cardCls} ${idx === hi ? "shadow-[0_0_0_3px_rgba(240,201,79,0.9)]" : ""}`}
+                    style={{ borderColor: "rgba(201,168,76,0.55)", backgroundImage: "linear-gradient(160deg, rgba(240,201,79,0.10), transparent 55%)" }}
+                  >
+                    <span className="flex w-full items-center justify-between gap-2">
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${panelSoft}`}>
+                        <UpgradeIcon id={item.id} />
+                      </span>
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[13px] font-black ${item.affordable ? goldInk : "text-[#e5484d]"}`}>
+                        <img src={mediaUrl("images/visual-bucs-icon.webp")} alt="" className="h-3.5 w-3.5 rounded-full" draggable={false} />
+                        {item.price}
+                      </span>
+                    </span>
+                    <span className={`block text-[15px] font-black leading-tight ${ink}`}>{item.name}</span>
+                    <span className={`block text-[12.5px] leading-snug ${mutedInk}`}>{item.desc}</span>
+                    {!item.affordable && (
+                      <span className="block text-[12px] font-bold text-[#e5484d]">Need {item.shortfall} more coins</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className={`mt-3 self-start text-[11px] font-bold uppercase tracking-[0.16em] ${mutedInk}`}>The Armory — guns</div>
+              <div className="mt-1.5 grid w-full grid-cols-1 gap-2 min-[560px]:grid-cols-2">
+                {shopSnap.items.map((item, idx) => item.kind !== "gun" ? null : (
+                  <button
+                    key={item.key}
+                    type="button"
+                    data-testid={"crownfall-shop-" + item.id}
+                    onClick={() => { const g = gRef.current; if (g) shopActivate(g, idx, bgRef.current); }}
+                    onMouseEnter={() => { const g = gRef.current; if (g) setShopHighlight(g, idx); }}
+                    className={`flex items-start gap-2.5 rounded-xl border-2 p-3 text-left transition ${cardCls} ${idx === hi ? "shadow-[0_0_0_3px_rgba(240,201,79,0.9)]" : ""} ${item.equipped ? "ring-2 ring-[#C9A84C]" : ""}`}
+                    style={{ borderColor: "rgba(201,168,76,0.45)", backgroundImage: "linear-gradient(160deg, rgba(240,201,79,0.08), transparent 55%)" }}
                   >
                     <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${panelSoft}`}>
-                      <UpgradeIcon id={u.id} />
+                      <GunSwatch id={item.id} tint={item.tint ?? "#f0c94f"} />
                     </span>
-                    <span>
-                      <span className={`block text-base font-black leading-tight ${ink}`}>{u.name}</span>
-                      <span className={`mt-0.5 block text-[13px] ${mutedInk}`}>{u.desc}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className={`block truncate text-[15px] font-black leading-tight ${ink}`}>{item.name}</span>
+                      <span className={`block text-[12.5px] leading-snug ${mutedInk}`}>{item.desc}</span>
+                      <span className="mt-0.5 block text-[12.5px] font-black">
+                        {item.equipped
+                          ? <span className={goldInk}>EQUIPPED</span>
+                          : item.owned
+                            ? <span className={goldInk}>OWNED — tap to equip</span>
+                            : item.affordable
+                              ? <span className={`inline-flex items-center gap-1 ${goldInk}`}><img src={mediaUrl("images/visual-bucs-icon.webp")} alt="" className="h-3.5 w-3.5 rounded-full" draggable={false} />{item.price} coins</span>
+                              : <span className="text-[#e5484d]">{item.price} coins — need {item.shortfall} more</span>}
+                      </span>
                     </span>
                   </button>
                 ))}
               </div>
+
+              {shopSnap.items.map((item, idx) => item.kind !== "descend" ? null : (
+                <button
+                  key={item.key}
+                  type="button"
+                  data-testid="crownfall-descend"
+                  onClick={() => { const g = gRef.current; if (g) shopActivate(g, idx, bgRef.current); }}
+                  onMouseEnter={() => { const g = gRef.current; if (g) setShopHighlight(g, idx); }}
+                  className={`${btnGold} mt-4 w-full max-w-[430px] ${idx === hi ? "shadow-[0_0_0_3px_rgba(240,201,79,0.9)]" : ""}`}
+                >
+                  {item.name} — FREE ↓
+                </button>
+              ))}
+              <p className={`mt-2 text-[12px] ${mutedInk}`}>Unspent coins become score (+25 each) when the run ends. Scrip never does — spend it here.</p>
             </div>
           </div>
         )}
@@ -3236,13 +4479,13 @@ export default function CrownfallRunGame({
                   ? "The Usurper wants the throne — and takes it this time."
                   : "The invaders overrun the studio this time."}
               </p>
-              <div className="mx-auto mb-4 mt-2 grid w-full max-w-[340px] grid-cols-2 gap-2">
+              <div className="mx-auto mb-3 mt-2 grid w-full max-w-[340px] grid-cols-2 gap-2">
                 {[
                   { k: "Depth reached", v: String(summary.depth), gold: false },
-                  { k: "Bucs coins (score)", v: String(summary.crowns), gold: false },
+                  { k: "Leftover purse → score", v: summary.crowns + " × 25 = " + summary.coinScore, gold: false },
                   { k: "Foes felled", v: String(summary.kills), gold: false },
                   { k: "Final score", v: summary.score.toLocaleString(), gold: true },
-                  { k: "Best combo", v: "x" + Math.max(1, summary.bestCombo), gold: false },
+                  { k: "Best combo chain", v: String(Math.max(1, summary.bestCombo)), gold: false },
                   { k: "Time survived", v: fmtTime(summary.timeSec), gold: false },
                 ].map((c) => (
                   <div key={c.k} className={`rounded-xl border px-2 py-2.5 ${cardCls}`}>
@@ -3251,7 +4494,40 @@ export default function CrownfallRunGame({
                   </div>
                 ))}
               </div>
-              <p className={`mb-2.5 text-[13px] ${mutedInk}`}>Score includes combo bonus points earned from chained kills.</p>
+              <p className={`mb-1 max-w-[46ch] text-[13px] ${mutedInk}`}>
+                <b className={ink}>Armory:</b> {summary.armory.join(" · ")}
+              </p>
+              {/* the trophy row: lifetime achievements, this run's new ones lit */}
+              <div className="mb-3 mt-1 flex flex-wrap items-center justify-center gap-1.5">
+                {CROWNFALL_ACHIEVEMENTS.map((a) => {
+                  const earned = summary.achievementsAll.includes(a.id);
+                  const isNew = summary.achievementsNew.includes(a.id);
+                  return (
+                    <span
+                      key={a.id}
+                      title={a.name + " — " + a.desc}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-bold ${earned ? "border-[#C9A84C] text-[#C9A84C]" : `${cardCls} opacity-45`}`}
+                    >
+                      🏆 {a.name}{isNew ? " — NEW!" : ""}
+                    </span>
+                  );
+                })}
+              </div>
+              {summary.canPrestige && !prestigeClaimed && (
+                <div className={`mb-3 w-full max-w-[430px] rounded-xl border-2 border-[#C9A84C] px-4 py-3 ${cardCls}`}>
+                  <div className={`text-base font-black ${goldInk}`}>👑 The Usurper fell — PRESTIGE is yours</div>
+                  <p className={`mt-0.5 text-[13px] ${mutedInk}`}>
+                    Bank this run and claim Prestige tier {summary.prestigeTier + 1} of {PRESTIGE_TIER_CAP}: +5% bolt damage and +10% coin drops on every future run, forever. Power and status only — your score above never changes.
+                  </p>
+                  <button type="button" className={`${btnGold} mt-2 w-full`} data-testid="crownfall-prestige" onClick={claimPrestige}>
+                    Claim Prestige Tier {summary.prestigeTier + 1}
+                  </button>
+                </div>
+              )}
+              {prestigeClaimed && (
+                <div className={`mb-3 font-black ${goldInk}`}>♛ Prestige tier {metaUi.tier} claimed — the crown remembers.</div>
+              )}
+              <p className={`mb-2.5 text-[13px] ${mutedInk}`}>Score = depth × 100 + leftover purse × 25 + foes × 10 + combo bonus (chained kills multiply up to ×5).</p>
               {summary.isSessionBest && <div className={`mb-2.5 font-bold ${goldInk}`}>New best run!</div>}
               <button type="button" className={btnGold} onClick={startFromUi} data-testid="crownfall-restart">
                 <RotateCcw className="h-4 w-4" /> Run Again
@@ -3263,7 +4539,7 @@ export default function CrownfallRunGame({
       </div>
 
       <p className={`px-1 pb-1 pt-3 text-center text-[13px] ${mutedInk}`}>
-        Score = depth × 100 + Bucs coins × 25 + foes felled × 10 + combo bonus. Coins are score only — no charge, no wager.
+        Score = depth × 100 + leftover purse coins × 25 + foes felled × 10 + combo bonus. Purse coins are run-local — no charge, no wager, never Visual Bucs.
       </p>
     </div>
   );

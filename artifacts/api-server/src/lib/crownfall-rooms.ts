@@ -91,10 +91,13 @@ const EMPTY_ROOM_MS = 2 * 60_000;
 const IDLE_ROOM_MS = 10 * 60_000;
 const RECEIPT_TTL_MS = 15 * 60_000;
 const RECEIPT_MAX_ENTRIES = 5000;
-/* Single-player construction bounds (client genFloor / arcade-rules):
- * at most 11 foes a floor, at most 5 placed crowns a floor. */
-const MAX_FOES_PER_FLOOR = 11;
-const MAX_PLACED_COINS = 5;
+/* Single-player construction bounds (client genFloor / arcade-rules,
+ * v2 construction): at most 24 foes a floor (AMBUSH rooms included),
+ * at most 14 placed crowns a floor (JACKPOT VAULT). The referee
+ * mirrors the client that actually ships — a roster inside these
+ * bounds is honest, beyond them forged. */
+const MAX_FOES_PER_FLOOR = 24;
+const MAX_PLACED_COINS = 14;
 /* A single bolt hit can never honestly exceed this: base damage 10,
  * the Turbo Damage upgrade multiplies 1.3× per pick with no cap on
  * picks, so the clamp is generous — it exists to stop a forged frame
@@ -108,7 +111,7 @@ const DROP_COIN_CHANCE = 0.3;
 const DROP_HEART_CHANCE = 0.12;
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const CODE_LENGTH = 6;
-const FOE_TYPES = ["chaser", "shooter", "dasher", "boss"] as const;
+const FOE_TYPES = ["chaser", "shooter", "dasher", "charger", "spambot", "boss"] as const;
 
 export type CrownfallFoeType = (typeof FOE_TYPES)[number];
 export type CrownfallPhase = "lobby" | "playing" | "cleared" | "ended";
@@ -264,7 +267,8 @@ interface Room {
 
 /** The most HP a foe of this kind can honestly have on this floor —
  *  the client's own construction (genFloor): regular foes scale
- *  1 + (d−1)·0.22 off a 20–26 base, elites multiply ×1.9, the boss is
+ *  1 + (d−1)·0.22 off their base (chaser 26, charger 30, dasher and
+ *  spambot 22, shooter 20), elites multiply ×1.9, the boss is
  *  330 × (1 + (⌊d/5⌋−1)·0.6). A roster claiming more is forged.
  *  15% + a small flat slack absorbs float rounding. */
 export function crownfallMaxFoeHp(depth: number, type: CrownfallFoeType, elite: boolean): number {
@@ -273,7 +277,8 @@ export function crownfallMaxFoeHp(depth: number, type: CrownfallFoeType, elite: 
   let base: number;
   if (type === "boss") base = 330 * (1 + (Math.floor(d / 5) - 1) * 0.6);
   else if (type === "chaser") base = 26 * hpScale;
-  else if (type === "dasher") base = 22 * hpScale;
+  else if (type === "charger") base = 30 * hpScale;
+  else if (type === "dasher" || type === "spambot") base = 22 * hpScale;
   else base = 20 * hpScale;
   if (elite && type !== "boss") base *= 1.9;
   return Math.ceil(base * 1.15) + 2;
@@ -534,8 +539,8 @@ export class CrownfallRooms {
         if (!foe || foe.down) return;
         const dmg = clamp(Math.round(dmgRaw), 1, MAX_HIT_DMG);
         foe.hp -= dmg;
-        const x = finite(frame["x"]) ? clamp(frame["x"] as number, 0, 720) : 0;
-        const y = finite(frame["y"]) ? clamp(frame["y"] as number, 0, 720) : 0;
+        const x = finite(frame["x"]) ? clamp(frame["x"] as number, 0, 1080) : 0;
+        const y = finite(frame["y"]) ? clamp(frame["y"] as number, 0, 1080) : 0;
         if (foe.hp <= 0) {
           foe.hp = 0;
           foe.down = true;
