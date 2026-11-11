@@ -6,6 +6,8 @@ import {
   Loader2, CircleDollarSign, Share2, ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import ProfileHosting from "@/components/ProfileHosting";
+import { useIsLightTheme } from "@/hooks/use-is-light-theme";
 import {
   fetchMyDomains, claimDomain, verifyDomain, deleteDomain,
   dnsInstructionsFor,
@@ -308,6 +310,7 @@ function DomainCard({
 export default function CreatorDomainsPage() {
   usePageTitle("Creator Domains", "Connect a custom domain to your Bow Down Visuals creator site and storefront.");
   const { getAccessToken } = useAuth();
+  const isLight = useIsLightTheme();
   const [token, setToken] = useState<string | null>(null);
   const [domains, setDomains] = useState<CustomDomain[]>([]);
   const [freeSubdomain, setFreeSubdomain] = useState<string | null>(null);
@@ -426,6 +429,21 @@ export default function CreatorDomainsPage() {
               </button>
             </div>
           </div>
+
+          {/* The Hosting door docks at its gate: the claim above is
+              refused server-side for anyone without the Hosting plan
+              ("Your own custom domain rides the Hosting plan…
+              Pick up either one and this door opens" —
+              routes/domains.ts), so the plan's purchase door stands
+              HERE, where that sentence lands — the same ProfileHosting
+              card as /creator-pricing, reading /creator-hosting/me
+              live. A Free creator buys embedded on this page and the
+              claim unlocks; an entitled creator (own subscription or
+              Creator Elite) sees the active / Manage state instead —
+              the card never offers them a second sale, and the rail
+              409s one anyway. The page derives no entitlement itself;
+              the card owns every state. */}
+          <ProfileHosting isLight={isLight} />
 
           {/* Domain cards */}
           {domains.map((d) => (
