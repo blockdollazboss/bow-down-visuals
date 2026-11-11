@@ -80,33 +80,59 @@ export function skeetAccuracy(hits: number, shots: number): number {
 }
 
 /* ── Crownfall Run ───────────────────────────────────────────────────────
-   Top-down arena roguelike (the third house game). The King holds a
-   720×720 studio room against waves of Glitches, Spam Bots and Trolls;
-   THE USURPER waits every 5th floor. Clear the room and the golden
-   door opens to the next floor down. Score = depth × 100 + Bucs coins
-   × 25 + foes felled × 10 + combo bonus (a kill that lands within 3s
-   of the previous one extends the chain; the n-th chained kill adds
-   n − 1 bonus points). Coins are SCORE ONLY — no charge, no wager.
+   Top-down arena roguelike (the third house game). v2 (owner, Nov 10,
+   2026): BIGGER ROOMS with a following camera, a COIN PURSE + SHOP
+   economy, SIX GUNS, an explicit difficulty ramp, event rooms,
+   prestige — and fullscreen. The King holds a 1080×1080 studio room
+   (the canvas shows a 720×720 view of it) against waves of Glitches,
+   Spam Bots and Trolls; THE USURPER waits every 5th floor, harder
+   each cycle. Clear the room and the golden door opens to the next
+   floor down.
+
+   SCORE (unchanged shape, new coin meaning): score = depth × 100 +
+   coins × 25 + foes felled × 10 + combo bonus, where "coins" is now
+   the LEFTOVER PURSE at run end — coins picked up go into the purse
+   (HUD), the between-floor shop spends from it, and only what is
+   left converts at +25 per coin when the run ends. The combo is a
+   MULTIPLIER: kills chained within 3s of the previous one raise the
+   multiplier ×1→×5 (crownfallComboMult); each kill scores
+   10 × multiplier, the excess over 10 accruing as combo bonus — so
+   one kill can add at most 40 bonus points. Purse coins are
+   RUN-LOCAL: no charge, no wager, they never touch Visual Bucs.
+   Prestige scrip and the daily Royal Bounty live in a separate purse
+   bucket that is spendable in the shop but NEVER converts to score,
+   so prestige cannot inflate a submitted score.
+
    The server mirrors the pacing bounds in arcade-rules.ts: a floor
-   cannot be cleared in under 4s of play (weakest foe 20 HP vs 3.1
-   bolts/s at 10 damage, plus a ~555px entrance-to-door walk at
-   238 px/s), a floor holds at most 11 foes, and a floor yields at
-   most 5 placed coins + 2 dropped per foe. */
+   cannot be cleared in under 4s of play (the bigger room only makes
+   that bound more conservative), a floor holds at most 24 foes
+   (AMBUSH rooms included), and a floor yields at most 14 placed
+   coins (JACKPOT VAULT) + doubled elite drops of 2 per foe. */
 export const CROWNFALL = {
+  /* the canvas VIEW (logical px); the world is bigger — see below */
   width: 720,
   height: 720,
+  /* the room itself: 1080×1080 ≈ 2.25× the old room's area */
+  worldWidth: 1080,
+  worldHeight: 1080,
   wall: 30,
   depthPoints: 100,
   coinPoints: 25,
   killPoints: 10,
   comboWindowSec: 3,
+  comboMaxMult: 5,
   baseHp: 100,
   baseSpeed: 238,
   baseDamage: 10,
   baseFireRate: 3.1,
   baseMagnet: 74,
   dashCooldownSec: 2.2,
-  maxFoesPerFloor: 11,
+  /* hard spawn ceiling for ANY floor (ambush-inflated), boss summons
+     included — the number the server caps are derived from */
+  maxFoesPerFloor: 24,
+  /* placed coin pickups: normal floors 4–7, JACKPOT VAULT 8–14 */
+  placedCoinsMax: 7,
+  jackpotPlacedCoinsMax: 14,
 } as const;
 
 export function crownfallScore(
@@ -121,6 +147,132 @@ export function crownfallScore(
     kills * CROWNFALL.killPoints +
     comboBonus
   );
+}
+
+/* ── Crownfall difficulty ramp (owner: "each level should get harder
+   and harder") — the per-floor scaling table, shared by the game and
+   its tests so the curve can never drift between them:
+   - FOES: min(16, 3 + depth + ⌊depth/2⌋) regular spawns per floor
+     (AMBUSH event rooms multiply by 1.5, rounded up — hence the hard
+     ceiling of 24 in CROWNFALL.maxFoesPerFloor). Boss floors spawn
+     THE USURPER + 2 adds from floor 10, plus boss summons below.
+   - HP: ×(1 + 0.22 per floor past the first), as in v1.
+   - SPEED: ×(1 + 0.03 per floor), capped at ×1.35 — sustained foe
+     speed tops out at ~143 px/s, and even the Glitch Charger's
+     470 px/s charge stays far under the King's dash burst
+     (238 × 3.1 ≈ 738 px/s): the dash escape always works.
+   - CONTACT DAMAGE: base by foe + 2 per full 3 floors descended.
+   - ELITES: none before floor 3, then 22% + 4 points per floor,
+     capped at 50% (JACKPOT VAULT adds +15 points on top).
+   - UNLOCKS: Glitch Chargers join from floor 3, Spam Slingers
+     (ranged) from floor 4 — never earlier.
+   - BOSS CYCLES (cycle = ⌊depth/5⌋): HP 330 × (1 + 0.6 per cycle
+     past the first); cycle 2+ summons minion waves at ⅔ and ⅓ HP
+     (2 per wave, 3 per wave from cycle 4 — at most 6 extra foes);
+     cycle 3+ fires a 3-bolt spread instead of a single bolt;
+     cycle 4+ also moves 20% faster. The ramp assumes shop spending:
+     an unupgraded starter-gun run realistically ends around floors
+     4–6, while a well-shopped run pushes deep. The descent is
+     endless — the curve keeps rising until the run does. */
+export function crownfallFoesForFloor(depth: number): number {
+  return Math.min(16, 3 + depth + Math.floor(depth / 2));
+}
+export function crownfallHpScale(depth: number): number {
+  return 1 + (depth - 1) * 0.22;
+}
+export function crownfallSpeedScale(depth: number): number {
+  return 1 + Math.min(0.35, (depth - 1) * 0.03);
+}
+export function crownfallContactBonus(depth: number): number {
+  return 2 * Math.floor((depth - 1) / 3);
+}
+export function crownfallEliteChance(depth: number): number {
+  if (depth < 3) return 0;
+  return Math.min(0.5, 0.22 + 0.04 * (depth - 3));
+}
+export function crownfallBossCycle(depth: number): number {
+  return Math.floor(depth / 5);
+}
+export function crownfallBossHp(depth: number): number {
+  return 330 * (1 + (crownfallBossCycle(depth) - 1) * 0.6);
+}
+/* The combo multiplier for a chain of `combo` chained kills:
+   ×1 for chains 1–3, then +1 per 4 chain, capped at ×5 (chain 16+). */
+export function crownfallComboMult(combo: number): number {
+  if (combo <= 0) return 1;
+  return Math.min(CROWNFALL.comboMaxMult, 1 + Math.floor(combo / 4));
+}
+
+/* ── Crownfall guns (owner: "a bunch of guns") ─────────────────────────
+   Six guns, bought with purse coins in the between-floor shop (the
+   Royal Bolt Blaster is owned from floor 1, free). Prices scale with
+   power. Every gun keeps MANUAL AIM + held-input firing — switching
+   guns never adds auto-fire. How the stats compose (documented so
+   the shop copy can say it plainly): bolt damage = the King's damage
+   stat × dmgMul (damage upgrades and prestige multiply the stat);
+   fire interval = 1 / (fire-rate stat × rateMul); the Twin Bolts /
+   Triple Upload / Royal Pierce upgrades stack ON TOP of any gun's
+   own pattern (extra streams, a wider fan, +2 pierce). `range` is
+   how far a bolt flies before it dies (0 = until it hits a wall);
+   `splash` is the mortar shell's blast radius (full damage inside).
+   Elites have a 25% chance to drop a random unowned gun instead of
+   nothing extra; THE USURPER always drops one (while any remain
+   unowned). A dropped gun is claimed by walking over it, and equips
+   on claim. */
+export interface CrownfallGun {
+  id: string;
+  name: string;
+  desc: string;
+  price: number;
+  dmgMul: number;
+  rateMul: number;
+  boltSpeed: number;
+  boltR: number;
+  pierce: number; /* extra foes a bolt passes through; 999 = always */
+  splash: number;
+  range: number;
+  pattern: "single" | "twin" | "scatter";
+  tint: string; /* shop swatch + bolt tint */
+}
+export const CROWNFALL_GUNS: CrownfallGun[] = [
+  { id: "blaster", name: "Royal Bolt Blaster", desc: "The King's own sidearm. Honest golden bolts, no nonsense.", price: 0, dmgMul: 1, rateMul: 1, boltSpeed: 545, boltR: 5, pierce: 0, splash: 0, range: 0, pattern: "single", tint: "#f0c94f" },
+  { id: "twinfang", name: "Twin Fang", desc: "Two parallel bolts with every pull. Double the bite.", price: 30, dmgMul: 0.8, rateMul: 0.95, boltSpeed: 545, boltR: 5, pierce: 0, splash: 0, range: 0, pattern: "twin", tint: "#ffd97a" },
+  { id: "scatter", name: "Scatter Cannon", desc: "A five-bolt fan that owns close range — and only close range.", price: 45, dmgMul: 0.55, rateMul: 0.7, boltSpeed: 520, boltR: 5, pierce: 0, splash: 0, range: 300, pattern: "scatter", tint: "#ff9a3c" },
+  { id: "rapid", name: "Rapid Royal", desc: "A golden hose. Very fast fire, lighter bolts.", price: 55, dmgMul: 0.55, rateMul: 1.9, boltSpeed: 545, boltR: 4, pierce: 0, splash: 0, range: 0, pattern: "single", tint: "#fff3c4" },
+  { id: "rail", name: "Rail Lance", desc: "One piercing lance of light. Slow, huge, passes through everything.", price: 60, dmgMul: 2.6, rateMul: 0.45, boltSpeed: 900, boltR: 4, pierce: 999, splash: 0, range: 0, pattern: "single", tint: "#8ae2ff" },
+  { id: "mortar", name: "Crown Mortar", desc: "Slow heavy shells that burst over a whole pack. The room notices.", price: 90, dmgMul: 3.2, rateMul: 0.5, boltSpeed: 380, boltR: 9, pierce: 0, splash: 66, range: 0, pattern: "single", tint: "#ff6b5e" },
+];
+export function crownfallGun(id: string): CrownfallGun {
+  return CROWNFALL_GUNS.find((x) => x.id === id) ?? CROWNFALL_GUNS[0]!;
+}
+
+/* ── Crownfall shop prices (purse coins) ───────────────────────────────
+   Upgrades carry a base price that scales modestly with depth:
+   price = round(base × (1 + 0.05 × (depth − 1))) — +5% per floor
+   descended, so floor-10 prices are ~1.45× base. Guns are one-time
+   purchases at flat prices (the table above). A floor yields roughly
+   8–12 purse coins to a thorough clear (4–7 placed + drops), so a
+   cheap upgrade is in reach after floor 1 and a gun after 3–5 floors
+   of saving — or sooner with the daily Royal Bounty (+50 scrip).
+   Descending is ALWAYS free: the shop can never trap a broke King. */
+export const CROWNFALL_UPGRADE_PRICES: Record<string, number> = {
+  dash: 6,
+  speed: 7,
+  magnet: 7,
+  dmg: 8,
+  rapid: 8,
+  vit: 9,
+  dash2: 10,
+  magnet2: 11,
+  spread: 12,
+  pierce: 12,
+  twin: 14,
+  thorn: 15,
+  secondwind: 30,
+};
+export function crownfallUpgradePrice(id: string, depth: number): number {
+  const base = CROWNFALL_UPGRADE_PRICES[id] ?? 10;
+  return Math.round(base * (1 + 0.05 * Math.max(0, depth - 1)));
 }
 
 /* The studio's rooms, in descent order; deeper floors cycle the list
