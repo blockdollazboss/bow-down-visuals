@@ -1114,3 +1114,87 @@ export async function refundCredits(
     );
   }
 }
+
+/**
+ * Look up a landed charge by its idempotency key: the amount it
+ * actually charged and the pool it drew from (teamId null = personal).
+ * Composed flows use this to reverse a charge an earlier request made
+ * (photo-backdrop unwinding its Background Removal prep step) without
+ * guessing the amount from a price constant. Fail-open like
+ * findExistingCharge: any read failure returns null and the caller
+ * skips the reversal rather than inventing a number.
+ */
+export async function findChargeAmountByKey(
+  idempotencyKey: string,
+): Promise<{ creditsUsed: number; teamId: string | null } | null> {
+  if (!idempotencyKey) return null;
+  try {
+    const [row] = await db
+      .select({ creditsUsed: creditUsageTable.creditsUsed, teamId: creditUsageTable.teamId })
+      .from(creditUsageTable)
+      .where(eq(creditUsageTable.idempotencyKey, idempotencyKey))
+      .limit(1);
+    return row
+      ? { creditsUsed: row.creditsUsed, teamId: row.teamId ?? null }
+      : null;
+  } catch (err) {
+    logger.warn(
+      { idempotencyKey, err },
+      "[credits] charge-by-key lookup failed — reversal skipped (fail-open)",
+    );
+    return null;
+  }
+}
+
+/**
+ * Refund with the guarantee the charge-before rails owe the member.
+ *
+ * The CA-era idiom — refundCredits(...).then(void).catch(() => {}) —
+ * swallowed a failed refund whole: the charge stood, no log, no trace
+ * (the Nov 11 $0 probe caught exactly this: a Background Removal
+ * charge whose refund never landed and never said so). This helper is
+ * the non-swallowing form every charge-before failure path must use:
+ *
+ *  1. Attempt the refund (the ledger-traced refundCredits above).
+ *  2. On failure, log it loudly and retry EXACTLY once.
+ *  3. Void the charge's idempotency key ONLY when a refund landed —
+ *     an unrefunded key stays landed, so the member's retry is funded
+ *     by the charge that already stands instead of running free or
+ *     double-charging (the photo-backdrop rule, now universal).
+ *  4. If the retry also fails, log CRITICAL (manual reconciliation)
+ *     and return false so the caller can answer honestly instead of
+ *     claiming a refund that never happened.
+ *
+ * Returns true when the refund landed (and the key, when given, was
+ * voided or was already gone — voidChargeIdempotencyKey never throws
+ * and logs its own failures at CRITICAL).
+ */
+export async function refundCreditsGuaranteed(
+  userId: string,
+  amount: number,
+  record: ChargeLedgerRecord,
+  opts?: RefundCreditsOpts & { idempotencyKey?: string | null },
+): Promise<boolean> {
+  const idempotencyKey = opts?.idempotencyKey ?? null;
+  const refundOpts: RefundCreditsOpts | undefined =
+    opts?.split !== undefined ? { split: opts.split } : undefined;
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await refundCredits(userId, amount, record, refundOpts);
+      if (idempotencyKey) await voidChargeIdempotencyKey(idempotencyKey);
+      return true;
+    } catch (err) {
+      lastErr = err;
+      logger.error(
+        { userId, amount, action: record.action, attempt, err },
+        "[credits] refund attempt failed — the guaranteed path retries exactly once, loudly",
+      );
+    }
+  }
+  logger.error(
+    { userId, amount, action: record.action, err: lastErr },
+    "[credits] CRITICAL: refund failed after its one retry — the charge stands unreversed; manual reconciliation required",
+  );
+  return false;
+}

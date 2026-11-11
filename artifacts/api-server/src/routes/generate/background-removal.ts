@@ -9,10 +9,9 @@ import { randomUUID } from "crypto";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
-  refundCredits,
+  refundCreditsGuaranteed,
   OutOfCreditsError,
   buildChargeIdempotencyKey,
-  voidChargeIdempotencyKey,
 } from "../../lib/credits";
 import {
   findStoredGenerationResult,
@@ -175,18 +174,34 @@ router.post("/remove-background", requireAuth, async (req, res) => {
       storageRef,
       backgroundColor: bgColor,
       creditsRemaining: creditsAfter,
+      /* The key of the charge that paid for this cutout. Composed
+         flows (the photo-backdrop prep step) hand it back so a later
+         failure can unwind THIS charge exactly once; harmless on
+         replay, where the stored body carries the same key. */
+      prepChargeKey: idempotencyKey,
     };
     await storeGenerationResult("background-removal", idempotencyKey, req.userId!, resultBody);
     res.json(resultBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Background removal failed.";
     req.log.error({ err: message }, "[remove-background] failed");
-    // Refund on failure. CA-1: a landed refund VOIDS the key so the
-    // retry charges fresh.
-    await refundCredits(req.userId!, BG_REMOVAL_COST, {
+    /* Refund on failure — GUARANTEED, never swallowed. The CA-1 form
+       this replaces (refundCredits(...).then(void).catch(() => {}))
+       let a failed refund vanish silently: the Nov 11 $0 probe caught
+       a 200 VB charge whose refund never landed and never said so.
+       The guaranteed helper retries the refund exactly once, logs
+       loudly, voids the key only when the refund landed (so the retry
+       charges fresh), and reports honestly when it could not land. */
+    const refunded = await refundCreditsGuaranteed(req.userId!, BG_REMOVAL_COST, {
       action: "Background Removal — Refund",
-    }).then(() => voidChargeIdempotencyKey(idempotencyKey)).catch(() => {});
-    res.status(500).json({ error: message });
+    }, { idempotencyKey });
+    if (!refunded) {
+      req.log.error(
+        { userId: req.userId },
+        "[remove-background] CRITICAL: refund could not be landed after retry — charge stands, flagged for reconciliation",
+      );
+    }
+    res.status(500).json({ error: message, creditsRefunded: refunded });
   } finally {
     await unlink(inputPath).catch(() => {});
     await unlink(outputPath).catch(() => {});
