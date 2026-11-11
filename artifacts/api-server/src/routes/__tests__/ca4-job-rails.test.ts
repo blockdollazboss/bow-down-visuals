@@ -97,6 +97,22 @@ vi.mock("../../lib/credits", () => {
       h.refunds.push(amount);
       return h.balance;
     },
+    refundCreditsGuaranteed: async (_userId: string, amount: number, _meta: unknown, opts?: { idempotencyKey?: string | null }) => {
+      /* Faithful mirror of the real helper against this fake ledger:
+         refund, void only when the refund landed, exactly one retry. */
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          h.balance += amount;
+          h.refunds.push(amount);
+          if (opts?.idempotencyKey) {
+            h.voids.push(opts.idempotencyKey);
+            h.chargedKeys.delete(opts.idempotencyKey);
+          }
+          return true;
+        } catch { /* the real helper retries exactly once */ }
+      }
+      return false;
+    },
     voidChargeIdempotencyKey: async (key: string) => {
       h.voids.push(key);
       return h.chargedKeys.delete(key);

@@ -70,6 +70,18 @@ vi.mock("../../../lib/credits", () => {
     refundCredits: vi.fn(async () => {
       state.events.push("refund");
     }),
+    /* Charge-on-failure lane: beats now refunds through the
+       guaranteed helper — the fake's helper records the same
+       "refund" event (voiding only on a landed refund, one retry). */
+    refundCreditsGuaranteed: vi.fn(async (_userId: string, _amount: number, _rec: unknown, opts?: { idempotencyKey?: string | null }) => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          state.events.push("refund");
+          return true;
+        } catch { /* the real helper retries exactly once */ }
+      }
+      return false;
+    }),
   };
 });
 

@@ -34,18 +34,36 @@ vi.mock("../../middlewares/require-auth", () => ({
   },
 }));
 
-vi.mock("../../lib/credits", () => ({
+vi.mock("../../lib/credits", () => {
+  const refundSpy = vi.fn(async (_userId: string, _amount: number, _rec: unknown) => undefined);
+  const voidImpl = async (_key: string) => true;
+  return {
   /* CA-6: the rails now derive charge idempotency keys — deterministic
      test double mirroring the fake-ledger shape used across the CA suites. */
   buildChargeIdempotencyKey: (scope: string, userId: string, clientKey: unknown, intent: unknown) =>
     typeof clientKey === "string" && clientKey.trim().length >= 8
       ? `${scope}:${userId}:client:${clientKey.trim()}`
       : `${scope}:${userId}:${JSON.stringify(intent)}`,
-  voidChargeIdempotencyKey: async (_key: string) => true,
+  voidChargeIdempotencyKey: voidImpl,
   chargeCredits: vi.fn(async () => 9750),
-  refundCredits: vi.fn(async () => undefined),
+  refundCredits: refundSpy,
+  /* Charge-on-failure lane: the rail now refunds through the
+     guaranteed helper — the fake's helper delegates through the same
+     refund spy (voiding only on a landed refund, one retry), so the
+     call assertions below keep their exact meaning. */
+  refundCreditsGuaranteed: vi.fn(async (userId: string, amount: number, rec: unknown, opts?: { idempotencyKey?: string | null }) => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await refundSpy(userId, amount, rec);
+        if (opts?.idempotencyKey) await voidImpl(opts.idempotencyKey);
+        return true;
+      } catch { /* the real helper retries exactly once */ }
+    }
+    return false;
+  }),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
-}));
+  };
+});
 
 vi.mock("../../lib/objectStorage", () => ({
   uploadMediaToSupabaseStorage: vi.fn(async (name: string) => `supabase://generated-clips/${name}`),

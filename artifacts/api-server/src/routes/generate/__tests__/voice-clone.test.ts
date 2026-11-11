@@ -62,6 +62,18 @@ vi.mock("../../../lib/credits", () => ({
   refundCredits: vi.fn(async (userId: string, amount: number, opts: unknown) => {
     h.refundCalls.push({ userId, amount, opts });
   }),
+  /* Charge-on-failure lane: the rail now refunds through the
+     guaranteed helper — the fake's helper records the same
+     refundCalls entry the refund spy records (one retry). */
+  refundCreditsGuaranteed: vi.fn(async (userId: string, amount: number, opts: unknown) => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        h.refundCalls.push({ userId, amount, opts });
+        return true;
+      } catch { /* the real helper retries exactly once */ }
+    }
+    return false;
+  }),
 }));
   /* join16: NOTE — no durable stored-results fake for this suite:
      the guard's fail-open real helper answers null against the

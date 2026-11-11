@@ -27,13 +27,27 @@ vi.mock("../../middlewares/require-auth", () => ({
   },
 }));
 
-vi.mock("../../lib/credits", () => ({
+vi.mock("../../lib/credits", () => {
+  const refundSpy = vi.fn(async (_u: string, amount: number, meta: any) => {
+    h.refunds.push({ amount, action: meta?.action });
+  });
+  return {
   chargeCredits: vi.fn(async (_u: string, amount: number, meta: any) => {
     h.charges.push({ amount, idempotencyKey: meta?.idempotencyKey });
     return 4242;
   }),
-  refundCredits: vi.fn(async (_u: string, amount: number, meta: any) => {
-    h.refunds.push({ amount, action: meta?.action });
+  refundCredits: refundSpy,
+  /* Charge-on-failure lane: hook-studio now refunds through the
+     guaranteed helper — the fake's helper delegates through the same
+     refund spy so the h.refunds assertions keep their meaning. */
+  refundCreditsGuaranteed: vi.fn(async (u: string, amount: number, meta: any, opts?: { idempotencyKey?: string | null }) => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await refundSpy(u, amount, meta);
+        return true;
+      } catch { /* the real helper retries exactly once */ }
+    }
+    return false;
   }),
   buildChargeIdempotencyKey: (
     scope: string,
@@ -47,7 +61,8 @@ vi.mock("../../lib/credits", () => ({
   voidChargeIdempotencyKey: vi.fn(async () => {}),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
-}));
+  };
+});
 
 vi.mock("../../lib/ai-clients", () => ({
   getOpenAI: () => ({

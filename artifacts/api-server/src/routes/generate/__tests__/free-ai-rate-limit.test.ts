@@ -224,6 +224,14 @@ vi.mock("../../../lib/credits", () => {
       creditState.balance += amount;
       creditState.refunds.push({ userId, amount, action: record.action });
     },
+    /* Charge-on-failure lane: ai-edit-plan's refund closure now runs
+       through the guaranteed helper — mirror it against creditState
+       (the closure passes no key, so no void is involved). */
+    refundCreditsGuaranteed: async (userId: string, amount: number, record: { action: string }) => {
+      creditState.balance += amount;
+      creditState.refunds.push({ userId, amount, action: record.action });
+      return true;
+    },
   };
 });
 

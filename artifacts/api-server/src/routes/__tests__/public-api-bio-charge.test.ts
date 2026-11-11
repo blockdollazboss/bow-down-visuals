@@ -14,7 +14,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdempotencyKey, OutOfCreditsError, CreditsDisabledError } = vi.hoisted(() => {
+const { chargeCredits, refundCredits, refundCreditsGuaranteed, buildChargeIdempotencyKey, voidChargeIdempotencyKey, OutOfCreditsError, CreditsDisabledError } = vi.hoisted(() => {
   class OutOfCreditsError extends Error {
     readonly status = 402;
     constructor() { super("out_of_credits"); this.name = "OutOfCreditsError"; }
@@ -23,14 +23,30 @@ const { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdemp
     readonly status = 403;
     constructor() { super("credits_disabled"); this.name = "CreditsDisabledError"; }
   }
+  const refundSpy = vi.fn(async () => {});
+  const voidSpy = vi.fn(async () => true);
   return {
     chargeCredits: vi.fn(),
-    refundCredits: vi.fn(async () => {}),
+    refundCredits: refundSpy,
+    /* Charge-on-failure lane: the bio rail now refunds through the
+       guaranteed helper — the hoisted fake delegates through the same
+       refund/void spies (voiding only on a landed refund, one retry),
+       so the call assertions below keep their exact meaning. */
+    refundCreditsGuaranteed: vi.fn(async (userId: string, amount: number, rec: unknown, opts?: { idempotencyKey?: string | null }) => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          await (refundSpy as any)(userId, amount, rec);
+          if (opts?.idempotencyKey) await (voidSpy as any)(opts.idempotencyKey);
+          return true;
+        } catch { /* the real helper retries exactly once */ }
+      }
+      return false;
+    }),
     buildChargeIdempotencyKey: vi.fn(
       (scope: string, userId: string, _clientKey: unknown, intent: unknown) =>
         `${scope}:${userId}:${JSON.stringify(intent)}`,
     ),
-    voidChargeIdempotencyKey: vi.fn(async () => true),
+    voidChargeIdempotencyKey: voidSpy,
     OutOfCreditsError,
     CreditsDisabledError,
   };
@@ -39,6 +55,7 @@ const { chargeCredits, refundCredits, buildChargeIdempotencyKey, voidChargeIdemp
 vi.mock("../../lib/credits", () => ({
   chargeCredits: (...args: unknown[]) => chargeCredits(...args),
   refundCredits: (...args: unknown[]) => refundCredits(...args),
+  refundCreditsGuaranteed: (...args: unknown[]) => refundCreditsGuaranteed(...args),
   buildChargeIdempotencyKey: (...args: unknown[]) => buildChargeIdempotencyKey(...args),
   voidChargeIdempotencyKey: (...args: unknown[]) => voidChargeIdempotencyKey(...args),
   OutOfCreditsError,

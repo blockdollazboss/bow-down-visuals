@@ -56,6 +56,18 @@ vi.mock("../credits", () => {
     getCreditBalance: async (_userId: string) => state.balance,
     chargeCredits: (...a: unknown[]) => state.chargeCredits(...a),
     refundCredits: (...a: unknown[]) => state.refundCredits(...a),
+    /* Charge-on-failure lane: the bio rail now refunds through the
+       guaranteed helper — mirror its contract against the state fake
+       (refund, exactly one retry; this fake's void is inert). */
+    refundCreditsGuaranteed: async (userId: string, amount: number, rec: unknown) => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          await state.refundCredits(userId, amount, rec);
+          return true;
+        } catch { /* the real helper retries exactly once */ }
+      }
+      return false;
+    },
     buildChargeIdempotencyKey: () => "test-key",
     voidChargeIdempotencyKey: async () => true,
   };

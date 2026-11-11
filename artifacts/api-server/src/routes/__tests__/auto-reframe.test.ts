@@ -34,15 +34,33 @@ vi.mock("../../middlewares/require-auth", () => ({
   },
 }));
 
-vi.mock("../../lib/credits", () => ({
+vi.mock("../../lib/credits", () => {
+  const refundSpy = vi.fn(async (_userId: string, _amount: number, _rec: unknown) => undefined);
+  const voidSpy = vi.fn(async (_key: string) => true);
+  return {
   chargeCredits: vi.fn(async () => 9800),
-  refundCredits: vi.fn(async () => undefined),
+  refundCredits: refundSpy,
+  /* Charge-on-failure lane: the rail now refunds through the
+     guaranteed helper — the fake's helper delegates through the same
+     refund/void spies (voiding only on a landed refund, one retry),
+     so the call assertions below keep their exact meaning. */
+  refundCreditsGuaranteed: vi.fn(async (userId: string, amount: number, rec: unknown, opts?: { idempotencyKey?: string | null }) => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await refundSpy(userId, amount, rec);
+        if (opts?.idempotencyKey) await voidSpy(opts.idempotencyKey);
+        return true;
+      } catch { /* the real helper retries exactly once */ }
+    }
+    return false;
+  }),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   /* CA-1: auto-reframe derives a key per charge and voids it on the
      refund path — inert stubs keep this suite on its own harness. */
   buildChargeIdempotencyKey: (scope: string, userId: string) => `${scope}:${userId}:test-key`,
-  voidChargeIdempotencyKey: vi.fn(async () => true),
-}));
+  voidChargeIdempotencyKey: voidSpy,
+  };
+});
 
 vi.mock("../../lib/objectStorage", () => ({
   uploadMediaToSupabaseStorage: vi.fn(async () => "reframe/test/out.mp4"),

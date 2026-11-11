@@ -45,6 +45,21 @@ vi.mock("../../../lib/credits", async (importOriginal) => {
       h.balance += cost;
       h.refunds.push({ cost, action: rec.action });
     }),
+    /* Charge-on-failure lane: the rail now refunds through the
+       guaranteed helper — this override delegates to the fake refund
+       above (and the real fail-open void), mirroring the real
+       helper's contract against this suite's ledger. */
+    refundCreditsGuaranteed: vi.fn(async (userId: string, cost: number, rec: { action: string }, opts?: { idempotencyKey?: string | null }) => {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          h.balance += cost;
+          h.refunds.push({ cost, action: rec.action });
+          if (opts?.idempotencyKey) await actual.voidChargeIdempotencyKey(opts.idempotencyKey);
+          return true;
+        } catch { /* the real helper retries exactly once */ }
+      }
+      return false;
+    }),
   };
 });
 

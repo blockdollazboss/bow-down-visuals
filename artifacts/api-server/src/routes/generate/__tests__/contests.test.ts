@@ -275,7 +275,15 @@ vi.mock("../../../middlewares/require-auth", () => ({
   },
 }));
 
-vi.mock("../../../lib/credits", () => ({
+vi.mock("../../../lib/credits", () => {
+  const refundSpy = vi.fn(async () => {
+    routeState.refunded.push(100);
+  });
+  const voidSpy = vi.fn(async (key: string) => {
+    routeState.voids.push(key);
+    return routeState.chargedKeys.delete(key);
+  });
+  return {
   /* Key-aware (CA-2): a charge under an already-landed key is
      suppressed by the ledger — it returns the balance without
      recording a second charge, mirroring chargeCredits' real
@@ -307,16 +315,26 @@ vi.mock("../../../lib/credits", () => ({
       return routeState.credits - 100;
     },
   ),
-  refundCredits: vi.fn(async () => {
-    routeState.refunded.push(100);
+  refundCredits: refundSpy,
+  /* Charge-on-failure lane: the rail now refunds through the
+     guaranteed helper — the fake's helper delegates through the same
+     refund/void spies (voiding only on a landed refund, one retry),
+     so the assertions below keep their exact meaning. */
+  refundCreditsGuaranteed: vi.fn(async (_userId: string, amount: number, _rec: unknown, opts?: { idempotencyKey?: string | null }) => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await refundSpy();
+        if (opts?.idempotencyKey) await voidSpy(opts.idempotencyKey);
+        return true;
+      } catch { /* the real helper retries exactly once */ }
+    }
+    return false;
   }),
-  voidChargeIdempotencyKey: vi.fn(async (key: string) => {
-    routeState.voids.push(key);
-    return routeState.chargedKeys.delete(key);
-  }),
+  voidChargeIdempotencyKey: voidSpy,
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
-}));
+  };
+});
 
 /* The durable stored-result layer (migration 0333), faked in-memory:
    the lib itself is proven against a fake db in

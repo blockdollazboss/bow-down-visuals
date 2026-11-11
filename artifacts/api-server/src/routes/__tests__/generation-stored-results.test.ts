@@ -101,6 +101,22 @@ vi.mock("../../lib/credits", () => {
       h.refunds.push(amount);
       return h.balance;
     },
+    refundCreditsGuaranteed: async (_userId: string, amount: number, _meta: unknown, opts?: { idempotencyKey?: string | null }) => {
+      /* Faithful mirror of the real helper against this fake ledger:
+         refund, void only when the refund landed, exactly one retry. */
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          h.balance += amount;
+          h.refunds.push(amount);
+          if (opts?.idempotencyKey) {
+            h.voids.push(opts.idempotencyKey);
+            h.chargedKeys.delete(opts.idempotencyKey);
+          }
+          return true;
+        } catch { /* the real helper retries exactly once */ }
+      }
+      return false;
+    },
     voidChargeIdempotencyKey: async (key: string) => {
       h.voids.push(key);
       return h.chargedKeys.delete(key);
@@ -335,7 +351,13 @@ describe("thumbnail-generator — durable stored results (0333)", () => {
     h.thumbMode = "throw";
     const failed = await post("/thumbnail-generator", body);
     expect(failed.status).toBe(500);
-    expect(h.thumbProfileRefunds).toBe(200);
+    /* Charge-on-failure lane: the refund is now the LEDGER refund
+       (refundCreditsGuaranteed) — the profile-only credit this pin
+       used to count (thumbProfileRefunds, via addCreditsToProfile
+       with no ledger row) was the Nov 11 probe defect and must
+       stay at zero. */
+    expect(h.refunds).toEqual([200]);
+    expect(h.thumbProfileRefunds).toBe(0);
     expect(h.voids).toHaveLength(1);
     expect(h.voids[0]).toMatch(/^thumbnail-generator:user-1:/);
     expect(h.stored.size).toBe(0); // failures never persist a row
