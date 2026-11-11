@@ -8789,7 +8789,9 @@
     "voiceRequiredError": "اختر صوتاً أولاً.",
     "voiceTitle": "الصوت",
     "voiceoverFallback": "تعليق صوتي",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "تعذّر تحميل الأصوات — تحقق من اتصالك وحدّث الصفحة.",
+    "voicesRetry": "Try again",
     "wavNote": "WAV بلا ضياع — أفضل للمزج تحت الفيديو.",
     "wordCount": "{{count}} كلمة"
   },

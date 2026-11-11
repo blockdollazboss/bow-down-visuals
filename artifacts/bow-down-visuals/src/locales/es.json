@@ -8750,7 +8750,9 @@
     "voiceRequiredError": "Primero elige una voz.",
     "voiceTitle": "Voz",
     "voiceoverFallback": "Voz en off",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "No se pudieron cargar las voces — revisa tu conexión y recarga.",
+    "voicesRetry": "Try again",
     "wavNote": "WAV es sin pérdida — mejor para mezclar bajo video.",
     "wordCount": "{{count}} palabras"
   },

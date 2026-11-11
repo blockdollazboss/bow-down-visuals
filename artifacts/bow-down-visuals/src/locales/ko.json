@@ -8737,7 +8737,9 @@
     "voiceRequiredError": "먼저 보이스를 선택하세요.",
     "voiceTitle": "보이스",
     "voiceoverFallback": "보이스오버",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "보이스를 불러오지 못했습니다 — 연결을 확인하고 새로고침하세요.",
+    "voicesRetry": "Try again",
     "wavNote": "WAV는 무손실입니다 — 영상 믹싱에 더 좋습니다.",
     "wordCount": "{{count}}단어"
   },

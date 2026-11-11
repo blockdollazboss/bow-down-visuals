@@ -8737,7 +8737,9 @@
     "voiceRequiredError": "पहले एक वॉयस चुनें।",
     "voiceTitle": "वॉयस",
     "voiceoverFallback": "वॉयसओवर",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "वॉयस लोड नहीं हो सकीं — अपना कनेक्शन जांचें और रिफ्रेश करें।",
+    "voicesRetry": "Try again",
     "wavNote": "WAV लॉसलेस है — वीडियो के नीचे मिक्सिंग के लिए बेहतर।",
     "wordCount": "{{count}} शब्द"
   },

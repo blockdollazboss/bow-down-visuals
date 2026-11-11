@@ -9042,7 +9042,9 @@
     "voiceRequiredError": "Choisis d'abord une voix.",
     "voiceTitle": "Voix",
     "voiceoverFallback": "Voix off",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "Impossible de charger les voix — vérifie ta connexion et actualise.",
+    "voicesRetry": "Try again",
     "wavNote": "Le WAV est sans perte — mieux pour mixer sous la vidéo.",
     "wordCount": "{{count}} mots"
   },

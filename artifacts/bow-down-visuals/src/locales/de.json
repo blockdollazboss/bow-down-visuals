@@ -8737,7 +8737,9 @@
     "voiceRequiredError": "Wähl zuerst eine Stimme.",
     "voiceTitle": "Stimme",
     "voiceoverFallback": "Voiceover",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "Stimmen konnten nicht geladen werden — prüf deine Verbindung und lade neu.",
+    "voicesRetry": "Try again",
     "wavNote": "WAV ist verlustfrei — besser zum Mischen unter Video.",
     "wordCount": "{{count}} Wörter"
   },

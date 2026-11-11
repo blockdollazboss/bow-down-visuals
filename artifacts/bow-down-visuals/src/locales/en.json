@@ -9230,7 +9230,9 @@
     "voiceRequiredError": "Pick a voice first.",
     "voiceTitle": "Voice",
     "voiceoverFallback": "Voiceover",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "Couldn't load voices — check your connection and refresh.",
+    "voicesRetry": "Try again",
     "wavNote": "WAV is lossless — better for mixing under video.",
     "wordCount": "{{count}} words"
   },

@@ -8736,7 +8736,9 @@
     "voiceRequiredError": "先に音声を選んでください。",
     "voiceTitle": "音声",
     "voiceoverFallback": "ナレーション",
+    "voicesEmpty": "No voices are available right now.",
     "voicesLoadFailed": "音声を読み込めませんでした — 接続を確認して更新してください。",
+    "voicesRetry": "Try again",
     "wavNote": "WAVはロスレス — 動画へのミックスに最適です。",
     "wordCount": "{{count}}語"
   },
