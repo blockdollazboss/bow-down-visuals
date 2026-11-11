@@ -1428,6 +1428,17 @@ const FEATURE_PRICE_LINKS = [
     endpoint: "/api/generate-product-photo",
     attachToFeatureIds: ["tab-branding-shop"],
   },
+  /* A-07 (owner ruling 2026-11-11): the lifestyle form of the same
+     rail is now its own registry row, so it attaches to the same
+     shop tab and the operator quotes the ratified 150 from the
+     registry — the stems?mode=instrumental variant-link precedent
+     above. The World Photo Desk keeps its priceVariants entry: the
+     desk's variant is still extracted from the rail's own
+     LIFESTYLE_CREDITS constant. */
+  {
+    endpoint: "/api/generate-product-photo?shotType=lifestyle",
+    attachToFeatureIds: ["tab-branding-shop"],
+  },
   {
     endpoint: "/api/wave8/merch-drop/plan",
     attachToFeatureIds: ["tab-branding-shop"],
@@ -2328,9 +2339,13 @@ const DOCKED_FEATURES = [
        upload door, prices from CREDIT_COSTS. The product-photo
        rail's lifestyle form rides priceVariants: the rail
        charges it from its own LIFESTYLE_CREDITS constant (150,
-       owner-ratified Nov 7, 2026) while the registry records
-       the endpoint's packshot base (100) — the wallpapers-desk
-       variant precedent. */
+       owner-ratified Nov 7, 2026), extracted here against the
+       registry's packshot base (100) — the wallpapers-desk
+       variant precedent. (Since A-07, owner ruling 2026-11-11,
+       the registry ALSO records the lifestyle form as its own
+       row, carried by the Branding Shop tab via
+       FEATURE_PRICE_LINKS; this desk's variant extraction is
+       unchanged.) */
     id: "photo-desk",
     name: { text: "Photo Desk" },
     path: "/world",

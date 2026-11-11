@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "8386a784e9272fe1ac7657407c68651e80b1aefc",
+  "baseCommit": "6e624b9dff1e598d7aa25c7e15dd497c9c456fa2",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -5467,6 +5467,7 @@
         "/api/generate-logo",
         "/api/generate-logo/:param",
         "/api/generate-product-photo",
+        "/api/generate-product-photo?shotType=lifestyle",
         "/api/generate-runway-clip",
         "/api/generate-runway-clip/:param",
         "/api/jewelry/consult",
@@ -5517,6 +5518,12 @@
           "feature": "Product Photo (Packshot)",
           "vb": 100,
           "endpoint": "/api/generate-product-photo",
+          "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
+        },
+        {
+          "feature": "Product Photo (Lifestyle)",
+          "vb": 150,
+          "endpoint": "/api/generate-product-photo?shotType=lifestyle",
           "source": "artifacts/bow-down-visuals/src/lib/credit-costs.ts CREDIT_COSTS"
         },
         {
