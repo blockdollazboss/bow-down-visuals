@@ -171,6 +171,16 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // Photo tool prices RATIFIED as-is — owner ruling 2026-11-07 (headshot, product photo packshot + lifestyle, photo enhance, photo backdrop).
   "/api/generate-headshot": { cost: 100, feature: "Headshot" },
   "/api/generate-product-photo": { cost: 100, feature: "Product Photo (Packshot)" },
+  // Lifestyle variant of the same rail: when shotType is "lifestyle"
+  // the rail charges 150 (its own LIFESTYLE_CREDITS, RATIFIED as-is —
+  // owner ruling 2026-11-07). Recorded as its own explicit row
+  // (A-07 — owner ruling 2026-11-11: keep 150 and lock it into the
+  // central list) so the ratified lifestyle price can never be
+  // silently pulled down to the 100 packshot base by a reader of
+  // this registry. Callers that know the shot type read this row via
+  // getCreditCost("/api/generate-product-photo?shotType=lifestyle"),
+  // the stems?mode=instrumental variant-key precedent.
+  "/api/generate-product-photo?shotType=lifestyle": { cost: 150, feature: "Product Photo (Lifestyle)" },
   "/api/photo-enhance": { cost: 100, feature: "Photo Enhance" },
   // PLACEHOLDER price — the user must approve the real price before this goes live.
   "/api/remove-background": { cost: 200, feature: "Background Removal" },
