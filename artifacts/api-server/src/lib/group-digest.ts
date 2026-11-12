@@ -57,7 +57,7 @@ import {
   type GroupDigestFrequency,
 } from "@workspace/db";
 import { logger } from "./logger";
-import { emailButton, emailShell, EMAIL_COLORS, isEmailConfigured, sendEmail, type SendEmailResult, type EmailTheme } from "./email";
+import { emailButton, emailShell, EMAIL_THEME_COLORS, isEmailConfigured, sendEmail, type SendEmailResult, type EmailTheme } from "./email";
 import { resolveEmailThemeForRecipient } from "./email-theme-rotation";
 import { getSupabaseAdmin } from "./supabase-admin";
 
@@ -443,7 +443,7 @@ export function buildDigestEmailHtml(title: string, body: string, link: string, 
     escapeHtml(title),
     `<p style="margin:0 0 16px;">${escapeHtml(body)}</p>
 ${emailButton(`${base}${escapeHtml(link)}`, "Open the group")}
-<p style="color:${EMAIL_COLORS.muted};font-size:12px;margin-top:20px;">You get this because group digest emails are on in your Bow Down Visuals settings. Turn them off any time in Settings → Group digests.</p>`,
+<p style="color:${EMAIL_THEME_COLORS[theme ?? "light"].muted};font-size:12px;margin-top:20px;">You get this because group digest emails are on in your Bow Down Visuals settings. Turn them off any time in Settings → Group digests.</p>`,
     { theme },
   );
 }

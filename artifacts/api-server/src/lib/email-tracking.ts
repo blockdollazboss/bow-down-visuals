@@ -32,7 +32,7 @@ import {
   emailEngagementEventsTable,
   emailSubscribersTable,
 } from "@workspace/db";
-import { baseUrlForEmail, emailShell, EMAIL_COLORS, escapeHtml, type EmailTheme } from "./email";
+import { baseUrlForEmail, emailShell, EMAIL_THEME_COLORS, escapeHtml, type EmailTheme } from "./email";
 import { logger } from "./logger";
 
 type EngagementKind = "open" | "click" | "bounce" | "complaint";
@@ -149,6 +149,9 @@ interface TrackedHtmlOpts {
  * background: invisible in a light inbox.)
  */
 export function renderTrackedCampaignHtml(opts: TrackedHtmlOpts): string {
+  /* Links and small print sit directly on the panel — the shell's
+     themed tokens, AA-legible in both sends. */
+  const t = EMAIL_THEME_COLORS[opts.theme ?? "light"];
   const base = (opts.baseUrl ?? baseUrlForEmail()).replace(/\/$/, "");
   const escaped = escapeHtml(opts.body);
   const linked = escaped.replace(URL_RE, (raw) => {
@@ -158,7 +161,7 @@ export function renderTrackedCampaignHtml(opts: TrackedHtmlOpts): string {
        so look up the unescaped form as well (& → &amp;). */
     const wrapped = opts.wrappedLinks.get(url.replace(/&amp;/g, "&")) ?? opts.wrappedLinks.get(url);
     if (!wrapped) return raw;
-    return `<a href="${escapeHtml(wrapped)}" style="color:${EMAIL_COLORS.goldDeep};">${url}</a>${tail}`;
+    return `<a href="${escapeHtml(wrapped)}" style="color:${t.goldText};">${url}</a>${tail}`;
   });
   const paragraphs = linked
     .split(/\n{2,}/)
@@ -167,9 +170,9 @@ export function renderTrackedCampaignHtml(opts: TrackedHtmlOpts): string {
   const unsubUrl = `${base}/api/email-track/u/${opts.deliveryToken}`;
   const pixelUrl = `${base}/api/email-track/o/${opts.deliveryToken}.gif`;
   const footer =
-    `<div style="margin-top:28px;padding-top:16px;border-top:1px solid ${EMAIL_COLORS.cardBorder};font-size:12px;color:${EMAIL_COLORS.muted};line-height:1.5;">` +
+    `<div style="margin-top:28px;padding-top:16px;border-top:1px solid ${EMAIL_THEME_COLORS.goldHairline};font-size:12px;color:${t.muted};line-height:1.5;">` +
     `You're getting this because you subscribed to this creator's email list on Bow Down Visuals. ` +
-    `<a href="${unsubUrl}" style="color:${EMAIL_COLORS.goldDeep};">Unsubscribe in one click</a> — you'll never be emailed again. ` +
+    `<a href="${unsubUrl}" style="color:${t.goldText};">Unsubscribe in one click</a> — you'll never be emailed again. ` +
     `Opens and link clicks on this email are tracked so the creator can see what lands.` +
     `</div>`;
   const pixel = `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`;

@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import {
   db as defaultDb,
 } from "@workspace/db";
-import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, type EmailTheme, EMAIL_COLORS } from "./email";
+import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, type EmailTheme, EMAIL_THEME_COLORS } from "./email";
 import { resolveEmailThemeForRecipient } from "./email-theme-rotation";
 import { logger } from "./logger";
 import { isUndefinedTable, pgErrorText } from "./pg-errors";
@@ -368,7 +368,7 @@ export function buildRestockEmail(
     `${title} is back`,
     `<p><strong>${title}</strong> by ${creator} sold out — and you asked to be told when it came back. It's back.</p>
 ${emailButton(productUrl, "Get it while it lasts")}
-<p style="color:${EMAIL_COLORS.muted};font-size:13px;">Stock is limited, and this alert went to everyone who was waiting — when it's gone, it's gone. You got this email because you're on ${creator}'s email list and tapped "tell me when it's back" on Bow Down Visuals.</p>`,
+<p style="color:${EMAIL_THEME_COLORS[theme ?? "light"].muted};font-size:13px;">Stock is limited, and this alert went to everyone who was waiting — when it's gone, it's gone. You got this email because you're on ${creator}'s email list and tapped "tell me when it's back" on Bow Down Visuals.</p>`,
     { theme },
   );
   const text = [

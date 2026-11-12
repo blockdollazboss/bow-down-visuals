@@ -80,7 +80,7 @@ import {
   baseUrlForEmail,
   type SendEmailResult,
   type EmailTheme,
-  EMAIL_COLORS,
+  EMAIL_THEME_COLORS,
 } from "./email";
 import { resolveEmailThemeForRecipient } from "./email-theme-rotation";
 import { logger } from "./logger";
@@ -198,6 +198,10 @@ export function listUnsubscribeHeaders(unsubscribeUrl: string): Record<string, s
 /** Plain-text body → branded HTML: escaped paragraphs + unsubscribe footer.
  *  `theme` is the recipient's rotation theme (company-theme pair). */
 export function buildEmailHtml(subject: string, bodyText: string, unsubscribeUrl: string, theme?: EmailTheme): string {
+  /* Small print sits directly on the panel — the shell's themed
+     tokens, so it stays AA-legible in the dark send too (the
+     light-surface EMAIL_COLORS accents are box-only tokens). */
+  const t = EMAIL_THEME_COLORS[theme ?? "light"];
   const paragraphs = bodyText
     .split(/\n\s*\n/)
     .map((p) => p.trim())
@@ -208,8 +212,8 @@ export function buildEmailHtml(subject: string, bodyText: string, unsubscribeUrl
     )
     .join("");
   const footer =
-    `<p style="margin:20px 0 0;font-size:12px;color:${EMAIL_COLORS.muted};">` +
-    `Don't want these emails? <a href="${unsubscribeUrl}" style="color:${EMAIL_COLORS.goldDeep};">Unsubscribe</a>` +
+    `<p style="margin:20px 0 0;font-size:12px;color:${t.muted};">` +
+    `Don't want these emails? <a href="${unsubscribeUrl}" style="color:${t.goldText};">Unsubscribe</a>` +
     `</p>`;
   return emailShell(subject, paragraphs + footer, { theme });
 }
