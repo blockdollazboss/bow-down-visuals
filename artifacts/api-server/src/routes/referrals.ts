@@ -370,8 +370,19 @@ router.post("/referrals/apply", requireAuth, async (req, res) => {
       total_referrer_earned: 0,
     });
     if (insertError) {
-      // Race: someone else already recorded this referee
-      res.status(400).json({ error: "You've already used a referral code." });
+      /* A failed insert is a SERVER failure (e.g. schema drift in the
+         store), never a user error: the already-used case is adjudicated
+         by the referee-row select above, so reaching this branch means
+         the row was NOT recorded. Log the real error — swallowing it
+         behind the "already used" 400 hid a broken rung-2/3 insert for
+         two weeks (Nov 11 2026 referral diagnosis) — and answer an
+         honest 500. The FE keeps the stored code on a 5xx, so a later
+         session retries and gets a truthful answer. */
+      logger.error(
+        { err: insertError, userId, code: normalized },
+        "referrals/apply: referrals insert failed",
+      );
+      res.status(500).json({ error: "Failed to apply referral code." });
       return;
     }
 

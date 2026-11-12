@@ -48,6 +48,7 @@ const h = vi.hoisted(() => ({
     payCalls: [] as Array<{ userId: string; amount: number }>,
     ledger: [] as Array<{ userId: string; action: string; creditsUsed: number; idempotencyKey?: string | null }>,
     ledgerFails: false,
+    insertFails: false,
     seq: 0,
   },
 }));
@@ -152,6 +153,14 @@ function makeFakeSupabase() {
       return {
         select: (_cols?: string, _opts?: unknown) => selectChain(rows),
         insert: (vals: Row) => {
+          /* Simulated store failure (Nov 11 2026 staging): the referrals
+             table is missing a rung-2/3 column, so EVERY insert dies with
+             a column error before any constraint is evaluated. */
+          if (table === "referrals" && s.insertFails) {
+            return Promise.resolve({
+              error: { code: "42703", message: 'column "welcome_status" of relation "referrals" does not exist' },
+            });
+          }
           // Emulate the UNIQUE constraints the money claims rest on.
           if (table === "referrals" && rows.some((r) => r["referee_user_id"] === vals["referee_user_id"])) {
             return Promise.resolve({ error: { code: "23505", message: "duplicate key: referrals_referee" } });
@@ -218,6 +227,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
 
 import referralsRouter, { awardReferralPayout } from "../referrals";
 import { maybeGrantPendingReferralWelcome } from "../../lib/referral-welcome";
+import { logger } from "../../lib/logger";
 
 let server: Server;
 let base = "";
@@ -253,6 +263,7 @@ beforeEach(() => {
   s.payCalls = [];
   s.ledger = [];
   s.ledgerFails = false;
+  s.insertFails = false;
   s.seq = 0;
   // The fake's table map captured the arrays at factory time; rebind by
   // replacing contents in place instead of reassigning.
@@ -462,5 +473,78 @@ describe("ledger failure → rollback + claim release (retryable, never silently
     expect(second).toBe(250);
     expect(h.state.balances.get(A)).toBe(87725);
     expect(h.state.payouts.filter((p) => p["stripe_session_id"] === "cs_test_retry")).toHaveLength(1);
+  });
+});
+
+async function applyRaw(userId: string, payload: unknown) {
+  const res = await fetch(`${base}/api/referrals/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-test-user": userId },
+    body: JSON.stringify(payload),
+  });
+  return { status: res.status, body: (await res.json()) as any };
+}
+
+describe("apply adjudications — exact statuses and messages (unchanged branches)", () => {
+  it("missing code → 400 'Referral code is required.'", async () => {
+    const { status, body } = await applyRaw(B, {});
+    expect(status).toBe(400);
+    expect(body.error).toBe("Referral code is required.");
+    expect(h.state.referrals).toHaveLength(0);
+  });
+
+  it("already referred → 400 'You've already used a referral code.'", async () => {
+    await applyAs(B, CODE);
+    const again = await applyAs(B, CODE);
+    expect(again.status).toBe(400);
+    expect(again.body.error).toBe("You've already used a referral code.");
+    expect(h.state.referrals).toHaveLength(1);
+  });
+
+  it("unknown code → 404 'Invalid referral code.'", async () => {
+    const { status, body } = await applyAs(B, "ZZZZ9999");
+    expect(status).toBe(404);
+    expect(body.error).toBe("Invalid referral code.");
+    expect(h.state.referrals).toHaveLength(0);
+  });
+
+  it("self-referral → 400 'You can't use your own referral code.'", async () => {
+    const { status, body } = await applyAs(A, CODE);
+    expect(status).toBe(400);
+    expect(body.error).toBe("You can't use your own referral code.");
+    expect(h.state.referrals).toHaveLength(0);
+  });
+});
+
+describe("insert failure — a server error, never a user error (Nov 11 2026 diagnosis)", () => {
+  it("a failed referrals insert answers 500, logs the real error, records nothing — and a retry lands", async () => {
+    h.state.insertFails = true;
+    vi.mocked(logger.error).mockClear();
+
+    const { status, body } = await applyAs(B, CODE);
+    expect(status).toBe(500);
+    expect(body.error).toBe("Failed to apply referral code.");
+    expect(body.error).not.toBe("You've already used a referral code.");
+
+    // Nothing was recorded and nothing was paid.
+    expect(h.state.referrals).toHaveLength(0);
+    expect(h.state.balances.get(B)).toBe(1300);
+    expect(h.state.ledger).toHaveLength(0);
+
+    // The REAL store error reached the logs at error level, with the
+    // route named — the two weeks of silence this fix exists to end.
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    const [ctx, msg] = vi.mocked(logger.error).mock.calls[0]!;
+    expect((ctx as any).err).toMatchObject({ code: "42703" });
+    expect(String((ctx as any).err.message)).toContain("welcome_status");
+    expect((ctx as any).userId).toBe(B);
+    expect(String(msg)).toContain("referrals/apply");
+
+    // The FE keeps the code on a 5xx; once the store is fixed, the same
+    // user's retry adjudicates truthfully and the referral records.
+    h.state.insertFails = false;
+    const retry = await applyAs(B, CODE);
+    expect(retry.status).toBe(200);
+    expect(h.state.referrals).toHaveLength(1);
   });
 });
