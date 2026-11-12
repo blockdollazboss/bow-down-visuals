@@ -4,7 +4,9 @@ import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
 import { apiJson, markStorySeen, profileHref, type Story } from "@/lib/social-api";
+import { fetchMyProfile } from "@/lib/artist-profiles";
 import { Avatar } from "./Avatar";
+import { ReportButton } from "./ReportButton";
 
 const STORY_MS = 5000;
 
@@ -22,8 +24,27 @@ export function StoryViewer({
   startIndex: number;
   onClose: () => void;
 }) {
-  const { getAccessToken } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const dialogRef = useModalA11y<HTMLDivElement>(true, onClose);
+  /* The viewer's own creator profile id (the same /me read the
+     profile sections use to know what is "mine"), for the report
+     dock below: it hides on the viewer's OWN stories — the rail
+     refuses self-reports server-side too, this just keeps the
+     dead end off the screen (the established dock pattern). A
+     guest, or a member with no creator profile, owns no stories,
+     so the dock always shows for them. */
+  const [myProfileId, setMyProfileId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user) {
+      setMyProfileId(null);
+      return;
+    }
+    let live = true;
+    fetchMyProfile()
+      .then((p) => { if (live) setMyProfileId(p?.id ?? null); })
+      .catch(() => { /* ownership unknown — the rail still guards */ });
+    return () => { live = false; };
+  }, [user]);
   const [idx, setIdx] = useState(startIndex);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -184,6 +205,13 @@ export function StoryViewer({
           >
             <Send className="h-4 w-4" />
           </button>
+          {/* Report dock (stories report lane, Nov 11, 2026):
+              anyone can report, guests included (owner-approved
+              Moderation and Takedown Rules) — hidden only on the
+              viewer's own stories. */}
+          {story.profile_id !== myProfileId && (
+            <ReportButton targetType="story" targetId={story.id} variant="icon" className="shrink-0 rounded-full bg-black/50 p-2.5 text-white transition hover:text-[#e8c86a]" />
+          )}
         </div>
 
         {/* desktop arrows */}

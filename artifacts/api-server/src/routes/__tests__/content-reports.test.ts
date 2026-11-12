@@ -20,7 +20,9 @@
  *   profile_comments, media_comments, group_forum_replies); "post"
  *   resolves across posts, group_posts, and group_forum_threads
  *   (moderation follow-on, Nov 11, 2026 — the group surfaces render
- *   those rows as posts); a top-level post filed as a comment — or
+ *   those rows as posts); "story" resolves across the stories
+ *   table, owned through the story's profile (stories report lane,
+ *   Nov 11, 2026); a top-level post filed as a comment — or
  *   a reply filed as a post — is a 404, never a queued row against
  *   the wrong thing.
  * - Nobody reports their own content (owner resolved server-side
@@ -65,6 +67,9 @@ const FORUM_THREAD_ID = "00000000-0000-4000-8000-0000000000d5";
 const FORUM_REPLY_ID = "00000000-0000-4000-8000-0000000000d6";
 const GROUP_ID = "00000000-0000-4000-8000-0000000000d7";
 const CHANNEL_ID = "00000000-0000-4000-8000-0000000000d8";
+const STORY_ID = "00000000-0000-4000-8000-0000000000d9";
+const STORY_NOCAPTION_ID = "00000000-0000-4000-8000-0000000000da";
+const OWN_STORY_ID = "00000000-0000-4000-8000-0000000000db";
 const MISSING_ID = "00000000-0000-4000-8000-0000000000e9";
 
 const h = vi.hoisted(() => ({ fake: null as any }));
@@ -118,6 +123,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
       groupPosts: actual.groupPostsTable,
       groupForumThreads: actual.groupForumThreadsTable,
       groupForumReplies: actual.groupForumRepliesTable,
+      stories: actual.storiesTable,
       artistVaults: actual.artistVaultsTable,
       spotlightInquiries: actual.spotlightInquiriesTable,
       contactMessages: actual.contactMessagesTable,
@@ -207,6 +213,11 @@ function seedWorld() {
   ]);
   h.fake.seed("groupForumReplies", [
     { id: FORUM_REPLY_ID, threadId: FORUM_THREAD_ID, groupId: GROUP_ID, authorUserId: COMMENTER_ID, body: "a reply in the forum thread" },
+  ]);
+  h.fake.seed("stories", [
+    { id: STORY_ID, profileId: PROFILE_ID, mediaUrl: "https://cdn.example.test/story1.jpg", mediaKind: "image", caption: "backstage at the studio tonight" },
+    { id: STORY_NOCAPTION_ID, profileId: PROFILE_ID, mediaUrl: "https://cdn.example.test/story2.jpg", mediaKind: "image", caption: "" },
+    { id: OWN_STORY_ID, profileId: REPORTER_PROFILE_ID, mediaUrl: "https://cdn.example.test/story3.jpg", mediaKind: "image", caption: "the reporter's own story" },
   ]);
 }
 
@@ -333,6 +344,32 @@ describe("POST /api/reports — filing", () => {
     expect(reportRows()).toHaveLength(0);
   });
 
+  it("resolves a story filed as a story, owned through its profile, summary naming the author + caption", async () => {
+    const res = await req("POST", "/api/reports", freshFiler(), { target_type: "story", target_id: STORY_ID, reason: "sexual_content" });
+    expect(res.status).toBe(201);
+    expect(res.json.report).toMatchObject({
+      targetType: "story",
+      targetId: STORY_ID,
+      targetOwnerUserId: OWNER_ID,
+      targetSummary: "Story by Owner One: backstage at the studio tonight",
+    });
+    expect(reportRows()).toHaveLength(1);
+  });
+
+  it("a story with no caption still names its author in the summary", async () => {
+    const res = await req("POST", "/api/reports", freshFiler(), { target_type: "story", target_id: STORY_NOCAPTION_ID, reason: "spam" });
+    expect(res.status).toBe(201);
+    expect(res.json.report).toMatchObject({ targetType: "story", targetOwnerUserId: OWNER_ID, targetSummary: "Story by Owner One" });
+  });
+
+  it("a guest can file on a story too — 201, reporter NULL", async () => {
+    const res = await req("POST", "/api/reports", null, { target_type: "story", target_id: STORY_ID, reason: "violence" });
+    expect(res.status).toBe(201);
+    expect(res.json.report.reporterUserId).toBeNull();
+    expect(reportRows()[0].targetType).toBe("story");
+    expect(reportRows()[0].targetOwnerUserId).toBe(OWNER_ID);
+  });
+
   it("files a profile report with the display name as the summary", async () => {
     const res = await req("POST", "/api/reports", freshFiler(), { target_type: "profile", target_id: PROFILE_ID, reason: "copyright" });
     expect(res.status).toBe(201);
@@ -341,11 +378,28 @@ describe("POST /api/reports — filing", () => {
 });
 
 describe("POST /api/reports — honesty rails", () => {
-  it("404s a nonexistent post, comment, and profile — and stores nothing", async () => {
-    for (const target_type of ["post", "comment", "profile"] as const) {
+  it("404s a nonexistent post, comment, profile, and story — and stores nothing", async () => {
+    for (const target_type of ["post", "comment", "profile", "story"] as const) {
       const res = await req("POST", "/api/reports", freshFiler(), { target_type, target_id: MISSING_ID, reason: "spam" });
       expect(res.status).toBe(404);
     }
+    expect(reportRows()).toHaveLength(0);
+  });
+
+  it("404s a story filed as a post or comment, and a post filed as a story (type must match the store)", async () => {
+    const storyAsPost = await req("POST", "/api/reports", freshFiler(), { target_type: "post", target_id: STORY_ID, reason: "spam" });
+    expect(storyAsPost.status).toBe(404);
+    const storyAsComment = await req("POST", "/api/reports", freshFiler(), { target_type: "comment", target_id: STORY_ID, reason: "spam" });
+    expect(storyAsComment.status).toBe(404);
+    const postAsStory = await req("POST", "/api/reports", freshFiler(), { target_type: "story", target_id: POST_ID, reason: "spam" });
+    expect(postAsStory.status).toBe(404);
+    expect(reportRows()).toHaveLength(0);
+  });
+
+  it("400s reporting your own story", async () => {
+    const ownStory = await req("POST", "/api/reports", MEMBER, { target_type: "story", target_id: OWN_STORY_ID, reason: "spam" });
+    expect(ownStory.status).toBe(400);
+    expect(ownStory.json.error).toMatch(/own content/);
     expect(reportRows()).toHaveLength(0);
   });
 

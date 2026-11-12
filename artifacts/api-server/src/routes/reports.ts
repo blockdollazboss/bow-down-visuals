@@ -3,9 +3,12 @@
  * the owner-approved Moderation and Takedown Rules, Nov 11, 2026).
  *
  *   POST /api/reports   (optional auth) file a report on a post, a
- *                       comment, a creator profile, or a fan-art
+ *                       comment, a creator profile, a fan-art
  *                       piece (Stack-200 #157 — the Fan Art Wall rides
- *                       this same rail; no second moderation system).
+ *                       this same rail; no second moderation system),
+ *                       or a creator story (stories report lane,
+ *                       Nov 11, 2026 — the StoryViewer's dock rides
+ *                       the same rail too).
  *
  * The admin half of the loop — GET/PATCH /api/admin/reports — lives
  * in routes/admin.ts beside the DMCA bench it mirrors.
@@ -32,7 +35,9 @@
  *   widened to the stores the group surfaces render (moderation
  *   wire follow-on, Nov 11, 2026; no new target type, so the
  *   content_reports vocabulary and its DB check are untouched).
- *   Anything else is an honest 404.
+ *   Story targets resolve against the stories table (the story's
+ *   profile owns it, via creator_profiles) under their own "story"
+ *   type. Anything else is an honest 404.
  * - Nobody reports their own content: the target's owner is resolved
  *   server-side and a self-report is a 400, never a queued row. The
  *   check only bites for identified reporters — a guest carries no
@@ -62,6 +67,7 @@ import {
   groupForumThreadsTable,
   groupForumRepliesTable,
   fanArtPiecesTable,
+  storiesTable,
   CONTENT_REPORT_TARGET_TYPES,
   CONTENT_REPORT_REASONS,
   CONTENT_REPORT_OPEN_STATUSES,
@@ -211,6 +217,32 @@ async function resolveFanArt(targetId: string): Promise<ResolvedTarget | null> {
   return { ownerUserId: piece.artistUserId, summary };
 }
 
+/** Resolve a story target (stories report lane, Nov 11, 2026):
+ *  stories live in their own table, owned through the story's
+ *  profile (profile_id → creator_profiles.user_id — the same hop
+ *  resolvePost makes). The summary names the author and carries
+ *  the caption when the story has one, so the bench can see what
+ *  was reported after the story itself expires. Expiry is a
+ *  display rule, not an existence rule: a story resolves in any
+ *  state, like a fan-art piece, because the report only queues a
+ *  filed-time snapshot for a human. */
+async function resolveStory(targetId: string): Promise<ResolvedTarget | null> {
+  const [story] = await db
+    .select({ profileId: storiesTable.profileId, caption: storiesTable.caption })
+    .from(storiesTable)
+    .where(eq(storiesTable.id, targetId));
+  if (!story) return null;
+  const [profile] = await db
+    .select({ userId: creatorProfilesTable.userId, displayName: creatorProfilesTable.displayName })
+    .from(creatorProfilesTable)
+    .where(eq(creatorProfilesTable.id, story.profileId));
+  const caption = excerpt(story.caption);
+  const summary = profile
+    ? excerpt(caption ? `Story by ${profile.displayName}: ${caption}` : `Story by ${profile.displayName}`)
+    : caption;
+  return { ownerUserId: profile?.userId ?? null, summary };
+}
+
 async function resolveProfile(targetId: string): Promise<ResolvedTarget | null> {
   const [profile] = await db
     .select({ userId: creatorProfilesTable.userId, displayName: creatorProfilesTable.displayName })
@@ -239,7 +271,7 @@ router.post("/reports", optionalAuth, reportWriteLimiter, async (req: Request, r
   const parsed = CreateReportSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({
-      error: `Invalid report. A target (post, comment, profile, or fan art piece), a reason (one of: ${CONTENT_REPORT_REASONS.join(", ")}), and an optional note of at most 500 characters are required.`,
+      error: `Invalid report. A target (post, comment, profile, fan art piece, or story), a reason (one of: ${CONTENT_REPORT_REASONS.join(", ")}), and an optional note of at most 500 characters are required.`,
     });
     return;
   }
@@ -256,7 +288,9 @@ router.post("/reports", optionalAuth, reportWriteLimiter, async (req: Request, r
           ? await resolveComment(targetId)
           : targetType === "fan_art"
             ? await resolveFanArt(targetId)
-            : await resolveProfile(targetId);
+            : targetType === "story"
+              ? await resolveStory(targetId)
+              : await resolveProfile(targetId);
     if (!resolved) {
       res.status(404).json({
         error:
@@ -266,7 +300,9 @@ router.post("/reports", optionalAuth, reportWriteLimiter, async (req: Request, r
               ? "Comment not found."
               : targetType === "fan_art"
                 ? "Fan art piece not found."
-                : "Profile not found.",
+                : targetType === "story"
+                  ? "Story not found."
+                  : "Profile not found.",
       });
       return;
     }
