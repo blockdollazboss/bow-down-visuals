@@ -25,7 +25,7 @@ export {
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
-import { sendEmail, emailShell, emailButton, emailDetailBox, escapeHtml, isEmailConfigured, baseUrlForEmail, EMAIL_COLORS } from "../../lib/email";
+import { sendEmail, emailShellForRecipient, emailButton, emailDetailBox, escapeHtml, isEmailConfigured, baseUrlForEmail, EMAIL_COLORS } from "../../lib/email";
 import { requireAuth } from "../../middlewares/require-auth";
 import {
   chargeCredits,
@@ -488,7 +488,11 @@ async function sendPayoutNotice(
   payout: { distributor: string; amount: string; currency: string; periodEnd: string },
 ): Promise<void> {
   if (!toEmail || !isEmailConfigured()) return;
-  const html = emailShell(
+  /* Customer send: the creator's rotation theme + themed signature
+     (the amount rides the ivory detail box, whose tokens are correct
+     on ivory in both themes). The flip records on the verified send. */
+  const { html, theme } = await emailShellForRecipient(
+    toEmail,
     "Payout received",
     `<p style="margin:0 0 12px;">Money in. Your royalty payout just landed:</p>
 ${emailDetailBox(`<div style="color:${EMAIL_COLORS.goldDeep};font-weight:700;font-size:22px;">${escapeHtml(payout.amount)} ${escapeHtml(payout.currency)}</div>
@@ -497,7 +501,7 @@ ${emailDetailBox(`<div style="color:${EMAIL_COLORS.goldDeep};font-weight:700;fon
 <p style="margin:0 0 16px;font-size:14px;">Track every dollar in your Money Tracker — the cheat code keeps the receipts.</p>
 ${emailButton(`${baseUrlForEmail()}/coach`, "Open Money Tracker")}`
   );
-  await sendEmail({ to: toEmail, subject: `Payout received — ${payout.amount} ${payout.currency} from ${payout.distributor}`, html });
+  await sendEmail({ to: toEmail, subject: `Payout received — ${payout.amount} ${payout.currency} from ${payout.distributor}`, html, theme, themeRecipient: toEmail });
 }
 
 /* POST /api/royalties/payouts → create or update a payout. Free. */

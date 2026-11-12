@@ -6,7 +6,8 @@ import { chargeCredits, OutOfCreditsError, buildChargeIdempotencyKey } from "../
 import { addCreditsToProfile } from "../lib/supabase-admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { getUserActiveTeam } from "../lib/teams";
-import { sendEmail, emailShell, emailButton, escapeHtml, isEmailConfigured, baseUrlForEmail, EMAIL_COLORS } from "../lib/email";
+import { sendEmail, emailShellForRecipient, emailButton, escapeHtml, isEmailConfigured, baseUrlForEmail, EMAIL_THEME_COLORS } from "../lib/email";
+import { resolveEmailThemeForRecipient } from "../lib/email-theme-rotation";
 
 const router = Router();
 
@@ -245,16 +246,25 @@ router.post("/teams/:id/invite", requireAuth, async (req, res) => {
         .where(eq(teamsTable.id, teamId))
         .limit(1);
       const teamName = teamRow?.name ?? "a team";
-      const html = emailShell(
+      /* Customer send: the invitee's rotation theme + themed
+         signature; the on-panel name accent rides the shell's
+         themed gold (AA in both sends). Peek only — the flip
+         records on the verified send. */
+      const theme = await resolveEmailThemeForRecipient(email);
+      const { html } = await emailShellForRecipient(
+        email,
         `You're invited to "${escapeHtml(teamName)}"`,
-        `<p style="margin:0 0 12px;">You've been invited to join <strong style="color:${EMAIL_COLORS.goldDeep};">${escapeHtml(teamName)}</strong> on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
+        `<p style="margin:0 0 12px;">You've been invited to join <strong style="color:${EMAIL_THEME_COLORS[theme].goldText};">${escapeHtml(teamName)}</strong> on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
 <p style="margin:0 0 16px;font-size:14px;">Sign in with <strong>${escapeHtml(email)}</strong> to accept — your pending invite is waiting under Teams.</p>
-${emailButton(`${baseUrlForEmail()}/team`, "View my invite")}`
+${emailButton(`${baseUrlForEmail()}/team`, "View my invite")}`,
+        { theme },
       );
       const result = await sendEmail({
         to: email,
         subject: `Team invite — "${teamName}" on Bow Down Visuals`,
         html,
+        theme,
+        themeRecipient: email,
       });
       emailSent = result.sent;
     }
