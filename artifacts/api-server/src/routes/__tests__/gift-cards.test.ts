@@ -249,6 +249,7 @@ vi.mock("../../lib/email", async (importOriginal) => ({ ...((await importOrigina
     return { ok: true };
   },
   emailShell: (_title: string, html: string) => html,
+  emailShellForRecipient: async (_to: string, _title: string, html: string) => ({ html, theme: "dark" as const }),
   emailButton: (href: string, label: string) => `<a href="${href}">${label}</a>`,
   emailDetailBox: (html: string) => html,
   money: (cents: number) => `$${(cents / 100).toFixed(2)}`,

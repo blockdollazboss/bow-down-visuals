@@ -35,7 +35,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { formatUsd } from "../lib/platform-fees";
-import { sendEmail, emailShell, emailButton, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
+import { sendEmail, emailShellForRecipient, emailButton, money as emailMoney, escapeHtml, baseUrlForEmail } from "../lib/email";
 import {
   chargeCredits,
   refundCredits,
@@ -137,7 +137,8 @@ async function notifyRecipient(gift: GiftRow, storeName: string): Promise<void> 
     }
   }
   const senderName = await buyerDisplayName(String(gift.buyer_user_id));
-  const html = emailShell(
+  const { html, theme } = await emailShellForRecipient(
+    String(gift.recipient_email),
     `${senderName} sent you ${escapeHtml(String(gift.product_title))}`,
     `<p style="margin:0 0 12px;">${escapeHtml(senderName)} bought you <strong>${escapeHtml(String(gift.product_title))}</strong> from <strong>${escapeHtml(storeName)}</strong>'s store on Bow Down Visuals — as a gift.</p>
 ${gift.gift_message ? `<p style="margin:0 0 12px;">“${escapeHtml(String(gift.gift_message))}”</p>` : ""}
@@ -148,6 +149,8 @@ ${emailButton(`${baseUrlForEmail()}${claimUrl}`, "Claim your gift")}`,
     to: String(gift.recipient_email),
     subject: `You received a gift: ${String(gift.product_title)}`,
     html,
+    theme,
+    themeRecipient: String(gift.recipient_email),
   }).catch(() => undefined);
 }
 

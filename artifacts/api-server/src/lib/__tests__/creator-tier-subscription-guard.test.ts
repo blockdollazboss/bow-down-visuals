@@ -46,6 +46,7 @@ vi.mock("@workspace/db", async (importOriginal) => {
 vi.mock("../email", () => ({
   sendEmail: vi.fn(async () => {}),
   emailShell: (t: string, b: string) => `${t}${b}`,
+  emailShellForRecipient: async (_to: string, t: string, b: string) => ({ html: `${t}${b}`, theme: "dark" as const }),
   emailButton: () => "",
   escapeHtml: (s: string) => s,
   baseUrlForEmail: () => "http://localhost",

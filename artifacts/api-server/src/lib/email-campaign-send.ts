@@ -40,6 +40,7 @@ import {
   emailSubscribersTable,
 } from "@workspace/db";
 import { isEmailConfigured, sendEmail, baseUrlForEmail } from "./email";
+import { resolveEmailThemeForRecipient } from "./email-theme-rotation";
 import { extractBodyLinks, newTrackingToken, renderTrackedCampaignHtml } from "./email-tracking";
 import { evaluateSegment, parseStoredCriteria } from "./email-segments";
 import { logger } from "./logger";
@@ -154,11 +155,17 @@ export async function sendCampaignDelivery(
     if (link) wrapped.set(url, `${prep.base}/api/email-track/c/${link.token}`);
   }
 
-  const html = renderTrackedCampaignHtml({ body: campaign.body, deliveryToken: delivery.token, wrappedLinks: wrapped, baseUrl: prep.base, title: campaign.subject });
+  /* Company-theme rotation: this customer's send carries the theme
+     their rotation has assigned (dark, light, dark, light); the flip
+     is recorded by sendEmail only when this send is verified sent. */
+  const theme = await resolveEmailThemeForRecipient(sub.email);
+  const html = renderTrackedCampaignHtml({ body: campaign.body, deliveryToken: delivery.token, wrappedLinks: wrapped, baseUrl: prep.base, title: campaign.subject, theme });
   const result = await sendEmail({
     to: sub.email,
     subject: campaign.subject,
     html,
+    theme,
+    themeRecipient: sub.email,
     tags: [
       { name: "campaign_id", value: campaign.id },
       { name: "subscriber_id", value: sub.id },

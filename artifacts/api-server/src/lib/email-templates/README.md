@@ -3,7 +3,8 @@
 The auth emails (signup confirmation, password reset, magic link, invite,
 email change) are sent by **Supabase Auth**, not by the api-server — their
 templates live in the Supabase dashboard. The files in this folder are the
-redesigned, dashboard-ready versions (Oct 24, 2026), generated from the
+dashboard-ready versions of the company-theme design (owner-approved
+Nov 7, 2026, re-approved Nov 11, 2026), generated from the
 source-of-truth builders in `../email-templates.ts`. Do not hand-edit the
 `.html` files — edit the builder and regenerate
 (`email-templates.test.ts` fails if a file drifts from its builder).
@@ -28,18 +29,19 @@ file's full contents, save.
   drives every action button and fallback link; `{{ .Token }}` (magic link)
   and `{{ .NewEmail }}` (change email) render exactly as before the redesign.
   Presentation only; no flow, trigger, or token behavior changes.
-- **The logo** is the full illustrated lockup (`logo-email.png`, 600×600,
-  exported from `public/logo-static.webp`), shown whole at 232px in the
-  black-marble header band — never cropped, never the app icon, no emoji
-  anywhere in the family.
-- **Client-proofing:** the band carries its own near-black background and
-  the card its own golden-marble ivory, so the design renders identically
-  on light and dark client canvases and stays legible if a client strips
-  backgrounds and forces white.
-- The logo URL is the permanent R2 media-bucket copy
-  (`https://pub-424304b1e8d24fa28e3a072be022c74b.r2.dev/logo-email.png`,
-  flipped from the interim jsDelivr `@main` default on Oct 26, 2026) —
-  the production host is gated/dark pre-launch, so mail clients could
-  not fetch the logo from bowdownvisuals.com. The URL comes from
-  `EMAIL_LOGO_URL` in `../email.ts`; if it ever changes, update it there
+- **The design** is the company-theme pair's LIGHT member, fixed: a
+  dashboard-pasted template has no send-time code, so it cannot take
+  part in the per-customer theme rotation the server-sent families
+  run (see `../email-theme-rotation.ts`). Golden-marble header band
+  with the light lockup floating on it as a crest at 138px (whole,
+  never cropped, never the app icon, no emoji anywhere in the
+  family), gold line under the band, ivory panel, gold button, the
+  themed closing signature (light lockup again), and a 30px marble
+  strip at the foot — marble is a splash only, never a ground.
+- **Client-proofing:** every surface carries its own explicit
+  background (page, band fallback, panel, signature plate), so the
+  template renders as designed on light and dark client canvases.
+- The light lockup URL comes from `EMAIL_LOGO_LIGHT_URL` in
+  `../email.ts` (the approved design's hosted light export, from
+  `public/logo-light.webp`); if it ever changes, update it there
   and regenerate.

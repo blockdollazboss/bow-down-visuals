@@ -17,16 +17,23 @@
  *    prepend for self-greeted bodies.
  */
 import { describe, expect, it } from "vitest";
-import { emailShell, houseFromAddress, EMAIL_LOGO_URL, EMAIL_FROM_NAME } from "../email";
+import { emailShell, houseFromAddress, EMAIL_LOGO_URL, EMAIL_LOGO_LIGHT_URL, EMAIL_FROM_NAME } from "../email";
 import { withWelcomeGreeting } from "../email-campaign-sender";
 
 describe("email shell brand mark", () => {
   it("renders the real logo lockup as an image, not an emoji or the app icon", () => {
-    const html = emailShell("Subject line", "<p>Body</p>");
-    expect(html).toContain(`<img src="${EMAIL_LOGO_URL}"`);
+    /* Company-theme pair (Nov 11, 2026): the DARK send carries the
+       dark lockup (EMAIL_LOGO_URL), the LIGHT send the light lockup —
+       in the header crest and the closing signature alike. */
+    const dark = emailShell("Subject line", "<p>Body</p>", { theme: "dark" });
+    expect(dark).toContain(`<img src="${EMAIL_LOGO_URL}"`);
     expect(EMAIL_LOGO_URL).toContain("logo-email.png");
     expect(EMAIL_LOGO_URL).not.toMatch(/icon-\d+\.png/);
-    expect(html).not.toContain("🦈");
+    expect(dark).not.toContain("🦈");
+    const light = emailShell("Subject line", "<p>Body</p>", { theme: "light" });
+    expect(light).toContain(`<img src="${EMAIL_LOGO_LIGHT_URL}"`);
+    expect(EMAIL_LOGO_LIGHT_URL).not.toMatch(/icon-\d+\.png/);
+    expect(light).not.toContain("🦈");
   });
 
   it("default logo URL is the permanent R2 home — the jsDelivr interim default is retired (Oct 26, 2026 flip)", () => {
@@ -41,10 +48,12 @@ describe("email shell brand mark", () => {
     expect(EMAIL_LOGO_URL).not.toContain("jsdelivr");
   });
 
-  it("keeps the gold-on-black THY CHEAT CODE / BOW DOWN VISUALS header text", () => {
-    const html = emailShell("Subject line", "<p>Body</p>");
-    expect(html).toContain("THY CHEAT CODE");
-    expect(html).toContain("BOW DOWN VISUALS");
+  it("keeps the THY CHEAT CODE / BOW DOWN VISUALS brand text in both themes", () => {
+    for (const theme of ["dark", "light"] as const) {
+      const html = emailShell("Subject line", "<p>Body</p>", { theme });
+      expect(html).toContain("THY CHEAT CODE");
+      expect(html).toContain("BOW DOWN VISUALS");
+    }
   });
 });
 

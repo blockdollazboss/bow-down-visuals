@@ -13,14 +13,25 @@
  * paste-in; email-templates.test.ts pins files ↔ builders so they can
  * never drift apart silently.
  *
- * The markup intentionally mirrors emailShell (same band, card, button,
- * sign-off, footer) but is fully static: a dashboard template cannot call
- * our code, so colors and the logo URL are inlined literally. The logo is
- * the same EMAIL_LOGO_URL asset (the permanent R2 media-bucket home —
- * the production host is gated/dark pre-launch, so mail clients could
- * not fetch it from there).
+ * The markup intentionally mirrors emailShell (same marble splash
+ * headband, gold line, panel, button, sign-off, themed signature,
+ * foot strip) but is fully static: a dashboard template cannot call
+ * our code at send time, so it ships as ONE fixed member of the
+ * company-theme pair — the LIGHT send (golden marble, ivory panel,
+ * light lockup in the crest and the signature alike). Theme rotation
+ * (dark, light, dark, light per customer) applies to the server-sent
+ * families, whose code resolves a theme per recipient; a pasted
+ * dashboard template has no send-time code, so it cannot rotate —
+ * the light member is its honest fixed form, and its body copy's
+ * EMAIL_COLORS tokens are the light-surface tokens by design.
  */
-import { EMAIL_COLORS, EMAIL_LOGO_URL } from "./email";
+import {
+  EMAIL_COLORS,
+  EMAIL_LOGO_LIGHT_URL,
+  EMAIL_MARBLE_URLS,
+  EMAIL_THEME_COLORS,
+  emailSignatureHtml,
+} from "./email";
 
 const SERIF = "Georgia,'Times New Roman',Times,serif";
 const SANS =
@@ -29,49 +40,51 @@ const SITE = "https://bowdownvisuals.com";
 const C = EMAIL_COLORS;
 
 function authButton(href: string, label: string): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 4px;"><tr><td align="center" bgcolor="${C.gold}" style="border-radius:999px;background:${C.gold};"><a href="${href}" style="display:inline-block;padding:13px 32px;font-family:${SANS};font-size:14px;font-weight:700;letter-spacing:0.4px;color:#171204;text-decoration:none;border-radius:999px;">${label}</a></td></tr></table>`;
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 4px;"><tr><td align="center" bgcolor="${EMAIL_THEME_COLORS.goldButton}" style="border-radius:10px;background:${EMAIL_THEME_COLORS.goldButton};"><a href="${href}" style="display:inline-block;padding:16px 38px;font-family:${SANS};font-size:16px;font-weight:700;letter-spacing:0.2px;color:${EMAIL_THEME_COLORS.buttonInk};text-decoration:none;border-radius:10px;">${label}</a></td></tr></table>`;
 }
 
 function authDetailBox(innerHtml: string): string {
   return `<div style="background:${C.box};border:1px solid ${C.boxBorder};border-radius:10px;padding:18px 20px;margin:0 0 18px;">${innerHtml}</div>`;
 }
 
-/** Static twin of emailShell for dashboard-pasted templates. */
+/** Static LIGHT twin of emailShell for dashboard-pasted templates. */
 function authShell(title: string, bodyHtml: string, preheader: string): string {
+  const t = EMAIL_THEME_COLORS.light;
+  const marble = EMAIL_MARBLE_URLS.light;
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${title}</title></head>
-<body style="margin:0;padding:0;background:${C.canvas};">
-<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:${C.canvas};">${preheader}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.canvas};">
-<tr><td align="center" style="padding:36px 16px 40px;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
-<tr><td align="center" bgcolor="${C.band}" style="background:${C.band};border:1px solid ${C.bandBorder};border-bottom:none;border-radius:16px 16px 0 0;padding:30px 24px 22px;">
-<img src="${EMAIL_LOGO_URL}" width="232" alt="Bow Down Visuals — The Content Creator's Cheat Code" style="display:block;width:232px;max-width:72%;height:auto;border:0;">
-<div style="font-family:${SANS};color:${C.gold};font-weight:800;font-size:15px;letter-spacing:4px;margin-top:14px;">THY CHEAT CODE</div>
+<body style="margin:0;padding:0;background:${t.page};">
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:${t.page};">${preheader}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${t.page};">
+<tr><td align="center" style="padding:28px 12px;">
+<table role="presentation" width="620" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:620px;background:${t.panel};border:1px solid ${EMAIL_THEME_COLORS.goldHairline};">
+<tr><td background="${marble}" bgcolor="${t.frame}" align="center" style="padding:16px 24px 14px;background-image:url(${marble});background-size:620px auto;background-position:center 32%;background-repeat:no-repeat;border-bottom:2px solid ${EMAIL_THEME_COLORS.goldHairline};">
+<img src="${EMAIL_LOGO_LIGHT_URL}" width="138" alt="Bow Down Visuals — The Content Creator's Cheat Code" style="display:block;width:138px;height:auto;border:0;">
 </td></tr>
-<tr><td bgcolor="${C.gold}" style="background:${C.gold};font-size:0;line-height:0;height:3px;">&nbsp;</td></tr>
-<tr><td bgcolor="#57441a" style="background:#57441a;font-size:0;line-height:0;height:1px;">&nbsp;</td></tr>
-<tr><td bgcolor="${C.card}" style="background:${C.card};border:1px solid ${C.cardBorder};border-top:none;border-radius:0 0 16px 16px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-<tr><td style="padding:30px 36px 0;">
-<div style="font-family:${SERIF};font-size:27px;line-height:1.25;font-weight:700;color:${C.ink};">${title}</div>
+<tr><td bgcolor="${t.panel}" align="center" style="background:${t.panel};padding:30px 30px 6px;">
+<div style="font-family:${SERIF};font-size:31px;font-weight:700;letter-spacing:5px;color:${t.ink};">BOW DOWN VISUALS</div>
+<div style="font-family:${SANS};font-size:11px;font-weight:700;letter-spacing:4px;color:${t.goldText};padding-top:9px;">THE CONTENT CREATION CHEAT CODE</div>
+<div style="padding-top:22px;"><div style="height:1px;background:${EMAIL_THEME_COLORS.goldHairline};width:120px;margin:0 auto;font-size:0;line-height:0;">&nbsp;</div></div>
 </td></tr>
-<tr><td style="padding:14px 36px 6px;font-family:${SANS};font-size:15px;line-height:1.65;color:${C.body};">
+<tr><td style="padding:26px 42px 0;">
+<div style="font-family:${SERIF};font-size:32px;line-height:1.25;font-weight:700;color:${t.ink};text-align:center;">${title}</div>
+</td></tr>
+<tr><td style="padding:14px 42px 6px;font-family:${SANS};font-size:15px;line-height:1.65;color:${t.body};">
 ${bodyHtml}
 </td></tr>
-<tr><td style="padding:2px 36px 30px;">
-<div style="border-top:1px solid ${C.cardBorder};padding-top:18px;">
-<div style="font-family:${SERIF};font-style:italic;font-size:16px;color:${C.goldDeep};">— Thy Cheat Code</div>
-<div style="font-family:${SANS};font-size:12px;color:${C.muted};margin-top:3px;">Your host at Bow Down Visuals</div>
-</div>
+<tr><td style="padding:26px 42px 0;">
+<div style="font-family:${SERIF};font-style:italic;font-size:16px;color:${t.goldText};">— Thy Cheat Code</div>
+<div style="font-family:${SANS};font-size:12px;color:${t.muted};margin-top:3px;">Your host at Bow Down Visuals</div>
 </td></tr>
-</table>
+<tr><td style="padding:18px 42px 0;">
+${emailSignatureHtml("light")}
 </td></tr>
-<tr><td align="center" style="padding:24px 24px 0;">
-<div style="font-family:${SANS};font-size:12px;font-weight:700;letter-spacing:3px;color:${C.gold};">BOW DOWN VISUALS</div>
-<div style="font-family:${SERIF};font-style:italic;font-size:13px;color:${C.goldDim};margin-top:5px;">The Content Creator's Cheat Code</div>
-<div style="font-family:${SANS};font-size:12px;color:${C.footerInk};margin-top:12px;line-height:1.6;">This email was sent by Bow Down Visuals.<br><a href="${SITE}" style="color:${C.gold};text-decoration:none;">bowdownvisuals.com</a></div>
+<tr><td align="center" style="padding:26px 42px 30px;font-family:${SANS};">
+<div style="height:1px;background:${EMAIL_THEME_COLORS.goldHairline};margin:0 0 22px;font-size:0;line-height:0;">&nbsp;</div>
+<div style="font-size:13px;font-weight:700;padding-bottom:10px;"><a href="${SITE}" style="color:${t.goldText};text-decoration:none;">The Studio</a><span style="color:${t.muted};">&nbsp;&nbsp;·&nbsp;&nbsp;</span><a href="${SITE}/world" style="color:${t.goldText};text-decoration:none;">The World</a><span style="color:${t.muted};">&nbsp;&nbsp;·&nbsp;&nbsp;</span><a href="mailto:hello@bowdownvisuals.com" style="color:${t.goldText};text-decoration:none;">Talk to us</a></div>
+<div style="font-size:12px;color:${t.muted};line-height:1.6;">This email was sent by Bow Down Visuals.<br><a href="${SITE}" style="color:${t.goldText};text-decoration:none;">bowdownvisuals.com</a></div>
 </td></tr>
+<tr><td background="${marble}" bgcolor="${t.frame}" height="30" style="height:30px;line-height:30px;font-size:0;background-image:url(${marble});background-size:620px auto;background-position:center 30%;background-repeat:no-repeat;">&nbsp;</td></tr>
 </table>
 </td></tr>
 </table>

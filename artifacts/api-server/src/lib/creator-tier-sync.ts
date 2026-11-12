@@ -3,7 +3,7 @@ import { db, creatorProfilesTable, creatorSubscriptionsTable, creatorHostingTabl
 import { eq, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { CREATOR_TIERS, type CreatorTier } from "./platform-fees";
-import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, EMAIL_COLORS } from "./email";
+import { sendEmail, emailShellForRecipient, emailButton, escapeHtml, baseUrlForEmail, EMAIL_COLORS } from "./email";
 import { createGuardedStripeClient } from "./stripe-client";
 import { notifyUserEvent, type UserEventInput } from "./push-events";
 
@@ -345,7 +345,8 @@ export async function handleTierCheckoutCompleted(session: Stripe.Checkout.Sessi
         .rows[0]?.["email"];
     if (typeof buyerEmail === "string" && buyerEmail.length > 0) {
       const tierName = tier.charAt(0).toUpperCase() + tier.slice(1);
-      const html = emailShell(
+      const { html, theme } = await emailShellForRecipient(
+        buyerEmail,
         `Welcome to ${tierName}`,
         `<p style="margin:0 0 12px;">Your <strong style="color:${EMAIL_COLORS.goldDeep};">${escapeHtml(tierName)}</strong> creator subscription is active. The full cheat code is now unlocked:</p>
 <ul style="font-size:14px;line-height:1.8;margin:0 0 16px;padding-left:20px;">
@@ -357,7 +358,7 @@ ${currentPeriodEnd ? `<p style="color:${EMAIL_COLORS.muted};font-size:13px;">Ren
 ${emailButton(`${baseUrlForEmail()}/dashboard`, "Open my dashboard")}`
       );
       // Fire-and-forget: webhook must return 200 to Stripe promptly.
-      void sendEmail({ to: buyerEmail, subject: `Welcome to ${tierName} — your subscription is active`, html });
+      void sendEmail({ to: buyerEmail, subject: `Welcome to ${tierName} — your subscription is active`, html, theme, themeRecipient: buyerEmail });
     }
   } catch (emailErr) {
     logger.warn({ emailErr, sessionId: session.id }, "tier confirmation email failed (non-fatal)");

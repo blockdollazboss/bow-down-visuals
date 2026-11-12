@@ -4,7 +4,8 @@ import {
   db as defaultDb,
   type ProductDropDelivery,
 } from "@workspace/db";
-import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, EMAIL_COLORS } from "./email";
+import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, type EmailTheme, EMAIL_COLORS } from "./email";
+import { resolveEmailThemeForRecipient } from "./email-theme-rotation";
 import { logger } from "./logger";
 import { isUndefinedTable } from "./pg-errors";
 
@@ -299,7 +300,7 @@ export function createDrizzleProductDropNotifyStore(db: Db = defaultDb): Product
 
 interface ProductDropNotifyDeps {
   store?: ProductDropNotifyStore;
-  send?: (opts: { to: string; subject: string; html: string; text?: string }) => Promise<SendEmailResult>;
+  send?: (opts: { to: string; subject: string; html: string; text?: string; theme?: EmailTheme; themeRecipient?: string }) => Promise<SendEmailResult>;
   now?: Date;
   maxAttempts?: number;
   followGraceMs?: number;
@@ -323,7 +324,8 @@ function deps(depsIn: ProductDropNotifyDeps): Required<ProductDropNotifyDeps> {
 export function buildProductDropEmail(
   drop: DueProductDrop,
   capture: Pick<EligibleCapture, "email" | "name">,
-): { to: string; subject: string; html: string; text: string } {
+  theme?: EmailTheme,
+): { to: string; subject: string; html: string; text: string; theme?: EmailTheme; themeRecipient?: string } {
   const productUrl = `${baseUrlForEmail()}/storefront/product/${drop.productId}`;
   const title = escapeHtml(drop.title);
   const creator = escapeHtml(drop.creatorName);
@@ -336,6 +338,7 @@ export function buildProductDropEmail(
 <p>You joined the drop list, and the wait is over — <strong>${title}</strong> by ${creator} is live now.</p>
 ${emailButton(escapeHtml(productUrl), "Get it now")}
 <p style="color:${EMAIL_COLORS.muted};font-size:13px;">You got this email because you joined the drop list for this product on Bow Down Visuals. One email per drop, as promised — no spam, ever.</p>`,
+    { theme },
   );
   const text = [
     `${drop.title} by ${drop.creatorName} just dropped and is live now.`,
@@ -347,6 +350,8 @@ ${emailButton(escapeHtml(productUrl), "Get it now")}
     subject: `It's live: ${drop.title} — ${drop.creatorName}`,
     html,
     text,
+    theme,
+    themeRecipient: capture.email,
   };
 }
 
@@ -406,7 +411,8 @@ export async function notifyDropFansForDrop(
       }
       result.claimed++;
 
-      const sendResult = await d.send(buildProductDropEmail(drop, capture));
+      const theme = await resolveEmailThemeForRecipient(capture.email);
+      const sendResult = await d.send(buildProductDropEmail(drop, capture, theme));
       if (sendResult.sent) {
         await d.store.markSent(row.id, sendResult.id ?? null, d.now);
         result.sent++;
