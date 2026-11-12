@@ -708,6 +708,16 @@ function descriptionFromPageText(text, en) {
     let v = en;
     for (const p of parts) v = v?.[p];
     if (typeof v === "string" && v.length >= 25 && v.length <= 300 && !v.includes("{{") && !v.includes("http")) {
+      /* Money figures are refused here too, not only in the deepening
+         pass (join21): a page's longest prose string can be a section
+         intro that quotes a fee or a price — the refund page's
+         marketplace intro quotes the 5% fee — and a quoted figure in
+         an operator description can drift from the code-extracted
+         prices array. Refusing it falls through to the page's next
+         prose candidate (its pageDescription). DESCRIPTION_MONEY_RE
+         is defined below; this function is only called at generation
+         time, after the whole module has loaded. */
+      if (DESCRIPTION_MONEY_RE.test(v)) continue;
       if (!best || v.length > best.value.length) best = { value: v.trim(), key: m[1] };
     }
   }

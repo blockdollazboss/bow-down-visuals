@@ -1,6 +1,6 @@
 {
   "generatedBy": "artifacts/api-server/scripts/generate-operator-knowledge.mjs",
-  "baseCommit": "95ee6760a7f9e95def1b5e85c302935887289c4a",
+  "baseCommit": "b0b7cabbf8c622b596cdc19b36e0bd8fcfa2c391",
   "site": {
     "name": "Bow Down Visuals",
     "title": "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -11856,8 +11856,8 @@
       "component": "RefundPolicy",
       "endpoints": [],
       "prices": [],
-      "description": "Sellers sell on Bow Down Visuals; the site takes a flat 5% fee. Sellers are paid through Stripe Connect.",
-      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"refundPolicy.marketplace.intro\" (page's own string)",
+      "description": "Our refund policy for Visual Bucs and purchases.",
+      "descriptionSource": "artifacts/bow-down-visuals/src/locales/en.json \"refundPolicy.pageDescription\" (page's own string)",
       "nextSteps": []
     },
     {
