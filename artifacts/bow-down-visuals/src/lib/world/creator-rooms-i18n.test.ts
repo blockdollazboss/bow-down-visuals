@@ -139,8 +139,10 @@ describe("Creator Rooms extraction (unit 48)", () => {
 
   it("the namespace holds the family's full extracted key set", () => {
     // 325 at unit 48; +5 for Stack 200 E-3 (crownsYearFallback +
-    // the four giftProblem* sentences, extracted).
-    expect(enKeys.length).toBe(330);
+    // the four giftProblem* sentences, extracted); +2 for B-25
+    // (dirConnectionsOne + dirConnectionsMany — the Creator Rooms
+    // directory pill's guest-connections labels, join21).
+    expect(enKeys.length).toBe(332);
   });
 
   it("every catalog key is referenced by a component or seam (no orphans, no remainder)", () => {

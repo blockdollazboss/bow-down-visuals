@@ -94,6 +94,7 @@ export const STATIC_SITEMAP_PATHS: readonly string[] = [
   "/terms",
   "/privacy",
   "/refund-policy",
+  "/moderation",
   "/storefronts",
   "/app",
 ];

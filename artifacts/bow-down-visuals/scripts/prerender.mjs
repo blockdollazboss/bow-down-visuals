@@ -150,6 +150,14 @@ const ROUTES = [
     description: "Our refund policy for Visual Bucs and purchases.",
   },
   {
+    path: "/moderation",
+    outFile: "moderation/index.html",
+    headOnly: true,
+    title: "Moderation and Takedown Rules | Bow Down Visuals",
+    description:
+      "What is not allowed on Bow Down Visuals, how reporting and review work, the repeat-offender ladder, copyright takedowns, and appeals.",
+  },
+  {
     path: "/storefronts",
     outFile: "storefronts/index.html",
     headOnly: true,

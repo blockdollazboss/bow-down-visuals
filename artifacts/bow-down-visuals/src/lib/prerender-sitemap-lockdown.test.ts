@@ -21,7 +21,7 @@
  *   sitemap (public/sitemap.xml): exactly the static public set —
  *     /, /charts, /shorts, marketplace browse (/beats, /shoutouts,
  *     /memberships, /contests, /winners), legal (/terms, /privacy,
- *     /refund-policy) and /storefronts.
+ *     /refund-policy, /moderation) and /storefronts.
  *
  * The definitive route census lives in Lane 1's matrix
  * (lib/public-routes.ts); this test pins the BUILD lists specifically.
@@ -118,6 +118,7 @@ const SITEMAP_PUBLIC_SET = [
   "/terms",
   "/privacy",
   "/refund-policy",
+  "/moderation",
   "/storefronts",
   "/app",
 ];
@@ -167,6 +168,7 @@ const PRERENDER_HEAD_ROUTES = [
   "/terms",
   "/privacy",
   "/refund-policy",
+  "/moderation",
   "/storefronts",
   "/app",
 ];
