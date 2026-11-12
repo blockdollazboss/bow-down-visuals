@@ -190,7 +190,11 @@ describe("tracked campaign dispatch (email-campaign-send path)", () => {
   });
   it("keeps the wrapped link, the honest footer and the pixel", () => {
     expect(html).toContain('href="https://bowdownvisuals.com/api/email-track/c/link1"');
-    expect(html).toContain(`style="color:${EMAIL_COLORS.goldDeep};"`);
+    /* Body links ride the send theme's goldText (email-company-theme-2):
+       the light member's is the shell's AA-pinned light gold — the same
+       "AA house gold on the panel" intent the goldDeep pin held, now
+       theme-correct in the dark send too. */
+    expect(html).toContain(`style="color:${EMAIL_THEME_COLORS.light.goldText};"`);
     expect(html).toContain("Unsubscribe in one click");
     expect(html).toContain("Opens and link clicks on this email are tracked");
     expect(html).toContain("https://bowdownvisuals.com/api/email-track/o/tok123.gif");
