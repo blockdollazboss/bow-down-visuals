@@ -53,13 +53,12 @@ import { z } from "zod/v4";
  * (Nov 11, 2026): a report on a creator story resolves against the
  * stories table — the story's profile_id → creator_profiles.user_id
  * owns it — and the StoryViewer docks the shared Report button.
- * ⚠️ TRAILING STEP: databases still carry the target-type check
- * from migrations 0174/0267, WITHOUT 'story'. The drizzle check
- * below already includes it; widening the live constraint needs a
- * join-assigned migration number (the join-ready SQL rides the
- * lane report) — until it lands, story inserts fail at the
- * database and the route answers an honest 500; every other
- * target type is unaffected.
+ * Migration 0339 (join22) widened the live target-type check to
+ * include 'story', so schema, migration, and database agree: the
+ * check below carries the full five-type vocabulary. (On a
+ * database where 0339 has not landed yet, story inserts still
+ * fail at the old 0174/0267 constraint and the route answers an
+ * honest 500; every other target type is unaffected either way.)
  */
 
 export const CONTENT_REPORT_TARGET_TYPES = ["post", "comment", "profile", "fan_art", "story"] as const;
