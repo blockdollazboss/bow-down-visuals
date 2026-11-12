@@ -222,3 +222,103 @@ describe("malformed cookie hardening", () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("post-login return-to (deep links keep their query)", () => {
+  /* Regression pin for the Nov 11 2026 referral miss: a gated visitor
+     opening /?ref=CODE was logged in and redirected to a bare "/", so
+     the code never reached the app. The gate now carries the original
+     path+query through the login form in a hidden field and redirects
+     back to it — sanitized to a same-site path. */
+  function loginPost(body: Record<string, unknown>): FakeRes {
+    const r = fakeRes();
+    stagingGate(fakeReq({ path: "/__staging_login", method: "POST", body }), r.res, vi.fn());
+    return r;
+  }
+
+  it("(a) the gated page carries the original URL and login redirects back to it", () => {
+    const page = fakeRes();
+    stagingGate(
+      fakeReq({ path: "/", originalUrl: "/?ref=ABC123", headers: { accept: "text/html" } }),
+      page.res,
+      vi.fn(),
+    );
+    expect(page.statusCode).toBe(401);
+    expect(String(page.body)).toContain('name="next" value="/?ref=ABC123"');
+
+    const r = loginPost({ [FIELD]: FIXTURE_PASSWORD, next: "/?ref=ABC123" });
+    expect(r.cookieCalls).toHaveLength(1);
+    expect(r.redirectTo).toBe("/?ref=ABC123");
+  });
+
+  it("(b) a deep path with a query survives the round trip", () => {
+    const page = fakeRes();
+    stagingGate(
+      fakeReq({ path: "/some/page", originalUrl: "/some/page?invite=xyz", headers: { accept: "text/html" } }),
+      page.res,
+      vi.fn(),
+    );
+    expect(String(page.body)).toContain('name="next" value="/some/page?invite=xyz"');
+
+    const r = loginPost({ [FIELD]: FIXTURE_PASSWORD, next: "/some/page?invite=xyz" });
+    expect(r.redirectTo).toBe("/some/page?invite=xyz");
+  });
+
+  it("(c) hostile return values fall back to /", () => {
+    for (const hostile of [
+      "https://evil.example/phish",
+      "//evil.example/phish",
+      "/\\evil.example",
+      "javascript:alert(1)",
+    ]) {
+      const r = loginPost({ [FIELD]: FIXTURE_PASSWORD, next: hostile });
+      expect(r.redirectTo, hostile).toBe("/");
+    }
+  });
+
+  it("the gate's own endpoints are never a return target (no loop, no instant logout)", () => {
+    for (const self of ["/__staging_login", "/__staging_logout", "/__staging_login?next=/?ref=ABC123"]) {
+      const r = loginPost({ [FIELD]: FIXTURE_PASSWORD, next: self });
+      expect(r.redirectTo, self).toBe("/");
+    }
+  });
+
+  it("(d) no return value redirects to / exactly as before", () => {
+    const r = loginPost({ [FIELD]: FIXTURE_PASSWORD });
+    expect(r.redirectTo).toBe("/");
+  });
+
+  it("a wrong password keeps the return target in the re-rendered form", () => {
+    const r = loginPost({ [FIELD]: "nope", next: "/?ref=ABC123" });
+    expect(r.statusCode).toBe(401);
+    expect(r.cookieCalls).toHaveLength(0);
+    expect(String(r.body)).toContain('name="next" value="/?ref=ABC123"');
+  });
+
+  it("the login page escapes a quote-bearing target instead of breaking out of the attribute", () => {
+    const page = fakeRes();
+    stagingGate(
+      fakeReq({ path: "/", originalUrl: '/?ref=A"B', headers: { accept: "text/html" } }),
+      page.res,
+      vi.fn(),
+    );
+    expect(String(page.body)).toContain('value="/?ref=A&quot;B"');
+  });
+
+  it("a direct visit to the login page honors a sanitized ?next= and drops a hostile one", () => {
+    const good = fakeRes();
+    stagingGate(
+      fakeReq({ path: "/__staging_login", method: "GET", query: { next: "/?ref=ABC123" } }),
+      good.res,
+      vi.fn(),
+    );
+    expect(String(good.body)).toContain('name="next" value="/?ref=ABC123"');
+
+    const bad = fakeRes();
+    stagingGate(
+      fakeReq({ path: "/__staging_login", method: "GET", query: { next: "https://evil.example" } }),
+      bad.res,
+      vi.fn(),
+    );
+    expect(String(bad.body)).not.toContain("evil.example");
+  });
+});
