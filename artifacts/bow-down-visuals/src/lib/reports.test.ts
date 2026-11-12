@@ -139,6 +139,8 @@ describe("the docks — Report action lives in the existing surfaces", () => {
   const dialog = read("../components/social/ReportButton.tsx");
   const postCard = read("../components/social/PostCard.tsx");
   const commentThread = read("../components/player/CommentThread.tsx");
+  const shorts = read("../pages/shorts.tsx");
+  const groupDetail = read("../pages/group-detail.tsx");
   const profileSections = read("../components/artist/profile-sections.tsx");
   const admin = read("../pages/admin.tsx");
   const en = JSON.parse(read("../locales/en.json")) as {
@@ -169,6 +171,27 @@ describe("the docks — Report action lives in the existing surfaces", () => {
     expect(commentThread).toContain("<ReportButton");
     expect(commentThread).toContain('targetType="comment"');
     expect(commentThread).toContain("c.user_id !== user?.id");
+  });
+
+  it("the Shorts comments drawer docks it on its media comments, hidden on your own (moderation follow-on)", () => {
+    expect(shorts).toContain("<ReportButton");
+    expect(shorts).toContain('targetType="comment" targetId={c.id} variant="text"');
+    expect(shorts).toContain("c.user_id !== user?.id");
+  });
+
+  it("group feed posts, forum threads, and forum replies dock it, hidden on your own (moderation follow-on)", () => {
+    expect(groupDetail).toContain("<ReportButton");
+    /* feed posts + open thread + thread list rows file as posts;
+       forum replies file as comments — the rail resolves the group
+       stores under those same two types. */
+    expect(groupDetail).toContain('targetType="post" targetId={p.id}');
+    expect(groupDetail).toContain('targetType="post" targetId={openThread.thread.id}');
+    expect(groupDetail).toContain('targetType="post" targetId={t.id}');
+    expect(groupDetail).toContain('targetType="comment" targetId={r.id}');
+    expect(groupDetail).toContain("p.author_user_id !== user?.id");
+    expect(groupDetail).toContain("openThread.thread.author_user_id !== user?.id");
+    expect(groupDetail).toContain("t.author_user_id !== user?.id");
+    expect(groupDetail).toContain("r.author_user_id !== user?.id");
   });
 
   it("the Shout Wall docks it on comments and the profile row docks the profile report, hidden on your own profile", () => {
