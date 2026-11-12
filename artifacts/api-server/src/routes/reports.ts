@@ -25,8 +25,14 @@
  * - The target must EXIST and match its claimed type. Comment
  *   targets resolve in a fixed order — post thread-replies (posts,
  *   kind 'thread_reply'), profile_comments (Shout Wall),
- *   media_comments (track/video threads) — the three comment stores
- *   the site actually renders. Anything else is an honest 404.
+ *   media_comments (track/video threads), group_forum_replies —
+ *   the comment stores the site actually renders. Post targets
+ *   resolve against posts first, then the two group post stores
+ *   (group_posts feed posts, group_forum_threads) — the same rail,
+ *   widened to the stores the group surfaces render (moderation
+ *   wire follow-on, Nov 11, 2026; no new target type, so the
+ *   content_reports vocabulary and its DB check are untouched).
+ *   Anything else is an honest 404.
  * - Nobody reports their own content: the target's owner is resolved
  *   server-side and a self-report is a 400, never a queued row. The
  *   check only bites for identified reporters — a guest carries no
@@ -52,6 +58,9 @@ import {
   creatorProfilesTable,
   profileCommentsTable,
   mediaCommentsTable,
+  groupPostsTable,
+  groupForumThreadsTable,
+  groupForumRepliesTable,
   fanArtPiecesTable,
   CONTENT_REPORT_TARGET_TYPES,
   CONTENT_REPORT_REASONS,
@@ -109,23 +118,41 @@ interface ResolvedTarget {
 }
 
 /** Resolve a post target (top-level posts only — a thread reply is a
- *  comment, and filing one as a "post" is an honest 404) to its owner. */
+ *  comment, and filing one as a "post" is an honest 404) to its owner.
+ *  When the posts store misses, the two group post stores get their
+ *  turn in a fixed order — group feed posts (group_posts), then group
+ *  forum threads (group_forum_threads) — because the group surfaces
+ *  render those rows as posts and the approved rules promise a
+ *  report door where the problem was seen. Group rows carry their
+ *  author directly, so no profile hop is needed there. */
 async function resolvePost(targetId: string): Promise<ResolvedTarget | null> {
   const [post] = await db
     .select({ profileId: postsTable.profileId, kind: postsTable.kind, body: postsTable.body })
     .from(postsTable)
     .where(eq(postsTable.id, targetId));
-  if (!post || post.kind === "thread_reply") return null;
-  const [profile] = await db
-    .select({ userId: creatorProfilesTable.userId })
-    .from(creatorProfilesTable)
-    .where(eq(creatorProfilesTable.id, post.profileId));
-  return { ownerUserId: profile?.userId ?? null, summary: excerpt(post.body) };
+  if (post && post.kind !== "thread_reply") {
+    const [profile] = await db
+      .select({ userId: creatorProfilesTable.userId })
+      .from(creatorProfilesTable)
+      .where(eq(creatorProfilesTable.id, post.profileId));
+    return { ownerUserId: profile?.userId ?? null, summary: excerpt(post.body) };
+  }
+  const [groupPost] = await db
+    .select({ authorUserId: groupPostsTable.authorUserId, body: groupPostsTable.body })
+    .from(groupPostsTable)
+    .where(eq(groupPostsTable.id, targetId));
+  if (groupPost) return { ownerUserId: groupPost.authorUserId, summary: excerpt(groupPost.body) };
+  const [thread] = await db
+    .select({ authorUserId: groupForumThreadsTable.authorUserId, title: groupForumThreadsTable.title, body: groupForumThreadsTable.body })
+    .from(groupForumThreadsTable)
+    .where(eq(groupForumThreadsTable.id, targetId));
+  if (thread) return { ownerUserId: thread.authorUserId, summary: excerpt([thread.title, thread.body].filter(Boolean).join(" — ")) };
+  return null;
 }
 
-/** Resolve a comment target across the three comment stores, in the
+/** Resolve a comment target across the comment stores, in the
  *  fixed order named in the header: post replies, Shout Wall
- *  comments, media comments. */
+ *  comments, media comments, group forum replies. */
 async function resolveComment(targetId: string): Promise<ResolvedTarget | null> {
   const [reply] = await db
     .select({ profileId: postsTable.profileId, kind: postsTable.kind, body: postsTable.body })
@@ -148,6 +175,11 @@ async function resolveComment(targetId: string): Promise<ResolvedTarget | null> 
     .from(mediaCommentsTable)
     .where(eq(mediaCommentsTable.id, targetId));
   if (media) return { ownerUserId: media.authorUserId, summary: excerpt(media.body) };
+  const [forumReply] = await db
+    .select({ authorUserId: groupForumRepliesTable.authorUserId, body: groupForumRepliesTable.body })
+    .from(groupForumRepliesTable)
+    .where(eq(groupForumRepliesTable.id, targetId));
+  if (forumReply) return { ownerUserId: forumReply.authorUserId, summary: excerpt(forumReply.body) };
   return null;
 }
 

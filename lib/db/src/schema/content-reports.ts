@@ -40,6 +40,12 @@ import { z } from "zod/v4";
  * threads). target_owner_user_id + target_summary are filed-time
  * snapshots so the queue keeps its context even if the target is
  * later deleted.
+ *
+ * The group surfaces joined the rail in the moderation follow-on
+ * (Nov 11, 2026) WITHOUT a new target type: "post" resolution falls
+ * back to group_posts (group feed posts) and group_forum_threads,
+ * and "comment" resolution falls back to group_forum_replies — the
+ * vocabulary above and its DB check are unchanged.
  */
 
 export const CONTENT_REPORT_TARGET_TYPES = ["post", "comment", "profile", "fan_art"] as const;

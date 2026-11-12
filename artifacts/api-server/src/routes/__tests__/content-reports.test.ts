@@ -16,10 +16,13 @@
  *   DMCA gate exactly (guest 401, member-not-admin 403, allowlist
  *   unset = fail-closed 403 for everyone).
  * - The target must EXIST and match its claimed type. "comment"
- *   resolves across the three real comment stores (post thread
- *   replies, profile_comments, media_comments); a top-level post
- *   filed as a comment — or a reply filed as a post — is a 404,
- *   never a queued row against the wrong thing.
+ *   resolves across the real comment stores (post thread replies,
+ *   profile_comments, media_comments, group_forum_replies); "post"
+ *   resolves across posts, group_posts, and group_forum_threads
+ *   (moderation follow-on, Nov 11, 2026 — the group surfaces render
+ *   those rows as posts); a top-level post filed as a comment — or
+ *   a reply filed as a post — is a 404, never a queued row against
+ *   the wrong thing.
  * - Nobody reports their own content (owner resolved server-side
  *   from the target row, never trusted from the client): 400.
  * - One OPEN report per (reporter, target): re-filing while the
@@ -57,6 +60,11 @@ const OWN_POST_ID = "00000000-0000-4000-8000-0000000000c3";
 const WALL_COMMENT_ID = "00000000-0000-4000-8000-0000000000d1";
 const MEDIA_COMMENT_ID = "00000000-0000-4000-8000-0000000000d2";
 const MEDIA_ID = "00000000-0000-4000-8000-0000000000d3";
+const GROUP_POST_ID = "00000000-0000-4000-8000-0000000000d4";
+const FORUM_THREAD_ID = "00000000-0000-4000-8000-0000000000d5";
+const FORUM_REPLY_ID = "00000000-0000-4000-8000-0000000000d6";
+const GROUP_ID = "00000000-0000-4000-8000-0000000000d7";
+const CHANNEL_ID = "00000000-0000-4000-8000-0000000000d8";
 const MISSING_ID = "00000000-0000-4000-8000-0000000000e9";
 
 const h = vi.hoisted(() => ({ fake: null as any }));
@@ -107,6 +115,9 @@ vi.mock("@workspace/db", async (importOriginal) => {
       creatorProfiles: actual.creatorProfilesTable,
       profileComments: actual.profileCommentsTable,
       mediaComments: actual.mediaCommentsTable,
+      groupPosts: actual.groupPostsTable,
+      groupForumThreads: actual.groupForumThreadsTable,
+      groupForumReplies: actual.groupForumRepliesTable,
       artistVaults: actual.artistVaultsTable,
       spotlightInquiries: actual.spotlightInquiriesTable,
       contactMessages: actual.contactMessagesTable,
@@ -188,6 +199,15 @@ function seedWorld() {
   h.fake.seed("mediaComments", [
     { id: MEDIA_COMMENT_ID, mediaId: MEDIA_ID, authorUserId: COMMENTER_ID, body: "comment under the track" },
   ]);
+  h.fake.seed("groupPosts", [
+    { id: GROUP_POST_ID, groupId: GROUP_ID, authorUserId: COMMENTER_ID, body: "a post in the crew feed" },
+  ]);
+  h.fake.seed("groupForumThreads", [
+    { id: FORUM_THREAD_ID, channelId: CHANNEL_ID, groupId: GROUP_ID, authorUserId: COMMENTER_ID, title: "Best mic for a small room?", body: "Looking for picks under $200." },
+  ]);
+  h.fake.seed("groupForumReplies", [
+    { id: FORUM_REPLY_ID, threadId: FORUM_THREAD_ID, groupId: GROUP_ID, authorUserId: COMMENTER_ID, body: "a reply in the forum thread" },
+  ]);
 }
 
 const reportRows = () => h.fake.store("contentReports").rows as any[];
@@ -265,6 +285,52 @@ describe("POST /api/reports — filing", () => {
     const res = await req("POST", "/api/reports", freshFiler(), { target_type: "comment", target_id: MEDIA_COMMENT_ID, reason: "scam" });
     expect(res.status).toBe(201);
     expect(res.json.report).toMatchObject({ targetOwnerUserId: COMMENTER_ID, targetSummary: "comment under the track" });
+  });
+
+  it("resolves a group feed post (group_posts) filed as a post", async () => {
+    const res = await req("POST", "/api/reports", freshFiler(), { target_type: "post", target_id: GROUP_POST_ID, reason: "spam" });
+    expect(res.status).toBe(201);
+    expect(res.json.report).toMatchObject({ targetType: "post", targetId: GROUP_POST_ID, targetOwnerUserId: COMMENTER_ID, targetSummary: "a post in the crew feed" });
+  });
+
+  it("resolves a group forum thread filed as a post, summary led by its title", async () => {
+    const res = await req("POST", "/api/reports", freshFiler(), { target_type: "post", target_id: FORUM_THREAD_ID, reason: "scam" });
+    expect(res.status).toBe(201);
+    expect(res.json.report).toMatchObject({ targetType: "post", targetId: FORUM_THREAD_ID, targetOwnerUserId: COMMENTER_ID, targetSummary: "Best mic for a small room? — Looking for picks under $200." });
+  });
+
+  it("resolves a group forum reply filed as a comment", async () => {
+    const res = await req("POST", "/api/reports", freshFiler(), { target_type: "comment", target_id: FORUM_REPLY_ID, reason: "harassment" });
+    expect(res.status).toBe(201);
+    expect(res.json.report).toMatchObject({ targetType: "comment", targetId: FORUM_REPLY_ID, targetOwnerUserId: COMMENTER_ID, targetSummary: "a reply in the forum thread" });
+  });
+
+  it("a guest can file on a group post too — 201, reporter NULL", async () => {
+    const res = await req("POST", "/api/reports", null, { target_type: "post", target_id: GROUP_POST_ID, reason: "spam" });
+    expect(res.status).toBe(201);
+    expect(res.json.report.reporterUserId).toBeNull();
+    expect(reportRows()[0].targetOwnerUserId).toBe(COMMENTER_ID);
+  });
+
+  it("404s a forum reply filed as a post and a group post filed as a comment (type must match the store)", async () => {
+    const replyAsPost = await req("POST", "/api/reports", freshFiler(), { target_type: "post", target_id: FORUM_REPLY_ID, reason: "spam" });
+    expect(replyAsPost.status).toBe(404);
+    const groupPostAsComment = await req("POST", "/api/reports", freshFiler(), { target_type: "comment", target_id: GROUP_POST_ID, reason: "spam" });
+    expect(groupPostAsComment.status).toBe(404);
+    const threadAsComment = await req("POST", "/api/reports", freshFiler(), { target_type: "comment", target_id: FORUM_THREAD_ID, reason: "spam" });
+    expect(threadAsComment.status).toBe(404);
+    expect(reportRows()).toHaveLength(0);
+  });
+
+  it("400s reporting your own group post and your own forum reply", async () => {
+    const commenter: Who = { id: COMMENTER_ID, email: "commenter@example.test" };
+    const ownGroupPost = await req("POST", "/api/reports", commenter, { target_type: "post", target_id: GROUP_POST_ID, reason: "spam" });
+    expect(ownGroupPost.status).toBe(400);
+    expect(ownGroupPost.json.error).toMatch(/own content/);
+    const ownReply = await req("POST", "/api/reports", commenter, { target_type: "comment", target_id: FORUM_REPLY_ID, reason: "spam" });
+    expect(ownReply.status).toBe(400);
+    expect(ownReply.json.error).toMatch(/own content/);
+    expect(reportRows()).toHaveLength(0);
   });
 
   it("files a profile report with the display name as the summary", async () => {
