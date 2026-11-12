@@ -163,7 +163,7 @@ export function CommentThread({ kind, mediaId }: { kind: MediaKind; mediaId: str
                         <EyeOff className="h-3 w-3" /> Hidden
                       </span>
                     )}
-                    {user && c.user_id !== user.id && (
+                    {c.user_id !== user?.id && (
                       <span className="ml-auto">
                         <ReportButton targetType="comment" targetId={c.id} variant="text" />
                       </span>

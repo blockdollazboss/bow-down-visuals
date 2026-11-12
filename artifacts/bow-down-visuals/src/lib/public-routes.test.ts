@@ -341,6 +341,7 @@ describe("isPublicPath — representative positives from every public family", (
     ["legal — terms", "/terms"],
     ["legal — privacy", "/privacy"],
     ["legal — refund policy", "/refund-policy"],
+    ["legal — moderation rules", "/moderation"],
     ["token link — client review", "/review/abc123token"],
     ["token link — sync one-sheet", "/sync-one-sheet/abc123token"],
     ["token link — stream overlay alerts", "/overlay/alerts"],
@@ -466,8 +467,11 @@ describe("the shipped allowlist itself", () => {
     expect(new Set(PUBLIC_ROUTES).size).toBe(PUBLIC_ROUTES.length);
   });
 
-  it("contains exactly the approved public set (52 patterns)", () => {
-    expect(PUBLIC_ROUTES).toHaveLength(52);
+  it("contains exactly the approved public set (53 patterns)", () => {
+    /* 52 → 53: /moderation joined the legal family with the public
+       Moderation and Takedown Rules page (owner-approved Nov 11,
+       2026) — a policy page is public like terms/privacy/refunds. */
+    expect(PUBLIC_ROUTES).toHaveLength(53);
   });
 
   it("judges a path with a query string the same as the bare path", () => {

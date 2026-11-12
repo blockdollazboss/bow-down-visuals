@@ -1086,7 +1086,8 @@ function PitchFixInbox({ authHeaders }: { authHeaders: () => Promise<HeadersInit
    the time an admin looks. */
 interface ContentReportRow {
   id: string;
-  reporterUserId: string;
+  /** NULL for a guest-filed report — the queue shows "unknown". */
+  reporterUserId: string | null;
   targetType: string;
   targetId: string;
   targetOwnerUserId: string | null;

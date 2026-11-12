@@ -512,7 +512,12 @@ export class OperatorDuties {
         pile = { reporters: new Set(), reasons: new Map(), counted: 0 };
         piles.set(member, pile);
       }
-      pile.reporters.add(report.reporterUserId);
+      /* Guest reports (reporter NULL since the owner-approved
+         Moderation and Takedown Rules, Nov 11, 2026) carry no
+         identity: they count toward the pile and its reasons, but
+         all guests together weigh as ONE anonymous reporter — a
+         guest flood alone can never trip the multi-reporter line. */
+      pile.reporters.add(report.reporterUserId ?? "guest");
       pile.counted += 1;
       pile.reasons.set(
         report.reason,

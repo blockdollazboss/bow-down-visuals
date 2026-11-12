@@ -145,8 +145,12 @@ describe("the docks — Report action lives in the existing surfaces", () => {
     admin: { reports: Record<string, unknown> };
   };
 
-  it("the dialog is members-only and keeps success and failure in separate phases", () => {
-    expect(dialog).toContain("if (!user) return null");
+  it("the dialog is open to everyone (guests included — owner-approved Moderation and Takedown Rules, Nov 11, 2026) and keeps success and failure in separate phases", () => {
+    /* The Stack-4 members-only gate ("if (!user) return null") was
+       retired by the approved rules: anyone can report, including
+       guests. The dialog now renders signed-out and says so. */
+    expect(dialog).not.toContain("if (!user) return null");
+    expect(dialog).toContain("You're not signed in — you can still report this.");
     expect(dialog).toContain('data-testid="report-dialog"');
     expect(dialog).toContain('data-testid="report-success"');
     expect(dialog).toContain('data-testid="report-error"');
@@ -161,16 +165,16 @@ describe("the docks — Report action lives in the existing surfaces", () => {
     expect(postCard).toContain('post.kind === "thread_reply" ? "comment" : "post"');
   });
 
-  it("media comment rows dock it, hidden on your own comments", () => {
+  it("media comment rows dock it, hidden on your own comments (a guest has no own comments)", () => {
     expect(commentThread).toContain("<ReportButton");
     expect(commentThread).toContain('targetType="comment"');
-    expect(commentThread).toContain("c.user_id !== user.id");
+    expect(commentThread).toContain("c.user_id !== user?.id");
   });
 
   it("the Shout Wall docks it on comments and the profile row docks the profile report, hidden on your own profile", () => {
     expect(profileSections).toContain('targetType="comment"');
     expect(profileSections).toContain('targetType="profile"');
-    expect(profileSections).toContain("profile.user_id !== user.id");
+    expect(profileSections).toContain("profile.user_id !== user?.id");
   });
 
   it("the admin queue sits beside the DMCA inbox with load-error honesty", () => {

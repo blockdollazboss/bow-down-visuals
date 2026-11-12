@@ -477,12 +477,13 @@ export function PostCard({
               <button onClick={share} aria-label="Share" className="rounded-full p-[13px] -m-[5px] text-neutral-400 hover:text-[#d4af37]">
                 <Share2 className="h-[18px] w-[18px]" />
               </button>
-              {user && (
-                <ReportButton
-                  targetType={post.kind === "thread_reply" ? "comment" : "post"}
-                  targetId={post.id}
-                />
-              )}
+              {/* Anyone can report, guests included (owner-approved
+                  Moderation and Takedown Rules, Nov 11, 2026) — no
+                  sign-in gate on this dock. */}
+              <ReportButton
+                targetType={post.kind === "thread_reply" ? "comment" : "post"}
+                targetId={post.id}
+              />
               <button onClick={del} aria-label="Delete post" className="rounded-full p-[13px] -m-[5px] text-neutral-500 hover:text-red-400">
                 <Trash2 className="h-[16px] w-[16px]" />
               </button>

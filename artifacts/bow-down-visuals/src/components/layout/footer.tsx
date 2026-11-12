@@ -18,6 +18,7 @@ const LEGAL = [
   { label: "Terms of Service", href: "/terms" },
   { label: "Privacy Policy",   href: "/privacy" },
   { label: "Refund Policy",    href: "/refund-policy" },
+  { label: "Moderation Rules", href: "/moderation" },
 ];
 
 /* Link columns speak the six areas — the same taxonomy as the sidebar,
@@ -298,6 +299,7 @@ export function SiteFooter() {
             <Link href="/terms"         className={`${T.copy} text-xs hover:opacity-70 transition-colors inline-flex items-center min-h-[40px] md:min-h-0 py-2`}>Terms</Link>
             <Link href="/privacy"       className={`${T.copy} text-xs hover:opacity-70 transition-colors inline-flex items-center min-h-[40px] md:min-h-0 py-2`}>Privacy</Link>
             <Link href="/refund-policy" className={`${T.copy} text-xs hover:opacity-70 transition-colors inline-flex items-center min-h-[40px] md:min-h-0 py-2`}>Refunds</Link>
+            <Link href="/moderation" className={`${T.copy} text-xs hover:opacity-70 transition-colors inline-flex items-center min-h-[40px] md:min-h-0 py-2`}>Moderation</Link>
           </div>
         </div>
       </div>

@@ -1,10 +1,11 @@
 /**
- * reports.ts — member content reports (Stack-4 #3).
+ * reports.ts — content reports (Stack-4 #3; guest filing added under
+ * the owner-approved Moderation and Takedown Rules, Nov 11, 2026).
  *
- *   POST /api/reports   (auth) file a report on a post, a comment,
- *                       a creator profile, or a fan-art piece
- *                       (Stack-200 #157 — the Fan Art Wall rides this
- *                       same rail; no second moderation system).
+ *   POST /api/reports   (optional auth) file a report on a post, a
+ *                       comment, a creator profile, or a fan-art
+ *                       piece (Stack-200 #157 — the Fan Art Wall rides
+ *                       this same rail; no second moderation system).
  *
  * The admin half of the loop — GET/PATCH /api/admin/reports — lives
  * in routes/admin.ts beside the DMCA bench it mirrors.
@@ -15,21 +16,28 @@
  * statement — a different contract, not a member report button).
  *
  * THE RULES THIS ROUTE KEEPS:
- * - Members only (requireAuth): a report names its reporter, so the
- *   queue can weigh repeat filers; guests get 401, never a form.
+ * - Anyone can report, including guests (the approved rules' exact
+ *   terms): a signed-in member's report names its reporter, so the
+ *   queue can weigh repeat filers; a guest's report files with a NULL
+ *   reporter. Auth is OPTIONAL and never 401s — a missing or invalid
+ *   token simply files as a guest. The per-IP rate limiter
+ *   (reportWriteLimiter keys guests by IP) is the abuse brake.
  * - The target must EXIST and match its claimed type. Comment
  *   targets resolve in a fixed order — post thread-replies (posts,
  *   kind 'thread_reply'), profile_comments (Shout Wall),
  *   media_comments (track/video threads) — the three comment stores
  *   the site actually renders. Anything else is an honest 404.
  * - Nobody reports their own content: the target's owner is resolved
- *   server-side and a self-report is a 400, never a queued row.
+ *   server-side and a self-report is a 400, never a queued row. The
+ *   check only bites for identified reporters — a guest carries no
+ *   identity to compare, so a guest filing is always accepted.
  * - One OPEN report per (reporter, target): re-filing while an
  *   earlier report is still new/reviewing returns that open row
  *   ({ duplicate: true }) instead of stacking a second row. The
  *   partial unique index in migration 0174 is the database half of
  *   the same rule; once a report is decided, filing again is a
- *   fresh row.
+ *   fresh row. Guest reports (NULL reporter) never dedupe: Postgres
+ *   treats NULLs as distinct in the unique index.
  * - Filing a report NEVER acts on the target. No auto-hide, no
  *   auto-ban, no notification — the report only queues the target
  *   for a human admin on the bench.
@@ -49,10 +57,25 @@ import {
   CONTENT_REPORT_REASONS,
   CONTENT_REPORT_OPEN_STATUSES,
 } from "@workspace/db";
-import { requireAuth } from "../middlewares/require-auth";
+import { verifyAccessToken } from "../lib/live-ws";
 import { reportWriteLimiter } from "../lib/rate-limit";
 
 const router = Router();
+
+/** Optional auth for the report rail (mirrors routes/social.ts):
+ *  sets req.userId when a valid Bearer token rides along, never
+ *  rejects. A guest — no token, or a token that does not verify —
+ *  files with reporter NULL, exactly as the approved rules allow. */
+async function optionalAuth(req: Request, _res: Response, next: () => void) {
+  const h = req.headers["authorization"];
+  if (h?.startsWith("Bearer ")) {
+    try {
+      const v = await verifyAccessToken(h.slice(7));
+      if (v) req.userId = v.userId;
+    } catch { /* reporter stays a guest — the filing still counts */ }
+  }
+  next();
+}
 
 const contentReportDto = {
   id: contentReportsTable.id,
@@ -180,7 +203,7 @@ async function findOpenReport(reporterUserId: string, targetType: string, target
   return open ?? null;
 }
 
-router.post("/reports", requireAuth, reportWriteLimiter, async (req: Request, res: Response) => {
+router.post("/reports", optionalAuth, reportWriteLimiter, async (req: Request, res: Response) => {
   const parsed = CreateReportSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({
@@ -189,7 +212,9 @@ router.post("/reports", requireAuth, reportWriteLimiter, async (req: Request, re
     return;
   }
   const { target_type: targetType, target_id: targetId, reason, note } = parsed.data;
-  const reporterUserId = req.userId!;
+  /* NULL for a guest filer (the approved rules let anyone report);
+     the column is nullable for exactly this row shape. */
+  const reporterUserId = req.userId ?? null;
 
   try {
     const resolved =
@@ -213,17 +238,21 @@ router.post("/reports", requireAuth, reportWriteLimiter, async (req: Request, re
       });
       return;
     }
-    if (resolved.ownerUserId && resolved.ownerUserId === reporterUserId) {
+    if (reporterUserId && resolved.ownerUserId && resolved.ownerUserId === reporterUserId) {
       res.status(400).json({
         error: targetType === "profile" ? "You can't report your own profile." : "You can't report your own content.",
       });
       return;
     }
 
-    const existing = await findOpenReport(reporterUserId, targetType, targetId);
-    if (existing) {
-      res.json({ report: existing, duplicate: true });
-      return;
+    /* Dedupe is an identified-reporter rule; guests skip the lookup
+       (their NULL reporter can never match the partial unique index). */
+    if (reporterUserId) {
+      const existing = await findOpenReport(reporterUserId, targetType, targetId);
+      if (existing) {
+        res.json({ report: existing, duplicate: true });
+        return;
+      }
     }
 
     const [report] = await db
@@ -242,8 +271,11 @@ router.post("/reports", requireAuth, reportWriteLimiter, async (req: Request, re
 
     if (!report) {
       /* Lost a same-instant race: the partial unique index held the
-         one-open-report line, so the winner's row is the answer. */
-      const winner = await findOpenReport(reporterUserId, targetType, targetId);
+         one-open-report line, so the winner's row is the answer.
+         Only identified reporters can lose that race — a guest's
+         NULL reporter never conflicts, so a missing row here is a
+         plain failure for them. */
+      const winner = reporterUserId ? await findOpenReport(reporterUserId, targetType, targetId) : null;
       if (winner) {
         res.json({ report: winner, duplicate: true });
         return;

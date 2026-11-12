@@ -9684,6 +9684,72 @@
       "p2": " أو راسلنا عبر البريد "
     }
   },
+  "moderationPolicy": {
+    "pageTitle": "Moderation and Takedown Rules",
+    "pageDescription": "What is not allowed on Bow Down Visuals, how reporting and review work, the repeat-offender ladder, copyright takedowns, and appeals.",
+    "title": "Moderation and Takedown Rules",
+    "lastUpdated": "Last updated: November 2026",
+    "nav": {
+      "contactSupport": "Contact / Support"
+    },
+    "intro": "These rules keep Bow Down Visuals safe and legal. They apply to everything posted on the site: videos, music, photos, profiles, comments, and live streams.",
+    "notAllowed": {
+      "title": "What is not allowed",
+      "item1": "Anything illegal, or anything that breaks another person's rights.",
+      "item2": "Other people's work posted as your own — songs, videos, clips, artwork, or logos you do not have the right to use.",
+      "item3": "Sexual content involving anyone under 18. Removed instantly and reported to the authorities. No warnings, no appeals on the content itself.",
+      "item4": "Threats, harassment, or hate targeting a person or group.",
+      "item5": "Scams, fake giveaways, phishing links, or anything built to steal accounts or money.",
+      "item6": "Spam: repeated junk posts, fake engagement, or mass unwanted messages.",
+      "item7": "Impersonation — pretending to be another creator, a brand, or Bow Down Visuals staff.",
+      "item8": "Content that shows real violence or self-harm for shock value."
+    },
+    "reporting": {
+      "title": "How reporting works",
+      "item1": "Every public post, profile, and comment has a Report button.",
+      "item2": "Anyone can report, including guests, from the page where they saw the problem.",
+      "item3": "Reports go to the Bow Down Visuals review queue. The person reported is not told who reported them.",
+      "item4": "Emergencies (a child at risk, a credible threat of real harm): email support@bowdownvisuals.com with “URGENT” in the subject."
+    },
+    "review": {
+      "title": "Review and takedown steps",
+      "step1Lead": "We look at every report.",
+      "step1Body": "Target: within 24 hours. Urgent safety reports jump the line.",
+      "step2Lead": "Clear break of the rules:",
+      "step2Body": "the content comes down, and the creator gets a notice saying what rule it broke.",
+      "step3Lead": "Not clear:",
+      "step3Body": "the content may be hidden while we check, up to 3 days. If it follows the rules, it goes back up.",
+      "step4Lead": "Legal or safety risk:",
+      "step4Body": "we can remove first and explain after. We keep a copy of removed content for our records."
+    },
+    "ladder": {
+      "title": "Repeat-offender ladder",
+      "rung1Lead": "First offense:",
+      "rung1Body": "warning + the content comes down.",
+      "rung2Lead": "Second offense:",
+      "rung2Body": "7-day posting pause (the account can still log in and view).",
+      "rung3Lead": "Third offense:",
+      "rung3Body": "30-day posting pause.",
+      "rung4Lead": "Fourth offense, or one severe offense:",
+      "rung4Body": "account closed. Paid balances are handled under the refund playbook; earned creator money already due is still paid out.",
+      "severe": "Severe offenses — child safety, credible threats, scams that took money — can skip straight to account closure."
+    },
+    "dmca": {
+      "title": "Copyright (DMCA) takedowns",
+      "intro": "If your work was used without your permission:",
+      "step1": "Email support@bowdownvisuals.com with: your name and contact, what work is yours, the exact link to the post using it, and a statement that you own it (or act for the owner) and did not give permission.",
+      "step2": "We review the notice. If it is complete, the post comes down — usually within 2 business days — and the creator is told why.",
+      "step3Lead": "Counter-notice:",
+      "step3Body": "if the creator believes the takedown was a mistake, they can email us stating their name, the link, and that they have the right to use the work. We send that to the person who filed the takedown.",
+      "step4": "If that person does not tell us within 10–14 business days that they have gone to court, the content can go back up.",
+      "step5": "Repeat copyright offenders follow the ladder above and can lose their accounts."
+    },
+    "appeals": {
+      "title": "Appeals",
+      "p1": "Anyone whose content or account was actioned can appeal once, by email to support@bowdownvisuals.com, within 30 days, saying what was removed and why it follows the rules.",
+      "p2": "Target reply: 5 business days. The appeal decision is final."
+    }
+  },
   "referrals": {
     "error": {
       "loadFailed": "تعذّر تحميل الإحالات."
