@@ -22,10 +22,19 @@ import {
   emailShell,
   emailShellForRecipient,
   emailSignatureHtml,
+  EMAIL_COLORS,
   EMAIL_LOGO_URL,
   EMAIL_LOGO_LIGHT_URL,
   EMAIL_MARBLE_URLS,
+  EMAIL_THEME_COLORS,
 } from "../email";
+import { buildEmailHtml } from "../email-campaign-sender";
+import { renderTrackedCampaignHtml } from "../email-tracking";
+import { buildDigestEmailHtml } from "../group-digest";
+import { buildPresaveReleaseEmail } from "../presave-release-notify";
+import { buildProductDropEmail } from "../product-drop-notify";
+import { buildRestockEmail } from "../stock-alerts";
+import { buildTempBucsExpiryEmail } from "../temp-bucs-expiry-warning";
 import {
   resolveEmailThemeForRecipient,
   recordEmailThemeSent,
@@ -138,6 +147,149 @@ describe("theme rotation — by customer, strict, flip only on verified send", (
     await expect(resolveEmailThemeForRecipient("fan@example.com")).resolves.toBe("dark");
     await expect(recordEmailThemeSent("fan@example.com", "dark")).resolves.toBeUndefined();
     setEmailThemeRotationStore(null);
+  });
+});
+
+describe("follow-on (email-company-theme-2) — the remaining sends are recipient-aware (source pins)", () => {
+  const read = (...parts: string[]) => readFileSync(join(HERE, ...parts), "utf8");
+  /* A converted file renders through emailShellForRecipient and
+     never falls back to a plain emailShell( call (the strip removes
+     the ForRecipient name before checking). */
+  const expectConverted = (src: string) => {
+    expect(src).toContain("emailShellForRecipient(");
+    expect(src.split("emailShellForRecipient").join("")).not.toContain("emailShell(");
+    expect(src).toContain("themeRecipient:");
+  };
+
+  it("store purchase receipt", () => {
+    expectConverted(read("..", "..", "routes", "store.ts"));
+  });
+  it("team-seats invite", () => {
+    expectConverted(read("..", "..", "routes", "team-seats.ts"));
+  });
+  it("teams invite", () => {
+    expectConverted(read("..", "..", "routes", "teams.ts"));
+  });
+  it("distribution split invite", () => {
+    expectConverted(read("..", "..", "routes", "generate", "distribution.ts"));
+  });
+  it("royalties payout notice", () => {
+    expectConverted(read("..", "..", "routes", "generate", "royalties.ts"));
+  });
+
+  it("shoutout fan emails carry the fan's rotation theme through the mailer seam", () => {
+    const src = read("..", "..", "routes", "generate", "shoutouts.ts");
+    expect(src).toContain("resolveEmailThemeForRecipient(");
+    expect(src).toContain("themeRecipient: input.fanEmail");
+    expect(src).toContain("{ theme: input.theme }");
+  });
+
+  it("creator-tier confirmation resolves the buyer's theme before building its body", () => {
+    const src = read("..", "creator-tier-sync.ts");
+    expect(src).toContain("resolveEmailThemeForRecipient(buyerEmail)");
+    /* its on-panel accents ride themed tokens — no light-surface
+       EMAIL_COLORS accent remains anywhere in the file */
+    expect(src).not.toContain("EMAIL_COLORS.");
+  });
+
+  it("the DMCA operator alert stays internal mail (signoff: false) by design", () => {
+    const src = read("..", "..", "routes", "creator-platform.ts");
+    expect(src).toContain("{ signoff: false }");
+  });
+});
+
+describe("follow-on (email-company-theme-2) — on-panel small print is themed (render pins)", () => {
+  const darkMuted = `color:${EMAIL_THEME_COLORS.dark.muted}`;
+  const darkGold = `color:${EMAIL_THEME_COLORS.dark.goldText}`;
+  const lightAccent = `color:${EMAIL_COLORS.muted}`;
+  const lightGold = `color:${EMAIL_COLORS.goldDeep}`;
+
+  /* In a dark render the light-surface accents must never sit
+     directly on the panel; the themed tokens take their place. */
+  const expectDarkAccents = (html: string, gold: boolean) => {
+    expect(html).toContain(darkMuted);
+    if (gold) expect(html).toContain(darkGold);
+    expect(html).not.toContain(lightAccent);
+    expect(html).not.toContain(lightGold);
+  };
+
+  it("campaign sender footer (dark)", () => {
+    const html = buildEmailHtml("Hi", "Body text", "https://x.test/u", "dark");
+    expectDarkAccents(html, true);
+  });
+  it("campaign sender footer (light) keeps the designed light accents", () => {
+    const html = buildEmailHtml("Hi", "Body text", "https://x.test/u", "light");
+    expect(html).toContain(lightAccent);
+    expect(html).toContain(lightGold);
+  });
+  it("tracked campaign links + footer (dark)", () => {
+    const html = renderTrackedCampaignHtml({
+      body: "Read more at https://example.com/post today",
+      deliveryToken: "tok",
+      wrappedLinks: new Map([["https://example.com/post", "https://x.test/c/1"]]),
+      theme: "dark",
+    });
+    expectDarkAccents(html, true);
+  });
+  it("group digest footer (dark)", () => {
+    expectDarkAccents(buildDigestEmailHtml("T", "B", "/groups/x", "dark"), false);
+  });
+  it("presave release links + footer (dark)", () => {
+    const mail = buildPresaveReleaseEmail(
+      {
+        id: "r1",
+        title: "Song",
+        artistName: "Artist",
+        presaveSlug: "song",
+        releaseDate: "2026-01-01",
+        platformLinks: { spotify: "https://open.spotify.com/album/1" },
+      },
+      { email: "fan@example.com", name: "Fan" },
+      "dark",
+    );
+    expectDarkAccents(mail.html, true);
+    expect(mail.themeRecipient).toBe("fan@example.com");
+  });
+  it("product drop footer (dark)", () => {
+    const mail = buildProductDropEmail(
+      {
+        id: "d1",
+        productId: "p1",
+        title: "Hoodie",
+        creatorName: "Creator",
+        creatorSlug: "creator",
+        dropAt: new Date("2026-01-01T00:00:00Z"),
+      },
+      { email: "fan@example.com", name: null },
+      "dark",
+    );
+    expectDarkAccents(mail.html, false);
+  });
+  it("restock alert footer (dark)", () => {
+    const mail = buildRestockEmail(
+      {
+        id: "p1",
+        profileId: "pr1",
+        sellerUserId: "u1",
+        title: "Hoodie",
+        inventory: 3,
+        isActive: true,
+        creatorName: "Creator",
+        creatorSlug: "creator",
+      },
+      "dark",
+    );
+    expectDarkAccents(mail.html, false);
+  });
+  it("temp-bucs expiry footer (dark)", () => {
+    const mail = buildTempBucsExpiryEmail({
+      email: "fan@example.com",
+      amount: 500,
+      expiresAt: "2026-12-01T00:00:00Z",
+      theme: "dark",
+    });
+    expectDarkAccents(mail.html, false);
+    expect(mail.themeRecipient).toBe("fan@example.com");
   });
 });
 

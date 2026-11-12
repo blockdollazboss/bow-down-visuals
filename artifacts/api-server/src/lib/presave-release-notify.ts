@@ -4,7 +4,7 @@ import {
   db as defaultDb,
   type PresaveReleaseDelivery,
 } from "@workspace/db";
-import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, type EmailTheme, EMAIL_COLORS } from "./email";
+import { sendEmail, emailShell, emailButton, escapeHtml, baseUrlForEmail, type SendEmailResult, type EmailTheme, EMAIL_THEME_COLORS } from "./email";
 import { resolveEmailThemeForRecipient } from "./email-theme-rotation";
 import { logger } from "./logger";
 
@@ -306,11 +306,14 @@ export function buildPresaveReleaseEmail(
   const greeting = follow.name?.trim()
     ? `<p>Hi ${escapeHtml(follow.name.trim())},</p>`
     : "";
+  /* Links + small print sit directly on the panel — the shell's
+     themed tokens, AA-legible in both sends. */
+  const t = EMAIL_THEME_COLORS[theme ?? "light"];
   const links = Object.entries(release.platformLinks ?? {})
     .filter(([, url]) => typeof url === "string" && /^https?:\/\//i.test(url))
     .map(
       ([platform, url]) =>
-        `<p style="margin:8px 0;"><a href="${escapeHtml(url)}" style="color:${EMAIL_COLORS.goldDeep};">Listen on ${escapeHtml(platform.replace(/_/g, " "))}</a></p>`,
+        `<p style="margin:8px 0;"><a href="${escapeHtml(url)}" style="color:${t.goldText};">Listen on ${escapeHtml(platform.replace(/_/g, " "))}</a></p>`,
     )
     .join("");
   const html = emailShell(
@@ -319,7 +322,7 @@ export function buildPresaveReleaseEmail(
 <p>You pre-saved it, and the wait is over — <strong>${title}</strong> by ${artist} just dropped.</p>
 ${emailButton(escapeHtml(listenUrl), "Listen now")}
 ${links}
-<p style="color:${EMAIL_COLORS.muted};font-size:13px;">You got this email because you pre-saved this release on Bow Down Visuals. One email per release, as promised — no spam, ever.</p>`,
+<p style="color:${t.muted};font-size:13px;">You got this email because you pre-saved this release on Bow Down Visuals. One email per release, as promised — no spam, ever.</p>`,
     { theme },
   );
   const text = [

@@ -17,7 +17,8 @@ import {
 } from "../../lib/generation-stored-results";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import { sendEmail, emailShell, emailButton, escapeHtml, isEmailConfigured, baseUrlForEmail, EMAIL_COLORS } from "../../lib/email";
+import { sendEmail, emailShellForRecipient, emailButton, escapeHtml, isEmailConfigured, baseUrlForEmail, EMAIL_THEME_COLORS } from "../../lib/email";
+import { resolveEmailThemeForRecipient } from "../../lib/email-theme-rotation";
 import { mirrorExternalMediaUrl } from "../../lib/mirrorMedia";
 import { refreshSupabaseStorageUrlsDeep, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
 
@@ -2095,16 +2096,25 @@ router.post("/distribution/releases/:id/splits/invite", requireAuth, async (req,
     let emailSent = false;
     if (isEmailConfigured() && split.payee_email) {
       const releaseTitle = (existing as { title?: string } | null)?.title ?? "a release";
-      const html = emailShell(
+      /* Customer send: the collaborator's rotation theme + themed
+         signature; the on-panel name accent rides the shell's
+         themed gold (AA in both sends). Peek only — the flip
+         records on the verified send. */
+      const theme = await resolveEmailThemeForRecipient(split.payee_email);
+      const { html } = await emailShellForRecipient(
+        split.payee_email,
         "You've got a revenue split",
-        `<p style="margin:0 0 12px;"><strong style="color:${EMAIL_COLORS.goldDeep};">${escapeHtml(split.payee_name)}</strong> — you've been added as a collaborator on <strong>"${escapeHtml(releaseTitle)}"</strong> with a revenue split on Bow Down Visuals.</p>
+        `<p style="margin:0 0 12px;"><strong style="color:${EMAIL_THEME_COLORS[theme].goldText};">${escapeHtml(split.payee_name)}</strong> — you've been added as a collaborator on <strong>"${escapeHtml(releaseTitle)}"</strong> with a revenue split on Bow Down Visuals.</p>
 <p style="margin:0 0 16px;font-size:14px;">Review and accept your split agreement so royalties flow to you automatically when the release earns.</p>
-${emailButton(agreementUrl, "Review my split")}`
+${emailButton(agreementUrl, "Review my split")}`,
+        { theme },
       );
       const result = await sendEmail({
         to: split.payee_email,
         subject: `Revenue split invite — "${releaseTitle}"`,
         html,
+        theme,
+        themeRecipient: split.payee_email,
       });
       emailSent = result.sent;
     }

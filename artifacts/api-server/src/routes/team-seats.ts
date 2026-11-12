@@ -4,7 +4,8 @@ import { randomBytes } from "node:crypto";
 import { requireAuth } from "../middlewares/require-auth";
 import { db, teamSeatsTable, permissionsForRole, TEAM_SEAT_ROLES } from "@workspace/db";
 import { eq, and, desc, isNull } from "drizzle-orm";
-import { sendEmail, emailShell, emailButton, escapeHtml, isEmailConfigured, EMAIL_COLORS } from "../lib/email";
+import { sendEmail, emailShellForRecipient, emailButton, escapeHtml, isEmailConfigured, EMAIL_THEME_COLORS } from "../lib/email";
+import { resolveEmailThemeForRecipient } from "../lib/email-theme-rotation";
 
 const router = Router();
 
@@ -137,16 +138,25 @@ router.post("/team-seats/invite", requireAuth, async (req, res) => {
     let emailSent = false;
     if (isEmailConfigured()) {
       const inviterName = displayName || req.userEmail || "Your collaborator";
-      const html = emailShell(
+      /* Customer send: the invitee's rotation theme + themed
+         signature; the on-panel name accent rides the shell's
+         themed gold (AA in both sends). Peek only — the flip
+         records on the verified send. */
+      const theme = await resolveEmailThemeForRecipient(normalized);
+      const { html } = await emailShellForRecipient(
+        normalized,
         "You've been invited to a team",
-        `<p style="margin:0 0 12px;"><strong style="color:${EMAIL_COLORS.goldDeep};">${escapeHtml(inviterName)}</strong> invited you to join their team on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
+        `<p style="margin:0 0 12px;"><strong style="color:${EMAIL_THEME_COLORS[theme].goldText};">${escapeHtml(inviterName)}</strong> invited you to join their team on Bow Down Visuals as <strong>${escapeHtml(role)}</strong>.</p>
 <p style="margin:0 0 16px;font-size:14px;">Accept the invite to start collaborating — sign in with <strong>${escapeHtml(normalized)}</strong>.</p>
-${emailButton(escapeHtml(inviteLink), "Accept invite")}`
+${emailButton(escapeHtml(inviteLink), "Accept invite")}`,
+        { theme },
       );
       const result = await sendEmail({
         to: normalized,
         subject: `${inviterName} invited you to their Bow Down Visuals team`,
         html,
+        theme,
+        themeRecipient: normalized,
       });
       emailSent = result.sent;
     }

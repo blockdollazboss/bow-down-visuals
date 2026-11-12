@@ -3,7 +3,8 @@ import { db, creatorProfilesTable, creatorSubscriptionsTable, creatorHostingTabl
 import { eq, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import { CREATOR_TIERS, type CreatorTier } from "./platform-fees";
-import { sendEmail, emailShellForRecipient, emailButton, escapeHtml, baseUrlForEmail, EMAIL_COLORS } from "./email";
+import { sendEmail, emailShellForRecipient, emailButton, escapeHtml, baseUrlForEmail, EMAIL_THEME_COLORS } from "./email";
+import { resolveEmailThemeForRecipient } from "./email-theme-rotation";
 import { createGuardedStripeClient } from "./stripe-client";
 import { notifyUserEvent, type UserEventInput } from "./push-events";
 
@@ -345,17 +346,23 @@ export async function handleTierCheckoutCompleted(session: Stripe.Checkout.Sessi
         .rows[0]?.["email"];
     if (typeof buyerEmail === "string" && buyerEmail.length > 0) {
       const tierName = tier.charAt(0).toUpperCase() + tier.slice(1);
-      const { html, theme } = await emailShellForRecipient(
+      /* Peek the buyer's assigned theme first (resolving never
+         advances the rotation) so the body's on-panel accents can
+         ride the shell's themed tokens — AA-legible in both sends. */
+      const theme = await resolveEmailThemeForRecipient(buyerEmail);
+      const t = EMAIL_THEME_COLORS[theme];
+      const { html } = await emailShellForRecipient(
         buyerEmail,
         `Welcome to ${tierName}`,
-        `<p style="margin:0 0 12px;">Your <strong style="color:${EMAIL_COLORS.goldDeep};">${escapeHtml(tierName)}</strong> creator subscription is active. The full cheat code is now unlocked:</p>
+        `<p style="margin:0 0 12px;">Your <strong style="color:${t.goldText};">${escapeHtml(tierName)}</strong> creator subscription is active. The full cheat code is now unlocked:</p>
 <ul style="font-size:14px;line-height:1.8;margin:0 0 16px;padding-left:20px;">
 <li>One flat 5% platform fee on everything you sell</li>
 <li>Higher AI generation limits across the studio</li>
 <li>Priority placement in discovery and charts</li>
 </ul>
-${currentPeriodEnd ? `<p style="color:${EMAIL_COLORS.muted};font-size:13px;">Renews ${currentPeriodEnd.toLocaleDateString()} — cancel anytime from your dashboard.</p>` : ""}
-${emailButton(`${baseUrlForEmail()}/dashboard`, "Open my dashboard")}`
+${currentPeriodEnd ? `<p style="color:${t.muted};font-size:13px;">Renews ${currentPeriodEnd.toLocaleDateString()} — cancel anytime from your dashboard.</p>` : ""}
+${emailButton(`${baseUrlForEmail()}/dashboard`, "Open my dashboard")}`,
+        { theme },
       );
       // Fire-and-forget: webhook must return 200 to Stripe promptly.
       void sendEmail({ to: buyerEmail, subject: `Welcome to ${tierName} — your subscription is active`, html, theme, themeRecipient: buyerEmail });

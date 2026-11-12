@@ -34,7 +34,8 @@ import { buildCheckoutSessionIdempotencyKey, createGuardedStripeClient, fingerpr
 import { refundCheckoutSessionPayment, retrieveCheckoutSession } from "../../lib/stripe-checkout";
 import { isEmbeddedCheckoutEnabled } from "../../lib/embedded-checkout";
 import { notifyUserEvent, type UserEventInput } from "../../lib/push-events";
-import { sendEmail, emailShell, emailButton, escapeHtml } from "../../lib/email";
+import { sendEmail, emailShell, emailButton, escapeHtml, type EmailTheme } from "../../lib/email";
+import { resolveEmailThemeForRecipient } from "../../lib/email-theme-rotation";
 
 /* ── Shoutout fan-out (fan-out truth, stack1100 Y3) ────────────────────
    Nobody was told anything: the creator never learned a request was
@@ -77,6 +78,12 @@ export interface ShoutoutFanEmail {
   to: string;
   subject: string;
   html: string;
+  /** Theme-rotation bookkeeping, forwarded to sendEmail: the fan's
+      assigned theme (resolved by the caller — resolving only peeks)
+      and the fan as the rotation recipient, so a verified send
+      flips the fan's sequence like every other automatic send. */
+  theme?: EmailTheme;
+  themeRecipient?: string;
 }
 
 type ShoutoutFanMailer = (email: ShoutoutFanEmail) => Promise<unknown>;
@@ -104,14 +111,18 @@ function buildShoutoutDeliveredEmail(input: {
   creatorName: string;
   occasion: string;
   deliveryUrl: string;
+  /* The fan's rotation theme (house builder pattern — the caller
+     resolves it per recipient; absent = the shell's light default). */
+  theme?: EmailTheme;
 }): ShoutoutFanEmail {
   const html = emailShell(
     "Your shoutout is ready",
     `<p style="margin:0 0 12px;">Hi ${escapeHtml(input.fanName)} — your shoutout from <strong>${escapeHtml(input.creatorName)}</strong> (${escapeHtml(input.occasion)}) is recorded and ready to watch.</p>
 ${emailButton(input.deliveryUrl, "Watch your shoutout")}
 <p style="margin:0 0 16px;font-size:14px;">Save that link — it's your copy of the video.</p>`,
+    { theme: input.theme },
   );
-  return { to: input.fanEmail, subject: "Your shoutout video is ready", html };
+  return { to: input.fanEmail, subject: "Your shoutout video is ready", html, theme: input.theme, themeRecipient: input.fanEmail };
 }
 
 export function buildShoutoutDeclinedEmail(input: {
@@ -124,6 +135,9 @@ export function buildShoutoutDeclinedEmail(input: {
      refund plainly. Absent = the request was never paid, and the
      copy says nothing about money. */
   refundCents?: number;
+  /* The fan's rotation theme (house builder pattern — the caller
+     resolves it per recipient; absent = the shell's light default). */
+  theme?: EmailTheme;
 }): ShoutoutFanEmail {
   const refundLine =
     input.refundCents != null && input.refundCents > 0
@@ -133,8 +147,9 @@ export function buildShoutoutDeclinedEmail(input: {
     "About your shoutout request",
     `<p style="margin:0 0 12px;">Hi ${escapeHtml(input.fanName)} — ${escapeHtml(input.creatorName)} couldn't take your shoutout request (${escapeHtml(input.occasion)}) this time, so it was declined.</p>
 ${refundLine}<p style="margin:0 0 16px;font-size:14px;">Thanks for thinking of them. Plenty of other creators on Bow Down Visuals would love to record one for you.</p>`,
+    { theme: input.theme },
   );
-  return { to: input.fanEmail, subject: "About your shoutout request", html };
+  return { to: input.fanEmail, subject: "About your shoutout request", html, theme: input.theme, themeRecipient: input.fanEmail };
 }
 
 function usd(cents: number): string {
@@ -804,6 +819,7 @@ router.patch("/shoutouts/requests/:id", requireAuth, publicApiLimiter, async (re
           creatorName: settings?.display_name ?? "Your creator",
           occasion: claimed.occasion,
           refundCents: claimed.price_cents,
+          theme: await resolveEmailThemeForRecipient(claimed.fan_email),
         }),
       );
     }
@@ -838,6 +854,10 @@ router.patch("/shoutouts/requests/:id", requireAuth, publicApiLimiter, async (re
       .from(shoutoutSettingsTable)
       .where(eq(shoutoutSettingsTable.user_id, rows[0]!.creator_user_id));
     const creatorName = settings?.display_name ?? "Your creator";
+    /* The fan's rotation theme, resolved once for whichever mail
+       this transition sends (peek only — the flip records on the
+       verified send inside sendEmail). */
+    const fanTheme = await resolveEmailThemeForRecipient(updated.fan_email);
     if (status === "delivered") {
       const refreshed = updated.delivery_url ? await refreshSupabaseStorageUrl(updated.delivery_url) : "";
       if (refreshed) {
@@ -847,6 +867,7 @@ router.patch("/shoutouts/requests/:id", requireAuth, publicApiLimiter, async (re
           creatorName,
           occasion: updated.occasion,
           deliveryUrl: refreshed,
+          theme: fanTheme,
         }));
       }
     } else if (status === "declined") {
@@ -855,6 +876,7 @@ router.patch("/shoutouts/requests/:id", requireAuth, publicApiLimiter, async (re
         fanEmail: updated.fan_email,
         creatorName,
         occasion: updated.occasion,
+        theme: fanTheme,
       }));
     }
   }

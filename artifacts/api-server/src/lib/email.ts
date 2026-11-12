@@ -226,12 +226,16 @@ export async function sendEmail(opts: SendEmailOpts): Promise<SendEmailResult> {
  * EMAIL_THEME_COLORS clears WCAG AA (≥4.5:1) on the surface it sits
  * on, in BOTH themes; the shared EMAIL_COLORS body tokens below keep
  * their Oct 30, 2026 AA pins on the light panel and the detail box.
- * Known boundary, stated plainly: call-site body copy that colors
- * small print with the light-surface EMAIL_COLORS accents (muted /
- * goldDeep) directly on the panel reads as designed in light sends;
- * in dark sends those accents sit mostly inside the ivory detail
- * box (where they stay correct), and migrating body copy to themed
- * tokens is a call-site follow-on, not hidden here.
+ * Call-site body copy follows the same split (completed in the
+ * email-company-theme-2 follow-on): accents placed DIRECTLY on the
+ * panel ride the themed EMAIL_THEME_COLORS tokens (muted / goldText)
+ * of the send's theme, while accents inside the ivory detail box
+ * keep the EMAIL_COLORS box tokens — correct on ivory in both
+ * themes. Every customer send resolves its recipient's theme
+ * (emailShellForRecipient or a builder's theme param); the one
+ * deliberate exception is internal operator mail (the DMCA alert,
+ * signoff: false), which is not a customer send and renders in the
+ * light theme, where its accents are AA-pinned.
  */
 
 /** Palette tokens shared by the shell and call-site email bodies. */

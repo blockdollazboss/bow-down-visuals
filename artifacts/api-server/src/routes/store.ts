@@ -101,7 +101,8 @@ import {
   setLicenseSettings,
   type LicenseKeyRow,
 } from "../lib/license-keys";
-import { sendEmail, emailShell, emailButton, emailDetailBox, money as emailMoney, escapeHtml, baseUrlForEmail, EMAIL_COLORS } from "../lib/email";
+import { sendEmail, emailShellForRecipient, emailButton, emailDetailBox, money as emailMoney, escapeHtml, baseUrlForEmail, EMAIL_COLORS, EMAIL_THEME_COLORS } from "../lib/email";
+import { resolveEmailThemeForRecipient } from "../lib/email-theme-rotation";
 import {
   GiftCardsUnavailable,
   findCardByCode,
@@ -1920,13 +1921,23 @@ export async function settleDigitalStoreSession(
       const buyerEmail =
         opts.email ?? session.customer_details?.email ?? undefined;
       if (buyerEmail) {
+        /* The receipt is a customer send: it carries the buyer's
+           rotation theme + the themed signature, and its on-panel
+           small print (the bundle rows below) rides the shell's
+           themed tokens — AA-legible in both sends. Peek the theme
+           first: resolving never advances the rotation; the flip
+           records on the verified send. (Accents inside the ivory
+           detail/license boxes keep the box tokens — correct on
+           ivory in both themes.) */
+        const receiptTheme = await resolveEmailThemeForRecipient(buyerEmail);
+        const rt = EMAIL_THEME_COLORS[receiptTheme];
         /* Bundles itemize the receipt: every component with its own
            list price, the bought-separately total, and the saving. */
         const bundleReceiptHtml = bundleDef
           ? `<div style="margin:0 0 12px;">
 ${bundleDef.components.map((c) => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;"><span>${escapeHtml(c.title)}</span><span>${emailMoney(c.listPriceCents)}</span></div>`).join("")}
-<div style="display:flex;justify-content:space-between;color:${EMAIL_COLORS.muted};font-size:12px;border-top:1px solid ${EMAIL_COLORS.boxBorder};margin-top:6px;padding-top:6px;"><span>Bought separately</span><span>${emailMoney(bundleDef.sumCents)}</span></div>
-${bundleDef.sumCents > amountCents ? `<div style="display:flex;justify-content:space-between;color:${EMAIL_COLORS.goldDeep};font-size:13px;font-weight:700;"><span>You saved</span><span>${emailMoney(bundleDef.sumCents - amountCents)}</span></div>` : ""}
+<div style="display:flex;justify-content:space-between;color:${rt.muted};font-size:12px;border-top:1px solid ${EMAIL_THEME_COLORS.goldHairline};margin-top:6px;padding-top:6px;"><span>Bought separately</span><span>${emailMoney(bundleDef.sumCents)}</span></div>
+${bundleDef.sumCents > amountCents ? `<div style="display:flex;justify-content:space-between;color:${rt.goldText};font-size:13px;font-weight:700;"><span>You saved</span><span>${emailMoney(bundleDef.sumCents - amountCents)}</span></div>` : ""}
 </div>`
           : "";
         /* License keys (Wave 4 #35): the receipt carries the buyer's
@@ -1946,7 +1957,8 @@ ${licenseRows.map(({ title, view }) => `<div style="margin:0 0 10px;"><div style
 <div style="color:${EMAIL_COLORS.muted};font-size:12px;">This key is proof this copy is yours. Downloads are counted per purchase — refreshing a link never resets them.</div>
 </div>`
           : "";
-        const receiptHtml = emailShell(
+        const { html: receiptHtml } = await emailShellForRecipient(
+          buyerEmail,
           "Purchase confirmed",
           `<p style="margin:0 0 12px;">You're in. Your purchase is ready:</p>
 ${emailDetailBox(`<div style="color:${EMAIL_COLORS.goldDeep};font-weight:700;font-size:17px;">${escapeHtml(itemTitle)}</div>
@@ -1961,13 +1973,16 @@ ${licenseReceiptHtml}
   : kind === BUNDLE_KIND
     ? "Everything in the bundle is on the confirmation page and in your purchases — downloads are good for 48 hours at a time, and any series in the bundle stays unlocked on your account."
     : "Your download link is on the confirmation page (48h, 5 downloads max)."}</p>
-${emailButton(`${baseUrlForEmail()}${kind === "series" ? `/playlist/${itemId}` : "/store/purchases"}`, kind === "series" ? "Watch the series" : "View my purchases")}`
+${emailButton(`${baseUrlForEmail()}${kind === "series" ? `/playlist/${itemId}` : "/store/purchases"}`, kind === "series" ? "Watch the series" : "View my purchases")}`,
+          { theme: receiptTheme },
         );
         // Fire-and-forget: never block the purchase response on email.
         void sendEmail({
           to: buyerEmail,
           subject: `Your receipt — ${itemTitle}`,
           html: receiptHtml,
+          theme: receiptTheme,
+          themeRecipient: buyerEmail,
         });
       }
     }
