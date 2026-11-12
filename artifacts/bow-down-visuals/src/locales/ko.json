@@ -9480,60 +9480,54 @@
     "pageTitle": "환불 정책",
     "pageDescription": "Visual Bucs와 구매에 대한 환불 정책입니다.",
     "title": "환불 정책",
-    "lastUpdated": "최종 업데이트: September 2026",
-    "whatWeSell": {
-      "title": "판매하는 것",
-      "p1": "Bow Down Visuals는 ",
-      "strong": "디지털 AI 크리에이터 Visual Bucs",
-      "p2": "를 판매합니다 — 비디오, 음악, 이미지, 보이스오버, 립싱크 비디오, 가사, 썸네일, 캡션 세트, 프로모 클립, 기타 디지털 크리에이터 콘텐츠를 생성하는 데 쓰는 선구매 단위입니다. 모든 상품은 디지털이며 Visual Buc 사용 시 즉시 전달됩니다. 실물 상품은 판매하거나 배송하지 않습니다."
-    },
-    "generalPolicy": {
-      "title": "디지털 상품 — 일반 정책",
-      "p1": "상품이 디지털이며 생성 즉시 소비되기 때문에, ",
-      "strong": " 모든 판매는 일반적으로 최종적입니다",
-      "p2": ". Visual Bucs를 콘텐츠 생성에 사용한 뒤에는 그 Visual Bucs를 환불할 수 없습니다. 추천이나 프로모션으로 받은 보너스 Visual Bucs는 현금 가치가 없으며 환불되지 않습니다."
-    },
-    "whenWeRefund": {
-      "title": "환불이 이루어지는 경우",
-      "intro": "다음 상황에서는 전액 또는 부분 환불을 해드립니다:",
-      "technical": {
-        "title": "기술적 실패:",
-        "desc": " Visual Bucs가 차감됐지만 저희 측 플랫폼 오류로 콘텐츠가 생성되지 않은 경우."
-      },
-      "duplicate": {
-        "title": "중복 청구:",
-        "desc": " 같은 구독 기간이나 구매에 대해 두 번 이상 청구된 경우."
-      },
-      "unauthorized": {
-        "title": "무단 청구:",
-        "desc": " 본인의 승인 없이 계정에 접근했다고 생각되는 경우."
-      },
-      "firstSub": {
-        "title": "첫 구독 후 48시간 이내:",
-        "desc": " 구독하고 아직 Visual Bucs를 사용하지 않았다면 첫 결제 후 48시간 이내에 전액 환불을 요청할 수 있습니다."
-      }
-    },
-    "cancellations": {
-      "title": "구독 취소",
-      "p1": "언제든 구독을 취소할 수 있습니다. 취소하면 향후 청구가 중단되며, 현재 청구 기간이 끝날 때까지 남은 Visual Bucs와 구독 혜택에 계속 접근할 수 있습니다. ",
-      "strong": "주기 중간의 취소에 대해서는 부분 월 환불이 이루어지지 않습니다."
+    "lastUpdated": "Last updated: November 2026",
+    "promise": {
+      "title": "The Simple Rule",
+      "body": "If we made the mistake, the customer does not pay for it."
     },
     "howTo": {
-      "title": "환불 요청 방법",
-      "intro1": "환불을 요청하려면 청구 후 ",
-      "strong": "7일",
-      "intro2": " 이내에 연락하세요:",
-      "email": "이메일: ",
-      "subject1": "제목: ",
-      "subject2": "환불 요청 — [내 이메일]",
-      "include": "포함: 청구 날짜, 금액, 문제에 대한 간단한 설명",
-      "response": "영업일 기준 2일 이내 답변을 목표로 합니다. 승인된 환불은 은행에 따라 영업일 기준 5–10일 이내에 원래 결제 수단으로 돌아갑니다."
+      "title": "How to Ask for a Refund",
+      "body": "Email support@bowdownvisuals.com from the email on your account, with the order or receipt details."
+    },
+    "creditPacks": {
+      "title": "Credit Packs (Visual Bucs)",
+      "delivered": "Visual Bucs are the site's credits. A pack is delivered the moment the payment clears.",
+      "unusedTitle": "Unused packs:",
+      "unusedDesc": " full refund within 14 days of purchase if no Bucs from that pack were spent.",
+      "spentTitle": "Spent Bucs are used up.",
+      "spentDesc": " Bucs you already spent on creations cannot be refunded — the work was made and delivered.",
+      "partSpentTitle": "Part-spent packs:",
+      "partSpentDesc": " we refund the unspent share, within 30 days of purchase.",
+      "ourFaultTitle": "Our fault:",
+      "ourFaultDesc": " a generation fails, a charge goes through twice, or Bucs come off without the work delivered — the Bucs go back automatically, or the money is refunded if you prefer.",
+      "earned": "Bucs earned on the site (quests, rewards, referrals) are never cash and cannot be cashed out."
+    },
+    "subscriptions": {
+      "title": "Subscriptions — Creator Pro ($12/mo) and Creator Elite ($29/mo)",
+      "cancel": "Cancel any time, in one click, from your account. No email or phone call needed.",
+      "keepMonth": "Cancelling stops the next payment. You keep the plan until the end of the month you already paid for.",
+      "firstMonthTitle": "First month:",
+      "firstMonthDesc": " cancel within 7 days of your first payment, having barely used the plan — ask us, and we refund that payment.",
+      "renewals": "Renewals are not refunded for time already passed — except charges made in error (for example, after a confirmed cancellation). Those are always refunded in full.",
+      "priceChanges": "Prices never change mid-cycle. A price change applies from your next renewal, with notice first."
+    },
+    "marketplace": {
+      "title": "Marketplace Purchases",
+      "intro": "Sellers sell on Bow Down Visuals; the site takes a flat 5% fee. Sellers are paid through Stripe Connect.",
+      "digitalTitle": "Digital items (downloads, templates, packs):",
+      "digitalDesc": " if the file is broken, missing, or not what the listing promised, report it within 14 days. If it is wrong, full refund, and the seller's payout for that sale is reversed.",
+      "asDescribedTitle": "Delivered as described = sale is final.",
+      "asDescribedDesc": " Buyer's remorse alone is not a refund on digital goods.",
+      "neverDeliversTitle": "A seller who never delivers:",
+      "neverDeliversDesc": " full refund automatically if delivery never happens.",
+      "originalMethod": "Refunds go back to the original payment method, including the 5% site fee — the customer gets back everything they paid."
     },
     "questions": {
       "title": "질문이 있나요?",
       "p1": "저희 ",
       "contactLink": "문의 / 지원 페이지",
-      "p2": "를 방문하거나 이메일 "
+      "p2": "를 방문하거나 이메일 ",
+      "email": "support@bowdownvisuals.com"
     }
   },
   "moderationPolicy": {
