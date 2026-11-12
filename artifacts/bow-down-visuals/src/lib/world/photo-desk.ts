@@ -378,12 +378,13 @@ export function productPhotoPackshotCost(): number {
   return entry.cost;
 }
 
-/** The lifestyle price — ProductPhotoStudio's own
- *  LIFESTYLE_CREDITS, owner-ratified Nov 7, 2026 (product photo
- *  100 / lifestyle 150). The registry row carries the packshot;
- *  the lifestyle shot rides overrideCost exactly as the page
- *  does. */
-export const PRODUCT_PHOTO_LIFESTYLE_COST = 150;
+/** The lifestyle price — owner-ratified Nov 7, 2026 (product photo
+ *  100 / lifestyle 150), read from the registry's own explicit
+ *  lifestyle row (A-07 — owner ruling 2026-11-11), the same row
+ *  ProductPhotoStudio's LIFESTYLE_CREDITS reads; the literal is
+ *  only the fallback for a missing registry row. The lifestyle
+ *  shot rides overrideCost exactly as the page does. */
+export const PRODUCT_PHOTO_LIFESTYLE_COST = getCreditCost("/api/generate-product-photo?shotType=lifestyle")?.cost ?? 150;
 
 export type ProductShotType = "packshot" | "lifestyle";
 
