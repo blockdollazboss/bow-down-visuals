@@ -46,9 +46,21 @@ import { z } from "zod/v4";
  * back to group_posts (group feed posts) and group_forum_threads,
  * and "comment" resolution falls back to group_forum_replies — the
  * vocabulary above and its DB check are unchanged.
+ *
+ * "story" joined the vocabulary in the stories report lane
+ * (Nov 11, 2026): a report on a creator story resolves against the
+ * stories table — the story's profile_id → creator_profiles.user_id
+ * owns it — and the StoryViewer docks the shared Report button.
+ * ⚠️ TRAILING STEP: databases still carry the target-type check
+ * from migrations 0174/0267, WITHOUT 'story'. The drizzle check
+ * below already includes it; widening the live constraint needs a
+ * join-assigned migration number (the join-ready SQL rides the
+ * lane report) — until it lands, story inserts fail at the
+ * database and the route answers an honest 500; every other
+ * target type is unaffected.
  */
 
-export const CONTENT_REPORT_TARGET_TYPES = ["post", "comment", "profile", "fan_art"] as const;
+export const CONTENT_REPORT_TARGET_TYPES = ["post", "comment", "profile", "fan_art", "story"] as const;
 
 /** The fixed reason vocabulary — free text belongs in `note`. The
  *  frontend mirrors this list (lib/reports.ts) and the route tests
@@ -84,7 +96,7 @@ export const contentReportsTable = pgTable("content_reports", {
   status:            text("status").notNull().default("new"),
   createdAt:         timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
-  check("content_reports_target_type_check", sql`${t.targetType} IN ('post', 'comment', 'profile', 'fan_art')`),
+  check("content_reports_target_type_check", sql`${t.targetType} IN ('post', 'comment', 'profile', 'fan_art', 'story')`),
   check("content_reports_reason_check", sql`${t.reason} IN ('spam', 'harassment', 'hate_speech', 'violence', 'sexual_content', 'copyright', 'scam', 'other')`),
   check("content_reports_status_check", sql`${t.status} IN ('new', 'reviewing', 'actioned', 'dismissed')`),
   index("content_reports_status_idx").on(t.status, t.createdAt),
