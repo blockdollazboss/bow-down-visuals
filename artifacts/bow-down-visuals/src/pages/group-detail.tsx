@@ -11,6 +11,7 @@ import {
 } from "@/lib/community-ui";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { GroupOnboarding } from "@/components/trust/GroupOnboarding";
+import { ReportButton } from "@/components/social/ReportButton";
 
 /* ─── /groups/:slug — group detail ─────────────────────────────────────────
    About / feed / members. Join & chat never gated (1 star). Moderation tools
@@ -581,12 +582,20 @@ export default function GroupDetail() {
                       <p className="text-xs text-white/40">{timeAgo(p.created_at)}</p>
                     </div>
                   </div>
-                  {p.can_delete && (
-                    <button aria-label="Delete post" type="button" onClick={() => deletePost(p.id)} data-min-stars={isMod && p.author_user_id !== user?.id ? "4" : "1"}
-                      className="text-white/40 hover:text-red-400" title="Delete post">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {/* Anyone can report, guests included (owner-approved
+                        Moderation and Takedown Rules, Nov 11, 2026) —
+                        hidden on your own posts. */}
+                    {p.author_user_id !== user?.id && (
+                      <ReportButton targetType="post" targetId={p.id} variant="icon" />
+                    )}
+                    {p.can_delete && (
+                      <button aria-label="Delete post" type="button" onClick={() => deletePost(p.id)} data-min-stars={isMod && p.author_user_id !== user?.id ? "4" : "1"}
+                        className="text-white/40 hover:text-red-400" title="Delete post">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <p className="mt-2 whitespace-pre-wrap text-white/85">{p.body}</p>
               </div>
@@ -614,6 +623,11 @@ export default function GroupDetail() {
                       {openThread.thread.is_locked && <Lock className="h-4 w-4 text-white/50" />}
                     </h2>
                     <div className="flex items-center gap-2">
+                      {/* Report dock (approved Moderation and Takedown
+                          Rules) — hidden on your own thread. */}
+                      {openThread.thread.author_user_id !== user?.id && (
+                        <ReportButton targetType="post" targetId={openThread.thread.id} variant="icon" />
+                      )}
                       {openThread.thread.can_moderate && (
                         <>
                           <button type="button" onClick={() => moderateThread(openThread.thread, { is_pinned: !openThread.thread.is_pinned })}
@@ -661,11 +675,18 @@ export default function GroupDetail() {
                             <p className="text-xs text-white/40">{timeAgo(r.created_at)}</p>
                           </div>
                         </div>
-                        {r.can_delete && (
-                          <button aria-label="Delete reply" type="button" onClick={() => deleteReply(openThread.thread.id, r.id)} className="text-white/40 hover:text-red-400" title="Delete reply">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {/* Report dock (approved Moderation and
+                              Takedown Rules) — hidden on your own replies. */}
+                          {r.author_user_id !== user?.id && (
+                            <ReportButton targetType="comment" targetId={r.id} variant="icon" />
+                          )}
+                          {r.can_delete && (
+                            <button aria-label="Delete reply" type="button" onClick={() => deleteReply(openThread.thread.id, r.id)} className="text-white/40 hover:text-red-400" title="Delete reply">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <p className="mt-2 whitespace-pre-wrap text-white/85">{r.body}</p>
                     </div>
@@ -847,6 +868,11 @@ export default function GroupDetail() {
                           </span>
                         </button>
                         <div className="flex shrink-0 items-center gap-2">
+                          {/* Report dock (approved Moderation and
+                              Takedown Rules) — hidden on your own threads. */}
+                          {t.author_user_id !== user?.id && (
+                            <ReportButton targetType="post" targetId={t.id} variant="icon" />
+                          )}
                           {t.can_moderate && (
                             <>
                               <button type="button" onClick={() => moderateThread(t, { is_pinned: !t.is_pinned })} className="text-xs text-white/50 hover:text-[#e8c86a]">

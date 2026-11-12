@@ -31,6 +31,7 @@ import {
 } from "@/lib/short-publish";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { SectionBoundary } from "@/components/SectionBoundary";
+import { ReportButton } from "@/components/social/ReportButton";
 
 /* ─── Shorts — the For You feed, but you own it ─────────────────────────────
    /shorts — vertical full-screen snap feed. Every element is tappable to
@@ -776,7 +777,7 @@ function LinkageList({ videoId, kind }: { videoId: string; kind: "duet" | "stitc
 
 /* ─── CommentsDrawer ─────────────────────────────────────────────────────── */
 
-interface CommentRow { id: string; body: string; created_at?: string; createdAt?: string }
+interface CommentRow { id: string; body: string; created_at?: string; createdAt?: string; user_id?: string }
 
 function CommentsDrawer({ item, onClose, authHeaders, isAuthed, onCount }: {
   item: ShortItem;
@@ -785,6 +786,7 @@ function CommentsDrawer({ item, onClose, authHeaders, isAuthed, onCount }: {
   isAuthed: boolean;
   onCount: (n: number) => void;
 }) {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [comments, setComments] = useState<CommentRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -842,9 +844,18 @@ function CommentsDrawer({ item, onClose, authHeaders, isAuthed, onCount }: {
           {comments.map((c) => (
             <div key={c.id} className="rounded-xl bg-white/5 p-3">
               <p className="text-sm text-white/90">{c.body}</p>
-              <p className="mt-1 text-[11px] text-white/35">
-                {(c.created_at ?? c.createdAt) ? new Date(String(c.created_at ?? c.createdAt)).toLocaleDateString() : ""}
-              </p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="text-[11px] text-white/35">
+                  {(c.created_at ?? c.createdAt) ? new Date(String(c.created_at ?? c.createdAt)).toLocaleDateString() : ""}
+                </p>
+                {/* Anyone can report, guests included (owner-approved
+                    Moderation and Takedown Rules, Nov 11, 2026) — the
+                    shorts comments are media_comments, the same store
+                    CommentThread docks on; hidden on your own comments. */}
+                {c.user_id !== user?.id && (
+                  <ReportButton targetType="comment" targetId={c.id} variant="text" />
+                )}
+              </div>
             </div>
           ))}
         </div>
