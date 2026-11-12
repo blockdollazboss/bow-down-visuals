@@ -97,12 +97,27 @@ vi.mock("../rate-limit", () => ({
 vi.mock("../email", () => ({
   sendEmail: async () => undefined,
   emailShell: (_title: string, html: string) => html,
+  /* Faithful stand-in for the rotation-aware seam (join22 gate fix):
+     the real emailShellForRecipient resolves the recipient's theme
+     and returns { html, theme } rendered through emailShell — this
+     fake's emailShell is the identity, so the seam fake returns the
+     body with the first theme, exactly the real shape. */
+  emailShellForRecipient: async (
+    _recipient: string,
+    _title: string,
+    html: string,
+  ) => ({ html, theme: "dark" as const }),
   emailButton: (href: string, label: string) => `<a href="${href}">${label}</a>`,
   emailDetailBox: (html: string) => html,
   money: (cents: number) => `$${(cents / 100).toFixed(2)}`,
   escapeHtml: (s: string) => s,
   baseUrlForEmail: () => "https://example.com",
   EMAIL_COLORS: { muted: "#888", boxBorder: "#ddd", goldDeep: "#960", box: "#fff", body: "#333", ink: "#111", gold: "#c9a227" },
+  EMAIL_THEME_COLORS: {
+    goldHairline: "#c9a227",
+    dark: { muted: "#a99e83", goldText: "#e9c860" },
+    light: { muted: "#71644a", goldText: "#7c5c0a" },
+  },
 }));
 
 vi.mock("../objectStorage", () => ({
