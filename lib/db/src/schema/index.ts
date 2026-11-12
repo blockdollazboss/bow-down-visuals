@@ -86,6 +86,7 @@ export * from "./fan-shoutouts";
 export * from "./fan-art";
 export * from "./collab";
 export * from "./email-lists";
+export * from "./email-theme-rotation";
 export * from "./royalties";
 export * from "./cheat-code-events";
 export * from "./tour";

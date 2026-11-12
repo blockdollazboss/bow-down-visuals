@@ -14,6 +14,7 @@ import { registerCrownfallWs } from "./routes/crownfall";
 import { registerVideoCallWs } from "./routes/video-calls";
 import { registerStageWs } from "./routes/trust";
 import { ensureCheatCodeTables } from "./lib/ensure-cheat-code-tables";
+import { installDbEmailThemeRotationStore } from "./lib/email-theme-rotation-db";
 import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
 import { recoverInterruptedVaultJobsBoot } from "./lib/vault-runner";
 import { recoverInterruptedLipSyncRuns } from "./routes/lip-sync";
@@ -91,6 +92,13 @@ const server = app.listen(port, (err) => {
   ensureCheatCodeTables().catch((ddlErr) =>
     logger.error({ ddlErr }, "Cheat Code table ensure failed"),
   );
+
+  // Email theme rotation (migration 0338, join21): swap the rotation's
+  // in-memory default store for the durable email_theme_rotation
+  // table, so a customer's dark/light sequence survives restarts.
+  // Synchronous plug-in at the seam — the store is lazy per call and
+  // fail-open if the table has not landed yet.
+  installDbEmailThemeRotationStore();
 
   // Re-queue export jobs orphaned by a previous process (deploy/restart/crash).
   // Runs after listen so the server is already serving polls for recovered jobs.
