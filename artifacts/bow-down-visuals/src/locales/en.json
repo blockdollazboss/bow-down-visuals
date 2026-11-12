@@ -22744,6 +22744,8 @@
     "dirHasContent": "Their music and featured work are on the walls.",
     "dirNoContent": "A quiet room — its host is still moving in.",
     "dirOccupants": "{{count}} in",
+    "dirConnectionsOne": "{{count}} connection",
+    "dirConnectionsMany": "{{count}} connections",
     "dirFooter": "Every room is its creator's place — their screen, their music rail, their Front Row, their store door. Pick one and the palace walks you through the arch.",
     "officeMarkerHeadline": "Office hours — {{host}}",
     "officeMarkerNotePrefix": " — {{note}}",

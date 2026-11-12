@@ -109,6 +109,7 @@ import {
   type GiftCardVerifyResult,
 } from "@/lib/world/gift-cards";
 import { isSameShelfItem } from "@/lib/world/shelf";
+import { presenceBreakdown } from "@/lib/world/presence-label";
 import type { ShelfPlayerController } from "./ShelfPlayer";
 import { PortraitCard } from "./PortraitCard";
 
@@ -764,6 +765,26 @@ export function CreatorRoomsDirectory({
   }
   const mine = mySlug ? rooms.find((r) => r.slug === mySlug) ?? null : null;
   const others = mine ? rooms.filter((r) => r.slug !== mine.slug) : rooms;
+  /* The row's presence label (B-25): the member part rides
+   * dirOccupants ("N in" — people); guest peers are per-tab
+   * connections and are labeled connections, never folded
+   * silently into the people count. */
+  const dirPresenceLabel = (r: CreatorRoomSummary): string => {
+    const { people, connections } = presenceBreakdown(r.occupantCount, r.guestConnections);
+    const parts: string[] = [];
+    if (people > 0)
+      parts.push(t("worldCreatorRooms.dirOccupants", { count: people.toLocaleString(i18n.language) }));
+    if (connections > 0)
+      parts.push(
+        t(
+          connections === 1
+            ? "worldCreatorRooms.dirConnectionsOne"
+            : "worldCreatorRooms.dirConnectionsMany",
+          { count: connections.toLocaleString(i18n.language) },
+        ),
+      );
+    return parts.join(" · ");
+  };
   const row = (r: CreatorRoomSummary, isMine: boolean) => (
     <button
       key={r.slug}
@@ -820,7 +841,7 @@ export function CreatorRoomsDirectory({
       </span>
       {r.occupantCount > 0 && (
         <span className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-bold ${isLight ? "text-[#7A5A12]" : "text-[#e8c86a]"}`}>
-          <Users className="h-3.5 w-3.5" /> {t("worldCreatorRooms.dirOccupants", { count: r.occupantCount.toLocaleString(i18n.language) })}
+          <Users className="h-3.5 w-3.5" /> {dirPresenceLabel(r)}
         </span>
       )}
       <DoorOpen className="h-4 w-4 shrink-0 text-[#d4af37]" />

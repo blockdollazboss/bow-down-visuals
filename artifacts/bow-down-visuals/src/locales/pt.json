@@ -22794,6 +22794,8 @@
     "dirHasContent": "A música dele e seu trabalho em destaque estão nas paredes.",
     "dirNoContent": "Uma sala tranquila — seu anfitrião ainda está se instalando.",
     "dirOccupants": "{{count}} dentro",
+    "dirConnectionsOne": "{{count}} connection",
+    "dirConnectionsMany": "{{count}} connections",
     "dirFooter": "Cada sala é o lugar do seu criador — sua tela, seu trilho de música, seu Front Row, a porta da sua loja. Escolha uma e o palácio leva você pelo arco.",
     "officeMarkerHeadline": "Horário de atendimento — {{host}}",
     "officeMarkerNotePrefix": " — {{note}}",

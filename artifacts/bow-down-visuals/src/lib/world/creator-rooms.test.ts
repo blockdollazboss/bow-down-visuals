@@ -152,6 +152,7 @@ const DIRECTORY_PAYLOAD = {
       theme: { primary: "#aa2244", accent: "#ffcc88", background: "#100408" },
       hasContent: true,
       occupantCount: 2,
+      guestConnections: 1,
     },
     { slug: "broken-row" },
     "not-a-row",
@@ -170,6 +171,7 @@ const DETAIL_PAYLOAD = {
     theme: { primary: "#aa2244", accent: "not-a-color", background: "#100408" },
     followerCount: 42,
     occupantCount: 1,
+    guestConnections: 1,
     featuredVideo: {
       id: "vid-1",
       title: "The Big Video",
@@ -214,6 +216,8 @@ describe("the data seam", () => {
       theme: { primary: "#aa2244", accent: "#ffcc88" },
       hasContent: true,
       occupantCount: 2,
+      /* B-25: the guest-connection breakdown rides the same read. */
+      guestConnections: 1,
     });
     expect(parseCreatorRoomDirectory(null)).toEqual([]);
     expect(parseCreatorRoomDirectory({ rooms: "nope" })).toEqual([]);
@@ -227,6 +231,7 @@ describe("the data seam", () => {
     expect(detail!.tracks.map((t) => t.id)).toEqual(["trk-1"]);
     expect(detail!.featuredVideo?.id).toBe("vid-1");
     expect(detail!.featuredTrack).toBeNull();
+    expect(detail!.guestConnections).toBe(1);
     expect(detail!.storefront).toEqual({ id: "shop-1", handle: "nova-goods", name: "Nova Goods" });
     expect(parseCreatorRoomDetail({})).toBeNull();
     expect(parseCreatorRoomDetail({ room: { slug: "x" } })).toBeNull();

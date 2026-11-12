@@ -144,6 +144,13 @@ export interface PalaceDirectoryEntry {
   id: string;
   name: string;
   count: number;
+  /** Of count, how many are GUEST connections (B-25, owner
+   *  ruling Nov 11, 2026) — labeled "connections," never
+   *  people; count − guestConnections is the people part.
+   *  Optional at this boundary: a frame from a server that
+   *  predates the breakdown reads as no guest connections
+   *  broken out (presenceBreakdown treats it as 0). */
+  guestConnections?: number;
   members: string[];
   live: boolean;
   /** The room's door is locked (Lane F): the people inside stay,

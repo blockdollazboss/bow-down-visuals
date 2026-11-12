@@ -22765,6 +22765,8 @@
     "dirHasContent": "उनका संगीत और विशेष काम दीवारों पर है।",
     "dirNoContent": "एक शांत कमरा — उसका मेज़बान अभी बस रहा है।",
     "dirOccupants": "{{count}} अंदर",
+    "dirConnectionsOne": "{{count}} connection",
+    "dirConnectionsMany": "{{count}} connections",
     "dirFooter": "हर कमरा उसके क्रिएटर की जगह है — उनकी स्क्रीन, उनकी संगीत रेल, उनकी Front Row, उनका दुकान का दरवाज़ा। एक चुनें और महल आपको मेहराब से ले जाएगा।",
     "officeMarkerHeadline": "कार्यालय समय — {{host}}",
     "officeMarkerNotePrefix": " — {{note}}",

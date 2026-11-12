@@ -59,8 +59,8 @@ describe("the world page's directory bar", () => {
   });
 
   it("labels each room with its name and the occupant count the pill displays", () => {
-    expect(bar).toContain("aria-label={`${r.name}, ${r.count}");
-    expect(bar).toContain('"person" : "people"} inside');
+    expect(bar).toContain("aria-label={`${r.name}, ${presenceCountText(r.count, r.guestConnections)}");
+    expect(bar).toContain("presenceCountText(r.count, r.guestConnections)} inside");
     expect(bar).toContain('", you\'re here"');
   });
 
@@ -117,6 +117,9 @@ describe("the Kingdom Board's directory rows", () => {
   });
 
   it("labels each row with the room name and the count it displays", () => {
-    expect(panel).toContain("const rowLabel = `${r.name}, ${r.count}");
+    expect(panel).toContain("const rowLabel = `${r.name}, ${presenceCountText(r.count, r.guestConnections)}");
+    /* The visible pill renders the same honest label as the aria
+     * row label (B-25: members as people, guests as connections). */
+    expect(panel).toContain("{presenceCountText(r.count, r.guestConnections)}");
   });
 });

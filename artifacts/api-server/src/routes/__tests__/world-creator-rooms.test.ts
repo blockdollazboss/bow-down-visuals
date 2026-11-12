@@ -278,6 +278,7 @@ describe("GET /api/world/creator-rooms — the rooms directory", () => {
       theme: { primary: "#aa2244", accent: "#ffcc88", background: "#100408" },
       hasContent: true,
       occupantCount: 0,
+      guestConnections: 0,
     });
     /* The DTO disease guard: no raw row fields on the wire. */
     expect(nova.userId).toBeUndefined();
@@ -309,6 +310,7 @@ describe("GET /api/world/creator-rooms/:slug — one room's data", () => {
       roomName: "Nova Reyes's Room",
       followerCount: 42,
       occupantCount: 0,
+      guestConnections: 0,
     });
     /* No pin: the featured picks are the newest published of each
      * kind; drafts are nowhere in the room. */

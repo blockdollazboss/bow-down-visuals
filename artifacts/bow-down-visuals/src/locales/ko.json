@@ -22765,6 +22765,8 @@
     "dirHasContent": "그 사람의 음악과 대표작이 벽에 있습니다.",
     "dirNoContent": "조용한 방 — 호스트가 아직 입주 중입니다.",
     "dirOccupants": "{{count}}명 있음",
+    "dirConnectionsOne": "{{count}} connection",
+    "dirConnectionsMany": "{{count}} connections",
     "dirFooter": "모든 방은 그 크리에이터의 자리입니다 — 그 사람의 화면, 음악 레일, Front Row, 상점 문. 하나를 고르면 궁전이 아치를 통해 안내합니다.",
     "officeMarkerHeadline": "오피스 아워 — {{host}}",
     "officeMarkerNotePrefix": " — {{note}}",

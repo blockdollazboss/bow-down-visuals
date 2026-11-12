@@ -999,6 +999,13 @@ interface WorldCreatorRoomSummary {
   theme: WorldCreatorRoomTheme;
   hasContent: boolean;
   occupantCount: number;
+  /** Of occupantCount, how many are GUEST connections (B-25,
+   *  owner ruling Nov 11, 2026): guest peers are per-tab
+   *  connections, member peers are exact people. The client
+   *  labels this part "connections," never people. A breakdown
+   *  of the same presentPeers() read occupantCount takes —
+   *  the counting itself is unchanged. */
+  guestConnections: number;
   evolution: WorldCreatorRoomEvolution | null;
 }
 
@@ -1096,6 +1103,9 @@ interface WorldCreatorRoomDetail {
   theme: WorldCreatorRoomTheme;
   followerCount: number;
   occupantCount: number;
+  /** Of occupantCount, how many are GUEST connections (B-25 —
+   *  see WorldCreatorRoomSummary.guestConnections). */
+  guestConnections: number;
   featuredVideo: WorldCreatorRoomVideo | null;
   featuredTrack: WorldCreatorRoomTrack | null;
   tracks: WorldCreatorRoomTrack[];
@@ -1153,6 +1163,7 @@ function creatorRoomSummaryFromProfile(
   parts: {
     hasContent: boolean;
     occupantCount: number;
+    guestConnections: number;
     evolution?: WorldCreatorRoomEvolution | null;
   },
 ): WorldCreatorRoomSummary {
@@ -1166,6 +1177,7 @@ function creatorRoomSummaryFromProfile(
     theme: creatorRoomThemeFromConfig(profile.themeConfig),
     hasContent: parts.hasContent,
     occupantCount: parts.occupantCount,
+    guestConnections: parts.guestConnections,
     evolution: parts.evolution ?? null,
   };
 }
@@ -1263,6 +1275,7 @@ router.get("/world/creator-rooms", publicApiLimiter, async (_req, res) => {
       creatorRoomSummaryFromProfile(p, {
         hasContent: home.has(p.id),
         occupantCount: activePalace?.creatorRoom(p.slug)?.presentPeers().length ?? 0,
+        guestConnections: activePalace?.creatorRoom(p.slug)?.presentPeers().filter((p) => p.guest).length ?? 0,
         evolution: evolutions[i] ?? null,
       }),
     );
@@ -1389,6 +1402,7 @@ router.get("/world/creator-rooms/:slug", publicApiLimiter, async (req, res) => {
       theme: creatorRoomThemeFromConfig(profile.themeConfig),
       followerCount: profile.followerCount ?? 0,
       occupantCount: room?.presentPeers().length ?? 0,
+      guestConnections: room?.presentPeers().filter((p) => p.guest).length ?? 0,
       featuredVideo: pickFeaturedVideo(profile, videos.filter((v) => v.videoUrl)),
       featuredTrack: pickFeaturedTrack(profile, tracks.filter((t) => t.audioUrl)),
       tracks: tracks.filter((t) => t.audioUrl).map(creatorRoomTrackFromRow),

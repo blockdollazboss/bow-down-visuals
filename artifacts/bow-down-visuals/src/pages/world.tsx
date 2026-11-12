@@ -280,6 +280,7 @@ import {
   GUEST_SPEAK_PITCH,
   memberControlsVisible,
 } from "@/lib/world/guest-honest";
+import { presenceCountText } from "@/lib/world/presence-label";
 
 /* ─── The World — the palace (/world) ───────────────────────────────────────
    One shared VR palace: the King's Hall (a stage and a big screen —
@@ -3801,7 +3802,7 @@ export default function WorldPage() {
                 type="button"
                 data-testid="world-directory-room"
                 aria-current={here ? "true" : undefined}
-                aria-label={`${r.name}, ${r.count} ${r.count === 1 ? "person" : "people"} inside${r.live ? ", live now" : ""}${r.locked ? ", door locked" : ""}${here ? ", you're here" : ""}`}
+                aria-label={`${r.name}, ${presenceCountText(r.count, r.guestConnections)} inside${r.live ? ", live now" : ""}${r.locked ? ", door locked" : ""}${here ? ", you're here" : ""}`}
                 onClick={() => goToDirectoryRoom(r)}
                 className={`bdv-touch-target inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37] ${
                   isLight ? "focus-visible:ring-offset-[#FBF6E9]" : "focus-visible:ring-offset-[#070605]"
