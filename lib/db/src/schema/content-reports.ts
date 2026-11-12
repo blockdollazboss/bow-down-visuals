@@ -21,10 +21,12 @@ import { z } from "zod/v4";
  * guest reports never dedupe against each other — the route's
  * one-open-report rule applies to identified reporters only, and the
  * per-IP rate limiter is the guest rail's abuse brake.
- * ⚠️ TRAILING STEP: migration 0174 created reporter_user_id NOT NULL.
- * Dropping that constraint needs a join-assigned migration number —
- * until it lands, guest inserts fail at the database and the route
- * answers an honest 500; member reports are unaffected.
+ * Migration 0174 created reporter_user_id NOT NULL; migration 0337
+ * (join21) dropped the constraint, so schema, migration, and database
+ * agree: the column is nullable, exactly as declared below. (On a
+ * database where 0337 has not landed yet, guest inserts still fail
+ * at the old constraint and the route answers an honest 500; member
+ * reports are unaffected either way.)
  *
  * "fan_art" joined the vocabulary with the Fan Art Wall (Stack-200
  * #157, provisional migration 9999 widens the DB check): a report on

@@ -1,0 +1,23 @@
+-- 0337: content_reports — guest reports carry a NULL reporter
+-- (join21, landing the moderation lane's named trailing step).
+--
+-- WHY THIS FILE EXISTS: migration 0174 created reporter_user_id
+-- NOT NULL, back when only signed-in members could report. The
+-- owner-approved Moderation and Takedown Rules (Nov 11, 2026) say
+-- anyone can report, including guests, and the moderation lane
+-- (stack1600/moderation-wire) opened the rail on that ruling: a
+-- guest files with reporter_user_id NULL, a member's report names
+-- its reporter. The drizzle schema already declares the column
+-- nullable (lib/db/src/schema/content-reports.ts) — this migration
+-- makes the database agree. Until it lands, guest inserts fail at
+-- the NOT NULL constraint and the route answers an honest 500;
+-- member reports are unaffected either way.
+--
+-- DROP NOT NULL is idempotent in Postgres: re-running this file
+-- once the column is nullable is a no-op. The partial unique index
+-- (content_reports_open_unique_idx) needs no change — Postgres
+-- treats NULLs as distinct, so guest reports never dedupe against
+-- each other; the route's per-IP rate limiter is the guest rail's
+-- abuse brake. No BEGIN/COMMIT, no CONCURRENTLY.
+
+ALTER TABLE content_reports ALTER COLUMN reporter_user_id DROP NOT NULL;
