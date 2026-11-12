@@ -167,7 +167,7 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
         <div
           aria-hidden
-          className="absolute h-16 w-[26rem] max-w-[80%] rounded-full"
+          className="absolute h-16 w-[34rem] max-w-[92%] rounded-full"
           style={{
             background:
               "radial-gradient(ellipse at center, rgba(5,3,1,0.72) 0%, rgba(5,3,1,0.28) 55%, transparent 75%)",

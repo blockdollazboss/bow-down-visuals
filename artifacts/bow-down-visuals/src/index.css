@@ -354,6 +354,17 @@ html, body {
   background-position: center;
   background-repeat: no-repeat;
   flex: none;
+  /* Homepage D1 fix (owner-approved Gate-1 preview, Nov 11, 2026):
+     the home page root is an isolated stacking context at z-index 1
+     whose fixed palace stage painted over these static strips,
+     hiding the stone on the very page the marble ruling named. The
+     strips now sit positioned at z-index 2 — above the page-root
+     context — so the approved strip shows at the homepage's top and
+     foot exactly as previewed. The stage itself is untouched, and
+     on every other route nothing overlaps the strips, so nothing
+     else renders differently. */
+  position: relative;
+  z-index: 2;
 }
 .marble-strip-top {
   background-image: url("/world/textures/marble-black.jpg");
