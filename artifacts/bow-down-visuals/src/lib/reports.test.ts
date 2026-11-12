@@ -140,6 +140,7 @@ describe("the docks — Report action lives in the existing surfaces", () => {
   const postCard = read("../components/social/PostCard.tsx");
   const commentThread = read("../components/player/CommentThread.tsx");
   const shorts = read("../pages/shorts.tsx");
+  const storyViewer = read("../components/social/StoryViewer.tsx");
   const groupDetail = read("../pages/group-detail.tsx");
   const profileSections = read("../components/artist/profile-sections.tsx");
   const admin = read("../pages/admin.tsx");
@@ -177,6 +178,17 @@ describe("the docks — Report action lives in the existing surfaces", () => {
     expect(shorts).toContain("<ReportButton");
     expect(shorts).toContain('targetType="comment" targetId={c.id} variant="text"');
     expect(shorts).toContain("c.user_id !== user?.id");
+  });
+
+  it("the story viewer docks it on the story under the story type, hidden on your own stories (stories report lane)", () => {
+    expect(storyViewer).toContain("<ReportButton");
+    expect(storyViewer).toContain('targetType="story" targetId={story.id}');
+    /* own-story hiding compares the story's profile against the
+       viewer's own creator profile id (guests own no stories, so
+       the dock always shows for them); the dialog names the
+       target with the story noun. */
+    expect(storyViewer).toContain("story.profile_id !== myProfileId");
+    expect(dialog).toContain('story: "story"');
   });
 
   it("group feed posts, forum threads, and forum replies dock it, hidden on your own (moderation follow-on)", () => {

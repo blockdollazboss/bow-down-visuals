@@ -9,7 +9,9 @@ import { apiErrorMessage } from "./api-error";
  * endpoint, no UI (the DMCA form on the copyright page is a public
  * legal intake, not a member report button). Filing a report only
  * queues the target for a human admin; nothing is auto-hidden or
- * auto-banned, and the dialog says so.
+ * auto-banned, and the dialog says so. Creator stories joined the
+ * vocabulary in the stories report lane (Nov 11, 2026) — the
+ * StoryViewer's dock files them under the "story" type.
  *
  * Anyone can file, guests included (the approved rules' exact
  * terms): submitReport already rides apiFetch, which simply omits
@@ -49,7 +51,7 @@ export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
   other: "Something else",
 };
 
-export type ReportTargetType = "post" | "comment" | "profile" | "fan_art";
+export type ReportTargetType = "post" | "comment" | "profile" | "fan_art" | "story";
 
 interface FiledReport {
   id: string;
